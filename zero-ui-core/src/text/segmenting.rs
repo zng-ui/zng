@@ -1,10 +1,13 @@
+use crate::context::LayoutDirection;
+
 use super::Text;
+use unicode_bidi::BidiInfo;
 use xi_unicode::LineBreakIterator;
 
 /// The type of a [text segment](SegmentedText).
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TextSegmentKind {
-    /// A sequence of characters that cannot be separated by a line-break.
+    /// A sequence of characters that cannot be separated by a line-break and are all in the same direction.
     Word,
     /// A sequence of characters that all have the `White_Space` Unicode property, except the [`Tab`](Self::Tab) and
     ///[`LineBreak`](Self::LineBreak) characters.
@@ -20,6 +23,12 @@ pub enum TextSegmentKind {
 pub struct TextSegment {
     /// Segment kind.
     pub kind: TextSegmentKind,
+    /// Direction of the glyphs in the segment and how it advances given the context of .
+    ///
+    /// Segments iterate in the logical order, that is, the order the text is typed. If two segments
+    /// in the same line have direction `RTL` they must be layout the first to the right of the second.
+    pub direction: LayoutDirection,
+
     /// Exclusive end index on the source text.
     ///
     /// The segment range starts from the `end` of the previous segment, or `0`, e.g: `prev_seg.end..self.end`.
@@ -30,9 +39,6 @@ pub struct TextSegment {
 ///
 /// Each segment is tagged with a [`TextSegmentKind`] and is represented as
 /// an offset from the last segment.
-///
-/// Line-break segments must be applied and a line-break can be inserted in between the other segment kinds
-/// for wrapping the text.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SegmentedText {
     text: Text,
@@ -40,12 +46,13 @@ pub struct SegmentedText {
 }
 impl SegmentedText {
     /// New segmented text from any text type.
-    pub fn new(text: impl Into<Text>) -> Self {
-        Self::new_text(text.into())
+    pub fn new(text: impl Into<Text>, base_direction: LayoutDirection) -> Self {
+        Self::new_text(text.into(), base_direction)
     }
-    fn new_text(text: Text) -> Self {
+    fn new_text(text: Text, base_direction: LayoutDirection) -> Self {
         let mut segs: Vec<TextSegment> = vec![];
         let text_str: &str = &text;
+        let bidi = BidiInfo::new(text_str, Some(base_direction.into()));
 
         for (offset, hard_break) in LineBreakIterator::new(text_str) {
             // a hard-break is a '\n', "\r\n".
@@ -67,43 +74,50 @@ impl SegmentedText {
 
                 if break_start > start {
                     // the segment has more characters than the line-break character(s).
-                    Self::push_seg(text_str, &mut segs, break_start);
+                    Self::push_seg(text_str, &bidi, &mut segs, break_start);
                 }
                 if break_start < offset {
                     // the line break character(s).
                     segs.push(TextSegment {
                         kind: TextSegmentKind::LineBreak,
                         end: offset,
+                        direction: bidi.levels[break_start].into(),
                     })
                 }
             } else {
                 // is a soft-break, an opportunity to break the line if needed
-                Self::push_seg(text_str, &mut segs, offset);
+                Self::push_seg(text_str, &bidi, &mut segs, offset);
             }
         }
         SegmentedText { text, segments: segs }
     }
-    fn push_seg(text: &str, segs: &mut Vec<TextSegment>, end: usize) {
+    fn push_seg(text: &str, bidi: &BidiInfo, segs: &mut Vec<TextSegment>, end: usize) {
         let start = segs.last().map(|s| s.end).unwrap_or(0);
 
         let mut kind = TextSegmentKind::Word;
+        let mut direction = LayoutDirection::LTR;
         for (i, c) in text[start..end].char_indices() {
-            let c_kind = if c == '\t' {
-                TextSegmentKind::Tab
+            let (c_kind, c_direction) = if c == '\t' {
+                (TextSegmentKind::Tab, direction)
             } else if ['\u{0020}', '\u{000a}', '\u{000c}', '\u{000d}'].contains(&c) {
-                TextSegmentKind::Space
+                (TextSegmentKind::Space, direction)
             } else {
-                TextSegmentKind::Word
+                (TextSegmentKind::Word, bidi.levels[start + i].into())
             };
 
-            if c_kind != kind {
+            if c_kind != kind || c_direction != direction {
                 if i > 0 {
-                    segs.push(TextSegment { kind, end: i + start });
+                    segs.push(TextSegment {
+                        kind,
+                        end: i + start,
+                        direction,
+                    });
                 }
+                direction = c_direction;
                 kind = c_kind;
             }
         }
-        segs.push(TextSegment { kind, end });
+        segs.push(TextSegment { kind, end, direction });
     }
 
     /// The text string.
@@ -117,15 +131,15 @@ impl SegmentedText {
     }
 
     /// Returns the text segment and kind if `index` is in bounds.
-    pub fn get(&self, index: usize) -> Option<(&str, TextSegmentKind)> {
-        if let Some(seg) = self.segments.get(index) {
+    pub fn get(&self, index: usize) -> Option<(&str, TextSegment)> {
+        if let Some(&seg) = self.segments.get(index) {
             let text = if index == 0 {
                 &self.text[..seg.end]
             } else {
                 &self.text[self.segments[index - 1].end..seg.end]
             };
 
-            Some((text, seg.kind))
+            Some((text, seg))
         } else {
             None
         }
@@ -133,9 +147,9 @@ impl SegmentedText {
 
     /// Returns a clone of the text segment if `index` is in bounds.
     pub fn get_clone(&self, index: usize) -> Option<SegmentedText> {
-        self.get(index).map(|(s, k)| SegmentedText {
-            text: s.to_owned().into(),
-            segments: vec![TextSegment { kind: k, end: s.len() }],
+        self.get(index).map(|(txt, seg)| SegmentedText {
+            text: txt.to_owned().into(),
+            segments: vec![TextSegment { end: txt.len(), ..seg }],
         })
     }
 
@@ -177,8 +191,9 @@ impl SegmentedText {
     ///
     /// ```
     /// # use zero_ui_core::text::SegmentedText;
-    /// for (sub_str, segment_kind) in SegmentedText::new("Foo bar!\nBaz.").iter() {
-    ///     println!("s: {sub_str:?} is a `{segment_kind:?}`");
+    /// # use zero_ui_core::context::LayoutDirection;
+    /// for (sub_str, seg) in SegmentedText::new("Foo bar!\nBaz.", LayoutDirection::LTR).iter() {
+    ///     println!("s: {sub_str:?} is a `{:?}`", seg.kind);
     /// }
     /// ```
     /// Prints
@@ -207,10 +222,10 @@ pub struct SegmentedTextIter<'a> {
     segs_iter: std::slice::Iter<'a, TextSegment>,
 }
 impl<'a> Iterator for SegmentedTextIter<'a> {
-    type Item = (&'a str, TextSegmentKind);
+    type Item = (&'a str, TextSegment);
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(seg) = self.segs_iter.next() {
-            let r = Some((&self.text[self.start..seg.end], seg.kind));
+        if let Some(&seg) = self.segs_iter.next() {
+            let r = Some((&self.text[self.start..seg.end], seg));
             self.start = seg.end;
             r
         } else {
@@ -221,15 +236,19 @@ impl<'a> Iterator for SegmentedTextIter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::text::*;
+    use crate::{context::LayoutDirection, text::*};
 
     #[test]
     fn segments() {
         let test = "a\nb\r\nc\td ";
-        let actual = SegmentedText::new(test);
+        let actual = SegmentedText::new(test, LayoutDirection::LTR);
 
         fn seg(kind: TextSegmentKind, end: usize) -> TextSegment {
-            TextSegment { kind, end }
+            TextSegment {
+                kind,
+                end,
+                direction: LayoutDirection::LTR,
+            }
         }
         use TextSegmentKind::*;
 

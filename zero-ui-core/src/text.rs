@@ -1707,11 +1707,13 @@ use crate::var::{IntoVar, LocalVar};
 
 #[cfg(test)]
 mod tests {
+    use crate::context::LayoutDirection;
+
     use super::*;
 
     #[test]
     fn segmented_text1() {
-        let t = SegmentedText::new("foo \n\nbar\n");
+        let t = SegmentedText::new("foo \n\nbar\n", LayoutDirection::LTR);
 
         use TextSegmentKind::*;
         let expected = vec![
@@ -1722,7 +1724,7 @@ mod tests {
             ("bar", Word),
             ("\n", LineBreak),
         ];
-        let actual: Vec<_> = t.iter().collect();
+        let actual: Vec<_> = t.iter().map(|(s, k)| (s, k.kind)).collect();
 
         assert_eq!(expected.len(), actual.len());
         for (expected, actual) in expected.into_iter().zip(actual) {
@@ -1732,7 +1734,7 @@ mod tests {
     }
     #[test]
     fn segmented_text2() {
-        let t = SegmentedText::new("baz  \r\n\r\n  fa".to_owned());
+        let t = SegmentedText::new("baz  \r\n\r\n  fa".to_owned(), LayoutDirection::LTR);
 
         use TextSegmentKind::*;
         let expected = vec![
@@ -1743,7 +1745,7 @@ mod tests {
             ("  ", Space),
             ("fa", Word),
         ];
-        let actual: Vec<_> = t.iter().collect();
+        let actual: Vec<_> = t.iter().map(|(s, k)| (s, k.kind)).collect();
 
         assert_eq!(expected.len(), actual.len());
         for (expected, actual) in expected.into_iter().zip(actual) {
@@ -1753,11 +1755,11 @@ mod tests {
     }
     #[test]
     fn segmented_text3() {
-        let t = SegmentedText::new("\u{200B}	");
+        let t = SegmentedText::new("\u{200B}	", LayoutDirection::LTR);
 
         use TextSegmentKind::*;
         let expected = vec![("\u{200B}", Word), ("\t", Tab)];
-        let actual: Vec<_> = t.iter().collect();
+        let actual: Vec<_> = t.iter().map(|(s, k)| (s, k.kind)).collect();
 
         assert_eq!(expected.len(), actual.len());
         for (expected, actual) in expected.into_iter().zip(actual) {
@@ -1768,11 +1770,11 @@ mod tests {
 
     #[test]
     fn segmented_text4() {
-        let t = SegmentedText::new("move to 0x0");
+        let t = SegmentedText::new("move to 0x0", LayoutDirection::LTR);
 
         use TextSegmentKind::*;
         let expected = vec![("move", Word), (" ", Space), ("to", Word), (" ", Space), ("0x0", Word)];
-        let actual: Vec<_> = t.iter().collect();
+        let actual: Vec<_> = t.iter().map(|(s, k)| (s, k.kind)).collect();
 
         assert_eq!(expected.len(), actual.len());
         for (expected, actual) in expected.into_iter().zip(actual) {

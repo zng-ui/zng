@@ -2128,7 +2128,7 @@ impl Default for LayoutDirection {
 impl fmt::Debug for LayoutDirection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            write!(f, "LayoutDirection")?;
+            write!(f, "LayoutDirection::")?;
         }
         match self {
             Self::LTR => write!(f, "LTR"),
@@ -2141,6 +2141,50 @@ impl From<unic_langid::CharacterDirection> for LayoutDirection {
         match value {
             unic_langid::CharacterDirection::LTR => Self::LTR,
             unic_langid::CharacterDirection::RTL => Self::RTL,
+        }
+    }
+}
+impl From<unicode_bidi::Level> for LayoutDirection {
+    fn from(value: unicode_bidi::Level) -> Self {
+        if value.is_ltr() {
+            Self::LTR
+        } else {
+            Self::RTL
+        }
+    }
+}
+impl TryFrom<harfbuzz_rs::Direction> for LayoutDirection {
+    type Error = harfbuzz_rs::Direction;
+
+    fn try_from(value: harfbuzz_rs::Direction) -> Result<Self, Self::Error> {
+        match value {
+            harfbuzz_rs::Direction::Ltr => Ok(Self::LTR),
+            harfbuzz_rs::Direction::Rtl => Ok(Self::RTL),
+            other => Err(other),
+        }
+    }
+}
+impl From<LayoutDirection> for unic_langid::CharacterDirection {
+    fn from(value: LayoutDirection) -> Self {
+        match value {
+            LayoutDirection::LTR => Self::LTR,
+            LayoutDirection::RTL => Self::RTL,
+        }
+    }
+}
+impl From<LayoutDirection> for unicode_bidi::Level {
+    fn from(value: LayoutDirection) -> Self {
+        match value {
+            LayoutDirection::LTR => Self::ltr(),
+            LayoutDirection::RTL => Self::rtl(),
+        }
+    }
+}
+impl From<LayoutDirection> for harfbuzz_rs::Direction {
+    fn from(value: LayoutDirection) -> Self {
+        match value {
+            LayoutDirection::LTR => Self::Ltr,
+            LayoutDirection::RTL => Self::Rtl,
         }
     }
 }

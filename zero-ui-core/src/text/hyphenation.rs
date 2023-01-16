@@ -50,7 +50,22 @@ impl Hyphenation {
     /// Returns a vector of indexes that allow a line break. Returns `None` if the `lang` is not supported or the `word` contains non-word characters.
     pub fn hyphenate_opt(lang: &Lang, word: &str) -> Option<Vec<usize>> {
         let lang = Self::lang_to_hyphenation_language(lang)?;
+        Self::hyphenate_opt_language(word, lang)
+    }
 
+    /// Get the best [`hyphenation::Language`] for the `lang`.
+    pub fn lang_to_hyphenation_language(lang: &Lang) -> Option<hyphenation::Language> {
+        for (l, r) in &*util::LANG_TO_LANGUAGE_MAP.read() {
+            if lang.matches(l, false, true) {
+                return Some(*r);
+            }
+        }
+
+        None
+    }
+
+    /// Hyphenate with language already resolved.
+    pub fn hyphenate_opt_language(word: &str, lang: hyphenation::Language) -> Option<Vec<usize>> {
         if !util::WORD_REGEX.read().is_match(word) {
             return None;
         }
@@ -78,17 +93,6 @@ impl Hyphenation {
             h.dictionaries.push(d);
 
             return r;
-        }
-
-        None
-    }
-
-    /// Get the best [`hyphenation::Language`] for the `lang`.
-    pub fn lang_to_hyphenation_language(lang: &Lang) -> Option<hyphenation::Language> {
-        for (l, r) in &*util::LANG_TO_LANGUAGE_MAP.read() {
-            if lang.matches(l, false, true) {
-                return Some(*r);
-            }
         }
 
         None

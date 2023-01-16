@@ -204,7 +204,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             *self.resolved.get_mut() = Some(ResolvedText {
                 synthesis: FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight),
                 faces,
-                text: SegmentedText::new(text),
+                text: SegmentedText::new(text, LANG_VAR.get().character_direction().into()),
                 reshape: false,
                 baseline: Px(0),
                 caret_opacity,
@@ -294,12 +294,13 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let r = self.resolved.get_mut().as_mut().unwrap();
 
             // update `r.text`, affects layout.
-            if self.text.is_new(ctx) || TEXT_TRANSFORM_VAR.is_new(ctx) || WHITE_SPACE_VAR.is_new(ctx) {
+            if self.text.is_new(ctx) || TEXT_TRANSFORM_VAR.is_new(ctx) || WHITE_SPACE_VAR.is_new(ctx) || LANG_VAR.is_new(ctx) {
                 let text = self.text.get();
                 let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
                 let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
+                let direction = LANG_VAR.with(|l| l.character_direction().into());
                 if r.text.text() != text {
-                    r.text = SegmentedText::new(text);
+                    r.text = SegmentedText::new(text, direction); // !!: TODO check if direction actually changed.
 
                     r.reshape = true;
                     ctx.updates.layout();

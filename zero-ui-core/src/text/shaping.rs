@@ -36,7 +36,7 @@ pub struct TextShapingArgs {
     /// Extra spacing added in between lines.
     pub line_spacing: Px,
 
-    /// Language of the text, defines the language, script and direction.
+    /// Primary language of the text.
     pub lang: Lang,
 
     /// Don't use font ligatures.
@@ -346,7 +346,7 @@ pub struct ShapedText {
 impl ShapedText {
     /// New empty text.
     pub fn new(font: &FontRef) -> Self {
-        font.shape_text(&SegmentedText::new(""), &TextShapingArgs::default())
+        font.shape_text(&SegmentedText::new("", LayoutDirection::LTR), &TextShapingArgs::default())
     }
 
     /// Glyphs by font.
@@ -1137,7 +1137,7 @@ impl ShapedTextBuilder {
             text_seg_end: 0,
         };
 
-        let word_ctx_key = WordContextKey::new(config);
+        let word_ctx_key = WordContextKey::new(&config.lang, config.lang.character_direction().into(), &config.font_features);
 
         let metrics = font.metrics();
 
@@ -1203,9 +1203,9 @@ impl ShapedTextBuilder {
     }
 
     fn push_text(&mut self, font: &FontRef, features: &RFontFeatures, word_ctx_key: &WordContextKey, text: &SegmentedText) {
-        for (seg, kind) in text.iter() {
+        for (seg, info) in text.iter() {
             let max_width = self.actual_max_width();
-            match kind {
+            match info.kind {
                 TextSegmentKind::Word => {
                     font.shape_segment(seg, word_ctx_key, features, |shaped_seg| {
                         if self.origin.x + shaped_seg.x_advance > max_width {
@@ -1215,32 +1215,32 @@ impl ShapedTextBuilder {
                                 // need segment split
 
                                 // try to hyphenate
-                                let hyphenated = self.push_hyphenate(word_ctx_key, seg, shaped_seg);
+                                let hyphenated = self.push_hyphenate(word_ctx_key, seg, shaped_seg, info);
 
                                 if !hyphenated && self.break_words {
                                     // break word
-                                    self.push_split_seg(shaped_seg, seg, kind, self.letter_spacing);
+                                    self.push_split_seg(shaped_seg, seg, info, self.letter_spacing);
                                 } else if !hyphenated {
                                     // normal wrap, glyphs overflow
                                     self.push_line_break(true);
 
                                     // try to hyphenate with full width available
-                                    let hyphenaded = self.push_hyphenate(word_ctx_key, seg, shaped_seg);
+                                    let hyphenaded = self.push_hyphenate(word_ctx_key, seg, shaped_seg, info);
 
                                     if !hyphenaded {
                                         self.push_glyphs(shaped_seg, self.letter_spacing);
-                                        self.push_text_seg(seg, kind);
+                                        self.push_text_seg(seg, info);
                                     }
                                 }
                             } else {
                                 self.push_line_break(true);
                                 self.push_glyphs(shaped_seg, self.letter_spacing);
-                                self.push_text_seg(seg, kind);
+                                self.push_text_seg(seg, info);
                             }
                         } else {
                             // don't need wrap
                             self.push_glyphs(shaped_seg, self.letter_spacing);
-                            self.push_text_seg(seg, kind);
+                            self.push_text_seg(seg, info);
                         }
                     });
                 }
@@ -1250,15 +1250,15 @@ impl ShapedTextBuilder {
                             // need wrap
                             if seg.len() > 2 {
                                 // split spaces
-                                self.push_split_seg(shaped_seg, seg, kind, self.word_spacing);
+                                self.push_split_seg(shaped_seg, seg, info, self.word_spacing);
                             } else {
                                 self.push_line_break(true);
                                 self.push_glyphs(shaped_seg, self.word_spacing);
-                                self.push_text_seg(seg, kind);
+                                self.push_text_seg(seg, info);
                             }
                         } else {
                             self.push_glyphs(shaped_seg, self.word_spacing);
-                            self.push_text_seg(seg, kind);
+                            self.push_text_seg(seg, info);
                         }
                     });
                 }
@@ -1274,11 +1274,11 @@ impl ShapedTextBuilder {
                     });
                     self.out.clusters.push(0);
 
-                    self.push_text_seg(seg, kind);
+                    self.push_text_seg(seg, info);
                 }
                 TextSegmentKind::LineBreak => {
                     self.push_line_break(false);
-                    self.push_text_seg(seg, kind);
+                    self.push_text_seg(seg, info);
                 }
             }
         }
@@ -1301,16 +1301,16 @@ impl ShapedTextBuilder {
         });
     }
 
-    fn push_hyphenate(&mut self, word_ctx_key: &WordContextKey, seg: &str, shaped_seg: &ShapedSegmentData) -> bool {
+    fn push_hyphenate(&mut self, word_ctx_key: &WordContextKey, seg: &str, shaped_seg: &ShapedSegmentData, info: TextSegment) -> bool {
         if !matches!(self.hyphens, Hyphens::Auto) {
             return false;
         }
 
-        let split_points = Hyphenation::hyphenate(word_ctx_key.lang(), seg);
-        self.push_hyphenate_pt(&split_points, shaped_seg, seg)
+        let split_points = Hyphenation::hyphenate(&word_ctx_key.lang(), seg);
+        self.push_hyphenate_pt(&split_points, shaped_seg, seg, info)
     }
 
-    fn push_hyphenate_pt(&mut self, split_points: &[usize], shaped_seg: &ShapedSegmentData, seg: &str) -> bool {
+    fn push_hyphenate_pt(&mut self, split_points: &[usize], shaped_seg: &ShapedSegmentData, seg: &str, info: TextSegment) -> bool {
         if split_points.is_empty() {
             return false;
         }
@@ -1367,7 +1367,7 @@ impl ShapedTextBuilder {
             y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
         };
         self.push_glyphs(&shaped_seg_a, self.word_spacing);
-        self.push_text_seg(seg_a, TextSegmentKind::Word);
+        self.push_text_seg(seg_a, info);
 
         self.push_line_break(true);
 
@@ -1384,14 +1384,14 @@ impl ShapedTextBuilder {
 
         if shaped_seg_b.x_advance > self.actual_max_width() {
             // second half still does not fit, try to hyphenate again.
-            if self.push_hyphenate_pt(&split_points[end_point_i..], &shaped_seg_b, seg_b) {
+            if self.push_hyphenate_pt(&split_points[end_point_i..], &shaped_seg_b, seg_b, info) {
                 return true;
             }
         }
 
         // push second half
         self.push_glyphs(&shaped_seg_b, self.word_spacing);
-        self.push_text_seg(seg_b, TextSegmentKind::Word);
+        self.push_text_seg(seg_b, info);
         true
     }
 
@@ -1399,7 +1399,7 @@ impl ShapedTextBuilder {
         self.out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
             let r = GlyphInstance {
                 index: gi.index,
-                point: euclid::point2(gi.point.0 + self.origin.x, gi.point.1 + self.origin.y),
+                point: euclid::point2(gi.point.0 + self.origin.x, gi.point.1 + self.origin.y), // !!: <~~
             };
             self.origin.x += spacing;
             r
@@ -1437,19 +1437,19 @@ impl ShapedTextBuilder {
         }
     }
 
-    pub fn push_text_seg(&mut self, seg: &str, kind: TextSegmentKind) {
+    pub fn push_text_seg(&mut self, seg: &str, info: TextSegment) {
         self.text_seg_end += seg.len();
 
         self.out.segments.0.push(GlyphSegment {
             text: TextSegment {
-                kind,
                 end: self.text_seg_end,
+                ..info
             },
             end: self.out.glyphs.len(),
         });
     }
 
-    pub fn push_split_seg(&mut self, shaped_seg: &ShapedSegmentData, seg: &str, kind: TextSegmentKind, spacing: f32) {
+    pub fn push_split_seg(&mut self, shaped_seg: &ShapedSegmentData, seg: &str, info: TextSegment, spacing: f32) {
         let mut end_glyph = 0;
         let mut end_glyph_x = 0.0;
         let max_width = self.actual_max_width();
@@ -1467,7 +1467,7 @@ impl ShapedTextBuilder {
             // failed split
             self.push_line_break(true);
             self.push_glyphs(shaped_seg, spacing);
-            self.push_text_seg(seg, kind);
+            self.push_text_seg(seg, info);
         } else {
             let (seg_a, seg_b) = seg.split_at(glyphs_b[0].cluster as usize);
 
@@ -1477,7 +1477,7 @@ impl ShapedTextBuilder {
                 y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
             };
             self.push_glyphs(&shaped_seg_a, spacing);
-            self.push_text_seg(seg_a, kind);
+            self.push_text_seg(seg_a, info);
             self.push_line_break(true);
 
             let mut shaped_seg_b = ShapedSegmentData {
@@ -1492,9 +1492,9 @@ impl ShapedTextBuilder {
 
             if shaped_seg_b.x_advance <= max_width {
                 self.push_glyphs(&shaped_seg_b, spacing);
-                self.push_text_seg(seg_b, kind);
+                self.push_text_seg(seg_b, info);
             } else {
-                self.push_split_seg(&shaped_seg_b, seg_b, kind, spacing);
+                self.push_split_seg(&shaped_seg_b, seg_b, info, spacing);
             }
         }
     }
@@ -2002,18 +2002,20 @@ struct WordCacheKeyRef<'a, S> {
 
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub(super) struct WordContextKey {
-    lang: Lang,
-    font_features: Option<Box<[usize]>>,
+    lang: unic_langid::subtags::Language,
+    script: Option<unic_langid::subtags::Script>,
+    direction: LayoutDirection,
+    features: Box<[usize]>,
 }
 impl WordContextKey {
-    pub fn new(config: &TextShapingArgs) -> Self {
+    pub fn new(lang: &Lang, direction: LayoutDirection, font_features: &RFontFeatures) -> Self {
         let is_64 = mem::size_of::<usize>() == mem::size_of::<u64>();
 
-        let mut font_features = None;
+        let mut features = vec![];
 
-        if !config.font_features.is_empty() {
-            let mut features: Vec<_> = Vec::with_capacity(config.font_features.len() * if is_64 { 3 } else { 4 });
-            for feature in &config.font_features {
+        if !font_features.is_empty() {
+            features.reserve(font_features.len() * if is_64 { 3 } else { 4 });
+            for feature in font_features {
                 if is_64 {
                     let mut h = feature.tag().0 as usize;
                     h |= (feature.value() as usize) << 32;
@@ -2026,18 +2028,32 @@ impl WordContextKey {
                 features.push(feature.start());
                 features.push(feature.end());
             }
-
-            font_features = Some(features.into_boxed_slice());
         }
 
         WordContextKey {
-            lang: config.lang.clone(),
-            font_features,
+            lang: lang.language,
+            script: lang.script,
+            direction,
+            features: features.into_boxed_slice(),
         }
     }
 
-    pub fn lang(&self) -> &Lang {
-        &self.lang
+    pub fn harfbuzz_lang(&self) -> Option<harfbuzz_rs::Language> {
+        self.lang.as_str().parse().ok()
+    }
+
+    pub fn harfbuzz_script(&self) -> Option<harfbuzz_rs::Tag> {
+        let t: u32 = self.script?.into();
+        let t = t.to_le_bytes(); // Script is a TinyStr4 that uses LE
+        Some(harfbuzz_rs::Tag::from(&[t[0], t[1], t[2], t[3]]))
+    }
+
+    pub fn harfbuzz_direction(&self) -> harfbuzz_rs::Direction {
+        self.direction.into()
+    }
+
+    pub fn lang(&self) -> Lang {
+        Lang::from_parts(self.lang, self.script, None, &[])
     }
 }
 
@@ -2057,30 +2073,26 @@ struct ShapedGlyph {
 }
 
 impl Font {
-    fn buffer_segment(&self, segment: &str, lang: &Lang) -> harfbuzz_rs::UnicodeBuffer {
+    fn buffer_segment(&self, segment: &str, key: &WordContextKey) -> harfbuzz_rs::UnicodeBuffer {
         let mut buffer = harfbuzz_rs::UnicodeBuffer::new()
-            .set_direction(if lang.character_direction() == unic_langid::CharacterDirection::RTL {
-                harfbuzz_rs::Direction::Rtl
-            } else {
-                harfbuzz_rs::Direction::Ltr
-            })
+            .set_direction(key.harfbuzz_direction())
             .set_cluster_level(harfbuzz_rs::ClusterLevel::Characters);
 
-        if let Some(lang) = to_buzz_lang(lang.language) {
+        if let Some(lang) = key.harfbuzz_lang() {
             buffer = buffer.set_language(lang);
         }
-        if let Some(script) = lang.script {
-            buffer = buffer.set_script(to_buzz_script(script))
+        if let Some(script) = key.harfbuzz_script() {
+            buffer = buffer.set_script(script);
         }
 
         buffer.add_str(segment)
     }
 
-    fn shape_segment_no_cache(&self, seg: &str, lang: &Lang, features: &[harfbuzz_rs::Feature]) -> ShapedSegmentData {
+    fn shape_segment_no_cache(&self, seg: &str, key: &WordContextKey, features: &[harfbuzz_rs::Feature]) -> ShapedSegmentData {
         let size_scale = self.metrics().size_scale;
         let to_layout = |p: i32| p as f32 * size_scale;
 
-        let buffer = self.buffer_segment(seg, lang);
+        let buffer = self.buffer_segment(seg, key);
         let buffer = harfbuzz_rs::shape(self.harfbuzz_font(), buffer, features);
 
         let mut w_x_advance = 0.0;
@@ -2122,7 +2134,7 @@ impl Font {
         out: impl FnOnce(&ShapedSegmentData) -> R,
     ) -> R {
         if !(1..=WORD_CACHE_MAX_LEN).contains(&seg.len()) {
-            let seg = self.shape_segment_no_cache(seg, word_ctx_key.lang(), features);
+            let seg = self.shape_segment_no_cache(seg, word_ctx_key, features);
             out(&seg)
         } else if let Some(small) = Self::to_small_word(seg) {
             let mut m = self.m.lock();
@@ -2148,7 +2160,7 @@ impl Font {
                         string: small,
                         ctx_key: word_ctx_key.clone(),
                     };
-                    let value = self.shape_segment_no_cache(seg, word_ctx_key.lang(), features);
+                    let value = self.shape_segment_no_cache(seg, word_ctx_key, features);
                     (key, value)
                 })
                 .1;
@@ -2178,7 +2190,7 @@ impl Font {
                         string: InternedStr::get_or_insert(seg),
                         ctx_key: word_ctx_key.clone(),
                     };
-                    let value = self.shape_segment_no_cache(seg, word_ctx_key.lang(), features);
+                    let value = self.shape_segment_no_cache(seg, word_ctx_key, features);
                     (key, value)
                 })
                 .1;
@@ -2198,8 +2210,10 @@ impl Font {
         self.shape_segment(
             " ",
             &WordContextKey {
-                lang: Lang::default(),
-                font_features: None,
+                lang: unic_langid::subtags::Language::from_bytes(b"und").unwrap(),
+                script: None,
+                direction: LayoutDirection::LTR,
+                features: Box::new([]),
             },
             &[],
             |r| adv = r.x_advance,
@@ -2461,19 +2475,9 @@ impl FontList {
     }
 }
 
-fn to_buzz_lang(lang: unic_langid::subtags::Language) -> Option<harfbuzz_rs::Language> {
-    lang.as_str().parse().ok()
-}
-
-fn to_buzz_script(script: unic_langid::subtags::Script) -> harfbuzz_rs::Tag {
-    let t: u32 = script.into();
-    let t = t.to_le_bytes(); // Script is a TinyStr4 that uses LE
-    harfbuzz_rs::Tag::from(&[t[0], t[1], t[2], t[3]])
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::{app::App, text::*};
+    use crate::{app::App, context::LayoutDirection, text::*};
 
     fn test_font() -> FontRef {
         let mut app = App::default().run_headless(false);
@@ -2502,7 +2506,7 @@ mod tests {
             ..Default::default()
         };
 
-        let text = SegmentedText::new(text);
+        let text = SegmentedText::new(text, LayoutDirection::LTR);
         let mut test = font.shape_text(&text, &config);
 
         config.line_spacing = to;
@@ -2544,7 +2548,7 @@ mod tests {
             ..Default::default()
         };
 
-        let text = SegmentedText::new(text);
+        let text = SegmentedText::new(text, LayoutDirection::LTR);
         let mut test = font.shape_text(&text, &config);
 
         config.line_height = to;
@@ -2580,9 +2584,9 @@ mod tests {
         let font = test_font();
         let config = TextShapingArgs::default();
 
-        let seg_text = SegmentedText::new(full_text);
-        let a = SegmentedText::new(a);
-        let b = SegmentedText::new(b);
+        let seg_text = SegmentedText::new(full_text, LayoutDirection::LTR);
+        let a = SegmentedText::new(a, LayoutDirection::LTR);
+        let b = SegmentedText::new(b, LayoutDirection::LTR);
 
         let shaped_text = font.shape_text(&seg_text, &config);
         let expected_a = font.shape_text(&a, &config);
@@ -2625,9 +2629,9 @@ mod tests {
         let font = test_font();
         let config = TextShapingArgs::default();
 
-        let seg_text = SegmentedText::new(full_text);
-        let a = SegmentedText::new(a);
-        let b = SegmentedText::new(b);
+        let seg_text = SegmentedText::new(full_text, LayoutDirection::LTR);
+        let a = SegmentedText::new(a, LayoutDirection::LTR);
+        let b = SegmentedText::new(b, LayoutDirection::LTR);
 
         let shaped_text = font.shape_text(&seg_text, &config);
         let expected_a = font.shape_text(&a, &config);
@@ -2661,9 +2665,9 @@ mod tests {
         let font = test_font();
         let config = TextShapingArgs::default();
 
-        let s_a = SegmentedText::new(a);
-        let s_b = SegmentedText::new(b);
-        let s_expected = SegmentedText::new(a.to_owned() + b);
+        let s_a = SegmentedText::new(a, LayoutDirection::LTR);
+        let s_b = SegmentedText::new(b, LayoutDirection::LTR);
+        let s_expected = SegmentedText::new(a.to_owned() + b, LayoutDirection::LTR);
 
         let mut sh_a = font.shape_text(&s_a, &config);
         let sh_b = font.shape_text(&s_b, &config);
