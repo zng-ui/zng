@@ -1137,7 +1137,7 @@ impl ShapedTextBuilder {
             text_seg_end: 0,
         };
 
-        let word_ctx_key = WordContextKey::new(&config.lang, config.lang.character_direction().into(), &config.font_features);
+        let mut word_ctx_key = WordContextKey::new(&config.lang, config.lang.character_direction().into(), &config.font_features);
 
         let metrics = font.metrics();
 
@@ -1197,13 +1197,14 @@ impl ShapedTextBuilder {
             t.hyphen_glyphs = font.shape_segment(config.hyphen_char.as_str(), &word_ctx_key, &config.font_features, |s| s.clone());
         }
 
-        t.push_text(font, &config.font_features, &word_ctx_key, text);
+        t.push_text(font, &config.font_features, &mut word_ctx_key, text);
 
         t.out
     }
 
-    fn push_text(&mut self, font: &FontRef, features: &RFontFeatures, word_ctx_key: &WordContextKey, text: &SegmentedText) {
+    fn push_text(&mut self, font: &FontRef, features: &RFontFeatures, word_ctx_key: &mut WordContextKey, text: &SegmentedText) {
         for (seg, info) in text.iter() {
+            word_ctx_key.direction = info.direction;
             let max_width = self.actual_max_width();
             match info.kind {
                 TextSegmentKind::Word => {
