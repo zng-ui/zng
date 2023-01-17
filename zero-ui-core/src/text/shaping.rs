@@ -1400,7 +1400,7 @@ impl ShapedTextBuilder {
         self.out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
             let r = GlyphInstance {
                 index: gi.index,
-                point: euclid::point2(gi.point.0 + self.origin.x, gi.point.1 + self.origin.y), // !!: <~~
+                point: euclid::point2(gi.point.0 + self.origin.x, gi.point.1 + self.origin.y),
             };
             self.origin.x += spacing;
             r
@@ -1415,6 +1415,7 @@ impl ShapedTextBuilder {
         if self.out.glyphs.is_empty() && self.allow_first_wrap && soft {
             self.out.first_wrapped = true;
         } else {
+            // !!: TODO, reorder RTL
             self.out.lines.0.push(LineRange {
                 end: self.out.segments.0.len(),
                 width: self.origin.x,

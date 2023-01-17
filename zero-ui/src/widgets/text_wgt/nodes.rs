@@ -299,8 +299,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
                 let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
                 let direction = LANG_VAR.with(|l| l.character_direction().into());
-                if r.text.text() != text {
-                    r.text = SegmentedText::new(text, direction); // !!: TODO check if direction actually changed.
+                if r.text.text() != text || r.text.base_direction() != direction {
+                    r.text = SegmentedText::new(text, direction);
 
                     r.reshape = true;
                     ctx.updates.layout();

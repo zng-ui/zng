@@ -43,6 +43,7 @@ pub struct TextSegment {
 pub struct SegmentedText {
     text: Text,
     segments: Vec<TextSegment>,
+    base_direction: LayoutDirection,
 }
 impl SegmentedText {
     /// New segmented text from any text type.
@@ -89,7 +90,11 @@ impl SegmentedText {
                 Self::push_seg(text_str, &bidi, &mut segs, offset);
             }
         }
-        SegmentedText { text, segments: segs }
+        SegmentedText {
+            text,
+            segments: segs,
+            base_direction,
+        }
     }
     fn push_seg(text: &str, bidi: &BidiInfo, segs: &mut Vec<TextSegment>, end: usize) {
         let start = segs.last().map(|s| s.end).unwrap_or(0);
@@ -130,6 +135,14 @@ impl SegmentedText {
         &self.segments
     }
 
+    /// Contextual direction.
+    ///
+    /// Note that each segment can override the direction, and even the entire text can be a sequence in
+    /// the opposite direction.
+    pub fn base_direction(&self) -> LayoutDirection {
+        self.base_direction
+    }
+
     /// Returns the text segment and kind if `index` is in bounds.
     pub fn get(&self, index: usize) -> Option<(&str, TextSegment)> {
         if let Some(&seg) = self.segments.get(index) {
@@ -150,6 +163,7 @@ impl SegmentedText {
         self.get(index).map(|(txt, seg)| SegmentedText {
             text: txt.to_owned().into(),
             segments: vec![TextSegment { end: txt.len(), ..seg }],
+            base_direction: self.base_direction,
         })
     }
 
@@ -164,8 +178,8 @@ impl SegmentedText {
     }
 
     /// Destructs `self` into the text and segments.
-    pub fn into_parts(self) -> (Text, Vec<TextSegment>) {
-        (self.text, self.segments)
+    pub fn into_parts(self) -> (Text, Vec<TextSegment>, LayoutDirection) {
+        (self.text, self.segments, self.base_direction)
     }
 
     /// New segmented text from [parts](Self::into_parts).
@@ -176,13 +190,17 @@ impl SegmentedText {
     ///
     /// * If one of the inputs is empty but the other is not.
     /// * If text is not empty and the last segment ends after the last text byte.
-    pub fn from_parts(text: Text, segments: Vec<TextSegment>) -> Self {
+    pub fn from_parts(text: Text, segments: Vec<TextSegment>, base_direction: LayoutDirection) -> Self {
         assert_eq!(text.is_empty(), segments.is_empty());
         if !text.is_empty() {
             assert!(segments.last().unwrap().end < text.len());
         }
 
-        SegmentedText { text, segments }
+        SegmentedText {
+            text,
+            segments,
+            base_direction,
+        }
     }
 
     /// Segments iterator.
@@ -264,6 +282,7 @@ mod tests {
                 seg(Word, 8),
                 seg(Space, 9),
             ],
+            base_direction: LayoutDirection::LTR,
         };
 
         pretty_assertions::assert_eq!(expected, actual);
