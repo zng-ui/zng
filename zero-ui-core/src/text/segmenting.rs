@@ -1,8 +1,12 @@
+use std::ops;
+
 use crate::context::LayoutDirection;
 
 use super::Text;
 use unicode_bidi::BidiInfo;
 use xi_unicode::LineBreakIterator;
+
+pub use unicode_bidi::{BidiClass, Level as BidiLevel};
 
 /// The type of a [text segment](SegmentedText).
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -228,6 +232,44 @@ impl SegmentedText {
             start: 0,
             segs_iter: self.segments.iter(),
         }
+    }
+
+    /// Convert a segments range to a text bytes range.
+    pub fn text_range(&self, segs_range: ops::Range<usize>) -> ops::Range<usize> {
+        let start = if segs_range.start == 0 {
+            0
+        } else {
+            self.segments[segs_range.start].end
+        };
+        let end = self.segments[segs_range.end].end;
+        start..end
+    }
+
+    /// Compute a map of segments in `segs_range` to their final LTR display order.
+    ///
+    /// The `segs_range` must be the segments of a line after line wrap.
+    pub fn reorder_line_to_ltr(&self, segs_range: ops::Range<usize>) -> Vec<usize> {
+        let segs = &self.segments[segs_range.clone()];
+        let txt_range = self.text_range(segs_range.clone());
+        let txt = &self.text[txt_range.clone()];
+
+        let bidi = BidiInfo::new(txt, Some(self.base_direction.into()));
+
+        let mut r = Vec::with_capacity(segs_range.len());
+
+        for vis_txt_range in bidi.visual_runs(&bidi.paragraphs[0], bidi.paragraphs[0].range.clone()).1 {
+            let vis_txt_range = (txt_range.start + vis_txt_range.start)..(txt_range.start + vis_txt_range.end);
+            let mut seg_txt_start = txt_range.start;
+            for (seg_i, seg) in segs.iter().enumerate() {
+                let seg_txt_range = seg_txt_start..seg.end;
+                if vis_txt_range.contains(&seg_txt_range.start) {
+                    r.push(segs_range.start + seg_i);
+                }
+                seg_txt_start = seg.end;
+            }
+        }
+
+        r
     }
 }
 
