@@ -1453,22 +1453,30 @@ impl ShapedTextBuilder {
 
     fn finish_current_line_bidi(&mut self) {
         match (self.line_has_ltr, self.line_has_rtl) {
-            (true, true) => {
-                // !!: TODO, mixed, use `base_direction`? Invert runs
-            }
-            (false, true) => {
+            (true, true) | (false, true) => {
                 // !!: TODO invert entire row
                 let line_width = self.origin.x;
-                let seg_start = self.out.lines.last().end;
+                let seg_start = if self.out.lines.0.is_empty() {
+                    0
+                } else {
+                    self.out.lines.last().end
+                };
                 for (_, range) in self.out.segments.iter_glyphs_from(seg_start) {
-                    println!("!!: {:?}", range);
+                    if range.iter().is_empty() {
+                        continue;
+                    }
                     let seg_x = self.out.glyphs[range.0].point.x;
                     let seg_width = if self.out.glyphs.len() == range.1 {
                         line_width - seg_x
                     } else {
-                        self.out.glyphs[range.1].point.x
+                        self.out.glyphs[range.1].point.x - seg_x
                     };
-                    println!("!!: {:?}", (seg_x, seg_width));
+
+                    // !!: TODO fix this
+                    let offset = seg_x - (line_width - seg_width - seg_x);
+                    for g in &mut self.out.glyphs[range.iter()] {
+                        g.point.x += offset;
+                    }
                 }
             }
             (true, false) | (false, false) => {}
