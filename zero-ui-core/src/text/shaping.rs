@@ -162,8 +162,12 @@ impl GlyphSegmentVec {
 
     /// Iter glyph ranges.
     fn iter_glyphs(&self) -> impl Iterator<Item = (TextSegment, IndexRange)> + '_ {
-        let mut start = 0;
-        self.0.iter().map(move |s| {
+        self.iter_glyphs_from(0)
+    }
+
+    fn iter_glyphs_from(&self, start_seg: usize) -> impl Iterator<Item = (TextSegment, IndexRange)> + '_ {
+        let mut start = if start_seg == 0 { 0 } else { self.0[start_seg - 1].end };
+        self.0[start_seg..].iter().map(move |s| {
             let r = IndexRange(start, s.end);
             start = s.end;
             (s.text, r)
@@ -1079,6 +1083,8 @@ struct ShapedTextBuilder {
     mid_clear_min: f32,
     max_line_x: f32,
     text_seg_end: usize,
+    line_has_ltr: bool,
+    line_has_rtl: bool,
 }
 impl ShapedTextBuilder {
     fn actual_max_width(&self) -> f32 {
@@ -1135,6 +1141,8 @@ impl ShapedTextBuilder {
             mid_clear_min: 0.0,
             max_line_x: 0.0,
             text_seg_end: 0,
+            line_has_ltr: false,
+            line_has_rtl: false,
         };
 
         let mut word_ctx_key = WordContextKey::new(&config.lang, config.lang.character_direction().into(), &config.font_features);
@@ -1205,6 +1213,8 @@ impl ShapedTextBuilder {
     fn push_text(&mut self, font: &FontRef, features: &RFontFeatures, word_ctx_key: &mut WordContextKey, text: &SegmentedText) {
         for (seg, info) in text.iter() {
             word_ctx_key.direction = info.direction;
+            self.line_has_ltr |= info.direction.is_ltr();
+            self.line_has_rtl |= info.direction.is_rtl();
             let max_width = self.actual_max_width();
             match info.kind {
                 TextSegmentKind::Word => {
@@ -1284,6 +1294,7 @@ impl ShapedTextBuilder {
             }
         }
 
+        self.finish_current_line_bidi();
         self.out.lines.0.push(LineRange {
             end: self.out.segments.0.len(),
             width: self.origin.x,
@@ -1415,7 +1426,8 @@ impl ShapedTextBuilder {
         if self.out.glyphs.is_empty() && self.allow_first_wrap && soft {
             self.out.first_wrapped = true;
         } else {
-            // !!: TODO, reorder RTL
+            self.finish_current_line_bidi();
+
             self.out.lines.0.push(LineRange {
                 end: self.out.segments.0.len(),
                 width: self.origin.x,
@@ -1437,6 +1449,33 @@ impl ShapedTextBuilder {
             self.origin.x = 0.0;
             self.origin.y += self.line_height + self.line_spacing;
         }
+    }
+
+    fn finish_current_line_bidi(&mut self) {
+        match (self.line_has_ltr, self.line_has_rtl) {
+            (true, true) => {
+                // !!: TODO, mixed, use `base_direction`? Invert runs
+            }
+            (false, true) => {
+                // !!: TODO invert entire row
+                let line_width = self.origin.x;
+                let seg_start = self.out.lines.last().end;
+                for (_, range) in self.out.segments.iter_glyphs_from(seg_start) {
+                    println!("!!: {:?}", range);
+                    let seg_x = self.out.glyphs[range.0].point.x;
+                    let seg_width = if self.out.glyphs.len() == range.1 {
+                        line_width - seg_x
+                    } else {
+                        self.out.glyphs[range.1].point.x
+                    };
+                    println!("!!: {:?}", (seg_x, seg_width));
+                }
+            }
+            (true, false) | (false, false) => {}
+        }
+
+        self.line_has_ltr = false;
+        self.line_has_rtl = false;
     }
 
     pub fn push_text_seg(&mut self, seg: &str, info: TextSegment) {
