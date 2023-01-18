@@ -1,10 +1,4 @@
 * Merge.
-
-* Incorrect offset of "Arabic diacritics Tanwin", example string: `"رً"`.
-    - We are using the offset from Harfbuzz.
-    - Arabic is the first script tested that has offsets in these kinds of glyphs.
-    - Problem not related to the direction, LTR has the same vertical offset.
-
 * Update webrender to Firefox-109 version.
 
 * Text direction can't always be derived from language.

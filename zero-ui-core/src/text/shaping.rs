@@ -2208,7 +2208,7 @@ impl Font {
             .zip(buffer.get_glyph_positions())
             .map(|(i, p)| {
                 let x_offset = to_layout(p.x_offset);
-                let y_offset = to_layout(p.y_offset);
+                let y_offset = -to_layout(p.y_offset);
                 let x_advance = to_layout(p.x_advance);
                 let y_advance = to_layout(p.y_advance);
 
