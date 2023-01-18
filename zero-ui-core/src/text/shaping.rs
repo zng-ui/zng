@@ -2725,10 +2725,10 @@ mod tests {
     #[test]
     fn split_remove_single_line() {
         test_split_remove("a b", 1, "a", "b");
-        // test_split_remove("one another", 1, "one", "another");
-        // test_split_remove("one another then rest", 3, "one another", "then rest");
-        // test_split_remove("at start", 0, "", " start");
-        // test_split_remove("at end", 2, "at ", "");
+        test_split_remove("one another", 1, "one", "another");
+        test_split_remove("one another then rest", 3, "one another", "then rest");
+        test_split_remove("at start", 0, "", " start");
+        test_split_remove("at end", 2, "at ", "");
     }
     fn test_split_remove(full_text: &'static str, segment: usize, a: &'static str, b: &'static str) {
         let font = test_font();
