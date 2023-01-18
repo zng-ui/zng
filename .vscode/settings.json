@@ -2,7 +2,7 @@
     "rust-analyzer.files.excludeDirs": [
         "tests/build",
     ],
-    "rust-analyzer.checkOnSave.overrideCommand": ["cargo", "do", "rust_analyzer_check"],
+    "rust-analyzer.check.overrideCommand": ["cargo", "do", "rust_analyzer_check"],
     "files.eol": "\n",
     "spellright.language": [
         "en"
