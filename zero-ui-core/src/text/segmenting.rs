@@ -239,9 +239,9 @@ impl SegmentedText {
         let start = if segs_range.start == 0 {
             0
         } else {
-            self.segments[segs_range.start].end
+            self.segments[segs_range.start - 1].end
         };
-        let end = self.segments[segs_range.end].end;
+        let end = self.segments[..segs_range.end].last().map(|s| s.end).unwrap_or(0);
         start..end
     }
 
