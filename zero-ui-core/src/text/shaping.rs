@@ -1213,8 +1213,6 @@ impl ShapedTextBuilder {
     fn push_text(&mut self, font: &FontRef, features: &RFontFeatures, word_ctx_key: &mut WordContextKey, text: &SegmentedText) {
         for (seg, info) in text.iter() {
             word_ctx_key.direction = info.direction;
-            self.line_has_ltr |= info.direction.is_ltr();
-            self.line_has_rtl |= info.direction.is_rtl();
             let max_width = self.actual_max_width();
             match info.kind {
                 TextSegmentKind::Word => {
@@ -1535,6 +1533,16 @@ impl ShapedTextBuilder {
     }
 
     pub fn push_text_seg(&mut self, seg: &str, info: TextSegment) {
+        let g_len = if let Some(l) = self.out.segments.0.last() {
+            self.out.glyphs.len() - l.end
+        } else {
+            self.out.glyphs.len()
+        };
+        if g_len > 0 {
+            self.line_has_ltr |= info.direction.is_ltr();
+            self.line_has_rtl |= info.direction.is_rtl();
+        }
+
         self.text_seg_end += seg.len();
 
         self.out.segments.0.push(GlyphSegment {
