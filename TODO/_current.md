@@ -1,7 +1,3 @@
-* Text direction can't always be derived from language.
-    - See https://www.w3.org/International/questions/qa-direction-from-language
-    - Html requires explicit direction to work.
-
 * Review bidi text across inlined widgets.
     - Test how HTML does it, with spans of 
 

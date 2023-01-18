@@ -39,6 +39,9 @@ pub struct TextShapingArgs {
     /// Primary language of the text.
     pub lang: Lang,
 
+    /// Text flow direction.
+    pub direction: LayoutDirection,
+
     /// Don't use font ligatures.
     pub ignore_ligatures: bool,
 
@@ -81,6 +84,7 @@ impl Default for TextShapingArgs {
             line_height: Px(0),
             line_spacing: Px(0),
             lang: lang!(und),
+            direction: LayoutDirection::LTR,
             ignore_ligatures: false,
             disable_kerning: false,
             tab_x_advance: Px(0),
@@ -1145,7 +1149,7 @@ impl ShapedTextBuilder {
             line_has_rtl: false,
         };
 
-        let mut word_ctx_key = WordContextKey::new(&config.lang, config.lang.character_direction().into(), &config.font_features);
+        let mut word_ctx_key = WordContextKey::new(&config.lang, config.direction, &config.font_features);
 
         let metrics = font.metrics();
 

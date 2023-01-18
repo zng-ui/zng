@@ -71,6 +71,9 @@ context_var! {
     /// Language of [`text`](crate::widgets::text) spans.
     pub static LANG_VAR: Lang = Lang::default();
 
+    /// Flow direction of [`text`](crate::widgets::text) spans.
+    pub static DIRECTION_VAR: LayoutDirection = LayoutDirection::default();
+
     /// Underline thickness.
     pub static UNDERLINE_THICKNESS_VAR: UnderlineThickness = 0;
     /// Underline style.
@@ -568,7 +571,7 @@ pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) ->
 ///
 /// This property affects all texts inside the widget and the layout direction.
 ///
-/// Sets the [`LANG_VAR`] context var and the [`LayoutMetrics::direction`].
+/// Sets the [`LANG_VAR`] and [`DIRECTION_VAR`] context vars and the [`LayoutMetrics::direction`].
 #[property(CONTEXT, default(LANG_VAR))]
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
     let lang = lang.into_var();
@@ -580,8 +583,10 @@ pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
 ///
 /// Note that the [`lang`] property already sets the direction, this property can be used to directly override the direction.
 ///
+/// Sets the [`DIRECTION_VAR`] context var and the [`LayoutMetrics::direction`].
+///
 /// [`lang`]: fn@lang
-#[property(CONTEXT+1, default(LayoutDirection::default()))]
+#[property(CONTEXT+1, default(DIRECTION_VAR))]
 pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -> impl UiNode {
     #[ui_node(struct DirectionNode {
         child: impl UiNode,
@@ -604,10 +609,12 @@ pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -
             ctx.with_direction(self.direction.get(), |ctx| self.child.layout(ctx, wl))
         }
     }
-    DirectionNode {
+    let direction = direction.into_var();
+    let child = DirectionNode {
         child,
-        direction: direction.into_var(),
-    }
+        direction: direction.clone(),
+    };
+    with_context_var(child, DIRECTION_VAR, direction)
 }
 
 /// Draw lines *under* each text line.

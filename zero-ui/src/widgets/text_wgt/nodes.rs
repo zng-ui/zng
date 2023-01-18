@@ -149,6 +149,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         fn init(&mut self, ctx: &mut WidgetContext) {
             ctx.sub_var(&self.text)
                 .sub_var(&LANG_VAR)
+                .sub_var(&DIRECTION_VAR)
                 .sub_var(&FONT_FAMILY_VAR)
                 .sub_var(&FONT_STYLE_VAR)
                 .sub_var(&FONT_WEIGHT_VAR)
@@ -204,7 +205,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             *self.resolved.get_mut() = Some(ResolvedText {
                 synthesis: FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight),
                 faces,
-                text: SegmentedText::new(text, LANG_VAR.get().character_direction().into()),
+                text: SegmentedText::new(text, DIRECTION_VAR.get()),
                 reshape: false,
                 baseline: Px(0),
                 caret_opacity,
@@ -298,7 +299,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 let text = self.text.get();
                 let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
                 let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
-                let direction = LANG_VAR.with(|l| l.character_direction().into());
+                let direction = DIRECTION_VAR.get();
                 if r.text.text() != text || r.text.base_direction() != direction {
                     r.text = SegmentedText::new(text, direction);
 
@@ -668,6 +669,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             // other subscriptions are handled by the `resolve_text` node.
             let txt = self.txt.get_mut();
             txt.shaping_args.lang = LANG_VAR.get();
+            txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into();
             txt.shaping_args.line_break = LINE_BREAK_VAR.get();
             txt.shaping_args.word_break = WORD_BREAK_VAR.get();
             txt.shaping_args.hyphens = HYPHENS_VAR.get();
@@ -699,6 +701,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             {
                 let txt = self.txt.get_mut();
                 txt.shaping_args.lang = LANG_VAR.get();
+                txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into(); // will be set in layout too.
                 txt.pending.insert(Layout::RESHAPE);
                 ctx.updates.layout();
             }
