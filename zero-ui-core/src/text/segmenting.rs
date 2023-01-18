@@ -257,13 +257,21 @@ impl SegmentedText {
 
         let mut r = Vec::with_capacity(segs_range.len());
 
-        for vis_txt_range in bidi.visual_runs(&bidi.paragraphs[0], bidi.paragraphs[0].range.clone()).1 {
+        let (levels, ranges) = bidi.visual_runs(&bidi.paragraphs[0], bidi.paragraphs[0].range.clone());
+        for vis_txt_range in ranges {
+            let is_rtl = levels[vis_txt_range.start].is_rtl();
             let vis_txt_range = (txt_range.start + vis_txt_range.start)..(txt_range.start + vis_txt_range.end);
             let mut seg_txt_start = txt_range.start;
+
+            let rtl_insert_i = r.len();
             for (seg_i, seg) in segs.iter().enumerate() {
                 let seg_txt_range = seg_txt_start..seg.end;
                 if vis_txt_range.contains(&seg_txt_range.start) {
-                    r.push(segs_range.start + seg_i);
+                    if is_rtl {
+                        r.insert(rtl_insert_i, segs_range.start + seg_i);
+                    } else {
+                        r.push(segs_range.start + seg_i);
+                    }
                 }
                 seg_txt_start = seg.end;
             }
@@ -328,5 +336,27 @@ mod tests {
         };
 
         pretty_assertions::assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn reorder_line() {
+        let test = "0 2 4";
+        let txt = SegmentedText::new(test, LayoutDirection::RTL);
+
+        let expected = vec![4, 3, 2, 1, 0];
+        let actual = txt.reorder_line_to_ltr(0..test.len());
+
+        pretty_assertions::assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn reorder_line_issue() {
+        let test = "      المادة 1";
+        let txt = SegmentedText::new(test, LayoutDirection::RTL);
+
+        let expected = vec![3, 2, 1, 0];
+        let actual = txt.reorder_line_to_ltr(0..4);
+
+        assert_eq!(expected, actual);
     }
 }

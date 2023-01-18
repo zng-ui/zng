@@ -5,6 +5,10 @@
     - Need to be something in the `LayoutContext`?
     - How does `lang` and `direction` interact with it?
 
+* Update webrender to Firefox-109 version.
+* Text direction can't always be derived from language.
+    - See https://www.w3.org/International/questions/qa-direction-from-language
+
 * Implement vertical text.
     - Need to expand `LayoutDirection` to define chars and lines direction.
     - Or a different layout property for the "lines" direction.
