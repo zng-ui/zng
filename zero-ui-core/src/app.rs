@@ -598,7 +598,9 @@ fn check_deadlock() {
     use parking_lot::deadlock;
     use std::{thread, time::*};
 
-    println!("deadlock detection enabled, 10s interval");
+    if !cfg!(test) {
+        println!("deadlock detection enabled, 10s interval");
+    }
 
     thread::spawn(|| loop {
         thread::sleep(Duration::from_secs(10));

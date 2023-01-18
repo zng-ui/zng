@@ -825,8 +825,8 @@ impl ShapedText {
             self.segments.assert_contains(segment);
 
             let g_end = self.segments.glyphs(segment).start();
-            let l_end = self.lines.0.iter().position(|l| l.end >= segment).unwrap();
-            let f_end = self.fonts.0.iter().position(|f| f.end >= g_end).unwrap();
+            let l_end = self.lines.0.iter().position(|l| l.end > segment).unwrap();
+            let f_end = self.fonts.0.iter().position(|f| f.end > g_end).unwrap();
             let txt_s_end = self.segments.0[segment - 1].text.end;
 
             let mut b = ShapedText {
@@ -962,7 +962,7 @@ impl ShapedText {
             let r = self.segments.last_glyphs();
             self.segments.0.pop();
 
-            while self.fonts.last_glyphs().start() >= r.start() {
+            while self.fonts.0.len() > 1 && self.fonts.last_glyphs().start() >= r.start() {
                 self.fonts.0.pop();
             }
             self.fonts.last_mut().end = r.start();
@@ -1286,8 +1286,8 @@ impl ShapedTextBuilder {
                     self.push_text_seg(seg, info);
                 }
                 TextSegmentKind::LineBreak => {
-                    self.push_line_break(false, text);
                     self.push_text_seg(seg, info);
+                    self.push_line_break(false, text);
                 }
             }
         }
@@ -2757,14 +2757,15 @@ mod tests {
         test_split_remove("a\nb c", 3, "a\nb", "c");
         test_split_remove("one\nanother", 1, "one", "another");
         test_split_remove("one\nanother", 2, "one\n", "");
+        test_split_remove("\nseg", 1, "\n", "");
     }
 
     #[test]
     fn extend_single_line() {
-        // test_extend("a", " b");
-        // test_extend("first", " second");
+        test_extend("a", " b");
+        test_extend("first", " second");
         test_extend("", "empty");
-        // test_extend("empty", "");
+        test_extend("empty", "");
     }
     fn test_extend(a: &'static str, b: &'static str) {
         let font = test_font();
