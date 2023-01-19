@@ -1191,9 +1191,13 @@ impl ShapedTextBuilder {
         t.max_width = if config.max_width == Px::MAX {
             f32::INFINITY
         } else {
-            // +1 to clear rounding errors, without it using the text full length as max_width can cause wrapping.
-            (config.max_width.0 + 1) as f32
+            config.max_width.0 as f32
         };
+
+        // +1 to clear rounding errors, without it using the text full length as max_width can cause wrapping.
+        const ROUNDING_CLEAR: f32 = 1.0;
+        t.max_width += ROUNDING_CLEAR;
+        t.first_line_max += ROUNDING_CLEAR;
 
         t.break_words = match config.word_break {
             WordBreak::Normal => {
