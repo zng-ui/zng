@@ -19,7 +19,5 @@
     - Refactor services into `app_local!` backed structs, with associated functions.
         - Remove `Services`.
 
-* Add a shorthand for `markdown!{md = ""}`
-
 * Review all docs.
     - Mentions of threads in particular.

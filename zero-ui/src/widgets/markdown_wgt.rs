@@ -8,7 +8,17 @@ mod resolvers;
 mod view_gen;
 
 /// Render markdown styled text.
-#[widget($crate::widgets::markdown)]
+#[widget($crate::widgets::markdown {
+    ($md:literal) => {
+        md = $crate::core::text::formatx!($md);
+    };
+    ($md:expr) => {
+        md = $md;
+    };
+    ($md:tt, $($format:tt)*) => {
+        md = $crate::core::text::formatx!($md, $($format)*);
+    };
+})]
 pub mod markdown {
     use super::*;
 
@@ -490,13 +500,4 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
     }
 
     PANEL_GEN_VAR.get().generate(ctx, PanelGenArgs { items: blocks.into() })
-}
-
-/// Simple markdown run.
-///
-/// See [`markdown!`] for the full widget.
-///
-/// [`markdown!`]: mod@markdown
-pub fn markdown(md: impl IntoVar<Text>) -> impl UiNode {
-    markdown!(md)
 }
