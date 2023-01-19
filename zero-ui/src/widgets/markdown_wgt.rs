@@ -258,8 +258,9 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 }
                 Tag::CodeBlock(kind) => {
                     if let Some(mut txt) = code_block_text.take() {
-                        let _last_line_break = txt.pop();
-                        debug_assert_eq!(Some('\n'), _last_line_break);
+                        if txt.chars().rev().next() == Some('\n') {
+                            txt.pop();
+                        }
                         blocks.push(code_block_view.generate(
                             ctx,
                             CodeBlockGenArgs {
