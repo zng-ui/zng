@@ -1,5 +1,14 @@
 * Review bidi text across inlined widgets.
-    - Test how HTML does it, with spans of 
+    - HTML reorders across any span in the line, the background
+        `<p>النص ثنائي الاتجاه (بالإنجليزية: Bi-directi<span>onal text)‏ هو </span>نص يحتوي على نص في كل من</p>`
+        the span in the sample is split in two parts, the Arabic text ends up at the visual right-most.
+    - To support this *automatically* at the layout level would require the text widgets releasing all control of the
+      positioning of segments in the inline joiner rows.
+    - We already don't support embedding widgets directly in text, if we ever implement HTML-to-widget the example
+        becomes 3 span widgets, we can make it become 4 spans.
+    - Can the users work around this issue by using a more semantic division of widgets?
+    - Test Arabic with embedded English phrases in markdown.
+        - Make a work in the English phrase **bold**.
 
 * Implement vertical text.
     - Need to expand `LayoutDirection` to define chars and lines direction.
