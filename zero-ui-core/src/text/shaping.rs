@@ -812,6 +812,33 @@ impl ShapedText {
         }
     }
 
+    #[track_caller]
+    fn debug_assert_ranges(&self) {
+        #[cfg(debug_assertions)]
+        {
+            let mut prev_seg_end = 0;
+            for seg in &self.segments.0 {
+                assert!(seg.end >= prev_seg_end);
+                prev_seg_end = seg.end;
+            }
+            assert!(self.segments.0.last().map(|s| s.end == self.glyphs.len()).unwrap_or(true));
+
+            let mut prev_line_end = 0;
+            for line in &self.lines.0 {
+                assert!(line.end >= prev_line_end);
+                prev_line_end = line.end;
+            }
+            assert!(self.lines.0.last().map(|l| l.end == self.segments.0.len()).unwrap_or(true));
+
+            let mut prev_font_end = 0;
+            for font in &self.fonts.0 {
+                assert!(font.end >= prev_font_end);
+                prev_font_end = font.end;
+            }
+            assert!(self.fonts.0.last().map(|f| f.end == self.glyphs.len()).unwrap_or(true));
+        }
+    }
+
     /// Split the shaped text in two. The text is split at a `segment` that becomes the first segment of the second text.
     ///
     /// Reshape is cleared before split.
@@ -827,6 +854,7 @@ impl ShapedText {
             (a, self)
         } else {
             self.segments.assert_contains(segment);
+            self.debug_assert_ranges();
 
             let g_end = self.segments.glyphs(segment).start();
             let l_end = self.lines.0.iter().position(|l| l.end > segment).unwrap();
@@ -906,6 +934,9 @@ impl ShapedText {
                 f.end -= self.glyphs.len();
             }
 
+            self.debug_assert_ranges();
+            b.debug_assert_ranges();
+
             let b_fl_end = b.segments.glyphs(b.lines.segs(0).inclusive_end()).end();
             for g in &mut b.glyphs[..b_fl_end] {
                 g.point.x -= x_offset;
@@ -956,13 +987,11 @@ impl ShapedText {
             return;
         }
 
+        self.debug_assert_ranges();
+
         if self.segments.0.len() == 1 {
             *self = self.empty();
         } else {
-            if self.segments.last().text.kind == TextSegmentKind::LineBreak {
-                self.lines.0.pop();
-            }
-
             let r = self.segments.last_glyphs();
             self.segments.0.pop();
 
@@ -971,6 +1000,28 @@ impl ShapedText {
             }
             self.fonts.last_mut().end = r.start();
 
+            while self.lines.0.len() > 1 {
+                let mut changed = false;
+
+                let last_start = self.lines.segs(self.lines.0.len() - 1).start();
+
+                if last_start > self.segments.0.len() {
+                    self.lines.0.pop();
+                    changed = true;
+                }
+
+                if last_start == self.segments.0.len()
+                    && self.segments.0.len() > 0
+                    && self.segments.0[self.segments.0.len() - 1].text.kind != TextSegmentKind::LineBreak
+                {
+                    self.lines.0.pop();
+                    changed = true;
+                }
+
+                if !changed {
+                    break;
+                }
+            }
             let last_line = self.lines.last_mut();
             last_line.end = self.segments.0.len();
             if r.start() < self.glyphs.len() {
@@ -979,6 +1030,8 @@ impl ShapedText {
                 self.glyphs.truncate(r.start());
                 self.clusters.truncate(r.start());
             }
+
+            self.debug_assert_ranges();
         }
     }
 
@@ -1215,6 +1268,7 @@ impl ShapedTextBuilder {
 
         t.push_text(font, &config.font_features, &mut word_ctx_key, text);
 
+        t.out.debug_assert_ranges();
         t.out
     }
 
