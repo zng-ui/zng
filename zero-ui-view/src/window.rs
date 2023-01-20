@@ -1179,8 +1179,6 @@ impl Window {
     pub fn redraw(&mut self) {
         let span = tracing::trace_span!("redraw", stats = tracing::field::Empty).entered();
 
-        std::thread::sleep(std::time::Duration::from_millis(1000));
-
         self.context.make_current();
 
         let renderer = self.renderer.as_mut().unwrap();
