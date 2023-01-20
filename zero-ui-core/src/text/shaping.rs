@@ -2611,14 +2611,14 @@ impl FontList {
         // find segments that contain unresolved glyphs (`0`) and collect replacements:
         let mut replacement_segs = vec![];
 
-        for (i, (_info, gr, tr)) in r.segments.iter_glyphs_and_text().enumerate() {
+        for (i, (info, gr, tr)) in r.segments.iter_glyphs_and_text().enumerate() {
             let glyphs = &r.glyphs[gr.iter()];
             if glyphs.iter().any(|g| g.index == 0) {
                 // try fallbacks:
                 for font in &self[1..] {
-                    let text = SegmentedText::new(text.text()[tr.iter()].to_owned(), text.base_direction());
-                    debug_assert_eq!(text.segments().len(), 1);
-                    debug_assert_eq!(text.segments()[0].kind, _info.kind);
+                    let txt = &text.text()[tr.iter()];
+                    let seg = TextSegment { end: txt.len(), ..info };
+                    let text = SegmentedText::from_parts(txt.to_owned().into(), vec![seg], text.base_direction());
 
                     let replacement = font.shape_text(&text, config);
 

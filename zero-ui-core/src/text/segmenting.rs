@@ -193,11 +193,11 @@ impl SegmentedText {
     /// Some basic validation is done on the input:
     ///
     /// * If one of the inputs is empty but the other is not.
-    /// * If text is not empty and the last segment ends after the last text byte.
+    /// * If text is not empty and the last segment does not end with the text.
     pub fn from_parts(text: Text, segments: Vec<TextSegment>, base_direction: LayoutDirection) -> Self {
         assert_eq!(text.is_empty(), segments.is_empty());
         if !text.is_empty() {
-            assert!(segments.last().unwrap().end < text.len());
+            assert!(segments.last().unwrap().end == text.len());
         }
 
         SegmentedText {
