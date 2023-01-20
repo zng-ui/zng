@@ -164,12 +164,23 @@ impl GlyphSegmentVec {
         IndexRange(start, end)
     }
 
-    /// Iter glyph ranges.
-    fn iter_glyphs(&self) -> impl Iterator<Item = (TextSegment, IndexRange)> + '_ {
-        self.iter_glyphs_from(0)
+    /// Iter (TextSegment, GlyphRange, SegRange).
+    fn iter_glyphs_and_text(&self) -> impl Iterator<Item = (TextSegment, IndexRange, IndexRange)> + '_ {
+        let mut g_start = 0;
+        let mut t_start = 0;
+
+        self.0.iter().map(move |s| {
+            let g_r = IndexRange(g_start, s.end);
+            let t_r = IndexRange(t_start, s.text.end);
+
+            g_start = s.end;
+            t_start = s.text.end;
+
+            (s.text, g_r, t_r)
+        })
     }
 
-    fn iter_glyphs_from(&self, start_seg: usize) -> impl Iterator<Item = (TextSegment, IndexRange)> + '_ {
+    fn iter_glyphs(&self, start_seg: usize) -> impl Iterator<Item = (TextSegment, IndexRange)> + '_ {
         let mut start = if start_seg == 0 { 0 } else { self.0[start_seg - 1].end };
         self.0[start_seg..].iter().map(move |s| {
             let r = IndexRange(start, s.end);
@@ -1571,7 +1582,7 @@ impl ShapedTextBuilder {
                 // entire line RTL
                 let line_width = self.origin.x;
 
-                for (_, range) in self.out.segments.iter_glyphs_from(seg_start) {
+                for (_, range) in self.out.segments.iter_glyphs(seg_start) {
                     if range.iter().is_empty() {
                         continue;
                     }
@@ -2600,12 +2611,15 @@ impl FontList {
         // find segments that contain unresolved glyphs (`0`) and collect replacements:
         let mut replacement_segs = vec![];
 
-        for (i, (_kind, gr)) in r.segments.iter_glyphs().enumerate() {
+        for (i, (_info, gr, tr)) in r.segments.iter_glyphs_and_text().enumerate() {
             let glyphs = &r.glyphs[gr.iter()];
             if glyphs.iter().any(|g| g.index == 0) {
                 // try fallbacks:
                 for font in &self[1..] {
-                    let text = text.get_clone(i).unwrap();
+                    let text = SegmentedText::new(text.text()[tr.iter()].to_owned(), text.base_direction());
+                    debug_assert_eq!(text.segments().len(), 1);
+                    debug_assert_eq!(text.segments()[0].kind, _info.kind);
+
                     let replacement = font.shape_text(&text, config);
 
                     if replacement.glyphs.iter().all(|g| g.index != 0) {
