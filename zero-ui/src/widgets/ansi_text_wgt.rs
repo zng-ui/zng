@@ -563,13 +563,11 @@ mod ansi_gen {
     /// Default [`PANEL_GEN_VAR`].
     ///
     /// Returns a `stack!` for multiple pages, or returns the single page, or a nil node.
-    pub fn default_panel_gen(mut args: PanelGenArgs) -> impl UiNode {
+    pub fn default_panel_gen(args: PanelGenArgs) -> impl UiNode {
         use crate::prelude::*;
 
         if args.pages.is_empty() {
             NilUiNode.boxed()
-        } else if args.pages.len() == 1 {
-            args.pages.remove(0)
         } else {
             stack! {
                 direction = StackDirection::top_to_bottom();
