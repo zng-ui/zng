@@ -11,12 +11,13 @@ use crate::{
     widget_instance::{UiNode, WidgetId},
     window::{WindowId, WindowMode},
 };
-use std::{cell::Cell, fmt, ops::Deref, rc::Rc};
+use std::{fmt, mem, ops::Deref, sync::Arc};
 
 mod contextual;
 pub use contextual::*;
 
 mod update;
+use parking_lot::Mutex;
 pub use update::*;
 
 mod state;
@@ -1809,7 +1810,7 @@ impl std::hash::Hash for LayoutMetricsSnapshot {
 /// The [`LayoutContext`] type dereferences to this one.
 #[derive(Debug, Clone)]
 pub struct LayoutMetrics {
-    use_mask: Rc<Cell<LayoutMask>>,
+    use_mask: Arc<Mutex<LayoutMask>>,
 
     s: LayoutMetricsSnapshot,
 }
@@ -1822,7 +1823,7 @@ impl LayoutMetrics {
     /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
     pub fn new(scale_factor: Factor, viewport: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
-            use_mask: Rc::new(Cell::new(LayoutMask::NONE)),
+            use_mask: Arc::new(Mutex::new(LayoutMask::NONE)),
             s: LayoutMetricsSnapshot {
                 constrains: PxConstrains2d::new_fill_size(viewport),
                 inline_constrains: None,
@@ -1855,15 +1856,15 @@ impl LayoutMetrics {
 
     /// What metrics where requested so far in the widget or descendants.
     pub fn metrics_used(&self) -> LayoutMask {
-        self.use_mask.get()
+        *self.use_mask.lock()
     }
 
     /// Register that the node layout depends on these contextual values.
     ///
     /// Note that the value methods already register use when they are used.
     pub fn register_use(&self, mask: LayoutMask) {
-        let m = self.use_mask.get();
-        self.use_mask.set(m | mask);
+        let mut m = self.use_mask.lock();
+        *m |= mask;
     }
 
     /// Get metrics without registering use.
@@ -1872,9 +1873,9 @@ impl LayoutMetrics {
     ///
     /// [`metrics_used`]: Self::metrics_used
     pub fn peek<R>(&self, req: impl FnOnce(&Self) -> R) -> R {
-        let m = self.use_mask.get();
+        let m = *self.use_mask.lock();
         let r = req(self);
-        self.use_mask.set(m);
+        *self.use_mask.lock() = m;
         r
     }
 
@@ -2035,12 +2036,13 @@ impl LayoutMetrics {
     }
 
     pub(crate) fn enter_widget_ctx(&self) -> LayoutMask {
-        self.use_mask.replace(LayoutMask::NONE)
+        mem::replace(&mut *self.use_mask.lock(), LayoutMask::NONE)
     }
 
     pub(crate) fn exit_widget_ctx(&self, parent_use: LayoutMask) -> LayoutMask {
-        let wgt_use = self.use_mask.get();
-        self.use_mask.set(parent_use | wgt_use);
+        let mut use_mask = self.use_mask.lock();
+        let wgt_use = *use_mask;
+        *use_mask = parent_use | wgt_use;
         wgt_use
     }
 }

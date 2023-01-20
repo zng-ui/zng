@@ -403,9 +403,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
     }
     struct FinalText {
-        layout: Option<LayoutText>,
+        txt: Option<LayoutText>,
         shaping_args: TextShapingArgs,
         pending: Layout,
+
+        txt_is_measured: bool,
+        layout_metrics: LayoutMetrics,
     }
     impl FinalText {
         fn measure(&mut self, ctx: &mut MeasureContext) -> Option<PxSize> {
@@ -423,9 +426,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             let font_size = metrics.font_size();
 
-            if self.layout.is_none() {
+            if self.txt.is_none() {
                 let fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
-                self.layout = Some(LayoutText {
+                self.txt = Some(LayoutText {
                     shaped_text: ShapedText::new(fonts.best()),
                     shaped_text_version: 0,
                     fonts,
@@ -439,7 +442,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 self.pending.insert(Layout::RESHAPE);
             }
 
-            let r = self.layout.as_mut().unwrap();
+            let r = self.txt.as_mut().unwrap();
 
             if font_size != r.fonts.requested_size() || !r.fonts.is_sized_from(&t.faces) {
                 r.fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
@@ -584,6 +587,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if !is_measure {
+                self.layout_metrics = metrics.clone();
+
                 if self.pending.contains(Layout::RESHAPE_LINES) {
                     r.shaped_text.reshape_lines(
                         metrics.constrains(),
@@ -647,8 +652,18 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     }
                 }
             }
+            self.txt_is_measured = is_measure;
 
             metrics.constrains().fill_size_or(r.shaped_text.size())
+        }
+
+        fn ensure_layout_for_render(&mut self) {
+            if self.txt_is_measured {
+                let mut write = RESOLVED_TEXT.write();
+                let t = write.as_mut().expect("expected `ResolvedText` in `render` or `render_update`");
+                let metrics = self.layout_metrics.clone();
+                self.layout(&metrics, t, false);
+            }
         }
     }
 
@@ -658,10 +673,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     })]
     impl LayoutTextNode {
         fn with_mut<R>(&mut self, f: impl FnOnce(&mut T_child) -> R) -> R {
-            LAYOUT_TEXT.with_context_opt(&mut self.txt.get_mut().layout, || f(&mut self.child))
+            LAYOUT_TEXT.with_context_opt(&mut self.txt.get_mut().txt, || f(&mut self.child))
         }
         fn with(&self, f: impl FnOnce(&T_child)) {
-            LAYOUT_TEXT.with_context_opt(&mut self.txt.lock().layout, || f(&self.child))
+            LAYOUT_TEXT.with_context_opt(&mut self.txt.lock().txt, || f(&self.child))
         }
 
         #[UiNode]
@@ -682,7 +697,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         #[UiNode]
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
-            self.txt.get_mut().layout = None;
+            self.txt.get_mut().txt = None;
         }
 
         #[UiNode]
@@ -776,7 +791,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
                 let size = txt.layout(ctx.metrics, t, true);
-                if let (Some(inline), Some(l)) = (wm.inline(), txt.layout.as_ref()) {
+                if let (Some(inline), Some(l)) = (wm.inline(), txt.txt.as_ref()) {
                     inline.first = l.shaped_text.first_line().map(|l| l.rect().size).unwrap_or_default();
                     inline.last = l.shaped_text.last_line().map(|l| l.rect().size).unwrap_or_default();
                     inline.first_wrapped = l.shaped_text.first_wrapped();
@@ -801,7 +816,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 txt.pending = Layout::empty();
             }
 
-            if let (Some(inline), Some(l)) = (wl.inline(), txt.layout.as_ref()) {
+            if let (Some(inline), Some(l)) = (wl.inline(), txt.txt.as_ref()) {
                 for line in l.shaped_text.lines() {
                     inline.rows.push(line.rect());
                 }
@@ -821,19 +836,23 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
         #[UiNode]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.txt.lock().ensure_layout_for_render();
             self.with(|c| c.render(ctx, frame))
         }
         #[UiNode]
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            self.txt.lock().ensure_layout_for_render();
             self.with(|c| c.render_update(ctx, update))
         }
     }
     LayoutTextNode {
         child: child.cfg_boxed(),
         txt: Mutex::new(FinalText {
-            layout: None,
+            txt: None,
             shaping_args: TextShapingArgs::default(),
             pending: Layout::empty(),
+            txt_is_measured: false,
+            layout_metrics: LayoutMetrics::new(1.fct(), PxSize::zero(), Px(0)),
         }),
     }
     .cfg_boxed()
