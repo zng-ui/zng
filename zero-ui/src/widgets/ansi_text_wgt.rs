@@ -5,7 +5,17 @@ use zero_ui::prelude::new_widget::*;
 /// Supports color, weight, italic and more, see [`AnsiStyle`] for the full style supported.
 ///
 /// [`AnsiStyle`]: ansi_text::AnsiStyle
-#[widget($crate::widgets::ansi_text)]
+#[widget($crate::widgets::ansi_text {
+    ($txt:literal) => {
+        txt = $crate::core::text::formatx!($txt);
+    };
+    ($txt:expr) => {
+        txt = $txt;
+    };
+    ($txt:tt, $($format:tt)*) => {
+        txt = $crate::core::text::formatx!($txt, $($format)*);
+    };
+})]
 pub mod ansi_text {
     use super::*;
 
