@@ -375,7 +375,8 @@ impl fmt::Debug for ImageHash {
         if f.alternate() {
             f.debug_tuple("ImageHash").field(&self.0).finish()
         } else {
-            write!(f, "{}", base64::encode(self.0))
+            use base64::*;
+            write!(f, "{}", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(self.0))
         }
     }
 }

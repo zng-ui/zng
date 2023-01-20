@@ -243,8 +243,10 @@ impl CacheKey {
 
     /// Computes a URI safe base64 encoded SHA-512/256 from the key data.
     pub fn sha_str(&self) -> String {
+        use base64::*;
+
         let hash = self.sha();
-        base64::encode_config(&hash[..], base64::URL_SAFE_NO_PAD)
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&hash[..])
     }
 }
 impl fmt::Display for CacheKey {
