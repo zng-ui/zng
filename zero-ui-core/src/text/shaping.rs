@@ -1011,7 +1011,7 @@ impl ShapedText {
                 }
 
                 if last_start == self.segments.0.len()
-                    && self.segments.0.len() > 0
+                    && !self.segments.0.is_empty()
                     && self.segments.0[self.segments.0.len() - 1].text.kind != TextSegmentKind::LineBreak
                 {
                     self.lines.0.pop();
