@@ -1014,7 +1014,7 @@ impl ShapedTextBuilder {
                                 // need segment split
 
                                 // try to hyphenate
-                                let hyphenated = self.push_hyphenate(word_ctx_key, seg, shaped_seg, info, text);
+                                let hyphenated = self.push_hyphenate(word_ctx_key, seg, font, shaped_seg, info, text);
 
                                 if !hyphenated && self.break_words {
                                     // break word
@@ -1024,7 +1024,7 @@ impl ShapedTextBuilder {
                                     self.push_line_break(true, text);
 
                                     // try to hyphenate with full width available
-                                    let hyphenaded = self.push_hyphenate(word_ctx_key, seg, shaped_seg, info, text);
+                                    let hyphenaded = self.push_hyphenate(word_ctx_key, seg, font, shaped_seg, info, text);
 
                                     if !hyphenaded {
                                         self.push_glyphs(shaped_seg, self.letter_spacing);
@@ -1078,6 +1078,8 @@ impl ShapedTextBuilder {
                     self.out.clusters.push(0);
 
                     self.push_text_seg(seg, info);
+
+                    self.push_font(&fonts[0]);
                 }
                 TextSegmentKind::LineBreak => {
                     self.push_text_seg(seg, info);
@@ -1106,6 +1108,7 @@ impl ShapedTextBuilder {
         &mut self,
         word_ctx_key: &WordContextKey,
         seg: &str,
+        font: &FontRef,
         shaped_seg: &ShapedSegmentData,
         info: TextSegment,
         text: &SegmentedText,
@@ -1115,12 +1118,13 @@ impl ShapedTextBuilder {
         }
 
         let split_points = Hyphenation::hyphenate(&word_ctx_key.lang(), seg);
-        self.push_hyphenate_pt(&split_points, shaped_seg, seg, info, text)
+        self.push_hyphenate_pt(&split_points, font, shaped_seg, seg, info, text)
     }
 
     fn push_hyphenate_pt(
         &mut self,
         split_points: &[usize],
+        font: &FontRef,
         shaped_seg: &ShapedSegmentData,
         seg: &str,
         info: TextSegment,
@@ -1167,21 +1171,20 @@ impl ShapedTextBuilder {
         }
         let end_cluster = glyphs_b[0].cluster;
         let (seg_a, seg_b) = seg.split_at(end_cluster as usize);
-        let shaped_seg_a = ShapedSegmentData {
-            glyphs: glyphs_a
-                .iter()
-                .copied()
-                .chain(self.hyphen_glyphs.0.glyphs.iter().map(|g| {
-                    let mut g = *g;
-                    g.cluster = end_cluster;
-                    g.point.0 += end_glyph_x;
-                    g
-                }))
-                .collect(),
-            x_advance: end_glyph_x + self.hyphen_glyphs.0.x_advance,
-            y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
-        };
-        self.push_glyphs(&shaped_seg_a, self.word_spacing);
+
+        self.push_glyphs(
+            &ShapedSegmentData {
+                glyphs: glyphs_a.to_vec(),
+                x_advance: end_glyph_x,
+                y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
+            },
+            self.word_spacing,
+        );
+        self.push_font(font);
+
+        self.push_glyphs(&self.hyphen_glyphs.0.clone(), 0.0);
+        self.push_font(&self.hyphen_glyphs.1.clone());
+
         self.push_text_seg(seg_a, info);
 
         self.push_line_break(true, text);
@@ -1199,7 +1202,7 @@ impl ShapedTextBuilder {
 
         if shaped_seg_b.x_advance > self.actual_max_width() {
             // second half still does not fit, try to hyphenate again.
-            if self.push_hyphenate_pt(&split_points[end_point_i..], &shaped_seg_b, seg_b, info, text) {
+            if self.push_hyphenate_pt(&split_points[end_point_i..], font, &shaped_seg_b, seg_b, info, text) {
                 return true;
             }
         }

@@ -1,5 +1,4 @@
-* ShapedText fonts
-    - Re-implement font fallback as the text is shaped (pre-wrap).
+* Merge.
 
 * Review bidi text across inlined widgets.
     - HTML reorders across any span in the line, the background
