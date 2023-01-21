@@ -994,19 +994,19 @@ impl ShapedTextBuilder {
             });
         }
 
-        t.push_text(&fonts[0], &config.font_features, &mut word_ctx_key, text);
+        t.push_text(fonts, &config.font_features, &mut word_ctx_key, text);
 
         t.out.debug_assert_ranges();
         t.out
     }
 
-    fn push_text(&mut self, font: &FontRef, features: &RFontFeatures, word_ctx_key: &mut WordContextKey, text: &SegmentedText) {
+    fn push_text(&mut self, fonts: &[FontRef], features: &RFontFeatures, word_ctx_key: &mut WordContextKey, text: &SegmentedText) {
         for (seg, info) in text.iter() {
             word_ctx_key.direction = info.direction;
             let max_width = self.actual_max_width();
             match info.kind {
                 TextSegmentKind::Word => {
-                    font.shape_segment(seg, word_ctx_key, features, |shaped_seg| {
+                    fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, font| {
                         if self.origin.x + shaped_seg.x_advance > max_width {
                             // need wrap
 
@@ -1041,10 +1041,12 @@ impl ShapedTextBuilder {
                             self.push_glyphs(shaped_seg, self.letter_spacing);
                             self.push_text_seg(seg, info);
                         }
+
+                        self.push_font(font);
                     });
                 }
                 TextSegmentKind::Space => {
-                    font.shape_segment(seg, word_ctx_key, features, |shaped_seg| {
+                    fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, font| {
                         if self.origin.x + shaped_seg.x_advance > max_width {
                             // need wrap
                             if seg.len() > 2 {
@@ -1059,6 +1061,8 @@ impl ShapedTextBuilder {
                             self.push_glyphs(shaped_seg, self.word_spacing);
                             self.push_text_seg(seg, info);
                         }
+
+                        self.push_font(font);
                     });
                 }
                 TextSegmentKind::Tab => {
@@ -1095,10 +1099,7 @@ impl ShapedTextBuilder {
             self.out.last_line.origin.y += self.out.mid_clear;
         }
 
-        self.out.fonts.0.push(FontRange {
-            font: font.clone(),
-            end: self.out.glyphs.len(),
-        });
+        self.push_font(&fonts[0]);
     }
 
     fn push_hyphenate(
@@ -1392,6 +1393,21 @@ impl ShapedTextBuilder {
                 self.push_split_seg(&shaped_seg_b, seg_b, info, spacing, text);
             }
         }
+    }
+
+    fn push_font(&mut self, font: &FontRef) {
+        if let Some(last) = self.out.fonts.0.last_mut() {
+            if last.font.ptr_eq(font) {
+                last.end = self.out.glyphs.len();
+                return;
+            } else if last.end == self.out.glyphs.len() {
+                return;
+            }
+        }
+        self.out.fonts.0.push(FontRange {
+            font: font.clone(),
+            end: self.out.glyphs.len(),
+        })
     }
 }
 
