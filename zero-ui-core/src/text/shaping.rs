@@ -164,22 +164,6 @@ impl GlyphSegmentVec {
         IndexRange(start, end)
     }
 
-    /// Iter (TextSegment, GlyphRange, SegRange).
-    fn iter_glyphs_and_text(&self) -> impl Iterator<Item = (TextSegment, IndexRange, IndexRange)> + '_ {
-        let mut g_start = 0;
-        let mut t_start = 0;
-
-        self.0.iter().map(move |s| {
-            let g_r = IndexRange(g_start, s.end);
-            let t_r = IndexRange(t_start, s.text.end);
-
-            g_start = s.end;
-            t_start = s.text.end;
-
-            (s.text, g_r, t_r)
-        })
-    }
-
     fn iter_glyphs(&self, start_seg: usize) -> impl Iterator<Item = (TextSegment, IndexRange)> + '_ {
         let mut start = if start_seg == 0 { 0 } else { self.0[start_seg - 1].end };
         self.0[start_seg..].iter().map(move |s| {
@@ -187,25 +171,6 @@ impl GlyphSegmentVec {
             start = s.end;
             (s.text, r)
         })
-    }
-
-    fn first(&self) -> GlyphSegment {
-        self.0[0]
-    }
-
-    fn last(&self) -> GlyphSegment {
-        let l = self.0.len() - 1;
-        self.0[l]
-    }
-
-    fn last_glyphs(&self) -> IndexRange {
-        self.glyphs(self.0.len() - 1)
-    }
-
-    fn assert_contains(&self, index: usize) {
-        if self.0.len() <= index {
-            panic!("segment out of bounds, the len is {} but the segment is {}", self.0.len(), index)
-        }
     }
 }
 
@@ -263,13 +228,6 @@ impl LineRangeVec {
 #[derive(Debug, Default, Clone, PartialEq)]
 struct FontRangeVec(Vec<FontRange>);
 impl FontRangeVec {
-    /// Exclusive glyphs range of the segment.
-    fn glyphs(&self, index: usize) -> IndexRange {
-        let start = if index == 0 { 0 } else { self.0[index - 1].end };
-        let end = self.0[index].end;
-        IndexRange(start, end)
-    }
-
     /// Iter glyph ranges.
     fn iter_glyphs(&self) -> impl Iterator<Item = (&FontRef, IndexRange)> + '_ {
         let mut start = 0;
@@ -302,24 +260,6 @@ impl FontRangeVec {
     /// Returns a reference to the font.
     fn font(&self, index: usize) -> &FontRef {
         &self.0[index].font
-    }
-
-    fn last_glyphs(&self) -> IndexRange {
-        let last = self.0.len() - 1;
-        self.glyphs(last)
-    }
-
-    fn first(&self) -> &FontRange {
-        &self.0[0]
-    }
-
-    fn last(&self) -> &FontRange {
-        &self.0[self.0.len() - 1]
-    }
-
-    fn last_mut(&mut self) -> &mut FontRange {
-        let last = self.0.len() - 1;
-        &mut self.0[last]
     }
 }
 
@@ -823,6 +763,18 @@ impl ShapedText {
         }
     }
 
+    /// Check if any line can be better wrapped given the new wrap config.
+    ///
+    /// Note that a new [`ShapedText`] must be generated to *rewrap*.
+    pub fn can_rewrap(&self, max_width: Px) -> bool {
+        for line in self.lines() {
+            if line.width > max_width || line.started_by_wrap() {
+                return true;
+            }
+        }
+        false
+    }
+
     #[track_caller]
     fn debug_assert_ranges(&self) {
         #[cfg(debug_assertions)]
@@ -855,289 +807,6 @@ impl ShapedText {
             }
             assert!(self.fonts.0.last().map(|f| f.end == self.glyphs.len()).unwrap_or(true));
         }
-    }
-
-    /// Split the shaped text in two. The text is split at a `segment` that becomes the first segment of the second text.
-    ///
-    /// Reshape is cleared before split.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `segment` is out of the range.
-    pub fn split(mut self, segment: usize) -> (ShapedText, ShapedText) {
-        self.clear_reshape();
-
-        if segment == 0 {
-            let a = self.empty();
-            (a, self)
-        } else {
-            self.segments.assert_contains(segment);
-            self.debug_assert_ranges();
-
-            let g_end = self.segments.glyphs(segment).start();
-            let l_end = self.lines.0.iter().position(|l| l.end > segment).unwrap();
-            let f_end = self.fonts.0.iter().position(|f| f.end > g_end).unwrap();
-            let txt_s_end = self.segments.0[segment - 1].text.end;
-
-            debug_assert!(self.lines.segs(l_end).start() <= segment);
-
-            let split_line = self.lines.segs(l_end).start() < segment;
-            let a_line_width = self.glyphs[g_end].point.x;
-
-            let mut b = ShapedText {
-                glyphs: self.glyphs.drain(g_end..).collect(),
-                clusters: self.clusters.drain(g_end..).collect(),
-                segments: GlyphSegmentVec(self.segments.0.drain(segment..).collect()),
-                lines: LineRangeVec(self.lines.0.drain(l_end..).collect()),
-                fonts: FontRangeVec(self.fonts.0.drain(f_end..).collect()),
-                orig_line_height: self.orig_line_height,
-                orig_line_spacing: self.orig_line_spacing,
-                line_height: self.orig_line_height,
-                line_spacing: self.orig_line_spacing,
-                baseline: self.baseline,
-                overline: self.overline,
-                strikethrough: self.strikethrough,
-                underline: self.underline,
-                underline_descent: self.underline_descent,
-                mid_offset: 0.0,
-                align_size: PxSize::zero(),
-                align: Align::TOP_LEFT,
-                direction: LayoutDirection::LTR,
-                first_wrapped: false,
-                is_inlined: false,
-                first_line: PxRect::zero(),
-                mid_clear: Px(0),
-                mid_size: PxSize::zero(),
-                last_line: PxRect::zero(),
-            };
-
-            let mut b_offset = 0.0;
-
-            if self.lines.0.is_empty() || self.lines.last().end <= self.segments.0.len() {
-                self.lines.0.push(LineRange {
-                    end: self.segments.0.len(),
-                    width: a_line_width,
-                    x_offset: 0.0,
-                });
-            }
-
-            if split_line {
-                let LineRange { width: a_ll_width, .. } = self.lines.last_mut();
-                let LineRange { width: b_fl_width, .. } = b.lines.first_mut();
-
-                *a_ll_width = a_line_width;
-                *b_fl_width -= a_line_width;
-
-                b_offset = -a_line_width;
-            }
-
-            for l in &mut b.lines.0 {
-                l.end -= self.segments.0.len();
-            }
-
-            for s in &mut b.segments.0 {
-                s.end -= self.glyphs.len();
-                s.text.end -= txt_s_end;
-            }
-
-            if self.fonts.0.is_empty() {
-                self.fonts.0.push(FontRange {
-                    font: b.fonts.font(0).clone(),
-                    end: self.glyphs.len(),
-                });
-            } else {
-                let last_font = self.fonts.last_mut();
-                last_font.end = last_font.end.min(self.glyphs.len());
-            }
-            for f in &mut b.fonts.0 {
-                f.end -= self.glyphs.len();
-            }
-
-            let b_fl_end = b.segments.glyphs(b.lines.segs(0).inclusive_end()).end();
-            for g in &mut b.glyphs[..b_fl_end] {
-                g.point.x += b_offset;
-            }
-
-            self.update_mid_size();
-            self.update_first_last_lines();
-
-            b.update_mid_size();
-            b.update_first_last_lines();
-
-            if self.lines.is_multi() {
-                let b_y_offset = self.last_line.origin.y.0 as f32;
-                for g in &mut b.glyphs {
-                    g.point.y -= b_y_offset;
-                }
-            }
-
-            self.debug_assert_ranges();
-            b.debug_assert_ranges();
-
-            (self, b)
-        }
-    }
-
-    /// Like [`split`] but the `segment` is not included in the result.
-    ///
-    /// [`split`]: Self::split
-    pub fn split_remove(self, segment: usize) -> (ShapedText, ShapedText) {
-        // split to include the segment to remove in the first text, then pop the segment.
-
-        self.segments.assert_contains(segment);
-
-        let aft_rmv = segment + 1;
-        let (mut a, mut b) = if aft_rmv == self.segments.0.len() {
-            let b = self.empty();
-            (self, b)
-        } else {
-            self.split(aft_rmv)
-        };
-
-        a.pop_seg();
-
-        a.update_first_last_lines();
-        b.update_first_last_lines();
-
-        (a, b)
-    }
-    fn pop_seg(&mut self) {
-        if self.is_empty() {
-            return;
-        }
-
-        self.debug_assert_ranges();
-
-        if self.segments.0.len() == 1 {
-            *self = self.empty();
-        } else {
-            let r = self.segments.last_glyphs();
-            self.segments.0.pop();
-
-            while self.fonts.0.len() > 1 && self.fonts.last_glyphs().start() >= r.start() {
-                self.fonts.0.pop();
-            }
-            self.fonts.last_mut().end = r.start();
-
-            while self.lines.0.len() > 1 {
-                let mut changed = false;
-
-                let last_start = self.lines.segs(self.lines.0.len() - 1).start();
-
-                if last_start > self.segments.0.len() {
-                    self.lines.0.pop();
-                    changed = true;
-                }
-
-                if last_start == self.segments.0.len()
-                    && !self.segments.0.is_empty()
-                    && self.segments.0[self.segments.0.len() - 1].text.kind != TextSegmentKind::LineBreak
-                {
-                    self.lines.0.pop();
-                    changed = true;
-                }
-
-                if !changed {
-                    break;
-                }
-            }
-            let last_line = self.lines.last_mut();
-            last_line.end = self.segments.0.len();
-            if r.start() < self.glyphs.len() {
-                last_line.width = self.glyphs[r.start()].point.x;
-                last_line.end = self.segments.0.len();
-                self.glyphs.truncate(r.start());
-                self.clusters.truncate(r.start());
-            }
-
-            self.debug_assert_ranges();
-        }
-    }
-
-    /// Appends the `text` to the end of `self`.
-    ///
-    /// Any reshape in `self` and `text` is cleared, the shaped text also stops being inlined.
-    pub fn extend(&mut self, mut text: ShapedText) {
-        self.clear_reshape();
-
-        if text.is_empty() {
-            return;
-        }
-
-        text.reshape_lines(
-            PxConstrains2d::new_unbounded(),
-            None,
-            Align::TOP_LEFT,
-            self.line_height,
-            self.line_spacing,
-            LayoutDirection::LTR,
-        );
-
-        if self.is_empty() {
-            *self = text;
-            return;
-        }
-
-        // y-offset of glyphs in `text`.
-        let y_offset = (self.last_line.min_y() + self.line_spacing).0 as f32;
-        for g in &mut text.glyphs {
-            g.point.y += y_offset;
-        }
-
-        // x-offset of the glyphs in the first line of `text`.
-        let x_offset = self.lines.last().width;
-        let r = text.segments.glyphs_range(text.lines.segs(0));
-        for g in &mut text.glyphs[r.iter()] {
-            g.point.x += x_offset;
-        }
-
-        for line in &mut text.lines.0 {
-            line.end += self.segments.0.len();
-        }
-
-        let mut lines = text.lines.0.into_iter();
-
-        let last_line = self.lines.last_mut();
-        let first_line = lines.next().unwrap();
-        last_line.end = first_line.end;
-        last_line.width += first_line.width;
-
-        self.lines.0.extend(lines);
-
-        let txt_s_end = self.segments.0.last().map(|t| t.text.end).unwrap_or(0);
-        for seg in &mut text.segments.0 {
-            seg.end += self.glyphs.len();
-            seg.text.end += txt_s_end;
-        }
-        self.segments.0.extend(text.segments.0);
-
-        for font in &mut text.fonts.0 {
-            font.end += self.glyphs.len();
-        }
-        let merge_font = self.fonts.last().font.ptr_eq(&text.fonts.first().font);
-        let mut fonts = text.fonts.0.into_iter();
-        if merge_font {
-            self.fonts.last_mut().end = fonts.next().unwrap().end;
-        }
-        self.fonts.0.extend(fonts);
-
-        self.glyphs.extend(text.glyphs);
-        self.clusters.extend(text.clusters);
-
-        self.update_mid_size();
-        self.update_first_last_lines();
-    }
-
-    /// Check if any line can be better wrapped given the new wrap config.
-    /// 
-    /// Note that a new [`ShapedText`] must be generated to *rewrap*.
-    pub fn can_rewrap(&self, max_width: Px) -> bool {
-        for line in self.lines() {
-            if line.width > max_width || line.started_by_wrap() {
-                return true;
-            }
-        }
-        false
     }
 }
 
@@ -1173,7 +842,7 @@ impl ShapedTextBuilder {
         }
     }
 
-    fn shape_text(font: &FontRef, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
+    fn shape_text(font: &[FontRef], text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         let mut t = Self {
             out: ShapedText {
                 glyphs: Default::default(),
@@ -1225,7 +894,7 @@ impl ShapedTextBuilder {
 
         let mut word_ctx_key = WordContextKey::new(&config.lang, config.direction, &config.font_features);
 
-        let metrics = font.metrics();
+        let metrics = font[0].metrics();
 
         t.out.orig_line_height = config.line_height;
         t.out.orig_line_spacing = config.line_spacing;
@@ -1260,7 +929,7 @@ impl ShapedTextBuilder {
         t.letter_spacing = config.letter_spacing.0 as f32;
         t.word_spacing = config.word_spacing.0 as f32;
         t.tab_x_advance = config.tab_x_advance.0 as f32;
-        t.tab_index = font.space_index();
+        t.tab_index = font[0].space_index();
 
         t.max_width = if config.max_width == Px::MAX {
             f32::INFINITY
@@ -1284,10 +953,10 @@ impl ShapedTextBuilder {
         };
 
         if !matches!(config.hyphens, Hyphens::None) {
-            t.hyphen_glyphs = font.shape_segment(config.hyphen_char.as_str(), &word_ctx_key, &config.font_features, |s| s.clone());
+            t.hyphen_glyphs = font[0].shape_segment(config.hyphen_char.as_str(), &word_ctx_key, &config.font_features, |s| s.clone());
         }
 
-        t.push_text(font, &config.font_features, &mut word_ctx_key, text);
+        t.push_text(&font[0], &config.font_features, &mut word_ctx_key, text);
 
         t.out.debug_assert_ranges();
         t.out
@@ -2428,7 +2097,7 @@ impl Font {
 
     /// Calculates a [`ShapedText`].
     pub fn shape_text(self: &FontRef, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
-        ShapedTextBuilder::shape_text(self, text, config)
+        ShapedTextBuilder::shape_text(&[self.clone()], text, config)
     }
 
     /// Sends the sized vector path for a glyph to `sink`.
@@ -2610,59 +2279,9 @@ pub trait OutlineSink {
 }
 
 impl FontList {
-    /// Calculates a [`ShapedText`] using the [best](FontList::best) font in this list.
+    /// Calculates a [`ShapedText`] using the [best](FontList::best) font in this list and the other fonts as fallback.
     pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
-        let mut r = self.best().shape_text(text, config);
-
-        if self.len() == 1 || r.is_empty() {
-            return r;
-        }
-
-        // find segments that contain unresolved glyphs (`0`) and collect replacements:
-        let mut replacement_segs = vec![];
-
-        for (i, (info, gr, tr)) in r.segments.iter_glyphs_and_text().enumerate() {
-            let glyphs = &r.glyphs[gr.iter()];
-            if glyphs.iter().any(|g| g.index == 0) {
-                // try fallbacks:
-                for font in &self[1..] {
-                    let txt = &text.text()[tr.iter()];
-                    let seg = TextSegment { end: txt.len(), ..info };
-                    let text = SegmentedText::from_parts(txt.to_owned().into(), vec![seg], text.base_direction());
-
-                    let replacement = font.shape_text(&text, config);
-
-                    if replacement.glyphs.iter().all(|g| g.index != 0) {
-                        replacement_segs.push((i, replacement));
-                        break;
-                    }
-                }
-            }
-        }
-
-        if replacement_segs.is_empty() {
-            r
-        } else if r.segments.0.len() == replacement_segs.len() {
-            // all segments replaced, concat replacements:
-            let mut iter = replacement_segs.into_iter();
-            let (_, mut r) = iter.next().unwrap();
-            for (_, repl) in iter {
-                r.extend(repl);
-            }
-            r
-        } else {
-            let mut parts = Vec::with_capacity(replacement_segs.len() * 2);
-            for (i, repl) in replacement_segs.into_iter().rev() {
-                let (new_r, tail) = r.split_remove(i);
-                parts.push(tail);
-                parts.push(repl);
-                r = new_r;
-            }
-            for part in parts.into_iter().rev() {
-                r.extend(part);
-            }
-            r
-        }
+        ShapedTextBuilder::shape_text(self, text, config)
     }
 }
 
@@ -2761,129 +2380,6 @@ mod tests {
         }
 
         assert_eq!(test.size(), expected.size());
-    }
-
-    #[test]
-    fn split_single_line() {
-        test_split("a b", 1, "a", " b");
-        test_split("one another", 1, "one", " another");
-        test_split("one another then rest", 3, "one another", " then rest");
-        test_split("at start", 0, "", "at start");
-        test_split("at end", 2, "at ", "end");
-    }
-    fn test_split(full_text: &'static str, segment: usize, a: &'static str, b: &'static str) {
-        let font = test_font();
-        let config = TextShapingArgs::default();
-
-        let seg_text = SegmentedText::new(full_text, LayoutDirection::LTR);
-        let a = SegmentedText::new(a, LayoutDirection::LTR);
-        let b = SegmentedText::new(b, LayoutDirection::LTR);
-
-        let shaped_text = font.shape_text(&seg_text, &config);
-        let expected_a = font.shape_text(&a, &config);
-        let expected_b = font.shape_text(&b, &config);
-
-        let (actual_a, actual_b) = shaped_text.split(segment);
-
-        let full_text = escape(full_text);
-        pretty_assertions::assert_eq!(expected_a, actual_a, "failed \"{full_text}\"");
-        pretty_assertions::assert_eq!(expected_b, actual_b, "failed \"{full_text}\"");
-    }
-
-    #[test]
-    #[should_panic(expected = "segment out of bounds, the len is 3 but the segment is 3")]
-    fn split_out_of_range() {
-        test_split("at len", 3, "at len", "");
-    }
-
-    #[test]
-    fn split_multi_line() {
-        test_split("a\nb", 1, "a", "\nb");
-        test_split("a\nb", 2, "a\n", "b");
-
-        test_split("a b\nc", 1, "a", " b\nc");
-        test_split("a\nb c", 3, "a\nb", " c");
-
-        test_split("one\nanother", 1, "one", "\nanother");
-        test_split("one\nanother", 2, "one\n", "another");
-    }
-
-    #[test]
-    fn split_remove_single_line() {
-        test_split_remove("a b", 1, "a", "b");
-        test_split_remove("one another", 1, "one", "another");
-        test_split_remove("one another then rest", 3, "one another", "then rest");
-        test_split_remove("at start", 0, "", " start");
-        test_split_remove("at end", 2, "at ", "");
-    }
-    fn test_split_remove(full_text: &'static str, segment: usize, a: &'static str, b: &'static str) {
-        let font = test_font();
-        let config = TextShapingArgs::default();
-
-        let seg_text = SegmentedText::new(full_text, LayoutDirection::LTR);
-        let a = SegmentedText::new(a, LayoutDirection::LTR);
-        let b = SegmentedText::new(b, LayoutDirection::LTR);
-
-        let shaped_text = font.shape_text(&seg_text, &config);
-        let expected_a = font.shape_text(&a, &config);
-        let expected_b = font.shape_text(&b, &config);
-
-        let (actual_a, actual_b) = shaped_text.split_remove(segment);
-
-        let full_text = escape(full_text);
-        pretty_assertions::assert_eq!(expected_a, actual_a, "failed \"{full_text}\"");
-        pretty_assertions::assert_eq!(expected_b, actual_b, "failed \"{full_text}\"");
-    }
-
-    #[test]
-    fn split_remove_multi_line() {
-        test_split_remove("a\nb", 1, "a", "b");
-        test_split_remove("a\nb", 2, "a\n", "");
-        test_split_remove("a b\nc", 1, "a", "b\nc");
-        test_split_remove("a\nb c", 3, "a\nb", "c");
-        test_split_remove("one\nanother", 1, "one", "another");
-        test_split_remove("one\nanother", 2, "one\n", "");
-        test_split_remove("\nseg", 1, "\n", "");
-    }
-
-    #[test]
-    fn extend_single_line() {
-        test_extend("a", " b");
-        test_extend("first", " second");
-        test_extend("", "empty");
-        test_extend("empty", "");
-    }
-    fn test_extend(a: &'static str, b: &'static str) {
-        let font = test_font();
-        let config = TextShapingArgs::default();
-
-        let s_a = SegmentedText::new(a, LayoutDirection::LTR);
-        let s_b = SegmentedText::new(b, LayoutDirection::LTR);
-        let s_expected = SegmentedText::new(a.to_owned() + b, LayoutDirection::LTR);
-
-        let mut sh_a = font.shape_text(&s_a, &config);
-        let sh_b = font.shape_text(&s_b, &config);
-        let sh_expected = font.shape_text(&s_expected, &config);
-
-        sh_a.extend(sh_b);
-
-        pretty_assertions::assert_eq!(sh_expected, sh_a, "failed \"{}\" + \"{}\"", escape(a), escape(b));
-    }
-
-    #[test]
-    fn extend_multi_line() {
-        test_extend("a\n", "b");
-        test_extend("a", "\nb");
-
-        test_extend("first\n", "second");
-        test_extend("first", "\nsecond");
-
-        test_extend("\n", "\n");
-        test_extend("a ", "b\nc");
-    }
-
-    fn escape(s: &str) -> String {
-        s.replace('\n', "\\n")
     }
 
     #[test]
