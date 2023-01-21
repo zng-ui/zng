@@ -1129,6 +1129,8 @@ impl ShapedText {
     }
 
     /// Check if any line can be better wrapped given the new wrap config.
+    /// 
+    /// Note that a new [`ShapedText`] must be generated to *rewrap*.
     pub fn can_rewrap(&self, max_width: Px) -> bool {
         for line in self.lines() {
             if line.width > max_width || line.started_by_wrap() {
@@ -2882,5 +2884,25 @@ mod tests {
 
     fn escape(s: &str) -> String {
         s.replace('\n', "\\n")
+    }
+
+    #[test]
+    fn font_fallback_issue() {
+        let mut app = App::default().run_headless(false);
+        let font = Fonts::req(&mut app)
+            .list(
+                &[FontName::new("Consolas"), FontName::monospace()],
+                FontStyle::Normal,
+                FontWeight::NORMAL,
+                FontStretch::NORMAL,
+                &lang!(und),
+            )
+            .sized(Px(20), vec![]);
+        let config = TextShapingArgs::default();
+
+        let txt_seg = SegmentedText::new("النص ثنائي الاتجاه (بالإنجليزية:Bi", LayoutDirection::RTL);
+        let txt_shape = font.shape_text(&txt_seg, &config);
+
+        let _ok = (txt_seg, txt_shape);
     }
 }

@@ -1,3 +1,17 @@
+* ShapedText Issues
+    - Can't use glyph offset to determinate width of segments.
+    - The problem is RTL text glyphs are reordered, they can end-up mixed all over the line.
+    - Need to rethink all direct manipulations in `ShapedText`.
+        - `slip`, `slit_remove` and `extend` can't be implemented correctly.
+        - These methods can still work at the line level, like can only split at a line break.
+    - We only use these methods to implement font fallback.
+        - Current font fallback impl is incorrect even in pure LTR text.
+        - The fallback fonts can easily have different widths, so the wrap can end-up incorrectly.
+        - Can we implement font fallback as it is shaping?
+        - If we implement font fallback in a different way we can remove the edit methods.
+            - They are complicated and if we are only going to support line level editing a user can
+              just use multiple `ShapedText` instances if they really need to be modifying a single line.
+
 * Review bidi text across inlined widgets.
     - HTML reorders across any span in the line, the background
         `<p>النص ثنائي الاتجاه (بالإنجليزية: Bi-directi<span>onal text)‏ هو </span>نص يحتوي على نص في كل من</p>`
