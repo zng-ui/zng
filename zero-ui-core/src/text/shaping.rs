@@ -810,6 +810,42 @@ impl ShapedText {
     }
 }
 
+trait FontListRef {
+    /// Shape segment, try fallback fonts if a glyph in the segment is not resolved.
+    fn shape_segment<R>(
+        &self,
+        seg: &str,
+        word_ctx_key: &WordContextKey,
+        features: &[harfbuzz_rs::Feature],
+        out: impl FnOnce(&ShapedSegmentData, &FontRef) -> R,
+    ) -> R;
+}
+impl FontListRef for [FontRef] {
+    fn shape_segment<R>(
+        &self,
+        seg: &str,
+        word_ctx_key: &WordContextKey,
+        features: &[harfbuzz_rs::Feature],
+        out: impl FnOnce(&ShapedSegmentData, &FontRef) -> R,
+    ) -> R {
+        let mut out = Some(out);
+        let last = self.len() - 1;
+        for font in &self[..last] {
+            let r = font.shape_segment(seg, word_ctx_key, features, |seg| {
+                if seg.glyphs.iter().all(|g| g.index != 0) {
+                    Some(out.take().unwrap()(seg, font))
+                } else {
+                    None
+                }
+            });
+            if let Some(r) = r {
+                return r;
+            }
+        }
+        self[last].shape_segment(seg, word_ctx_key, features, move |seg| out.unwrap()(seg, &self[last]))
+    }
+}
+
 struct ShapedTextBuilder {
     out: ShapedText,
 
@@ -819,7 +855,7 @@ struct ShapedTextBuilder {
     letter_spacing: f32,
     max_width: f32,
     break_words: bool,
-    hyphen_glyphs: ShapedSegmentData,
+    hyphen_glyphs: (ShapedSegmentData, FontRef),
     tab_x_advance: f32,
     tab_index: u32,
     hyphens: Hyphens,
@@ -842,7 +878,7 @@ impl ShapedTextBuilder {
         }
     }
 
-    fn shape_text(font: &[FontRef], text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
+    fn shape_text(fonts: &[FontRef], text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         let mut t = Self {
             out: ShapedText {
                 glyphs: Default::default(),
@@ -877,7 +913,7 @@ impl ShapedTextBuilder {
             letter_spacing: 0.0,
             max_width: 0.0,
             break_words: false,
-            hyphen_glyphs: ShapedSegmentData::default(),
+            hyphen_glyphs: (ShapedSegmentData::default(), fonts[0].clone()),
             tab_x_advance: 0.0,
             tab_index: 0,
             hyphens: config.hyphens,
@@ -894,7 +930,7 @@ impl ShapedTextBuilder {
 
         let mut word_ctx_key = WordContextKey::new(&config.lang, config.direction, &config.font_features);
 
-        let metrics = font[0].metrics();
+        let metrics = fonts[0].metrics();
 
         t.out.orig_line_height = config.line_height;
         t.out.orig_line_spacing = config.line_spacing;
@@ -929,7 +965,7 @@ impl ShapedTextBuilder {
         t.letter_spacing = config.letter_spacing.0 as f32;
         t.word_spacing = config.word_spacing.0 as f32;
         t.tab_x_advance = config.tab_x_advance.0 as f32;
-        t.tab_index = font[0].space_index();
+        t.tab_index = fonts[0].space_index();
 
         t.max_width = if config.max_width == Px::MAX {
             f32::INFINITY
@@ -953,10 +989,12 @@ impl ShapedTextBuilder {
         };
 
         if !matches!(config.hyphens, Hyphens::None) {
-            t.hyphen_glyphs = font[0].shape_segment(config.hyphen_char.as_str(), &word_ctx_key, &config.font_features, |s| s.clone());
+            t.hyphen_glyphs = fonts.shape_segment(config.hyphen_char.as_str(), &word_ctx_key, &config.font_features, |s, f| {
+                (s.clone(), f.clone())
+            });
         }
 
-        t.push_text(&font[0], &config.font_features, &mut word_ctx_key, text);
+        t.push_text(&fonts[0], &config.font_features, &mut word_ctx_key, text);
 
         t.out.debug_assert_ranges();
         t.out
@@ -1112,7 +1150,7 @@ impl ShapedTextBuilder {
                 gi = i;
             }
 
-            if self.origin.x + width + self.hyphen_glyphs.x_advance > max_width {
+            if self.origin.x + width + self.hyphen_glyphs.0.x_advance > max_width {
                 break;
             } else {
                 end_glyph = gi;
@@ -1132,14 +1170,14 @@ impl ShapedTextBuilder {
             glyphs: glyphs_a
                 .iter()
                 .copied()
-                .chain(self.hyphen_glyphs.glyphs.iter().map(|g| {
+                .chain(self.hyphen_glyphs.0.glyphs.iter().map(|g| {
                     let mut g = *g;
                     g.cluster = end_cluster;
                     g.point.0 += end_glyph_x;
                     g
                 }))
                 .collect(),
-            x_advance: end_glyph_x + self.hyphen_glyphs.x_advance,
+            x_advance: end_glyph_x + self.hyphen_glyphs.0.x_advance,
             y_advance: glyphs_a.iter().map(|g| g.point.1).sum(),
         };
         self.push_glyphs(&shaped_seg_a, self.word_spacing);
