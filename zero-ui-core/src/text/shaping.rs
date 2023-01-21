@@ -837,6 +837,13 @@ impl ShapedText {
             let mut prev_line_end = 0;
             for line in &self.lines.0 {
                 assert!(line.end >= prev_line_end);
+                assert!(line.width >= 0.0);
+
+                let glyphs = self.segments.glyphs_range(IndexRange(prev_line_end, line.end));
+                for g in &self.glyphs[glyphs.iter()] {
+                    assert!(g.point.x <= line.width, "{:?} <= {:?}", g.point.x, line.width);
+                }
+
                 prev_line_end = line.end;
             }
             assert!(self.lines.0.last().map(|l| l.end == self.segments.0.len()).unwrap_or(true));
@@ -872,6 +879,11 @@ impl ShapedText {
             let f_end = self.fonts.0.iter().position(|f| f.end > g_end).unwrap();
             let txt_s_end = self.segments.0[segment - 1].text.end;
 
+            debug_assert!(self.lines.segs(l_end).start() <= segment);
+
+            let split_line = self.lines.segs(l_end).start() < segment;
+            let a_line_width = self.glyphs[g_end].point.x;
+
             let mut b = ShapedText {
                 glyphs: self.glyphs.drain(g_end..).collect(),
                 clusters: self.clusters.drain(g_end..).collect(),
@@ -899,29 +911,25 @@ impl ShapedText {
                 last_line: PxRect::zero(),
             };
 
+            let mut b_offset = 0.0;
+
             if self.lines.0.is_empty() || self.lines.last().end <= self.segments.0.len() {
                 self.lines.0.push(LineRange {
                     end: self.segments.0.len(),
-                    width: 0.0,
+                    width: a_line_width,
                     x_offset: 0.0,
                 });
             }
 
-            let LineRange { width: a_ll_width, .. } = self.lines.last_mut();
-            let LineRange { width: b_fl_width, .. } = b.lines.first_mut();
+            if split_line {
+                let LineRange { width: a_ll_width, .. } = self.lines.last_mut();
+                let LineRange { width: b_fl_width, .. } = b.lines.first_mut();
 
-            let mut x_offset = 0.0;
+                *a_ll_width = a_line_width;
+                *b_fl_width -= a_line_width;
 
-            if self.segments.last().text.kind == TextSegmentKind::LineBreak {
-                *a_ll_width = 0.0;
-            } else if b.segments.first().text.kind == TextSegmentKind::LineBreak {
-                *a_ll_width = *b_fl_width;
-            } else {
-                x_offset = b.glyphs[0].point.x;
-                *a_ll_width = x_offset;
+                b_offset = -a_line_width;
             }
-
-            *b_fl_width -= *a_ll_width;
 
             for l in &mut b.lines.0 {
                 l.end -= self.segments.0.len();
@@ -945,12 +953,9 @@ impl ShapedText {
                 f.end -= self.glyphs.len();
             }
 
-            self.debug_assert_ranges();
-            b.debug_assert_ranges();
-
             let b_fl_end = b.segments.glyphs(b.lines.segs(0).inclusive_end()).end();
             for g in &mut b.glyphs[..b_fl_end] {
-                g.point.x -= x_offset;
+                g.point.x += b_offset;
             }
 
             self.update_mid_size();
@@ -965,6 +970,9 @@ impl ShapedText {
                     g.point.y -= b_y_offset;
                 }
             }
+
+            self.debug_assert_ranges();
+            b.debug_assert_ranges();
 
             (self, b)
         }
