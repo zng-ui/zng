@@ -1,5 +1,3 @@
-* Merge.
-
 * Review bidi text across inlined widgets.
     - HTML reorders across any span in the line, the background
         `<p>النص ثنائي الاتجاه (بالإنجليزية: Bi-directi<span>onal text)‏ هو </span>نص يحتوي على نص في كل من</p>`
