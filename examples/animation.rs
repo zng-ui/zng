@@ -94,7 +94,7 @@ fn example(vars: &Vars) -> impl UiNode {
                 spacing = 2;
                 columns = ui_vec![grid::column!(1.lft()); 7];
                 auto_grow_gen = wgt_gen!(|_, _| grid::row!(1.lft()));
-                button::vis::extend_style = style_generator!(|_, _| style! {
+                button::vis::extend_style = style_gen!(|_, _| style! {
                     padding = 3;
                 });
                 cells = ui_vec![

@@ -136,14 +136,16 @@ fn toggle_buttons() -> impl UiNode {
                 checked_opt = var(Some(false));
                 tristate = true;
             },
-            checkbox! {
+            toggle! {
                 child = text!("Checkbox");
                 checked = var(false);
+                style_gen = style_gen!(|_, _| toggle::vis::check_style!());
             },
-            checkbox! {
+            toggle! {
                 child = text!("Checkbox Tristate");
                 checked_opt = var(Some(false));
                 tristate = true;
+                style_gen = style_gen!(|_, _| toggle::vis::check_style!());
             },
         ]
     }

@@ -61,7 +61,7 @@ pub use text_wgt::{em, strong, text, text_input};
 
 mod toggle_wgt;
 #[doc(inline)]
-pub use toggle_wgt::{checkbox, toggle};
+pub use toggle_wgt::toggle;
 
 mod style_wgt;
 #[doc(inline)]

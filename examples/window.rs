@@ -492,7 +492,7 @@ fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) 
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 4;
 
-            button::vis::extend_style = style_generator!(|_, _| {
+            button::vis::extend_style = style_gen!(|_, _| {
                 style! {
                     padding = 4;
                     corner_radius = unset!;

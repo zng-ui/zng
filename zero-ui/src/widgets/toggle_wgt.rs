@@ -849,80 +849,43 @@ pub mod vis {
             }
         }
     }
-}
 
-/// A checkbox toggle.
-#[widget($crate::widgets::checkbox)]
-pub mod checkbox {
-    inherit!(super::toggle);
+    /// Checkmark toggle style.
+    ///
+    /// Style a [`toggle!`] widget to look like a *checkbox*.
+    ///
+    /// [`toggle!`]: mod@crate::widgets::toggle
+    #[widget($crate::widgets::toggle::vis::check_style)]
+    pub mod check_style {
+        use super::*;
+        use crate::widgets::text;
 
-    pub use super::toggle::IS_CHECKED_VAR;
+        inherit!(style);
 
-    use super::*;
-    use crate::widgets::text::TEXT_COLOR_VAR;
-
-    properties! {
-        child_align = Align::LEFT;
-        padding = 0;
-
-        pub checkmark(impl UiNode) = crate::widgets::text! {
-            txt = " ✓ ";
-            txt_color = TEXT_COLOR_VAR.map(|c| c.transparent());
-            background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
-            corner_radius = 4;
-            scale = 0.8.fct();
-            offset = (-(0.1.fct()), 0);
-            when #{IS_CHECKED_VAR}.unwrap_or(false) {
-                txt_color = TEXT_COLOR_VAR;
-            }
-        }
-    }
-
-    fn include(wgt: &mut super::WidgetBuilder) {
-        wgt.push_build_action(|wgt| {
-            let mark = wgt.capture_property(property_id!(self::checkmark));
-            if let Some(mark) = mark {
-                let mark = mark.args.ui_node(0).clone();
-                wgt.push_intrinsic(NestGroup::CHILD_LAYOUT, "checkmark", move |c| {
-                    checkmark_node(c, mark.take_on_init()).boxed()
-                })
-            }
-        });
-    }
-
-    fn checkmark_node(child: impl UiNode, checkmark: impl UiNode) -> impl UiNode {
-        #[ui_node(struct CheckmarkNode {
-            children: impl UiNodeList,
-        })]
-        impl UiNode for CheckmarkNode {
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-                let mut desired_size = PxSize::zero();
-                self.children.for_each(|_, c| {
-                    let s = c.measure(ctx, wm);
-                    desired_size.height = s.height.max(desired_size.height);
-                    desired_size.width += s.width;
-                    true
-                });
-                desired_size
-            }
-
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                let mark_size = self.children.with_node_mut(1, |c| c.layout(ctx, wl));
-                let mut final_size = mark_size;
-                let child_size = self.children.with_node_mut(0, |c| {
-                    wl.with_outer(c, false, |wl, _| {
-                        wl.translate(PxVector::new(mark_size.width, Px(0)));
-                    });
-                    c.layout(ctx, wl)
-                });
-                final_size.width += child_size.width;
-                final_size.height = child_size.height.max(final_size.height);
-                final_size
-            }
-        }
-
-        CheckmarkNode {
-            children: ui_vec![child, checkmark],
+        properties! {
+            child_insert_left = {
+                let parent_hovered = var(false);
+                let checkmark = text! {
+                    txt = " ✓ ";
+                    txt_align = Align::CENTER;
+                    txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
+                    background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+                    corner_radius = 4;
+                    scale = 0.8.fct();
+                    offset = (-(0.1.fct()), 0);
+                    sticky_width = true;
+                    when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
+                        txt_color = text::TEXT_COLOR_VAR;
+                    }
+                    when #{toggle::IS_CHECKED_VAR}.is_none() {
+                        txt = " - ";
+                    }
+                    when *#{parent_hovered.clone()} {
+                        background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+                    }
+                };
+                is_hovered(checkmark, parent_hovered)
+            };
         }
     }
 }

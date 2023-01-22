@@ -26,7 +26,7 @@ pub mod style {
     use super::*;
 
     #[doc(inline)]
-    pub use super::{style_generator, Style, StyleGenerator};
+    pub use super::{style_gen, Style, StyleGenerator};
 
     /// style constructor.
     pub fn build(wgt: WidgetBuilder) -> Style {
@@ -36,7 +36,7 @@ pub mod style {
 
 /// Styleable widget mix-in.
 ///
-/// Widgets that inherit from this one have a `style` property that can be set to a [`style_generator!`]
+/// Widgets that inherit from this one have a `style` property that can be set to a [`style_gen!`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
 ///
 /// The style mix-in drastically affects the widget build process, only the `style` property and `when` condition
@@ -102,7 +102,7 @@ pub mod style_mixin {
     ///
     ///         context_var! {
     ///             /// Foo style.
-    ///             pub static STYLE_VAR: StyleGenerator = style_generator!(|ctx, _args| {
+    ///             pub static STYLE_VAR: StyleGenerator = style_gen!(|ctx, _args| {
     ///                 style! {
     ///                     background_color = color_scheme_pair((colors::BLACK, colors::WHITE));
     ///                     cursor = CursorIcon::Crosshair;
@@ -292,7 +292,7 @@ pub struct StyleArgs {}
 
 /// Boxed shared closure that generates a style instance for a given widget context.
 ///
-/// You can also use the [`style_generator!`] macro, it has the advantage of being clone move.
+/// You can also use the [`style_gen!`] macro, it has the advantage of being clone move.
 #[derive(Clone)]
 pub struct StyleGenerator(Option<Arc<dyn Fn(&mut WidgetContext, &StyleArgs) -> Style + Send + Sync>>);
 impl Default for StyleGenerator {
@@ -360,7 +360,7 @@ impl fmt::Debug for StyleGenerator {
 ///
 /// [`clone_move!`]: crate::core::clone_move
 #[macro_export]
-macro_rules! style_generator {
+macro_rules! style_gen {
     ($($tt:tt)+) => {
         $crate::widgets::style::StyleGenerator::new($crate::core::clone_move! {
             $($tt)+
@@ -368,4 +368,4 @@ macro_rules! style_generator {
     }
 }
 #[doc(inline)]
-pub use crate::style_generator;
+pub use crate::style_gen;

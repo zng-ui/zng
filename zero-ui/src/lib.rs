@@ -990,7 +990,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::scroll::ScrollMode;
     #[doc(no_inline)]
-    pub use crate::widgets::style::style_generator;
+    pub use crate::widgets::style::style_gen;
     #[doc(no_inline)]
     pub use crate::widgets::window::{AnchorMode, LayerIndex, WindowLayers};
 
@@ -1156,7 +1156,7 @@ pub mod prelude {
             layouts::{stack_nodes, stack_nodes_layout_by},
             mixins::style_mixin,
             style,
-            style::{style_generator, StyleGenerator},
+            style::{style_gen, StyleGenerator},
             wgt_gen, DataUpdate, WidgetGenerator,
         };
     }
