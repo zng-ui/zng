@@ -1,4 +1,10 @@
+* Review `child_insert_right`, it does not work because `child_layout` is not applied because a widget is detected.
+    - Problem, we actually have two widgets, so the child layout is set on it?
+    - Review `WidgetLayout`, need a way to make `child_layout` work like `children_layout` in the event of multiple direct
+        children widgets.
 * Review checkbox with different font, is the mark affected?
+* Implement `radio_style!` for toggle.
+* Implement `child_insert_start/end/top/bottom`.
 
 * Review bidi text across inlined widgets.
     - HTML reorders across any span in the line, the background

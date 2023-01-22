@@ -863,7 +863,8 @@ pub mod vis {
         inherit!(style);
 
         properties! {
-            child_insert_left = {
+            /// Inserts the checkmark.
+            pub crate::properties::child_insert_left = {
                 let parent_hovered = var(false);
                 let checkmark = text! {
                     txt = " ✓ ";

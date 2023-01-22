@@ -107,7 +107,7 @@ pub mod vis {
             pub crate::properties::corner_radius = 4;
 
             /// Button content align.
-            pub crate::properties::child_align as content_align = Align::CENTER;
+            pub crate::properties::child_align = Align::CENTER;
 
             /// Button base dark and light colors.
             ///

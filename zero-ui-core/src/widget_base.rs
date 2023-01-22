@@ -611,7 +611,7 @@ context_var! {
 ///
 /// [captured]: crate::widget#property-capture
 /// [`base`]: mod@base
-#[property(CHILD_LAYOUT, capture, default(FillUiNode))]
+#[property(CHILD, capture, default(FillUiNode))]
 pub fn child(_child: impl UiNode, child: impl UiNode) -> impl UiNode {
     _child
 }
@@ -623,7 +623,7 @@ pub fn child(_child: impl UiNode, child: impl UiNode) -> impl UiNode {
 /// This property must be [captured] during widget build and used directly in the panel node.
 ///
 /// [captured]: crate::widget#property-capture
-#[property(CHILD_LAYOUT, capture)]
+#[property(CHILD, capture)]
 pub fn children(_child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
     _child
 }

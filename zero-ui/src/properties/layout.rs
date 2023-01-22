@@ -1148,12 +1148,29 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
 ///
 /// This is the equivalent of setting the widget's child to a grid node that has `content | child` where content
 /// is auto sized and child fills the leftover space.
-#[property(CHILD_LAYOUT+1)]
+#[property(CHILD)]
 pub fn child_insert_left(child: impl UiNode, content: impl UiNode) -> impl UiNode {
     use crate::widgets::layouts::grid::{column, node, AutoGrowMode};
     node(
         ui_vec![content, child],
         ui_vec![column!(), column!(1.lft())],
+        ui_vec![],
+        WidgetGenerator::nil(),
+        AutoGrowMode::Rows(1),
+        0,
+    )
+}
+
+/// Insert `content` to the right of the widget's child.
+///
+/// This is the equivalent of setting the widget's child to a grid node that has `child | content` where content
+/// is auto sized and child fills the leftover space.
+#[property(CHILD)]
+pub fn child_insert_right(child: impl UiNode, content: impl UiNode) -> impl UiNode {
+    use crate::widgets::layouts::grid::{column, node, AutoGrowMode};
+    node(
+        ui_vec![child, content],
+        ui_vec![column!(1.lft()), column!()],
         ui_vec![],
         WidgetGenerator::nil(),
         AutoGrowMode::Rows(1),

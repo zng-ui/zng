@@ -290,6 +290,11 @@ impl fmt::Debug for NestPosition {
 
 macro_rules! nest_group_items {
     () => {
+        /// Minimal nest position, property is outside even context properties and is only inside the widget node.
+        ///
+        /// This is rarely used, prefer using `CONTEXT-n` if you must have a property outside the widget context.
+        pub const WIDGET: NestGroup = NestGroup(0);
+
         /// Property defines a contextual value or variable.
         ///
         /// Usually these properties don't define behavior, they just configure the widget. A common pattern
@@ -330,10 +335,16 @@ macro_rules! nest_group_items {
         /// Property defines contextual value or variable for the inner child or children widgets. Config set here does not affect
         /// the widget where it is set, it affects the descendants.
         pub const CHILD_CONTEXT: NestGroup = NestGroup(NestGroup::FILL.0 + NestGroup::NEXT_GROUP);
-        /// Property starts defining the layout and size of the child or children widgets. These properties don't affect the layout
+        /// Property defines the layout and size of the child or children widgets. These properties don't affect the layout
         /// of the widget where they are set. Some properties are functionally the same, only changing their effect depending on their
         /// group, the `margin` and `padding` properties are like this, `margin` is `layout` and `padding` is `child_layout`.
         pub const CHILD_LAYOUT: NestGroup = NestGroup(NestGroup::CHILD_CONTEXT.0 + NestGroup::NEXT_GROUP);
+
+        /// Maximum nest position, property is inside all other and only wraps the widget child node.
+        ///
+        /// Properties that insert child nodes may use this group, properties that only affect the child layout and want
+        /// to be inside other child layout should must `CHILD_LAYOUT+n` instead.
+        pub const CHILD: NestGroup = NestGroup(u16::MAX);
     };
 }
 
@@ -360,11 +371,12 @@ impl NestGroup {
 
     nest_group_items!();
 
-    /// All priorities, from outermost([`CONTEXT`]) to innermost([`CHILD_LAYOUT`]).
+    /// All priorities, from outermost([`WIDGET`]) to innermost([`CHILD`]).
     ///
-    /// [`CONTEXT`]: Self::CONTEXT
-    /// [`CHILD_LAYOUT`]: Self::CHILD_LAYOUT
-    pub const ITEMS: [Self; 8] = [
+    /// [`WIDGET`]: Self::WIDGET
+    /// [`CHILD`]: Self::CHILD
+    pub const ITEMS: [Self; 10] = [
+        Self::WIDGET,
         Self::CONTEXT,
         Self::EVENT,
         Self::LAYOUT,
@@ -373,13 +385,16 @@ impl NestGroup {
         Self::FILL,
         Self::CHILD_CONTEXT,
         Self::CHILD_LAYOUT,
+        Self::CHILD,
     ];
 
     /// Group name.
     ///
     /// Is a static str for values that are a group `const`, or a display format for the others.
     pub fn name(self) -> Text {
-        if self.0 == Self::CONTEXT.0 {
+        if self.0 == Self::WIDGET.0 {
+            Text::from_static("WIDGET")
+        } else if self.0 == Self::CONTEXT.0 {
             Text::from_static("CONTEXT")
         } else if self.0 == Self::EVENT.0 {
             Text::from_static("EVENT")
@@ -395,6 +410,8 @@ impl NestGroup {
             Text::from_static("CHILD_CONTEXT")
         } else if self.0 == Self::CHILD_LAYOUT.0 {
             Text::from_static("CHILD_LAYOUT")
+        } else if self.0 == Self::CHILD.0 {
+            Text::from_static("CHILD")
         } else {
             let closest = Self::ITEMS
                 .into_iter()
@@ -445,7 +462,7 @@ impl ops::SubAssign<u16> for NestGroup {
 #[test]
 fn nest_group_spacing() {
     let mut expected = NestGroup::NEXT_GROUP;
-    for g in NestGroup::ITEMS {
+    for g in &NestGroup::ITEMS[1..NestGroup::ITEMS.len() - 1] {
         assert_eq!(expected, g.0);
         expected += NestGroup::NEXT_GROUP;
     }
