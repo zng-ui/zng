@@ -585,7 +585,7 @@ pub fn default_list_gen(args: ListGenArgs) -> impl UiNode {
     }
 }
 
-/// Default list item bullet, checkmark or number view.
+/// Default list item bullet, check mark or number view.
 ///
 /// See [`LIST_ITEM_BULLET_GEN_VAR`] for more details.
 pub fn default_list_item_bullet_gen(args: ListItemBulletGenArgs) -> impl UiNode {
