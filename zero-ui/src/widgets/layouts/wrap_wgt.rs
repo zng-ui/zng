@@ -54,25 +54,32 @@ pub mod wrap {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let children = wgt.capture_ui_node_list_or_empty(property_id!(self::children));
-            let spacing = wgt.capture_var_or_else(property_id!(self::spacing), || {
-                LINE_SPACING_VAR.map(|s| GridSpacing {
-                    column: Length::zero(),
-                    row: s.clone(),
-                })
-            });
-            let children_align = wgt.capture_var_or_else(property_id!(self::children_align), || TEXT_ALIGN_VAR);
-
-            let node = WrapNode {
-                children: ZSortingList::new(children),
-                spacing,
-                children_align,
-                layout: Default::default(),
-            };
+            let node = node(
+                wgt.capture_ui_node_list_or_empty(property_id!(self::children)),
+                wgt.capture_var_or_else(property_id!(self::spacing), || {
+                    LINE_SPACING_VAR.map(|s| GridSpacing {
+                        column: Length::zero(),
+                        row: s.clone(),
+                    })
+                }),
+                wgt.capture_var_or_else(property_id!(self::children_align), || TEXT_ALIGN_VAR),
+            );
             let child = widget_base::nodes::children_layout(node);
 
             wgt.set_child(child);
         });
+    }
+    /// Wrap node.
+    ///
+    /// Can be used directly to inline widgets without declaring a wrap widget info. In the full `wrap!`
+    /// this node is the inner most child of the widget and is wrapped by [`widget_base::nodes::children_layout`].
+    pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> impl UiNode {
+        WrapNode {
+            children: ZSortingList::new(children),
+            spacing: spacing.into_var(),
+            children_align: children_align.into_var(),
+            layout: Default::default(),
+        }
     }
 }
 

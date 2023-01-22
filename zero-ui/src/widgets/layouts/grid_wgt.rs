@@ -88,7 +88,7 @@ pub mod grid {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|w| {
-            let child = grid_node(
+            let child = node(
                 w.capture_ui_node_list_or_empty(property_id!(self::cells)),
                 w.capture_ui_node_list_or_empty(property_id!(self::columns)),
                 w.capture_ui_node_list_or_empty(property_id!(self::rows)),
@@ -100,6 +100,34 @@ pub mod grid {
 
             w.set_child(child);
         });
+    }
+
+    /// Grid node.
+    ///
+    /// Can be used directly to layout widgets without declaring a grid widget info. In the full `grid!`
+    /// this node is the inner most child of the widget and is wrapped by [`widget_base::nodes::children_layout`].
+    pub fn node(
+        cells: impl UiNodeList,
+        columns: impl UiNodeList,
+        rows: impl UiNodeList,
+        auto_grow_gen: impl IntoVar<WidgetGenerator<AutoGrowGenArgs>>,
+        auto_grow_mode: impl IntoVar<AutoGrowMode>,
+        spacing: impl IntoVar<GridSpacing>,
+    ) -> impl UiNode {
+        let auto_columns: Vec<BoxedUiNode> = vec![];
+        let auto_rows: Vec<BoxedUiNode> = vec![];
+        GridNode {
+            children: vec![
+                vec![columns.boxed(), auto_columns.boxed()].boxed(),
+                vec![rows.boxed(), auto_rows.boxed()].boxed(),
+                ZSortingList::new(cells).boxed(),
+            ],
+            spacing: spacing.into_var(),
+            auto_grow_gen: auto_grow_gen.into_var(),
+            auto_grow_mode: auto_grow_mode.into_var(),
+
+            info: Default::default(),
+        }
     }
 }
 
@@ -593,30 +621,6 @@ pub mod cell {
                 u.layout();
             }
         })
-    }
-}
-
-fn grid_node(
-    cells: BoxedUiNodeList,
-    columns: BoxedUiNodeList,
-    rows: BoxedUiNodeList,
-    auto_grow_gen: BoxedVar<WidgetGenerator<AutoGrowGenArgs>>,
-    auto_grow_mode: BoxedVar<AutoGrowMode>,
-    spacing: BoxedVar<GridSpacing>,
-) -> impl UiNode {
-    let auto_columns: Vec<BoxedUiNode> = vec![];
-    let auto_rows: Vec<BoxedUiNode> = vec![];
-    GridNode {
-        children: vec![
-            vec![columns, auto_columns.boxed()].boxed(),
-            vec![rows, auto_rows.boxed()].boxed(),
-            ZSortingList::new(cells).boxed(),
-        ],
-        spacing,
-        auto_grow_gen,
-        auto_grow_mode,
-
-        info: Default::default(),
     }
 }
 

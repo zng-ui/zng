@@ -84,21 +84,34 @@ pub mod stack {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let children = wgt.capture_ui_node_list_or_empty(property_id!(self::children));
-            let spacing = wgt.capture_var_or_default(property_id!(self::spacing));
-            let direction = wgt.capture_var_or_default(property_id!(self::direction));
-            let children_align = wgt.capture_var_or_else(property_id!(self::children_align), || Align::FILL);
-
-            let node = StackNode {
-                children: ZSortingList::new(children),
-                direction,
-                spacing,
-                children_align,
-            };
+            let node = node(
+                wgt.capture_ui_node_list_or_empty(property_id!(self::children)),
+                wgt.capture_var_or_default(property_id!(self::direction)),
+                wgt.capture_var_or_default(property_id!(self::spacing)),
+                wgt.capture_var_or_else(property_id!(self::children_align), || Align::FILL),
+            );
             let child = widget_base::nodes::children_layout(node);
 
             wgt.set_child(child);
         });
+    }
+
+    /// Stack node.
+    ///
+    /// Can be used directly to stack widgets without declaring a stack widget info. In the full `stack!`
+    /// this node is the inner most child of the widget and is wrapped by [`widget_base::nodes::children_layout`].
+    pub fn node(
+        children: impl UiNodeList,
+        direction: impl IntoVar<StackDirection>,
+        spacing: impl IntoVar<Length>,
+        children_align: impl IntoVar<Align>,
+    ) -> impl UiNode {
+        StackNode {
+            children: ZSortingList::new(children),
+            direction: direction.into_var(),
+            spacing: spacing.into_var(),
+            children_align: children_align.into_var(),
+        }
     }
 }
 
