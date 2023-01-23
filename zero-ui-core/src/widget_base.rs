@@ -61,7 +61,7 @@ pub mod nodes {
     /// Insert [`widget_child`] and [`widget_inner`] in the widget.
     pub fn include_intrinsics(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            wgt.push_intrinsic(NestGroup::CHILD, "widget_child", nodes::widget_child);
+            wgt.push_intrinsic(NestGroup::CHILD_LAYOUT, "widget_child", nodes::widget_child);
             wgt.push_intrinsic(NestGroup::BORDER, "widget_inner", nodes::widget_inner);
         });
     }
@@ -83,7 +83,7 @@ pub mod nodes {
     /// to not be a full widget or to be multiple children. This is important for making properties like *padding* or *content_align* work
     /// for any [`UiNode`] as content.
     ///
-    /// This node must be intrinsic at [`NestGroup::CHILD`], the [`base`] default intrinsic inserts it.
+    /// This node must be intrinsic at [`NestGroup::CHILD_LAYOUT`], the [`base`] default intrinsic inserts it.
     ///
     /// [`base`]: mod@base
     pub fn widget_child(child: impl UiNode) -> impl UiNode {

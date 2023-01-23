@@ -644,7 +644,7 @@ impl WidgetLayout {
 
         let r = layout(ctx, self);
 
-        if self.known.is_none() {
+        if self.known.is_none() && !ctx.widget_info.bounds.is_collapsed() {
             // returning translation when there was no child.
             self.offset_buf += ctx.widget_info.bounds.child_offset();
             ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
@@ -859,6 +859,7 @@ impl ops::DerefMut for WidgetLayout {
     }
 }
 
+#[derive(Debug)]
 enum KnownTarget {
     Outer,
     Inner,

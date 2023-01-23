@@ -1,8 +1,11 @@
 * Review `with_child` refactor.
-    - Review `child_insert_right`.
-    - Review gradient scroll (new error).
-    - Review scroll commands menu.
-    - Review text size control.
+    - `child_insert_right`.
+    - Focus nested.
+    - Gradient horizontal scroll, thumb vanishes after scroll is made visible twice.
+    - Icon scroll no padding top.
+    - Markdown quote padding (same bug as focus nested?).
+    - Scroll command menu padding (same bug?)
+    - Text size control (same bug?)
 
 * Review checkbox with different font, is the mark affected?
 * Implement `radio_style!` for toggle.
