@@ -463,7 +463,6 @@ impl WidgetMeasure {
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
     t: WidgetLayoutTranslation,
-    known_collapsed: bool,
     known_child_offset_changed: i32,
     child_offset_changed: i32,
     inline: Option<WidgetInlineInfo>,
@@ -487,7 +486,6 @@ impl WidgetLayout {
                 known: None,
                 known_target: KnownTarget::Outer,
             },
-            known_collapsed: false,
             known_child_offset_changed: 0,
             child_offset_changed: 0,
             inline: None,
@@ -648,6 +646,16 @@ impl WidgetLayout {
 
         // setup returning translations target.
         self.finish_known();
+
+        ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
+        ctx.widget_info.bounds.set_baseline(mem::take(&mut self.baseline));
+        ctx.widget_info
+            .bounds
+            .set_inner_offset_baseline(mem::take(&mut self.offset_baseline));
+        ctx.widget_info
+            .bounds
+            .set_can_auto_hide(mem::replace(&mut self.can_auto_hide, true));
+
         self.known = Some(ctx.widget_info.bounds.clone());
         self.known_target = KnownTarget::Child;
 
@@ -719,7 +727,6 @@ impl WidgetLayout {
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse(&mut self, ctx: &mut LayoutContext) {
         self.finish_known();
-        self.known_collapsed = true;
 
         let widget_id = ctx.path.widget_id();
         if let Some(w) = ctx.info_tree.get(widget_id) {
