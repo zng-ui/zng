@@ -647,6 +647,7 @@ impl WidgetLayout {
         // setup returning translations target.
         self.finish_known();
 
+        self.offset_buf += ctx.widget_info.bounds.child_offset();
         ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
         ctx.widget_info.bounds.set_baseline(mem::take(&mut self.baseline));
         ctx.widget_info
