@@ -2,6 +2,18 @@
     - Problem, we actually have two widgets, so the child layout is set on it?
     - Review `WidgetLayout`, need a way to make `child_layout` work like `children_layout` in the event of multiple direct
         children widgets.
+    - When implemented `children_layout` can be removed?
+    - Even if we detect multiple children, how to detect children collections with only a single child?
+        - Is it ok to use the single child outer-transform in this case?
+        - Also can end-up with a panel that only has a single full widget child, but has multiple simple node children.
+            - Padding in the case only applies to the widget child if we are auto-detecting.
+        - Could change `with_children` to flag `with_child`.
+            - The `child_insert_x` properties need to flag it too.
+            - Maybe just a method in `WidgetLayout::use_first_child_outer_transforms`
+        - Could change `with_child` to always be like `with_children`.
+            - Already did not implement optimizations for `with_children`.
+            - Adds another reference-frame per-widget.
+
 * Review checkbox with different font, is the mark affected?
 * Implement `radio_style!` for toggle.
 * Implement `child_insert_start/end/top/bottom`.

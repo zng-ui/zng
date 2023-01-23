@@ -627,59 +627,18 @@ impl WidgetLayout {
         size
     }
 
-    /// Defines a widget child scope, drops the current layout target, calls `layout`, then returns the child size and
-    /// `true` if there was no child widget inside `layout` and so the caller must render the [`child_offset`].
+    /// Defines a widget child scope, drops the current layout target, calls `layout`, then returns the child size and if the caller
+    /// must render the [`child_offset`]. Offset render is required when it can not be merged with the outer-transform of a child
+    /// because the widget has no child or has multiple children.
     ///
-    /// If no inner widget is found and the baseline is set during the call to `layout` the baseline is set to the current widget's inner bounds.
+    /// If no inner widget is found and the baseline is set during the call to `layout` the
+    /// baseline is set to the current widget's inner bounds.
     ///
     /// The default widget child layout constructor implements this, see [`widget_base::nodes::child_layout`].
     ///
     /// [`widget_base::nodes::child_layout`]: crate::widget_base::nodes::child_layout
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
     pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> (PxSize, bool) {
-        self.finish_known(); // in case of WidgetList?
-
-        let size = layout(ctx, self);
-
-        let collapse = mem::take(&mut self.known_collapsed);
-        if self.known.is_none() && !collapse {
-            ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
-            ctx.widget_info.bounds.set_baseline(mem::take(&mut self.baseline));
-            ctx.widget_info
-                .bounds
-                .set_inner_offset_baseline(mem::take(&mut self.offset_baseline));
-            ctx.widget_info
-                .bounds
-                .set_can_auto_hide(mem::replace(&mut self.can_auto_hide, true));
-
-            // setup returning translations target.
-            self.finish_known();
-            self.known = Some(ctx.widget_info.bounds.clone());
-            self.known_target = KnownTarget::Child;
-
-            (size, true)
-        } else {
-            (size, false)
-        }
-    }
-
-    /// Defines a widget children scope, drops the current layout target, calls `layout`, then intercepts all translations
-    /// targeting the *child outer*, returns the panel node size.
-    ///
-    /// The caller must render the [`child_offset`].
-    ///
-    /// The [`widget_base::nodes::children_layout`] implements children bounds
-    ///
-    /// [`widget_base::nodes::children_layout`]: crate::widget_base::nodes::children_layout
-    /// [`child_offset`]: WidgetBoundsInfo::child_offset
-    pub fn with_children(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
-        #[cfg(debug_assertions)]
-        if self.known.is_some() {
-            tracing::error!(
-                "widget `{:?}` started children bounds in the return path of another bounds",
-                ctx.path
-            )
-        }
         self.finish_known();
 
         // drain preview translations.
@@ -692,7 +651,7 @@ impl WidgetLayout {
         self.known = Some(ctx.widget_info.bounds.clone());
         self.known_target = KnownTarget::Child;
 
-        r
+        (r, true)
     }
 
     /// Overwrite the widget's outer translate, the `translate` closure is called with the

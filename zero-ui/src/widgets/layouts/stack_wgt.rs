@@ -84,14 +84,12 @@ pub mod stack {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let node = node(
+            let child = node(
                 wgt.capture_ui_node_list_or_empty(property_id!(self::children)),
                 wgt.capture_var_or_default(property_id!(self::direction)),
                 wgt.capture_var_or_default(property_id!(self::spacing)),
                 wgt.capture_var_or_else(property_id!(self::children_align), || Align::FILL),
             );
-            let child = widget_base::nodes::children_layout(node);
-
             wgt.set_child(child);
         });
     }

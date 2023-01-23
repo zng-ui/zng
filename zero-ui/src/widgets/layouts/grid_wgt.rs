@@ -96,8 +96,6 @@ pub mod grid {
                 w.capture_var_or_else(property_id!(self::auto_grow_mode), || AutoGrowMode::Rows(u32::MAX)),
                 w.capture_var_or_default(property_id!(self::spacing)),
             );
-            let child = widget_base::nodes::children_layout(child);
-
             w.set_child(child);
         });
     }

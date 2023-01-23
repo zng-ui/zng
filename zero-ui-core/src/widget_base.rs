@@ -79,47 +79,8 @@ pub mod nodes {
         nodes::widget(child, id)
     }
 
-    /// Returns a node that wraps `panel` and applies *child_layout* transforms to it.
-    ///
-    /// This node should wrap the inner most *child* node of panel widgets, and that in turn should layout the [`children`].
-    ///
-    /// [`children`]: fn@crate::widget_base::children
-    pub fn children_layout(panel: impl UiNode) -> impl UiNode {
-        #[ui_node(struct ChildrenLayoutNode {
-                child: impl UiNode,
-                spatial_id: SpatialFrameId,
-                translation_key: FrameValueKey<PxTransform>,
-            })]
-        impl UiNode for ChildrenLayoutNode {
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-                self.child.measure(ctx, wm)
-            }
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                wl.with_children(ctx, |ctx, wl| self.child.layout(ctx, wl))
-            }
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
-                frame.push_reference_frame(self.spatial_id, self.translation_key.bind(transform, true), true, false, |frame| {
-                    self.child.render(ctx, frame)
-                });
-            }
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
-                update.with_transform(self.translation_key.update(transform, true), false, |update| {
-                    self.child.render_update(ctx, update);
-                });
-            }
-        }
-        ChildrenLayoutNode {
-            child: panel.cfg_boxed(),
-            spatial_id: SpatialFrameId::new_unique(),
-            translation_key: FrameValueKey::new_unique(),
-        }
-        .cfg_boxed()
-    }
-
     /// Returns a node that wraps `child` and potentially applies child transforms if the `child` turns out
-    /// to not be a full widget. This is important for making properties like *padding* or *content_align* work
+    /// to not be a full widget or to be multiple children. This is important for making properties like *padding* or *content_align* work
     /// for any [`UiNode`] as content.
     ///
     /// This node must be intrinsic at [`NestGroup::CHILD_LAYOUT`], the [`base`] default intrinsic inserts it.

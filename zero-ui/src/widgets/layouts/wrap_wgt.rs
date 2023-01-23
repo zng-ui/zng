@@ -54,7 +54,7 @@ pub mod wrap {
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let node = node(
+            let child = node(
                 wgt.capture_ui_node_list_or_empty(property_id!(self::children)),
                 wgt.capture_var_or_else(property_id!(self::spacing), || {
                     LINE_SPACING_VAR.map(|s| GridSpacing {
@@ -64,8 +64,6 @@ pub mod wrap {
                 }),
                 wgt.capture_var_or_else(property_id!(self::children_align), || TEXT_ALIGN_VAR),
             );
-            let child = widget_base::nodes::children_layout(node);
-
             wgt.set_child(child);
         });
     }
