@@ -229,7 +229,7 @@ impl Window {
             render_mode,
             headless_monitor,
             start_focused,
-            crate::widget_base::nodes::inner(child),
+            crate::widget_base::nodes::widget_inner(child),
         )
     }
 

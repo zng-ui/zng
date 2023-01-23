@@ -1,8 +1,7 @@
 * Review `with_child` refactor.
-    - Review `child_insert_left`.
-    - Review focus nested scopes example.
-    - Review icon example padding.
-    - Review markdown quote and table.
+    - Review `child_insert_right`.
+    - Review focus nested scopes example (text not centered).
+    - Review gradient scroll (new error).
     - Review scroll commands menu.
     - Review text size control.
 

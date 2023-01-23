@@ -69,8 +69,8 @@ pub mod wrap {
     }
     /// Wrap node.
     ///
-    /// Can be used directly to inline widgets without declaring a wrap widget info. In the full `wrap!`
-    /// this node is the inner most child of the widget and is wrapped by [`widget_base::nodes::children_layout`].
+    /// Can be used directly to inline widgets without declaring a wrap widget info.  This node is the child
+    /// of the `wrap!` widget.
     pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> impl UiNode {
         WrapNode {
             children: ZSortingList::new(children),

@@ -58,11 +58,11 @@ pub mod base {
 pub mod nodes {
     use super::*;
 
-    /// Insert [`child_layout`] and [`inner`] in the widget.
+    /// Insert [`widget_child`] and [`widget_inner`] in the widget.
     pub fn include_intrinsics(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            wgt.push_intrinsic(NestGroup::CHILD_LAYOUT, "child_layout", nodes::child_layout);
-            wgt.push_intrinsic(NestGroup::BORDER, "inner", nodes::inner);
+            wgt.push_intrinsic(NestGroup::CHILD, "widget_child", nodes::widget_child);
+            wgt.push_intrinsic(NestGroup::BORDER, "widget_inner", nodes::widget_inner);
         });
     }
 
@@ -83,15 +83,15 @@ pub mod nodes {
     /// to not be a full widget or to be multiple children. This is important for making properties like *padding* or *content_align* work
     /// for any [`UiNode`] as content.
     ///
-    /// This node must be intrinsic at [`NestGroup::CHILD_LAYOUT`], the [`base`] default intrinsic inserts it.
+    /// This node must be intrinsic at [`NestGroup::CHILD`], the [`base`] default intrinsic inserts it.
     ///
     /// [`base`]: mod@base
-    pub fn child_layout(child: impl UiNode) -> impl UiNode {
-        #[ui_node(struct ChildLayoutNode {
+    pub fn widget_child(child: impl UiNode) -> impl UiNode {
+        #[ui_node(struct WidgetChildNode {
                 child: impl UiNode,
                 id: Option<(SpatialFrameId, FrameValueKey<PxTransform>)>,
             })]
-        impl UiNode for ChildLayoutNode {
+        impl UiNode for WidgetChildNode {
             fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
                 self.child.measure(ctx, wm)
             }
@@ -127,7 +127,7 @@ pub mod nodes {
                 }
             }
         }
-        ChildLayoutNode {
+        WidgetChildNode {
             child: child.cfg_boxed(),
             id: None,
         }
@@ -141,18 +141,18 @@ pub mod nodes {
     /// This node must be intrinsic at [`NestGroup::BORDER`], the [`base`] default intrinsic inserts it.
     ///
     /// [`base`]: mod@base
-    pub fn inner(child: impl UiNode) -> impl UiNode {
+    pub fn widget_inner(child: impl UiNode) -> impl UiNode {
         #[derive(Default, PartialEq)]
         struct HitClips {
             bounds: PxSize,
             corners: PxCornerRadius,
         }
-        #[ui_node(struct InnerNode {
+        #[ui_node(struct WidgetInnerNode {
             child: impl UiNode,
             transform_key: FrameValueKey<PxTransform>,
             clips: HitClips,
         })]
-        impl UiNode for InnerNode {
+        impl UiNode for WidgetInnerNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 ctx.sub_var(&HitTestMode::var());
                 self.child.init(ctx);
@@ -220,7 +220,7 @@ pub mod nodes {
                 update.update_inner(ctx, self.transform_key, true, |ctx, update| self.child.render_update(ctx, update));
             }
         }
-        InnerNode {
+        WidgetInnerNode {
             child: child.cfg_boxed(),
             transform_key: FrameValueKey::new_unique(),
             clips: HitClips::default(),

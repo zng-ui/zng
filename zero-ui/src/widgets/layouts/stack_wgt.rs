@@ -96,8 +96,8 @@ pub mod stack {
 
     /// Stack node.
     ///
-    /// Can be used directly to stack widgets without declaring a stack widget info. In the full `stack!`
-    /// this node is the inner most child of the widget and is wrapped by [`widget_base::nodes::children_layout`].
+    /// Can be used directly to stack widgets without declaring a stack widget info. This node is the child
+    /// of the `stack!` widget.
     pub fn node(
         children: impl UiNodeList,
         direction: impl IntoVar<StackDirection>,

@@ -102,8 +102,8 @@ pub mod grid {
 
     /// Grid node.
     ///
-    /// Can be used directly to layout widgets without declaring a grid widget info. In the full `grid!`
-    /// this node is the inner most child of the widget and is wrapped by [`widget_base::nodes::children_layout`].
+    /// Can be used directly to layout widgets without declaring a grid widget info. This node is the child
+    /// of the `grid!` widget.
     pub fn node(
         cells: impl UiNodeList,
         columns: impl UiNodeList,

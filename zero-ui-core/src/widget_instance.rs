@@ -343,7 +343,7 @@ pub trait UiNode: Any + Send {
     {
         use crate::widget_base::nodes;
 
-        let node = nodes::inner(self.cfg_boxed());
+        let node = nodes::widget_inner(self.cfg_boxed());
         let wgt = nodes::widget(node, WidgetId::new_unique());
         wgt.boxed()
     }

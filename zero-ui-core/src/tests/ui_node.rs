@@ -391,7 +391,7 @@ mod util {
             child: node,
             min_size: PxSize::new(Px(1), Px(1)),
         };
-        let node = widget_base::nodes::inner(node);
+        let node = widget_base::nodes::widget_inner(node);
         widget_base::nodes::widget(node, crate::widget_instance::WidgetId::new_unique())
     }
 
