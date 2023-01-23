@@ -526,7 +526,7 @@ impl WidgetLayout {
         reuse: bool,
         layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
     ) -> PxSize {
-        self.finish_known(); // in case of WidgetList.
+        self.finish_known(); // in case of UiNodeList.
         self.baseline = Px(0);
         self.offset_baseline = false;
         self.can_auto_hide = true;
@@ -637,16 +637,26 @@ impl WidgetLayout {
     /// [`widget_base::nodes::widget_child`]: crate::widget_base::nodes::widget_child
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
     pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> (PxSize, bool) {
-        #[cfg(debug_assertions)]
-        if self.known.is_some() {
-            tracing::error!("widget `{:?}` started child bounds in the return path of another bounds", ctx.path)
-        }
-        self.finish_known();
+        self.finish_known(); // in case of UiNodeList.
 
         // drain preview translations.
         ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
 
         let r = layout(ctx, self);
+
+        if self.known.is_none() {
+            // returning translation when there was no child.
+            self.offset_buf += ctx.widget_info.bounds.child_offset();
+            ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
+
+            ctx.widget_info.bounds.set_baseline(mem::take(&mut self.baseline));
+            ctx.widget_info
+                .bounds
+                .set_inner_offset_baseline(mem::take(&mut self.offset_baseline));
+            ctx.widget_info
+                .bounds
+                .set_can_auto_hide(mem::replace(&mut self.can_auto_hide, true));
+        }
 
         // setup returning translations target.
         self.finish_known();
