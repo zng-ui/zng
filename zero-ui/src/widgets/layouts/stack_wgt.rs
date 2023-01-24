@@ -210,8 +210,7 @@ impl StackNode {
                     }
 
                     let offset = direction.layout(ctx, item_rect, size) + child_spacing;
-
-                    wl.with_outer(c, false, |wl, _| wl.translate(offset));
+                    wl.translate(offset);
 
                     item_rect.origin = offset.to_point();
                     item_rect.size = size;

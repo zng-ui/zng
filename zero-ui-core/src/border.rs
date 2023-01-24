@@ -770,10 +770,9 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 ctx.updates.render();
             }
 
-            ctx.with_constrains(|_| PxConstrains2d::new_exact_size(fill_bounds), |ctx| self.child.layout(ctx, wl));
-
-            wl.with_outer(&mut self.child, true, |t, _| {
-                t.translate(self.offset);
+            wl.with_branch(|wl| {
+                ctx.with_constrains(|_| PxConstrains2d::new_exact_size(fill_bounds), |ctx| self.child.layout(ctx, wl));
+                wl.translate(self.offset);
             });
 
             fill_bounds

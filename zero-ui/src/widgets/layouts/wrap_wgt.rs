@@ -317,7 +317,8 @@ impl InlineLayout {
                                     ctx.with_inline(child_first, child_mid, child_last, |ctx| child.layout(ctx, wl));
                                 },
                             );
-                            wl.with_outer(child, false, |wl, _| wl.translate(row.origin.to_vector() + offset));
+                            wl.translate(row.origin.to_vector() + offset);
+
                             row_advance += child_last.size.width + spacing.column;
                         }
                     } else {
@@ -340,7 +341,7 @@ impl InlineLayout {
                             offset.x = row.size.width - size.width - offset.x;
                         }
                         offset.y = (row.size.height - size.height) * child_align_y;
-                        wl.with_outer(child, false, |wl, _| wl.translate(row.origin.to_vector() + offset));
+                        wl.translate(row.origin.to_vector() + offset);
                         row_advance += size.width + spacing.column;
                     }
 

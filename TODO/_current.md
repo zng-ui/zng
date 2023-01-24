@@ -1,6 +1,3 @@
-* Review `with_child` refactor.
-    - `child_insert_right`.
-
 * Review checkbox with different font, is the mark affected?
 * Implement `radio_style!` for toggle.
 * Implement `child_insert_start/end/top/bottom`.

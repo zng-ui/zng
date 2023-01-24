@@ -1295,14 +1295,14 @@ impl GridNode {
         columns.for_each_mut(|ci, col| {
             let info = info.columns[ci];
             ctx.with_constrains(|c| c.with_exact(info.width, grid_size.height), |ctx| col.layout(ctx, wl));
-            wl.with_outer(col, false, |wl, _| wl.translate(PxVector::new(info.x, Px(0))));
+            wl.translate(PxVector::new(info.x, Px(0)));
             true
         });
         // layout and translate rows
         rows.for_each_mut(|ri, row| {
             let info = info.rows[ri];
             ctx.with_constrains(|c| c.with_exact(grid_size.width, info.height), |ctx| row.layout(ctx, wl));
-            wl.with_outer(row, false, |wl, _| wl.translate(PxVector::new(Px(0), info.y)));
+            wl.translate(PxVector::new(Px(0), info.y));
             true
         });
         // layout and translate cells
@@ -1334,7 +1334,7 @@ impl GridNode {
             }
 
             ctx.with_constrains(|c| c.with_exact_size(cell_size), |ctx| cell.layout(ctx, wl));
-            wl.with_outer(cell, false, |wl, _| wl.translate(cell_offset));
+            wl.translate(cell_offset);
 
             true
         });

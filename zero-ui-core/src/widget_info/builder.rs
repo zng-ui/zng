@@ -630,7 +630,7 @@ impl WidgetLayout {
     /// Widgets must call this just before entering `CHILD_LAYOUT` nodes to properly collect child layout properties like padding.
     ///
     /// The default widget child layout constructor implements this, see [`widget_base::nodes::widget_child_layout`].
-    /// 
+    ///
     /// [`widget_base::nodes::widget_child_layout`]: crate::widget_base::nodes::widget_child_layout
     pub fn with_child_layout(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         self.finish_known(); // in case of UiNodeList.
@@ -682,9 +682,9 @@ impl WidgetLayout {
     /// [`WidgetLayoutTranslation`] set to apply directly to the `widget` outer info, after it returns `self` has
     /// the same state it had before.
     ///
-    /// This is a limited version of the [`with_child`] method, useful for cases where multiple children need
-    /// to be layout first before each child's position can be computed, in these scenarios this method avoids a second
-    /// layout pass by using the [`UiNode::with_context`] to access and replace the outer transform.
+    /// Note that, in panels, the last layout child outer offset is already targeted, and that works even with child nodes
+    /// that are not full widgets. This methods allows targeting the outer offset off any child at any point in layout, but
+    /// the child must be a full widget.
     ///
     /// If `keep_previous` is `true` the new offset is *added* to the previous.
     ///
@@ -730,6 +730,29 @@ impl WidgetLayout {
         self.child_offset_changed += wl.known.unwrap().end_pass();
 
         size
+    }
+
+    /// Save current translation target, run `layout` and restore the translation target.
+    ///
+    /// This method must be used to layout any branch node that is not in the `CHILD` nest group.
+    pub fn with_branch<R>(&mut self, layout: impl FnOnce(&mut Self) -> R) -> R {
+        let known = self.known.take();
+        let known_target = self.known_target;
+        let offset_buf = mem::take(&mut self.offset_buf);
+        let baseline = mem::take(&mut self.baseline);
+        let offset_baseline = mem::take(&mut self.offset_baseline);
+        let can_auto_hide = mem::take(&mut self.can_auto_hide);
+
+        let r = layout(self);
+
+        self.known = known;
+        self.known_target = known_target;
+        self.offset_buf = offset_buf;
+        self.baseline = baseline;
+        self.offset_baseline = offset_baseline;
+        self.can_auto_hide = can_auto_hide;
+
+        r
     }
 
     /// Collapse the layout of `self` and descendants, the size and offsets are set to zero.
@@ -871,7 +894,7 @@ impl ops::DerefMut for WidgetLayout {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum KnownTarget {
     Outer,
     Inner,
@@ -905,6 +928,11 @@ impl WidgetLayoutTranslation {
     }
 
     /// Adds the `offset` to the closest *inner* bounds offset.
+    ///
+    /// If called just before or just after layout of a child that child outer offset is targeted, in panels with multiple children
+    /// always targets the last layout child after the first. If called in a property inside the widget but outside the `BORDER`
+    /// properties the widget inner offset is targeted. If called inside in a property inside the inner groups the widget child
+    /// offset is targeted. Panels can also use the [`WidgetLayout::with_outer`] to target a child widget's outer offset.
     pub fn translate(&mut self, offset: PxVector) {
         if let Some(info) = &self.known {
             match self.known_target {
