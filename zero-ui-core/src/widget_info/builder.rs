@@ -625,6 +625,18 @@ impl WidgetLayout {
         size
     }
 
+    /// Defines a widget child scope. drops the current layout target, calls `layout`, then returns the child size.
+    ///
+    /// Widgets must call this just before entering `CHILD_LAYOUT` nodes to properly collect child layout properties like padding.
+    ///
+    /// The default widget child layout constructor implements this, see [`widget_base::nodes::widget_child_layout`].
+    /// 
+    /// [`widget_base::nodes::widget_child_layout`]: crate::widget_base::nodes::widget_child_layout
+    pub fn with_child_layout(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
+        self.finish_known(); // in case of UiNodeList.
+        layout(ctx, self)
+    }
+
     /// Defines a widget child scope, drops the current layout target, calls `layout`, then returns the child size and if the caller
     /// must render the [`child_offset`]. Offset render is required when it can not be merged with the outer-transform of a child
     /// because the widget has no child or has multiple children.
