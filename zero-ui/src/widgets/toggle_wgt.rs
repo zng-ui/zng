@@ -879,7 +879,7 @@ pub mod vis {
                         txt_color = text::TEXT_COLOR_VAR;
                     }
                     when #{toggle::IS_CHECKED_VAR}.is_none() {
-                        txt = " - ";
+                        txt = " ━ ";
                     }
                     when *#{parent_hovered.clone()} {
                         background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
