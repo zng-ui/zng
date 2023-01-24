@@ -868,6 +868,7 @@ pub mod vis {
                 let parent_hovered = var(false);
                 let checkmark = text! {
                     txt = " ✓ ";
+                    font_family = FontNames::system_ui(&lang!(und));
                     txt_align = Align::CENTER;
                     txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
                     background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
