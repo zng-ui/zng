@@ -380,7 +380,7 @@ pub mod img_window {
                 txt = msg;
                 txt_color = loading_color();
                 margin = 8;
-                width = 80;
+                super::width = 80;
                 font_style = FontStyle::Italic;
                 drop_shadow = {
                     offset: (0, 0),
