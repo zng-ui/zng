@@ -1,8 +1,8 @@
 //! Properties that affect the widget render only.
 
-use crate::core::gradient::{GradientStops, LinearGradientAxis};
+use crate::core::gradient::{GradientStops, LinearGradientAxis, RadialGradientRadius};
 use crate::prelude::new_property::*;
-use crate::widgets::{flood, linear_gradient};
+use crate::widgets::{flood, linear_gradient, radial_gradient};
 
 use super::hit_test_mode;
 
@@ -112,7 +112,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///     child = foo();
 ///     background_gradient = {
 ///         axis: 90.deg(),
-///         stops: [colors::BLACK, colors::WHITE]
+///         stops: [colors::BLACK, colors::WHITE],
 ///     }
 /// }
 /// # ;
@@ -125,6 +125,42 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 }))]
 pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     background(child, linear_gradient(axis, stops))
+}
+
+/// Radial gradient background property.
+///
+/// This property applies a [`radial_gradient`] as [`background`].
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::minimal();
+/// # fn foo() -> impl UiNode { wgt!() }
+/// #
+/// container! {
+///     child = foo();
+///     background_radial = {
+///         center: (50.pct(), 80.pct()),
+///         radius: 100.pct(),
+///         stops: [colors::BLACK, colors::DARK_ORANGE],
+///     }
+/// }
+/// # ;
+/// ```
+///
+/// [`background`]: fn@background
+#[property(FILL, default((50.pct(), 50.pct()), 100.pct(), {
+    let c = colors::BLACK.transparent();
+    crate::core::gradient::stops![c, c]
+}))]
+pub fn background_radial(
+    child: impl UiNode,
+    center: impl IntoVar<Point>,
+    radius: impl IntoVar<RadialGradientRadius>,
+    stops: impl IntoVar<GradientStops>,
+) -> impl UiNode {
+    background(child, radial_gradient(center, radius, stops))
 }
 
 /// Custom foreground fill property. Allows using any other widget as a foreground overlay.

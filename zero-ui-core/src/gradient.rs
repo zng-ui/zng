@@ -172,6 +172,51 @@ impl RadialGradientRadius {
             radii: radius.into(),
         }
     }
+
+    /// Compute the radius in the layout context.
+    pub fn layout(&self, ctx: &LayoutMetrics, center: PxPoint) -> PxSize {
+        let size = ctx.constrains().fill_size();
+
+        let length = match self.base {
+            RadialGradientRadiusBase::ClosestSide => center
+                .x
+                .min(center.y)
+                .min(size.width - center.x)
+                .min(size.height - center.y)
+                .max(Px(0)),
+            RadialGradientRadiusBase::ClosestCorner => {
+                let center = center.to_vector();
+                let square_len = center
+                    .square_length()
+                    .min((center - PxVector::new(size.width, Px(0))).square_length())
+                    .min((center - size.to_vector()).square_length())
+                    .min((center - PxVector::new(Px(0), size.height)).square_length())
+                    .max(Px(0));
+                Px((square_len.0 as f32).sqrt().round() as _)
+            }
+            RadialGradientRadiusBase::FarthestSide => center
+                .x
+                .max(center.y)
+                .max(size.width - center.x)
+                .max(size.height - center.y)
+                .max(Px(0)),
+            RadialGradientRadiusBase::FarthestCorner => {
+                let center = center.to_vector();
+                let square_len = center
+                    .square_length()
+                    .max((center - PxVector::new(size.width, Px(0))).square_length())
+                    .max((center - size.to_vector()).square_length())
+                    .max((center - PxVector::new(Px(0), size.height)).square_length())
+                    .max(Px(0));
+                Px((square_len.0 as f32).sqrt().round() as _)
+            }
+        };
+
+        self.radii
+            .layout(&ctx.clone().with_constrains(|_| PxConstrains2d::new_exact(length, length)), |_| {
+                PxSize::new(length, length)
+            })
+    }
 }
 impl_from_and_into_var! {
     /// Circle fill the base radius.
@@ -764,7 +809,7 @@ impl GradientStops {
     ///
     /// The `render_stops` content is replaced with stops with offset in the `0..=1` range.
     ///
-    /// The `start_pt` and `end_pt` points are moved to accommodate input offsets outside the line bounds.
+    /// The `line` points are moved to accommodate input offsets outside the line bounds.
     pub fn layout_linear(
         &self,
         ctx: Layout1dMetrics,
@@ -785,6 +830,13 @@ impl GradientStops {
 
         line.start = l_start.to_px();
         line.end = l_end.to_px();
+    }
+
+    /// Computes the layout for a radial gradient.
+    ///
+    /// The `render_stops` content is replace with stops with offset in the `0..=1` range.
+    pub fn layout_radial(&self, ctx: Layout1dMetrics, extend_mode: ExtendMode, render_stops: &mut Vec<RenderGradientStop>) {
+        self.layout(ctx, extend_mode, render_stops);
     }
 
     /// Computes the actual color stops.
