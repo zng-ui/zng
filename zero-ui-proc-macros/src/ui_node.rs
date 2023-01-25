@@ -621,6 +621,8 @@ struct DelegateValidator<'a> {
     pub list_specific_variant: Ident,
     args_count: u8,
     pub delegates: bool,
+
+    todo_paths: Vec<Path>,
 }
 impl<'a> DelegateValidator<'a> {
     fn new(manual_impl: &'a ImplItem) -> Self {
@@ -631,6 +633,8 @@ impl<'a> DelegateValidator<'a> {
                 list_specific_variant: ident!("item_{}", m.sig.ident),
                 args_count: (m.sig.inputs.len() - 1) as u8,
                 delegates: false,
+
+                todo_paths: vec![parse_quote!(todo), parse_quote!(std::todo)],
             }
         } else {
             panic!("")
@@ -646,6 +650,16 @@ impl<'a, 'ast> Visit<'ast> for DelegateValidator<'a> {
             self.delegates = true;
         }
         visit::visit_expr_method_call(self, i)
+    }
+
+    fn visit_macro(&mut self, i: &'ast Macro) {
+        for p in &self.todo_paths {
+            if &i.path == p {
+                self.delegates = true;
+                break;
+            }
+        }
+        visit::visit_macro(self, i)
     }
 }
 

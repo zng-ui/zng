@@ -151,7 +151,8 @@ pub use zero_ui_proc_macros::widget_new;
 /// If delegation is configured but no delegation occurs in the manually implemented methods
 /// you get the error ``"auto impl delegates call to `{}` but this manual impl does not"``.
 ///
-/// To disable this error use `#[allow_(zero_ui::missing_delegate)]` in the method or in the `impl` block.
+/// To disable this error use `#[allow_(zero_ui::missing_delegate)]` in the method or in the `impl` block. The
+/// error is also not shown if the method body contains a call to the [`todo!()`] macro.
 ///
 /// The [`measure`] method is an exception to this and will not show the error, its ideal implementation
 /// is one where the entire sub-tree is skipped from the the computation.
