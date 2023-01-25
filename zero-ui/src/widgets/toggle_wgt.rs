@@ -868,8 +868,7 @@ pub mod vis {
                 insert: {
                     let parent_hovered = var(false);
                     let checkmark = text! {
-                        size = (1.em(), 1.em());
-                        font_size = 0.8.em();
+                        size = (1.2.em(), 1.2.em());
                         txt = "✓";
                         font_family = FontNames::system_ui(&lang!(und));
                         txt_align = Align::CENTER;
