@@ -1144,37 +1144,43 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
     }
 }
 
-/// Insert `content` to the left of the widget's child.
+/// Insert `insert` to the left of the widget's child.
 ///
-/// This is the equivalent of setting the widget's child to a grid node that has `content | child` where content
+/// This is the equivalent of setting the widget's child to a grid node that has `insert | child` where content
 /// is auto sized and child fills the leftover space.
-#[property(CHILD)]
-pub fn child_insert_left(child: impl UiNode, content: impl UiNode) -> impl UiNode {
+#[property(CHILD, default(NilUiNode, 0))]
+pub fn child_insert_left(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
     use crate::widgets::layouts::grid::{column, node, AutoGrowMode};
     node(
-        ui_vec![content, child],
+        ui_vec![insert, child],
         ui_vec![column!(), column!(1.lft())],
         ui_vec![],
         WidgetGenerator::nil(),
         AutoGrowMode::Rows(1),
-        0,
+        spacing.into_var().map(|s| GridSpacing {
+            column: s.clone(),
+            row: Length::zero(),
+        }),
     )
 }
 
-/// Insert `content` to the right of the widget's child.
+/// Insert `insert` to the right of the widget's child.
 ///
-/// This is the equivalent of setting the widget's child to a grid node that has `child | content` where content
+/// This is the equivalent of setting the widget's child to a grid node that has `child | insert` where content
 /// is auto sized and child fills the leftover space.
-#[property(CHILD)]
-pub fn child_insert_right(child: impl UiNode, content: impl UiNode) -> impl UiNode {
+#[property(CHILD, default(NilUiNode, 0))]
+pub fn child_insert_right(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
     use crate::widgets::layouts::grid::{column, node, AutoGrowMode};
     node(
-        ui_vec![child, content],
+        ui_vec![child, insert],
         ui_vec![column!(1.lft()), column!()],
         ui_vec![],
         WidgetGenerator::nil(),
         AutoGrowMode::Rows(1),
-        0,
+        spacing.into_var().map(|s| GridSpacing {
+            column: s.clone(),
+            row: Length::zero(),
+        }),
     )
 }
 

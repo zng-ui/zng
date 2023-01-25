@@ -865,29 +865,31 @@ pub mod vis {
         properties! {
             /// Inserts the checkmark.
             pub crate::properties::child_insert_left = {
-                let parent_hovered = var(false);
-                let checkmark = text! {
-                    txt = " ✓ ";
-                    font_family = FontNames::system_ui(&lang!(und));
-                    txt_align = Align::CENTER;
-                    txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
-                    background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
-                    corner_radius = 4;
-                    scale = 0.8.fct();
-                    offset = (-(0.1.fct()), 0);
-                    sticky_width = true;
-                    when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
-                        txt_color = text::TEXT_COLOR_VAR;
-                    }
-                    when #{toggle::IS_CHECKED_VAR}.is_none() {
-                        txt = " ━ ";
-                    }
-                    when *#{parent_hovered.clone()} {
-                        background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
-                    }
-                };
-                is_hovered(checkmark, parent_hovered)
-            };
+                    let parent_hovered = var(false);
+                    let checkmark = text! {
+                        size = (1.em(), 1.em());
+                        font_size = 0.8.em();
+                        txt = "✓";
+                        font_family = FontNames::system_ui(&lang!(und));
+                        txt_align = Align::CENTER;
+                        align = Align::CENTER;
+                        txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
+                        background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+                        corner_radius = 0.1.em();
+                        when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
+                            txt_color = text::TEXT_COLOR_VAR;
+                        }
+                        when #{toggle::IS_CHECKED_VAR}.is_none() {
+                            txt = "━";
+                        }
+                        when *#{parent_hovered.clone()} {
+                            background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+                        }
+                    };
+                    is_hovered(checkmark, parent_hovered)
+                },
+                2,
+            ;
         }
     }
 }
