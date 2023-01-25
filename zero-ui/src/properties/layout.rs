@@ -1,5 +1,7 @@
 //! Properties that affect the widget layout only.
 
+use std::fmt;
+
 use zero_ui::prelude::new_property::*;
 
 /// Margin space around the widget.
@@ -1144,24 +1146,227 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
     }
 }
 
+/// Placement of a node inserted by the [`child_insert`] property.
+///
+/// [`child_insert`]: fn@child_insert
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ChildInsertPlace {
+    /// Insert node above the child.
+    Above,
+    /// Insert node to the right of child.
+    Right,
+    /// Insert node below the child.
+    Below,
+    /// Insert node to the left of child.
+    Left,
+
+    /// Insert node to the left of child in [`LayoutDirection::LTR`] contexts and to the right of child
+    /// in [`LayoutDirection::RTL`] contexts.
+    Start,
+    /// Insert node to the right of child in [`LayoutDirection::LTR`] contexts and to the left of child
+    /// in [`LayoutDirection::RTL`] contexts.
+    End,
+}
+impl fmt::Debug for ChildInsertPlace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "ChildInsertPlace::")?;
+        }
+        match self {
+            Self::Above => write!(f, "Above"),
+            Self::Right => write!(f, "Right"),
+            Self::Below => write!(f, "Below"),
+            Self::Left => write!(f, "Left"),
+            Self::Start => write!(f, "Start"),
+            Self::End => write!(f, "End"),
+        }
+    }
+}
+impl ChildInsertPlace {
+    /// Convert [`ChildInsertPlace::Start`] and [`ChildInsertPlace::End`] to the fixed place they represent in the `direction` context.
+    pub fn resolve_direction(self, direction: LayoutDirection) -> Self {
+        match self {
+            Self::Start => match direction {
+                LayoutDirection::LTR => Self::Start,
+                LayoutDirection::RTL => Self::End,
+            },
+            Self::End => match direction {
+                LayoutDirection::LTR => Self::End,
+                LayoutDirection::RTL => Self::Start,
+            },
+            p => p,
+        }
+    }
+
+    /// Inserted node is to the left or right of child.
+    pub fn is_x_axis(self) -> bool {
+        !matches!(self, Self::Above | Self::Below)
+    }
+
+    /// Inserted node is above or bellow the child node.
+    pub fn is_y_axis(self) -> bool {
+        matches!(self, Self::Above | Self::Below)
+    }
+}
+
+/// Insert the `insert` node in the `place` relative to the widget's child.
+///
+/// This property disables inline layout for the widget.
+#[property(CHILD, default(ChildInsertPlace::Start, NilUiNode, 0))]
+pub fn child_insert(
+    child: impl UiNode,
+    place: impl IntoVar<ChildInsertPlace>,
+    insert: impl UiNode,
+    spacing: impl IntoVar<Length>,
+) -> impl UiNode {
+    #[ui_node(struct ChildInsertNode {
+        children: impl UiNodeList,
+        #[var] place: impl Var<ChildInsertPlace>,
+        #[var] spacing: impl Var<Length>
+    })]
+    impl UiNode for ChildInsertNode {
+        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            self.children.update_all(ctx, updates, &mut ());
+            if self.place.is_new(ctx) || self.spacing.is_new(ctx) {
+                ctx.updates.layout();
+            }
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            ctx.with_inline_constrains(
+                wm,
+                |_| None,
+                |ctx, wm| {
+                    if self.place.get().is_x_axis() {
+                        let mut spacing = self.spacing.get().layout(ctx.metrics.for_x(), |_| Px(0));
+                        let insert_size = self.children.with_node(1, |n| {
+                            ctx.with_constrains(|c| c.with_new_min(Px(0), Px(0)).with_fill_x(false), |ctx| n.measure(ctx, wm))
+                        });
+                        if insert_size.width == Px(0) {
+                            spacing = Px(0);
+                        }
+                        let child_size = self.children.with_node(0, |n| {
+                            ctx.with_sub_size(PxSize::new(insert_size.width + spacing, Px(0)), |ctx| n.measure(ctx, wm))
+                        });
+
+                        PxSize::new(
+                            insert_size.width + spacing + child_size.width,
+                            insert_size.height.max(child_size.height),
+                        )
+                    } else {
+                        let mut spacing = self.spacing.get().layout(ctx.metrics.for_y(), |_| Px(0));
+                        let insert_size = self.children.with_node(1, |n| {
+                            ctx.with_constrains(|c| c.with_new_min(Px(0), Px(0)).with_fill_y(false), |ctx| n.measure(ctx, wm))
+                        });
+                        if insert_size.height == Px(0) {
+                            spacing = Px(0);
+                        }
+                        let child_size = self.children.with_node(0, |n| {
+                            ctx.with_sub_size(PxSize::new(Px(0), insert_size.height + spacing), |ctx| n.measure(ctx, wm))
+                        });
+                        PxSize::new(
+                            insert_size.width.max(child_size.width),
+                            insert_size.height + spacing + child_size.height,
+                        )
+                    }
+                },
+            )
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let place = self.place.get().resolve_direction(ctx.direction());
+
+            match place {
+                ChildInsertPlace::Left | ChildInsertPlace::Right => {
+                    let mut spacing = self.spacing.get().layout(ctx.metrics.for_x(), |_| Px(0));
+                    let insert_size = self.children.with_node_mut(1, |n| {
+                        ctx.with_constrains(|c| c.with_new_min(Px(0), Px(0)).with_fill_x(false), |ctx| n.layout(ctx, wl))
+                    });
+                    if insert_size.width == Px(0) {
+                        spacing = Px(0);
+                    }
+                    let child_size = self.children.with_node_mut(0, |n| {
+                        ctx.with_sub_size(PxSize::new(insert_size.width + spacing, Px(0)), |ctx| n.layout(ctx, wl))
+                    });
+
+                    // position
+                    let (child, offset) = match place {
+                        ChildInsertPlace::Left => (0, insert_size.width + spacing),
+                        ChildInsertPlace::Right => (1, child_size.width + spacing),
+                        _ => unreachable!(),
+                    };
+
+                    self.children.with_node_mut(child, |n| {
+                        if offset != Px(0)
+                            && wl
+                                .with_outer(n, false, |wl, _| wl.translate(PxVector::new(offset, Px(0))))
+                                .is_none()
+                        {
+                            // child is not a full widget
+                            todo!()
+                        }
+                    });
+
+                    PxSize::new(
+                        insert_size.width + spacing + child_size.width,
+                        insert_size.height.max(child_size.height),
+                    )
+                }
+                ChildInsertPlace::Above | ChildInsertPlace::Below => {
+                    let mut spacing = self.spacing.get().layout(ctx.metrics.for_y(), |_| Px(0));
+                    let insert_size = self.children.with_node_mut(1, |n| {
+                        ctx.with_constrains(|c| c.with_new_min(Px(0), Px(0)).with_fill_y(false), |ctx| n.layout(ctx, wl))
+                    });
+                    if insert_size.height == Px(0) {
+                        spacing = Px(0);
+                    }
+                    let child_size = self.children.with_node_mut(0, |n| {
+                        ctx.with_sub_size(PxSize::new(Px(0), insert_size.height + spacing), |ctx| n.layout(ctx, wl))
+                    });
+
+                    // position
+                    let (child, offset) = match place {
+                        ChildInsertPlace::Above => (0, insert_size.height + spacing),
+                        ChildInsertPlace::Below => (1, child_size.height + spacing),
+                        _ => unreachable!(),
+                    };
+
+                    self.children.with_node_mut(child, |n| {
+                        if offset != Px(0)
+                            && wl
+                                .with_outer(n, false, |wl, _| wl.translate(PxVector::new(Px(0), offset)))
+                                .is_none()
+                        {
+                            // child is not a full widget
+                            todo!()
+                        }
+                    });
+
+                    PxSize::new(
+                        insert_size.width.max(child_size.width),
+                        insert_size.height + spacing + child_size.height,
+                    )
+                }
+                _ => {
+                    unreachable!()
+                }
+            }
+        }
+    }
+    ChildInsertNode {
+        children: ui_vec![child, insert],
+        place: place.into_var(),
+        spacing: spacing.into_var(),
+    }
+}
+
 /// Insert `insert` to the left of the widget's child.
 ///
 /// This is the equivalent of setting the widget's child to a grid node that has `insert | child` where content
 /// is auto sized and child fills the leftover space.
 #[property(CHILD, default(NilUiNode, 0))]
 pub fn child_insert_left(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
-    use crate::widgets::layouts::grid::{column, node, AutoGrowMode};
-    node(
-        ui_vec![insert, child],
-        ui_vec![column!(), column!(1.lft())],
-        ui_vec![],
-        WidgetGenerator::nil(),
-        AutoGrowMode::Rows(1),
-        spacing.into_var().map(|s| GridSpacing {
-            column: s.clone(),
-            row: Length::zero(),
-        }),
-    )
+    child_insert(child, ChildInsertPlace::Left, insert, spacing)
 }
 
 /// Insert `insert` to the right of the widget's child.
@@ -1170,18 +1375,7 @@ pub fn child_insert_left(child: impl UiNode, insert: impl UiNode, spacing: impl 
 /// is auto sized and child fills the leftover space.
 #[property(CHILD, default(NilUiNode, 0))]
 pub fn child_insert_right(child: impl UiNode, insert: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
-    use crate::widgets::layouts::grid::{column, node, AutoGrowMode};
-    node(
-        ui_vec![child, insert],
-        ui_vec![column!(1.lft()), column!()],
-        ui_vec![],
-        WidgetGenerator::nil(),
-        AutoGrowMode::Rows(1),
-        spacing.into_var().map(|s| GridSpacing {
-            column: s.clone(),
-            row: Length::zero(),
-        }),
-    )
+    child_insert(child, ChildInsertPlace::Right, insert, spacing)
 }
 
 /// Represents the size property value set on a widget.

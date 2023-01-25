@@ -60,6 +60,7 @@ Some nodes get inserted in panels that are not the standard widget setup, but ar
   - In a panel, the `UiNode::with_context` does not work, because `is_state` is a normal property,
     but the widget outer-target is still found and setup for panels to transform directly.
   - Worst, the `WidgetLayout::with_outer` does not work, even though the inner `wgt!` can be targeted if the node is just layout.
+  - Panels must render transforms for nodes that are not full widgets?
 
 * `flood`: and other painting nodes, can be layered in a z-stack to create complex visual without polluting the info-tree using only
   the memory needed to render it.

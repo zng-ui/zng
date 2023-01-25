@@ -888,8 +888,19 @@ pub mod vis {
                     };
                     is_hovered(checkmark, parent_hovered)
                 },
-                spacing: 2,
+                spacing: SPACING_VAR,
             };
+        }
+
+        context_var! {
+            /// Spacing between the checkmark and content.
+            pub static SPACING_VAR: Length = 2;
+        }
+
+        /// Spacing between the checkmark and content.
+        #[property(CONTEXT, default(SPACING_VAR))]
+        pub fn spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+            with_context_var(child, SPACING_VAR, spacing)
         }
     }
 
@@ -910,7 +921,7 @@ pub mod vis {
             pub crate::properties::child_insert_left = {
                 insert: {
                     let parent_hovered = var(false);
-                    let checkmark = text! {
+                    let radio = text! {
                         txt = "◎";
                         font_family = FontNames::system_ui(&lang!(und));
                         font_size = 1.2.em();
@@ -924,10 +935,21 @@ pub mod vis {
                             txt_color = text::TEXT_COLOR_VAR;
                         }
                     };
-                    is_hovered(checkmark, parent_hovered)
+                    is_hovered(radio, parent_hovered)
                 },
-                spacing: 2,
+                spacing: SPACING_VAR,
             };
+        }
+
+        context_var! {
+            /// Spacing between the radio and content.
+            pub static SPACING_VAR: Length = 2;
+        }
+
+        /// Spacing between the radio and content.
+        #[property(CONTEXT, default(SPACING_VAR))]
+        pub fn spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+            with_context_var(child, SPACING_VAR, spacing)
         }
     }
 }
