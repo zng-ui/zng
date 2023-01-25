@@ -47,6 +47,184 @@ impl From<ExtendMode> for RenderExtendMode {
 /// directly, you must duplicate and mirror the stops and use the `Repeat` render mode.
 pub type RenderExtendMode = crate::render::webrender_api::ExtendMode;
 
+/// The radial gradient radius base length.
+///
+/// This is the full available length for the radius value, so a radius of `100.pct()` will have
+/// the exact length defined by this enum. The available lengths are all defined as the distance from
+/// the center point to an edge or corner.
+///
+/// Note that the color stops are layout in the longest dimension and then *squished* in the shortest dimension.
+#[derive(Clone, PartialEq)]
+pub enum RadialGradientRadiusBase {
+    /// Length to the closest edge from the center point.
+    ClosestSide,
+    /// Length to the closest corner from the center point.
+    ClosestCorner,
+    /// Length to the farthest edge from the center point.
+    FarthestSide,
+    /// Length to the farthest corner from the center point.
+    ///
+    /// This is the default value.
+    FarthestCorner,
+}
+impl fmt::Debug for RadialGradientRadiusBase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "RadialGradientRadiusBase::")?;
+        }
+        match self {
+            Self::ClosestSide => write!(f, "ClosestSide"),
+            Self::ClosestCorner => write!(f, "ClosestCorner"),
+            Self::FarthestSide => write!(f, "FarthestSide"),
+            Self::FarthestCorner => write!(f, "FarthestCorner"),
+        }
+    }
+}
+impl Default for RadialGradientRadiusBase {
+    fn default() -> Self {
+        RadialGradientRadiusBase::FarthestCorner
+    }
+}
+
+/// The radial gradient radius length in both dimensions.
+#[derive(Clone, PartialEq)]
+pub struct RadialGradientRadius {
+    /// How the base length is calculated. The base length is the `100.pct()` length.
+    pub base: RadialGradientRadiusBase,
+    /// The length of the rendered gradient stops.
+    pub radii: Size,
+}
+impl fmt::Debug for RadialGradientRadius {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RadialGradientRadius")
+            .field("base", &self.base)
+            .field("radius", &self.radii)
+            .finish()
+    }
+}
+impl Default for RadialGradientRadius {
+    /// `farthest_corner(100.pct())`
+    fn default() -> Self {
+        Self::farthest_corner(1.fct())
+    }
+}
+impl RadialGradientRadius {
+    /// Circle radius relative from center to the closest edge.
+    pub fn closest_side(radius: impl Into<Length>) -> Self {
+        Self {
+            base: RadialGradientRadiusBase::ClosestSide,
+            radii: Size::splat(radius),
+        }
+    }
+
+    /// Circle radius relative from center to the closest corner.
+    pub fn closest_corner(radius: impl Into<Length>) -> Self {
+        Self {
+            base: RadialGradientRadiusBase::ClosestCorner,
+            radii: Size::splat(radius),
+        }
+    }
+
+    /// Circle radius relative from center to the farthest edge.
+    pub fn farthest_side(radius: impl Into<Length>) -> Self {
+        Self {
+            base: RadialGradientRadiusBase::FarthestSide,
+            radii: Size::splat(radius),
+        }
+    }
+
+    /// Circle radius relative from center to the farthest corner.
+    pub fn farthest_corner(radius: impl Into<Length>) -> Self {
+        Self {
+            base: RadialGradientRadiusBase::FarthestCorner,
+            radii: Size::splat(radius),
+        }
+    }
+
+    /// Ellipse radii relative from center to the closest edge.
+    pub fn closest_side_ell(radius: impl Into<Size>) -> Self {
+        Self {
+            base: RadialGradientRadiusBase::ClosestSide,
+            radii: radius.into(),
+        }
+    }
+
+    /// Ellipse radii relative from center to the closest corner.
+    pub fn closest_corner_ell(radius: impl Into<Size>) -> Self {
+        Self {
+            base: RadialGradientRadiusBase::ClosestCorner,
+            radii: radius.into(),
+        }
+    }
+
+    /// Ellipse radii relative from center to the farthest edge.
+    pub fn farthest_side_ell(radius: impl Into<Size>) -> Self {
+        Self {
+            base: RadialGradientRadiusBase::FarthestSide,
+            radii: radius.into(),
+        }
+    }
+
+    /// Ellipse radii relative from center to the farthest corner.
+    pub fn farthest_corner_ell(radius: impl Into<Size>) -> Self {
+        Self {
+            base: RadialGradientRadiusBase::FarthestCorner,
+            radii: radius.into(),
+        }
+    }
+}
+impl_from_and_into_var! {
+    /// Circle fill the base radius.
+    fn from(base: RadialGradientRadiusBase) -> RadialGradientRadius {
+        RadialGradientRadius {
+            base,
+            radii: Size::fill()
+        }
+    }
+
+    /// From [`RadialGradientRadiusBase`] and circle radius.
+    fn from<B: Into<RadialGradientRadiusBase>, R: Into<Length>>((base, radius): (B, R)) -> RadialGradientRadius {
+        RadialGradientRadius {
+            base: base.into(),
+            radii: Size::splat(radius)
+        }
+    }
+
+    /// Circle [`RadialGradientRadius::farthest_corner`].
+    fn from(radius: Length) -> RadialGradientRadius {
+        RadialGradientRadius::farthest_corner(radius)
+    }
+    /// Circle [`RadialGradientRadius::farthest_corner_ell`].
+    fn from(radii: Size) -> RadialGradientRadius {
+        RadialGradientRadius::farthest_corner_ell(radii)
+    }
+
+    /// Conversion to [`Length::Relative`] and to radius.
+    fn from(percent: FactorPercent) -> RadialGradientRadius {
+        Length::Relative(percent.into()).into()
+    }
+    /// Conversion to [`Length::Relative`] and to radius.
+    fn from(norm: Factor) -> RadialGradientRadius {
+        Length::Relative(norm).into()
+    }
+    /// Conversion to [`Length::DipF32`] and to radius.
+    fn from(f: f32) -> RadialGradientRadius {
+        Length::DipF32(f).into()
+    }
+    /// Conversion to [`Length::Dip`] and to radius.
+    fn from(i: i32) -> RadialGradientRadius {
+        Length::Dip(Dip::new(i)).into()
+    }
+    /// Conversion to [`Length::Px`] and to radius.
+    fn from(l: Px) -> RadialGradientRadius {
+        Length::Px(l).into()
+    }
+    /// Conversion to [`Length::Dip`] and to radius.
+    fn from(l: Dip) -> RadialGradientRadius {
+        Length::Dip(l).into()
+    }
+}
+
 /// The [angle](AngleUnits) or [line](crate::units::Line) that defines a linear gradient.
 ///
 /// # Examples

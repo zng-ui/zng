@@ -1,6 +1,17 @@
 use crate::core::gradient::*;
 use crate::prelude::new_widget::*;
 
+/// Node that fills the widget area with a radial gradient defined by the center point.
+///
+/// The extend mode is [`Clamp`]: ExtendMode::Clamp
+pub fn radial_gradient(
+    center: impl IntoVar<Point>,
+    radius: impl IntoVar<RadialGradientRadius>,
+    stops: impl IntoVar<GradientStops>,
+) -> impl UiNode {
+    radial_gradient_ext(center, radius, stops, ExtendMode::Clamp)
+}
+
 /// Node that fills the widget area with a linear gradient defined by angle or points.
 ///
 /// The extend mode is [`Clamp`](ExtendMode::Clamp).
@@ -37,6 +48,7 @@ pub fn linear_gradient_ext(
     impl UiNode for LinearGradientNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if self.axis.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
+                self.final_size = PxSize::zero();
                 ctx.updates.layout();
             }
         }
@@ -90,6 +102,71 @@ pub fn linear_gradient_ext(
     }
 }
 
+pub fn radial_gradient_ext(
+    center: impl IntoVar<Point>,
+    radius: impl IntoVar<RadialGradientRadius>,
+    stops: impl IntoVar<GradientStops>,
+    extend_mode: impl IntoVar<ExtendMode>,
+) -> impl UiNode {
+    #[ui_node(struct RadialGradientNode {
+        #[var] center: impl Var<Point>,
+        #[var] radius: impl Var<RadialGradientRadius>,
+        #[var] stops: impl Var<GradientStops>,
+        #[var] extend_mode: impl Var<ExtendMode>,
+
+        render_stops: Vec<RenderGradientStop>,
+        render_center: PxPoint,
+        final_size: PxSize,
+    })]
+    impl UiNode for RadialGradientNode {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+            if self.center.is_new(ctx) || self.radius.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
+                self.final_size = PxSize::zero();
+                ctx.updates.layout();
+            }
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
+            ctx.constrains().fill_size()
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            let final_size = ctx.constrains().fill_size();
+            if self.final_size != final_size {
+                self.final_size = final_size;
+                self.render_center = ctx.with_constrains(
+                    |_| PxConstrains2d::new_fill_size(self.final_size),
+                    |ctx| self.center.get().layout(ctx, |_| PxPoint::zero()),
+                );
+                todo!()
+            }
+            final_size
+        }
+
+        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_radial_gradient(
+                PxRect::from_size(self.final_size),
+                self.render_center,
+                self.final_size,
+                &self.render_stops,
+                self.extend_mode.get().into(),
+                self.final_size,
+                PxSize::zero(),
+            );
+        }
+    }
+    RadialGradientNode {
+        center: center.into_var(),
+        radius: radius.into_var(),
+        stops: stops.into_var(),
+        extend_mode: extend_mode.into_var(),
+
+        render_stops: vec![],
+        render_center: PxPoint::zero(),
+        final_size: PxSize::zero(),
+    }
+}
+
 /// Node that fills the widget area with a Linear gradient with all features configurable.
 pub fn linear_gradient_full(
     axis: impl IntoVar<LinearGradientAxis>,
@@ -120,6 +197,7 @@ pub fn linear_gradient_full(
                 || self.tile_size.is_new(ctx)
                 || self.tile_spacing.is_new(ctx)
             {
+                self.final_size = PxSize::zero();
                 ctx.updates.layout();
             }
         }

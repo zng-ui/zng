@@ -867,26 +867,7 @@ pub mod vis {
             pub crate::properties::child_insert_left = {
                 insert: {
                     let parent_hovered = var(false);
-                    let checkmark = text! {
-                        size = (1.2.em(), 1.2.em());
-                        txt = "✓";
-                        font_family = FontNames::system_ui(&lang!(und));
-                        txt_align = Align::CENTER;
-                        align = Align::CENTER;
-                        txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
-                        background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
-                        corner_radius = 0.1.em();
-                        when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
-                            txt_color = text::TEXT_COLOR_VAR;
-                        }
-                        when #{toggle::IS_CHECKED_VAR}.is_none() {
-                            txt = "━";
-                        }
-                        when *#{parent_hovered.clone()} {
-                            background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
-                        }
-                    };
-                    is_hovered(checkmark, parent_hovered)
+                    is_hovered(checkmark_visual(parent_hovered.clone()), parent_hovered)
                 },
                 spacing: SPACING_VAR,
             };
@@ -901,6 +882,28 @@ pub mod vis {
         #[property(CONTEXT, default(SPACING_VAR))]
         pub fn spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
             with_context_var(child, SPACING_VAR, spacing)
+        }
+
+        fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
+            text! {
+                size = (1.2.em(), 1.2.em());
+                txt = "✓";
+                font_family = FontNames::system_ui(&lang!(und));
+                txt_align = Align::CENTER;
+                align = Align::CENTER;
+                txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
+                background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+                corner_radius = 0.1.em();
+                when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
+                    txt_color = text::TEXT_COLOR_VAR;
+                }
+                when #{toggle::IS_CHECKED_VAR}.is_none() {
+                    txt = "━";
+                }
+                when *#{parent_hovered} {
+                    background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+                }
+            }
         }
     }
 
@@ -921,21 +924,7 @@ pub mod vis {
             pub crate::properties::child_insert_left = {
                 insert: {
                     let parent_hovered = var(false);
-                    let radio = text! {
-                        txt = "◎";
-                        font_family = FontNames::system_ui(&lang!(und));
-                        font_size = 1.2.em();
-                        align = Align::CENTER;
-                        txt_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(60.pct()));
-                        when #{toggle::IS_CHECKED_VAR}.unwrap_or(false) {
-                            txt = "◉";
-                            txt_color = text::TEXT_COLOR_VAR;
-                        }
-                        when *#{parent_hovered.clone()} {
-                            txt_color = text::TEXT_COLOR_VAR;
-                        }
-                    };
-                    is_hovered(radio, parent_hovered)
+                    is_hovered(radio_visual(parent_hovered.clone()), parent_hovered)
                 },
                 spacing: SPACING_VAR,
             };
@@ -950,6 +939,23 @@ pub mod vis {
         #[property(CONTEXT, default(SPACING_VAR))]
         pub fn spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
             with_context_var(child, SPACING_VAR, spacing)
+        }
+
+        fn radio_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
+            text! {
+                txt = "◎";
+                font_family = FontNames::system_ui(&lang!(und));
+                font_size = 1.2.em();
+                align = Align::CENTER;
+                txt_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(60.pct()));
+                when #{toggle::IS_CHECKED_VAR}.unwrap_or(false) {
+                    txt = "◉";
+                    txt_color = text::TEXT_COLOR_VAR;
+                }
+                when *#{parent_hovered} {
+                    txt_color = text::TEXT_COLOR_VAR;
+                }
+            }
         }
     }
 }
