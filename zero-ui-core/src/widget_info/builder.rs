@@ -782,7 +782,7 @@ impl WidgetLayout {
                 info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
                 info.bounds_info.set_metrics(None, LayoutMask::NONE);
                 info.bounds_info.set_is_collapsed(true);
-                info.bounds_info.set_rendered(None, &ctx.info_tree);
+                info.bounds_info.set_rendered(None, ctx.info_tree);
             }
         } else {
             tracing::error!("collapse did not find `{}` in the info tree", widget_id)

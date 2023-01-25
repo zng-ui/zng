@@ -865,6 +865,7 @@ pub mod vis {
         properties! {
             /// Inserts the checkmark.
             pub crate::properties::child_insert_left = {
+                insert: {
                     let parent_hovered = var(false);
                     let checkmark = text! {
                         size = (1.em(), 1.em());
@@ -888,8 +889,8 @@ pub mod vis {
                     };
                     is_hovered(checkmark, parent_hovered)
                 },
-                2,
-            ;
+                spacing: 2,
+            };
         }
     }
 }

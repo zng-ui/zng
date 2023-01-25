@@ -936,7 +936,7 @@ pub fn panic_input(info: &PropertyInfo, i: usize, kind: InputKind) -> ! {
 }
 
 #[doc(hidden)]
-pub fn var_input_to_args<T: VarValue>(var: impl IntoVar<T>) -> BoxedVar<T> {
+pub fn var_to_args<T: VarValue>(var: impl IntoVar<T>) -> BoxedVar<T> {
     var.into_var().boxed()
 }
 

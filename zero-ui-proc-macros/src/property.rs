@@ -185,7 +185,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut input_tys = vec![];
         let mut storage_tys = vec![];
         let mut input_to_storage = vec![];
-        let mut named_into_var = quote!();
+        let mut named_into = quote!();
         let mut get_when_input = quote!();
         let mut input_new_dyn = vec![];
 
@@ -201,6 +201,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
             let kind = input.kind;
             let info_ty = &input.info_ty;
+            let storage_ty = &input.storage_ty;
             input_info.extend(quote! {
                 #core::widget_builder::PropertyInput {
                     name: stringify!(#ident),
@@ -221,9 +222,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     instantiate.extend(quote! {
                         std::clone::Clone::clone(&self.#ident),
                     });
-                    named_into_var.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #core::var::BoxedVar<#info_ty> {
-                            #core::widget_builder::var_input_to_args(#ident)
+                    named_into.extend(quote! {
+                        pub fn #ident(#ident: #input_ty) -> #storage_ty {
+                            #core::widget_builder::var_to_args(#ident)
                         }
                     });
                     input_new_dyn.push(quote! {
@@ -246,7 +247,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 InputKind::Value => {
                     allowed_in_when_assign = false;
                     input_to_storage.push(quote! {
-                        #core::widget_builder::value_to_args(#ident)
+                        Self::#ident(#ident)
+                    });
+                    named_into.extend(quote! {
+                        pub fn #ident(#ident: #input_ty) -> #storage_ty {
+                            #core::widget_builder::value_to_args(#ident)
+                        }
                     });
                     get_value.extend(quote! {
                         #i => &self.#ident,
@@ -276,6 +282,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     input_to_storage.push(quote! {
                         #core::widget_builder::ui_node_to_args(#ident)
                     });
+                    named_into.extend(quote! {
+                        pub fn #ident(#ident: #input_ty) -> #core::widget_instance::BoxedUiNode {
+                            #core::widget_instance::UiNode::boxed(#ident)
+                        }
+                    });
                     get_ui_node.extend(quote! {
                         #i => &self.#ident,
                     });
@@ -304,6 +315,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     input_to_storage.push(quote! {
                         #core::widget_builder::ui_node_list_to_args(#ident)
                     });
+                    named_into.extend(quote! {
+                        pub fn #ident(#ident: #input_ty) -> #core::widget_instance::BoxedUiNodeList {
+                            #core::widget_instance::UiNodeList::boxed(#ident)
+                        }
+                    });
                     get_ui_node_list.extend(quote! {
                         #i => &self.#ident,
                     });
@@ -331,6 +347,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     allowed_in_when_expr = false;
                     input_to_storage.push(quote! {
                         #core::widget_builder::widget_handler_to_args(#ident)
+                    });
+                    named_into.extend(quote! {
+                        pub fn #ident(#ident: #input_ty) -> #input_ty {
+                            #ident
+                        }
                     });
                     get_widget_handler.extend(quote! {
                         #i => &self.#ident,
@@ -511,7 +532,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     #default_fn
                 }
 
-                #named_into_var
+                #named_into
                 #get_when_input
             }
             #cfg
