@@ -1,4 +1,4 @@
-* Implement `radio_style!` for toggle.
+* Implement `switch_style!` for toggle.
 * Implement `child_insert_start/end/top/bottom`.
 
 * Review bidi text across inlined widgets.

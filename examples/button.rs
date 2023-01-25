@@ -147,6 +147,28 @@ fn toggle_buttons() -> impl UiNode {
                 tristate = true;
                 style_gen = style_gen!(|_, _| toggle::vis::check_style!());
             },
+            stack! {
+                direction = StackDirection::top_to_bottom();
+                spacing = 5;
+                toggle::selector = toggle::Selector::single(var("Paris"));
+                children = ui_vec![
+                    toggle! {
+                        child = text!("Radio button (Tokyo)");
+                        value::<&'static str> = "Tokyo";
+                        style_gen = style_gen!(|_, _| toggle::vis::radio_style!());
+                    },
+                    toggle! {
+                        child = text!("Radio button (Paris)");
+                        value::<&'static str> = "Paris";
+                        style_gen = style_gen!(|_, _| toggle::vis::radio_style!());
+                    },
+                    toggle! {
+                        child = text!("Radio button (London)");
+                        value::<&'static str> = "London";
+                        style_gen = style_gen!(|_, _| toggle::vis::radio_style!());
+                    },
+                ];
+            }
         ]
     }
 }

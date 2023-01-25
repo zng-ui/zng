@@ -892,4 +892,42 @@ pub mod vis {
             };
         }
     }
+
+    /// Radio toggle style.
+    ///
+    /// Style a [`toggle!`] widget to look like a *radio button*.
+    ///
+    /// [`toggle!`]: mod@crate::widgets::toggle
+    #[widget($crate::widgets::toggle::vis::radio_style)]
+    pub mod radio_style {
+        use super::*;
+        use crate::widgets::text;
+
+        inherit!(style);
+
+        properties! {
+            /// Inserts the radio button.
+            pub crate::properties::child_insert_left = {
+                insert: {
+                    let parent_hovered = var(false);
+                    let checkmark = text! {
+                        txt = "◎";
+                        font_family = FontNames::system_ui(&lang!(und));
+                        font_size = 1.2.em();
+                        align = Align::CENTER;
+                        txt_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(60.pct()));
+                        when #{toggle::IS_CHECKED_VAR}.unwrap_or(false) {
+                            txt = "◉";
+                            txt_color = text::TEXT_COLOR_VAR;
+                        }
+                        when *#{parent_hovered.clone()} {
+                            txt_color = text::TEXT_COLOR_VAR;
+                        }
+                    };
+                    is_hovered(checkmark, parent_hovered)
+                },
+                spacing: 2,
+            };
+        }
+    }
 }
