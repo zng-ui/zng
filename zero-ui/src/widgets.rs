@@ -26,8 +26,8 @@ pub use flood::flood;
 mod gradient;
 #[doc(inline)]
 pub use gradient::{
-    linear_gradient, linear_gradient_ext, linear_gradient_full, radial_gradient, radial_gradient_ext, reflecting_linear_gradient,
-    reflecting_radial_gradient, repeating_linear_gradient, repeating_radial_gradient,
+    linear_gradient, linear_gradient_ext, linear_gradient_full, radial_gradient, radial_gradient_ext, radial_gradient_full,
+    reflecting_linear_gradient, reflecting_radial_gradient, repeating_linear_gradient, repeating_radial_gradient,
 };
 
 mod image_wgt;
