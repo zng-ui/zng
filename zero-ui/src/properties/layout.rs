@@ -1281,15 +1281,51 @@ pub fn child_insert(
 
             match place {
                 ChildInsertPlace::Left | ChildInsertPlace::Right => {
-                    let mut spacing = self.spacing.get().layout(ctx.metrics.for_x(), |_| Px(0));
+                    let spacing = self.spacing.get().layout(ctx.metrics.for_x(), |_| Px(0));
+
+                    let mut constrains_y = ctx.constrains().y;
+                    if constrains_y.fill_or_exact().is_none() {
+                        // measure to find fill height
+                        let mut ctx = ctx.as_measure();
+                        let ctx = &mut ctx;
+                        let mut wm = WidgetMeasure::new();
+                        let wm = &mut wm;
+                        let mut spacing = spacing;
+
+                        let insert_size = self.children.with_node(1, |n| {
+                            ctx.with_constrains(|c| c.with_new_min(Px(0), Px(0)).with_fill_x(false), |ctx| n.measure(ctx, wm))
+                        });
+                        if insert_size.width == Px(0) {
+                            spacing = Px(0);
+                        }
+                        let child_size = self.children.with_node(0, |n| {
+                            ctx.with_constrains(|c| c.with_less_x(insert_size.width + spacing), |ctx| n.measure(ctx, wm))
+                        });
+
+                        constrains_y = constrains_y.with_fill(true).with_max(child_size.height.max(insert_size.height));
+                    }
+
+                    let mut spacing = spacing;
                     let insert_size = self.children.with_node_mut(1, |n| {
-                        ctx.with_constrains(|c| c.with_new_min(Px(0), Px(0)).with_fill_x(false), |ctx| n.layout(ctx, wl))
+                        ctx.with_constrains(
+                            |mut c| {
+                                c.y = constrains_y;
+                                c.with_new_min(Px(0), Px(0)).with_fill_x(false)
+                            },
+                            |ctx| n.layout(ctx, wl),
+                        )
                     });
                     if insert_size.width == Px(0) {
                         spacing = Px(0);
                     }
                     let child_size = self.children.with_node_mut(0, |n| {
-                        ctx.with_constrains(|c| c.with_less_x(insert_size.width + spacing), |ctx| n.layout(ctx, wl))
+                        ctx.with_constrains(
+                            |mut c| {
+                                c.y = constrains_y;
+                                c.with_less_x(insert_size.width + spacing)
+                            },
+                            |ctx| n.layout(ctx, wl),
+                        )
                     });
                     if child_size.width == Px(0) {
                         spacing = Px(0);
@@ -1319,15 +1355,52 @@ pub fn child_insert(
                     )
                 }
                 ChildInsertPlace::Above | ChildInsertPlace::Below => {
-                    let mut spacing = self.spacing.get().layout(ctx.metrics.for_y(), |_| Px(0));
+                    let spacing = self.spacing.get().layout(ctx.metrics.for_y(), |_| Px(0));
+
+                    let mut constrains_x = ctx.constrains().x;
+                    if constrains_x.fill_or_exact().is_none() {
+                        // measure fill width
+
+                        let mut ctx = ctx.as_measure();
+                        let mut wm = WidgetMeasure::new();
+                        let ctx = &mut ctx;
+                        let wm = &mut wm;
+                        let mut spacing = spacing;
+
+                        let insert_size = self.children.with_node(1, |n| {
+                            ctx.with_constrains(|c| c.with_new_min(Px(0), Px(0)).with_fill_y(false), |ctx| n.measure(ctx, wm))
+                        });
+                        if insert_size.height == Px(0) {
+                            spacing = Px(0);
+                        }
+                        let child_size = self.children.with_node(0, |n| {
+                            ctx.with_constrains(|c| c.with_less_y(insert_size.height + spacing), |ctx| n.measure(ctx, wm))
+                        });
+
+                        constrains_x = constrains_x.with_fill(true).with_max(child_size.width.max(insert_size.width));
+                    }
+
+                    let mut spacing = spacing;
                     let insert_size = self.children.with_node_mut(1, |n| {
-                        ctx.with_constrains(|c| c.with_new_min(Px(0), Px(0)).with_fill_y(false), |ctx| n.layout(ctx, wl))
+                        ctx.with_constrains(
+                            |mut c| {
+                                c.x = constrains_x;
+                                c.with_new_min(Px(0), Px(0)).with_fill_y(false)
+                            },
+                            |ctx| n.layout(ctx, wl),
+                        )
                     });
                     if insert_size.height == Px(0) {
                         spacing = Px(0);
                     }
                     let child_size = self.children.with_node_mut(0, |n| {
-                        ctx.with_constrains(|c| c.with_less_y(insert_size.height + spacing), |ctx| n.layout(ctx, wl))
+                        ctx.with_constrains(
+                            |mut c| {
+                                c.x = constrains_x;
+                                c.with_less_y(insert_size.height + spacing)
+                            },
+                            |ctx| n.layout(ctx, wl),
+                        )
                     });
 
                     // position
