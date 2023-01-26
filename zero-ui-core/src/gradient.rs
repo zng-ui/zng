@@ -454,11 +454,7 @@ impl ColorStop {
     /// [is positional]: Self::is_positional
     pub fn layout(&self, ctx: Layout1dMetrics) -> RenderGradientStop {
         RenderGradientStop {
-            offset: if self.is_positional() {
-                f32::INFINITY
-            } else {
-                self.offset.layout(ctx, |_| Px(0)).to_wr().get()
-            },
+            offset: self.offset.layout_f32(ctx, |_| f32::INFINITY),
             color: self.color.into(),
         }
     }
@@ -934,7 +930,7 @@ impl GradientStops {
                         .metrics
                         .clone()
                         .with_constrains(|c| c.with_new_max_y(Px(length as i32)).with_fill_y(true));
-                    let mut offset = offset.layout(ctx.for_y(), |_| Px(0)).to_wr().get();
+                    let mut offset = offset.layout_f32(ctx.for_y(), |_| f32::INFINITY);
                     if is_positional(offset) {
                         offset = length / 2.0;
                     } else {
