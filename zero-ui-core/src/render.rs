@@ -944,8 +944,8 @@ impl FrameBuilder {
     ) {
         let transform_value = transform.value();
 
-        let parent_transform = self.transform;
-        self.transform = transform_value.then(&parent_transform);
+        let prev_transform = self.transform;
+        self.transform = transform_value.then(&prev_transform);
 
         if self.visible {
             self.display_list.push_reference_frame(id, transform, is_2d_scale_translation);
@@ -962,7 +962,7 @@ impl FrameBuilder {
         if self.visible {
             self.display_list.pop_reference_frame();
         }
-        self.transform = parent_transform;
+        self.transform = prev_transform;
 
         if hit_test {
             self.hit_clips.pop_transform();

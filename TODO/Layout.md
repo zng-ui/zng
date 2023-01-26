@@ -54,7 +54,7 @@ Review:
 
 ### Weird Nodes
 
-Some nodes get inserted in panels that are not the standard widget setup, but are to useful to forbid:
+Some nodes get inserted in panels that are not the standard widget setup, but are too useful to forbid:
 
 * `is_state(wgt!(var), var)`: Self-contained bridge from `is_state` in the parent widget context to the `wgt!` context.
   - In a panel, the `UiNode::with_context` does not work, because `is_state` is a normal property,

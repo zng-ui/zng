@@ -1,3 +1,25 @@
+# Remove Layout
+
+Remove widget outer offset, parents always implement transform using the child offset.
+
+* Where is the children offset stored?
+
+## Remove `with_outer` and `with_branch`
+
+* From `fill_node`.
+* From `child_insert`, this is the most simple *panel*, test on it first.
+* From `stack!`.  
+* From `grid!`.
+* From `wrap!`.
+
+## Remove `outer_offset`
+
+* From `WidgetBoundsInfo`.
+* Review `end_pass`, is it needed to invalidate render reuse?
+    - All widget offset changes are now known by the time the widget exits layout, so we can invalidate during the layout?
+
+# Other
+
 * Implement `switch_style!` for toggle.
 
 * Review bidi text across inlined widgets.

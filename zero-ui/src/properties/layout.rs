@@ -1345,7 +1345,7 @@ pub fn child_insert(
                                 .is_none()
                         {
                             // child is not a full widget
-                            todo!()
+                            tracing::error!("child not transformed")
                         }
                     });
 
