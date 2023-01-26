@@ -461,11 +461,11 @@ pub mod state_map {
         }
 
         pub fn req<T: StateValue>(&self, id: StateId<T>) -> &T {
-            self.get(id).unwrap_or_else(move || panic!("expected `{:?}` in state map", id))
+            self.get(id).unwrap_or_else(move || panic!("expected `{id:?}` in state map"))
         }
 
         pub fn req_mut<T: StateValue>(&mut self, id: StateId<T>) -> &mut T {
-            self.get_mut(id).unwrap_or_else(move || panic!("expected `{:?}` in state map", id))
+            self.get_mut(id).unwrap_or_else(move || panic!("expected `{id:?}` in state map"))
         }
 
         pub fn entry<T: StateValue>(&mut self, id: StateId<T>) -> StateMapEntry<T> {

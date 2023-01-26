@@ -674,7 +674,7 @@ impl fmt::Display for EncodeError {
         match self {
             EncodeError::Encode(e) => write!(f, "{e}"),
             EncodeError::Dummy => write!(f, "cannot encode dummy image"),
-            EncodeError::ViewProcessOffline => write!(f, "{}", ViewProcessOffline),
+            EncodeError::ViewProcessOffline => write!(f, "{ViewProcessOffline}"),
         }
     }
 }

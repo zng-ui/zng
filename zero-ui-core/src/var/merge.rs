@@ -56,7 +56,7 @@ impl<T: VarValue, V: Var<T>> ArcMergeVarInput<T, V> {
     }
 
     #[allow(clippy::borrowed_box)]
-    pub fn get<'t, 'v>(&'t self, value: &'v Box<dyn AnyVarValue>) -> &'v T {
+    pub fn get<'v>(&self, value: &'v Box<dyn AnyVarValue>) -> &'v T {
         (**value).as_any().downcast_ref::<T>().unwrap()
     }
 }

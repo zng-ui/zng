@@ -28,7 +28,7 @@ fn example(mode: HitTestMode) -> impl UiNode {
         hit_test_mode = mode;
 
         on_click = hn!(mode, |_, _| {
-            println!("Clicked {:?}", mode);
+            println!("Clicked {mode:?}");
         });
 
         child = text!("{:#?}", mode);

@@ -322,7 +322,7 @@ impl Animation {
     /// Note that this does not affect the restart count.
     pub fn set_elapsed(&self, elapsed: EasingTime, duration: Duration) {
         let now = self.0.lock().now;
-        self.set_start_time(now - (duration * elapsed.fct()));
+        self.set_start_time(now.checked_sub(duration * elapsed.fct()).unwrap());
     }
 }
 

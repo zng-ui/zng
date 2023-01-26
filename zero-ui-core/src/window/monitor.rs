@@ -387,7 +387,7 @@ impl MonitorQuery {
     }
 
     /// Runs the query.
-    pub fn select<'a, 'm>(&'a self, monitors: &'m mut Monitors) -> Option<&'m MonitorInfo> {
+    pub fn select<'m>(&self, monitors: &'m mut Monitors) -> Option<&'m MonitorInfo> {
         match self {
             MonitorQuery::Primary => Self::primary_query(monitors),
             MonitorQuery::Query(q) => q(monitors),

@@ -277,8 +277,8 @@ impl fmt::Debug for Length {
                 ViewportHeight(e) => write!(f, "{e}.vh()"),
                 ViewportMin(e) => write!(f, "{e}.vmin()"),
                 ViewportMax(e) => write!(f, "{e}.vmax()"),
-                DipF32(e) => write!(f, "{}.dip()", e),
-                PxF32(e) => write!(f, "{}.px()", e),
+                DipF32(e) => write!(f, "{e}.dip()"),
+                PxF32(e) => write!(f, "{e}.px()"),
                 Expr(e) => write!(f, "{e}"),
             }
         }

@@ -6,14 +6,8 @@ pub fn derive(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ident = &service.ident;
     let crate_ = crate::util::crate_core();
 
-    let req_help = format!(
-        "Requires the [`{0}`] service. This is the equivalent of calling `services.req::<{0}>()`",
-        ident
-    );
-    let get_help = format!(
-        "Tries to find the [`{0}`] service. This is the equivalent of calling `services.get::<{0}>()`",
-        ident
-    );
+    let req_help = format!("Requires the [`{ident}`] service. This is the equivalent of calling `services.req::<{ident}>()`");
+    let get_help = format!("Tries to find the [`{ident}`] service. This is the equivalent of calling `services.get::<{ident}>()`");
 
     let r = quote! {
         impl #ident {

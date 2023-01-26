@@ -847,7 +847,7 @@ impl fmt::Debug for FontFeatureState {
                 } else if n == FEATURE_ENABLED {
                     write!(f, "FontFeatureState::enabled()")
                 } else {
-                    write!(f, "FontFeatureState::enabled_alt({})", n)
+                    write!(f, "FontFeatureState::enabled_alt({n})")
                 }
             }
             None => write!(f, "FontFeatureState::auto()"),

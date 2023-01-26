@@ -575,7 +575,7 @@ impl WgtWhen {
                         }
 
                         if let Some((_, PropertyValue::Special(s, _))) = &p.value {
-                            errors.push(format!("cannot {} in when assign", s), s.span());
+                            errors.push(format!("cannot {s} in when assign"), s.span());
                         }
 
                         assigns.push(p);
@@ -613,7 +613,7 @@ impl WgtWhen {
     }
 
     pub fn pre_bind(&mut self, shorthand_init_enabled: bool, when_index: usize) -> TokenStream {
-        let prefix = format!("w{}_", when_index);
+        let prefix = format!("w{when_index}_");
         let mut r = quote!();
         for p in &mut self.assigns {
             r.extend(p.pre_bind_args(shorthand_init_enabled, Some(&self.attrs), &prefix));

@@ -256,7 +256,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
             }
         }
         if self_ty_error {
-            errors.push(format!("expected `{}`", node_ident), self_ty.span());
+            errors.push(format!("expected `{node_ident}`"), self_ty.span());
         }
         let node_gen = new_node.node_generics;
 

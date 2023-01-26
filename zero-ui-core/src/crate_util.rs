@@ -1207,12 +1207,12 @@ impl<T> ReceiverExt<T> for flume::Receiver<T> {
         if let Some(d) = deadline.0.checked_duration_since(Instant::now()) {
             if d > WORST_SLEEP_ERR {
                 // probably sleeps here.
-                match self.recv_deadline(deadline.0 - WORST_SLEEP_ERR) {
+                match self.recv_deadline(deadline.0.checked_sub(WORST_SLEEP_ERR).unwrap()) {
                     Err(flume::RecvTimeoutError::Timeout) => self.recv_deadline_sp(deadline),
                     interrupt => interrupt,
                 }
             } else if d > WORST_SPIN_ERR {
-                let spin_deadline = Deadline(deadline.0 - WORST_SPIN_ERR);
+                let spin_deadline = Deadline(deadline.0.checked_sub(WORST_SPIN_ERR).unwrap());
 
                 // try_recv spin
                 while !spin_deadline.has_elapsed() {

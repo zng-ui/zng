@@ -96,12 +96,12 @@ impl Deadline {
 impl fmt::Display for Deadline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let dur = self.0 - Instant::now();
-        write!(f, "{:?} left", dur)
+        write!(f, "{dur:?} left")
     }
 }
 impl fmt::Debug for Deadline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Deadline({})", self)
+        write!(f, "Deadline({self})")
     }
 }
 impl_from_and_into_var! {

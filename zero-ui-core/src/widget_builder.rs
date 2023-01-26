@@ -1082,7 +1082,7 @@ pub fn new_dyn_other<'a, T: Any + Send>(
 pub struct UiNodeInWhenExprError;
 impl fmt::Debug for UiNodeInWhenExprError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 impl fmt::Display for UiNodeInWhenExprError {
@@ -1102,7 +1102,7 @@ impl std::error::Error for UiNodeInWhenExprError {}
 pub struct UiNodeListInWhenExprError;
 impl fmt::Debug for UiNodeListInWhenExprError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 impl fmt::Display for UiNodeListInWhenExprError {
@@ -1122,7 +1122,7 @@ impl std::error::Error for UiNodeListInWhenExprError {}
 pub struct WidgetHandlerInWhenExprError;
 impl fmt::Debug for WidgetHandlerInWhenExprError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 impl fmt::Display for WidgetHandlerInWhenExprError {

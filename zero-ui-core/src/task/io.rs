@@ -205,7 +205,7 @@ pub trait McBufErrorExt {
 }
 impl McBufErrorExt for std::io::Error {
     fn is_only_lazy_left(&self) -> bool {
-        matches!(self.kind(), ErrorKind::Other) && format!("{:?}", self).contains(ONLY_NON_LAZY_ERROR_MSG)
+        matches!(self.kind(), ErrorKind::Other) && format!("{self:?}").contains(ONLY_NON_LAZY_ERROR_MSG)
     }
 }
 const ONLY_NON_LAZY_ERROR_MSG: &str = "no non-lazy readers left to read";

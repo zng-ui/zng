@@ -399,7 +399,7 @@ pub struct FocusManager {
 impl Default for FocusManager {
     fn default() -> Self {
         Self {
-            last_keyboard_event: Instant::now() - Duration::from_secs(10),
+            last_keyboard_event: Instant::now().checked_sub(Duration::from_secs(10)).unwrap(),
             commands: None,
             pending_render: None,
         }

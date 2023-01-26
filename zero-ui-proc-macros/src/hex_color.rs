@@ -81,7 +81,7 @@ fn pair_to_f32(s: &str) -> TokenStream {
 fn single_to_f32(s: &str) -> TokenStream {
     s.chars()
         .map(|c| {
-            let lit = LitInt::new(&format!("0x{0}{0}", c), Span::call_site());
+            let lit = LitInt::new(&format!("0x{c}{c}"), Span::call_site());
             quote! { #lit as f32 / 255.0, }
         })
         .collect()

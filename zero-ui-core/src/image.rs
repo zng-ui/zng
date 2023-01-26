@@ -651,7 +651,7 @@ impl Images {
                                     }
                                 }
 
-                                let _ = rsp.consume();
+                                let _ = rsp.consume().await;
                             }
                             Err(e) => {
                                 r.r = Err(format!("request error: {e}"));

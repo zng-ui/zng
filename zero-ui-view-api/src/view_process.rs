@@ -121,7 +121,7 @@ impl ViewConfig {
             if is_same_process {
                 panic!("{}", msg)
             } else {
-                eprintln!("{}", msg);
+                eprintln!("{msg}");
                 std::process::exit(i32::from_le_bytes(*b"vapi"));
             }
         }

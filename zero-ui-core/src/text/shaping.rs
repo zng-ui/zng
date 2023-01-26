@@ -1597,7 +1597,7 @@ impl<'a> ShapedLine<'a> {
     /// Select the string represented by this line.
     ///
     /// The `full_text` must be equal to the original text that was used to generate the parent [`ShapedText`].
-    pub fn text<'t, 's>(&'t self, full_text: &'s str) -> &'s str {
+    pub fn text<'s>(&self, full_text: &'s str) -> &'s str {
         let IndexRange(start, end) = self.text_range();
 
         let start = start.min(full_text.len());
@@ -1892,7 +1892,7 @@ impl<'a> ShapedSegment<'a> {
     /// Select the string represented by this segment.
     ///
     /// The `full_text` must be equal to the original text that was used to generate the parent [`ShapedText`].
-    pub fn text<'t, 's>(&'t self, full_text: &'s str) -> &'s str {
+    pub fn text<'s>(&self, full_text: &'s str) -> &'s str {
         let IndexRange(start, end) = self.text_range();
         let start = start.min(full_text.len());
         let end = end.min(full_text.len());

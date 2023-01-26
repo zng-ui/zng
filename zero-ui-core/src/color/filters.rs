@@ -337,9 +337,9 @@ impl fmt::Debug for ColorMatrix {
             for column in 0..5 {
                 let v = self.0[row * column];
                 if v < 0.0 {
-                    write!(f, "{:.3}, ", v)?;
+                    write!(f, "{v:.3}, ")?;
                 } else {
-                    write!(f, " {:.3}, ", v)?;
+                    write!(f, " {v:.3}, ")?;
                 }
             }
             writeln!(f)?;

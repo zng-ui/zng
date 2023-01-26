@@ -1746,7 +1746,7 @@ impl fmt::Display for Error {
                 content_length,
                 max_length,
             } => write!(f, "{}", MaxLengthError(*content_length, *max_length)),
-            Error::RequireLength => write!(f, "{}", RequireLengthError),
+            Error::RequireLength => write!(f, "{RequireLengthError}"),
         }
     }
 }
