@@ -182,7 +182,7 @@ pub fn linear_gradient_full(
 /// The extend mode is [`Clamp`](ExtendMode::Clamp).
 pub fn radial_gradient(
     center: impl IntoVar<Point>,
-    radius: impl IntoVar<RadialGradientRadius>,
+    radius: impl IntoVar<GradientRadius>,
     stops: impl IntoVar<GradientStops>,
 ) -> impl UiNode {
     radial_gradient_ext(center, radius, stops, ExtendMode::Clamp)
@@ -190,7 +190,7 @@ pub fn radial_gradient(
 /// Node that fills the widget area with a radial gradient with extend mode [`Repeat`](ExtendMode::Repeat).
 pub fn repeating_radial_gradient(
     center: impl IntoVar<Point>,
-    radius: impl IntoVar<RadialGradientRadius>,
+    radius: impl IntoVar<GradientRadius>,
     stops: impl IntoVar<GradientStops>,
 ) -> impl UiNode {
     radial_gradient_ext(center, radius, stops, ExtendMode::Repeat)
@@ -198,7 +198,7 @@ pub fn repeating_radial_gradient(
 /// Node that fills the widget area with a radial gradient with extend mode [`Reflect`](ExtendMode::Reflect).
 pub fn reflecting_radial_gradient(
     center: impl IntoVar<Point>,
-    radius: impl IntoVar<RadialGradientRadius>,
+    radius: impl IntoVar<GradientRadius>,
     stops: impl IntoVar<GradientStops>,
 ) -> impl UiNode {
     radial_gradient_ext(center, radius, stops, ExtendMode::Reflect)
@@ -206,13 +206,13 @@ pub fn reflecting_radial_gradient(
 /// Node that fill the widget area with a radial gradient with extend mode configurable.
 pub fn radial_gradient_ext(
     center: impl IntoVar<Point>,
-    radius: impl IntoVar<RadialGradientRadius>,
+    radius: impl IntoVar<GradientRadius>,
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
 ) -> impl UiNode {
     #[ui_node(struct RadialGradientNode {
         #[var] center: impl Var<Point>,
-        #[var] radius: impl Var<RadialGradientRadius>,
+        #[var] radius: impl Var<GradientRadius>,
         #[var] stops: impl Var<GradientStops>,
         #[var] extend_mode: impl Var<ExtendMode>,
 
@@ -287,7 +287,7 @@ pub fn radial_gradient_ext(
 /// Node that fills the widget area with a radial gradient with all features configurable.
 pub fn radial_gradient_full(
     center: impl IntoVar<Point>,
-    radius: impl IntoVar<RadialGradientRadius>,
+    radius: impl IntoVar<GradientRadius>,
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
     tile_size: impl IntoVar<Size>,
@@ -295,7 +295,7 @@ pub fn radial_gradient_full(
 ) -> impl UiNode {
     #[ui_node(struct RadialGradientNode {
         #[var] center: impl Var<Point>,
-        #[var] radius: impl Var<RadialGradientRadius>,
+        #[var] radius: impl Var<GradientRadius>,
         #[var] stops: impl Var<GradientStops>,
         #[var] extend_mode: impl Var<ExtendMode>,
         #[var] tile_size: impl Var<Size>,

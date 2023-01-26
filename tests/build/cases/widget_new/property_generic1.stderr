@@ -23,8 +23,8 @@ error[E0283]: type annotations needed
   |
   = note: multiple `impl`s satisfying `i32: IntoVar<_>` found in the `zero_ui_core` crate:
           - impl IntoVar<CornerRadius> for i32;
+          - impl IntoVar<GradientRadius> for i32;
           - impl IntoVar<GridSpacing> for i32;
-          - impl IntoVar<RadialGradientRadius> for i32;
           - impl IntoVar<SideOffsets> for i32;
           and 6 more
 note: required by a bound in `zero_ui::widgets::toggle::value::<T>::__new__`

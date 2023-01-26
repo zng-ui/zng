@@ -1,8 +1,8 @@
 //! Properties that affect the widget render only.
 
-use crate::core::gradient::{GradientStops, LinearGradientAxis, RadialGradientRadius};
+use crate::core::gradient::{GradientRadius, GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
-use crate::widgets::{flood, linear_gradient, radial_gradient, conic_gradient};
+use crate::widgets::{conic_gradient, flood, linear_gradient, radial_gradient};
 
 use super::hit_test_mode;
 
@@ -157,7 +157,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 pub fn background_radial(
     child: impl UiNode,
     center: impl IntoVar<Point>,
-    radius: impl IntoVar<RadialGradientRadius>,
+    radius: impl IntoVar<GradientRadius>,
     stops: impl IntoVar<GradientStops>,
 ) -> impl UiNode {
     background(child, radial_gradient(center, radius, stops))
