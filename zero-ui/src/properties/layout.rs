@@ -1187,12 +1187,12 @@ impl ChildInsertPlace {
     pub fn resolve_direction(self, direction: LayoutDirection) -> Self {
         match self {
             Self::Start => match direction {
-                LayoutDirection::LTR => Self::Start,
-                LayoutDirection::RTL => Self::End,
+                LayoutDirection::LTR => Self::Left,
+                LayoutDirection::RTL => Self::Right,
             },
             Self::End => match direction {
-                LayoutDirection::LTR => Self::End,
-                LayoutDirection::RTL => Self::Start,
+                LayoutDirection::LTR => Self::Right,
+                LayoutDirection::RTL => Self::Left,
             },
             p => p,
         }
