@@ -2,7 +2,7 @@
 
 use crate::core::gradient::{GradientStops, LinearGradientAxis, RadialGradientRadius};
 use crate::prelude::new_property::*;
-use crate::widgets::{flood, linear_gradient, radial_gradient};
+use crate::widgets::{flood, linear_gradient, radial_gradient, conic_gradient};
 
 use super::hit_test_mode;
 
@@ -161,6 +161,42 @@ pub fn background_radial(
     stops: impl IntoVar<GradientStops>,
 ) -> impl UiNode {
     background(child, radial_gradient(center, radius, stops))
+}
+
+/// Conic gradient background property.
+///
+/// This property applies a [`conic_gradient`] as [`background`].
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// # let _scope = App::minimal();
+/// # fn foo() -> impl UiNode { wgt!() }
+/// #
+/// container! {
+///     child = foo();
+///     background_conic = {
+///         center: (50.pct(), 80.pct()),
+///         angle: 0.deg(),
+///         stops: [colors::BLACK, colors::DARK_ORANGE],
+///     }
+/// }
+/// # ;
+/// ```
+///
+/// [`background`]: fn@background
+#[property(FILL, default((50.pct(), 50.pct()), 0.deg(), {
+    let c = colors::BLACK.transparent();
+    crate::core::gradient::stops![c, c]
+}))]
+pub fn background_conic(
+    child: impl UiNode,
+    center: impl IntoVar<Point>,
+    angle: impl IntoVar<AngleRadian>,
+    stops: impl IntoVar<GradientStops>,
+) -> impl UiNode {
+    background(child, conic_gradient(center, angle, stops))
 }
 
 /// Custom foreground fill property. Allows using any other widget as a foreground overlay.

@@ -179,7 +179,7 @@ pub fn linear_gradient_full(
 
 /// Node that fills the widget area with a radial gradient defined by the center point and radius.
 ///
-/// The extend mode is [`Clamp`](ExtendMode::Clamp)
+/// The extend mode is [`Clamp`](ExtendMode::Clamp).
 pub fn radial_gradient(
     center: impl IntoVar<Point>,
     radius: impl IntoVar<RadialGradientRadius>,
@@ -187,7 +187,7 @@ pub fn radial_gradient(
 ) -> impl UiNode {
     radial_gradient_ext(center, radius, stops, ExtendMode::Clamp)
 }
-/// Node that fills the widget area with a linear gradient with extend mode [`Repeat`](ExtendMode::Repeat).
+/// Node that fills the widget area with a radial gradient with extend mode [`Repeat`](ExtendMode::Repeat).
 pub fn repeating_radial_gradient(
     center: impl IntoVar<Point>,
     radius: impl IntoVar<RadialGradientRadius>,
@@ -195,7 +195,7 @@ pub fn repeating_radial_gradient(
 ) -> impl UiNode {
     radial_gradient_ext(center, radius, stops, ExtendMode::Repeat)
 }
-/// Node that fills the widget area with a Linear gradient with extend mode [`Reflect`](ExtendMode::Reflect).
+/// Node that fills the widget area with a radial gradient with extend mode [`Reflect`](ExtendMode::Reflect).
 pub fn reflecting_radial_gradient(
     center: impl IntoVar<Point>,
     radius: impl IntoVar<RadialGradientRadius>,
@@ -284,8 +284,7 @@ pub fn radial_gradient_ext(
         final_size: PxSize::zero(),
     }
 }
-
-/// Node that fills the widget area with a radian gradient with all features configurable.
+/// Node that fills the widget area with a radial gradient with all features configurable.
 pub fn radial_gradient_full(
     center: impl IntoVar<Point>,
     radius: impl IntoVar<RadialGradientRadius>,
@@ -381,6 +380,207 @@ pub fn radial_gradient_full(
         render_stops: vec![],
         render_center: PxPoint::zero(),
         render_radius: PxSize::zero(),
+        final_size: PxSize::zero(),
+        final_tile_size: PxSize::zero(),
+        final_tile_spacing: PxSize::zero(),
+    }
+}
+
+/// Node that fills the widget area with a conic gradient defined by center point and start angle.
+///
+/// The extend mode is [`Clamp`](ExtendMode::Clamp).
+pub fn conic_gradient(center: impl IntoVar<Point>, angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    conic_gradient_ext(center, angle, stops, ExtendMode::Clamp)
+}
+/// Node that fills the widget area with a conic gradient with extend mode [`Repeat`](ExtendMode::Repeat).
+pub fn repeating_conic_gradient(
+    center: impl IntoVar<Point>,
+    angle: impl IntoVar<AngleRadian>,
+    stops: impl IntoVar<GradientStops>,
+) -> impl UiNode {
+    conic_gradient_ext(center, angle, stops, ExtendMode::Repeat)
+}
+/// Node that fills the widget area with a conic gradient with extend mode [`Reflect`](ExtendMode::Reflect).
+pub fn reflecting_conic_gradient(
+    center: impl IntoVar<Point>,
+    angle: impl IntoVar<AngleRadian>,
+    stops: impl IntoVar<GradientStops>,
+) -> impl UiNode {
+    conic_gradient_ext(center, angle, stops, ExtendMode::Reflect)
+}
+/// Node that fill the widget area with a conic gradient with extend mode configurable.
+pub fn conic_gradient_ext(
+    center: impl IntoVar<Point>,
+    angle: impl IntoVar<AngleRadian>,
+    stops: impl IntoVar<GradientStops>,
+    extend_mode: impl IntoVar<ExtendMode>,
+) -> impl UiNode {
+    #[ui_node(struct ConicGradientNode {
+        #[var] angle: impl Var<AngleRadian>,
+        #[var] center: impl Var<Point>,
+        #[var] stops: impl Var<GradientStops>,
+        #[var] extend_mode: impl Var<ExtendMode>,
+
+        render_stops: Vec<RenderGradientStop>,
+        render_center: PxPoint,
+        final_size: PxSize,
+    })]
+    impl UiNode for ConicGradientNode {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+            if self.center.is_new(ctx) || self.angle.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
+                self.final_size = PxSize::zero();
+                ctx.updates.layout();
+            }
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
+            ctx.constrains().fill_size()
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            let final_size = ctx.constrains().fill_size();
+            if self.final_size != final_size {
+                self.final_size = final_size;
+                ctx.with_constrains(
+                    |_| PxConstrains2d::new_fill_size(self.final_size),
+                    |ctx| {
+                        self.render_center = self
+                            .center
+                            .get()
+                            .layout(ctx, |_| self.final_size.to_vector().to_point() * 0.5.fct());
+                    },
+                );
+
+                let perimeter = Px({
+                    let a = self.final_size.width.0 as f32;
+                    let b = self.final_size.height.0 as f32;
+                    std::f32::consts::PI * 2.0 * ((a * a + b * b) / 2.0).sqrt()
+                } as _);
+                ctx.with_constrains(
+                    |c| c.with_exact_x(perimeter),
+                    |ctx| {
+                        self.stops
+                            .with(|s| s.layout_radial(ctx.for_x(), self.extend_mode.get(), &mut self.render_stops))
+                    },
+                );
+            }
+            final_size
+        }
+
+        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_conic_gradient(
+                PxRect::from_size(self.final_size),
+                self.render_center,
+                self.angle.get(),
+                &self.render_stops,
+                self.extend_mode.get().into(),
+                self.final_size,
+                PxSize::zero(),
+            );
+        }
+    }
+    ConicGradientNode {
+        angle: angle.into_var(),
+        center: center.into_var(),
+        stops: stops.into_var(),
+        extend_mode: extend_mode.into_var(),
+
+        render_stops: vec![],
+        render_center: PxPoint::zero(),
+        final_size: PxSize::zero(),
+    }
+}
+/// Node that fills the widget area with a conic gradient with all features configurable.
+pub fn conic_gradient_full(
+    center: impl IntoVar<Point>,
+    angle: impl IntoVar<AngleRadian>,
+    stops: impl IntoVar<GradientStops>,
+    extend_mode: impl IntoVar<ExtendMode>,
+    tile_size: impl IntoVar<Size>,
+    tile_spacing: impl IntoVar<Size>,
+) -> impl UiNode {
+    #[ui_node(struct ConicGradientFullNode {
+        #[var] angle: impl Var<AngleRadian>,
+        #[var] center: impl Var<Point>,
+        #[var] stops: impl Var<GradientStops>,
+        #[var] extend_mode: impl Var<ExtendMode>,
+        #[var] tile_size: impl Var<Size>,
+        #[var] tile_spacing: impl Var<Size>,
+
+        render_stops: Vec<RenderGradientStop>,
+        render_center: PxPoint,
+        final_size: PxSize,
+        final_tile_size: PxSize,
+        final_tile_spacing: PxSize,
+    })]
+    impl UiNode for ConicGradientFullNode {
+        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+            if self.center.is_new(ctx) || self.angle.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
+                self.final_size = PxSize::zero();
+                ctx.updates.layout();
+            }
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
+            ctx.constrains().fill_size()
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            let final_size = ctx.constrains().fill_size();
+            if self.final_size != final_size {
+                self.final_size = final_size;
+
+                self.final_tile_size = self.tile_size.get().layout(ctx.metrics, |_| self.final_size);
+                self.final_tile_spacing = self.tile_spacing.get().layout(ctx.metrics, |_| self.final_size);
+
+                ctx.with_constrains(
+                    |_| PxConstrains2d::new_fill_size(self.final_tile_size),
+                    |ctx| {
+                        self.render_center = self
+                            .center
+                            .get()
+                            .layout(ctx, |_| self.final_tile_size.to_vector().to_point() * 0.5.fct());
+                    },
+                );
+
+                let perimeter = Px({
+                    let a = self.final_tile_size.width.0 as f32;
+                    let b = self.final_tile_size.height.0 as f32;
+                    std::f32::consts::PI * 2.0 * ((a * a + b * b) / 2.0).sqrt()
+                } as _);
+                ctx.with_constrains(
+                    |c| c.with_exact_x(perimeter),
+                    |ctx| {
+                        self.stops
+                            .with(|s| s.layout_radial(ctx.for_x(), self.extend_mode.get(), &mut self.render_stops))
+                    },
+                );
+            }
+            final_size
+        }
+
+        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_conic_gradient(
+                PxRect::from_size(self.final_size),
+                self.render_center,
+                self.angle.get(),
+                &self.render_stops,
+                self.extend_mode.get().into(),
+                self.final_tile_size,
+                self.final_tile_spacing,
+            );
+        }
+    }
+    ConicGradientFullNode {
+        angle: angle.into_var(),
+        center: center.into_var(),
+        stops: stops.into_var(),
+        extend_mode: extend_mode.into_var(),
+        tile_size: tile_size.into_var(),
+        tile_spacing: tile_spacing.into_var(),
+
+        render_stops: vec![],
+        render_center: PxPoint::zero(),
         final_size: PxSize::zero(),
         final_tile_size: PxSize::zero(),
         final_tile_spacing: PxSize::zero(),

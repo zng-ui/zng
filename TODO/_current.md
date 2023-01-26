@@ -1,5 +1,6 @@
-* Implement radial gradient examples.
 * Review `radio_style!` in Ubuntu.
+    - Does not look right.
+    - Try implementing radio_style using a radial gradient.
 * Implement `switch_style!` for toggle.
 * Implement `child_insert_start/end/top/bottom`.
 
