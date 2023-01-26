@@ -1,5 +1,6 @@
+* Fix grid spacing not collapsing with column/row that does not have any visible child.
+    - Linked to the visibility of column/row, only default/auto 
 * Implement `switch_style!` for toggle.
-* Implement `child_insert_start/end/top/bottom`.
 
 * Review bidi text across inlined widgets.
     - HTML reorders across any span in the line, the background

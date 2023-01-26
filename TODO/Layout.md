@@ -67,3 +67,11 @@ Some nodes get inserted in panels that are not the standard widget setup, but ar
   the memory needed to render it.
   - HTML/CSS can have this problem where many elements are added just to enable a CSS visual effect, we avoid the hit, but these nodes
     cannot be fully supported by panels, as they have no transform of their own.
+
+### Remove Widget Outer?
+
+* Now that the single child transform is defined by the parent only widgets in panels get a useful outer offset?
+* Panels will have to implement transforms for nodes that are not full widgets, this is currently a bug, so why not impl for all?
+* Outer transform can be used as a layer anchor, and the debug inspector also uses this info to highlight outer-bounds.
+  - Can still be recovered, just that it is stored in the parent.
+* Make child info a vec in bounds?
