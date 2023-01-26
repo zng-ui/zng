@@ -1057,7 +1057,8 @@ impl GridNode {
             }
 
             let mut leftover_width = if let Some(w) = fill_x {
-                w - used_width - spacing.column * Px((info.columns.len() - 1) as i32)
+                let vis_columns = info.columns.iter().filter(|c| c.width != Px(0)).count() as i32;
+                w - used_width - spacing.column * Px(vis_columns - 1).max(Px(0))
             } else {
                 // grid has no width, so `1.lft()` is defined by the widest cell measured using `Default` constrains.
                 let mut unbounded_width = used_width;
@@ -1102,10 +1103,12 @@ impl GridNode {
                             col.width = size.width;
                             col.meta = ColRowMeta::exact();
 
-                            leftover_width -= size.width + spacing.column;
-                            total_factor -= lft;
-                            if total_factor < Factor(1.0) {
-                                total_factor = Factor(1.0);
+                            if size.width != Px(0) {
+                                leftover_width -= size.width + spacing.column;
+                                total_factor -= lft;
+                                if total_factor < Factor(1.0) {
+                                    total_factor = Factor(1.0);
+                                }
                             }
                         }
                     }
@@ -1184,7 +1187,8 @@ impl GridNode {
             }
 
             let mut leftover_height = if let Some(h) = fill_y {
-                h - used_height - spacing.row * Px((info.rows.len() - 1) as i32)
+                let vis_rows = info.rows.iter().filter(|c| c.height != Px(0)).count() as i32;
+                h - used_height - spacing.row * Px(vis_rows - 1).max(Px(0))
             } else {
                 // grid has no height, so `1.lft()` is defined by the tallest cell measured using `Default` constrains.
                 let mut unbounded_height = used_height;
@@ -1229,10 +1233,12 @@ impl GridNode {
                             row.height = size.height;
                             row.meta = ColRowMeta::exact();
 
-                            leftover_height -= size.height + spacing.row;
-                            total_factor -= lft;
-                            if total_factor < Factor(1.0) {
-                                total_factor = Factor(1.0);
+                            if size.height != Px(0) {
+                                leftover_height -= size.height + spacing.row;
+                                total_factor -= lft;
+                                if total_factor < Factor(1.0) {
+                                    total_factor = Factor(1.0);
+                                }
                             }
                         }
                     }
@@ -1259,12 +1265,16 @@ impl GridNode {
         let mut x = Px(0);
         for col in &mut info.columns {
             col.x = x;
-            x += col.width + spacing.column;
+            if col.width != Px(0) {
+                x += col.width + spacing.column;
+            }
         }
         let mut y = Px(0);
         for row in &mut info.rows {
             row.y = y;
-            y += row.height + spacing.row;
+            if row.height != Px(0) {
+                y += row.height + spacing.row;
+            }
         }
 
         (spacing, PxSize::new((x - spacing.column).max(Px(0)), (y - spacing.row).max(Px(0))))
@@ -1319,12 +1329,16 @@ impl GridNode {
             let mut cell_size = PxSize::zero();
 
             for col in cell_info.column..(cell_info.column + cell_info.column_span).min(info.columns.len()) {
-                cell_size.width += info.columns[col].width + spacing.column;
+                if info.columns[col].width != Px(0) {
+                    cell_size.width += info.columns[col].width + spacing.column;
+                }
             }
             cell_size.width -= spacing.column;
 
             for row in cell_info.row..(cell_info.row + cell_info.row_span).min(info.rows.len()) {
-                cell_size.height += info.rows[row].height + spacing.row;
+                if info.rows[row].height != Px(0) {
+                    cell_size.height += info.rows[row].height + spacing.row;
+                }
             }
             cell_size.height -= spacing.row;
 
