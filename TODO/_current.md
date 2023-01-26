@@ -3,6 +3,9 @@
 Remove widget outer offset, parents always implement transform using the child offset.
 
 * Where is the children offset stored?
+    - Need to store a `PxVector` for each child in panels.
+    - Need to store a reference frame id? 
+    - How to avoid pushing many reference-frames for children that are not in the scroll area?
 
 ## Remove `with_outer` and `with_branch`
 
