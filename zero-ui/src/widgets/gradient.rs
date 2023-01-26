@@ -256,6 +256,8 @@ pub fn radial_gradient_ext(
                             .with(|s| s.layout_radial(ctx.for_x(), self.extend_mode.get(), &mut self.render_stops))
                     },
                 );
+
+                ctx.updates.render();
             }
             final_size
         }
@@ -353,6 +355,8 @@ pub fn radial_gradient_full(
                             .with(|s| s.layout_radial(ctx.for_x(), self.extend_mode.get(), &mut self.render_stops))
                     },
                 );
+
+                ctx.updates.render();
             }
             final_size
         }
@@ -463,6 +467,8 @@ pub fn conic_gradient_ext(
                             .with(|s| s.layout_radial(ctx.for_x(), self.extend_mode.get(), &mut self.render_stops))
                     },
                 );
+
+                ctx.updates.render();
             }
             final_size
         }
@@ -555,6 +561,8 @@ pub fn conic_gradient_full(
                             .with(|s| s.layout_radial(ctx.for_x(), self.extend_mode.get(), &mut self.render_stops))
                     },
                 );
+
+                ctx.updates.render();
             }
             final_size
         }

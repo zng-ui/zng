@@ -942,18 +942,39 @@ pub mod vis {
         }
 
         fn radio_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
-            text! {
-                txt = "◎";
-                font_family = FontNames::system_ui(&lang!(und));
-                font_size = 1.2.em();
+            use crate::core::gradient::*;
+
+            crate::widgets::wgt! {
+                size = 0.9.em();
                 align = Align::CENTER;
-                txt_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(60.pct()));
-                when #{toggle::IS_CHECKED_VAR}.unwrap_or(false) {
-                    txt = "◉";
-                    txt_color = text::TEXT_COLOR_VAR;
-                }
-                when *#{parent_hovered} {
-                    txt_color = text::TEXT_COLOR_VAR;
+                background_radial = {
+                    center: (50.pct(), 50.pct()),
+                    radius: GradientRadius::closest_side(100.pct()),
+                    stops: merge_var!(text::TEXT_COLOR_VAR, parent_hovered, toggle::IS_CHECKED_VAR, |&color, &hovered, &checked| {
+                        let checked = checked.unwrap_or(false);
+                        let color = color.with_alpha(if hovered || checked { 90.pct() } else { 60.pct() });
+                        let transparent = color.with_alpha(0.pct());
+
+                        if checked {
+                            stops![
+                                color,
+                                (color, 60.pct()),
+                                (transparent, 60.pct()),
+                                (transparent, 80.pct()),
+                                (color, 80.pct()),
+                                (color, 100.pct()),
+                                transparent,
+                            ]
+                        } else {
+                            stops![
+                                transparent,
+                                (transparent, 80.pct()),
+                                (color, 80.pct()),
+                                (color, 100.pct()),
+                                transparent,
+                            ]
+                        }
+                    })
                 }
             }
         }
