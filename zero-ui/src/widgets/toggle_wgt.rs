@@ -864,7 +864,7 @@ pub mod vis {
 
         properties! {
             /// Inserts the checkmark.
-            pub crate::properties::child_insert_left = {
+            pub crate::properties::child_insert_start = {
                 insert: {
                     let parent_hovered = var(false);
                     is_hovered(checkmark_visual(parent_hovered.clone()), parent_hovered)
@@ -921,7 +921,7 @@ pub mod vis {
 
         properties! {
             /// Inserts the radio button.
-            pub crate::properties::child_insert_left = {
+            pub crate::properties::child_insert_start = {
                 insert: {
                     let parent_hovered = var(false);
                     is_hovered(radio_visual(parent_hovered.clone()), parent_hovered)
@@ -954,23 +954,17 @@ pub mod vis {
                         let checked = checked.unwrap_or(false);
                         let color = color.with_alpha(if hovered || checked { 90.pct() } else { 60.pct() });
                         let transparent = color.with_alpha(0.pct());
+                        let bkg = color.with_alpha(if hovered || checked { 20.pct() } else { 10.pct() });
 
                         if checked {
                             stops![
-                                color,
-                                (color, 60.pct()),
-                                (transparent, 60.pct()),
-                                (transparent, 80.pct()),
-                                (color, 80.pct()),
-                                (color, 100.pct()),
+                                (color, 0, 60.pct()),
+                                (bkg, 60.pct(), 100.pct()),
                                 transparent,
                             ]
                         } else {
                             stops![
-                                transparent,
-                                (transparent, 80.pct()),
-                                (color, 80.pct()),
-                                (color, 100.pct()),
+                                (bkg, 0, 80.pct()),
                                 transparent,
                             ]
                         }
