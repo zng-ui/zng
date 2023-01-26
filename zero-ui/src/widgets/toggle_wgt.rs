@@ -965,7 +965,7 @@ pub mod vis {
                         } else {
                             stops![
                                 (bkg, 0, 80.pct()),
-                                transparent,
+                                (transparent, 80.pct()),
                             ]
                         }
                     })
