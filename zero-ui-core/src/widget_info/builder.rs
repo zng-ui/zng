@@ -463,11 +463,8 @@ impl WidgetMeasure {
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
     pass_id: LayoutPassId,
-    offset_buf: PxVector,
-    baseline: Px,
-    offset_baseline: bool,
-    can_auto_hide: bool,
-    known: Option<(KnownTarget, WidgetBoundsInfo)>,
+    bounds: WidgetBoundsInfo,
+    nest_group: LayoutNestGroup,
     inline: Option<WidgetInlineInfo>,
 }
 impl WidgetLayout {
@@ -481,18 +478,14 @@ impl WidgetLayout {
     ) -> PxSize {
         Self {
             pass_id,
-            offset_buf: PxVector::zero(),
-            baseline: Px(0),
-            offset_baseline: false,
-            can_auto_hide: true,
-            known: None,
+            bounds: ctx.widget_info.bounds.clone(),
+            nest_group: LayoutNestGroup::Inner,
             inline: None,
         }
         .with_widget(ctx, false, layout)
     }
 
-    /// Defines a widget outer-bounds scope, applies pending translations to the outer offset,
-    /// calls `layout`, then sets the translation target to the outer bounds.
+    /// Defines a widget scope, translations inside `layout` target the widget's inner offset.
     ///
     /// If `reuse` is `true` and none of the used metrics have changed skips calling `layout` and returns the current outer-size, the
     /// outer transform is still updated.
@@ -506,63 +499,72 @@ impl WidgetLayout {
         reuse: bool,
         layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
     ) -> PxSize {
-        self.known = None;
-        self.baseline = Px(0);
-        self.offset_baseline = false;
-        self.can_auto_hide = true;
-        self.offset_buf = PxVector::zero();
-        let parent_inline = self.inline.take();
-        let prev_inner_offset = ctx.widget_info.bounds.inner_offset();
-        let prev_child_offset = ctx.widget_info.bounds.child_offset();
-
         let snap = ctx.metrics.snapshot();
-        let mut uses = ctx.widget_info.bounds.metrics_used();
-        let mut size = PxSize::zero();
-        let mut reused = false;
-
-        if reuse && ctx.widget_info.bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false) {
-            size = ctx.widget_info.bounds.outer_size();
-            reused = true;
+        if reuse && {
+            let uses = ctx.widget_info.bounds.metrics_used();
+            ctx.widget_info.bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false)
+        } {
+            // reuse
+            return ctx.widget_info.bounds.outer_size();
         }
 
-        if !reused {
-            if ctx.inline_constrains().is_some() && ctx.widget_info.bounds.measure_inline().is_some() {
-                // inline enabled by parent and widget
-                self.inline = ctx.widget_info.bounds.take_inline();
-                if let Some(inline) = self.inline.as_mut() {
-                    inline.rows.clear();
-                    inline.invalidate_negative_space();
-                } else {
-                    self.inline = Some(Default::default());
-                }
-            }
-
-            let parent_uses = ctx.metrics.enter_widget_ctx();
-            size = layout(ctx, self);
-            uses = ctx.metrics.exit_widget_ctx(parent_uses);
-
-            ctx.widget_info.bounds.set_outer_size(size);
-
-            let mut inline = self.inline.take();
-            if let Some(inline) = inline.as_mut() {
-                inline.inner_size = ctx.widget_info.bounds.inner_size();
+        let parent_inline = self.inline.take();
+        if ctx.inline_constrains().is_some() && ctx.widget_info.bounds.measure_inline().is_some() {
+            // inline enabled by parent and widget
+            self.inline = ctx.widget_info.bounds.take_inline();
+            if let Some(inline) = self.inline.as_mut() {
+                inline.rows.clear();
                 inline.invalidate_negative_space();
+            } else {
+                self.inline = Some(Default::default());
             }
-            ctx.widget_info.bounds.set_inline(inline);
+        }
+        let parent_bounds = mem::replace(&mut self.bounds, ctx.widget_info.bounds.clone());
+        self.nest_group = LayoutNestGroup::Inner;
+        let prev_inner_offset = self.bounds.inner_offset();
+        let prev_child_offset = self.bounds.child_offset();
+        let prev_baseline = self.bounds.baseline();
+        let prev_inner_offset_baseline = self.bounds.inner_offset_baseline();
+        let prev_can_auto_hide = self.bounds.can_auto_hide();
+        self.bounds.set_inner_offset(PxVector::zero());
+        self.bounds.set_child_offset(PxVector::zero());
+        self.bounds.set_baseline(Px(0));
+        self.bounds.set_inner_offset_baseline(false);
+        self.bounds.set_can_auto_hide(true);
+
+        let parent_uses = ctx.metrics.enter_widget_ctx();
+
+        // layout
+        let size = layout(ctx, self);
+
+        let uses = ctx.metrics.exit_widget_ctx(parent_uses);
+
+        self.bounds.set_outer_size(size);
+        self.bounds.set_metrics(Some(snap), uses);
+        if let Some(inline) = &mut self.inline {
+            inline.inner_size = self.bounds.inner_size();
+            inline.invalidate_negative_space();
+        }
+        self.bounds.set_inline(self.inline.take());
+
+        if prev_can_auto_hide != self.bounds.can_auto_hide() {
+            ctx.updates.render()
+        } else if prev_inner_offset != self.bounds.inner_offset()
+            || prev_child_offset != self.bounds.child_offset()
+            || prev_inner_offset_baseline != self.bounds.inner_offset_baseline()
+            || (self.bounds.inner_offset_baseline() && prev_baseline != self.bounds.baseline())
+        {
+            ctx.updates.render_update()
         }
 
-        ctx.widget_info.bounds.set_metrics(Some(snap), uses);
         self.inline = parent_inline;
-
-        if prev_inner_offset != ctx.widget_info.bounds.inner_offset() || prev_child_offset != ctx.widget_info.bounds.child_offset() {
-            ctx.updates.render_update();
-        }
+        self.bounds = parent_bounds;
+        self.nest_group = LayoutNestGroup::Child;
 
         size
     }
 
-    /// Defines a widget inner-bounds scope, applies pending transforms to the inner transform,
-    /// calls `layout`, then sets the transform target to the inner transform.
+    /// Defines a widget inner scope, translations inside `layout` target the widget's child offset.
     ///
     /// This method also updates the border info.
     ///
@@ -570,77 +572,23 @@ impl WidgetLayout {
     ///
     /// [`widget_base::nodes::widget_inner`]: crate::widget_base::nodes::widget_inner
     pub fn with_inner(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
-        #[cfg(debug_assertions)]
-        if self.known.is_some() {
-            tracing::error!("widget `{:?}` started inner bounds in the return path of another bounds", ctx.path)
-        }
-
-        // drain preview translations.
-        ctx.widget_info.bounds.set_inner_offset(mem::take(&mut self.offset_buf));
-        ctx.widget_info.bounds.set_baseline(mem::take(&mut self.baseline));
-        ctx.widget_info
-            .bounds
-            .set_inner_offset_baseline(mem::take(&mut self.offset_baseline));
-        ctx.widget_info
-            .bounds
-            .set_can_auto_hide(mem::replace(&mut self.can_auto_hide, true));
-
+        self.nest_group = LayoutNestGroup::Child;
         let size = ContextBorders::with_inner(ctx, |ctx| layout(ctx, self));
-
         ctx.widget_info.bounds.set_inner_size(size);
-
-        // setup returning translations target.
-        self.known = Some((KnownTarget::Inner, ctx.widget_info.bounds.clone()));
-
+        self.nest_group = LayoutNestGroup::Inner;
         size
     }
 
-    /// Defines a widget child scope. drops the current layout target, calls `layout`, then returns the child size.
-    ///
-    /// Widgets must call this just before entering `CHILD_LAYOUT` nodes to properly collect child layout properties like padding.
-    ///
-    /// The default widget child layout constructor implements this, see [`widget_base::nodes::widget_child_layout`].
-    ///
-    /// [`widget_base::nodes::widget_child_layout`]: crate::widget_base::nodes::widget_child_layout
-    pub fn with_child_layout(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
-        self.known = None;
-        layout(ctx, self)
-    }
-
-    /// Defines a widget child scope, drops the current layout target, calls `layout`, then returns the child size and if the caller
-    /// must render the [`child_offset`]. Offset render is required when it can not be merged with the outer-transform of a child
-    /// because the widget has no child or has multiple children.
-    ///
-    /// If no inner widget is found and the baseline is set during the call to `layout` the
-    /// baseline is set to the current widget's inner bounds.
+    /// Defines a widget child scope, translations inside `layout` still target the widget's child offset.
     ///
     /// The default widget child layout constructor implements this, see [`widget_base::nodes::widget_child`].
     ///
     /// [`widget_base::nodes::widget_child`]: crate::widget_base::nodes::widget_child
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
     pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> (PxSize, bool) {
-        // drain preview translations.
-        ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
-
+        self.nest_group = LayoutNestGroup::Child;
         let r = layout(ctx, self);
-
-        if self.known.is_none() && !ctx.widget_info.bounds.is_collapsed() {
-            // returning translation when there was no child.
-            self.offset_buf += ctx.widget_info.bounds.child_offset();
-            ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
-
-            ctx.widget_info.bounds.set_baseline(mem::take(&mut self.baseline));
-            ctx.widget_info
-                .bounds
-                .set_inner_offset_baseline(mem::take(&mut self.offset_baseline));
-            ctx.widget_info
-                .bounds
-                .set_can_auto_hide(mem::replace(&mut self.can_auto_hide, true));
-        }
-
-        // setup returning translations target.
-        self.known = Some((KnownTarget::Child, ctx.widget_info.bounds.clone()));
-
+        self.nest_group = LayoutNestGroup::Child;
         (r, true)
     }
 
@@ -653,45 +601,31 @@ impl WidgetLayout {
 
     /// Adds the `offset` to the closest *inner* bounds offset.
     ///
-    /// If called just before or just after layout of a child that child outer offset is targeted, in panels with multiple children
-    /// always targets the last layout child after the first. If called in a property inside the widget but outside the `BORDER`
-    /// properties the widget inner offset is targeted. If called inside in a property inside the inner groups the widget child
-    /// offset is targeted. Panels can also use the [`WidgetLayout::with_outer`] to target a child widget's outer offset.
+    /// This affects the inner offset if called from a node inside the widget and before the `BORDER` group, or it affects
+    /// the child offset if called inside the widget and inside the `BORDER` group.
     pub fn translate(&mut self, offset: PxVector) {
-        if let Some((target, info)) = &self.known {
-            match target {
-                KnownTarget::Inner => {
-                    let mut o = info.inner_offset();
-                    o += offset;
-                    info.set_inner_offset(o);
-                }
-                KnownTarget::Child => {
-                    let mut o = info.child_offset();
-                    o += offset;
-                    info.set_child_offset(o);
-                }
+        match self.nest_group {
+            LayoutNestGroup::Inner => {
+                let mut o = self.bounds.inner_offset();
+                o += offset;
+                self.bounds.set_inner_offset(o);
             }
-        } else {
-            self.offset_buf += offset;
+            LayoutNestGroup::Child => {
+                let mut o = self.bounds.child_offset();
+                o += offset;
+                self.bounds.set_child_offset(o);
+            }
         }
     }
 
-    /// Set the baseline offset of the closest *inner* bounds. The offset is up from the bottom of the bounds.
+    /// Set the baseline offset of the widget. The value is up from the bottom of the inner bounds.
     pub fn set_baseline(&mut self, baseline: Px) {
-        if let Some((_, info)) = &self.known {
-            info.set_baseline(baseline);
-        } else {
-            self.baseline = baseline;
-        }
+        self.bounds.set_baseline(baseline);
     }
 
-    /// If the inner offset of the last visited widget is added by its baseline on the *y* axis.
+    /// If the baseline is added to the inner offset  *y* axis.
     pub fn translate_baseline(&mut self, enabled: bool) {
-        if let Some((_, info)) = &self.known {
-            info.set_inner_offset_baseline(enabled);
-        } else {
-            self.offset_baseline = enabled;
-        }
+        self.bounds.set_inner_offset_baseline(enabled);
     }
 
     /// Sets if the widget only renders if [`outer_bounds`] intersects with the [`FrameBuilder::auto_hide_rect`].
@@ -701,11 +635,7 @@ impl WidgetLayout {
     /// [`outer_bounds`]: WidgetBoundsInfo::outer_bounds
     /// [`FrameBuilder::auto_hide_rect`]: crate::render::FrameBuilder::auto_hide_rect
     pub fn allow_auto_hide(&mut self, enabled: bool) {
-        if let Some((_, info)) = &self.known {
-            info.set_can_auto_hide(enabled)
-        } else {
-            self.can_auto_hide = enabled;
-        }
+        self.bounds.set_can_auto_hide(enabled);
     }
 
     /// Collapse the layout of `self` and descendants, the size and offsets are set to zero.
@@ -815,8 +745,9 @@ impl WidgetLayout {
 
     /// Mutable reference to the current widget's inline info.
     ///
-    /// If the parent widget is doing inline layout and this widget signaled that it can support this
-    /// during measure. You can use [`MeasureContext::with_inline_constrains`] in the measure pass to disable inline in both passes, measure and layout.
+    /// This is `Some(_)` if the parent widget is doing inline layout and this widget signaled that it can be inlined
+    /// in the previous measure pass. You can use [`MeasureContext::with_inline_constrains`] in the measure pass to disable
+    /// inline in both passes, measure and layout.
     ///
     /// The rows and negative space are already reset when widget layout started, and the inner size will be updated when
     /// the widget layout ends, the inline layout node only needs to push rows.
@@ -832,8 +763,10 @@ impl WidgetLayout {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum KnownTarget {
+enum LayoutNestGroup {
+    /// Inside widget, outside `BORDER`.
     Inner,
+    /// Inside `BORDER`.
     Child,
 }
 

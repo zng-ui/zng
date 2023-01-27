@@ -62,7 +62,6 @@ pub mod nodes {
     pub fn include_intrinsics(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
             wgt.push_intrinsic(NestGroup::CHILD, "widget_child", nodes::widget_child);
-            wgt.push_intrinsic(NestGroup::CHILD_LAYOUT, "widget_child_layout", nodes::widget_child_layout);
             wgt.push_intrinsic(NestGroup::BORDER, "widget_inner", nodes::widget_inner);
         });
     }
@@ -78,26 +77,6 @@ pub mod nodes {
         let id = wgt.capture_value_or_else(property_id!(id), WidgetId::new_unique);
         let child = wgt.build();
         nodes::widget(child, id)
-    }
-
-    /// Returns a node that wraps `child` and marks the [`WidgetLayout::with_child_layout`] layout bounds.
-    ///
-    /// This node must be intrinsic at [`NestGroup::CHILD_LAYOUT`], the [`base`] default intrinsic inserts it.
-    ///
-    /// [`base`]: mod@base
-    pub fn widget_child_layout(child: impl UiNode) -> impl UiNode {
-        #[ui_node(struct WidgetChildLayoutNode {
-            child: impl UiNode,
-        })]
-        impl UiNode for WidgetChildLayoutNode {
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-                self.child.measure(ctx, wm)
-            }
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                wl.with_child_layout(ctx, |ctx, wl| self.child.layout(ctx, wl))
-            }
-        }
-        WidgetChildLayoutNode { child }
     }
 
     /// Returns a node that wraps `child` and potentially applies child transforms if the `child` turns out
