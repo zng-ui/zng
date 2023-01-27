@@ -3,11 +3,8 @@
 Remove widget outer offset, parents always implement transform using the child offset.
 
 * Where is the children offset stored?
-    - Need to store a `PxVector` for each child in panels.
-    - Need to store a reference frame id? 
-        - Can't be stored just in the widget, because a widget can end-up with a children list in
-          the background `FILL` group for example, and we need to position these children too.
-        - Try a wrapper `UiNodeList` that maintains a parallel metadata collection.
+    - In the new `PanelList`.
+    - Replace `ZSortingList` with `PanelList`, remove it.
     - How to avoid pushing many reference-frames for children that are not in the scroll area?
         - Have a `FrameBuilder::push_child(&mut self, i: usize, offset: PxVector, f: impl FnOnce(&mut Self))`.
         - It records the index and offset, if an widget is found and it is visible a reference frame

@@ -1564,3 +1564,352 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
         }
     }
 }
+
+/// Represents the final [`UiNodeList`] in a panel layout node.
+///
+/// Panel widgets should wrap their children list on this type to support [`z_index`] sorting list and easily track
+/// item data. By default the item data is a [`PxVector`] that represents the offset of each item inside the panel,
+/// but it can be any type that implements [`PanelListData`].
+///
+/// [`z_index`]: fn@z_index
+pub struct PanelList<L, D = PxVector>
+where
+    L: UiNodeList,
+    D: PanelListData,
+{
+    list: L,
+    data: Vec<D>,
+
+    z_map: RefCell<Vec<u64>>,
+    z_naturally_sorted: Cell<bool>,
+}
+
+impl<L, D> PanelList<L, D>
+where
+    L: UiNodeList,
+    D: PanelListData,
+{
+    /// New from `list` and default data.
+    pub fn new(list: L) -> Self {
+        Self {
+            data: {
+                let mut d = vec![];
+                d.resize_with(list.len(), Default::default);
+                d
+            },
+            list,
+            z_map: RefCell::new(vec![]),
+            z_naturally_sorted: Cell::new(false),
+        }
+    }
+
+    /// Into list and associated data.
+    pub fn into_parts(self) -> (L, Vec<D>) {
+        (self.list, self.data)
+    }
+
+    /// New from list and associated data.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `list` and `data` don't have the same length.
+    pub fn from_parts(list: L, data: Vec<D>) -> Self {
+        assert_eq!(list.len(), data.len());
+        Self {
+            list,
+            data,
+            z_map: RefCell::new(vec![]),
+            z_naturally_sorted: Cell::new(false),
+        }
+    }
+
+    /// Visit the specific node and data, panic if `index` is out of bounds.
+    pub fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode, &D) -> R,
+    {
+        let data = &self.data[index];
+        self.list.with_node(index, move |n| f(n, data))
+    }
+
+    /// Visit the specific node, panic if `index` is out of bounds.
+    pub fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode, &mut D) -> R,
+    {
+        let data = &mut self.data[index];
+        self.list.with_node_mut(index, move |n| f(n, data))
+    }
+
+    /// Calls `f` for each node in the list with the index, return `true` to continue iterating, return `false` to stop.
+    pub fn for_each<F>(&self, mut f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode, &D) -> bool,
+    {
+        self.list.for_each(move |i, n| f(i, n, &self.data[i]))
+    }
+
+    /// Calls `f` for each node in the list with the index, return `true` to continue iterating, return `false` to stop.
+    pub fn for_each_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode, &mut D) -> bool,
+    {
+        let data = &mut self.data;
+        self.list.for_each_mut(move |i, n| f(i, n, &mut data[i]))
+    }
+
+    /// Iterate over the list in the Z order.
+    pub fn for_each_z_sorted(&self, mut f: impl FnMut(usize, &BoxedUiNode, &D) -> bool) {
+        if self.z_naturally_sorted.get() {
+            self.for_each(f)
+        } else {
+            if self.z_map.borrow().len() != self.list.len() {
+                self.z_sort();
+            }
+
+            if self.z_naturally_sorted.get() {
+                self.for_each(f);
+            } else {
+                for (index, &map) in self.z_map.borrow().iter().enumerate() {
+                    if !self.list.with_node(map as usize, |node| f(index, node, &self.data[index])) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Iterate over the list in the Z order.
+    pub fn for_each_z_sorted_mut(&mut self, mut f: impl FnMut(usize, &mut BoxedUiNode, &mut D) -> bool) {
+        if self.z_naturally_sorted.get() {
+            self.for_each_mut(f)
+        } else {
+            if self.z_map.borrow().len() != self.list.len() {
+                self.z_sort();
+            }
+
+            for (index, &map) in self.z_map.borrow().iter().enumerate() {
+                let data = &mut self.data[index];
+                if !self.list.with_node_mut(map as usize, |node| f(index, node, data)) {
+                    break;
+                }
+            }
+        }
+    }
+
+    fn z_sort(&self) {
+        // We pack *z* and *i* as u32s in one u64 then create the sorted lookup table if
+        // observed `[I].Z < [I-1].Z`, also records if any `Z != DEFAULT`:
+        //
+        // Advantages:
+        //
+        // - Makes `sort_unstable` stable.
+        // - Only one alloc needed, just mask out Z after sorting.
+        //
+        // Disadvantages:
+        //
+        // - Only supports u32::MAX widgets.
+        // - Uses 64-bit indexes in 32-bit builds.
+
+        let len = self.list.len();
+        assert!(len <= u32::MAX as usize);
+
+        let mut prev_z = ZIndex::BACK;
+        let mut need_map = false;
+        let mut z_and_i = Vec::with_capacity(len);
+        let mut has_non_default_zs = false;
+
+        self.list.for_each(|i, node| {
+            let z = ZIndex::get(node);
+            z_and_i.push(((z.0 as u64) << 32) | i as u64);
+
+            need_map |= z < prev_z;
+            has_non_default_zs |= z != ZIndex::DEFAULT;
+            prev_z = z;
+
+            true
+        });
+
+        self.z_naturally_sorted.set(!need_map);
+
+        if need_map {
+            z_and_i.sort_unstable();
+
+            for z in &mut z_and_i {
+                *z &= u32::MAX as u64;
+            }
+
+            *self.z_map.borrow_mut() = z_and_i;
+        } else {
+            self.z_map.borrow_mut().clear();
+        }
+    }
+
+    /// Gets the `index` sorted in the `list`.
+    pub fn z_map(&self, index: usize) -> usize {
+        if self.z_naturally_sorted.get() {
+            return index;
+        }
+
+        if self.z_map.borrow().len() != self.list.len() {
+            self.z_sort();
+        }
+
+        self.z_map.borrow()[index] as usize
+    }
+
+    /// Reference the associated data.
+    pub fn data(&self) -> &[D] {
+        &self.data
+    }
+
+    /// Mutable reference the associated data.
+    pub fn data_mut(&mut self) -> &mut [D] {
+        &mut self.data
+    }
+}
+impl<L, D> UiNodeList for PanelList<L, D>
+where
+    L: UiNodeList,
+    D: PanelListData,
+{
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
+        self.list.with_node(index, f)
+    }
+
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
+        self.list.with_node_mut(index, f)
+    }
+
+    fn for_each<F>(&self, f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
+        self.list.for_each(f)
+    }
+
+    fn for_each_mut<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
+        self.list.for_each_mut(f)
+    }
+
+    fn len(&self) -> usize {
+        self.list.len()
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        self.list.boxed()
+    }
+
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        self.list.drain_into(vec);
+        self.data.clear();
+        self.z_map.get_mut().clear();
+        self.z_naturally_sorted.set(true);
+    }
+
+    fn init_all(&mut self, ctx: &mut WidgetContext) {
+        self.z_map.get_mut().clear();
+        let resort = ZIndexContext::with(ctx.path.widget_id(), || self.list.init_all(ctx));
+        self.z_naturally_sorted.set(!resort);
+        self.data.resize_with(self.list.len(), Default::default);
+    }
+
+    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+        self.list.deinit_all(ctx);
+    }
+
+    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        self.list.event_all(ctx, update);
+    }
+
+    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        let mut observer = PanelObserver {
+            changed: false,
+            data: &mut self.data,
+            observer,
+        };
+        let resort = ZIndexContext::with(ctx.path.widget_id(), || self.list.update_all(ctx, updates, &mut observer));
+        if resort || (observer.changed && self.z_naturally_sorted.get()) {
+            self.z_map.get_mut().clear();
+            self.z_naturally_sorted.set(false);
+            ctx.updates.render();
+        }
+        self.data.resize_with(self.list.len(), Default::default);
+    }
+
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.for_each_z_sorted(|i, child, data| {
+            let offset = data.child_offset();
+            todo!("!!:");
+            child.render(ctx, frame);
+            true
+        })
+    }
+
+    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.for_each_z_sorted(|i, child, data| {
+            let offset = data.child_offset();
+            todo!("!!:");
+            child.render_update(ctx, update);
+            true
+        })
+    }
+}
+
+/// Represents associated data in a [`PanelList`].
+pub trait PanelListData: Default + Send + Any {
+    /// Gets the child offset to be used in the default `render_all` and `render_update_all` implementations.
+    fn child_offset(&self) -> PxVector;
+}
+impl PanelListData for PxVector {
+    fn child_offset(&self) -> PxVector {
+        *self
+    }
+}
+
+struct PanelObserver<'d, D>
+where
+    D: PanelListData,
+{
+    changed: bool,
+    data: &'d mut Vec<D>,
+    observer: &'d mut dyn UiNodeListObserver,
+}
+impl<'d, D> UiNodeListObserver for PanelObserver<'d, D>
+where
+    D: PanelListData,
+{
+    fn reseted(&mut self) {
+        self.changed = true;
+        self.data.clear();
+        self.observer.reseted();
+    }
+
+    fn inserted(&mut self, index: usize) {
+        self.changed = true;
+        self.data.insert(index, Default::default());
+        self.observer.inserted(index);
+    }
+
+    fn removed(&mut self, index: usize) {
+        self.changed = true;
+        self.data.remove(index);
+        self.observer.removed(index);
+    }
+
+    fn moved(&mut self, removed_index: usize, inserted_index: usize) {
+        self.changed = true;
+        let item = self.data.remove(removed_index);
+        self.data.insert(inserted_index, item);
+        self.observer.moved(removed_index, inserted_index);
+    }
+}
