@@ -462,9 +462,12 @@ impl WidgetMeasure {
 
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
-    t: WidgetLayoutTranslation,
-    known_child_offset_changed: i32,
-    child_offset_changed: i32,
+    pass_id: LayoutPassId,
+    offset_buf: PxVector,
+    baseline: Px,
+    offset_baseline: bool,
+    can_auto_hide: bool,
+    known: Option<(KnownTarget, WidgetBoundsInfo)>,
     inline: Option<WidgetInlineInfo>,
 }
 impl WidgetLayout {
@@ -476,39 +479,16 @@ impl WidgetLayout {
         pass_id: LayoutPassId,
         layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
     ) -> PxSize {
-        let mut wl = Self {
-            t: WidgetLayoutTranslation {
-                pass_id,
-                offset_buf: PxVector::zero(),
-                baseline: Px(0),
-                offset_baseline: false,
-                can_auto_hide: true,
-                known: None,
-                known_target: KnownTarget::Outer,
-            },
-            known_child_offset_changed: 0,
-            child_offset_changed: 0,
+        Self {
+            pass_id,
+            offset_buf: PxVector::zero(),
+            baseline: Px(0),
+            offset_baseline: false,
+            can_auto_hide: true,
+            known: None,
             inline: None,
-        };
-        let size = wl.with_widget(ctx, false, layout);
-        wl.finish_known();
-        if wl.child_offset_changed > 0 {
-            ctx.updates.render_update();
         }
-        size
-    }
-
-    fn finish_known(&mut self) {
-        if let Some(bounds) = self.known.take() {
-            if let KnownTarget::Outer = self.known_target {
-                self.child_offset_changed += bounds.end_pass();
-                let childs_changed = mem::take(&mut self.known_child_offset_changed) > 0;
-                if childs_changed {
-                    self.child_offset_changed += 1;
-                    bounds.set_changed_child();
-                }
-            }
-        }
+        .with_widget(ctx, false, layout)
     }
 
     /// Defines a widget outer-bounds scope, applies pending translations to the outer offset,
@@ -526,17 +506,14 @@ impl WidgetLayout {
         reuse: bool,
         layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
     ) -> PxSize {
-        self.finish_known(); // in case of UiNodeList.
+        self.known = None;
         self.baseline = Px(0);
         self.offset_baseline = false;
         self.can_auto_hide = true;
-        let parent_child_offset_changed = mem::take(&mut self.child_offset_changed);
+        self.offset_buf = PxVector::zero();
         let parent_inline = self.inline.take();
-
-        ctx.widget_info.bounds.begin_pass(self.pass_id); // record prev state
-
-        // drain preview translations.
-        ctx.widget_info.bounds.set_outer_offset(mem::take(&mut self.offset_buf));
+        let prev_inner_offset = ctx.widget_info.bounds.inner_offset();
+        let prev_child_offset = ctx.widget_info.bounds.child_offset();
 
         let snap = ctx.metrics.snapshot();
         let mut uses = ctx.widget_info.bounds.metrics_used();
@@ -575,15 +552,11 @@ impl WidgetLayout {
         }
 
         ctx.widget_info.bounds.set_metrics(Some(snap), uses);
-
-        // setup returning translations target.
-        self.finish_known();
-        self.known = Some(ctx.widget_info.bounds.clone());
-        self.known_target = KnownTarget::Outer;
-        self.known_child_offset_changed = self.child_offset_changed;
-
-        self.child_offset_changed += parent_child_offset_changed; // when parent inner closes this the flag is for the parent not this
         self.inline = parent_inline;
+
+        if prev_inner_offset != ctx.widget_info.bounds.inner_offset() || prev_child_offset != ctx.widget_info.bounds.child_offset() {
+            ctx.updates.render_update();
+        }
 
         size
     }
@@ -601,7 +574,6 @@ impl WidgetLayout {
         if self.known.is_some() {
             tracing::error!("widget `{:?}` started inner bounds in the return path of another bounds", ctx.path)
         }
-        self.finish_known();
 
         // drain preview translations.
         ctx.widget_info.bounds.set_inner_offset(mem::take(&mut self.offset_buf));
@@ -618,9 +590,7 @@ impl WidgetLayout {
         ctx.widget_info.bounds.set_inner_size(size);
 
         // setup returning translations target.
-        self.finish_known();
-        self.known = Some(ctx.widget_info.bounds.clone());
-        self.known_target = KnownTarget::Inner;
+        self.known = Some((KnownTarget::Inner, ctx.widget_info.bounds.clone()));
 
         size
     }
@@ -633,7 +603,7 @@ impl WidgetLayout {
     ///
     /// [`widget_base::nodes::widget_child_layout`]: crate::widget_base::nodes::widget_child_layout
     pub fn with_child_layout(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
-        self.finish_known(); // in case of UiNodeList.
+        self.known = None;
         layout(ctx, self)
     }
 
@@ -649,8 +619,6 @@ impl WidgetLayout {
     /// [`widget_base::nodes::widget_child`]: crate::widget_base::nodes::widget_child
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
     pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> (PxSize, bool) {
-        self.finish_known(); // in case of UiNodeList.
-
         // drain preview translations.
         ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
 
@@ -671,88 +639,73 @@ impl WidgetLayout {
         }
 
         // setup returning translations target.
-        self.finish_known();
-        self.known = Some(ctx.widget_info.bounds.clone());
-        self.known_target = KnownTarget::Child;
+        self.known = Some((KnownTarget::Child, ctx.widget_info.bounds.clone()));
 
         (r, true)
     }
 
-    /// Overwrite the widget's outer translate, the `translate` closure is called with the
-    /// [`WidgetLayoutTranslation`] set to apply directly to the `widget` outer info, after it returns `self` has
-    /// the same state it had before.
+    /// Gets the current window layout pass.
     ///
-    /// Note that, in panels, the last layout child outer offset is already targeted, and that works even with child nodes
-    /// that are not full widgets. This methods allows targeting the outer offset off any child at any point in layout, but
-    /// the child must be a full widget.
-    ///
-    /// If `keep_previous` is `true` the new offset is *added* to the previous.
-    ///
-    /// Returns `None` if the `widget` node is not actually an widget.
-    ///
-    /// [`with_child`]: Self::with_child
-    pub fn with_outer<N: UiNode, R>(
-        &mut self,
-        widget: &mut N,
-        keep_previous: bool,
-        translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut N) -> R,
-    ) -> Option<R> {
-        let bounds = widget.with_context(|n| n.widget_info.bounds.clone())?;
-        let r = self.with_outer_impl(bounds, widget, keep_previous, translate);
-        Some(r)
+    /// Widgets can be layout more then once per window layout pass, you can use this ID to identify such cases.
+    pub fn pass_id(&self) -> LayoutPassId {
+        self.pass_id
     }
 
-    fn with_outer_impl<T, R>(
-        &mut self,
-        bounds: WidgetBoundsInfo,
-        target: &mut T,
-        keep_previous: bool,
-        translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut T) -> R,
-    ) -> R {
-        bounds.begin_pass(self.pass_id);
-
-        if !keep_previous {
-            bounds.set_outer_offset(PxVector::zero());
+    /// Adds the `offset` to the closest *inner* bounds offset.
+    ///
+    /// If called just before or just after layout of a child that child outer offset is targeted, in panels with multiple children
+    /// always targets the last layout child after the first. If called in a property inside the widget but outside the `BORDER`
+    /// properties the widget inner offset is targeted. If called inside in a property inside the inner groups the widget child
+    /// offset is targeted. Panels can also use the [`WidgetLayout::with_outer`] to target a child widget's outer offset.
+    pub fn translate(&mut self, offset: PxVector) {
+        if let Some((target, info)) = &self.known {
+            match target {
+                KnownTarget::Inner => {
+                    let mut o = info.inner_offset();
+                    o += offset;
+                    info.set_inner_offset(o);
+                }
+                KnownTarget::Child => {
+                    let mut o = info.child_offset();
+                    o += offset;
+                    info.set_child_offset(o);
+                }
+            }
+        } else {
+            self.offset_buf += offset;
         }
-
-        let mut wl = WidgetLayoutTranslation {
-            pass_id: self.pass_id,
-            offset_buf: PxVector::zero(),
-            offset_baseline: false,
-            can_auto_hide: true,
-            baseline: Px(0),
-            known: Some(bounds),
-            known_target: KnownTarget::Outer,
-        };
-
-        let size = translate(&mut wl, target);
-
-        self.child_offset_changed += wl.known.unwrap().end_pass();
-
-        size
     }
 
-    /// Save current translation target, run `layout` and restore the translation target.
+    /// Set the baseline offset of the closest *inner* bounds. The offset is up from the bottom of the bounds.
+    pub fn set_baseline(&mut self, baseline: Px) {
+        if let Some((_, info)) = &self.known {
+            info.set_baseline(baseline);
+        } else {
+            self.baseline = baseline;
+        }
+    }
+
+    /// If the inner offset of the last visited widget is added by its baseline on the *y* axis.
+    pub fn translate_baseline(&mut self, enabled: bool) {
+        if let Some((_, info)) = &self.known {
+            info.set_inner_offset_baseline(enabled);
+        } else {
+            self.offset_baseline = enabled;
+        }
+    }
+
+    /// Sets if the widget only renders if [`outer_bounds`] intersects with the [`FrameBuilder::auto_hide_rect`].
     ///
-    /// This method must be used to layout any branch node that is not in the `CHILD` nest group.
-    pub fn with_branch<R>(&mut self, layout: impl FnOnce(&mut Self) -> R) -> R {
-        let known = self.known.take();
-        let known_target = self.known_target;
-        let offset_buf = mem::take(&mut self.offset_buf);
-        let baseline = mem::take(&mut self.baseline);
-        let offset_baseline = mem::take(&mut self.offset_baseline);
-        let can_auto_hide = mem::take(&mut self.can_auto_hide);
-
-        let r = layout(self);
-
-        self.known = known;
-        self.known_target = known_target;
-        self.offset_buf = offset_buf;
-        self.baseline = baseline;
-        self.offset_baseline = offset_baseline;
-        self.can_auto_hide = can_auto_hide;
-
-        r
+    /// This is `true` by default.
+    ///
+    /// [`outer_bounds`]: WidgetBoundsInfo::outer_bounds
+    /// [`FrameBuilder::auto_hide_rect`]: crate::render::FrameBuilder::auto_hide_rect
+    pub fn allow_auto_hide(&mut self, enabled: bool) {
+        if let Some((_, info)) = &self.known {
+            info.set_can_auto_hide(enabled)
+        } else {
+            self.can_auto_hide = enabled;
+        }
     }
 
     /// Collapse the layout of `self` and descendants, the size and offsets are set to zero.
@@ -765,8 +718,6 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse(&mut self, ctx: &mut LayoutContext) {
-        self.finish_known();
-
         let widget_id = ctx.path.widget_id();
         if let Some(w) = ctx.info_tree.get(widget_id) {
             for w in w.self_and_descendants() {
@@ -776,7 +727,6 @@ impl WidgetLayout {
                 info.bounds_info.set_baseline(Px(0));
                 info.bounds_info.set_inner_offset_baseline(false);
                 info.bounds_info.set_can_auto_hide(true);
-                info.bounds_info.set_outer_offset(PxVector::zero());
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
                 info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
@@ -807,7 +757,6 @@ impl WidgetLayout {
                 info.bounds_info.set_baseline(Px(0));
                 info.bounds_info.set_inner_offset_baseline(false);
                 info.bounds_info.set_can_auto_hide(true);
-                info.bounds_info.set_outer_offset(PxVector::zero());
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
                 info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
@@ -838,7 +787,6 @@ impl WidgetLayout {
                     info.bounds_info.set_baseline(Px(0));
                     info.bounds_info.set_inner_offset_baseline(false);
                     info.bounds_info.set_can_auto_hide(true);
-                    info.bounds_info.set_outer_offset(PxVector::zero());
                     info.bounds_info.set_inner_offset(PxVector::zero());
                     info.bounds_info.set_child_offset(PxVector::zero());
                     info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
@@ -882,22 +830,9 @@ impl WidgetLayout {
         self.inline.as_mut()
     }
 }
-impl ops::Deref for WidgetLayout {
-    type Target = WidgetLayoutTranslation;
-
-    fn deref(&self) -> &Self::Target {
-        &self.t
-    }
-}
-impl ops::DerefMut for WidgetLayout {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.t
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 enum KnownTarget {
-    Outer,
     Inner,
     Child,
 }
@@ -906,87 +841,3 @@ enum KnownTarget {
 ///
 /// This value is different for each window layout, but the same for children of panels that do more then one layout pass.
 pub type LayoutPassId = u32;
-
-/// Mutable access to the offset of a widget bounds in [`WidgetLayout`].
-///
-/// Note that [`WidgetLayout`] dereferences to this type.
-pub struct WidgetLayoutTranslation {
-    pass_id: LayoutPassId,
-    offset_buf: PxVector,
-    baseline: Px,
-    offset_baseline: bool,
-    can_auto_hide: bool,
-
-    known: Option<WidgetBoundsInfo>,
-    known_target: KnownTarget,
-}
-impl WidgetLayoutTranslation {
-    /// Gets the current window layout pass.
-    ///
-    /// Widgets can be layout more then once per window layout pass, you can use this ID to identify such cases.
-    pub fn pass_id(&self) -> LayoutPassId {
-        self.pass_id
-    }
-
-    /// Adds the `offset` to the closest *inner* bounds offset.
-    ///
-    /// If called just before or just after layout of a child that child outer offset is targeted, in panels with multiple children
-    /// always targets the last layout child after the first. If called in a property inside the widget but outside the `BORDER`
-    /// properties the widget inner offset is targeted. If called inside in a property inside the inner groups the widget child
-    /// offset is targeted. Panels can also use the [`WidgetLayout::with_outer`] to target a child widget's outer offset.
-    pub fn translate(&mut self, offset: PxVector) {
-        if let Some(info) = &self.known {
-            match self.known_target {
-                KnownTarget::Outer => {
-                    let mut o = info.outer_offset();
-                    o += offset;
-                    info.set_outer_offset(o);
-                }
-                KnownTarget::Inner => {
-                    let mut o = info.inner_offset();
-                    o += offset;
-                    info.set_inner_offset(o);
-                }
-                KnownTarget::Child => {
-                    let mut o = info.child_offset();
-                    o += offset;
-                    info.set_child_offset(o);
-                }
-            }
-        } else {
-            self.offset_buf += offset;
-        }
-    }
-
-    /// Set the baseline offset of the closest *inner* bounds. The offset is up from the bottom of the bounds.
-    pub fn set_baseline(&mut self, baseline: Px) {
-        if let Some(info) = &self.known {
-            info.set_baseline(baseline);
-        } else {
-            self.baseline = baseline;
-        }
-    }
-
-    /// If the inner offset of the last visited widget is added by its baseline on the *y* axis.
-    pub fn translate_baseline(&mut self, enabled: bool) {
-        if let Some(info) = &self.known {
-            info.set_inner_offset_baseline(enabled);
-        } else {
-            self.offset_baseline = enabled;
-        }
-    }
-
-    /// Sets if the widget only renders if [`outer_bounds`] intersects with the [`FrameBuilder::auto_hide_rect`].
-    ///
-    /// This is `true` by default.
-    ///
-    /// [`outer_bounds`]: WidgetBoundsInfo::outer_bounds
-    /// [`FrameBuilder::auto_hide_rect`]: crate::render::FrameBuilder::auto_hide_rect
-    pub fn allow_auto_hide(&mut self, enabled: bool) {
-        if let Some(info) = &self.known {
-            info.set_can_auto_hide(enabled)
-        } else {
-            self.can_auto_hide = enabled;
-        }
-    }
-}

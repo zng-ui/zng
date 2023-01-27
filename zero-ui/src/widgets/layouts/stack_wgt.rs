@@ -236,9 +236,10 @@ impl StackNode {
             let size = c.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap_or_default();
             let child_offset = (items_size - size).to_vector() * child_align;
             *o += children_offset + child_offset;
-            wl.with_outer(c, true, |wl, _| {
-                wl.translate_baseline(align_baseline);
-            });
+            if align_baseline {
+                // !!: TODO, get child baseline offset, apply it and signal child that it is already applied
+                // before, it was set using `with_outer`
+            }
 
             true
         });

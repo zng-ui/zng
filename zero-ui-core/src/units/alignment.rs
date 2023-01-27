@@ -3,7 +3,7 @@ use std::{
     ops,
 };
 
-use crate::{context::LayoutDirection, impl_from_and_into_var, widget_info::WidgetLayoutTranslation};
+use crate::{context::LayoutDirection, impl_from_and_into_var, widget_info::WidgetLayout};
 
 use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrains2d, PxSize, PxVector};
 
@@ -152,7 +152,7 @@ impl Align {
         child_size: PxSize,
         parent_constrains: PxConstrains2d,
         direction: LayoutDirection,
-        wl: &mut WidgetLayoutTranslation,
+        wl: &mut WidgetLayout,
     ) -> PxSize {
         let size = parent_constrains.fill_size().max(child_size);
         let size = parent_constrains.clamp_size(size);

@@ -4,17 +4,13 @@ Remove widget outer offset, parents always implement transform using the child o
 
 * Refactor `stack!`.
     - Need to figure out `translate_baseline`.
-    - How does `wrap!` baseline works again?
-* Remove `with_outer` and `with_branch`.
-    - Review all other layout methods, the baseline stuff can't work in panels for example?
+    - We can know that baseline will be translated before the child layout, maybe can set a flag for the child to avoid translating?
 * Implement optimized `push_child`, that delays the reference_frame until the first inner boundary.
     - The idea is that it automatically creates a reference frame if something tries to render.
     - The id and item index are requested up-front, but the method returns a flag that indicates if a 
       reference frame was actually created.
 * Remove outer offset from `WidgetBoundsInfo`.
 * Finish `!!:` TODOs.
-* Review `end_pass`, is it needed to invalidate render reuse?
-    - All widget offset changes are now known by the time the widget exits layout, so we can invalidate during the layout?
 
 # Other
 

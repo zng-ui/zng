@@ -16,7 +16,7 @@ use crate::{
     impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate},
     units::*,
-    widget_instance::{UiNode, WidgetId, ZIndex},
+    widget_instance::{WidgetId, ZIndex},
     window::WindowId,
 };
 
@@ -298,21 +298,11 @@ impl fmt::Debug for WidgetInfoTree {
 
 #[derive(Default, Debug)]
 struct WidgetBoundsData {
-    prev_offsets_pass: LayoutPassId,
-    prev_outer_offset: PxVector,
-    prev_inner_offset: PxVector,
-    prev_child_offset: PxVector,
-    working_pass: LayoutPassId,
-
-    outer_offset: PxVector,
     inner_offset: PxVector,
     child_offset: PxVector,
-    offsets_pass: LayoutPassId,
 
     inline: Option<WidgetInlineInfo>,
     measure_inline: Option<WidgetInlineMeasure>,
-
-    childs_changed: bool,
 
     measure_outer_size: PxSize,
     outer_size: PxSize,
@@ -387,7 +377,6 @@ impl WidgetBoundsInfo {
         r.set_inner_size(inner.size);
 
         if let Some(outer) = outer {
-            r.set_outer_offset(outer.origin.to_vector());
             r.set_outer_size(outer.size);
         }
 
@@ -413,7 +402,7 @@ impl WidgetBoundsInfo {
 
     /// Gets the widget's outer bounds offset inside the parent widget.
     pub fn outer_offset(&self) -> PxVector {
-        self.0.lock().outer_offset
+        PxVector::zero()
     }
 
     /// Gets the widget's last measured outer bounds size.
@@ -640,21 +629,6 @@ impl WidgetBoundsInfo {
         self.0.lock().is_collapsed
     }
 
-    /// Last layout pass that updated the offsets or any of the descendant offsets.
-    ///
-    /// The version is different every time any of the offsets on the widget or descendants changes after a layout update.
-    /// Widget implementers can use this version when optimizing `render` and `render_update`, the [`widget_base::nodes::widget`]
-    /// widget does this.
-    ///
-    /// [`widget_base::nodes::widget`]: crate::widget_base::nodes::widget
-    pub fn offsets_pass(&self) -> LayoutPassId {
-        if self.0.lock().childs_changed {
-            self.0.lock().working_pass
-        } else {
-            self.0.lock().offsets_pass
-        }
-    }
-
     /// Snapshot of the [`LayoutMetrics`] on the last layout.
     ///
     /// The [`metrics_used`] value indicates what fields where actually used in the last layout.
@@ -709,65 +683,6 @@ impl WidgetBoundsInfo {
     }
     pub(crate) fn measure_metrics_used(&self) -> LayoutMask {
         self.0.lock().measure_metrics_used
-    }
-
-    fn begin_pass(&self, pass: LayoutPassId) {
-        // Record current state as previous state on the first call of the `pass`, see `Self::end_pass`.
-
-        let mut m = self.0.lock();
-
-        if m.working_pass != pass {
-            m.working_pass = pass;
-            m.childs_changed = false;
-
-            m.prev_outer_offset = m.outer_offset;
-            m.prev_inner_offset = m.inner_offset;
-            m.prev_child_offset = m.child_offset;
-            m.prev_offsets_pass = m.offsets_pass;
-        }
-    }
-
-    fn end_pass(&self) -> i32 {
-        // Check for changes against the previously recorded values, returns an offset to add to the parent's
-        // changed child counter.
-        //
-        // How this works:
-        //
-        // Begin/end pass can be called multiple times in a "true" layout pass, due to intrinsic second passes or the
-        // usage of `with_outer`, so an end pass can detect an intermediary value change, and return +1 to add to the parent,
-        // then on the *intrinsic pass*, it detects that actually there was no change, and return -1 to fix the parent count.
-
-        let mut m = self.0.lock();
-
-        // if actually changed from previous global pass
-        let changed =
-            m.prev_outer_offset != m.outer_offset || m.prev_inner_offset != m.inner_offset || m.prev_child_offset != m.child_offset;
-
-        // if already processed one end_pass request and returned +1
-        let believed_changed = m.offsets_pass == m.working_pass;
-
-        if changed {
-            if believed_changed {
-                0 // already updated, no need to add to the parent counter.
-            } else {
-                //
-                m.offsets_pass = m.working_pass;
-                1
-            }
-        } else if believed_changed {
-            m.offsets_pass = m.prev_offsets_pass;
-            -1 // second intrinsic pass returned value to previous, need to remove one from the parent counter.
-        } else {
-            0 // did not update the parent incorrectly.
-        }
-    }
-
-    fn set_changed_child(&self) {
-        self.0.lock().childs_changed = true;
-    }
-
-    fn set_outer_offset(&self, offset: PxVector) {
-        self.0.lock().outer_offset = offset;
     }
 
     fn set_outer_size(&self, size: PxSize) {

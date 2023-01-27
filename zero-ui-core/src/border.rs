@@ -769,11 +769,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 self.clip_corners = corners;
                 ctx.updates.render();
             }
-
-            // !!: TODO, remove when `with_widget` clears outer.
-            wl.with_branch(|wl| {
-                ctx.with_constrains(|_| PxConstrains2d::new_exact_size(fill_bounds), |ctx| self.child.layout(ctx, wl));
-            });
+            ctx.with_constrains(|_| PxConstrains2d::new_exact_size(fill_bounds), |ctx| self.child.layout(ctx, wl));
 
             fill_bounds
         }

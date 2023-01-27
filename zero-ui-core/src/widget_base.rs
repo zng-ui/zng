@@ -260,7 +260,6 @@ pub mod nodes {
         #[derive(Default)]
         struct MtxData {
             pending_updates: InfoLayoutRenderUpdates,
-            offsets_pass: LayoutPassId,
             reuse: Option<ReuseRange>,
         }
         struct WidgetNode<C> {
@@ -429,10 +428,9 @@ pub mod nodes {
                 }
 
                 let mut m = self.m.lock();
-                if !m.pending_updates.render.take().is_none() || m.offsets_pass != self.info.bounds.offsets_pass() {
+                if !m.pending_updates.render.take().is_none() {
                     // cannot reuse.
                     m.reuse = None;
-                    m.offsets_pass = self.info.bounds.offsets_pass();
                 }
 
                 ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
@@ -448,9 +446,8 @@ pub mod nodes {
 
                 let mut m = self.m.lock();
                 let mut reuse = true;
-                if !m.pending_updates.render.take().is_none() || m.offsets_pass != self.info.bounds.offsets_pass() {
+                if !m.pending_updates.render.take().is_none() {
                     reuse = false;
-                    m.offsets_pass = self.info.bounds.offsets_pass();
                 }
 
                 ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
