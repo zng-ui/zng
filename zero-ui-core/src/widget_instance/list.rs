@@ -1566,6 +1566,13 @@ where
     pub fn data_mut(&mut self) -> &mut [D] {
         &mut self.data
     }
+
+    /// Id used to offset items in the default render implementation.
+    ///
+    /// The default implementation offsets using this id and the item index.
+    pub fn offset_id(&self) -> SpatialFrameId {
+        self.offset_id
+    }
 }
 impl<D> UiNodeList for PanelList<D>
 where
@@ -1604,7 +1611,7 @@ where
     }
 
     fn boxed(self) -> BoxedUiNodeList {
-        self.list.boxed()
+        Box::new(self)
     }
 
     fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {

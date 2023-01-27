@@ -118,7 +118,7 @@ pub mod grid {
             children: vec![
                 vec![columns.boxed(), auto_columns.boxed()].boxed(),
                 vec![rows.boxed(), auto_rows.boxed()].boxed(),
-                PanelList::<()>::new(cells).boxed(),
+                PanelList::<PxVector>::new(cells).boxed(),
             ],
             spacing: spacing.into_var(),
             auto_grow_gen: auto_grow_gen.into_var(),
@@ -1300,24 +1300,23 @@ impl GridNode {
         let columns = children.next().unwrap();
         let rows = children.next().unwrap();
         let cells = children.next().unwrap();
+        let cells: &mut PanelList<PxVector> = cells.as_any_mut().downcast_mut().unwrap();
 
-        // layout and translate columns
+        // layout columns
         columns.for_each_mut(|ci, col| {
             let info = info.columns[ci];
             ctx.with_constrains(|c| c.with_exact(info.width, grid_size.height), |ctx| col.layout(ctx, wl));
-            wl.translate(PxVector::new(info.x, Px(0)));
             true
         });
-        // layout and translate rows
+        // layout rows
         rows.for_each_mut(|ri, row| {
             let info = info.rows[ri];
             ctx.with_constrains(|c| c.with_exact(grid_size.width, info.height), |ctx| row.layout(ctx, wl));
-            wl.translate(PxVector::new(Px(0), info.y));
             true
         });
         // layout and translate cells
         let cells_offset = columns.len() + rows.len();
-        cells.for_each_mut(|i, cell| {
+        cells.for_each_mut(|i, cell, o| {
             let cell_info = cell::CellInfo::get_wgt(cell).actual(i, info.columns.len());
 
             if cell_info.column >= info.columns.len() || cell_info.row >= info.rows.len() {
@@ -1348,12 +1347,69 @@ impl GridNode {
             }
 
             ctx.with_constrains(|c| c.with_exact_size(cell_size), |ctx| cell.layout(ctx, wl));
-            wl.translate(cell_offset);
+            *o = cell_offset;
 
             true
         });
 
         constrains.fill_size_or(grid_size)
+    }
+
+    #[UiNode]
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        let info = self.info.lock();
+        let cells: &PanelList<PxVector> = self.children[2].as_any().downcast_ref().unwrap();
+        let offset_id = cells.offset_id();
+
+        self.children[0].for_each(|i, child| {
+            let offset = PxVector::new(info.columns[i].x, Px(0));
+            frame.push_reference_frame_item(offset_id, i, FrameValue::Value(offset.into()), true, true, |frame| {
+                child.render(ctx, frame);
+            });
+            true
+        });
+        let i_extra = self.children[0].len();
+        self.children[1].for_each(|i, child| {
+            let offset = PxVector::new(Px(0), info.rows[i].y);
+            frame.push_reference_frame_item(offset_id, i + i_extra, FrameValue::Value(offset.into()), true, true, |frame| {
+                child.render(ctx, frame);
+            });
+            true
+        });
+        let i_extra = i_extra + self.children[1].len();
+        cells.for_each_z_sorted(|i, child, &offset| {
+            frame.push_reference_frame_item(offset_id, i + i_extra, FrameValue::Value(offset.into()), true, true, |frame| {
+                child.render(ctx, frame);
+            });
+            true
+        });
+    }
+
+    #[UiNode]
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        let info = self.info.lock();
+        let cells: &PanelList<PxVector> = self.children[2].as_any().downcast_ref().unwrap();
+
+        self.children[0].for_each(|i, child| {
+            let offset = PxVector::new(info.columns[i].x, Px(0));
+            update.with_transform_value(&offset.into(), |update| {
+                child.render_update(ctx, update);
+            });
+            true
+        });
+        self.children[1].for_each(|i, child| {
+            let offset = PxVector::new(Px(0), info.rows[i].y);
+            update.with_transform_value(&offset.into(), |update| {
+                child.render_update(ctx, update);
+            });
+            true
+        });
+        cells.for_each_z_sorted(|_, child, &offset| {
+            update.with_transform_value(&offset.into(), |update| {
+                child.render_update(ctx, update);
+            });
+            true
+        })
     }
 }
 
