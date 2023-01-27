@@ -2,7 +2,7 @@ error[E0433]: failed to resolve: use of undeclared crate or module `margin`
  --> cases/widget/declared_prop_does_not_exist1.rs:8:9
   |
 8 |         margin = { margin: 0 };
-  |         ^^^^^^ not found in this scope
+  |         ^^^^^^ use of undeclared crate or module `margin`
   |
 help: consider importing this struct
   |
