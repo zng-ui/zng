@@ -2,22 +2,20 @@
 
 Remove widget outer offset, parents always implement transform using the child offset.
 
-* Where is the children offset stored?
-    - In the new `PanelList`.
-    - Replace `ZSortingList` with `PanelList`, remove it.
-    - How to avoid pushing many reference-frames for children that are not in the scroll area?
-        - Have a `FrameBuilder::push_child(&mut self, i: usize, offset: PxVector, f: impl FnOnce(&mut Self))`.
-        - It records the index and offset, if an widget is found and it is visible a reference frame
-          is generated, using the widget id. If not widget is found and a render request is made a reference
-          frame is generated, using the caller widget id and the `i`.
-
-## Remove `with_outer` and `with_branch`
-
-* From `fill_node`.
-* From `child_insert`, this is the most simple *panel*, test on it first.
-* From `stack!`.  
-* From `grid!`.
-* From `wrap!`.
+* Refactor `stack!`.
+    - Need to figure out `translate_baseline`.
+    - How does `wrap!` baseline works again?
+* Refactor `grid!`.
+    - Grid only z-sorted children, can't do this anymore?
+        - Can use 3 `PanelList` entries, users can z-sort columns or rows in isolation then, minimal perf impact.
+* Remove `with_outer` and `with_branch`.
+    - Review all other layout methods, the baseline stuff can't work in panels for example?
+* Implement optimized `push_child`, that delays the reference_frame until the first inner boundary.
+    - The idea is that it automatically creates a reference frame if something tries to render.
+    - The id and item index are requested up-front, but the method returns a flag that indicates if a 
+      reference frame was actually created.
+* Remove outer offset from bounds.
+* Finish `!!:` TODOs. 
 
 ## Remove `outer_offset`
 

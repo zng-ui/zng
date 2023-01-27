@@ -118,7 +118,7 @@ pub mod grid {
             children: vec![
                 vec![columns.boxed(), auto_columns.boxed()].boxed(),
                 vec![rows.boxed(), auto_rows.boxed()].boxed(),
-                ZSortingList::new(cells).boxed(),
+                PanelList::<()>::new(cells).boxed(),
             ],
             spacing: spacing.into_var(),
             auto_grow_gen: auto_grow_gen.into_var(),

@@ -770,6 +770,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 ctx.updates.render();
             }
 
+            // !!: TODO, remove when `with_widget` clears outer.
             wl.with_branch(|wl| {
                 ctx.with_constrains(|_| PxConstrains2d::new_exact_size(fill_bounds), |ctx| self.child.layout(ctx, wl));
             });
@@ -798,9 +799,16 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 );
             };
 
+            // !!: TODO, use the future optimization of panels to potentially avoid creating a new reference_frame for full wgt child.
             frame.push_reference_frame(self.offset_id, FrameValue::Value(self.offset.into()), true, false, |frame| {
                 render_clipped(frame);
             });
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            update.with_transform_value(&self.offset.into(), |update| {
+                self.child.render_update(ctx, update);
+            })
         }
     }
 

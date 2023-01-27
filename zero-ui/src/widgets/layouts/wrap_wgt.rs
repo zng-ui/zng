@@ -73,7 +73,7 @@ pub mod wrap {
     /// of the `wrap!` widget.
     pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> impl UiNode {
         WrapNode {
-            children: ZSortingList::new(children),
+            children: PanelList::new(children),
             spacing: spacing.into_var(),
             children_align: children_align.into_var(),
             layout: Default::default(),
@@ -82,7 +82,7 @@ pub mod wrap {
 }
 
 #[ui_node(struct WrapNode {
-    children: impl UiNodeList,
+    children: PanelList<PxVector>,
     #[var] spacing: impl Var<GridSpacing>,
     #[var] children_align: impl Var<Align>,
     layout: Mutex<InlineLayout>
@@ -131,7 +131,7 @@ impl InlineLayout {
         &mut self,
         ctx: &mut MeasureContext,
         wm: &mut WidgetMeasure,
-        children: &impl UiNodeList,
+        children: &PanelList<PxVector>,
         child_align: Align,
         spacing: PxGridSpacing,
     ) -> PxSize {
@@ -159,7 +159,7 @@ impl InlineLayout {
         &mut self,
         ctx: &mut LayoutContext,
         wl: &mut WidgetLayout,
-        children: &mut impl UiNodeList,
+        children: &mut PanelList<PxVector>,
         child_align: Align,
         spacing: PxGridSpacing,
     ) -> PxSize {
@@ -210,7 +210,7 @@ impl InlineLayout {
                 let mut row_advance = Px(0);
                 let mut next_row_i = 1;
 
-                children.for_each_mut(|i, child| {
+                children.for_each_mut(|i, child, o| {
                     if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
                         // new row
                         if let Some(inline) = wl.inline() {
@@ -278,9 +278,7 @@ impl InlineLayout {
                             child_last.origin.y += spacing.row;
 
                             ctx.with_inline(child_first, child_mid, child_last, |ctx| child.layout(ctx, wl));
-                            wl.with_outer(child, false, |wl, _| {
-                                wl.translate(PxVector::new(Px(0), row.origin.y));
-                            });
+                            *o = PxVector::new(Px(0), row.origin.y);
 
                             // new row
                             if let Some(inline) = wl.inline() {
@@ -317,7 +315,7 @@ impl InlineLayout {
                                     ctx.with_inline(child_first, child_mid, child_last, |ctx| child.layout(ctx, wl));
                                 },
                             );
-                            wl.translate(row.origin.to_vector() + offset);
+                            *o = row.origin.to_vector() + offset;
 
                             row_advance += child_last.size.width + spacing.column;
                         }
@@ -341,7 +339,7 @@ impl InlineLayout {
                             offset.x = row.size.width - size.width - offset.x;
                         }
                         offset.y = (row.size.height - size.height) * child_align_y;
-                        wl.translate(row.origin.to_vector() + offset);
+                        *o = row.origin.to_vector() + offset;
                         row_advance += size.width + spacing.column;
                     }
 
@@ -358,7 +356,7 @@ impl InlineLayout {
         constrains.clamp_size(PxSize::new(panel_width, panel_height))
     }
 
-    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &impl UiNodeList, child_align: Align, spacing: PxGridSpacing) {
+    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &PanelList<PxVector>, child_align: Align, spacing: PxGridSpacing) {
         self.rows.clear();
         self.first_wrapped = false;
         self.desired_size = PxSize::zero();
@@ -373,7 +371,7 @@ impl InlineLayout {
         ctx.with_constrains(
             |_| child_constrains,
             |ctx| {
-                children.for_each(|i, child| {
+                children.for_each(|i, child, _| {
                     let mut inline_constrain = child_inline_constrain;
                     let mut wrap_clear_min = Px(0);
                     if self.rows.is_empty() && !self.first_wrapped {

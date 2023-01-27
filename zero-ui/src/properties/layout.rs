@@ -1222,7 +1222,10 @@ pub fn child_insert(
     #[ui_node(struct ChildInsertNode {
         children: impl UiNodeList,
         #[var] place: impl Var<ChildInsertPlace>,
-        #[var] spacing: impl Var<Length>
+        #[var] spacing: impl Var<Length>,
+        offset_id: SpatialFrameId,
+        offset_child: u8,
+        offset: PxVector,
     })]
     impl UiNode for ChildInsertNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -1337,17 +1340,12 @@ pub fn child_insert(
                         ChildInsertPlace::Right => (1, child_size.width + spacing),
                         _ => unreachable!(),
                     };
-
-                    self.children.with_node_mut(child, |n| {
-                        if offset != Px(0)
-                            && wl
-                                .with_outer(n, false, |wl, _| wl.translate(PxVector::new(offset, Px(0))))
-                                .is_none()
-                        {
-                            // child is not a full widget
-                            tracing::error!("child not transformed")
-                        }
-                    });
+                    let offset = PxVector::new(offset, Px(0));
+                    if self.offset != offset || self.offset_child != child {
+                        self.offset_child = child;
+                        self.offset = offset;
+                        ctx.updates.render();
+                    }
 
                     PxSize::new(
                         insert_size.width + spacing + child_size.width,
@@ -1409,17 +1407,12 @@ pub fn child_insert(
                         ChildInsertPlace::Below => (1, child_size.height + spacing),
                         _ => unreachable!(),
                     };
-
-                    self.children.with_node_mut(child, |n| {
-                        if offset != Px(0)
-                            && wl
-                                .with_outer(n, false, |wl, _| wl.translate(PxVector::new(Px(0), offset)))
-                                .is_none()
-                        {
-                            // child is not a full widget
-                            todo!()
-                        }
-                    });
+                    let offset = PxVector::new(Px(0), offset);
+                    if self.offset != offset || self.offset_child != child {
+                        self.offset_child = child;
+                        self.offset = offset;
+                        ctx.updates.render();
+                    }
 
                     PxSize::new(
                         insert_size.width.max(child_size.width),
@@ -1431,11 +1424,40 @@ pub fn child_insert(
                 }
             }
         }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.children.for_each(|i, child| {
+                if i as u8 == self.offset_child && self.offset != PxVector::zero() {
+                    frame.push_reference_frame(self.offset_id, FrameValue::Value(self.offset.into()), true, true, |frame| {
+                        child.render(ctx, frame);
+                    });
+                } else {
+                    child.render(ctx, frame);
+                }
+                true
+            })
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            self.children.for_each(|i, child| {
+                if i as u8 == self.offset_child {
+                    update.with_transform_value(&self.offset.into(), |update| {
+                        child.render_update(ctx, update);
+                    });
+                } else {
+                    child.render_update(ctx, update);
+                }
+                true
+            })
+        }
     }
     ChildInsertNode {
         children: ui_vec![child, insert],
         place: place.into_var(),
         spacing: spacing.into_var(),
+        offset_id: SpatialFrameId::new_unique(),
+        offset_child: 0,
+        offset: PxVector::zero(),
     }
 }
 

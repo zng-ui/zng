@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
     context_local, property,
+    render::{FrameValue, SpatialFrameId},
     var::{IntoVar, Var},
 };
 
@@ -549,210 +550,6 @@ where
     }
 }
 
-/// Represents a [`z_index`] sorting list.
-///
-/// Note, unlike [`SortingList`], this list only sorts the render methods.
-///
-/// [`z_index`]: fn@z_index
-pub struct ZSortingList<L: UiNodeList> {
-    list: L,
-    map: RefCell<Vec<u64>>,
-    naturally_sorted: Cell<bool>,
-}
-impl<L: UiNodeList> ZSortingList<L> {
-    /// New from list.
-    pub fn new(list: L) -> Self {
-        ZSortingList {
-            list,
-            map: RefCell::new(vec![]),
-            naturally_sorted: Cell::new(false),
-        }
-    }
-
-    fn sort(&self) {
-        // We pack *z* and *i* as u32s in one u64 then create the sorted lookup table if
-        // observed `[I].Z < [I-1].Z`, also records if any `Z != DEFAULT`:
-        //
-        // Advantages:
-        //
-        // - Makes `sort_unstable` stable.
-        // - Only one alloc needed, just mask out Z after sorting.
-        //
-        // Disadvantages:
-        //
-        // - Only supports u32::MAX widgets.
-        // - Uses 64-bit indexes in 32-bit builds.
-
-        let len = self.list.len();
-        assert!(len <= u32::MAX as usize);
-
-        let mut prev_z = ZIndex::BACK;
-        let mut need_map = false;
-        let mut z_and_i = Vec::with_capacity(len);
-        let mut has_non_default_zs = false;
-
-        self.list.for_each(|i, node| {
-            let z = ZIndex::get(node);
-            z_and_i.push(((z.0 as u64) << 32) | i as u64);
-
-            need_map |= z < prev_z;
-            has_non_default_zs |= z != ZIndex::DEFAULT;
-            prev_z = z;
-
-            true
-        });
-
-        self.naturally_sorted.set(!need_map);
-
-        if need_map {
-            z_and_i.sort_unstable();
-
-            for z in &mut z_and_i {
-                *z &= u32::MAX as u64;
-            }
-
-            *self.map.borrow_mut() = z_and_i;
-        } else {
-            self.map.borrow_mut().clear();
-        }
-    }
-
-    /// Gets the `index` sorted in the `list`.
-    pub fn map(&self, index: usize) -> usize {
-        if self.naturally_sorted.get() {
-            return index;
-        }
-
-        if self.map.borrow().len() != self.list.len() {
-            self.sort();
-        }
-
-        self.map.borrow()[index] as usize
-    }
-
-    /// Iterate over the list in the Z order.
-    pub fn for_each_sorted(&self, mut f: impl FnMut(usize, &BoxedUiNode) -> bool) {
-        if self.naturally_sorted.get() {
-            self.list.for_each(f)
-        } else {
-            if self.map.borrow().len() != self.list.len() {
-                self.sort();
-            }
-
-            if self.naturally_sorted.get() {
-                self.list.for_each(f);
-            } else {
-                for (index, &map) in self.map.borrow().iter().enumerate() {
-                    if !self.list.with_node(map as usize, |node| f(index, node)) {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    /// Iterate over mutable `list` sorted.
-    pub fn for_each_sorted_mut(&mut self, mut f: impl FnMut(usize, &mut BoxedUiNode) -> bool) {
-        if self.naturally_sorted.get() {
-            self.list.for_each_mut(f)
-        } else {
-            if self.map.borrow().len() != self.list.len() {
-                self.sort();
-            }
-
-            for (index, &map) in self.map.borrow().iter().enumerate() {
-                if !self.list.with_node_mut(map as usize, |node| f(index, node)) {
-                    break;
-                }
-            }
-        }
-    }
-}
-impl<L: UiNodeList> UiNodeList for ZSortingList<L> {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&BoxedUiNode) -> R,
-    {
-        self.list.with_node(index, f)
-    }
-
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        self.list.with_node_mut(index, f)
-    }
-
-    fn for_each<F>(&self, f: F)
-    where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
-    {
-        self.list.for_each(f)
-    }
-
-    fn for_each_mut<F>(&mut self, f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        self.list.for_each_mut(f)
-    }
-
-    fn len(&self) -> usize {
-        self.list.len()
-    }
-
-    fn boxed(self) -> BoxedUiNodeList {
-        Box::new(self)
-    }
-
-    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-        self.list.drain_into(vec);
-        self.map.get_mut().clear();
-        self.naturally_sorted.set(true);
-    }
-
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.map.get_mut().clear();
-        let resort = ZIndexContext::with(ctx.path.widget_id(), || self.list.init_all(ctx));
-        self.naturally_sorted.set(!resort);
-    }
-
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        self.list.deinit_all(ctx);
-    }
-
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.list.event_all(ctx, update);
-    }
-
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        let mut changed = false;
-
-        let resort = ZIndexContext::with(ctx.path.widget_id(), || {
-            self.list.update_all(ctx, updates, &mut (observer, &mut changed as _))
-        });
-        if resort || (changed && self.naturally_sorted.get()) {
-            self.map.get_mut().clear();
-            self.naturally_sorted.set(false);
-            ctx.updates.render();
-        }
-    }
-
-    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.for_each_sorted(|_, c| {
-            c.render(ctx, frame);
-            true
-        })
-    }
-
-    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.for_each_sorted(|_, c| {
-            c.render_update(ctx, update);
-            true
-        })
-    }
-}
-
 static Z_INDEX_ID: StaticStateId<ZIndex> = StaticStateId::new_unique();
 
 #[derive(Default, Clone, Debug)]
@@ -895,7 +692,7 @@ impl_from_and_into_var! {
 /// they will render according to the order defined by the [`ZIndex`] value.
 ///
 /// Layout panels that support this property should mention it in their documentation, implementers
-/// see [`ZSortingList`] for more details.
+/// see [`PanelList`] for more details.
 #[property(CONTEXT, default(ZIndex::DEFAULT))]
 pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     #[ui_node(struct ZIndexNode {
@@ -1572,40 +1369,41 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
 /// but it can be any type that implements [`PanelListData`].
 ///
 /// [`z_index`]: fn@z_index
-pub struct PanelList<L, D = PxVector>
+pub struct PanelList<D>
 where
-    L: UiNodeList,
     D: PanelListData,
 {
-    list: L,
+    list: BoxedUiNodeList,
     data: Vec<D>,
+
+    offset_id: SpatialFrameId,
 
     z_map: RefCell<Vec<u64>>,
     z_naturally_sorted: Cell<bool>,
 }
 
-impl<L, D> PanelList<L, D>
+impl<D> PanelList<D>
 where
-    L: UiNodeList,
     D: PanelListData,
 {
     /// New from `list` and default data.
-    pub fn new(list: L) -> Self {
+    pub fn new(list: impl UiNodeList) -> Self {
         Self {
             data: {
                 let mut d = vec![];
                 d.resize_with(list.len(), Default::default);
                 d
             },
-            list,
+            list: list.boxed(),
+            offset_id: SpatialFrameId::new_unique(),
             z_map: RefCell::new(vec![]),
             z_naturally_sorted: Cell::new(false),
         }
     }
 
     /// Into list and associated data.
-    pub fn into_parts(self) -> (L, Vec<D>) {
-        (self.list, self.data)
+    pub fn into_parts(self) -> (BoxedUiNodeList, Vec<D>, SpatialFrameId) {
+        (self.list, self.data, self.offset_id)
     }
 
     /// New from list and associated data.
@@ -1613,11 +1411,12 @@ where
     /// # Panics
     ///
     /// Panics if the `list` and `data` don't have the same length.
-    pub fn from_parts(list: L, data: Vec<D>) -> Self {
+    pub fn from_parts(list: BoxedUiNodeList, data: Vec<D>, offset_id: SpatialFrameId) -> Self {
         assert_eq!(list.len(), data.len());
         Self {
             list,
             data,
+            offset_id,
             z_map: RefCell::new(vec![]),
             z_naturally_sorted: Cell::new(false),
         }
@@ -1768,9 +1567,8 @@ where
         &mut self.data
     }
 }
-impl<L, D> UiNodeList for PanelList<L, D>
+impl<D> UiNodeList for PanelList<D>
 where
-    L: UiNodeList,
     D: PanelListData,
 {
     fn with_node<R, F>(&self, index: usize, f: F) -> R
@@ -1849,8 +1647,10 @@ where
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         self.for_each_z_sorted(|i, child, data| {
             let offset = data.child_offset();
-            todo!("!!:");
-            child.render(ctx, frame);
+            // !!: TODO, optimize, don't generate frame if child is not visible or culled.
+            frame.push_reference_frame_item(self.offset_id, i, FrameValue::Value(offset.into()), true, true, |frame| {
+                child.render(ctx, frame);
+            });
             true
         })
     }
@@ -1858,8 +1658,10 @@ where
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.for_each_z_sorted(|i, child, data| {
             let offset = data.child_offset();
-            todo!("!!:");
-            child.render_update(ctx, update);
+            // !!: TODO, update transform, this is connected with the optimization in `render_all`.
+            update.with_transform_value(&offset.into(), |update| {
+                child.render_update(ctx, update);
+            });
             true
         })
     }
@@ -1873,6 +1675,11 @@ pub trait PanelListData: Default + Send + Any {
 impl PanelListData for PxVector {
     fn child_offset(&self) -> PxVector {
         *self
+    }
+}
+impl PanelListData for () {
+    fn child_offset(&self) -> PxVector {
+        PxVector::zero()
     }
 }
 

@@ -105,7 +105,7 @@ pub mod stack {
         children_align: impl IntoVar<Align>,
     ) -> impl UiNode {
         StackNode {
-            children: ZSortingList::new(children),
+            children: PanelList::new(children),
             direction: direction.into_var(),
             spacing: spacing.into_var(),
             children_align: children_align.into_var(),
@@ -114,7 +114,7 @@ pub mod stack {
 }
 
 #[ui_node(struct StackNode {
-    children: impl UiNodeList,
+    children: PanelList<PxVector>,
 
     #[var] direction: impl Var<StackDirection>,
     #[var] spacing: impl Var<Length>,
@@ -157,7 +157,7 @@ impl StackNode {
             |ctx| {
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
-                self.children.for_each(|_, c| {
+                self.children.for_each(|_, c, _| {
                     let size = c.measure(ctx, wm);
                     if size.is_empty() {
                         return true; // continue, skip collapsed
@@ -203,14 +203,14 @@ impl StackNode {
             |ctx| {
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
-                self.children.for_each_mut(|_, c| {
+                self.children.for_each_mut(|_, c, o| {
                     let size = c.layout(ctx, wl);
                     if size.is_empty() {
                         return true; // continue, skip collapsed
                     }
 
                     let offset = direction.layout(ctx, item_rect, size) + child_spacing;
-                    wl.translate(offset);
+                    *o = offset;
 
                     item_rect.origin = offset.to_point();
                     item_rect.size = size;
@@ -232,11 +232,11 @@ impl StackNode {
         let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(ctx.direction());
         let align_baseline = children_align.is_baseline();
 
-        self.children.for_each_mut(|_, c| {
+        self.children.for_each_mut(|_, c, o| {
             let size = c.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap_or_default();
             let child_offset = (items_size - size).to_vector() * child_align;
+            *o += children_offset + child_offset;
             wl.with_outer(c, true, |wl, _| {
-                wl.translate(children_offset + child_offset);
                 wl.translate_baseline(align_baseline);
             });
 
@@ -310,7 +310,7 @@ impl StackNode {
             ctx.with_constrains(
                 move |_| measure_constrains.with_new_min(Px(0), Px(0)),
                 |ctx| {
-                    self.children.for_each(|_, c| {
+                    self.children.for_each(|_, c, _| {
                         let size = c.measure(ctx, &mut WidgetMeasure::new());
                         max_size = max_size.max(size);
                         true

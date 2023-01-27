@@ -916,18 +916,30 @@ impl FrameBuilder {
         self.push_reference_frame_impl(id.to_wr(self.pipeline_id), transform, is_2d_scale_translation, hit_test, render)
     }
 
-    /// Pushes a custom `push_reference_frame` with an item [`SpatialFrameId`].
+    /// Calls `render` inside a new reference frame transformed by `transform`, the frame internal ID is generated from `id`
+    /// and `item_index`.
+    ///
+    /// The `is_2d_scale_translation` flag optionally marks the `transform` as only ever having a simple 2D scale or translation,
+    /// allowing for webrender optimizations.
+    ///
+    /// If `hit_test` is `true` the hit-test shapes rendered inside `render` for the same widget are also transformed.
+    ///
+    /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
+    ///
+    /// [`push_inner`]: Self::push_inner
+    /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
+    /// [`auto_hit_test`]: Self::auto_hit_test
     pub fn push_reference_frame_item(
         &mut self,
         id: SpatialFrameId,
-        item: usize,
+        item_index: usize,
         transform: FrameValue<PxTransform>,
         is_2d_scale_translation: bool,
         hit_test: bool,
         render: impl FnOnce(&mut Self),
     ) {
         self.push_reference_frame_impl(
-            id.item_to_wr(item, self.pipeline_id),
+            id.item_to_wr(item_index, self.pipeline_id),
             transform,
             is_2d_scale_translation,
             hit_test,
