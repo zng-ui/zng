@@ -453,12 +453,29 @@ impl WidgetBoundsInfo {
 
     /// The baseline offset up from the inner bounds bottom line.
     ///
-    /// Note that if [`inner_offset_baseline`] is `true` the [`inner_offset`] is already added by the baseline.
+    /// Note that if [`inner_offset_baseline`] is `true` the [`inner_offset`] is already added by the baseline. Parent
+    /// panel widgets implementing baseline offset must use the [`final_baseline`] value to avoid offsetting more then once.
     ///
     /// [`inner_offset_baseline`]: Self::inner_offset_baseline
     /// [`inner_offset`]: Self::inner_offset
+    /// [`final_baseline`]: Self::final_baseline
     pub fn baseline(&self) -> Px {
         self.0.lock().baseline
+    }
+
+    /// Gets the baseline of the widget after [`inner_offset`] is applied.
+    ///
+    /// Returns `Px(0)` if [`inner_offset_baseline`], otherwise returns [`baseline`].
+    ///
+    /// [`inner_offset_baseline`]: Self::inner_offset_baseline
+    /// [`baseline`]: Self::baseline
+    pub fn final_baseline(&self) -> Px {
+        let s = self.0.lock();
+        if s.inner_offset_baseline {
+            Px(0)
+        } else {
+            s.baseline
+        }
     }
 
     /// Gets the global transform of the widget's outer bounds during the last render or render update.
@@ -514,7 +531,7 @@ impl WidgetBoundsInfo {
     ///
     /// [`outer_bounds`]: Self::outer_bounds
     /// [`FrameBuilder::auto_hide_rect`]: crate::render::FrameBuilder::auto_hide_rect
-    /// [`allow_auto_hide`]: WidgetLayoutTranslation::allow_auto_hide
+    /// [`allow_auto_hide`]: Self::allow_auto_hide
     pub fn can_auto_hide(&self) -> bool {
         !self.0.lock().cannot_auto_hide
     }

@@ -233,12 +233,18 @@ impl StackNode {
         let align_baseline = children_align.is_baseline();
 
         self.children.for_each_mut(|_, c, o| {
-            let size = c.with_context(|ctx| ctx.widget_info.bounds.outer_size()).unwrap_or_default();
+            let (size, baseline) = c
+                .with_context(|ctx| {
+                    let bounds = &ctx.widget_info.bounds;
+                    (bounds.outer_size(), bounds.final_baseline())
+                })
+                .unwrap_or_default();
+
             let child_offset = (items_size - size).to_vector() * child_align;
             *o += children_offset + child_offset;
+
             if align_baseline {
-                // !!: TODO, get child baseline offset, apply it and signal child that it is already applied
-                // before, it was set using `with_outer`
+                o.y += baseline;
             }
 
             true

@@ -623,7 +623,7 @@ impl WidgetLayout {
         self.bounds.set_baseline(baseline);
     }
 
-    /// If the baseline is added to the inner offset  *y* axis.
+    /// Set if the baseline is added to the inner offset  *y* axis.
     pub fn translate_baseline(&mut self, enabled: bool) {
         self.bounds.set_inner_offset_baseline(enabled);
     }
