@@ -3,13 +3,11 @@
 Remove widget outer offset, parents always implement transform using the child offset.
 
 * Implement optimized `push_child`, that delays the reference_frame until the first inner boundary.
-    - The idea is that it automatically creates a reference frame if something tries to render.
-    - The id and item index are requested up-front, but the method returns a flag that indicates if a 
-      reference frame was actually created.
-    - The current inner_offset impl also setups a frame binding so that the widgets can be moved with only a `render_update`.
-        - If we make something that can be grouped with the inner_offset some of the time we also need to setup frame bindings
-          in the other times where a reference-frame is created.
-        - If we make something with binding may need to recreate multiple reference frames in case of no child.
+    - We will use `ChildSpatialKey` to track when a reference frame was needed, but how do we track just some children needing it?
+        - Maybe use a bit-field for compact storage of one flag for each child.
+        - https://crates.io/crates/bit-vec
+    - If multiple children need a ref-frame we use the `FrameValueKey::to_wr_child` to mix-in a child index, so we don't need to
+      store a key for each child.
 * Remove outer offset from `WidgetBoundsInfo`.
 * Finish `!!:` TODOs.
 * Review examples.

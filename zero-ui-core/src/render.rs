@@ -945,10 +945,9 @@ impl FrameBuilder {
     /// child inner transform, if `render` tries to render before a child widget is found a reference frame is pushed.
     pub fn push_child(
         &mut self,
-        key: SpatialFrameKey,
-        transform: FrameValue<PxTransform>,
-        is_2d_scale_translation: bool,
-        hit_test: bool,
+        key: &mut ChildSpatialKey,
+        child_index: usize,
+        transform: PxTransform,
         render: impl FnOnce(&mut Self),
     ) -> bool {
         todo!()
@@ -2031,7 +2030,7 @@ impl UsedFrameUpdate {
     }
 }
 
-unique_id_64! {
+unique_id_32! {
     #[derive(Debug)]
     struct FrameBindingKeyId;
 }
@@ -2051,6 +2050,7 @@ enum SpatialFrameKeyInner {
     Widget(WidgetId),
     WidgetIndex(WidgetId, u32),
     FrameValue(FrameValueKey<PxTransform>),
+    FrameValueIndex(FrameValueKey<PxTransform>, u32),
 }
 impl SpatialFrameKeyInner {
     const UNIQUE: u64 = 1 << 63;
@@ -2061,7 +2061,12 @@ impl SpatialFrameKeyInner {
         match self {
             SpatialFrameKeyInner::UniqueIndex(id, index) => SpatialTreeItemKey::new(id.get() as u64, index as u64 | Self::UNIQUE),
             SpatialFrameKeyInner::WidgetIndex(id, index) => SpatialTreeItemKey::new(id.get(), index as u64 | Self::WIDGET),
-            SpatialFrameKeyInner::FrameValue(key) => SpatialTreeItemKey::new(key.id.get(), Self::FRAME_VALUE),
+            SpatialFrameKeyInner::FrameValue(key) => {
+                SpatialTreeItemKey::new(((key.id.get() as u64) << 32) | u32::MAX as u64, Self::FRAME_VALUE)
+            }
+            SpatialFrameKeyInner::FrameValueIndex(key, index) => {
+                SpatialTreeItemKey::new(((key.id.get() as u64) << 32) | index as u64, Self::FRAME_VALUE)
+            }
             SpatialFrameKeyInner::Unique(id) => SpatialTreeItemKey::new(id.get() as u64, (u32::MAX as u64 + 1) | Self::UNIQUE),
             SpatialFrameKeyInner::Widget(id) => SpatialTreeItemKey::new(id.get(), (u32::MAX as u64 + 1) | Self::WIDGET),
         }
@@ -2098,9 +2103,14 @@ impl SpatialFrameKey {
         Self(SpatialFrameKeyInner::UniqueIndex(id, child_index))
     }
 
-    /// Key from a [`FrameValueKey<PxTransform>`] index.
-    pub fn from_value(frame_value_key: FrameValueKey<PxTransform>) -> Self {
+    /// Key from a [`FrameValueKey<PxTransform>`].
+    pub fn from_frame_value(frame_value_key: FrameValueKey<PxTransform>) -> Self {
         Self(SpatialFrameKeyInner::FrameValue(frame_value_key))
+    }
+
+    /// Key from a [`FrameValueKey<PxTransform>`] and [`u32`] index.
+    pub fn from_frame_value_child(frame_value_key: FrameValueKey<PxTransform>, child_index: u32) -> Self {
+        Self(SpatialFrameKeyInner::FrameValueIndex(frame_value_key, child_index))
     }
 
     /// To webrender key.
@@ -2110,7 +2120,7 @@ impl SpatialFrameKey {
 }
 impl From<FrameValueKey<PxTransform>> for SpatialFrameKey {
     fn from(value: FrameValueKey<PxTransform>) -> Self {
-        Self::from_value(value)
+        Self::from_frame_value(value)
     }
 }
 impl From<SpatialFrameId> for SpatialFrameKey {
@@ -2126,6 +2136,11 @@ impl From<(SpatialFrameId, u32)> for SpatialFrameKey {
 impl From<(WidgetId, u32)> for SpatialFrameKey {
     fn from((id, index): (WidgetId, u32)) -> Self {
         Self::from_widget_child(id, index)
+    }
+}
+impl From<(FrameValueKey<PxTransform>, u32)> for SpatialFrameKey {
+    fn from((key, index): (FrameValueKey<PxTransform>, u32)) -> Self {
+        Self::from_frame_value_child(key, index)
     }
 }
 
@@ -2161,7 +2176,12 @@ impl<T> FrameValueKey<T> {
 
     /// To view key.
     pub fn to_wr(self) -> zero_ui_view_api::FrameValueKey<T> {
-        zero_ui_view_api::FrameValueKey::new(self.id.get())
+        Self::to_wr_child(self, u32::MAX)
+    }
+
+    /// To view key with an extra `index` modifier.
+    pub fn to_wr_child(self, child_index: u32) -> zero_ui_view_api::FrameValueKey<T> {
+        zero_ui_view_api::FrameValueKey::new(((self.id.get() as u64) << 32) | child_index as u64)
     }
 
     /// Create a binding with this key.
@@ -2169,8 +2189,15 @@ impl<T> FrameValueKey<T> {
     /// The `animating` flag controls if the binding will propagate to webrender, if `true`
     /// webrender frame updates are generated for
     pub fn bind(self, value: T, animating: bool) -> FrameValue<T> {
+        self.bind_child(u32::MAX, value, animating)
+    }
+
+    /// Like [`bind`] but the key is modified to include the `child_index`.
+    ///
+    /// [`bind`]: Self::bind
+    pub fn bind_child(self, child_index: u32, value: T, animating: bool) -> FrameValue<T> {
         FrameValue::Bind {
-            key: self.to_wr(),
+            key: self.to_wr_child(child_index),
             value,
             animating,
         }
@@ -2178,8 +2205,15 @@ impl<T> FrameValueKey<T> {
 
     /// Create a value update with this key.
     pub fn update(self, value: T, animating: bool) -> FrameValueUpdate<T> {
+        self.update_child(u32::MAX, value, animating)
+    }
+
+    /// Like [`update`] but the key is modified to include the `child_index`.
+    ///
+    /// [`update`]: Self::update
+    pub fn update_child(self, child_index: u32, value: T, animating: bool) -> FrameValueUpdate<T> {
         FrameValueUpdate {
-            key: self.to_wr(),
+            key: self.to_wr_child(child_index),
             value,
             animating,
         }
@@ -2189,9 +2223,16 @@ impl<T> FrameValueKey<T> {
     ///
     /// The `map` must produce a copy or clone of the frame value.
     pub fn bind_var<VT: var::VarValue>(self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
+        self.bind_var_child(u32::MAX, var, map)
+    }
+
+    /// Like [`bind_var`] but the key is modified to include the `child_index`.
+    ///
+    /// [`bind_var`]: Self::bind_var
+    pub fn bind_var_child<VT: var::VarValue>(self, child_index: u32, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
         if var.capabilities().contains(var::VarCapabilities::NEW) {
             FrameValue::Bind {
-                key: self.to_wr(),
+                key: self.to_wr_child(child_index),
                 value: var.with(map),
                 animating: var.is_animating(),
             }
@@ -2202,9 +2243,16 @@ impl<T> FrameValueKey<T> {
 
     /// Create a binding with this key, `var` and already mapped `value`.
     pub fn bind_var_mapped<VT: var::VarValue>(&self, var: &impl var::Var<VT>, value: T) -> FrameValue<T> {
+        self.bind_var_mapped_child(u32::MAX, var, value)
+    }
+
+    /// Like [`bind_var_mapped`] but the key is modified to include the `child_index`.
+    ///
+    /// [`bind_var_mapped`]: Self::bind_var_mapped
+    pub fn bind_var_mapped_child<VT: var::VarValue>(&self, child_index: u32, var: &impl var::Var<VT>, value: T) -> FrameValue<T> {
         if var.capabilities().contains(var::VarCapabilities::NEW) {
             FrameValue::Bind {
-                key: self.to_wr(),
+                key: self.to_wr_child(child_index),
                 value,
                 animating: var.is_animating(),
             }
@@ -2215,9 +2263,21 @@ impl<T> FrameValueKey<T> {
 
     /// Create a value update with this key and `var`.
     pub fn update_var<VT: var::VarValue>(self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> Option<FrameValueUpdate<T>> {
+        self.update_var_child(u32::MAX, var, map)
+    }
+
+    /// Like [`update_var`] but the key is modified to include the `child_index`.
+    ///
+    /// [`update_var`]: Self::update_var
+    pub fn update_var_child<VT: var::VarValue>(
+        self,
+        child_index: u32,
+        var: &impl var::Var<VT>,
+        map: impl FnOnce(&VT) -> T,
+    ) -> Option<FrameValueUpdate<T>> {
         if var.capabilities().contains(var::VarCapabilities::NEW) {
             Some(FrameValueUpdate {
-                key: self.to_wr(),
+                key: self.to_wr_child(child_index),
                 value: var.with(map),
                 animating: var.is_animating(),
             })
@@ -2228,9 +2288,21 @@ impl<T> FrameValueKey<T> {
 
     /// Create a value update with this key, `var` and already mapped `value`.
     pub fn update_var_mapped<VT: var::VarValue>(self, var: &impl var::Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
+        self.update_var_mapped_child(u32::MAX, var, value)
+    }
+
+    /// Like [`update_var_mapped`] but the key is modified to include the `child_index`.
+    ///
+    /// [`update_var_mapped`]: Self::update_var_mapped
+    pub fn update_var_mapped_child<VT: var::VarValue>(
+        self,
+        child_index: u32,
+        var: &impl var::Var<VT>,
+        value: T,
+    ) -> Option<FrameValueUpdate<T>> {
         if var.capabilities().contains(var::VarCapabilities::NEW) {
             Some(FrameValueUpdate {
-                key: self.to_wr(),
+                key: self.to_wr_child(child_index),
                 value,
                 animating: var.is_animating(),
             })
@@ -2265,5 +2337,24 @@ impl_from_and_into_var! {
     /// Convert to full [`ENABLED`](FontSynthesis::ENABLED) or [`DISABLED`](FontSynthesis::DISABLED).
     fn from(enabled: bool) -> FontSynthesis {
         if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
+    }
+}
+
+/// Key of a potential reference frame.
+///
+/// The same key instance must be passed to [`FrameBuilder::push_child`] and [`FrameUpdate::update_child`], if
+/// the translation changes an [`Updates::render_update`] must be requested.
+#[derive(Debug)]
+pub struct ChildSpatialKey {
+    key: FrameValueKey<PxTransform>,
+    in_frame: bool,
+}
+impl ChildSpatialKey {
+    /// New unique key.
+    pub fn new_unique() -> Self {
+        Self {
+            key: FrameValueKey::new_unique(),
+            in_frame: false,
+        }
     }
 }
