@@ -667,7 +667,7 @@ impl FrameBuilder {
 
     /// Returns `true`  if the widget stacking context is still being build.
     ///
-    /// This is `true` when inside a [`push_widget`] call but `false` when inside a [`push_inner`] call.
+    /// This is `true` when inside an [`push_widget`] call but `false` when inside an [`push_inner`] call.
     ///
     /// [`push_widget`]: Self::push_widget
     /// [`push_inner`]: Self::push_inner
@@ -742,6 +742,10 @@ impl FrameBuilder {
         }
     }
 
+    pub fn push_child(&mut self, translate: PxVector, render: impl FnOnce(&mut Self)) {
+        todo!()
+    }
+
     /// Push the widget reference frame and stacking context then call `render` inside of it.
     ///
     /// If `layout_translation_animating` is `false` the view-process can still be updated using [`FrameUpdate::update_inner`], but
@@ -774,7 +778,7 @@ impl FrameBuilder {
 
             if self.visible {
                 self.display_list.push_reference_frame(
-                    SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
+                    SpatialFrameId::widget_id_to_wr(self.widget_id),
                     layout_translation_key.bind(inner_transform, layout_translation_animating),
                     !data.has_transform,
                 );
@@ -913,7 +917,7 @@ impl FrameBuilder {
         hit_test: bool,
         render: impl FnOnce(&mut Self),
     ) {
-        self.push_reference_frame_impl(id.to_wr(self.pipeline_id), transform, is_2d_scale_translation, hit_test, render)
+        self.push_reference_frame_impl(id.to_wr(), transform, is_2d_scale_translation, hit_test, render)
     }
 
     /// Calls `render` inside a new reference frame transformed by `transform`, the frame internal ID is generated from `id`
@@ -939,7 +943,7 @@ impl FrameBuilder {
         render: impl FnOnce(&mut Self),
     ) {
         self.push_reference_frame_impl(
-            id.item_to_wr(item_index, self.pipeline_id),
+            id.item_to_wr(item_index as u32),
             transform,
             is_2d_scale_translation,
             hit_test,
@@ -1712,7 +1716,7 @@ impl FrameUpdate {
 
     /// Returns `true` if the widget inner transform update is still being build.
     ///
-    /// This is `true` when inside a [`update_widget`] call but `false` when inside a [`update_inner`] call.
+    /// This is `true` when inside an [`update_widget`] call but `false` when inside an [`update_inner`] call.
     ///
     /// [`update_widget`]: Self::update_widget
     /// [`update_inner`]: Self::update_inner
@@ -2069,27 +2073,30 @@ unique_id_32! {
     pub struct SpatialFrameId;
 }
 impl SpatialFrameId {
-    const WIDGET_ID_FLAG: u64 = 1 << 62;
-    const LIST_ID_FLAG: u64 = 1 << 61;
-
     /// Make a [`SpatialTreeItemKey`] from a [`WidgetId`], there is no collision
     /// with other keys generated.
     ///
     /// This is the spatial id used for the widget's inner bounds offset.
-    pub fn widget_id_to_wr(self_: WidgetId, pipeline_id: PipelineId) -> SpatialTreeItemKey {
-        SpatialTreeItemKey::new(pipeline_id.0 as u64 | Self::WIDGET_ID_FLAG, self_.get())
+    pub fn widget_id_to_wr(self_: WidgetId) -> SpatialTreeItemKey {
+        SpatialTreeItemKey::new(self_.get(), u64::MAX)
+    }
+
+    /// Make a [`SpatialTreeItemKey`] from a [`WidgetId`] and item index, there is no collision
+    /// with other keys generated.
+    pub fn widget_id_item_to_wr(self_: WidgetId, index: u32) -> SpatialTreeItemKey {
+        SpatialTreeItemKey::new(self_.get(), index as u64)
     }
 
     /// To webrender [`SpatialTreeItemKey`].
-    pub fn to_wr(self, pipeline_id: PipelineId) -> SpatialTreeItemKey {
-        SpatialTreeItemKey::new(pipeline_id.0 as u64, self.get() as u64)
+    pub fn to_wr(self) -> SpatialTreeItemKey {
+        SpatialTreeItemKey::new(0, self.get() as u64)
     }
 
     /// Make [`SpatialTreeItemKey`] from a a spatial parent + item index, there is no collision
     /// with other keys generated.
-    pub fn item_to_wr(self, index: usize, pipeline_id: PipelineId) -> SpatialTreeItemKey {
+    pub fn item_to_wr(self, index: u32) -> SpatialTreeItemKey {
         let item = (index as u64) << 32;
-        SpatialTreeItemKey::new(pipeline_id.0 as u64 | Self::LIST_ID_FLAG, self.get() as u64 | item)
+        SpatialTreeItemKey::new(0, self.get() as u64 | item)
     }
 }
 
