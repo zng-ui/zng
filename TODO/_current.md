@@ -6,6 +6,9 @@ Remove widget outer offset, parents always implement transform using the child o
     - The idea is that it automatically creates a reference frame if something tries to render.
     - The id and item index are requested up-front, but the method returns a flag that indicates if a 
       reference frame was actually created.
+    - The current inner_offset impl also setups a frame binding so that the widgets can be moved with only a `render_update`.
+        - If we make something that can be grouped with the inner_offset some of the time we also need to setup frame bindings
+          in the other times where a reference-frame is created.
 * Remove outer offset from `WidgetBoundsInfo`.
 * Finish `!!:` TODOs.
 * Review examples.

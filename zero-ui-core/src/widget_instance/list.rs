@@ -1469,8 +1469,9 @@ where
             if self.z_naturally_sorted.get() {
                 self.for_each(f);
             } else {
-                for (index, &map) in self.z_map.borrow().iter().enumerate() {
-                    if !self.list.with_node(map as usize, |node| f(index, node, &self.data[index])) {
+                for &index in self.z_map.borrow().iter() {
+                    let index = index as usize;
+                    if !self.list.with_node(index, |node| f(index, node, &self.data[index])) {
                         break;
                     }
                 }
@@ -1487,9 +1488,10 @@ where
                 self.z_sort();
             }
 
-            for (index, &map) in self.z_map.borrow().iter().enumerate() {
+            for &index in self.z_map.borrow().iter() {
+                let index = index as usize;
                 let data = &mut self.data[index];
-                if !self.list.with_node_mut(map as usize, |node| f(index, node, data)) {
+                if !self.list.with_node_mut(index, |node| f(index, node, data)) {
                     break;
                 }
             }
