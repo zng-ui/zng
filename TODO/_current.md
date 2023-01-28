@@ -5,7 +5,10 @@ Remove widget outer offset, parents always implement transform using the child o
 * Implement optimized `push_child`, that delays the reference_frame until the first inner boundary.
     - We will use `ChildSpatialKey` to track when a reference frame was needed, but how do we track just some children needing it?
         - Maybe use a bit-field for compact storage of one flag for each child.
-        - https://crates.io/crates/bit-vec
+            - https://crates.io/crates/bit-vec
+        - Maybe just enable from the first child that needs to the rest?
+            - This means we can end-up using reference frames for full widgets, but the perf impact for unnecessary frames is minimal.
+            - Usually a children collection only has widgets or non-widgets?
     - If multiple children need a ref-frame we use the `FrameValueKey::to_wr_child` to mix-in a child index, so we don't need to
       store a key for each child.
 * Remove outer offset from `WidgetBoundsInfo`.
