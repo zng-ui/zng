@@ -1657,9 +1657,15 @@ where
         self.for_each_z_sorted(|i, child, data| {
             let offset = data.child_offset();
             // !!: TODO, optimize, don't generate frame if child is not visible or culled.
-            frame.push_reference_frame_item(self.offset_id, i, FrameValue::Value(offset.into()), true, true, |frame| {
-                child.render(ctx, frame);
-            });
+            frame.push_reference_frame(
+                (self.offset_id, i as u32).into(),
+                FrameValue::Value(offset.into()),
+                true,
+                true,
+                |frame| {
+                    child.render(ctx, frame);
+                },
+            );
             true
         })
     }

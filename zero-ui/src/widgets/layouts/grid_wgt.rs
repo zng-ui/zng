@@ -1363,24 +1363,42 @@ impl GridNode {
 
         self.children[0].for_each(|i, child| {
             let offset = PxVector::new(info.columns[i].x, Px(0));
-            frame.push_reference_frame_item(offset_id, i, FrameValue::Value(offset.into()), true, true, |frame| {
-                child.render(ctx, frame);
-            });
+            frame.push_reference_frame(
+                (offset_id, i as u32).into(),
+                FrameValue::Value(offset.into()),
+                true,
+                true,
+                |frame| {
+                    child.render(ctx, frame);
+                },
+            );
             true
         });
         let i_extra = self.children[0].len();
         self.children[1].for_each(|i, child| {
             let offset = PxVector::new(Px(0), info.rows[i].y);
-            frame.push_reference_frame_item(offset_id, i + i_extra, FrameValue::Value(offset.into()), true, true, |frame| {
-                child.render(ctx, frame);
-            });
+            frame.push_reference_frame(
+                (offset_id, (i + i_extra) as u32).into(),
+                FrameValue::Value(offset.into()),
+                true,
+                true,
+                |frame| {
+                    child.render(ctx, frame);
+                },
+            );
             true
         });
         let i_extra = i_extra + self.children[1].len();
         cells.for_each_z_sorted(|i, child, &offset| {
-            frame.push_reference_frame_item(offset_id, i + i_extra, FrameValue::Value(offset.into()), true, true, |frame| {
-                child.render(ctx, frame);
-            });
+            frame.push_reference_frame(
+                (offset_id, (i + i_extra) as u32).into(),
+                FrameValue::Value(offset.into()),
+                true,
+                true,
+                |frame| {
+                    child.render(ctx, frame);
+                },
+            );
             true
         });
     }

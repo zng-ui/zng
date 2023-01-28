@@ -1428,7 +1428,7 @@ pub fn child_insert(
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.children.for_each(|i, child| {
                 if i as u8 == self.offset_child && self.offset != PxVector::zero() {
-                    frame.push_reference_frame(self.offset_id, FrameValue::Value(self.offset.into()), true, true, |frame| {
+                    frame.push_reference_frame(self.offset_id.into(), FrameValue::Value(self.offset.into()), true, true, |frame| {
                         child.render(ctx, frame);
                     });
                 } else {

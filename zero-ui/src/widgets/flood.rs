@@ -4,7 +4,7 @@ use crate::prelude::new_widget::*;
 pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
     #[ui_node(struct FloodNode {
         #[var] color: impl Var<Rgba>,
-        frame_key: FrameVarKey<RenderColor>,
+        frame_key: FrameValueKey<RenderColor>,
         final_size: PxSize,
     })]
     impl UiNode for FloodNode {
@@ -26,16 +26,19 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
         }
 
         fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_color(PxRect::from_size(self.final_size), self.frame_key.bind(&self.color, |&c| c.into()));
+            frame.push_color(
+                PxRect::from_size(self.final_size),
+                self.frame_key.bind_var(&self.color, |&c| c.into()),
+            );
         }
 
         fn render_update(&self, _: &mut RenderContext, update: &mut FrameUpdate) {
-            update.update_color_opt(self.frame_key.update(&self.color, |&c| c.into()));
+            update.update_color_opt(self.frame_key.update_var(&self.color, |&c| c.into()));
         }
     }
 
     FloodNode {
-        frame_key: FrameVarKey::new(),
+        frame_key: FrameValueKey::new_unique(),
         color: color.into_var(),
         final_size: PxSize::zero(),
     }

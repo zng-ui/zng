@@ -13,7 +13,7 @@ use crate::{
     widget_instance::{WidgetId, ZIndex},
 };
 
-use std::{cell::Cell, marker::PhantomData, mem};
+use std::{marker::PhantomData, mem};
 
 use webrender_api::{FontRenderMode, PipelineId};
 pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
@@ -742,10 +742,6 @@ impl FrameBuilder {
         }
     }
 
-    pub fn push_child(&mut self, translate: PxVector, render: impl FnOnce(&mut Self)) {
-        todo!()
-    }
-
     /// Push the widget reference frame and stacking context then call `render` inside of it.
     ///
     /// If `layout_translation_animating` is `false` the view-process can still be updated using [`FrameUpdate::update_inner`], but
@@ -778,7 +774,7 @@ impl FrameBuilder {
 
             if self.visible {
                 self.display_list.push_reference_frame(
-                    SpatialFrameId::widget_id_to_wr(self.widget_id),
+                    SpatialFrameKey::from_widget(self.widget_id).to_wr(),
                     layout_translation_key.bind(inner_transform, layout_translation_animating),
                     !data.has_transform,
                 );
@@ -911,51 +907,10 @@ impl FrameBuilder {
     /// [`auto_hit_test`]: Self::auto_hit_test
     pub fn push_reference_frame(
         &mut self,
-        id: SpatialFrameId,
+        key: SpatialFrameKey,
         transform: FrameValue<PxTransform>,
         is_2d_scale_translation: bool,
         hit_test: bool,
-        render: impl FnOnce(&mut Self),
-    ) {
-        self.push_reference_frame_impl(id.to_wr(), transform, is_2d_scale_translation, hit_test, render)
-    }
-
-    /// Calls `render` inside a new reference frame transformed by `transform`, the frame internal ID is generated from `id`
-    /// and `item_index`.
-    ///
-    /// The `is_2d_scale_translation` flag optionally marks the `transform` as only ever having a simple 2D scale or translation,
-    /// allowing for webrender optimizations.
-    ///
-    /// If `hit_test` is `true` the hit-test shapes rendered inside `render` for the same widget are also transformed.
-    ///
-    /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
-    ///
-    /// [`push_inner`]: Self::push_inner
-    /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
-    /// [`auto_hit_test`]: Self::auto_hit_test
-    pub fn push_reference_frame_item(
-        &mut self,
-        id: SpatialFrameId,
-        item_index: usize,
-        transform: FrameValue<PxTransform>,
-        is_2d_scale_translation: bool,
-        hit_test: bool,
-        render: impl FnOnce(&mut Self),
-    ) {
-        self.push_reference_frame_impl(
-            id.item_to_wr(item_index as u32),
-            transform,
-            is_2d_scale_translation,
-            hit_test,
-            render,
-        )
-    }
-    fn push_reference_frame_impl(
-        &mut self,
-        id: SpatialTreeItemKey,
-        transform: FrameValue<PxTransform>,
-        is_2d_scale_translation: bool,
-        mut hit_test: bool,
         render: impl FnOnce(&mut Self),
     ) {
         let transform_value = transform.value();
@@ -964,10 +919,11 @@ impl FrameBuilder {
         self.transform = transform_value.then(&prev_transform);
 
         if self.visible {
-            self.display_list.push_reference_frame(id, transform, is_2d_scale_translation);
+            self.display_list
+                .push_reference_frame(key.to_wr(), transform, is_2d_scale_translation);
         }
 
-        hit_test |= self.auto_hit_test;
+        let hit_test = hit_test || self.auto_hit_test;
 
         if hit_test {
             self.hit_clips.push_transform(transform);
@@ -983,6 +939,19 @@ impl FrameBuilder {
         if hit_test {
             self.hit_clips.pop_transform();
         }
+    }
+
+    /// Calls `render` with a potential reference frame, if `render` delegates to a child widget the transform is folded into the
+    /// child inner transform, if `render` tries to render before a child widget is found a reference frame is pushed.
+    pub fn push_child(
+        &mut self,
+        key: SpatialFrameKey,
+        transform: FrameValue<PxTransform>,
+        is_2d_scale_translation: bool,
+        hit_test: bool,
+        render: impl FnOnce(&mut Self),
+    ) -> bool {
+        todo!()
     }
 
     /// Calls `render` with added `filter` stacking context.
@@ -2069,45 +2038,109 @@ unique_id_64! {
 
 unique_id_32! {
     /// Unique ID of a reference frame.
+    ///
+    /// See [`SpatialFrameKey`] for more details.
     #[derive(Debug)]
     pub struct SpatialFrameId;
 }
-impl SpatialFrameId {
-    /// Make a [`SpatialTreeItemKey`] from a [`WidgetId`], there is no collision
-    /// with other keys generated.
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SpatialFrameKeyInner {
+    Unique(SpatialFrameId),
+    UniqueIndex(SpatialFrameId, u32),
+    Widget(WidgetId),
+    WidgetIndex(WidgetId, u32),
+    FrameValue(FrameValueKey<PxTransform>),
+}
+impl SpatialFrameKeyInner {
+    const UNIQUE: u64 = 1 << 63;
+    const WIDGET: u64 = 1 << 62;
+    const FRAME_VALUE: u64 = 1 << 61;
+
+    fn to_wr(self) -> SpatialTreeItemKey {
+        match self {
+            SpatialFrameKeyInner::UniqueIndex(id, index) => SpatialTreeItemKey::new(id.get() as u64, index as u64 | Self::UNIQUE),
+            SpatialFrameKeyInner::WidgetIndex(id, index) => SpatialTreeItemKey::new(id.get(), index as u64 | Self::WIDGET),
+            SpatialFrameKeyInner::FrameValue(key) => SpatialTreeItemKey::new(key.id.get(), Self::FRAME_VALUE),
+            SpatialFrameKeyInner::Unique(id) => SpatialTreeItemKey::new(id.get() as u64, (u32::MAX as u64 + 1) | Self::UNIQUE),
+            SpatialFrameKeyInner::Widget(id) => SpatialTreeItemKey::new(id.get(), (u32::MAX as u64 + 1) | Self::WIDGET),
+        }
+    }
+}
+/// Represents an unique key for a spatial reference frame that is recreated in multiple frames.
+///
+/// The key can be generated from [`WidgetId`], [`SpatialFrameId`] or [`FrameValueKey<PxTransform>`] all guaranteed
+/// to be unique even if the inner value of IDs is the same.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct SpatialFrameKey(SpatialFrameKeyInner);
+impl SpatialFrameKey {
+    /// Key used for the widget inner transform.
     ///
-    /// This is the spatial id used for the widget's inner bounds offset.
-    pub fn widget_id_to_wr(self_: WidgetId) -> SpatialTreeItemKey {
-        SpatialTreeItemKey::new(self_.get(), u64::MAX)
+    /// See [`FrameBuilder::push_inner`].
+    fn from_widget(widget_id: WidgetId) -> Self {
+        Self(SpatialFrameKeyInner::Widget(widget_id))
     }
 
-    /// Make a [`SpatialTreeItemKey`] from a [`WidgetId`] and item index, there is no collision
-    /// with other keys generated.
-    pub fn widget_id_item_to_wr(self_: WidgetId, index: u32) -> SpatialTreeItemKey {
-        SpatialTreeItemKey::new(self_.get(), index as u64)
+    /// Key from [`WidgetId`] and [`u32`] index.
+    ///
+    /// This can be used in nodes that know that they are the only one rendering children nodes.
+    pub fn from_widget_child(parent_id: WidgetId, child_index: u32) -> Self {
+        Self(SpatialFrameKeyInner::WidgetIndex(parent_id, child_index))
     }
 
-    /// To webrender [`SpatialTreeItemKey`].
+    /// Key from [`SpatialFrameId`].
+    pub fn from_unique(id: SpatialFrameId) -> Self {
+        Self(SpatialFrameKeyInner::Unique(id))
+    }
+
+    /// Key from [`SpatialFrameId`] and [`u32`] index.
+    pub fn from_unique_child(id: SpatialFrameId, child_index: u32) -> Self {
+        Self(SpatialFrameKeyInner::UniqueIndex(id, child_index))
+    }
+
+    /// Key from a [`FrameValueKey<PxTransform>`] index.
+    pub fn from_value(frame_value_key: FrameValueKey<PxTransform>) -> Self {
+        Self(SpatialFrameKeyInner::FrameValue(frame_value_key))
+    }
+
+    /// To webrender key.
     pub fn to_wr(self) -> SpatialTreeItemKey {
-        SpatialTreeItemKey::new(0, self.get() as u64)
+        self.0.to_wr()
     }
-
-    /// Make [`SpatialTreeItemKey`] from a a spatial parent + item index, there is no collision
-    /// with other keys generated.
-    pub fn item_to_wr(self, index: u32) -> SpatialTreeItemKey {
-        let item = (index as u64) << 32;
-        SpatialTreeItemKey::new(0, self.get() as u64 | item)
+}
+impl From<FrameValueKey<PxTransform>> for SpatialFrameKey {
+    fn from(value: FrameValueKey<PxTransform>) -> Self {
+        Self::from_value(value)
+    }
+}
+impl From<SpatialFrameId> for SpatialFrameKey {
+    fn from(id: SpatialFrameId) -> Self {
+        Self::from_unique(id)
+    }
+}
+impl From<(SpatialFrameId, u32)> for SpatialFrameKey {
+    fn from((id, index): (SpatialFrameId, u32)) -> Self {
+        Self::from_unique_child(id, index)
+    }
+}
+impl From<(WidgetId, u32)> for SpatialFrameKey {
+    fn from((id, index): (WidgetId, u32)) -> Self {
+        Self::from_widget_child(id, index)
     }
 }
 
 /// Unique key of an updatable value in the view-process frame.
-///
-/// Also see [`FrameVarKey`].
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct FrameValueKey<T> {
     id: FrameBindingKeyId,
     _type: PhantomData<T>,
 }
+impl<T> PartialEq for FrameValueKey<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+impl<T> Eq for FrameValueKey<T> {}
 impl<T> Clone for FrameValueKey<T> {
     fn clone(&self) -> Self {
         Self {
@@ -2127,7 +2160,7 @@ impl<T> FrameValueKey<T> {
     }
 
     /// To view key.
-    pub fn view_key(self) -> zero_ui_view_api::FrameValueKey<T> {
+    pub fn to_wr(self) -> zero_ui_view_api::FrameValueKey<T> {
         zero_ui_view_api::FrameValueKey::new(self.id.get())
     }
 
@@ -2137,7 +2170,7 @@ impl<T> FrameValueKey<T> {
     /// webrender frame updates are generated for
     pub fn bind(self, value: T, animating: bool) -> FrameValue<T> {
         FrameValue::Bind {
-            key: self.view_key(),
+            key: self.to_wr(),
             value,
             animating,
         }
@@ -2146,96 +2179,67 @@ impl<T> FrameValueKey<T> {
     /// Create a value update with this key.
     pub fn update(self, value: T, animating: bool) -> FrameValueUpdate<T> {
         FrameValueUpdate {
-            key: self.view_key(),
+            key: self.to_wr(),
             value,
             animating,
         }
-    }
-}
-assert_non_null!(FrameValueKey<RenderColor>);
-
-/// Unique key of an updatable value in the view-process frame that is sourced from a variable.
-///
-/// This is a helper type around [`FrameValueKey`] that correctly implements a var to frame value pipeline, first
-/// it only generates a key if the variable can update, and after, it helps track the `animating` flag.
-#[derive(Debug, PartialEq, Eq)]
-pub struct FrameVarKey<T> {
-    key: Cell<Option<FrameValueKey<T>>>,
-}
-impl<T> Default for FrameVarKey<T> {
-    fn default() -> Self {
-        Self { key: Default::default() }
-    }
-}
-impl<T> FrameVarKey<T> {
-    /// New lazy key.
-    ///
-    /// An unique key will only be generated on first render with variable that has `NEW` capability.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// The value key.
-    ///
-    /// Returns `None` if the is not generated and `var` does not have the `NEW` capability.
-    pub fn key(&self, var: &impl var::AnyVar) -> Option<FrameValueKey<T>> {
-        let mut r = self.key.get();
-        if r.is_none() && var.capabilities().contains(var::VarCapabilities::NEW) {
-            r = Some(FrameValueKey::new_unique());
-            self.key.set(r);
-        }
-        r
-    }
-
-    /// The value key converted to view-process key.
-    pub fn view_key(&self, var: &impl var::AnyVar) -> Option<zero_ui_view_api::FrameValueKey<T>> {
-        self.key(var).map(FrameValueKey::view_key)
     }
 
     /// Create a binding with this key and `var`.
     ///
     /// The `map` must produce a copy or clone of the frame value.
-    pub fn bind<VT: var::VarValue>(&self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
-        match self.view_key(var) {
-            Some(key) => FrameValue::Bind {
-                key,
+    pub fn bind_var<VT: var::VarValue>(self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
+        if var.capabilities().contains(var::VarCapabilities::NEW) {
+            FrameValue::Bind {
+                key: self.to_wr(),
                 value: var.with(map),
                 animating: var.is_animating(),
-            },
-            None => FrameValue::Value(var.with(map)),
+            }
+        } else {
+            FrameValue::Value(var.with(map))
         }
     }
 
     /// Create a binding with this key, `var` and already mapped `value`.
-    pub fn bind_mapped<VT: var::VarValue>(&self, var: &impl var::Var<VT>, value: T) -> FrameValue<T> {
-        match self.view_key(var) {
-            Some(key) => FrameValue::Bind {
-                key,
+    pub fn bind_var_mapped<VT: var::VarValue>(&self, var: &impl var::Var<VT>, value: T) -> FrameValue<T> {
+        if var.capabilities().contains(var::VarCapabilities::NEW) {
+            FrameValue::Bind {
+                key: self.to_wr(),
                 value,
                 animating: var.is_animating(),
-            },
-            None => FrameValue::Value(value),
+            }
+        } else {
+            FrameValue::Value(value)
         }
     }
 
     /// Create a value update with this key and `var`.
-    pub fn update<VT: var::VarValue>(&self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> Option<FrameValueUpdate<T>> {
-        self.view_key(var).map(|key| FrameValueUpdate {
-            key,
-            value: var.with(map),
-            animating: var.is_animating(),
-        })
+    pub fn update_var<VT: var::VarValue>(self, var: &impl var::Var<VT>, map: impl FnOnce(&VT) -> T) -> Option<FrameValueUpdate<T>> {
+        if var.capabilities().contains(var::VarCapabilities::NEW) {
+            Some(FrameValueUpdate {
+                key: self.to_wr(),
+                value: var.with(map),
+                animating: var.is_animating(),
+            })
+        } else {
+            None
+        }
     }
 
     /// Create a value update with this key, `var` and already mapped `value`.
-    pub fn update_mapped<VT: var::VarValue>(&self, var: &impl var::Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
-        self.view_key(var).map(|key| FrameValueUpdate {
-            key,
-            value,
-            animating: var.is_animating(),
-        })
+    pub fn update_var_mapped<VT: var::VarValue>(self, var: &impl var::Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
+        if var.capabilities().contains(var::VarCapabilities::NEW) {
+            Some(FrameValueUpdate {
+                key: self.to_wr(),
+                value,
+                animating: var.is_animating(),
+            })
+        } else {
+            None
+        }
     }
 }
+assert_non_null!(FrameValueKey<RenderColor>);
 
 bitflags! {
     /// Configure if a synthetic font is generated for fonts that do not implement **bold** or *oblique* variants.

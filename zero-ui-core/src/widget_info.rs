@@ -60,6 +60,8 @@ impl WidgetContextInfo {
 #[derive(Debug, Clone)]
 pub struct WidgetInfoTreeStats {
     /// Duration of the [`UiNode::info`] call for the window content.
+    ///
+    /// [`UiNode::info`]: crate::widget_instance::UiNode::info
     pub build_time: Duration,
 
     /// Count of widgets that where reused from a previous tree.
@@ -467,6 +469,7 @@ impl WidgetBoundsInfo {
     ///
     /// Returns `Px(0)` if [`inner_offset_baseline`], otherwise returns [`baseline`].
     ///
+    /// [`inner_offset`]: Self::inner_offset
     /// [`inner_offset_baseline`]: Self::inner_offset_baseline
     /// [`baseline`]: Self::baseline
     pub fn final_baseline(&self) -> Px {
@@ -531,7 +534,7 @@ impl WidgetBoundsInfo {
     ///
     /// [`outer_bounds`]: Self::outer_bounds
     /// [`FrameBuilder::auto_hide_rect`]: crate::render::FrameBuilder::auto_hide_rect
-    /// [`allow_auto_hide`]: Self::allow_auto_hide
+    /// [`allow_auto_hide`]: fn@crate::widget_core::allow_auto_hide
     pub fn can_auto_hide(&self) -> bool {
         !self.0.lock().cannot_auto_hide
     }

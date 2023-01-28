@@ -72,17 +72,17 @@ pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
 #[property(CONTEXT, default(false))]
 pub fn show_rows(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    let spatial_id = SpatialFrameId::new_unique();
     show_widget_tree(
         child,
-        |tree, frame| {
+        move |tree, frame| {
             let p = Dip::new(1).to_px(frame.scale_factor().0);
-            let spatial_id = SpatialFrameId::new_unique();
 
             for (i, wgt) in tree.all_widgets().enumerate() {
                 let wgt = wgt.bounds_info();
                 let transform = wgt.inner_transform();
                 if let Some(inline) = wgt.inline() {
-                    frame.push_reference_frame_item(spatial_id, i, FrameValue::Value(transform), false, false, |frame| {
+                    frame.push_reference_frame((spatial_id, i as u32).into(), FrameValue::Value(transform), false, false, |frame| {
                         for row in &inline.rows {
                             frame.push_border(
                                 *row,

@@ -186,21 +186,21 @@ pub mod scroll {
 
                 if self.joiner.width > Px(0) {
                     let transform = PxTransform::from(PxVector::new(self.viewport.width, Px(0)));
-                    frame.push_reference_frame_item(self.spatial_id, 1, FrameValue::Value(transform), true, false, |frame| {
+                    frame.push_reference_frame((self.spatial_id, 1).into(), FrameValue::Value(transform), true, false, |frame| {
                         self.children.with_node(1, |n| n.render(ctx, frame));
                     });
                 }
 
                 if self.joiner.height > Px(0) {
                     let transform = PxTransform::from(PxVector::new(Px(0), self.viewport.height));
-                    frame.push_reference_frame_item(self.spatial_id, 2, FrameValue::Value(transform), true, false, |frame| {
+                    frame.push_reference_frame((self.spatial_id, 2).into(), FrameValue::Value(transform), true, false, |frame| {
                         self.children.with_node(2, |n| n.render(ctx, frame));
                     });
                 }
 
                 if self.joiner.width > Px(0) && self.joiner.height > Px(0) {
                     let transform = PxTransform::from(self.viewport.to_vector());
-                    frame.push_reference_frame_item(self.spatial_id, 3, FrameValue::Value(transform), true, false, |frame| {
+                    frame.push_reference_frame((self.spatial_id, 3).into(), FrameValue::Value(transform), true, false, |frame| {
                         self.children.with_node(3, |n| n.render(ctx, frame));
                     });
                 }

@@ -585,11 +585,11 @@ impl WidgetLayout {
     ///
     /// [`widget_base::nodes::widget_child`]: crate::widget_base::nodes::widget_child
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
-    pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> (PxSize, bool) {
+    pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         self.nest_group = LayoutNestGroup::Child;
         let r = layout(ctx, self);
         self.nest_group = LayoutNestGroup::Child;
-        (r, true)
+        r
     }
 
     /// Gets the current window layout pass.

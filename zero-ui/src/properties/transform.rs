@@ -15,8 +15,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         #[var] transform: impl Var<Transform>,
 
         render_transform: PxTransform,
-        spatial_id: SpatialFrameId,
-        binding_key: FrameVarKey<PxTransform>,
+        binding_key: FrameValueKey<PxTransform>,
     })]
     impl UiNode for TransformNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -57,8 +56,8 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
                 frame.push_inner_transform(&self.render_transform, |frame| self.child.render(ctx, frame));
             } else {
                 frame.push_reference_frame(
-                    self.spatial_id,
-                    self.binding_key.bind_mapped(&self.transform, self.render_transform),
+                    self.binding_key.into(),
+                    self.binding_key.bind_var_mapped(&self.transform, self.render_transform),
                     false,
                     false,
                     |frame| self.child.render(ctx, frame),
@@ -71,7 +70,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
                 update.with_inner_transform(&self.render_transform, |update| self.child.render_update(ctx, update));
             } else {
                 update.with_transform_opt(
-                    self.binding_key.update_mapped(&self.transform, self.render_transform),
+                    self.binding_key.update_var_mapped(&self.transform, self.render_transform),
                     false,
                     |update| self.child.render_update(ctx, update),
                 )
@@ -81,11 +80,10 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
     TransformNode {
         child: child.cfg_boxed(),
-        binding_key: FrameVarKey::new(),
+        binding_key: FrameValueKey::new_unique(),
         transform: transform.into_var(),
 
         render_transform: PxTransform::identity(),
-        spatial_id: SpatialFrameId::new_unique(),
     }
     .cfg_boxed()
 }

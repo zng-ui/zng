@@ -796,7 +796,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             };
 
             // !!: TODO, use the future optimization of panels to potentially avoid creating a new reference_frame for full wgt child.
-            frame.push_reference_frame(self.offset_id, FrameValue::Value(self.offset.into()), true, false, |frame| {
+            frame.push_reference_frame(self.offset_id.into(), FrameValue::Value(self.offset.into()), true, false, |frame| {
                 render_clipped(frame);
             });
         }

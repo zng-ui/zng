@@ -6,7 +6,7 @@ use crate::{
     context::*,
     event::{EventHandles, EventUpdate},
     property,
-    render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange, SpatialFrameId},
+    render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange},
     ui_node,
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
@@ -89,47 +89,32 @@ pub mod nodes {
     pub fn widget_child(child: impl UiNode) -> impl UiNode {
         #[ui_node(struct WidgetChildNode {
                 child: impl UiNode,
-                id: Option<(SpatialFrameId, FrameValueKey<PxTransform>)>,
+                key: FrameValueKey<PxTransform>,
             })]
         impl UiNode for WidgetChildNode {
             fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
                 self.child.measure(ctx, wm)
             }
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                let (size, needed) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
-                if self.id.is_none() {
-                    if needed {
-                        // start rendering.
-                        self.id = Some((SpatialFrameId::new_unique(), FrameValueKey::new_unique()));
-                        ctx.updates.render();
-                    }
-                } else if !needed {
-                    self.id = None;
-                    ctx.updates.render();
-                }
-                size
+                wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl))
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                if let Some((id, key)) = &self.id {
-                    let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
-                    frame.push_reference_frame(*id, key.bind(transform, true), true, false, |frame| self.child.render(ctx, frame));
-                } else {
-                    self.child.render(ctx, frame);
-                }
+                let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
+                frame.push_reference_frame(self.key.into(), self.key.bind(transform, true), true, false, |frame| {
+                    self.child.render(ctx, frame)
+                });
             }
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                if let Some((_, key)) = &self.id {
-                    let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
-                    update.with_transform(key.update(transform, true), false, |update| self.child.render_update(ctx, update));
-                } else {
-                    self.child.render_update(ctx, update);
-                }
+                let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
+                update.with_transform(self.key.update(transform, true), false, |update| {
+                    self.child.render_update(ctx, update)
+                });
             }
         }
         WidgetChildNode {
             child: child.cfg_boxed(),
-            id: None,
+            key: FrameValueKey::new_unique(),
         }
         .cfg_boxed()
     }

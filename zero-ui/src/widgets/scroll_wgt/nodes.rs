@@ -26,7 +26,6 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         content_offset: PxVector,
         last_render_offset: Cell<PxVector>,
 
-        spatial_id: SpatialFrameId,
         binding_key: FrameValueKey<PxTransform>,
 
         info: ScrollInfo,
@@ -175,7 +174,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             let culling_rect = frame.transform().outer_transformed(culling_rect).unwrap_or(culling_rect).to_rect();
 
             frame.push_reference_frame(
-                self.spatial_id,
+                self.binding_key.into(),
                 self.binding_key.bind(self.content_offset.into(), true),
                 true,
                 false,
@@ -205,7 +204,6 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         last_render_offset: Cell::new(PxVector::zero()),
         info: ScrollInfo::default(),
 
-        spatial_id: SpatialFrameId::new_unique(),
         binding_key: FrameValueKey::new_unique(),
     }
     .cfg_boxed()

@@ -9,6 +9,7 @@ Remove widget outer offset, parents always implement transform using the child o
     - The current inner_offset impl also setups a frame binding so that the widgets can be moved with only a `render_update`.
         - If we make something that can be grouped with the inner_offset some of the time we also need to setup frame bindings
           in the other times where a reference-frame is created.
+        - If we make something with binding may need to recreate multiple reference frames in case of no child.
 * Remove outer offset from `WidgetBoundsInfo`.
 * Finish `!!:` TODOs.
 * Review examples.

@@ -264,7 +264,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     #[ui_node(struct OpacityNode {
         child: impl UiNode,
         #[var] alpha: impl Var<Factor>,
-        frame_key: FrameVarKey<f32>,
+        frame_key: FrameValueKey<f32>,
     })]
     impl UiNode for OpacityNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -275,19 +275,19 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let opacity = self.frame_key.bind(&self.alpha, |f| f.0);
+            let opacity = self.frame_key.bind_var(&self.alpha, |f| f.0);
             frame.push_inner_opacity(opacity, |frame| self.child.render(ctx, frame));
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.update_f32_opt(self.frame_key.update(&self.alpha, |f| f.0));
+            update.update_f32_opt(self.frame_key.update_var(&self.alpha, |f| f.0));
             self.child.render_update(ctx, update);
         }
     }
 
     OpacityNode {
         child,
-        frame_key: FrameVarKey::new(),
+        frame_key: FrameValueKey::new_unique(),
         alpha: alpha.into_var(),
     }
 }
@@ -303,7 +303,7 @@ pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl Ui
     #[ui_node(struct ChildOpacityNode {
         child: impl UiNode,
         #[var] alpha: impl Var<Factor>,
-        frame_key: FrameVarKey<f32>,
+        frame_key: FrameValueKey<f32>,
     })]
     impl UiNode for ChildOpacityNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
@@ -314,19 +314,19 @@ pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl Ui
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let opacity = self.frame_key.bind(&self.alpha, |f| f.0);
+            let opacity = self.frame_key.bind_var(&self.alpha, |f| f.0);
             frame.push_opacity(opacity, |frame| self.child.render(ctx, frame));
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.update_f32_opt(self.frame_key.update(&self.alpha, |f| f.0));
+            update.update_f32_opt(self.frame_key.update_var(&self.alpha, |f| f.0));
             self.child.render_update(ctx, update);
         }
     }
 
     ChildOpacityNode {
         child,
-        frame_key: FrameVarKey::new(),
+        frame_key: FrameValueKey::new_unique(),
         alpha: alpha.into_var(),
     }
 }
