@@ -1359,12 +1359,12 @@ impl GridNode {
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         let info = self.info.lock();
         let cells: &PanelList<PxVector> = self.children[2].as_any().downcast_ref().unwrap();
-        let offset_id = cells.offset_id();
+        let offset_key = cells.offset_key();
 
         self.children[0].for_each(|i, child| {
             let offset = PxVector::new(info.columns[i].x, Px(0));
             frame.push_reference_frame(
-                (offset_id, i as u32).into(),
+                (offset_key, i as u32).into(),
                 FrameValue::Value(offset.into()),
                 true,
                 true,
@@ -1378,7 +1378,7 @@ impl GridNode {
         self.children[1].for_each(|i, child| {
             let offset = PxVector::new(Px(0), info.rows[i].y);
             frame.push_reference_frame(
-                (offset_id, (i + i_extra) as u32).into(),
+                (offset_key, (i + i_extra) as u32).into(),
                 FrameValue::Value(offset.into()),
                 true,
                 true,
@@ -1391,7 +1391,7 @@ impl GridNode {
         let i_extra = i_extra + self.children[1].len();
         cells.for_each_z_sorted(|i, child, &offset| {
             frame.push_reference_frame(
-                (offset_id, (i + i_extra) as u32).into(),
+                (offset_key, (i + i_extra) as u32).into(),
                 FrameValue::Value(offset.into()),
                 true,
                 true,
@@ -1422,7 +1422,7 @@ impl GridNode {
             });
             true
         });
-        cells.for_each_z_sorted(|_, child, &offset| {
+        cells.for_each(|_, child, &offset| {
             update.with_transform_value(&offset.into(), |update| {
                 child.render_update(ctx, update);
             });

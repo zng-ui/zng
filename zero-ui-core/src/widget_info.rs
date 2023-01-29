@@ -534,7 +534,7 @@ impl WidgetBoundsInfo {
     ///
     /// [`outer_bounds`]: Self::outer_bounds
     /// [`FrameBuilder::auto_hide_rect`]: crate::render::FrameBuilder::auto_hide_rect
-    /// [`allow_auto_hide`]: fn@crate::widget_core::allow_auto_hide
+    /// [`allow_auto_hide`]: WidgetLayout::allow_auto_hide
     pub fn can_auto_hide(&self) -> bool {
         !self.0.lock().cannot_auto_hide
     }

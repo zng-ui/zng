@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     context_local, property,
-    render::{FrameValue, SpatialFrameId},
+    render::FrameValueKey,
     var::{IntoVar, Var},
 };
 
@@ -1376,7 +1376,7 @@ where
     list: BoxedUiNodeList,
     data: Vec<D>,
 
-    offset_id: SpatialFrameId,
+    offset_key: FrameValueKey<PxTransform>,
 
     z_map: RefCell<Vec<u64>>,
     z_naturally_sorted: Cell<bool>,
@@ -1395,15 +1395,15 @@ where
                 d
             },
             list: list.boxed(),
-            offset_id: SpatialFrameId::new_unique(),
+            offset_key: FrameValueKey::new_unique(),
             z_map: RefCell::new(vec![]),
             z_naturally_sorted: Cell::new(false),
         }
     }
 
     /// Into list and associated data.
-    pub fn into_parts(self) -> (BoxedUiNodeList, Vec<D>, SpatialFrameId) {
-        (self.list, self.data, self.offset_id)
+    pub fn into_parts(self) -> (BoxedUiNodeList, Vec<D>, FrameValueKey<PxTransform>) {
+        (self.list, self.data, self.offset_key)
     }
 
     /// New from list and associated data.
@@ -1411,12 +1411,12 @@ where
     /// # Panics
     ///
     /// Panics if the `list` and `data` don't have the same length.
-    pub fn from_parts(list: BoxedUiNodeList, data: Vec<D>, offset_id: SpatialFrameId) -> Self {
+    pub fn from_parts(list: BoxedUiNodeList, data: Vec<D>, offset_key: FrameValueKey<PxTransform>) -> Self {
         assert_eq!(list.len(), data.len());
         Self {
             list,
             data,
-            offset_id,
+            offset_key,
             z_map: RefCell::new(vec![]),
             z_naturally_sorted: Cell::new(false),
         }
@@ -1569,11 +1569,11 @@ where
         &mut self.data
     }
 
-    /// Id used to offset items in the default render implementation.
+    /// Key used to define reference frames for each item.
     ///
-    /// The default implementation offsets using this id and the item index.
-    pub fn offset_id(&self) -> SpatialFrameId {
-        self.offset_id
+    /// The default implementation of `render_all` uses this key and the item index.
+    pub fn offset_key(&self) -> FrameValueKey<PxTransform> {
+        self.offset_key
     }
 }
 impl<D> UiNodeList for PanelList<D>
@@ -1656,29 +1656,36 @@ where
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         self.for_each_z_sorted(|i, child, data| {
             let offset = data.child_offset();
-            // !!: TODO, optimize, don't generate frame if child is not visible or culled.
-            frame.push_reference_frame(
-                (self.offset_id, i as u32).into(),
-                FrameValue::Value(offset.into()),
-                true,
-                true,
-                |frame| {
-                    child.render(ctx, frame);
-                },
-            );
+            if data.define_reference_frame() {
+                frame.push_reference_frame(
+                    (self.offset_key, i as u32).into(),
+                    self.offset_key.bind_child(i as u32, offset.into(), false),
+                    true,
+                    true,
+                    |frame| {
+                        child.render(ctx, frame);
+                    },
+                );
+            } else {
+                todo!("!!: push_inner_transform?")
+            }
+
             true
-        })
+        });
     }
 
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.for_each_z_sorted(|i, child, data| {
+        self.for_each(|i, child, data| {
             let offset = data.child_offset();
-            // !!: TODO, update transform, this is connected with the optimization in `render_all`.
+            if data.define_reference_frame() {
+                update.update_transform(self.offset_key.update_child(i as u32, offset.into(), false), true);
+            }
             update.with_transform_value(&offset.into(), |update| {
                 child.render_update(ctx, update);
             });
+
             true
-        })
+        });
     }
 }
 
@@ -1686,15 +1693,26 @@ where
 pub trait PanelListData: Default + Send + Any {
     /// Gets the child offset to be used in the default `render_all` and `render_update_all` implementations.
     fn child_offset(&self) -> PxVector;
+
+    /// If a new reference frame should be created for the item during render.
+    fn define_reference_frame(&self) -> bool;
 }
 impl PanelListData for PxVector {
     fn child_offset(&self) -> PxVector {
         *self
     }
+
+    fn define_reference_frame(&self) -> bool {
+        true
+    }
 }
 impl PanelListData for () {
     fn child_offset(&self) -> PxVector {
         PxVector::zero()
+    }
+
+    fn define_reference_frame(&self) -> bool {
+        false
     }
 }
 

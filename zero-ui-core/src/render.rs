@@ -941,18 +941,6 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls `render` with a potential reference frame, if `render` delegates to a child widget the transform is folded into the
-    /// child inner transform, if `render` tries to render before a child widget is found a reference frame is pushed.
-    pub fn push_child(
-        &mut self,
-        key: &mut ChildSpatialKey,
-        child_index: usize,
-        transform: PxTransform,
-        render: impl FnOnce(&mut Self),
-    ) -> bool {
-        todo!()
-    }
-
     /// Calls `render` with added `filter` stacking context.
     ///
     /// Note that this introduces a new stacking context, you can use the [`push_inner_filter`] method to
@@ -2337,24 +2325,5 @@ impl_from_and_into_var! {
     /// Convert to full [`ENABLED`](FontSynthesis::ENABLED) or [`DISABLED`](FontSynthesis::DISABLED).
     fn from(enabled: bool) -> FontSynthesis {
         if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
-    }
-}
-
-/// Key of a potential reference frame.
-///
-/// The same key instance must be passed to [`FrameBuilder::push_child`] and [`FrameUpdate::update_child`], if
-/// the translation changes an [`Updates::render_update`] must be requested.
-#[derive(Debug)]
-pub struct ChildSpatialKey {
-    key: FrameValueKey<PxTransform>,
-    in_frame: bool,
-}
-impl ChildSpatialKey {
-    /// New unique key.
-    pub fn new_unique() -> Self {
-        Self {
-            key: FrameValueKey::new_unique(),
-            in_frame: false,
-        }
     }
 }
