@@ -3,9 +3,9 @@
 Remove widget outer offset, parents always implement transform using the child offset.
 
 * Implement `!define_reference_frame`.
-    - Layout pass detect if has single child.
-    - Render allow pushing transform for next inner widget.
-    - More efficient data storage?
+    - [x] Layout pass detect if has single child.
+    - [ ] Render allow pushing transform for next inner widget.
+    - [ ] More efficient data storage?
         - `(PxVector, bool)` is 12 bytes.
         - Maybe `define_reference_frame` can be a single flag for the entire list, 
           in our current usage all items are full widgets or none are.

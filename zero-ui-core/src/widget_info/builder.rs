@@ -466,6 +466,7 @@ pub struct WidgetLayout {
     bounds: WidgetBoundsInfo,
     nest_group: LayoutNestGroup,
     inline: Option<WidgetInlineInfo>,
+    child_count: Option<u32>,
 }
 impl WidgetLayout {
     /// Defines the root widget outer-bounds scope.
@@ -481,6 +482,7 @@ impl WidgetLayout {
             bounds: ctx.widget_info.bounds.clone(),
             nest_group: LayoutNestGroup::Inner,
             inline: None,
+            child_count: None,
         }
         .with_widget(ctx, false, layout)
     }
@@ -500,6 +502,9 @@ impl WidgetLayout {
         layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
     ) -> PxSize {
         let snap = ctx.metrics.snapshot();
+        if let Some(child_count) = &mut self.child_count {
+            *child_count += 1;
+        }
         if reuse && {
             let uses = ctx.widget_info.bounds.metrics_used();
             ctx.widget_info.bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false)
@@ -508,6 +513,7 @@ impl WidgetLayout {
             return ctx.widget_info.bounds.outer_size();
         }
 
+        let parent_child_count = self.child_count.take();
         let parent_inline = self.inline.take();
         if ctx.inline_constrains().is_some() && ctx.widget_info.bounds.measure_inline().is_some() {
             // inline enabled by parent and widget
@@ -557,6 +563,7 @@ impl WidgetLayout {
             ctx.updates.render_update()
         }
 
+        self.child_count = parent_child_count;
         self.inline = parent_inline;
         self.bounds = parent_bounds;
         self.nest_group = LayoutNestGroup::Child;
@@ -581,15 +588,22 @@ impl WidgetLayout {
 
     /// Defines a widget child scope, translations inside `layout` still target the widget's child offset.
     ///
+    /// Returns the child size and if a reference frame is required to offset the child.
+    ///
     /// The default widget child layout constructor implements this, see [`widget_base::nodes::widget_child`].
     ///
     /// [`widget_base::nodes::widget_child`]: crate::widget_base::nodes::widget_child
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
-    pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
+    pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> (PxSize, bool) {
+        let parent_child_count = mem::replace(&mut self.child_count, Some(0));
+
         self.nest_group = LayoutNestGroup::Child;
-        let r = layout(ctx, self);
+        let child_size = layout(ctx, self);
         self.nest_group = LayoutNestGroup::Child;
-        r
+
+        let need_ref_frame = self.child_count != Some(1);
+        self.child_count = parent_child_count;
+        (child_size, need_ref_frame)
     }
 
     /// Gets the current window layout pass.

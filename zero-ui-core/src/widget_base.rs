@@ -90,31 +90,46 @@ pub mod nodes {
         #[ui_node(struct WidgetChildNode {
                 child: impl UiNode,
                 key: FrameValueKey<PxTransform>,
+                need_ref_frame: bool,
             })]
         impl UiNode for WidgetChildNode {
             fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
                 self.child.measure(ctx, wm)
             }
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl))
+                let (size, ref_frame) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
+                if self.need_ref_frame != ref_frame {
+                    self.need_ref_frame = ref_frame;
+                    ctx.updates.render();
+                }
+                size
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
-                frame.push_reference_frame(self.key.into(), self.key.bind(transform, true), true, false, |frame| {
-                    self.child.render(ctx, frame)
-                });
+                if self.need_ref_frame {
+                    let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
+                    frame.push_reference_frame(self.key.into(), self.key.bind(transform, true), true, false, |frame| {
+                        self.child.render(ctx, frame)
+                    });
+                } else {
+                    todo!("!!: push_inner_transform?");
+                }
             }
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
-                update.with_transform(self.key.update(transform, true), false, |update| {
-                    self.child.render_update(ctx, update)
-                });
+                if self.need_ref_frame {
+                    update.with_transform(self.key.update(transform, true), false, |update| {
+                        self.child.render_update(ctx, update)
+                    });
+                } else {
+                    update.with_transform_value(&transform, |update| self.child.render_update(ctx, update))
+                }
             }
         }
         WidgetChildNode {
             child: child.cfg_boxed(),
             key: FrameValueKey::new_unique(),
+            need_ref_frame: false,
         }
         .cfg_boxed()
     }
