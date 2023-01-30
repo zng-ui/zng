@@ -1912,12 +1912,14 @@ impl FrameUpdate {
 
         ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
         self.outer_offset = mem::take(&mut self.child_offset);
+        self.inner_transform = Some(PxTransform::identity());
         let parent_id = self.widget_id;
         self.widget_id = ctx.path.widget_id();
 
         render_update(ctx, self);
 
         self.outer_offset = PxVector::zero();
+        self.inner_transform = None;
         self.widget_id = parent_id;
         self.can_reuse_widget = parent_can_reuse;
         self.widget_bounds = parent_bounds;
