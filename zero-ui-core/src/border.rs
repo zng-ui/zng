@@ -6,7 +6,7 @@ use crate::{
     color::*,
     context::{LayoutContext, LayoutMetrics, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
     context_local, property,
-    render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValue, SpatialFrameId},
+    render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValueKey},
     ui_node, ui_vec,
     units::*,
     var::{impl_from_and_into_var, *},
@@ -722,7 +722,8 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
         clip_corners: PxCornerRadius,
 
         offset: PxVector,
-        offset_id: SpatialFrameId,
+        offset_key: FrameValueKey<PxTransform>,
+        define_ref_frame: bool,
     })]
     impl UiNode for FillNodeNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -757,7 +758,11 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             let align = BORDER_ALIGN_VAR.get();
 
             let our_offsets = offsets * align;
-            self.offset = PxVector::new(our_offsets.left, our_offsets.top);
+            let offset = PxVector::new(our_offsets.left, our_offsets.top);
+            if self.offset != offset {
+                self.offset = offset;
+                ctx.updates.render_update();
+            }
 
             let size_offset = offsets - our_offsets;
             let size_increase = PxSize::new(size_offset.horizontal(), size_offset.vertical());
@@ -769,7 +774,15 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 self.clip_corners = corners;
                 ctx.updates.render();
             }
-            ctx.with_constrains(|_| PxConstrains2d::new_exact_size(fill_bounds), |ctx| self.child.layout(ctx, wl));
+
+            let (_, define_ref_frame) = ctx.with_constrains(
+                |_| PxConstrains2d::new_exact_size(fill_bounds),
+                |ctx| wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl)),
+            );
+            if self.define_ref_frame != define_ref_frame {
+                self.define_ref_frame = define_ref_frame;
+                ctx.updates.render();
+            }
 
             fill_bounds
         }
@@ -795,16 +808,31 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 );
             };
 
-            // !!: TODO, use the future optimization of panels to potentially avoid creating a new reference_frame for full wgt child.
-            frame.push_reference_frame(self.offset_id.into(), FrameValue::Value(self.offset.into()), true, false, |frame| {
-                render_clipped(frame);
-            });
+            if self.define_ref_frame {
+                frame.push_reference_frame(
+                    self.offset_key.into(),
+                    self.offset_key.bind(self.offset.into(), false),
+                    true,
+                    false,
+                    |frame| {
+                        render_clipped(frame);
+                    },
+                );
+            } else {
+                todo!("!!: ")
+            }
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.with_transform_value(&self.offset.into(), |update| {
-                self.child.render_update(ctx, update);
-            })
+            if self.define_ref_frame {
+                update.with_transform(self.offset_key.update(self.offset.into(), false), false, |update| {
+                    self.child.render_update(ctx, update);
+                })
+            } else {
+                update.with_transform_value(&self.offset.into(), |update| {
+                    self.child.render_update(ctx, update);
+                })
+            }
         }
     }
 
@@ -813,7 +841,8 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
         clip_bounds: PxSize::zero(),
         clip_corners: PxCornerRadius::zero(),
         offset: PxVector::zero(),
-        offset_id: SpatialFrameId::new_unique(),
+        offset_key: FrameValueKey::new_unique(),
+        define_ref_frame: false,
     }
     .cfg_boxed()
 }

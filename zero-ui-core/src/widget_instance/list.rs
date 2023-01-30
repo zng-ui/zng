@@ -1369,7 +1369,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
 /// but it can be any type that implements [`PanelListData`].
 ///
 /// [`z_index`]: fn@z_index
-pub struct PanelList<D>
+pub struct PanelList<D = DefaultPanelListData>
 where
     D: PanelListData,
 {
@@ -1678,14 +1678,34 @@ where
         self.for_each(|i, child, data| {
             let offset = data.child_offset();
             if data.define_reference_frame() {
-                update.update_transform(self.offset_key.update_child(i as u32, offset.into(), false), true);
+                update.with_transform(self.offset_key.update_child(i as u32, offset.into(), false), true, |update| {
+                    child.render_update(ctx, update);
+                });
+            } else {
+                update.with_transform_value(&offset.into(), |update| {
+                    child.render_update(ctx, update);
+                });
             }
-            update.with_transform_value(&offset.into(), |update| {
-                child.render_update(ctx, update);
-            });
-
             true
         });
+    }
+}
+
+/// Default [`PanelList`] associated data.
+#[derive(Clone, Debug, Default)]
+pub struct DefaultPanelListData {
+    /// Child offset to be used in the default `render_all` and `render_update_all` implementations.
+    pub child_offset: PxVector,
+    /// If a new reference frame should be created for the item during render.
+    pub define_reference_frame: bool,
+}
+impl PanelListData for DefaultPanelListData {
+    fn child_offset(&self) -> PxVector {
+        self.child_offset
+    }
+
+    fn define_reference_frame(&self) -> bool {
+        self.define_reference_frame
     }
 }
 

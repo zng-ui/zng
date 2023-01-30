@@ -1300,7 +1300,7 @@ impl GridNode {
         let columns = children.next().unwrap();
         let rows = children.next().unwrap();
         let cells = children.next().unwrap();
-        let cells: &mut PanelList<PxVector> = cells.as_any_mut().downcast_mut().unwrap();
+        let cells: &mut PanelList = cells.as_any_mut().downcast_mut().unwrap();
 
         // layout columns
         columns.for_each_mut(|ci, col| {
@@ -1346,8 +1346,12 @@ impl GridNode {
                 return true;
             }
 
-            ctx.with_constrains(|c| c.with_exact_size(cell_size), |ctx| cell.layout(ctx, wl));
-            *o = cell_offset;
+            let (_, define_ref_frame) = ctx.with_constrains(
+                |c| c.with_exact_size(cell_size),
+                |ctx| wl.with_child(ctx, |ctx, wl| cell.layout(ctx, wl)),
+            );
+            o.child_offset = cell_offset;
+            o.define_reference_frame = define_ref_frame;
 
             true
         });
@@ -1358,7 +1362,7 @@ impl GridNode {
     #[UiNode]
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         let info = self.info.lock();
-        let cells: &PanelList<PxVector> = self.children[2].as_any().downcast_ref().unwrap();
+        let cells: &PanelList = self.children[2].as_any().downcast_ref().unwrap();
         let offset_key = cells.offset_key();
 
         self.children[0].for_each(|i, child| {
@@ -1389,16 +1393,20 @@ impl GridNode {
             true
         });
         let i_extra = i_extra + self.children[1].len();
-        cells.for_each_z_sorted(|i, child, &offset| {
-            frame.push_reference_frame(
-                (offset_key, (i + i_extra) as u32).into(),
-                FrameValue::Value(offset.into()),
-                true,
-                true,
-                |frame| {
-                    child.render(ctx, frame);
-                },
-            );
+        cells.for_each_z_sorted(|i, child, data| {
+            if data.define_reference_frame {
+                frame.push_reference_frame(
+                    (offset_key, (i + i_extra) as u32).into(),
+                    FrameValue::Value(data.child_offset.into()),
+                    true,
+                    true,
+                    |frame| {
+                        child.render(ctx, frame);
+                    },
+                );
+            } else {
+                todo!("!!:")
+            }
             true
         });
     }
@@ -1406,7 +1414,7 @@ impl GridNode {
     #[UiNode]
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         let info = self.info.lock();
-        let cells: &PanelList<PxVector> = self.children[2].as_any().downcast_ref().unwrap();
+        let cells: &PanelList = self.children[2].as_any().downcast_ref().unwrap();
 
         self.children[0].for_each(|i, child| {
             let offset = PxVector::new(info.columns[i].x, Px(0));
@@ -1422,10 +1430,15 @@ impl GridNode {
             });
             true
         });
-        cells.for_each(|_, child, &offset| {
-            update.with_transform_value(&offset.into(), |update| {
-                child.render_update(ctx, update);
-            });
+        cells.for_each(|_, child, data| {
+            if data.define_reference_frame {
+                update.with_transform_value(&data.child_offset.into(), |update| {
+                    child.render_update(ctx, update);
+                });
+            } else {
+                todo!("!!: ")
+            }
+
             true
         })
     }

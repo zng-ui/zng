@@ -82,7 +82,7 @@ pub mod wrap {
 }
 
 #[ui_node(struct WrapNode {
-    children: PanelList<PxVector>,
+    children: PanelList,
     #[var] spacing: impl Var<GridSpacing>,
     #[var] children_align: impl Var<Align>,
     layout: Mutex<InlineLayout>
@@ -131,7 +131,7 @@ impl InlineLayout {
         &mut self,
         ctx: &mut MeasureContext,
         wm: &mut WidgetMeasure,
-        children: &PanelList<PxVector>,
+        children: &PanelList,
         child_align: Align,
         spacing: PxGridSpacing,
     ) -> PxSize {
@@ -159,7 +159,7 @@ impl InlineLayout {
         &mut self,
         ctx: &mut LayoutContext,
         wl: &mut WidgetLayout,
-        children: &mut PanelList<PxVector>,
+        children: &mut PanelList,
         child_align: Align,
         spacing: PxGridSpacing,
     ) -> PxSize {
@@ -277,8 +277,11 @@ impl InlineLayout {
                             child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
                             child_last.origin.y += spacing.row;
 
-                            ctx.with_inline(child_first, child_mid, child_last, |ctx| child.layout(ctx, wl));
-                            *o = PxVector::new(Px(0), row.origin.y);
+                            let (_, define_ref_frame) = ctx.with_inline(child_first, child_mid, child_last, |ctx| {
+                                wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))
+                            });
+                            o.child_offset = PxVector::new(Px(0), row.origin.y);
+                            o.define_reference_frame = define_ref_frame;
 
                             // new row
                             if let Some(inline) = wl.inline() {
@@ -309,28 +312,33 @@ impl InlineLayout {
                             }
                             offset.y = (row.size.height - child_inline.first.height) * child_align_y;
 
-                            ctx.with_constrains(
+                            let (_, define_ref_frame) = ctx.with_constrains(
                                 |_| child_constrains.with_fill(false, false).with_max_size(child_inline.first),
                                 |ctx| {
-                                    ctx.with_inline(child_first, child_mid, child_last, |ctx| child.layout(ctx, wl));
+                                    ctx.with_inline(child_first, child_mid, child_last, |ctx| {
+                                        wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))
+                                    })
                                 },
                             );
-                            *o = row.origin.to_vector() + offset;
+                            o.child_offset = row.origin.to_vector() + offset;
+                            o.define_reference_frame = define_ref_frame;
 
                             row_advance += child_last.size.width + spacing.column;
                         }
                     } else {
                         // inline block
-                        let size = ctx.with_constrains(
+                        let (size, define_ref_frame) = ctx.with_constrains(
                             |_| {
                                 child_constrains
                                     .with_fill(false, false)
                                     .with_max(row.size.width - row_advance, row.size.height)
                             },
-                            |ctx| ctx.with_inline_constrains(|_| None, |ctx| child.layout(ctx, wl)),
+                            |ctx| ctx.with_inline_constrains(|_| None, |ctx| wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))),
                         );
                         if size.is_empty() {
                             // collapsed, continue.
+                            o.child_offset = PxVector::zero();
+                            o.define_reference_frame = false;
                             return true;
                         }
 
@@ -339,7 +347,8 @@ impl InlineLayout {
                             offset.x = row.size.width - size.width - offset.x;
                         }
                         offset.y = (row.size.height - size.height) * child_align_y;
-                        *o = row.origin.to_vector() + offset;
+                        o.child_offset = row.origin.to_vector() + offset;
+                        o.define_reference_frame = define_ref_frame;
                         row_advance += size.width + spacing.column;
                     }
 
@@ -356,7 +365,7 @@ impl InlineLayout {
         constrains.clamp_size(PxSize::new(panel_width, panel_height))
     }
 
-    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &PanelList<PxVector>, child_align: Align, spacing: PxGridSpacing) {
+    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &PanelList, child_align: Align, spacing: PxGridSpacing) {
         self.rows.clear();
         self.first_wrapped = false;
         self.desired_size = PxSize::zero();

@@ -114,7 +114,7 @@ pub mod stack {
 }
 
 #[ui_node(struct StackNode {
-    children: PanelList<PxVector>,
+    children: PanelList,
 
     #[var] direction: impl Var<StackDirection>,
     #[var] spacing: impl Var<Length>,
@@ -204,13 +204,17 @@ impl StackNode {
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
                 self.children.for_each_mut(|_, c, o| {
-                    let size = c.layout(ctx, wl);
+                    let (size, define_ref_frame) = wl.with_child(ctx, |ctx, wl| c.layout(ctx, wl));
+
                     if size.is_empty() {
+                        o.child_offset = PxVector::zero();
+                        o.define_reference_frame = false;
                         return true; // continue, skip collapsed
                     }
 
                     let offset = direction.layout(ctx, item_rect, size) + child_spacing;
-                    *o = offset;
+                    o.child_offset = offset;
+                    o.define_reference_frame = define_ref_frame;
 
                     item_rect.origin = offset.to_point();
                     item_rect.size = size;
@@ -241,10 +245,10 @@ impl StackNode {
                 .unwrap_or_default();
 
             let child_offset = (items_size - size).to_vector() * child_align;
-            *o += children_offset + child_offset;
+            o.child_offset += children_offset + child_offset;
 
             if align_baseline {
-                o.y += baseline;
+                o.child_offset.y += baseline;
             }
 
             true

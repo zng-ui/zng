@@ -1223,7 +1223,7 @@ pub fn child_insert(
         children: impl UiNodeList,
         #[var] place: impl Var<ChildInsertPlace>,
         #[var] spacing: impl Var<Length>,
-        offset_id: SpatialFrameId,
+        offset_key: FrameValueKey<PxTransform>,
         offset_child: u8,
         offset: PxVector,
     })]
@@ -1344,7 +1344,7 @@ pub fn child_insert(
                     if self.offset != offset || self.offset_child != child {
                         self.offset_child = child;
                         self.offset = offset;
-                        ctx.updates.render();
+                        ctx.updates.render_update();
                     }
 
                     PxSize::new(
@@ -1411,7 +1411,7 @@ pub fn child_insert(
                     if self.offset != offset || self.offset_child != child {
                         self.offset_child = child;
                         self.offset = offset;
-                        ctx.updates.render();
+                        ctx.updates.render_update();
                     }
 
                     PxSize::new(
@@ -1427,10 +1427,16 @@ pub fn child_insert(
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.children.for_each(|i, child| {
-                if i as u8 == self.offset_child && self.offset != PxVector::zero() {
-                    frame.push_reference_frame(self.offset_id.into(), FrameValue::Value(self.offset.into()), true, true, |frame| {
-                        child.render(ctx, frame);
-                    });
+                if i as u8 == self.offset_child {
+                    frame.push_reference_frame(
+                        self.offset_key.into(),
+                        self.offset_key.bind(self.offset.into(), false),
+                        true,
+                        true,
+                        |frame| {
+                            child.render(ctx, frame);
+                        },
+                    );
                 } else {
                     child.render(ctx, frame);
                 }
@@ -1441,7 +1447,7 @@ pub fn child_insert(
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             self.children.for_each(|i, child| {
                 if i as u8 == self.offset_child {
-                    update.with_transform_value(&self.offset.into(), |update| {
+                    update.with_transform(self.offset_key.update(self.offset.into(), false), true, |update| {
                         child.render_update(ctx, update);
                     });
                 } else {
@@ -1455,7 +1461,7 @@ pub fn child_insert(
         children: ui_vec![child, insert],
         place: place.into_var(),
         spacing: spacing.into_var(),
-        offset_id: SpatialFrameId::new_unique(),
+        offset_key: FrameValueKey::new_unique(),
         offset_child: 0,
         offset: PxVector::zero(),
     }
