@@ -406,6 +406,9 @@ impl FrameBuilder {
 
         let prev_outer = ctx.widget_info.bounds.outer_transform();
         let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
+        if prev_outer != outer_transform {
+            *reuse = None;
+        }
         ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
         let outer_bounds = ctx.widget_info.bounds.outer_bounds();
 

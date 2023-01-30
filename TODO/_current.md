@@ -1,16 +1,9 @@
 # Remove Layout
 
-* Button example removing added button does not update offsets of other buttons until a full render?
-* Focus example need to press `Alt` twice to focus menu. 
-* Gradient example does not center on window resize.
-    - Other examples too, like hit_test.
-* Layer example rotated button not aligned.
-    - Same for the transform example.
-* Markdown example, checkmarks no padding.
-
 * Review examples.
 * Run all tests + doc.
 * Merge.
+* Focus example need to press `Alt` twice to focus menu. 
 
 # Other
 
