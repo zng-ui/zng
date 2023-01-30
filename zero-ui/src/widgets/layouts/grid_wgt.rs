@@ -1405,7 +1405,7 @@ impl GridNode {
                     },
                 );
             } else {
-                frame.push_child(&data.child_offset.into(), |frame| child.render(ctx, frame));
+                frame.push_child(data.child_offset, |frame| child.render(ctx, frame));
             }
             true
         });
@@ -1436,7 +1436,7 @@ impl GridNode {
                     child.render_update(ctx, update);
                 });
             } else {
-                update.with_child(&data.child_offset.into(), |update| {
+                update.with_child(data.child_offset, |update| {
                     child.render_update(ctx, update);
                 })
             }

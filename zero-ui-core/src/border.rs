@@ -819,7 +819,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                     },
                 );
             } else {
-                frame.push_child(&self.offset.into(), |frame| render_clipped(frame))
+                frame.push_child(self.offset, |frame| render_clipped(frame))
             }
         }
 
@@ -829,7 +829,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                     self.child.render_update(ctx, update);
                 })
             } else {
-                update.with_child(&self.offset.into(), |update| {
+                update.with_child(self.offset, |update| {
                     self.child.render_update(ctx, update);
                 })
             }

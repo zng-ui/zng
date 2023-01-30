@@ -1672,7 +1672,7 @@ where
                     },
                 );
             } else {
-                frame.push_child(&offset.into(), |frame| {
+                frame.push_child(offset, |frame| {
                     child.render(ctx, frame);
                 });
             }
@@ -1689,7 +1689,7 @@ where
                     child.render_update(ctx, update);
                 });
             } else {
-                update.with_child(&offset.into(), |update| {
+                update.with_child(offset, |update| {
                     child.render_update(ctx, update);
                 });
             }
