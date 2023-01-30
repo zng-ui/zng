@@ -151,6 +151,7 @@ pub struct FrameBuilder {
 
     auto_hide_rect: PxRect,
     widget_data: Option<WidgetData>,
+    child_transform: Option<PxTransform>,
     parent_inner_bounds: Option<PxRect>,
 
     can_reuse: bool,
@@ -226,6 +227,7 @@ impl FrameBuilder {
                 has_transform: false,
                 transform: PxTransform::identity(),
             }),
+            child_transform: None,
             parent_inner_bounds: None,
             can_reuse: true,
             open_reuse: None,
@@ -401,7 +403,11 @@ impl FrameBuilder {
         }
 
         let prev_outer = ctx.widget_info.bounds.outer_transform();
-        let outer_transform = PxTransform::from(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
+        let outer_transform = if let Some(t) = &self.child_transform {
+            t.then(&self.transform)
+        } else {
+            self.transform
+        };
         ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
         let outer_bounds = ctx.widget_info.bounds.outer_bounds();
 
@@ -457,6 +463,8 @@ impl FrameBuilder {
         let mut reused = true;
         let display_count = self.display_list.len();
 
+        let child_transform = self.child_transform.take();
+
         // try to reuse, or calls the closure and saves the reuse range.
         self.push_reuse(reuse, |frame| {
             // did not reuse, render widget.
@@ -464,10 +472,18 @@ impl FrameBuilder {
             reused = false;
             undo_prev_outer_transform = None;
 
-            frame.widget_data = Some(WidgetData {
-                filter: vec![],
-                has_transform: false,
-                transform: PxTransform::identity(),
+            frame.widget_data = Some(if let Some(t) = child_transform {
+                WidgetData {
+                    filter: vec![],
+                    has_transform: true,
+                    transform: t,
+                }
+            } else {
+                WidgetData {
+                    filter: vec![],
+                    has_transform: false,
+                    transform: PxTransform::identity(),
+                }
             });
             let parent_widget = mem::replace(&mut frame.widget_id, ctx.path.widget_id());
 
@@ -715,6 +731,26 @@ impl FrameBuilder {
         }
     }
 
+    /// Pre-starts the scope of an widget with `transform` set for the inner reference frame. The
+    /// `render` closure must call [`push_widget`] before attempting to render.
+    ///
+    /// Nodes that use [`WidgetLayout::with_child`] to optimize reference frames must use this method when
+    /// a reference frame was not created during render.
+    ///
+    /// Nodes that use this must also use [`FrameUpdate::with_child`].
+    ///
+    /// [`push_widget`]: Self::push_widget
+    /// [`WidgetLayout::with_child`]: crate::widget_info::WidgetLayout::with_child
+    pub fn push_child(&mut self, transform: &PxTransform, render: impl FnOnce(&mut Self)) {
+        if self.widget_data.is_some() {
+            tracing::error!("called `push_child` outside inner context of `{}`", self.widget_id);
+        }
+
+        self.child_transform = Some(*transform);
+        render(self);
+        self.child_transform = None;
+    }
+
     /// Include the `transform` on the widget inner reference frame.
     ///
     /// This is valid only when [`is_outer`].
@@ -759,7 +795,7 @@ impl FrameBuilder {
             let parent_transform = self.transform;
             let parent_hit_clips = mem::take(&mut self.hit_clips);
 
-            let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
+            let translate = ctx.widget_info.bounds.inner_offset();
             let inner_transform = if data.has_transform {
                 data.transform.then_translate(translate.cast())
             } else {
@@ -1601,6 +1637,7 @@ pub struct FrameUpdate {
     widget_id: WidgetId,
     transform: PxTransform,
     inner_transform: Option<PxTransform>,
+    child_transform: Option<PxTransform>,
     can_reuse_widget: bool,
     widget_bounds: WidgetBoundsInfo,
     parent_inner_bounds: Option<PxRect>,
@@ -1657,6 +1694,7 @@ impl FrameUpdate {
 
             transform: PxTransform::identity(),
             inner_transform: Some(PxTransform::identity()),
+            child_transform: None,
             can_reuse_widget: true,
 
             auto_hit_test: false,
@@ -1774,6 +1812,15 @@ impl FrameUpdate {
         }
     }
 
+    /// Calls `render_update` with a transform `value` that affects the first inner child inner bounds.
+    ///
+    /// Nodes that used [`FrameBuilder::push_child`] during render must use this method to update the value.
+    pub fn with_child(&mut self, value: &PxTransform, render_update: impl FnOnce(&mut Self)) {
+        self.child_transform = Some(*value);
+        render_update(self);
+        self.child_transform = None;
+    }
+
     /// Calls `render_update` while the [`transform`] is updated to include the `value` space.
     ///
     /// This is useful for cases where the inner transforms are affected by a `value` that is only rendered, never updated.
@@ -1841,7 +1888,11 @@ impl FrameUpdate {
             );
         }
 
-        let outer_transform = PxTransform::from(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
+        let outer_transform = if let Some(t) = &self.child_transform {
+            t.then(&self.transform)
+        } else {
+            self.transform
+        };
 
         let parent_can_reuse = self.can_reuse_widget;
         let parent_bounds = mem::replace(&mut self.widget_bounds, ctx.widget_info.bounds.clone());
@@ -1876,7 +1927,7 @@ impl FrameUpdate {
         }
 
         ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
-        self.inner_transform = Some(PxTransform::identity());
+        self.inner_transform = Some(self.child_transform.take().unwrap_or_else(PxTransform::identity));
         let parent_id = self.widget_id;
         self.widget_id = ctx.path.widget_id();
 
@@ -1912,7 +1963,7 @@ impl FrameUpdate {
         render_update: impl FnOnce(&mut RenderContext, &mut Self),
     ) {
         if let Some(inner_transform) = self.inner_transform.take() {
-            let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
+            let translate = ctx.widget_info.bounds.inner_offset();
             let inner_transform = inner_transform.then_translate(translate.cast());
             self.update_transform(layout_translation_key.update(inner_transform, layout_translation_animating), false);
             let parent_transform = self.transform;

@@ -105,13 +105,15 @@ pub mod nodes {
                 size
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
                 if self.define_ref_frame {
-                    let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
                     frame.push_reference_frame(self.key.into(), self.key.bind(transform, true), true, false, |frame| {
                         self.child.render(ctx, frame)
                     });
                 } else {
-                    todo!("!!: push_inner_transform?");
+                    frame.push_child(&transform, |frame| {
+                        self.child.render(ctx, frame);
+                    });
                 }
             }
 
@@ -122,7 +124,7 @@ pub mod nodes {
                         self.child.render_update(ctx, update)
                     });
                 } else {
-                    update.with_transform_value(&transform, |update| self.child.render_update(ctx, update))
+                    update.with_child(&transform, |update| self.child.render_update(ctx, update))
                 }
             }
         }

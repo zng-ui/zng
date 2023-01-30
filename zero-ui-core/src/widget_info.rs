@@ -402,11 +402,6 @@ impl WidgetBoundsInfo {
         me
     }
 
-    /// Gets the widget's outer bounds offset inside the parent widget.
-    pub fn outer_offset(&self) -> PxVector {
-        PxVector::zero()
-    }
-
     /// Gets the widget's last measured outer bounds size.
     ///
     /// This size is expected to be the same if the widget is layout using the same exact parameters it was measured.

@@ -118,7 +118,7 @@ pub mod grid {
             children: vec![
                 vec![columns.boxed(), auto_columns.boxed()].boxed(),
                 vec![rows.boxed(), auto_rows.boxed()].boxed(),
-                PanelList::<PxVector>::new(cells).boxed(),
+                PanelList::new(cells).boxed(),
             ],
             spacing: spacing.into_var(),
             auto_grow_gen: auto_grow_gen.into_var(),
@@ -1405,7 +1405,7 @@ impl GridNode {
                     },
                 );
             } else {
-                todo!("!!:")
+                frame.push_child(&data.child_offset.into(), |frame| child.render(ctx, frame));
             }
             true
         });
@@ -1436,7 +1436,9 @@ impl GridNode {
                     child.render_update(ctx, update);
                 });
             } else {
-                todo!("!!: ")
+                update.with_child(&data.child_offset.into(), |update| {
+                    child.render_update(ctx, update);
+                })
             }
 
             true

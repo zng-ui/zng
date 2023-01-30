@@ -1,18 +1,16 @@
 # Remove Layout
 
-Remove widget outer offset, parents always implement transform using the child offset.
+* Button example removing added button does not update offsets of other buttons until a full render?
+* Focus example need to press `Alt` twice to focus menu. 
+* Gradient example does not center on window resize.
+    - Other examples too, like hit_test.
+* Layer example rotated button not aligned.
+    - Same for the transform example.
+* Markdown example, checkmarks no padding.
 
-* Implement `!define_reference_frame`.
-    - [x] Layout pass detect if has single child.
-    - [ ] Render allow pushing transform for next inner widget.
-    - [ ] More efficient data storage?
-        - `(PxVector, bool)` is 12 bytes.
-        - Maybe `define_reference_frame` can be a single flag for the entire list, 
-          in our current usage all items are full widgets or none are.
-
-* Remove outer offset from `WidgetBoundsInfo`.
-* Finish `!!:` TODOs.
 * Review examples.
+* Run all tests + doc.
+* Merge.
 
 # Other
 
