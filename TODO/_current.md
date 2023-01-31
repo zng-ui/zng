@@ -1,7 +1,3 @@
-* Focus example need to press `Alt` twice to focus menu. 
-
-# Other
-
 * Implement `switch_style!` for toggle.
 
 * Review bidi text across inlined widgets.
