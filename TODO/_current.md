@@ -1,8 +1,3 @@
-# Remove Layout
-
-* Review examples.
-* Run all tests + doc.
-* Merge.
 * Focus example need to press `Alt` twice to focus menu. 
 
 # Other
