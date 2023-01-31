@@ -907,6 +907,12 @@ impl App {
                     t.id,
                 ));
             }
+            WindowEvent::TouchpadMagnify { .. } => {
+                // TODO
+            }
+            WindowEvent::TouchpadRotate { .. } => {
+                // TODO
+            }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 let monitor;
                 let mut is_monitor_change = false;
