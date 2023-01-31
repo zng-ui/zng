@@ -442,7 +442,7 @@ impl Window {
         } else {
             winit::window::WindowLevel::Normal
         });
-        self.is_always_on_top = true;
+        self.is_always_on_top = always_on_top;
     }
 
     pub fn set_movable(&mut self, movable: bool) {
