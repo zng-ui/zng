@@ -133,8 +133,12 @@ impl Align {
 
     /// Constrains that must be used to layout a child node with the alignment.
     pub fn child_constrains(self, parent_constrains: PxConstrains2d) -> PxConstrains2d {
+        // FILL is the *default* property value, so it must behave the same way as if the alignment was not applied.
         parent_constrains
-            .with_new_min(Px(0), Px(0))
+            .with_new_min(
+                if self.is_fill_x() { parent_constrains.x.min() } else { Px(0) },
+                if self.is_fill_y() { parent_constrains.y.min() } else { Px(0) },
+            )
             .with_fill_and(self.is_fill_x(), self.is_fill_y())
     }
 

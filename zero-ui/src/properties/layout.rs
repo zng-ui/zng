@@ -769,7 +769,11 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// Exact size of the widget.
 ///
 /// When set the widget is layout with exact size constrains, clamped by the contextual min/max.
-/// Relative values are computed from the constrains maximum bounded size.
+/// Note that this means nested exact sized widgets will have the size of the parent, the exact size constrains
+/// set by the parent clamp the requested size on the child, you can use the [`align`] property on the child to
+/// loosen the minimum size constrain, the parent's size will still be enforced as the maximum size.
+///
+/// Relative size values are computed from the constrains maximum bounded size.
 ///
 /// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_INFO_ID`].
 ///
@@ -796,6 +800,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// [`max_size`]: fn@max_size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
+/// [`align`]: fn@align
 #[property(SIZE)]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     #[ui_node(struct SizeNode {

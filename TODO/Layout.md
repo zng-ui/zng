@@ -6,12 +6,6 @@
 * Implement fill/justify in `wrap!`.
   - Panel can also add spacing? Maybe maximum row height of spacing, if it helps complete the row.
 
-## Min Constrains Reset
-
-* Review PxConstrains::min in every panel, should be zero?
-  - Can't be the min of the parent right?
-* What about widget child?
-
 ## Direction
 
 * Expand `LayoutDirection` to support vertical text, and to control the direction *rows* are added.
