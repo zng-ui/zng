@@ -874,11 +874,11 @@ pub mod vis {
         }
 
         context_var! {
-            /// Spacing between the checkmark and content.
+            /// Spacing between the checkmark and the content.
             pub static SPACING_VAR: Length = 2;
         }
 
-        /// Spacing between the checkmark and content.
+        /// Spacing between the checkmark and the content.
         #[property(CONTEXT, default(SPACING_VAR))]
         pub fn spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
             with_context_var(child, SPACING_VAR, spacing)
@@ -894,12 +894,68 @@ pub mod vis {
                 txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
                 background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
                 corner_radius = 0.1.em();
-                when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
+                when *#toggle::is_checked {
                     txt_color = text::TEXT_COLOR_VAR;
                 }
                 when #{toggle::IS_CHECKED_VAR}.is_none() {
                     txt = "━";
                 }
+                when *#{parent_hovered} {
+                    background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+                }
+            }
+        }
+    }
+
+    /// Switch toggle style.
+    ///
+    /// Style a [`toggle!`] widget to look like a *switch*.
+    ///
+    /// [`toggle!`]: mod@crate::widgets::toggle
+    #[widget($crate::widgets::toggle::vis::switch_style)]
+    pub mod switch_style {
+        use super::*;
+        use crate::widgets::text;
+
+        inherit!(style);
+
+        properties! {
+            /// Inserts the switch.
+            pub crate::properties::child_insert_start = {
+                insert: {
+                    let parent_hovered = var(false);
+                    is_hovered(switch_visual(parent_hovered.clone()), parent_hovered)
+                },
+                spacing: SPACING_VAR,
+            };
+        }
+
+        context_var! {
+            /// Spacing between the switch and the content.
+            pub static SPACING_VAR: Length = 2;
+        }
+
+        /// Spacing between the switch and the content.
+        #[property(CONTEXT, default(SPACING_VAR))]
+        pub fn spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+            with_context_var(child, SPACING_VAR, spacing)
+        }
+
+        fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
+            crate::widgets::container! {
+                size = (2.em(), 1.em());
+                align = Align::CENTER;
+                corner_radius = 1.em();
+                padding = 4;
+                background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+                child = crate::widgets::wgt! {
+                    size = 1.em() - Length::from(8);
+                    align = Align::LEFT; // !!: TODO, remove this
+                    background_color = text::TEXT_COLOR_VAR;
+                    when *#toggle::is_checked {
+                        x = Length::from(100.pct()) - (1.em() - Length::from(8));
+                    }
+                };
                 when *#{parent_hovered} {
                     background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
                 }
@@ -931,11 +987,11 @@ pub mod vis {
         }
 
         context_var! {
-            /// Spacing between the radio and content.
+            /// Spacing between the radio and the content.
             pub static SPACING_VAR: Length = 2;
         }
 
-        /// Spacing between the radio and content.
+        /// Spacing between the radio and the content.
         #[property(CONTEXT, default(SPACING_VAR))]
         pub fn spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
             with_context_var(child, SPACING_VAR, spacing)

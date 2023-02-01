@@ -137,6 +137,11 @@ fn toggle_buttons() -> impl UiNode {
                 tristate = true;
             },
             toggle! {
+                child = text!("Switch");
+                checked = var(false);
+                style_gen = style_gen!(|_, _| toggle::vis::switch_style!());
+            },
+            toggle! {
                 child = text!("Checkbox");
                 checked = var(false);
                 style_gen = style_gen!(|_, _| toggle::vis::check_style!());
