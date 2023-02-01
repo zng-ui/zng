@@ -593,6 +593,7 @@ pub fn default_list_item_bullet_gen(args: ListItemBulletGenArgs) -> impl UiNode 
 
     if let Some(checked) = args.checked {
         text! {
+            align = Align::TOP;
             txt = " ✓ ";
             txt_color = TEXT_COLOR_VAR.map(move |c| if checked { *c } else { c.transparent() });
             background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
@@ -610,18 +611,21 @@ pub fn default_list_item_bullet_gen(args: ListItemBulletGenArgs) -> impl UiNode 
     } else {
         match args.depth {
             0 => wgt! {
+                align = Align::TOP;
                 size = (5, 5);
                 corner_radius = 5;
                 margin = (0.6.em(), 0.5.em(), 0, 0);
                 background_color = TEXT_COLOR_VAR;
             },
             1 => wgt! {
+                align = Align::TOP;
                 size = (5, 5);
                 corner_radius = 5;
                 margin = (0.6.em(), 0.5.em(), 0, 0);
                 border = 1.px(), TEXT_COLOR_VAR.map_into();
             },
             _ => wgt! {
+                align = Align::TOP;
                 size = (5, 5);
                 margin = (0.6.em(), 0.5.em(), 0, 0);
                 background_color = TEXT_COLOR_VAR;

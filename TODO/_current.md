@@ -1,5 +1,15 @@
 * Fix nested exact sized widgets.
   - `container! { size = 200; child = wgt! { size = 50; }; }`
+  - Worst part is that the `fill_node` uses the exact size so it loops correct until the widget actual
+    size is required, like in a stack.
+  - Changed size properties to be constrained.
+    - Flutter is like this, CSS is not.
+    - In this case the nested size is still constrained to the exact size of parent `container!`.
+      - No align forces this, but the supposed default `Align::FILL` does not.
+      - Need to change `Align::FILL` to not override min constrains or change widgets to ignore min constrains. 
+    - See Laoyout.md#Min Constrains Reset for details.
+
+
 * Implement `switch_style!` for toggle.
 
 * Bidi reorder needs to intertwine the first and last lines.

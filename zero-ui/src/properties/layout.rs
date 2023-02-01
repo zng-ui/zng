@@ -351,7 +351,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// You can use the [`min_width`](fn@min_width) and [`min_height`](fn@min_height) properties to only
 /// set the minimum size of one dimension.
-#[property(SIZE, default((0, 0)))]
+#[property(SIZE-2, default((0, 0)))]
 pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode {
     #[ui_node(struct MinSizeNode {
         child: impl UiNode,
@@ -423,7 +423,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 /// # `min_size`
 ///
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
-#[property(SIZE, default(0))]
+#[property(SIZE-2, default(0))]
 pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct MinWidthNode {
         child: impl UiNode,
@@ -497,7 +497,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 /// # `min_size`
 ///
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
-#[property(SIZE, default(0))]
+#[property(SIZE-2, default(0))]
 pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct MinHeightNode {
         child: impl UiNode,
@@ -572,7 +572,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 ///
 /// You can use the [`max_width`](fn@max_width) and [`max_height`](fn@max_height) properties to only
 /// set the maximum size of one dimension.
-#[property(SIZE)]
+#[property(SIZE-1)]
 pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode {
     #[ui_node(struct MaxSizeNode {
         child: impl UiNode,
@@ -644,7 +644,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 /// # `max_size`
 ///
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
-#[property(SIZE)]
+#[property(SIZE-1)]
 pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct MaxWidthNode {
         child: impl UiNode,
@@ -720,7 +720,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// # `max_size`
 ///
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
-#[property(SIZE)]
+#[property(SIZE-1)]
 pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct MaxHeightNode {
         child: impl UiNode,
@@ -771,8 +771,6 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// When set the widget is layout with exact size constrains, clamped by the contextual min/max.
 /// Relative values are computed from the constrains maximum bounded size.
 ///
-/// To only set a preferred size that respects the layout constrains use the [`min_size`] and [`max_size`] instead.
-///
 /// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_INFO_ID`].
 ///
 /// # Examples
@@ -798,7 +796,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// [`max_size`]: fn@max_size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
-#[property(SIZE+1)]
+#[property(SIZE)]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     #[ui_node(struct SizeNode {
         child: impl UiNode,
@@ -824,18 +822,22 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
             );
+            let size = ctx.constrains().clamp_size(size);
             ctx.with_inline_constrains(
                 wm,
                 |_| None,
                 |ctx, wm| ctx.with_constrains(|_| PxConstrains2d::new_exact_size(size), |ctx| self.child.measure(ctx, wm)),
-            )
+            );
+            size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.size.get().layout(ctx.metrics, |ctx| ctx.constrains().fill_size()),
             );
-            ctx.with_constrains(|_| PxConstrains2d::new_exact_size(size), |ctx| self.child.layout(ctx, wl))
+            let size = ctx.constrains().clamp_size(size);
+            ctx.with_constrains(|_| PxConstrains2d::new_exact_size(size), |ctx| self.child.layout(ctx, wl));
+            size
         }
     }
     SizeNode {
@@ -872,7 +874,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 ///
 /// [`min_width`]: fn@min_width
 /// [`max_width`]: fn@max_width
-#[property(SIZE+1)]
+#[property(SIZE)]
 pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct WidthNode {
         child: impl UiNode,
@@ -898,18 +900,24 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
             );
-            ctx.with_inline_constrains(
+            let width = ctx.constrains().x.clamp(width);
+            let mut size = ctx.with_inline_constrains(
                 wm,
                 |_| None,
                 |ctx, wm| ctx.with_constrains(|c| c.with_exact_x(width), |ctx| self.child.measure(ctx, wm)),
-            )
+            );
+            size.width = width;
+            size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let width = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.width.get().layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
             );
-            ctx.with_constrains(|c| c.with_exact_x(width), |ctx| self.child.layout(ctx, wl))
+            let width = ctx.constrains().x.clamp(width);
+            let mut size = ctx.with_constrains(|c| c.with_exact_x(width), |ctx| self.child.layout(ctx, wl));
+            size.width = width;
+            size
         }
     }
     WidthNode {
@@ -922,8 +930,6 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// When set the widget is layout with exact size constrains, clamped by the contextual min/max.
 /// Relative values are computed from the constrains maximum bounded height.
-///
-/// To only set a preferred height that respects the layout constrains use the [`min_height`] and [`max_height`] instead.
 ///
 /// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_INFO_ID`] height.
 ///
@@ -948,7 +954,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// [`min_height`]: fn@min_height
 /// [`max_height`]: fn@max_height
-#[property(SIZE+1)]
+#[property(SIZE)]
 pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct HeightNode {
         child: impl UiNode,
@@ -974,18 +980,23 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
             );
-            ctx.with_inline_constrains(
+            let height = ctx.constrains().y.clamp(height);
+            let mut size = ctx.with_inline_constrains(
                 wm,
                 |_| None,
                 |ctx, wm| ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.measure(ctx, wm)),
-            )
+            );
+            size.height = height;
+            size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let height = ctx.with_constrains(
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.height.get().layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
             );
-            ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.layout(ctx, wl))
+            let mut size = ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.layout(ctx, wl));
+            size.height = height;
+            size
         }
     }
     HeightNode {

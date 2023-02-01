@@ -8,7 +8,9 @@
 
 ## Min Constrains Reset
 
-* Review PxConstrains::min in every panel, should be zero? 
+* Review PxConstrains::min in every panel, should be zero?
+  - Can't be the min of the parent right?
+* What about widget child?
 
 ## Direction
 
@@ -38,40 +40,3 @@
 * Can maybe avoid some measure passes in panels with a single child.
   - Is it worth-it? Its a single extra measure and a special behavior that can mess-up tests.
   - See what other frameworks do.
-
-## Review `WidgetLayout` Usage
-
-The layout process can get complicated, and is easy to create subtle bugs in nodes that delegate to anything other
-them a single child. Can improve the API to avoid these mistakes?
-
-Review:
-
-* How translate is targeted.
-* When `with_branch` must be used.
-* What happens if node that is not a full widget is inserted in a panel.
-* What if we don't setup the widget outer bounds as a translate target when returning from `with_widget`?
-  - Just target the child?
-
-### Weird Nodes
-
-Some nodes get inserted in panels that are not the standard widget setup, but are too useful to forbid:
-
-* `is_state(wgt!(var), var)`: Self-contained bridge from `is_state` in the parent widget context to the `wgt!` context.
-  - In a panel, the `UiNode::with_context` does not work, because `is_state` is a normal property,
-    but the widget outer-target is still found and setup for panels to transform directly.
-  - Worst, the `WidgetLayout::with_outer` does not work, even though the inner `wgt!` can be targeted if the node is just layout.
-  - Panels must render transforms for nodes that are not full widgets?
-    - Maybe there is something that can be done in the `UiNodeList` level, to just enable transforms for renders that need it.
-
-* `flood`: and other painting nodes, can be layered in a z-stack to create complex visual without polluting the info-tree using only
-  the memory needed to render it.
-  - HTML/CSS can have this problem where many elements are added just to enable a CSS visual effect, we avoid the hit, but these nodes
-    cannot be fully supported by panels, as they have no transform of their own.
-
-### Remove Widget Outer?
-
-* Now that the single child transform is defined by the parent only widgets in panels get a useful outer offset?
-* Panels will have to implement transforms for nodes that are not full widgets, this is currently a bug, so why not impl for all?
-* Outer transform can be used as a layer anchor, and the debug inspector also uses this info to highlight outer-bounds.
-  - Can still be recovered, just that it is stored in the parent.
-* Make child info a vec in bounds?
