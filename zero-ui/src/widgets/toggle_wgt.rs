@@ -887,20 +887,25 @@ pub mod vis {
         fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
             text! {
                 size = (1.2.em(), 1.2.em());
-                txt = "✓";
                 font_family = FontNames::system_ui(&lang!(und));
                 txt_align = Align::CENTER;
                 align = Align::CENTER;
-                txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
-                background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
                 corner_radius = 0.1.em();
-                when *#toggle::is_checked {
-                    txt_color = text::TEXT_COLOR_VAR;
-                }
+                
+                txt = "✓";
                 when #{toggle::IS_CHECKED_VAR}.is_none() {
                     txt = "━";
                 }
+
+                txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
+                when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
+                    txt_color = text::TEXT_COLOR_VAR;
+                }
+                
+                #[easing(150.ms())]
+                background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
                 when *#{parent_hovered} {
+                    #[easing(0.ms())]
                     background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
                 }
             }
