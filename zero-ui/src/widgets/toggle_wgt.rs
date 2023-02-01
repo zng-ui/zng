@@ -953,7 +953,7 @@ pub mod vis {
                     align = Align::LEFT; // !!: TODO, remove this
                     background_color = text::TEXT_COLOR_VAR;
                     when *#toggle::is_checked {
-                        x = Length::from(100.pct()) - (1.em() - Length::from(8));
+                        x = 1.em();
                     }
                 };
                 when *#{parent_hovered} {

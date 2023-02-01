@@ -1,3 +1,5 @@
+* Fix nested exact sized widgets.
+  - `container! { size = 200; child = wgt! { size = 50; }; }`
 * Implement `switch_style!` for toggle.
 
 * Bidi reorder needs to intertwine the first and last lines.
