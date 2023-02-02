@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, sync::Arc};
 
 use crate::prelude::new_widget::*;
 
@@ -120,7 +120,7 @@ impl UiNode for WrapNode {
 struct RowInfo {
     size: PxSize,
     first_child: usize,
-    items: Vec<WidgetInlineItem>,
+    items: Vec<Arc<Vec<WidgetInlineItem>>>,
 }
 
 #[derive(Default)]
@@ -155,7 +155,7 @@ impl InlineLayout {
             if let Some(first) = self.rows.first() {
                 inline.first = first.size;
                 inline.with_first_items(|i| {
-                    i.extend(first.items.iter().copied());
+                    i.extend(first.items.iter().flat_map(|i| i.iter().copied()));
                 });
             } else {
                 inline.first = PxSize::zero();
@@ -164,7 +164,7 @@ impl InlineLayout {
             if let Some(last) = self.rows.last() {
                 inline.last = last.size;
                 inline.with_last_items(|i| {
-                    i.extend(last.items.iter().copied());
+                    i.extend(last.items.iter().flat_map(|i| i.iter().copied()));
                 })
             } else {
                 inline.last = PxSize::zero();
@@ -443,7 +443,7 @@ impl InlineLayout {
                             row.size.width += inline.first.width;
                             row.size.height = row.size.height.max(inline.first.height);
                         }
-                        row.items.extend(inline.first_items.iter().copied());
+                        row.items.push(inline.first_items.clone());
 
                         if inline.last_wrapped {
                             // wrap by child
@@ -454,7 +454,7 @@ impl InlineLayout {
                             row.size = inline.last;
                             row.size.width += spacing.column;
                             row.first_child = i + 1;
-                            row.items.extend(inline.last_items.iter().copied());
+                            row.items.push(inline.last_items);
                         } else {
                             // child inlined, but fit in row
                             row.size.width += spacing.column;

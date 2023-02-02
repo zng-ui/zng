@@ -6,8 +6,19 @@
     filled by resorted sibling fragments.
 * The resorting algorithm it-self needs studying.
   - HTML specs recommends applying the bidi algorithm to text generated from the elements and using the result.
+    - There is no way to compute the bidi algorithm in parallel inside a single line.
+    - Wrap is done before before sorting at least, so the scope of the problem is a single row, and we already know the row width.
+      - But our current `ShapingText` already resorts as soon as it ends a line.
+      - We need to resort in the context of the full line.
+      - `ShapingText` does not mess with the logical order of segments, so the `wrap!` panel can still resort with the full context.
+      - The `ShapingText` needs to store advance/width of segments?
+        - Can't use the glyph positions to compute because they may be reordered?
+        - We already temporarily compute then in `finish_current_line_bidi`.
+        - The position of items and width needs to be in `f32` pixels too.
   - Can we implement something initially with just the `LayoutDirection` for each item?
     - This lets us implement the basic resort layout communication, the clips and debug the segment widths.
+    - But after the full class of the characters need to be retained, maybe we can store a sample char of each segment?
+    - So we need to invent a temporary algorithm, no lets do the sample char idea.
 
 # Other
 
