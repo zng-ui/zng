@@ -105,7 +105,6 @@ impl Window {
             .with_title(req.title)
             .with_resizable(req.resizable)
             .with_transparent(req.transparent)
-            .with_always_on_top(req.always_on_top)
             .with_window_icon(icon);
 
         let mut s = req.state;
@@ -272,7 +271,7 @@ impl Window {
             steal_init_focus: req.focus,
             init_focus_request: req.focus_indicator,
             visible: req.visible,
-            is_always_on_top: req.always_on_top,
+            is_always_on_top: false,
             taskbar_visible: true,
             movable: req.movable,
             pending_frames: VecDeque::new(),
@@ -287,6 +286,10 @@ impl Window {
 
         if !req.default_position && win.state.state == WindowState::Normal {
             win.set_inner_position(win.state.restore_rect.origin);
+        }
+
+        if req.always_on_top {
+            win.set_always_on_top(true);
         }
 
         // Maximized/Fullscreen Flickering Workaround Part 2
@@ -434,8 +437,12 @@ impl Window {
     }
 
     pub fn set_always_on_top(&mut self, always_on_top: bool) {
-        self.window.set_always_on_top(always_on_top);
-        self.is_always_on_top = true;
+        self.window.set_window_level(if always_on_top {
+            winit::window::WindowLevel::AlwaysOnTop
+        } else {
+            winit::window::WindowLevel::Normal
+        });
+        self.is_always_on_top = always_on_top;
     }
 
     pub fn set_movable(&mut self, movable: bool) {
@@ -855,9 +862,7 @@ impl Window {
     #[cfg(windows)]
     /// Returns the preferred color scheme for the window.
     pub fn color_scheme(&self) -> ColorScheme {
-        use winit::platform::windows::WindowExtWindows;
-
-        match self.window.theme() {
+        match self.window.theme().unwrap_or(winit::window::Theme::Light) {
             winit::window::Theme::Light => ColorScheme::Light,
             winit::window::Theme::Dark => ColorScheme::Dark,
         }
