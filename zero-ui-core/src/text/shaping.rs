@@ -137,6 +137,8 @@ struct GlyphSegment {
     pub text: TextSegment,
     /// glyph exclusive end.
     pub end: usize,
+    /// Advance/width of segment.
+    pub advance: f32,
 }
 
 /// `Vec<GlyphSegment>` with helper methods.
@@ -1270,23 +1272,9 @@ impl ShapedTextBuilder {
 
                 let line_segs = seg_start..self.out.segments.0.len();
 
-                // segment advance is defined by next seg first glyph x, but the next seg may be reordered first,
-                // so we need to collect the advances before.
-                let mut seg_advance = Vec::with_capacity(line_segs.len());
-                let mut start_x = 0.0;
-                for g in &self.out.segments.0[line_segs.clone()] {
-                    let end_x = if g.end == self.out.glyphs.len() {
-                        self.origin.x
-                    } else {
-                        self.out.glyphs[g.end].point.x
-                    };
-                    seg_advance.push(end_x - start_x);
-                    start_x = end_x;
-                }
-
                 // compute visual order and offset segments.
                 let mut x = 0.0;
-                for i in text.reorder_line_to_ltr(line_segs.clone()) {
+                for i in text.reorder_line_to_ltr(line_segs) {
                     let g_range = self.out.segments.glyphs(i);
                     if g_range.iter().is_empty() {
                         continue;
@@ -1297,7 +1285,7 @@ impl ShapedTextBuilder {
                     for g in glyphs {
                         g.point.x += offset;
                     }
-                    x += seg_advance[i - line_segs.start];
+                    x += self.out.segments.0[i].advance;
                 }
             } else {
                 // entire line RTL
@@ -1339,12 +1327,14 @@ impl ShapedTextBuilder {
 
         self.text_seg_end += seg.len();
 
+        let advance = self.origin.x - self.out.segments.0.last().map(|s| s.advance).unwrap_or(0.0);
         self.out.segments.0.push(GlyphSegment {
             text: TextSegment {
                 end: self.text_seg_end,
                 ..info
             },
             end: self.out.glyphs.len(),
+            advance,
         });
     }
 
@@ -1718,14 +1708,21 @@ impl<'a> ShapedSegment<'a> {
     fn x_width(&self) -> (Px, Px) {
         let IndexRange(start, end) = self.glyph_range();
 
-        let start_x = self.text.glyphs[start].point.x;
-        let end_x = if self.has_last_glyph() {
-            self.text.lines.width(self.line_index)
-        } else {
-            self.text.glyphs[end].point.x
+        let start_x = match self.direction() {
+            LayoutDirection::LTR => self.text.glyphs[start].point.x,
+            LayoutDirection::RTL => self.text.glyphs[start..end]
+                .iter()
+                .map(|g| g.point.x)
+                .min_by(f32::total_cmp)
+                .unwrap_or(0.0),
         };
 
-        (Px(start_x as i32), Px((end_x - start_x).abs() as i32))
+        (Px(start_x as i32), Px(self.advance() as i32))
+    }
+
+    /// Segment exact *width* in pixels.
+    pub fn advance(&self) -> f32 {
+        self.text.segments.0[self.index].advance
     }
 
     /// Bounds of the word or spaces.
