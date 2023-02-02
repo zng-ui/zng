@@ -81,7 +81,7 @@ backtrace = "0.3"
 linear-map = "1"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.42.0"
+version = "0.45.0"
 features = [
     "Win32_UI_Shell", 
     "Win32_System_Com",
@@ -94,7 +94,7 @@ features = [
 ] 
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
-wayland-client = { version = "0.29", default_features = false,  features = ["use_system_lib"] }
+wayland-client = { version = "0.30", default_features = false }
 tempfile = "3"
 # xlib is re-exported by glutin/winit
 
