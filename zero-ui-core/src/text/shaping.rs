@@ -1484,7 +1484,7 @@ impl<'a> ShapedLine<'a> {
     ///
     /// Returns and iterator of start point + width for each word.
     pub fn underline_skip_spaces(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
-        MergingLineIter::new(self.parts().filter(|s| s.is_word()).map(|s| s.underline()))
+        MergingLineIter::new(self.segs().filter(|s| s.is_word()).map(|s| s.underline()))
     }
 
     /// Underline, skipping spaces.
@@ -1493,7 +1493,7 @@ impl<'a> ShapedLine<'a> {
     ///
     /// Returns and iterator of start point + width for each word.
     pub fn underline_descent_skip_spaces(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
-        MergingLineIter::new(self.parts().filter(|s| s.is_word()).map(|s| s.underline_descent()))
+        MergingLineIter::new(self.segs().filter(|s| s.is_word()).map(|s| s.underline_descent()))
     }
 
     /// Underline, skipping glyph descends that intersect the underline.
@@ -1502,7 +1502,7 @@ impl<'a> ShapedLine<'a> {
     ///
     /// Returns an iterator of start point + width for continuous underline.
     pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
-        MergingLineIter::new(self.parts().flat_map(move |s| s.underline_skip_glyphs(thickness)))
+        MergingLineIter::new(self.segs().flat_map(move |s| s.underline_skip_glyphs(thickness)))
     }
 
     /// Underline, skipping spaces and glyph descends that intersect the underline
@@ -1512,7 +1512,7 @@ impl<'a> ShapedLine<'a> {
     /// Returns an iterator of start point + width for continuous underline.
     pub fn underline_skip_glyphs_and_spaces(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         MergingLineIter::new(
-            self.parts()
+            self.segs()
                 .filter(|s| s.is_word())
                 .flat_map(move |s| s.underline_skip_glyphs(thickness)),
         )
@@ -1545,7 +1545,7 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Iterate over word and space segments in this line.
-    pub fn parts(&self) -> impl Iterator<Item = ShapedSegment<'a>> {
+    pub fn segs(&self) -> impl Iterator<Item = ShapedSegment<'a>> {
         let text = self.text;
         let line_index = self.index;
         self.seg_range.iter().map(move |i| ShapedSegment {
@@ -1671,6 +1671,11 @@ impl<'a> ShapedSegment<'a> {
         self.text.segments.0[self.index].text.kind
     }
 
+    /// Layout direction of glyphs in the segment.
+    pub fn direction(&self) -> LayoutDirection {
+        self.text.segments.0[self.index].text.direction
+    }
+
     /// If the segment kind is [`Word`].
     ///
     /// [`Word`]: TextSegmentKind::Word
@@ -1720,7 +1725,7 @@ impl<'a> ShapedSegment<'a> {
             self.text.glyphs[end].point.x
         };
 
-        (Px(start_x as i32), Px((end_x - start_x) as i32))
+        (Px(start_x as i32), Px((end_x - start_x).abs() as i32))
     }
 
     /// Bounds of the word or spaces.
