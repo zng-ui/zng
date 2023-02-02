@@ -1,3 +1,5 @@
+* Fix Linux build.
+
 * Implement `switch_style!` for toggle.
 
 * Bidi reorder needs to intertwine the first and last lines.
