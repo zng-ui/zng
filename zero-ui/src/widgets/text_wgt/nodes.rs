@@ -792,8 +792,39 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
                 let size = txt.layout(ctx.metrics, t, true);
                 if let (Some(inline), Some(l)) = (wm.inline(), txt.txt.as_ref()) {
-                    inline.first = l.shaped_text.first_line().map(|l| l.rect().size).unwrap_or_default();
-                    inline.last = l.shaped_text.last_line().map(|l| l.rect().size).unwrap_or_default();
+                    if let Some(first_line) = l.shaped_text.first_line() {
+                        inline.first = first_line.rect().size;
+                        inline.with_first_items(|i| {
+                            for seg in first_line.segs() {
+                                i.push(WidgetInlineItem {
+                                    width: seg.rect().width(),
+                                    direction: seg.direction(),
+                                });
+                            }
+                        });
+                    } else {
+                        inline.first = PxSize::zero();
+                        inline.with_first_items(|i| i.clear());
+                    }
+
+                    if l.shaped_text.lines_len() == 1 {
+                        inline.last = inline.first;
+                        inline.last_items = inline.first_items.clone();
+                    } else if let Some(last_line) = l.shaped_text.last_line() {
+                        inline.last = last_line.rect().size;
+                        inline.with_last_items(|i| {
+                            for seg in last_line.segs() {
+                                i.push(WidgetInlineItem {
+                                    width: seg.rect().width(),
+                                    direction: seg.direction(),
+                                })
+                            }
+                        })
+                    } else {
+                        inline.last = PxSize::zero();
+                        inline.with_last_items(|i| i.clear());
+                    }
+
                     inline.first_wrapped = l.shaped_text.first_wrapped();
                     inline.last_wrapped = l.shaped_text.lines_len() > 1;
                     inline.first_max_fill = inline.first.width;

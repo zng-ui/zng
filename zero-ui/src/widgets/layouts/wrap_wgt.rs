@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::prelude::new_widget::*;
 
 use task::parking_lot::Mutex;
@@ -114,10 +116,11 @@ impl UiNode for WrapNode {
 }
 
 /// Info about a row managed by wrap.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone)]
 struct RowInfo {
     size: PxSize,
     first_child: usize,
+    items: Vec<WidgetInlineItem>,
 }
 
 #[derive(Default)]
@@ -146,10 +149,27 @@ impl InlineLayout {
         if let Some(inline) = wm.inline() {
             inline.first_wrapped = self.first_wrapped;
             inline.last_wrapped = self.rows.len() > 1;
-            inline.first = self.rows.first().map(|r| r.size).unwrap_or_default();
-            inline.last = self.rows.last().map(|r| r.size).unwrap_or_default();
             inline.first_max_fill = inline.first.width;
             inline.last_max_fill = inline.last.width;
+
+            if let Some(first) = self.rows.first() {
+                inline.first = first.size;
+                inline.with_first_items(|i| {
+                    i.extend(first.items.iter().copied());
+                });
+            } else {
+                inline.first = PxSize::zero();
+                inline.with_first_items(|i| i.clear());
+            }
+            if let Some(last) = self.rows.last() {
+                inline.last = last.size;
+                inline.with_last_items(|i| {
+                    i.extend(last.items.iter().copied());
+                })
+            } else {
+                inline.last = PxSize::zero();
+                inline.with_last_items(|i| i.clear());
+            }
         }
 
         constrains.clamp_size(self.desired_size)
@@ -414,7 +434,7 @@ impl InlineLayout {
                                 row.size.width = row.size.width.max(Px(0));
                                 self.desired_size.width = self.desired_size.width.max(row.size.width);
                                 self.desired_size.height += row.size.height + spacing.row;
-                                self.rows.push(row);
+                                self.rows.push(mem::take(&mut row));
                             }
 
                             row.size = inline.first;
@@ -423,16 +443,18 @@ impl InlineLayout {
                             row.size.width += inline.first.width;
                             row.size.height = row.size.height.max(inline.first.height);
                         }
+                        row.items.extend(inline.first_items.iter().copied());
 
                         if inline.last_wrapped {
                             // wrap by child
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
                             self.desired_size.height += size.height - inline.first.height + spacing.row;
 
-                            self.rows.push(row);
+                            self.rows.push(mem::take(&mut row));
                             row.size = inline.last;
                             row.size.width += spacing.column;
                             row.first_child = i + 1;
+                            row.items.extend(inline.last_items.iter().copied());
                         } else {
                             // child inlined, but fit in row
                             row.size.width += spacing.column;
@@ -453,7 +475,7 @@ impl InlineLayout {
                             if !self.rows.is_empty() || inline_constrains.is_none() {
                                 self.desired_size.height += spacing.row;
                             }
-                            self.rows.push(row);
+                            self.rows.push(mem::take(&mut row));
                         }
 
                         row.size = size;

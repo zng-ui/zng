@@ -1,4 +1,4 @@
-use crate::context::{MeasureContext, StateMapMut};
+use crate::context::{LayoutDirection, MeasureContext, StateMapMut};
 
 use super::*;
 
@@ -259,8 +259,32 @@ impl WidgetInfoBuilder {
     }
 }
 
+/// Represents an item in an inlined widget first or last row.
+///
+/// This info is used by inlining parent to sort the joiner row in a way that preserves bidirectional text flow.
+///
+/// See [`WidgetInlineMeasure::f`] for more details.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct WidgetInlineItem {
+    /// Width of the item.
+    pub width: Px,
+    ///Direction of this item.
+    pub direction: LayoutDirection,
+}
+
+/// Represents an [`WidgetInlineItem`] positioned by the inlining parent.
+///
+/// See [`InlineConstrains::TODO`] for more details.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct WidgetInlineItemPos {
+    /// Item index in the measured info.
+    pub idx: u32,
+    /// Item offset to the right from the row origin.
+    pub x: Px,
+}
+
 /// Info about the input inline connecting rows of the widget.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct WidgetInlineMeasure {
     /// Maximum fill width possible on the first row.
     pub first_max_fill: Px,
@@ -275,6 +299,9 @@ pub struct WidgetInlineMeasure {
     /// Indicates that `first` starts in the next row, not in the *current* row defined by the inline constrains.
     pub first_wrapped: bool,
 
+    /// Inline items in the first row.
+    pub first_items: Arc<Vec<WidgetInlineItem>>,
+
     /// Preferred last size.
     ///
     /// In left-to-right direction the origin is `bottom_left - last.height`, in right-to-left direction
@@ -283,6 +310,40 @@ pub struct WidgetInlineMeasure {
 
     /// Indicates that `last` starts in the next row, not in the same row as the first.
     pub last_wrapped: bool,
+
+    /// Inline items in the last row.
+    pub last_items: Arc<Vec<WidgetInlineItem>>,
+}
+impl WidgetInlineMeasure {
+    /// Visit a mutable reference to the new [`first_items`] value, `f` is called with
+    /// an empty vec that can be reused or new.
+    ///
+    /// [`first_items`]: Self::first_items
+    pub fn with_first_items(&mut self, f: impl FnOnce(&mut Vec<WidgetInlineItem>)) {
+        Self::with_items(&mut self.first_items, f)
+    }
+
+    /// Visit a mutable reference to the new [`last_items`] value, `f` is called with
+    /// an empty vec that can be reused or new.
+    ///
+    /// [`last_items`]: Self::last_items
+    pub fn with_last_items(&mut self, f: impl FnOnce(&mut Vec<WidgetInlineItem>)) {
+        Self::with_items(&mut self.last_items, f)
+    }
+
+    fn with_items(items: &mut Arc<Vec<WidgetInlineItem>>, f: impl FnOnce(&mut Vec<WidgetInlineItem>)) {
+        match Arc::get_mut(items) {
+            Some(items) => {
+                items.clear();
+                f(items);
+            }
+            None => {
+                let mut new = vec![];
+                f(&mut new);
+                *items = Arc::new(new);
+            }
+        }
+    }
 }
 
 /// Info about the inlined rows of the widget.

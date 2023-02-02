@@ -495,7 +495,7 @@ impl WidgetBoundsInfo {
     ///
     /// [`inline`]: Self::inline
     pub fn measure_inline(&self) -> Option<WidgetInlineMeasure> {
-        self.0.lock().measure_inline
+        self.0.lock().measure_inline.clone()
     }
 
     /// Exclusive read the latest inline layout info.

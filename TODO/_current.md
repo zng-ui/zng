@@ -1,3 +1,16 @@
+# Inline Bidi
+
+* General idea, collect info about items in the joiner rows during measure, define position of these items during layout.
+  - This API extents the same pattern of getting the size of first & last rows, then defining the rectangle of their position.
+  - Inlined widgets can then announce the continuous areas of the first and last row, so that properties can clip the spaces
+    filled by resorted sibling fragments.
+* The resorting algorithm it-self needs studying.
+  - HTML specs recommends applying the bidi algorithm to text generated from the elements and using the result.
+  - Can we implement something initially with just the `LayoutDirection` for each item?
+    - This lets us implement the basic resort layout communication, the clips and debug the segment widths.
+
+# Other
+
 * Implement `switch_style!` for toggle.
 
 * Bidi reorder needs to intertwine the first and last lines.
