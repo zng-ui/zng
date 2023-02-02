@@ -12,15 +12,6 @@ use linear_map::set::LinearSet;
 use winit::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget};
 use zero_ui_view_api::{RenderMode, WindowId};
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "openbsd",
-    target_os = "netbsd"
-))]
-use winit::platform::unix;
-
 use raw_window_handle::*;
 
 use crate::{util, AppEvent};
@@ -150,7 +141,7 @@ impl GlContextManager {
             target_os = "openbsd",
             target_os = "netbsd"
         ))]
-        let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(unix::register_xlib_error_hook));
+        let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(winit::platform::x11::register_xlib_error_hook));
 
         // SAFETY: we are trusting the `raw_display_handle` from winit here.
         let display = unsafe { Display::new(display_handle, display_pref) }?;
@@ -288,7 +279,7 @@ impl GlContextManager {
             target_os = "openbsd",
             target_os = "netbsd"
         ))]
-        let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(unix::register_xlib_error_hook));
+        let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(winit::platform::x11::register_xlib_error_hook));
 
         // SAFETY: we are trusting the `raw_display_handle` from winit here.
         let display = unsafe { Display::new(display_handle, display_pref) }?;
@@ -779,7 +770,7 @@ mod blit {
     mod linux_blit {
         use std::{
             fs::File,
-            io::{Seek, SeekFrom, Write},
+            io::{Seek, Write},
             os::unix::prelude::AsRawFd,
         };
 
@@ -790,7 +781,8 @@ mod blit {
             wl_shm_pool::WlShmPool,
             wl_surface::WlSurface,
         };
-        use winit::platform::unix::{x11::ffi::*, WindowExtUnix};
+        use winit::platform::{wayland::WindowExtWayland, x11::WindowExtX11};
+        use x11_dl::xlib::{GCGraphicsExposures, TrueColor, XGCValues, XVisualInfo, Xlib, ZPixmap, _XDisplay};
 
         #[allow(clippy::large_enum_variant)]
         pub enum XLibOrWaylandBlit {
@@ -900,7 +892,7 @@ mod blit {
             }
 
             unsafe fn wayland_blit(surface: &WlSurface, data: &mut WaylandData, width: i32, height: i32, frame: &super::Bgra8) {
-                data.file.seek(SeekFrom::Start(0)).unwrap();
+                data.file.rewind().unwrap();
                 data.file.write_all(frame).unwrap();
                 data.file.flush().unwrap();
 
