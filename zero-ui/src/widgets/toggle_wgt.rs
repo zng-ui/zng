@@ -891,7 +891,7 @@ pub mod vis {
                 txt_align = Align::CENTER;
                 align = Align::CENTER;
                 corner_radius = 0.1.em();
-                
+
                 txt = "✓";
                 when #{toggle::IS_CHECKED_VAR}.is_none() {
                     txt = "━";
@@ -901,7 +901,7 @@ pub mod vis {
                 when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
                     txt_color = text::TEXT_COLOR_VAR;
                 }
-                
+
                 #[easing(150.ms())]
                 background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
                 when *#{parent_hovered} {
@@ -1003,33 +1003,26 @@ pub mod vis {
         }
 
         fn radio_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
-            use crate::core::gradient::*;
-
             crate::widgets::wgt! {
                 size = 0.9.em();
+                corner_radius = 0.9.em();
                 align = Align::CENTER;
-                background_radial = {
-                    center: (50.pct(), 50.pct()),
-                    radius: GradientRadius::closest_side(100.pct()),
-                    stops: merge_var!(text::TEXT_COLOR_VAR, parent_hovered, toggle::IS_CHECKED_VAR, |&color, &hovered, &checked| {
-                        let checked = checked.unwrap_or(false);
-                        let color = color.with_alpha(if hovered || checked { 90.pct() } else { 60.pct() });
-                        let transparent = color.with_alpha(0.pct());
-                        let bkg = color.with_alpha(if hovered || checked { 20.pct() } else { 10.pct() });
+                border_align = 100.pct();
 
-                        if checked {
-                            stops![
-                                (color, 0, 60.pct()),
-                                (bkg, 60.pct(), 100.pct()),
-                                transparent,
-                            ]
-                        } else {
-                            stops![
-                                (bkg, 0, 80.pct()),
-                                (transparent, 80.pct()),
-                            ]
-                        }
-                    })
+                #[easing(150.ms())]
+                background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+                when *#{parent_hovered} {
+                    #[easing(0.ms())]
+                    background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+                }
+
+                when *#toggle::is_checked {
+                    border = {
+                        widths: 2,
+                        sides: text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()).into()),
+                    };
+                    #[easing(0.ms())]
+                    background_color = text::TEXT_COLOR_VAR;
                 }
             }
         }
