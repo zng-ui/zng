@@ -153,17 +153,17 @@ impl ByteLength {
     pub const MAX: ByteLength = ByteLength(usize::MAX);
 
     /// Adds the two lengths without overflowing or wrapping.
-    pub fn saturating_add(self, rhs: ByteLength) -> ByteLength {
+    pub const fn saturating_add(self, rhs: ByteLength) -> ByteLength {
         ByteLength(self.0.saturating_add(rhs.0))
     }
 
     /// Subtracts the two lengths without overflowing or wrapping.
-    pub fn saturating_sub(self, rhs: ByteLength) -> ByteLength {
+    pub const fn saturating_sub(self, rhs: ByteLength) -> ByteLength {
         ByteLength(self.0.saturating_sub(rhs.0))
     }
 
     /// Multiplies the two lengths without overflowing or wrapping.
-    pub fn saturating_mul(self, rhs: ByteLength) -> ByteLength {
+    pub const fn saturating_mul(self, rhs: ByteLength) -> ByteLength {
         ByteLength(self.0.saturating_mul(rhs.0))
     }
 
@@ -174,22 +174,22 @@ impl ByteLength {
     //}
 
     /// Adds the two lengths wrapping overflows.
-    pub fn wrapping_add(self, rhs: ByteLength) -> ByteLength {
+    pub const fn wrapping_add(self, rhs: ByteLength) -> ByteLength {
         ByteLength(self.0.wrapping_add(rhs.0))
     }
 
     /// Subtracts the two lengths wrapping overflows.
-    pub fn wrapping_sub(self, rhs: ByteLength) -> ByteLength {
+    pub const fn wrapping_sub(self, rhs: ByteLength) -> ByteLength {
         ByteLength(self.0.wrapping_sub(rhs.0))
     }
 
     /// Multiplies the two lengths wrapping overflows.
-    pub fn wrapping_mul(self, rhs: ByteLength) -> ByteLength {
+    pub const fn wrapping_mul(self, rhs: ByteLength) -> ByteLength {
         ByteLength(self.0.wrapping_mul(rhs.0))
     }
 
     /// Divides the two lengths wrapping overflows.
-    pub fn wrapping_div(self, rhs: ByteLength) -> ByteLength {
+    pub const fn wrapping_div(self, rhs: ByteLength) -> ByteLength {
         ByteLength(self.0.wrapping_div(rhs.0))
     }
 
@@ -219,67 +219,67 @@ impl ByteLength {
     /// From bytes.
     ///
     /// This is the same as `ByteLength(bytes)`.
-    pub fn from_byte(bytes: usize) -> Self {
+    pub const fn from_byte(bytes: usize) -> Self {
         ByteLength(bytes)
     }
 
-    fn new(value: usize, scale: usize) -> Self {
+    const fn new(value: usize, scale: usize) -> Self {
         ByteLength(value.saturating_mul(scale))
     }
 
     /// From kibi-bytes.
     ///
     /// 1 kibi-byte equals 1024 bytes.
-    pub fn from_kibi(kibi_bytes: usize) -> Self {
+    pub const fn from_kibi(kibi_bytes: usize) -> Self {
         Self::new(kibi_bytes, 1024)
     }
 
     /// From kilo-bytes.
     ///
     /// 1 kilo-byte equals 1000 bytes.
-    pub fn from_kilo(kibi_bytes: usize) -> Self {
+    pub const fn from_kilo(kibi_bytes: usize) -> Self {
         Self::new(kibi_bytes, 1000)
     }
 
     /// From mebi-bytes.
     ///
     /// 1 mebi-byte equals 1024² bytes.
-    pub fn from_mebi(mebi_bytes: usize) -> Self {
+    pub const fn from_mebi(mebi_bytes: usize) -> Self {
         Self::new(mebi_bytes, 1024usize.pow(2))
     }
 
     /// From mega-bytes.
     ///
     /// 1 mega-byte equals 1000² bytes.
-    pub fn from_mega(mebi_bytes: usize) -> Self {
+    pub const fn from_mega(mebi_bytes: usize) -> Self {
         Self::new(mebi_bytes, 1000usize.pow(2))
     }
 
     /// From gibi-bytes.
     ///
     /// 1 gibi-byte equals 1024³ bytes.
-    pub fn from_gibi(gibi_bytes: usize) -> Self {
+    pub const fn from_gibi(gibi_bytes: usize) -> Self {
         Self::new(gibi_bytes, 1024usize.pow(3))
     }
 
     /// From giga-bytes.
     ///
     /// 1 giga-byte equals 1000³ bytes.
-    pub fn from_giga(giba_bytes: usize) -> Self {
+    pub const fn from_giga(giba_bytes: usize) -> Self {
         Self::new(giba_bytes, 1000usize.pow(3))
     }
 
     /// From tebi-bytes.
     ///
     /// 1 tebi-byte equals 1024^4 bytes.
-    pub fn from_tebi(gibi_bytes: usize) -> Self {
+    pub const fn from_tebi(gibi_bytes: usize) -> Self {
         Self::new(gibi_bytes, 1024usize.pow(4))
     }
 
     /// From tera-bytes.
     ///
     /// 1 tera-byte equals 1000^4 bytes.
-    pub fn from_tera(giba_bytes: usize) -> Self {
+    pub const fn from_tera(giba_bytes: usize) -> Self {
         Self::new(giba_bytes, 1000usize.pow(4))
     }
 }

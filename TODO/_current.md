@@ -1,8 +1,3 @@
-* Fix memory leak in switch animation.
-  - Repeat it the memory doubles every time.
-  - Caused by `x = 0` animating to `x = 100` creating a `Length::Expr` that just keeps growing.
-    - May need to rethink the entire length expression thing.
-
 * Bidi reorder needs to intertwine the first and last lines.
     -  `النص ثنائي الاتجاه (بالإنجليزية: Bi **directional** text)‏ هو نص يحتوي على نص في كل من`
     - The markdown needs to layout `Bi directional text`, but because we split in 3 texts it

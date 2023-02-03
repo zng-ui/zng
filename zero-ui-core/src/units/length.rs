@@ -1,4 +1,4 @@
-use super::{about_eq, Dip, DipToPx, Factor, FactorPercent, FactorUnits, Px, EPSILON, EPSILON_100};
+use super::{about_eq, ByteLength, ByteUnits, Dip, DipToPx, Factor, FactorPercent, FactorUnits, Px, EPSILON, EPSILON_100};
 use std::{fmt, mem, ops};
 
 use crate::{context::Layout1dMetrics, impl_from_and_into_var};
@@ -79,7 +79,7 @@ impl<L: Into<Length>> ops::Add<L> for Length {
             (DipF32(a), DipF32(b)) => DipF32(a + b),
             (Px(a), PxF32(b)) | (PxF32(b), Px(a)) => PxF32(a.0 as f32 + b),
             (Dip(a), DipF32(b)) | (DipF32(b), Dip(a)) => DipF32(a.to_f32() + b),
-            (a, b) => Length::Expr(Box::new(LengthExpr::Add(a, b))),
+            (a, b) => LengthExpr::Add(a, b).to_length_checked(),
         }
     }
 }
@@ -113,7 +113,7 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
             (PxF32(a), Px(b)) => PxF32(a - b.0 as f32),
             (Dip(a), DipF32(b)) => DipF32(a.to_f32() - b),
             (DipF32(a), Dip(b)) => DipF32(a - b.to_f32()),
-            (a, b) => Length::Expr(Box::new(LengthExpr::Sub(a, b))),
+            (a, b) => LengthExpr::Sub(a, b).to_length_checked(),
         }
     }
 }
@@ -143,7 +143,7 @@ impl<F: Into<Factor>> ops::Mul<F> for Length {
             ViewportMax(m) => ViewportMax(m * rhs),
             DipF32(e) => DipF32(e * rhs.0),
             PxF32(e) => PxF32(e * rhs.0),
-            e => Expr(Box::new(LengthExpr::Mul(e, rhs))),
+            e => LengthExpr::Mul(e, rhs).to_length_checked(),
         }
     }
 }
@@ -175,7 +175,7 @@ impl<F: Into<Factor>> ops::Div<F> for Length {
             ViewportMax(m) => ViewportMax(m / rhs),
             DipF32(e) => DipF32(e / rhs.0),
             PxF32(e) => PxF32(e / rhs.0),
-            e => Expr(Box::new(LengthExpr::Mul(e, rhs))),
+            e => LengthExpr::Mul(e, rhs).to_length_checked(),
         }
     }
 }
@@ -190,7 +190,7 @@ impl ops::Neg for Length {
 
     fn neg(self) -> Self::Output {
         match self {
-            Length::Default => Length::Expr(Box::new(LengthExpr::Neg(Length::Default))),
+            Length::Default => LengthExpr::Neg(Length::Default).to_length_checked(),
             Length::Dip(e) => Length::Dip(-e),
             Length::Px(e) => Length::Px(-e),
             Length::Pt(e) => Length::Pt(-e),
@@ -204,7 +204,7 @@ impl ops::Neg for Length {
             Length::ViewportMax(e) => Length::ViewportMax(-e),
             Length::DipF32(e) => Length::DipF32(-e),
             Length::PxF32(e) => Length::PxF32(-e),
-            Length::Expr(e) => Length::Expr(Box::new(LengthExpr::Neg(Length::Expr(e)))),
+            Length::Expr(e) => LengthExpr::Neg(Length::Expr(e)).to_length_checked(),
         }
     }
 }
@@ -373,7 +373,7 @@ impl Length {
             (PxF32(a), PxF32(b)) => PxF32(a.max(b)),
             (DipF32(a), Dip(b)) | (Dip(b), DipF32(a)) => DipF32(a.max(b.to_f32())),
             (PxF32(a), Px(b)) | (Px(b), PxF32(a)) => PxF32(a.max(b.0 as f32)),
-            (a, b) => Expr(Box::new(LengthExpr::Max(a, b))),
+            (a, b) => LengthExpr::Max(a, b).to_length_checked(),
         }
     }
 
@@ -397,7 +397,7 @@ impl Length {
             (PxF32(a), PxF32(b)) => PxF32(a.min(b)),
             (DipF32(a), Dip(b)) | (Dip(b), DipF32(a)) => DipF32(a.min(b.to_f32())),
             (PxF32(a), Px(b)) | (Px(b), PxF32(a)) => PxF32(a.min(b.0 as f32)),
-            (a, b) => Expr(Box::new(LengthExpr::Min(a, b))),
+            (a, b) => LengthExpr::Min(a, b).to_length_checked(),
         }
     }
 
@@ -410,7 +410,7 @@ impl Length {
     pub fn abs(&self) -> Length {
         use Length::*;
         match self {
-            Default => Expr(Box::new(LengthExpr::Abs(Length::Default))),
+            Default => LengthExpr::Abs(Length::Default).to_length_checked(),
             Dip(e) => Dip(e.abs()),
             Px(e) => Px(e.abs()),
             Pt(e) => Pt(e.abs()),
@@ -424,7 +424,7 @@ impl Length {
             ViewportMax(m) => ViewportMax(m.abs()),
             DipF32(e) => DipF32(e.abs()),
             PxF32(e) => PxF32(e.abs()),
-            Expr(e) => Expr(Box::new(LengthExpr::Abs(Length::Expr(e.clone())))),
+            Expr(e) => LengthExpr::Abs(Length::Expr(e.clone())).to_length_checked(),
         }
     }
 
@@ -608,6 +608,22 @@ impl Length {
         }
     }
 
+    /// Gets the total memory allocated by this length.
+    ///
+    /// This includes the sum of all nested [`Length::Expr`] heap memory.
+    pub fn memory_used(&self) -> ByteLength {
+        std::mem::size_of::<Length>().bytes() + self.heap_memory_used()
+    }
+
+    /// Sum total memory used in nested [`Length::Expr`] heap memory.
+    pub fn heap_memory_used(&self) -> ByteLength {
+        if let Length::Expr(e) = self {
+            e.memory_used()
+        } else {
+            0.bytes()
+        }
+    }
+
     /// 96.0 / 72.0
     const PT_TO_DIP: f32 = 96.0 / 72.0; // 1.3333..;
 }
@@ -714,6 +730,38 @@ impl LengthExpr {
             Abs(a) => a.affect_mask(),
             Neg(a) => a.affect_mask(),
         }
+    }
+
+    /// Gets the total memory allocated by this length expression.
+    ///
+    /// This includes the sum of all nested [`Length::Expr`] heap memory.
+    pub fn memory_used(&self) -> ByteLength {
+        use LengthExpr::*;
+        std::mem::size_of::<LengthExpr>().bytes()
+            + match self {
+                Add(a, b) => a.heap_memory_used() + b.heap_memory_used(),
+                Sub(a, b) => a.heap_memory_used() + b.heap_memory_used(),
+                Mul(a, _) => a.heap_memory_used(),
+                Div(a, _) => a.heap_memory_used(),
+                Max(a, b) => a.heap_memory_used() + b.heap_memory_used(),
+                Min(a, b) => a.heap_memory_used() + b.heap_memory_used(),
+                Abs(a) => a.heap_memory_used(),
+                Neg(a) => a.heap_memory_used(),
+            }
+    }
+
+    /// Convert to [`Length::Expr`], logs warning for memory use above 1kB, logs error for use > 20kB and collapses to [`Length::zero`].
+    ///
+    /// Every length expression created using the [`std::ops`] uses this method to check the constructed expression. Some operations
+    /// like animation transitions or iterator fold can cause an *expression explosion* where two lengths of different units that cannot
+    /// be evaluated immediately start an expression length that subsequently is wrapped in a new expression length for each operation done on it.
+    pub fn to_length_checked(self) -> Length {
+        let bytes = self.memory_used();
+        if bytes > 20.kibibytes() {
+            tracing::error!(target: "to_length_checked", "length alloc > 20kB, replaced with zero");
+            return Length::zero();
+        }
+        Length::Expr(Box::new(self))
     }
 }
 impl fmt::Debug for LengthExpr {
