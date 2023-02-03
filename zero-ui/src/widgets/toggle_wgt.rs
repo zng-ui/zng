@@ -886,6 +886,7 @@ pub mod vis {
 
         fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
             text! {
+                hit_test_mode = false;
                 size = (1.2.em(), 1.2.em());
                 font_family = FontNames::system_ui(&lang!(und));
                 txt_align = Align::CENTER;
@@ -948,6 +949,7 @@ pub mod vis {
 
         fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
             crate::widgets::container! {
+                hit_test_mode = false;
                 size = (2.em(), 1.em());
                 align = Align::CENTER;
                 corner_radius = 1.em();
@@ -1010,6 +1012,7 @@ pub mod vis {
 
         fn radio_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
             crate::widgets::wgt! {
+                hit_test_mode = false;
                 size = 0.9.em();
                 corner_radius = 0.9.em();
                 align = Align::CENTER;
