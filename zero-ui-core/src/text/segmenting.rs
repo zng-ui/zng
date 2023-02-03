@@ -6,8 +6,6 @@ use super::Text;
 use unicode_bidi::BidiInfo;
 use xi_unicode::LineBreakIterator;
 
-pub use unicode_bidi::{BidiClass, Level as BidiLevel};
-
 /// The type of a [text segment](SegmentedText).
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TextSegmentKind {
@@ -20,6 +18,117 @@ pub enum TextSegmentKind {
     Tab,
     /// A single line-break, `\n` or `\r\n`.
     LineBreak,
+}
+
+/// The type of a text segment.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum TextSegKind {
+    /// Any strong left-to-right character.
+    LeftToRight,
+    /// Any strong right-to-left (non-Arabic-type) character.
+    RightToLeft,
+    /// Any strong right-to-left (Arabic-type) character.
+    ArabicLetter,
+
+    /// Any ASCII digit or Eastern Arabic-Indic digit.
+    EuropeanNumber,
+    /// Plus and minus signs.
+    EuropeanSeparator,
+    /// A terminator in a numeric format context, includes currency signs.
+    EuropeanTerminator,
+    /// Any Arabic-Indic digit.
+    ArabicNumber,
+    /// Commas, colons, and slashes.
+    CommonSeparator,
+    /// Any non-spacing mark.
+    NonSpacingMark,
+    /// Most format characters, control codes, or noncharacters.
+    BoundaryNeutral,
+
+    /// Various newline characters.
+    LineBreak,
+    /// A sequence of `'\t', '\v'` or `'\u{1F}'`.
+    Tab,
+    /// Spaces.
+    WhiteSpace,
+    /// Most other symbols and punctuation marks.
+    OtherNeutral,
+
+    /// U+202A: the LR embedding control.
+    LeftToRightEmbedding,
+    /// U+202D: the LR override control.
+    LeftToRightOverride,
+    /// U+202B: the RL embedding control.
+    RightToLeftEmbedding,
+    /// U+202E: the RL override control.
+    RightToLeftOverride,
+    /// U+202C: terminates an embedding or override control.
+    PopDirectionalFormat,
+
+    /// U+2066: the LR isolate control.
+    LeftToRightIsolate,
+    /// U+2067: the RL isolate control.
+    RightToLeftIsolate,
+    /// U+2068: the first strong isolate control.
+    FirstStrongIsolate,
+    /// U+2069: terminates an isolate control
+    PopDirectionalIsolate,
+}
+impl TextSegKind {
+    /// Returns `true` if the segment can be considered part of a word for the purpose of inserting letter spacing.
+    pub fn is_word(self) -> bool {
+        use TextSegKind::*;
+        matches!(
+            self,
+            LeftToRight
+                | RightToLeft
+                | ArabicLetter
+                | EuropeanNumber
+                | EuropeanSeparator
+                | EuropeanTerminator
+                | ArabicNumber
+                | CommonSeparator
+                | NonSpacingMark
+                | BoundaryNeutral
+                | OtherNeutral
+        )
+    }
+
+    /// Returns `true` if the segment can be considered part of space between words for the purpose of inserting word spacing.
+    pub fn is_space(self) -> bool {
+        matches!(self, Self::WhiteSpace)
+    }
+
+    /// Returns `true` if the segment terminates the current line.
+    ///
+    /// Line break segments are the last segment of their line and explicitly start a new line.
+    pub fn is_line_break(self) -> bool {
+        matches!(self, Self::LineBreak)
+    }
+
+    /// Segment is a single character that affects the bidirectional format of the subsequent segments.
+    pub fn is_bidi_control(self) -> bool {
+        use TextSegKind::*;
+        matches!(
+            self,
+            LeftToRightEmbedding
+                | LeftToRightOverride
+                | RightToLeftEmbedding
+                | RightToLeftOverride
+                | PopDirectionalFormat
+                | LeftToRightIsolate
+                | RightToLeftIsolate
+                | FirstStrongIsolate
+                | PopDirectionalIsolate
+        )
+    }
+}
+impl From<char> for TextSegKind {
+    fn from(c: char) -> Self {
+        use unicode_bidi::*;
+
+        unicode_bidi::HardcodedBidiData.bidi_class(c).into()
+    }
 }
 
 /// Represents a single text segment in a [`SegmentedText`].
@@ -298,6 +407,71 @@ impl<'a> Iterator for SegmentedTextIter<'a> {
             r
         } else {
             None
+        }
+    }
+}
+
+impl From<unicode_bidi::BidiClass> for TextSegKind {
+    fn from(value: unicode_bidi::BidiClass) -> Self {
+        use unicode_bidi::BidiClass::*;
+        use TextSegKind::*;
+
+        match value {
+            WS => WhiteSpace,
+            L => LeftToRight,
+            R => RightToLeft,
+            AL => ArabicLetter,
+            AN => ArabicNumber,
+            CS => CommonSeparator,
+            B => LineBreak,
+            EN => EuropeanNumber,
+            ES => EuropeanSeparator,
+            ET => EuropeanTerminator,
+            S => Tab,
+            ON => OtherNeutral,
+            BN => BoundaryNeutral,
+            NSM => NonSpacingMark,
+            RLE => RightToLeftEmbedding,
+            LRI => LeftToRightIsolate,
+            RLI => RightToLeftIsolate,
+            LRO => LeftToRightOverride,
+            FSI => FirstStrongIsolate,
+            PDF => PopDirectionalFormat,
+            LRE => LeftToRightEmbedding,
+            PDI => PopDirectionalIsolate,
+            RLO => RightToLeftOverride,
+        }
+    }
+}
+impl From<TextSegKind> for unicode_bidi::BidiClass {
+    fn from(value: TextSegKind) -> Self {
+        use unicode_bidi::BidiClass::*;
+        use TextSegKind::*;
+
+        match value {
+            WhiteSpace => WS,
+            LeftToRight => L,
+            RightToLeft => R,
+            ArabicLetter => AL,
+            ArabicNumber => AN,
+            CommonSeparator => CS,
+            LineBreak => B,
+            EuropeanNumber => EN,
+            EuropeanSeparator => ES,
+            EuropeanTerminator => ET,
+            Tab => S,
+            OtherNeutral => ON,
+            BoundaryNeutral => BN,
+            NonSpacingMark => NSM,
+            RightToLeftEmbedding => RLE,
+            LeftToRightIsolate => LRI,
+            RightToLeftIsolate => RLI,
+            LeftToRightOverride => LRO,
+            FirstStrongIsolate => FSI,
+            PopDirectionalFormat => PDF,
+            LeftToRightEmbedding => LRE,
+            PopDirectionalIsolate => PDI,
+            RightToLeftOverride => RLO,
         }
     }
 }
