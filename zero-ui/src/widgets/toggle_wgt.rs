@@ -960,7 +960,7 @@ pub mod vis {
                     background_color = text::TEXT_COLOR_VAR;
 
                     #[easing(150.ms())]
-                    x = 0;
+                    x = 0.em();
                     when *#toggle::is_checked {
                         x = 1.em();
                     }
