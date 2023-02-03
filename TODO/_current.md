@@ -22,8 +22,6 @@
 
 # Other
 
-* Implement `switch_style!` for toggle.
-
 * Bidi reorder needs to intertwine the first and last lines.
     -  `النص ثنائي الاتجاه (بالإنجليزية: Bi **directional** text)‏ هو نص يحتوي على نص في كل من`
     - The markdown needs to layout `Bi directional text`, but because we split in 3 texts it
