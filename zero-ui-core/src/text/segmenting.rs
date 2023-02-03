@@ -6,23 +6,9 @@ use super::Text;
 use unicode_bidi::BidiInfo;
 use xi_unicode::LineBreakIterator;
 
-/// The type of a [text segment](SegmentedText).
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum TextSegmentKind {
-    /// A sequence of characters that cannot be separated by a line-break and are all in the same direction.
-    Word,
-    /// A sequence of characters that all have the `White_Space` Unicode property, except the [`Tab`](Self::Tab) and
-    ///[`LineBreak`](Self::LineBreak) characters.
-    Space,
-    /// A sequence of `U+0009 TABULAR` characters.
-    Tab,
-    /// A single line-break, `\n` or `\r\n`.
-    LineBreak,
-}
-
 /// The type of a text segment.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum TextSegKind {
+pub enum TextSegmentKind {
     /// Any strong left-to-right character.
     LeftToRight,
     /// Any strong right-to-left (non-Arabic-type) character.
@@ -50,7 +36,7 @@ pub enum TextSegKind {
     /// A sequence of `'\t', '\v'` or `'\u{1F}'`.
     Tab,
     /// Spaces.
-    WhiteSpace,
+    Space,
     /// Most other symbols and punctuation marks.
     OtherNeutral,
 
@@ -74,10 +60,10 @@ pub enum TextSegKind {
     /// U+2069: terminates an isolate control
     PopDirectionalIsolate,
 }
-impl TextSegKind {
+impl TextSegmentKind {
     /// Returns `true` if the segment can be considered part of a word for the purpose of inserting letter spacing.
     pub fn is_word(self) -> bool {
-        use TextSegKind::*;
+        use TextSegmentKind::*;
         matches!(
             self,
             LeftToRight
@@ -96,7 +82,7 @@ impl TextSegKind {
 
     /// Returns `true` if the segment can be considered part of space between words for the purpose of inserting word spacing.
     pub fn is_space(self) -> bool {
-        matches!(self, Self::WhiteSpace)
+        matches!(self, Self::Space | Self::Tab)
     }
 
     /// Returns `true` if the segment terminates the current line.
@@ -108,7 +94,7 @@ impl TextSegKind {
 
     /// Segment is a single character that affects the bidirectional format of the subsequent segments.
     pub fn is_bidi_control(self) -> bool {
-        use TextSegKind::*;
+        use TextSegmentKind::*;
         matches!(
             self,
             LeftToRightEmbedding
@@ -123,7 +109,7 @@ impl TextSegKind {
         )
     }
 }
-impl From<char> for TextSegKind {
+impl From<char> for TextSegmentKind {
     fn from(c: char) -> Self {
         use unicode_bidi::*;
 
@@ -212,16 +198,11 @@ impl SegmentedText {
     fn push_seg(text: &str, bidi: &BidiInfo, segs: &mut Vec<TextSegment>, end: usize) {
         let start = segs.last().map(|s| s.end).unwrap_or(0);
 
-        let mut kind = TextSegmentKind::Word;
+        let mut kind = TextSegmentKind::LeftToRight;
         let mut direction = LayoutDirection::LTR;
-        for (i, c) in text[start..end].char_indices() {
-            let (c_kind, c_direction) = if c == '\t' {
-                (TextSegmentKind::Tab, direction)
-            } else if ['\u{0020}', '\u{000a}', '\u{000c}', '\u{000d}'].contains(&c) {
-                (TextSegmentKind::Space, direction)
-            } else {
-                (TextSegmentKind::Word, bidi.levels[start + i].into())
-            };
+        for (i, _) in text[start..end].char_indices() {
+            let c_kind = bidi.original_classes[start + i].into();
+            let c_direction = bidi.levels[start + i].into();
 
             if c_kind != kind || c_direction != direction {
                 if i > 0 {
@@ -411,13 +392,13 @@ impl<'a> Iterator for SegmentedTextIter<'a> {
     }
 }
 
-impl From<unicode_bidi::BidiClass> for TextSegKind {
+impl From<unicode_bidi::BidiClass> for TextSegmentKind {
     fn from(value: unicode_bidi::BidiClass) -> Self {
         use unicode_bidi::BidiClass::*;
-        use TextSegKind::*;
+        use TextSegmentKind::*;
 
         match value {
-            WS => WhiteSpace,
+            WS => Space,
             L => LeftToRight,
             R => RightToLeft,
             AL => ArabicLetter,
@@ -443,13 +424,13 @@ impl From<unicode_bidi::BidiClass> for TextSegKind {
         }
     }
 }
-impl From<TextSegKind> for unicode_bidi::BidiClass {
-    fn from(value: TextSegKind) -> Self {
+impl From<TextSegmentKind> for unicode_bidi::BidiClass {
+    fn from(value: TextSegmentKind) -> Self {
         use unicode_bidi::BidiClass::*;
-        use TextSegKind::*;
+        use TextSegmentKind::*;
 
         match value {
-            WhiteSpace => WS,
+            Space => WS,
             LeftToRight => L,
             RightToLeft => R,
             ArabicLetter => AL,
@@ -497,13 +478,13 @@ mod tests {
         let expected = SegmentedText {
             text: test.to_text(),
             segments: vec![
-                seg(Word, 1),
+                seg(LeftToRight, 1),
                 seg(LineBreak, 2),
-                seg(Word, 3),
+                seg(LeftToRight, 3),
                 seg(LineBreak, 5),
-                seg(Word, 6),
+                seg(LeftToRight, 6),
                 seg(Tab, 7),
-                seg(Word, 8),
+                seg(LeftToRight, 8),
                 seg(Space, 9),
             ],
             base_direction: LayoutDirection::LTR,

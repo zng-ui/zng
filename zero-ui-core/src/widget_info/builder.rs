@@ -263,7 +263,7 @@ impl WidgetInfoBuilder {
 ///
 /// This info is used by inlining parent to sort the joiner row in a way that preserves bidirectional text flow.
 ///
-/// See [`WidgetInlineMeasure::f`] for more details.
+/// See [`WidgetInlineMeasure::first_items`] for more details.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct WidgetInlineItem {
     /// Width of the item.

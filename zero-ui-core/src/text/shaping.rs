@@ -1008,48 +1008,62 @@ impl ShapedTextBuilder {
         for (seg, info) in text.iter() {
             word_ctx_key.direction = info.direction;
             let max_width = self.actual_max_width();
-            match info.kind {
-                TextSegmentKind::Word => {
-                    fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, font| {
-                        if self.origin.x + shaped_seg.x_advance > max_width {
-                            // need wrap
+            if info.kind.is_word() {
+                fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, font| {
+                    if self.origin.x + shaped_seg.x_advance > max_width {
+                        // need wrap
 
-                            if shaped_seg.x_advance > max_width {
-                                // need segment split
+                        if shaped_seg.x_advance > max_width {
+                            // need segment split
 
-                                // try to hyphenate
-                                let hyphenated = self.push_hyphenate(word_ctx_key, seg, font, shaped_seg, info, text);
+                            // try to hyphenate
+                            let hyphenated = self.push_hyphenate(word_ctx_key, seg, font, shaped_seg, info, text);
 
-                                if !hyphenated && self.break_words {
-                                    // break word
-                                    self.push_split_seg(shaped_seg, seg, info, self.letter_spacing, text);
-                                } else if !hyphenated {
-                                    // normal wrap, glyphs overflow
-                                    self.push_line_break(true, text);
-
-                                    // try to hyphenate with full width available
-                                    let hyphenaded = self.push_hyphenate(word_ctx_key, seg, font, shaped_seg, info, text);
-
-                                    if !hyphenaded {
-                                        self.push_glyphs(shaped_seg, self.letter_spacing);
-                                        self.push_text_seg(seg, info);
-                                    }
-                                }
-                            } else {
+                            if !hyphenated && self.break_words {
+                                // break word
+                                self.push_split_seg(shaped_seg, seg, info, self.letter_spacing, text);
+                            } else if !hyphenated {
+                                // normal wrap, glyphs overflow
                                 self.push_line_break(true, text);
-                                self.push_glyphs(shaped_seg, self.letter_spacing);
-                                self.push_text_seg(seg, info);
+
+                                // try to hyphenate with full width available
+                                let hyphenaded = self.push_hyphenate(word_ctx_key, seg, font, shaped_seg, info, text);
+
+                                if !hyphenaded {
+                                    self.push_glyphs(shaped_seg, self.letter_spacing);
+                                    self.push_text_seg(seg, info);
+                                }
                             }
                         } else {
-                            // don't need wrap
+                            self.push_line_break(true, text);
                             self.push_glyphs(shaped_seg, self.letter_spacing);
                             self.push_text_seg(seg, info);
                         }
+                    } else {
+                        // don't need wrap
+                        self.push_glyphs(shaped_seg, self.letter_spacing);
+                        self.push_text_seg(seg, info);
+                    }
 
-                        self.push_font(font);
+                    self.push_font(font);
+                });
+            } else if info.kind.is_space() {
+                if matches!(info.kind, TextSegmentKind::Tab) {
+                    if self.origin.x + self.tab_x_advance > max_width {
+                        self.push_line_break(true, text);
+                    }
+                    let point = euclid::point2(self.origin.x, self.origin.y);
+                    self.origin.x += self.tab_x_advance;
+                    self.out.glyphs.push(GlyphInstance {
+                        index: self.tab_index,
+                        point,
                     });
-                }
-                TextSegmentKind::Space => {
+                    self.out.clusters.push(0);
+
+                    self.push_text_seg(seg, info);
+
+                    self.push_font(&fonts[0]);
+                } else {
                     fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, font| {
                         if self.origin.x + shaped_seg.x_advance > max_width {
                             // need wrap
@@ -1069,26 +1083,11 @@ impl ShapedTextBuilder {
                         self.push_font(font);
                     });
                 }
-                TextSegmentKind::Tab => {
-                    if self.origin.x + self.tab_x_advance > max_width {
-                        self.push_line_break(true, text);
-                    }
-                    let point = euclid::point2(self.origin.x, self.origin.y);
-                    self.origin.x += self.tab_x_advance;
-                    self.out.glyphs.push(GlyphInstance {
-                        index: self.tab_index,
-                        point,
-                    });
-                    self.out.clusters.push(0);
-
-                    self.push_text_seg(seg, info);
-
-                    self.push_font(&fonts[0]);
-                }
-                TextSegmentKind::LineBreak => {
-                    self.push_text_seg(seg, info);
-                    self.push_line_break(false, text);
-                }
+            } else if info.kind.is_line_break() {
+                self.push_text_seg(seg, info);
+                self.push_line_break(false, text);
+            } else {
+                self.push_text_seg(seg, info)
             }
         }
 
@@ -1484,7 +1483,7 @@ impl<'a> ShapedLine<'a> {
     ///
     /// Returns and iterator of start point + width for each word.
     pub fn underline_skip_spaces(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
-        MergingLineIter::new(self.segs().filter(|s| s.is_word()).map(|s| s.underline()))
+        MergingLineIter::new(self.segs().filter(|s| s.kind().is_word()).map(|s| s.underline()))
     }
 
     /// Underline, skipping spaces.
@@ -1493,7 +1492,7 @@ impl<'a> ShapedLine<'a> {
     ///
     /// Returns and iterator of start point + width for each word.
     pub fn underline_descent_skip_spaces(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
-        MergingLineIter::new(self.segs().filter(|s| s.is_word()).map(|s| s.underline_descent()))
+        MergingLineIter::new(self.segs().filter(|s| s.kind().is_word()).map(|s| s.underline_descent()))
     }
 
     /// Underline, skipping glyph descends that intersect the underline.
@@ -1513,7 +1512,7 @@ impl<'a> ShapedLine<'a> {
     pub fn underline_skip_glyphs_and_spaces(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         MergingLineIter::new(
             self.segs()
-                .filter(|s| s.is_word())
+                .filter(|s| s.kind().is_word())
                 .flat_map(move |s| s.underline_skip_glyphs(thickness)),
         )
     }
@@ -1674,21 +1673,6 @@ impl<'a> ShapedSegment<'a> {
     /// Layout direction of glyphs in the segment.
     pub fn direction(&self) -> LayoutDirection {
         self.text.segments.0[self.index].text.direction
-    }
-
-    /// If the segment kind is [`Word`].
-    ///
-    /// [`Word`]: TextSegmentKind::Word
-    pub fn is_word(&self) -> bool {
-        matches!(self.kind(), TextSegmentKind::Word)
-    }
-
-    /// If the segment kind is [`Space`] or [`Tab`].
-    ///
-    /// [`Space`]: TextSegmentKind::Space
-    /// [`Tab`]: TextSegmentKind::Tab
-    pub fn is_space(&self) -> bool {
-        matches!(self.kind(), TextSegmentKind::Space | TextSegmentKind::Tab)
     }
 
     /// If the segment contains the last glyph of the line.

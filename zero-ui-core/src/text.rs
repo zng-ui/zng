@@ -1717,11 +1717,11 @@ mod tests {
 
         use TextSegmentKind::*;
         let expected = vec![
-            ("foo", Word),
+            ("foo", LeftToRight),
             (" ", Space),
             ("\n", LineBreak),
             ("\n", LineBreak),
-            ("bar", Word),
+            ("bar", LeftToRight),
             ("\n", LineBreak),
         ];
         let actual: Vec<_> = t.iter().map(|(s, k)| (s, k.kind)).collect();
@@ -1738,12 +1738,12 @@ mod tests {
 
         use TextSegmentKind::*;
         let expected = vec![
-            ("baz", Word),
+            ("baz", LeftToRight),
             ("  ", Space),
             ("\r\n", LineBreak),
             ("\r\n", LineBreak),
             ("  ", Space),
-            ("fa", Word),
+            ("fa", LeftToRight),
         ];
         let actual: Vec<_> = t.iter().map(|(s, k)| (s, k.kind)).collect();
 
@@ -1758,7 +1758,7 @@ mod tests {
         let t = SegmentedText::new("\u{200B}	", LayoutDirection::LTR);
 
         use TextSegmentKind::*;
-        let expected = vec![("\u{200B}", Word), ("\t", Tab)];
+        let expected = vec![("\u{200B}", BoundaryNeutral), ("\t", Tab)];
         let actual: Vec<_> = t.iter().map(|(s, k)| (s, k.kind)).collect();
 
         assert_eq!(expected.len(), actual.len());
@@ -1773,7 +1773,15 @@ mod tests {
         let t = SegmentedText::new("move to 0x0", LayoutDirection::LTR);
 
         use TextSegmentKind::*;
-        let expected = vec![("move", Word), (" ", Space), ("to", Word), (" ", Space), ("0x0", Word)];
+        let expected = vec![
+            ("move", LeftToRight),
+            (" ", Space),
+            ("to", LeftToRight),
+            (" ", Space),
+            ("0", EuropeanNumber),
+            ("x", LeftToRight),
+            ("0", EuropeanNumber),
+        ];
         let actual: Vec<_> = t.iter().map(|(s, k)| (s, k.kind)).collect();
 
         assert_eq!(expected.len(), actual.len());
