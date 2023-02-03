@@ -951,17 +951,23 @@ pub mod vis {
                 size = (2.em(), 1.em());
                 align = Align::CENTER;
                 corner_radius = 1.em();
-                padding = 4;
-                background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+                padding = 2;
                 child = crate::widgets::wgt! {
-                    size = 1.em() - Length::from(8);
-                    align = Align::LEFT; // !!: TODO, remove this
+                    size = 1.em() - Length::from(4);
+                    align = Align::LEFT;
                     background_color = text::TEXT_COLOR_VAR;
+
+                    #[easing(150.ms())]
+                    x = 0;
                     when *#toggle::is_checked {
                         x = 1.em();
                     }
                 };
+
+                #[easing(150.ms())]
+                background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
                 when *#{parent_hovered} {
+                    #[easing(0.ms())]
                     background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
                 }
             }
