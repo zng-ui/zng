@@ -137,6 +137,8 @@ struct GlyphSegment {
     pub text: TextSegment,
     /// glyph exclusive end.
     pub end: usize,
+    /// Segment offset in the line.
+    pub x: f32,
     /// Advance/width of segment.
     pub advance: f32,
 }
@@ -1327,14 +1329,22 @@ impl ShapedTextBuilder {
 
         self.text_seg_end += seg.len();
 
-        let advance = self.origin.x - self.out.segments.0.last().map(|s| s.advance).unwrap_or(0.0);
+        let is_first_of_line =
+            (!self.out.lines.0.is_empty() && self.out.lines.last().end == self.out.segments.0.len()) || self.out.segments.0.is_empty();
+        let x = if is_first_of_line {
+            0.0
+        } else {
+            // not first segment of line
+            self.out.segments.0.last().map(|s| s.x + s.advance).unwrap_or(0.0)
+        };
         self.out.segments.0.push(GlyphSegment {
             text: TextSegment {
                 end: self.text_seg_end,
                 ..info
             },
             end: self.out.glyphs.len(),
-            advance,
+            x,
+            advance: self.origin.x - x,
         });
     }
 
