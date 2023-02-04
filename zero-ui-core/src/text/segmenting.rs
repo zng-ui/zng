@@ -117,21 +117,29 @@ impl From<char> for TextSegmentKind {
     }
 }
 
+pub use unicode_bidi::Level as BidiLevel;
+
 /// Represents a single text segment in a [`SegmentedText`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TextSegment {
     /// Segment kind.
     pub kind: TextSegmentKind,
-    /// Direction of the glyphs in the segment and how it advances given the context of .
-    ///
-    /// Segments iterate in the logical order, that is, the order the text is typed. If two segments
-    /// in the same line have direction `RTL` they must be layout the first to the right of the second.
-    pub direction: LayoutDirection,
+    /// Direction of the segment in the context of other segments of the line.
+    pub level: BidiLevel,
 
     /// Exclusive end index on the source text.
     ///
     /// The segment range starts from the `end` of the previous segment, or `0`, e.g: `prev_seg.end..self.end`.
     pub end: usize,
+}
+impl TextSegment {
+    /// Direction of the glyphs in the segment.
+    ///
+    /// Segments iterate in the logical order, that is, the order the text is typed. If two segments
+    /// in the same line have direction `RTL` they must be layout the first to the right of the second.
+    pub fn direction(self) -> LayoutDirection {
+        self.level.into()
+    }
 }
 
 /// A string segmented in sequences of words, spaces, tabs and separated line breaks.
@@ -181,7 +189,7 @@ impl SegmentedText {
                     segs.push(TextSegment {
                         kind: TextSegmentKind::LineBreak,
                         end: offset,
-                        direction: bidi.levels[break_start].into(),
+                        level: bidi.levels[break_start],
                     })
                 }
             } else {
@@ -199,24 +207,24 @@ impl SegmentedText {
         let start = segs.last().map(|s| s.end).unwrap_or(0);
 
         let mut kind = TextSegmentKind::LeftToRight;
-        let mut direction = LayoutDirection::LTR;
+        let mut level = BidiLevel::ltr();
         for (i, _) in text[start..end].char_indices() {
             let c_kind = bidi.original_classes[start + i].into();
-            let c_direction = bidi.levels[start + i].into();
+            let c_level = bidi.levels[start + i];
 
-            if c_kind != kind || c_direction != direction {
+            if c_kind != kind || c_level != level {
                 if i > 0 {
                     segs.push(TextSegment {
                         kind,
                         end: i + start,
-                        direction,
+                        level,
                     });
                 }
-                direction = c_direction;
+                level = c_level;
                 kind = c_kind;
             }
         }
-        segs.push(TextSegment { kind, end, direction });
+        segs.push(TextSegment { kind, end, level });
     }
 
     /// The text string.
@@ -339,35 +347,61 @@ impl SegmentedText {
     ///
     /// The `segs_range` must be the segments of a line after line wrap.
     pub fn reorder_line_to_ltr(&self, segs_range: ops::Range<usize>) -> Vec<usize> {
-        let segs = &self.segments[segs_range.clone()];
-        let txt_range = self.text_range(segs_range.clone());
-        let txt = &self.text[txt_range.clone()];
-
-        let bidi = BidiInfo::new(txt, Some(self.base_direction.into()));
-
         let mut r = Vec::with_capacity(segs_range.len());
+        let offset = segs_range.start;
+        reorder_bidi_segments(
+            self.base_direction,
+            self.segments[segs_range].iter().map(|s| (s.kind, s.level)),
+            offset,
+            &mut r,
+        );
+        r
+    }
+}
 
-        let (levels, ranges) = bidi.visual_runs(&bidi.paragraphs[0], bidi.paragraphs[0].range.clone());
-        for vis_txt_range in ranges {
-            let is_rtl = levels[vis_txt_range.start].is_rtl();
-            let vis_txt_range = (txt_range.start + vis_txt_range.start)..(txt_range.start + vis_txt_range.end);
-            let mut seg_txt_start = txt_range.start;
+/// Compute a map of segments in `line` to their final LTR display order.
+///
+/// The result is set in `reordered`.
+pub fn reorder_bidi_segments(
+    base_direction: LayoutDirection,
+    line: impl Iterator<Item = (TextSegmentKind, BidiLevel)>,
+    idx_offset: usize,
+    reordered: &mut Vec<usize>,
+) {
+    reordered.clear();
 
-            let rtl_insert_i = r.len();
-            for (seg_i, seg) in segs.iter().enumerate() {
-                let seg_txt_range = seg_txt_start..seg.end;
-                if vis_txt_range.contains(&seg_txt_range.start) {
-                    if is_rtl {
-                        r.insert(rtl_insert_i, segs_range.start + seg_i);
-                    } else {
-                        r.push(segs_range.start + seg_i);
-                    }
-                }
-                seg_txt_start = seg.end;
+    let cap = line.size_hint().0;
+    let mut text = String::with_capacity(cap);
+    let mut info = BidiInfo {
+        text: "",
+        original_classes: Vec::with_capacity(cap),
+        levels: Vec::with_capacity(cap),
+        paragraphs: vec![],
+    };
+    for (kind, level) in line {
+        info.original_classes.push(kind.into());
+        info.levels.push(level);
+        text.push(' '); // visual_runs only uses text to get advance of each char, !!: TODO, copy impl to our crate, remove dep on string.
+    }
+    info.text = &text;
+    let line = 0..info.text.len();
+    info.paragraphs.push(unicode_bidi::ParagraphInfo {
+        range: line.clone(),
+        level: base_direction.into(),
+    });
+
+    let (directions, vis_ranges) = info.visual_runs(&info.paragraphs[0], line);
+
+    for vis_range in vis_ranges {
+        if directions[vis_range.start].is_rtl() {
+            for i in vis_range.rev() {
+                reordered.push(idx_offset + i);
+            }
+        } else {
+            for i in vis_range {
+                reordered.push(idx_offset + i);
             }
         }
-
-        r
     }
 }
 
@@ -470,7 +504,7 @@ mod tests {
             TextSegment {
                 kind,
                 end,
-                direction: LayoutDirection::LTR,
+                level: BidiLevel::ltr(),
             }
         }
         use TextSegmentKind::*;

@@ -1006,7 +1006,7 @@ impl ShapedTextBuilder {
 
     fn push_text(&mut self, fonts: &[FontRef], features: &RFontFeatures, word_ctx_key: &mut WordContextKey, text: &SegmentedText) {
         for (seg, info) in text.iter() {
-            word_ctx_key.direction = info.direction;
+            word_ctx_key.direction = info.direction();
             let max_width = self.actual_max_width();
             if info.kind.is_word() {
                 fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, font| {
@@ -1322,8 +1322,8 @@ impl ShapedTextBuilder {
             self.out.glyphs.len()
         };
         if g_len > 0 {
-            self.line_has_ltr |= info.direction.is_ltr();
-            self.line_has_rtl |= info.direction.is_rtl();
+            self.line_has_ltr |= info.level.is_ltr();
+            self.line_has_rtl |= info.level.is_rtl();
         }
 
         self.text_seg_end += seg.len();
@@ -1672,7 +1672,7 @@ impl<'a> ShapedSegment<'a> {
 
     /// Layout direction of glyphs in the segment.
     pub fn direction(&self) -> LayoutDirection {
-        self.text.segments.0[self.index].text.direction
+        self.text.segments.0[self.index].text.direction()
     }
 
     /// If the segment contains the last glyph of the line.
