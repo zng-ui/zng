@@ -371,26 +371,14 @@ pub fn reorder_bidi_segments(
     reordered.clear();
 
     let cap = line.size_hint().0;
-    let mut text = String::with_capacity(cap);
-    let mut info = BidiInfo {
-        text: "",
-        original_classes: Vec::with_capacity(cap),
-        levels: Vec::with_capacity(cap),
-        paragraphs: vec![],
-    };
+    let mut line_classes = Vec::with_capacity(cap);
+    let mut levels = Vec::with_capacity(cap);
     for (kind, level) in line {
-        info.original_classes.push(kind.into());
-        info.levels.push(level);
-        text.push(' '); // visual_runs only uses text to get advance of each char, !!: TODO, copy impl to our crate, remove dep on string.
+        line_classes.push(kind.into());
+        levels.push(level);
     }
-    info.text = &text;
-    let line = 0..info.text.len();
-    info.paragraphs.push(unicode_bidi::ParagraphInfo {
-        range: line.clone(),
-        level: base_direction.into(),
-    });
 
-    let (directions, vis_ranges) = info.visual_runs(&info.paragraphs[0], line);
+    let (directions, vis_ranges) = visual_runs(levels, line_classes, base_direction.into());
 
     for vis_range in vis_ranges {
         if directions[vis_range.start].is_rtl() {
@@ -403,6 +391,120 @@ pub fn reorder_bidi_segments(
             }
         }
     }
+}
+/// mostly a copy of `unicode_bidi::BidiInfo` that does not require the text string.
+fn visual_runs(
+    mut levels: Vec<unicode_bidi::Level>,
+    line_classes: Vec<unicode_bidi::BidiClass>,
+    para_level: unicode_bidi::Level,
+) -> (Vec<unicode_bidi::Level>, Vec<unicode_bidi::LevelRun>) {
+    use unicode_bidi::BidiClass::*;
+
+    let line_levels = &mut levels;
+
+    // Reset some whitespace chars to paragraph level.
+    // <http://www.unicode.org/reports/tr9/#L1>
+    let mut reset_from: Option<usize> = Some(0);
+    let mut reset_to: Option<usize> = None;
+    let mut prev_level = para_level;
+    for i in 0..line_classes.len() {
+        match line_classes[i] {
+            // Segment separator, Paragraph separator
+            B | S => {
+                assert_eq!(reset_to, None);
+                reset_to = Some(i + 1);
+                if reset_from.is_none() {
+                    reset_from = Some(i);
+                }
+            }
+            // Whitespace, isolate formatting
+            WS | FSI | LRI | RLI | PDI => {
+                if reset_from.is_none() {
+                    reset_from = Some(i);
+                }
+            }
+            // <https://www.unicode.org/reports/tr9/#Retaining_Explicit_Formatting_Characters>
+            // same as above + set the level
+            RLE | LRE | RLO | LRO | PDF | BN => {
+                if reset_from.is_none() {
+                    reset_from = Some(i);
+                }
+                // also set the level to previous
+                line_levels[i] = prev_level;
+            }
+            _ => {
+                reset_from = None;
+            }
+        }
+        if let (Some(from), Some(to)) = (reset_from, reset_to) {
+            for level in &mut line_levels[from..to] {
+                *level = para_level;
+            }
+            reset_from = None;
+            reset_to = None;
+        }
+        prev_level = line_levels[i];
+    }
+    if let Some(from) = reset_from {
+        for level in &mut line_levels[from..] {
+            *level = para_level;
+        }
+    }
+
+    // Find consecutive level runs.
+    let mut runs = Vec::new();
+    let mut start = 0;
+    let mut run_level = levels[start];
+    let mut min_level = run_level;
+    let mut max_level = run_level;
+
+    for (i, &new_level) in levels.iter().enumerate().skip(1) {
+        if new_level != run_level {
+            // End of the previous run, start of a new one.
+            runs.push(start..i);
+            start = i;
+            run_level = new_level;
+            min_level = std::cmp::min(run_level, min_level);
+            max_level = std::cmp::max(run_level, max_level);
+        }
+    }
+    runs.push(start..line_classes.len());
+
+    let run_count = runs.len();
+
+    // Re-order the odd runs.
+    // <http://www.unicode.org/reports/tr9/#L2>
+
+    // Stop at the lowest *odd* level.
+    min_level = min_level.new_lowest_ge_rtl().expect("Level error");
+
+    while max_level >= min_level {
+        // Look for the start of a sequence of consecutive runs of max_level or higher.
+        let mut seq_start = 0;
+        while seq_start < run_count {
+            if levels[runs[seq_start].start] < max_level {
+                seq_start += 1;
+                continue;
+            }
+
+            // Found the start of a sequence. Now find the end.
+            let mut seq_end = seq_start + 1;
+            while seq_end < run_count {
+                if levels[runs[seq_end].start] < max_level {
+                    break;
+                }
+                seq_end += 1;
+            }
+
+            // Reverse the runs within this sequence.
+            runs[seq_start..seq_end].reverse();
+
+            seq_start = seq_end;
+        }
+        max_level.lower(1).expect("Lowering embedding level below zero");
+    }
+
+    (levels, runs)
 }
 
 /// Segmented text iterator.
