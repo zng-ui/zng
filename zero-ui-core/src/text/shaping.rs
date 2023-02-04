@@ -11,6 +11,7 @@ use super::{
 use crate::{
     context::{InlineConstrainsLayout, InlineConstrainsMeasure, LayoutDirection},
     crate_util::{f32_cmp, IndexRange},
+    text::BidiLevel,
     units::*,
 };
 
@@ -1668,6 +1669,11 @@ impl<'a> ShapedSegment<'a> {
     /// Segment kind.
     pub fn kind(&self) -> TextSegmentKind {
         self.text.segments.0[self.index].text.kind
+    }
+
+    /// Segment bidi level.
+    pub fn level(&self) -> BidiLevel {
+        self.text.segments.0[self.index].text.level
     }
 
     /// Layout direction of glyphs in the segment.

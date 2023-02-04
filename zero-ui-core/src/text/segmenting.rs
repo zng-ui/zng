@@ -378,16 +378,18 @@ pub fn reorder_bidi_segments(
         levels.push(level);
     }
 
-    let (directions, vis_ranges) = visual_runs(levels, line_classes, base_direction.into());
+    if !levels.is_empty() {
+        let (directions, vis_ranges) = visual_runs(levels, line_classes, base_direction.into());
 
-    for vis_range in vis_ranges {
-        if directions[vis_range.start].is_rtl() {
-            for i in vis_range.rev() {
-                reordered.push(idx_offset + i);
-            }
-        } else {
-            for i in vis_range {
-                reordered.push(idx_offset + i);
+        for vis_range in vis_ranges {
+            if directions[vis_range.start].is_rtl() {
+                for i in vis_range.rev() {
+                    reordered.push(idx_offset + i);
+                }
+            } else {
+                for i in vis_range {
+                    reordered.push(idx_offset + i);
+                }
             }
         }
     }

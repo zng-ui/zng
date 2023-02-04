@@ -1,4 +1,7 @@
-use crate::context::{LayoutDirection, MeasureContext, StateMapMut};
+use crate::{
+    context::{MeasureContext, StateMapMut},
+    text::{BidiLevel, TextSegmentKind},
+};
 
 use super::*;
 
@@ -268,8 +271,10 @@ impl WidgetInfoBuilder {
 pub struct WidgetInlineItem {
     /// Width of the item.
     pub width: Px,
-    ///Direction of this item.
-    pub direction: LayoutDirection,
+    /// Info for bidirectional reorder.
+    pub kind: TextSegmentKind,
+    /// Direction of this item.
+    pub level: BidiLevel,
 }
 
 /// Represents an [`WidgetInlineItem`] positioned by the inlining parent.

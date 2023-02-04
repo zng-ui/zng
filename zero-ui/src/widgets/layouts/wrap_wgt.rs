@@ -229,6 +229,13 @@ impl InlineLayout {
                 let mut row = first;
                 let mut row_advance = Px(0);
                 let mut next_row_i = 1;
+                let mut bidi_sorted = vec![];
+                reorder_bidi_segments(
+                    direction,
+                    self.rows[0].items.iter().flat_map(|i| i.iter().map(|i| (i.kind, i.level))),
+                    0,
+                    &mut bidi_sorted,
+                );
 
                 children.for_each_mut(|i, child, o| {
                     if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
@@ -249,6 +256,13 @@ impl InlineLayout {
                             row.origin.x = (panel_width - row.size.width) * child_align_x;
                         }
                         row_advance = Px(0);
+
+                        reorder_bidi_segments(
+                            direction,
+                            self.rows[next_row_i].items.iter().flat_map(|i| i.iter().map(|i| (i.kind, i.level))),
+                            0,
+                            &mut bidi_sorted,
+                        );
 
                         next_row_i += 1;
                     }

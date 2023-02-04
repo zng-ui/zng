@@ -798,7 +798,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             for seg in first_line.segs() {
                                 i.push(WidgetInlineItem {
                                     width: seg.rect().width(),
-                                    direction: seg.direction(),
+                                    kind: seg.kind(),
+                                    level: seg.level(),
                                 });
                             }
                         });
@@ -816,7 +817,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             for seg in last_line.segs() {
                                 i.push(WidgetInlineItem {
                                     width: seg.rect().width(),
-                                    direction: seg.direction(),
+                                    kind: seg.kind(),
+                                    level: seg.level(),
                                 })
                             }
                         })

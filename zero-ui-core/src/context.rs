@@ -348,7 +348,7 @@ pub struct TestWidgetContext {
     /// [`info_tree`]: WidgetContext::info_tree
     pub info_tree: WidgetInfoTree,
 
-    ///The [`widget_info`] value.
+    /// The [`widget_info`] value.
     ///
     /// [`widget_info`]: WidgetContext::widget_info
     pub widget_info: WidgetContextInfo,

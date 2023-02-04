@@ -1237,7 +1237,7 @@ pub use crate::async_app_hn_once;
 ///         bar.push_str("!");
 ///         if p { println!("cloned String not Arc: {bar}") }
 ///     }
-///});
+/// });
 /// # println!("original: {bar}");
 /// ```
 ///

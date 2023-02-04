@@ -144,7 +144,7 @@ pub mod style_mixin {
         )
     }
 
-    ///Gets the custom build that is set on intrinsic by the mix-in.
+    /// Gets the custom build that is set on intrinsic by the mix-in.
     pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
         // 1 - "split_off" the property `style`
         //     this moves the property and any `when` that affects it to a new widget builder.
