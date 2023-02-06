@@ -280,6 +280,8 @@ pub struct InlineSegment {
 /// Represents an [`InlineSegment`] positioned by the inlining parent.
 ///
 /// See [`InlineConstrainsLayout::first_segs`] for more details.
+///
+/// [`InlineConstrainsLayout::first_segs`]: crate::context::InlineConstrainsLayout::first_segs
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct InlineSegmentPos {
     /// Seg offset to the right from the row origin.

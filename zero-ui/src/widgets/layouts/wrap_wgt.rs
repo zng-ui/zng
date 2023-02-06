@@ -121,9 +121,29 @@ struct SegInfo {
     layout: Arc<Vec<InlineSegmentPos>>,
 }
 impl SegInfo {
-    fn iter_mut(&mut self) -> impl Iterator<Item = (&InlineSegment, &mut InlineSegmentPos)> {
+    fn block_or_collapsed() -> Self {
+        // !!: TODO, avoid Arc alloc here?
+        //           if we make SegInfo an enum it can also work like an assert
+        Self {
+            measure: Arc::new(vec![]),
+            layout: Arc::new(vec![]),
+        }
+    }
+
+    fn layout_mut(&mut self) -> &mut Vec<InlineSegmentPos> {
         // Borrow checker limitation does not allow `if let Some(l) = Arc::get_mut(..) { l } else { <insert-return> }`
 
+        if Arc::get_mut(&mut self.layout).is_none() {
+            self.layout = Arc::new(vec![]);
+        }
+
+        let r = Arc::get_mut(&mut self.layout).unwrap();
+        r.resize(self.measure.len(), InlineSegmentPos { x: Px(0) });
+
+        r
+    }
+
+    fn iter_mut(&mut self) -> impl Iterator<Item = (&InlineSegment, &mut InlineSegmentPos)> {
         if Arc::get_mut(&mut self.layout).is_none() {
             self.layout = Arc::new(vec![]);
         }
@@ -256,10 +276,9 @@ impl InlineLayout {
                 let mut row_segs = &self.rows[0].segs;
                 let mut row_advance = Px(0);
                 let mut next_row_i = 1;
-                let mut row_child_i = 0;
+                let mut row_first_i = 0;
 
                 children.for_each_mut(|i, child, o| {
-                    row_child_i += 1;
                     if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
                         // new row
                         if let Some(inline) = wl.inline() {
@@ -278,8 +297,9 @@ impl InlineLayout {
                             row.origin.x = (panel_width - row.size.width) * child_align_x;
                         }
                         row_segs = &self.rows[next_row_i].segs;
+                        row_first_i = self.rows[next_row_i].first_child;
                         next_row_i += 1;
-                        row_child_i = 0;
+                        row_advance = Px(0);
                     }
 
                     let child_inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
@@ -296,11 +316,10 @@ impl InlineLayout {
                         let mut child_first = PxRect::from_size(child_inline.first);
                         let mut child_mid = Px(0);
                         let mut child_last = PxRect::from_size(child_inline.last);
-                        let child_first_segs = row_segs[row_child_i].layout.clone();
+                        let child_first_segs = row_segs[i - row_first_i].layout.clone();
 
                         if child_inline.last_wrapped {
                             // child wraps
-
                             debug_assert_eq!(self.rows[next_row_i].first_child, i + 1);
 
                             child_first.origin.x = row.origin.x + row_advance;
@@ -355,8 +374,9 @@ impl InlineLayout {
                             row = next_row;
                             row_advance = child_last.size.width + spacing.column;
                             row_segs = &self.rows[next_row_i].segs;
+                            row_first_i = self.rows[next_row_i].first_child;
+                            debug_assert_eq!(row_first_i, i + 1);
                             next_row_i += 1;
-                            row_child_i = 0;
                         } else {
                             // child inlined, but fits in the row
 
@@ -460,6 +480,7 @@ impl InlineLayout {
                     let (inline, size) = ctx.measure_inline(inline_constrain, row.size.height - spacing.row, child);
 
                     if size.is_empty() {
+                        row.segs.push(SegInfo::block_or_collapsed());
                         // collapsed, continue.
                         return true;
                     }
@@ -498,17 +519,18 @@ impl InlineLayout {
                             row.size = inline.last;
                             row.size.width += spacing.column;
                             row.first_child = i + 1;
-                            row.segs.push(SegInfo {
-                                measure: inline.last_segs,
-                                layout: Arc::new(vec![]),
-                            });
                         } else {
                             // child inlined, but fit in row
                             row.size.width += spacing.column;
                         }
+                        row.segs.push(SegInfo {
+                            measure: inline.last_segs,
+                            layout: Arc::new(vec![]),
+                        });
                     } else if size.width <= inline_constrain {
                         row.size.width += size.width + spacing.column;
                         row.size.height = row.size.height.max(size.height);
+                        row.segs.push(SegInfo::block_or_collapsed());
                     } else {
                         // wrap by us
                         if row.size.is_empty() {
@@ -528,6 +550,7 @@ impl InlineLayout {
                         row.size = size;
                         row.size.width += spacing.column;
                         row.first_child = i;
+                        row.segs.push(SegInfo::block_or_collapsed());
                     }
 
                     true
@@ -609,13 +632,16 @@ impl InlineLayout {
 
             for &new_i in self.bidi_sorted.iter() {
                 let mut seg_i = 0;
+
+                // bidi_sorted is flatten of row.segs
                 for s in &mut row.segs {
-                    if s.measure.len() < new_i {
-                        seg_i += s.measure.len();
+                    if seg_i + s.measure.len() <= new_i {
+                        seg_i += s.measure.len().saturating_sub(1);
                     } else {
                         let new_i = new_i - seg_i;
-                        s.iter_mut().nth(new_i).unwrap().1.x = x;
+                        s.layout_mut()[new_i].x = x;
                         x += s.measure[new_i].width;
+                        break;
                     }
                 }
             }
