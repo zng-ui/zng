@@ -794,9 +794,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if let (Some(inline), Some(l)) = (wm.inline(), txt.txt.as_ref()) {
                     if let Some(first_line) = l.shaped_text.first_line() {
                         inline.first = first_line.rect().size;
-                        inline.with_first_items(|i| {
+                        inline.with_first_segs(|i| {
                             for seg in first_line.segs() {
-                                i.push(WidgetInlineItem {
+                                i.push(InlineSegment {
                                     width: seg.rect().width(),
                                     kind: seg.kind(),
                                     level: seg.level(),
@@ -805,17 +805,17 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         });
                     } else {
                         inline.first = PxSize::zero();
-                        inline.with_first_items(|i| i.clear());
+                        inline.with_first_segs(|i| i.clear());
                     }
 
                     if l.shaped_text.lines_len() == 1 {
                         inline.last = inline.first;
-                        inline.last_items = inline.first_items.clone();
+                        inline.last_segs = inline.first_segs.clone();
                     } else if let Some(last_line) = l.shaped_text.last_line() {
                         inline.last = last_line.rect().size;
-                        inline.with_last_items(|i| {
+                        inline.with_last_segs(|i| {
                             for seg in last_line.segs() {
-                                i.push(WidgetInlineItem {
+                                i.push(InlineSegment {
                                     width: seg.rect().width(),
                                     kind: seg.kind(),
                                     level: seg.level(),
@@ -824,7 +824,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         })
                     } else {
                         inline.last = PxSize::zero();
-                        inline.with_last_items(|i| i.clear());
+                        inline.with_last_segs(|i| i.clear());
                     }
 
                     inline.first_wrapped = l.shaped_text.first_wrapped();

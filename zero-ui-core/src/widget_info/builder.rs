@@ -262,14 +262,14 @@ impl WidgetInfoBuilder {
     }
 }
 
-/// Represents an item in an inlined widget first or last row.
+/// Represents a segment in an inlined widget first or last row.
 ///
 /// This info is used by inlining parent to sort the joiner row in a way that preserves bidirectional text flow.
 ///
-/// See [`WidgetInlineMeasure::first_items`] for more details.
+/// See [`WidgetInlineMeasure::first_segs`] for more details.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct WidgetInlineItem {
-    /// Width of the item.
+pub struct InlineSegment {
+    /// Width of the segment.
     pub width: Px,
     /// Info for bidirectional reorder.
     pub kind: TextSegmentKind,
@@ -277,14 +277,14 @@ pub struct WidgetInlineItem {
     pub level: BidiLevel,
 }
 
-/// Represents an [`WidgetInlineItem`] positioned by the inlining parent.
+/// Represents an [`InlineSegment`] positioned by the inlining parent.
 ///
-/// See [`InlineConstrains::TODO`] for more details.
+/// See [`InlineConstrainsLayout::first_segs`] for more details. !!: TODO
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct WidgetInlineItemPos {
-    /// Item index in the measured info.
-    pub idx: u32,
-    /// Item offset to the right from the row origin.
+pub struct InlineSegmentPos {
+    /// Seg index in the measured info.
+    pub idx: u32, // !!: TODO, remove this?
+    /// Seg offset to the right from the row origin.
     pub x: Px,
 }
 
@@ -304,8 +304,8 @@ pub struct WidgetInlineMeasure {
     /// Indicates that `first` starts in the next row, not in the *current* row defined by the inline constrains.
     pub first_wrapped: bool,
 
-    /// Inline items in the first row.
-    pub first_items: Arc<Vec<WidgetInlineItem>>,
+    /// Inline segments in the first row.
+    pub first_segs: Arc<Vec<InlineSegment>>,
 
     /// Preferred last size.
     ///
@@ -316,27 +316,27 @@ pub struct WidgetInlineMeasure {
     /// Indicates that `last` starts in the next row, not in the same row as the first.
     pub last_wrapped: bool,
 
-    /// Inline items in the last row.
-    pub last_items: Arc<Vec<WidgetInlineItem>>,
+    /// Inline segments in the last row.
+    pub last_segs: Arc<Vec<InlineSegment>>,
 }
 impl WidgetInlineMeasure {
-    /// Visit a mutable reference to the new [`first_items`] value, `f` is called with
+    /// Visit a mutable reference to the new [`first_segs`] value, `f` is called with
     /// an empty vec that can be reused or new.
     ///
-    /// [`first_items`]: Self::first_items
-    pub fn with_first_items(&mut self, f: impl FnOnce(&mut Vec<WidgetInlineItem>)) {
-        Self::with_items(&mut self.first_items, f)
+    /// [`first_segs`]: Self::first_segs
+    pub fn with_first_segs(&mut self, f: impl FnOnce(&mut Vec<InlineSegment>)) {
+        Self::with_segs(&mut self.first_segs, f)
     }
 
-    /// Visit a mutable reference to the new [`last_items`] value, `f` is called with
+    /// Visit a mutable reference to the new [`last_segs`] value, `f` is called with
     /// an empty vec that can be reused or new.
     ///
-    /// [`last_items`]: Self::last_items
-    pub fn with_last_items(&mut self, f: impl FnOnce(&mut Vec<WidgetInlineItem>)) {
-        Self::with_items(&mut self.last_items, f)
+    /// [`last_segs`]: Self::last_segs
+    pub fn with_last_segs(&mut self, f: impl FnOnce(&mut Vec<InlineSegment>)) {
+        Self::with_segs(&mut self.last_segs, f)
     }
 
-    fn with_items(items: &mut Arc<Vec<WidgetInlineItem>>, f: impl FnOnce(&mut Vec<WidgetInlineItem>)) {
+    fn with_segs(items: &mut Arc<Vec<InlineSegment>>, f: impl FnOnce(&mut Vec<InlineSegment>)) {
         match Arc::get_mut(items) {
             Some(items) => {
                 items.clear();
@@ -351,6 +351,19 @@ impl WidgetInlineMeasure {
     }
 }
 
+/// Info about a segment in the first or last row of an inlined widget.
+///
+/// See [`WidgetInlineInfo::first_segs`] for more details.
+#[derive(Clone, Copy, Debug)]
+pub struct InlineSegmentInfo {
+    /// Segment offset from the row rectangle origin.
+    pub x: Px,
+    /// Segment width.
+    ///
+    /// The segment height is the row rectangle height.
+    pub width: Px,
+}
+
 /// Info about the inlined rows of the widget.
 #[derive(Debug, Default)]
 pub struct WidgetInlineInfo {
@@ -358,6 +371,18 @@ pub struct WidgetInlineInfo {
     ///
     /// The rectangles are in the widget's inner space, from top to bottom.
     pub rows: Vec<PxRect>,
+
+    /// Segments of the first row.
+    ///
+    /// If this is empty the entire row width is a continuous segment, otherwise the row is segmented and
+    /// the widget can be interleaved with sibling widgets due to Unicode bidirectional text sorting algorithm.
+    ///
+    /// Note that the segment count may be less then [`WidgetInlineMeasure::first_segs`] as contiguous segments
+    /// may be merged.
+    pub first_segs: Vec<InlineSegmentInfo>,
+
+    /// Segments of the last row.
+    pub last_segs: Vec<InlineSegmentInfo>,
 
     /// Widget inner size when the rows where last updated.
     pub inner_size: PxSize,
@@ -371,7 +396,7 @@ impl WidgetInlineInfo {
     }
 
     /// Gets or computes the negative space of the [`rows`] in the [`inner_size`] space, that is, all the areas that are
-    /// not covered by any row.
+    /// not covered by any row and not covered by the first and last row segments.
     ///
     /// This is computed on demand and cached.
     ///
@@ -433,6 +458,39 @@ impl WidgetInlineInfo {
                 PxPoint::new(bounds.origin.x, last_max_y),
                 PxSize::new(bounds.size.width, spacing_y),
             ));
+        }
+
+        if let Some(r) = self.rows.first() {
+            if !self.first_segs.is_empty() {
+                let mut x = r.origin.x;
+                for seg in self.first_segs.iter() {
+                    let blank = seg.x - x;
+                    if blank > Px(0) {
+                        space.push(PxRect::new(PxPoint::new(x, r.origin.y), PxSize::new(blank, r.size.height)));
+                    }
+                    x = seg.x + seg.width;
+                }
+                let blank = r.max_x() - x;
+                if blank > Px(0) {
+                    space.push(PxRect::new(PxPoint::new(x, r.origin.y), PxSize::new(blank, r.size.height)));
+                }
+            }
+        }
+        if let Some(r) = self.rows.last() {
+            if !self.last_segs.is_empty() {
+                let mut x = r.origin.x;
+                for seg in self.last_segs.iter() {
+                    let blank = seg.x - x;
+                    if blank > Px(0) {
+                        space.push(PxRect::new(PxPoint::new(x, r.origin.y), PxSize::new(blank, r.size.height)));
+                    }
+                    x = seg.x + seg.width;
+                }
+                let blank = r.max_x() - x;
+                if blank > Px(0) {
+                    space.push(PxRect::new(PxPoint::new(x, r.origin.y), PxSize::new(blank, r.size.height)));
+                }
+            }
         }
     }
 }

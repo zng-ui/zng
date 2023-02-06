@@ -120,7 +120,7 @@ impl UiNode for WrapNode {
 struct RowInfo {
     size: PxSize,
     first_child: usize,
-    items: Vec<Arc<Vec<WidgetInlineItem>>>,
+    segs: Vec<Arc<Vec<InlineSegment>>>,
 }
 
 #[derive(Default)]
@@ -154,21 +154,21 @@ impl InlineLayout {
 
             if let Some(first) = self.rows.first() {
                 inline.first = first.size;
-                inline.with_first_items(|i| {
-                    i.extend(first.items.iter().flat_map(|i| i.iter().copied()));
+                inline.with_first_segs(|i| {
+                    i.extend(first.segs.iter().flat_map(|i| i.iter().copied()));
                 });
             } else {
                 inline.first = PxSize::zero();
-                inline.with_first_items(|i| i.clear());
+                inline.with_first_segs(|i| i.clear());
             }
             if let Some(last) = self.rows.last() {
                 inline.last = last.size;
-                inline.with_last_items(|i| {
-                    i.extend(last.items.iter().flat_map(|i| i.iter().copied()));
+                inline.with_last_segs(|i| {
+                    i.extend(last.segs.iter().flat_map(|i| i.iter().copied()));
                 })
             } else {
                 inline.last = PxSize::zero();
-                inline.with_last_items(|i| i.clear());
+                inline.with_last_segs(|i| i.clear());
             }
         }
 
@@ -232,7 +232,7 @@ impl InlineLayout {
                 let mut bidi_sorted = vec![];
                 reorder_bidi_segments(
                     direction,
-                    self.rows[0].items.iter().flat_map(|i| i.iter().map(|i| (i.kind, i.level))),
+                    self.rows[0].segs.iter().flat_map(|i| i.iter().map(|i| (i.kind, i.level))),
                     0,
                     &mut bidi_sorted,
                 );
@@ -259,7 +259,7 @@ impl InlineLayout {
 
                         reorder_bidi_segments(
                             direction,
-                            self.rows[next_row_i].items.iter().flat_map(|i| i.iter().map(|i| (i.kind, i.level))),
+                            self.rows[next_row_i].segs.iter().flat_map(|i| i.iter().map(|i| (i.kind, i.level))),
                             0,
                             &mut bidi_sorted,
                         );
@@ -457,7 +457,7 @@ impl InlineLayout {
                             row.size.width += inline.first.width;
                             row.size.height = row.size.height.max(inline.first.height);
                         }
-                        row.items.push(inline.first_items.clone());
+                        row.segs.push(inline.first_segs.clone());
 
                         if inline.last_wrapped {
                             // wrap by child
@@ -468,7 +468,7 @@ impl InlineLayout {
                             row.size = inline.last;
                             row.size.width += spacing.column;
                             row.first_child = i + 1;
-                            row.items.push(inline.last_items);
+                            row.segs.push(inline.last_segs);
                         } else {
                             // child inlined, but fit in row
                             row.size.width += spacing.column;
