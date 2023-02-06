@@ -279,11 +279,9 @@ pub struct InlineSegment {
 
 /// Represents an [`InlineSegment`] positioned by the inlining parent.
 ///
-/// See [`InlineConstrainsLayout::first_segs`] for more details. !!: TODO
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+/// See [`InlineConstrainsLayout::first_segs`] for more details.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct InlineSegmentPos {
-    /// Seg index in the measured info.
-    pub idx: u32, // !!: TODO, remove this?
     /// Seg offset to the right from the row origin.
     pub x: Px,
 }
@@ -354,7 +352,7 @@ impl WidgetInlineMeasure {
 /// Info about a segment in the first or last row of an inlined widget.
 ///
 /// See [`WidgetInlineInfo::first_segs`] for more details.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InlineSegmentInfo {
     /// Segment offset from the row rectangle origin.
     pub x: Px,

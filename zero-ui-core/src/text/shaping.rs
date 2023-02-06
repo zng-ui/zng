@@ -479,7 +479,7 @@ impl ShapedText {
         let align_x = align.x(direction);
         let align_y = if inline_constrains.is_some() { 0.fct() } else { align.y() };
 
-        let (first, mid, last) = if let Some(l) = inline_constrains {
+        let (first, mid, last) = if let Some(l) = &inline_constrains {
             (l.first, l.mid_clear, l.last)
         } else {
             // calculate our own first & last

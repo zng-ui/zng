@@ -653,7 +653,7 @@ impl WidgetBoundsInfo {
     /// [`LayoutMetrics`]: crate::context::LayoutMetrics
     /// [`metrics_used`]: Self::metrics_used
     pub fn metrics(&self) -> Option<LayoutMetricsSnapshot> {
-        self.0.lock().metrics
+        self.0.lock().metrics.clone()
     }
 
     /// All [`metrics`] fields used by the widget or descendants on the last layout.
@@ -694,7 +694,7 @@ impl WidgetBoundsInfo {
     }
 
     pub(crate) fn measure_metrics(&self) -> Option<LayoutMetricsSnapshot> {
-        self.0.lock().measure_metrics
+        self.0.lock().measure_metrics.clone()
     }
     pub(crate) fn measure_metrics_used(&self) -> LayoutMask {
         self.0.lock().measure_metrics_used

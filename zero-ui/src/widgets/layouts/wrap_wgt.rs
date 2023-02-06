@@ -115,19 +115,41 @@ impl UiNode for WrapNode {
     }
 }
 
+#[derive(Debug, Clone)]
+struct SegInfo {
+    measure: Arc<Vec<InlineSegment>>,
+    layout: Arc<Vec<InlineSegmentPos>>,
+}
+impl SegInfo {
+    fn iter_mut(&mut self) -> impl Iterator<Item = (&InlineSegment, &mut InlineSegmentPos)> {
+        // Borrow checker limitation does not allow `if let Some(l) = Arc::get_mut(..) { l } else { <insert-return> }`
+
+        if Arc::get_mut(&mut self.layout).is_none() {
+            self.layout = Arc::new(vec![]);
+        }
+
+        let r = Arc::get_mut(&mut self.layout).unwrap();
+        r.resize(self.measure.len(), InlineSegmentPos { x: Px(0) });
+
+        self.measure.iter().zip(r)
+    }
+}
+
 /// Info about a row managed by wrap.
 #[derive(Default, Debug, Clone)]
 struct RowInfo {
     size: PxSize,
     first_child: usize,
-    segs: Vec<Arc<Vec<InlineSegment>>>,
+    segs: Vec<SegInfo>,
 }
 
 #[derive(Default)]
 pub struct InlineLayout {
     first_wrapped: bool,
     rows: Vec<RowInfo>,
+    bidi_layout: bool,
     desired_size: PxSize,
+    bidi_sorted: Vec<usize>, // alloc here for reuse.
 }
 impl InlineLayout {
     pub fn measure(
@@ -155,7 +177,7 @@ impl InlineLayout {
             if let Some(first) = self.rows.first() {
                 inline.first = first.size;
                 inline.with_first_segs(|i| {
-                    i.extend(first.segs.iter().flat_map(|i| i.iter().copied()));
+                    i.extend(first.segs.iter().flat_map(|i| i.measure.iter().copied()));
                 });
             } else {
                 inline.first = PxSize::zero();
@@ -164,7 +186,7 @@ impl InlineLayout {
             if let Some(last) = self.rows.last() {
                 inline.last = last.size;
                 inline.with_last_segs(|i| {
-                    i.extend(last.segs.iter().flat_map(|i| i.iter().copied()));
+                    i.extend(last.segs.iter().flat_map(|i| i.measure.iter().copied()));
                 })
             } else {
                 inline.last = PxSize::zero();
@@ -183,12 +205,16 @@ impl InlineLayout {
         child_align: Align,
         spacing: PxGridSpacing,
     ) -> PxSize {
-        if ctx.inline_constrains().is_none() {
+        let inline_constrains = ctx.inline_constrains();
+        let direction = ctx.direction();
+
+        if inline_constrains.is_none() {
             // if not already measured by parent inline
             self.measure_rows(&mut ctx.as_measure(), children, child_align, spacing);
         }
-
-        let direction = ctx.direction();
+        if !self.bidi_layout {
+            self.layout_bidi(inline_constrains.clone(), direction)
+        }
 
         let constrains = ctx.constrains();
         let child_align_x = child_align.x(direction);
@@ -196,7 +222,7 @@ impl InlineLayout {
 
         let panel_width = constrains.x.fill_or(self.desired_size.width);
 
-        let (first, mid, last) = if let Some(s) = ctx.inline_constrains().map(|c| c.layout()) {
+        let (first, mid, last) = if let Some(s) = inline_constrains.map(|c| c.layout()) {
             (s.first, s.mid_clear, s.last)
         } else {
             // define our own first and last
@@ -227,17 +253,13 @@ impl InlineLayout {
             |_| child_constrains,
             |ctx| {
                 let mut row = first;
+                let mut row_segs = &self.rows[0].segs;
                 let mut row_advance = Px(0);
                 let mut next_row_i = 1;
-                let mut bidi_sorted = vec![];
-                reorder_bidi_segments(
-                    direction,
-                    self.rows[0].segs.iter().flat_map(|i| i.iter().map(|i| (i.kind, i.level))),
-                    0,
-                    &mut bidi_sorted,
-                );
+                let mut row_child_i = 0;
 
                 children.for_each_mut(|i, child, o| {
+                    row_child_i += 1;
                     if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
                         // new row
                         if let Some(inline) = wl.inline() {
@@ -255,16 +277,9 @@ impl InlineLayout {
                             row.size = self.rows[next_row_i].size;
                             row.origin.x = (panel_width - row.size.width) * child_align_x;
                         }
-                        row_advance = Px(0);
-
-                        reorder_bidi_segments(
-                            direction,
-                            self.rows[next_row_i].segs.iter().flat_map(|i| i.iter().map(|i| (i.kind, i.level))),
-                            0,
-                            &mut bidi_sorted,
-                        );
-
+                        row_segs = &self.rows[next_row_i].segs;
                         next_row_i += 1;
+                        row_child_i = 0;
                     }
 
                     let child_inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
@@ -281,6 +296,7 @@ impl InlineLayout {
                         let mut child_first = PxRect::from_size(child_inline.first);
                         let mut child_mid = Px(0);
                         let mut child_last = PxRect::from_size(child_inline.last);
+                        let child_first_segs = row_segs[row_child_i].layout.clone();
 
                         if child_inline.last_wrapped {
                             // child wraps
@@ -310,10 +326,12 @@ impl InlineLayout {
                             }
                             child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
                             child_last.origin.y += spacing.row;
+                            let child_last_segs = self.rows[next_row_i].segs[0].layout.clone();
 
-                            let (_, define_ref_frame) = ctx.with_inline(child_first, child_mid, child_last, |ctx| {
-                                wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))
-                            });
+                            let (_, define_ref_frame) =
+                                ctx.with_inline(child_first, child_mid, child_last, child_first_segs, child_last_segs, |ctx| {
+                                    wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))
+                                });
                             o.child_offset = PxVector::new(Px(0), row.origin.y);
                             o.define_reference_frame = define_ref_frame;
 
@@ -336,7 +354,9 @@ impl InlineLayout {
                             }
                             row = next_row;
                             row_advance = child_last.size.width + spacing.column;
+                            row_segs = &self.rows[next_row_i].segs;
                             next_row_i += 1;
+                            row_child_i = 0;
                         } else {
                             // child inlined, but fits in the row
 
@@ -349,9 +369,14 @@ impl InlineLayout {
                             let (_, define_ref_frame) = ctx.with_constrains(
                                 |_| child_constrains.with_fill(false, false).with_max_size(child_inline.first),
                                 |ctx| {
-                                    ctx.with_inline(child_first, child_mid, child_last, |ctx| {
-                                        wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))
-                                    })
+                                    ctx.with_inline(
+                                        child_first,
+                                        child_mid,
+                                        child_last,
+                                        child_first_segs.clone(),
+                                        child_first_segs,
+                                        |ctx| wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl)),
+                                    )
                                 },
                             );
                             o.child_offset = row.origin.to_vector() + offset;
@@ -400,7 +425,9 @@ impl InlineLayout {
     }
 
     fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &PanelList, child_align: Align, spacing: PxGridSpacing) {
-        self.rows.clear();
+        self.rows.clear(); // !!: TODO, reuse items now that some Arc<Vec<_>> are alloc.
+        self.bidi_layout = false;
+
         self.first_wrapped = false;
         self.desired_size = PxSize::zero();
 
@@ -457,7 +484,10 @@ impl InlineLayout {
                             row.size.width += inline.first.width;
                             row.size.height = row.size.height.max(inline.first.height);
                         }
-                        row.segs.push(inline.first_segs.clone());
+                        row.segs.push(SegInfo {
+                            measure: inline.first_segs.clone(),
+                            layout: Arc::new(vec![]),
+                        });
 
                         if inline.last_wrapped {
                             // wrap by child
@@ -468,7 +498,10 @@ impl InlineLayout {
                             row.size = inline.last;
                             row.size.width += spacing.column;
                             row.first_child = i + 1;
-                            row.segs.push(inline.last_segs);
+                            row.segs.push(SegInfo {
+                                measure: inline.last_segs,
+                                layout: Arc::new(vec![]),
+                            });
                         } else {
                             // child inlined, but fit in row
                             row.size.width += spacing.column;
@@ -508,5 +541,84 @@ impl InlineLayout {
         self.desired_size.width = self.desired_size.width.max(row.size.width);
         self.desired_size.height += row.size.height;
         self.rows.push(row);
+    }
+
+    fn layout_bidi(&mut self, constrains: Option<InlineConstrains>, direction: LayoutDirection) {
+        let mut our_rows = 0..self.rows.len();
+
+        if let Some(l) = constrains {
+            let l = l.layout();
+            our_rows = 0..0;
+
+            if !self.rows.is_empty() {
+                if l.first_segs.len() != self.rows[0].segs.len() {
+                    // parent set first_segs empty (not sorted), or wrong
+                    let mut x = Px(0);
+                    for s in self.rows[0].segs.iter_mut() {
+                        for (seg, pos) in s.iter_mut() {
+                            pos.x = x;
+                            x += seg.width;
+                        }
+                    }
+                } else {
+                    // parent set first_segs
+                    for (pos, (_seg, seg_pos)) in l.first_segs.iter().zip(self.rows[0].segs.iter_mut().flat_map(|s| s.iter_mut())) {
+                        seg_pos.x = pos.x;
+                    }
+                }
+
+                if self.rows.len() > 1 {
+                    // last row not the same as first
+                    let last_i = self.rows.len() - 1;
+                    let last = &mut self.rows[last_i];
+                    if l.last_segs.len() != last.segs.len() {
+                        // parent set last_segs empty (not sorted), or wrong
+                        let mut x = Px(0);
+                        for s in last.segs.iter_mut() {
+                            for (seg, pos) in s.iter_mut() {
+                                pos.x = x;
+                                x += seg.width;
+                            }
+                        }
+                    } else {
+                        // parent set last_segs
+
+                        for (pos, (_seg, seg_pos)) in l.last_segs.iter().zip(last.segs.iter_mut().flat_map(|s| s.iter_mut())) {
+                            seg_pos.x = pos.x;
+                        }
+                    }
+
+                    if self.rows.len() > 2 {
+                        our_rows = 1..self.rows.len() - 1;
+                    }
+                }
+            }
+        }
+
+        for row in &mut self.rows[our_rows] {
+            // rows we sort and set x
+
+            reorder_bidi_segments(
+                direction,
+                row.segs.iter().flat_map(|i| i.measure.iter().map(|i| (i.kind, i.level))),
+                0,
+                &mut self.bidi_sorted,
+            );
+
+            let mut x = Px(0);
+
+            for &new_i in self.bidi_sorted.iter() {
+                let mut seg_i = 0;
+                for s in &mut row.segs {
+                    if s.measure.len() < new_i {
+                        seg_i += s.measure.len();
+                    } else {
+                        let new_i = new_i - seg_i;
+                        s.iter_mut().nth(new_i).unwrap().1.x = x;
+                        x += s.measure[new_i].width;
+                    }
+                }
+            }
+        }
     }
 }

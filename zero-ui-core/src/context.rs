@@ -7,7 +7,7 @@ use crate::{
     timer::Timers,
     units::*,
     var::{VarHandle, VarHandles, Vars},
-    widget_info::{WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
+    widget_info::{InlineSegmentPos, WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
     widget_instance::{UiNode, WidgetId},
     window::{WindowId, WindowMode},
 };
@@ -1430,12 +1430,26 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in a layout context that has enabled inline.
-    pub fn with_inline<R>(&mut self, first: PxRect, mid_clear: Px, last: PxRect, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    pub fn with_inline<R>(
+        &mut self,
+        first: PxRect,
+        mid_clear: Px,
+        last: PxRect,
+        first_segs: Arc<Vec<InlineSegmentPos>>,
+        last_segs: Arc<Vec<InlineSegmentPos>>,
+        f: impl FnOnce(&mut LayoutContext) -> R,
+    ) -> R {
         f(&mut LayoutContext {
             metrics: &self
                 .metrics
                 .clone()
-                .with_inline_constrains(Some(InlineConstrains::Layout(InlineConstrainsLayout { first, mid_clear, last }))),
+                .with_inline_constrains(Some(InlineConstrains::Layout(InlineConstrainsLayout {
+                    first,
+                    mid_clear,
+                    last,
+                    first_segs,
+                    last_segs,
+                }))),
 
             path: self.path,
 
@@ -1685,7 +1699,7 @@ pub struct InlineConstrainsMeasure {
 /// Constrains for inline layout.
 ///
 /// See [`InlineConstrains`] for more details.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub struct InlineConstrainsLayout {
     /// First row rect, defined by the parent.
     pub first: PxRect,
@@ -1693,10 +1707,15 @@ pub struct InlineConstrainsLayout {
     pub mid_clear: Px,
     /// Last row rect, defined by the parent.
     pub last: PxRect,
+
+    /// Position of inline segments of the first row.
+    pub first_segs: Arc<Vec<InlineSegmentPos>>,
+    /// Position of inline segments of the last row.
+    pub last_segs: Arc<Vec<InlineSegmentPos>>,
 }
 
 /// Constrains for inline measure or layout.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum InlineConstrains {
     /// Constrains for the measure pass.
     Measure(InlineConstrainsMeasure),
@@ -1725,7 +1744,7 @@ impl InlineConstrains {
 ///
 /// A snapshot can be taken using the [`LayoutMetrics::snapshot`], you can also
 /// get the metrics used during the last layout of a widget using the [`WidgetBoundsInfo::metrics`] method.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct LayoutMetricsSnapshot {
     /// The [`constrains`].
     ///
@@ -1890,7 +1909,7 @@ impl LayoutMetrics {
     /// Only present if the parent widget supports inline.
     pub fn inline_constrains(&self) -> Option<InlineConstrains> {
         self.register_use(LayoutMask::CONSTRAINS);
-        self.s.inline_constrains
+        self.s.inline_constrains.clone()
     }
 
     /// Gets the inline or text flow direction.
@@ -2032,7 +2051,7 @@ impl LayoutMetrics {
     ///
     /// [snapshot]: LayoutMetricsSnapshot
     pub fn snapshot(&self) -> LayoutMetricsSnapshot {
-        self.s
+        self.s.clone()
     }
 
     pub(crate) fn enter_widget_ctx(&self) -> LayoutMask {

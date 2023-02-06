@@ -553,6 +553,8 @@ pub fn inline(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                         first: PxRect::from_size(c.first),
                         mid_clear: Px(0),
                         last: PxRect::from_size(c.last),
+                        first_segs: Default::default(),
+                        last_segs: Default::default(),
                     };
                     return ctx.with_inline_constrains(move |_| Some(c), |ctx| self.child.layout(ctx, wl));
                 }
