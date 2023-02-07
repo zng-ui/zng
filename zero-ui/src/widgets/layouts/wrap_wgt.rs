@@ -115,10 +115,13 @@ impl UiNode for WrapNode {
     }
 }
 
+/// Info about segments of a widget in a row.
 #[derive(Debug, Clone)]
 struct SegInfo {
     measure: Arc<Vec<InlineSegment>>,
     layout: Arc<Vec<InlineSegmentPos>>,
+    x: f32,
+    width: f32,
 }
 impl SegInfo {
     fn block_or_collapsed() -> Self {
@@ -127,6 +130,17 @@ impl SegInfo {
         Self {
             measure: Arc::new(vec![]),
             layout: Arc::new(vec![]),
+            x: 0.0,
+            width: 0.0,
+        }
+    }
+
+    fn measure(measure: Arc<Vec<InlineSegment>>) -> Self {
+        Self {
+            measure,
+            layout: Arc::new(vec![]),
+            x: 0.0,
+            width: 0.0,
         }
     }
 
@@ -138,7 +152,7 @@ impl SegInfo {
         }
 
         let r = Arc::get_mut(&mut self.layout).unwrap();
-        r.resize(self.measure.len(), InlineSegmentPos { x: Px(0) });
+        r.resize(self.measure.len(), InlineSegmentPos { x: 0.0 });
 
         r
     }
@@ -149,7 +163,7 @@ impl SegInfo {
         }
 
         let r = Arc::get_mut(&mut self.layout).unwrap();
-        r.resize(self.measure.len(), InlineSegmentPos { x: Px(0) });
+        r.resize(self.measure.len(), InlineSegmentPos { x: 0.0 });
 
         self.measure.iter().zip(r)
     }
@@ -505,10 +519,7 @@ impl InlineLayout {
                             row.size.width += inline.first.width;
                             row.size.height = row.size.height.max(inline.first.height);
                         }
-                        row.segs.push(SegInfo {
-                            measure: inline.first_segs.clone(),
-                            layout: Arc::new(vec![]),
-                        });
+                        row.segs.push(SegInfo::measure(inline.first_segs.clone()));
 
                         if inline.last_wrapped {
                             // wrap by child
@@ -519,14 +530,11 @@ impl InlineLayout {
                             row.size = inline.last;
                             row.size.width += spacing.column;
                             row.first_child = i + 1;
+                            row.segs.push(SegInfo::measure(inline.last_segs));
                         } else {
                             // child inlined, but fit in row
                             row.size.width += spacing.column;
                         }
-                        row.segs.push(SegInfo {
-                            measure: inline.last_segs,
-                            layout: Arc::new(vec![]),
-                        });
                     } else if size.width <= inline_constrain {
                         row.size.width += size.width + spacing.column;
                         row.size.height = row.size.height.max(size.height);
@@ -576,7 +584,7 @@ impl InlineLayout {
             if !self.rows.is_empty() {
                 if l.first_segs.len() != self.rows[0].segs.len() {
                     // parent set first_segs empty (not sorted), or wrong
-                    let mut x = Px(0);
+                    let mut x = 0.0;
                     for s in self.rows[0].segs.iter_mut() {
                         for (seg, pos) in s.iter_mut() {
                             pos.x = x;
@@ -596,7 +604,7 @@ impl InlineLayout {
                     let last = &mut self.rows[last_i];
                     if l.last_segs.len() != last.segs.len() {
                         // parent set last_segs empty (not sorted), or wrong
-                        let mut x = Px(0);
+                        let mut x = 0.0;
                         for s in last.segs.iter_mut() {
                             for (seg, pos) in s.iter_mut() {
                                 pos.x = x;
@@ -628,7 +636,7 @@ impl InlineLayout {
                 &mut self.bidi_sorted,
             );
 
-            let mut x = Px(0);
+            let mut x = 0.0;
 
             for &new_i in self.bidi_sorted.iter() {
                 let mut seg_i = 0;
@@ -643,6 +651,25 @@ impl InlineLayout {
                         x += s.measure[new_i].width;
                         break;
                     }
+                }
+            }
+
+            for seg in &mut row.segs {
+                if seg.measure.is_empty() {
+                    continue;
+                }
+
+                let mut seg_min = f32::MAX;
+                let mut seg_max = f32::MIN;
+                for (m, l) in seg.iter_mut() {
+                    seg_min = seg_min.min(l.x);
+                    seg_max = seg_max.max(l.x + m.width);
+                }
+                seg.x = seg_min;
+                seg.width = seg_max - seg_min;
+
+                for (_, l) in seg.iter_mut() {
+                    l.x -= seg_min;
                 }
             }
         }

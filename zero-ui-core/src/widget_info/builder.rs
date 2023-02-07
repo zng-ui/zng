@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use crate::{
     context::{MeasureContext, StateMapMut},
     text::{BidiLevel, TextSegmentKind},
@@ -267,14 +269,27 @@ impl WidgetInfoBuilder {
 /// This info is used by inlining parent to sort the joiner row in a way that preserves bidirectional text flow.
 ///
 /// See [`WidgetInlineMeasure::first_segs`] for more details.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct InlineSegment {
-    /// Width of the segment.
-    pub width: Px,
+    /// Width of the segment, in pixels.
+    pub width: f32,
     /// Info for bidirectional reorder.
     pub kind: TextSegmentKind,
     /// Direction of this item.
     pub level: BidiLevel,
+}
+impl PartialEq for InlineSegment {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.width, other.width, 0.001) && self.kind == other.kind && self.level == other.level
+    }
+}
+impl Eq for InlineSegment {}
+impl Hash for InlineSegment {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.width, 0.001, state);
+        self.kind.hash(state);
+        self.level.number().hash(state);
+    }
 }
 
 /// Represents an [`InlineSegment`] positioned by the inlining parent.
@@ -282,10 +297,21 @@ pub struct InlineSegment {
 /// See [`InlineConstrainsLayout::first_segs`] for more details.
 ///
 /// [`InlineConstrainsLayout::first_segs`]: crate::context::InlineConstrainsLayout::first_segs
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, Debug)]
 pub struct InlineSegmentPos {
-    /// Seg offset to the right from the row origin.
-    pub x: Px,
+    /// Seg offset to the right from the row origin, in pixels.
+    pub x: f32,
+}
+impl PartialEq for InlineSegmentPos {
+    fn eq(&self, other: &Self) -> bool {
+        about_eq(self.x, other.x, 0.001)
+    }
+}
+impl Eq for InlineSegmentPos {}
+impl Hash for InlineSegmentPos {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.x, 0.001, state);
+    }
 }
 
 /// Info about the input inline connecting rows of the widget.

@@ -797,7 +797,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         inline.with_first_segs(|i| {
                             for seg in first_line.segs() {
                                 i.push(InlineSegment {
-                                    width: seg.rect().width(),
+                                    width: seg.advance(),
                                     kind: seg.kind(),
                                     level: seg.level(),
                                 });
@@ -816,7 +816,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         inline.with_last_segs(|i| {
                             for seg in last_line.segs() {
                                 i.push(InlineSegment {
-                                    width: seg.rect().width(),
+                                    width: seg.advance(),
                                     kind: seg.kind(),
                                     level: seg.level(),
                                 })

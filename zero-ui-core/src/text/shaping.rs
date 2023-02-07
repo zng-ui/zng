@@ -528,8 +528,7 @@ impl ShapedText {
                         break;
                     }
 
-                    let seg_offset = first_segs[i].x.0 as f32 - self.segments.0[i].x;
-                    println!("!!: {seg_offset} = {:?} - {:?}", first_segs[i].x.0 as f32, self.segments.0[i].x);
+                    let seg_offset = first_segs[i].x - self.segments.0[i].x;
                     let glyphs = self.segments.glyphs(i);
                     for g in &mut self.glyphs[glyphs.iter()] {
                         g.point.x += seg_offset;
@@ -563,7 +562,7 @@ impl ShapedText {
                         break;
                     }
 
-                    let seg_offset = last_segs[i].x.0 as f32 - self.segments.0[i].x;
+                    let seg_offset = last_segs[i].x - self.segments.0[i].x;
                     let glyphs = self.segments.glyphs(i);
                     for g in &mut self.glyphs[glyphs.iter()] {
                         g.point.x += seg_offset;
@@ -1332,7 +1331,8 @@ impl ShapedTextBuilder {
                     }
 
                     let glyphs = &mut self.out.glyphs[g_range.iter()];
-                    let offset = x - glyphs[0].point.x;
+                    let offset = x - self.out.segments.0[i].x;
+                    self.out.segments.0[i].x = x;
                     for g in glyphs {
                         g.point.x += offset;
                     }
