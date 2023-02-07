@@ -13,6 +13,7 @@ use crate::{
     crate_util::{f32_cmp, IndexRange},
     text::BidiLevel,
     units::*,
+    widget_info::InlineSegmentPos,
 };
 
 pub use font_kit::error::GlyphLoadingError;
@@ -474,13 +475,15 @@ impl ShapedText {
     ) {
         self.reshape_line_height_and_spacing(line_height, line_spacing);
 
+        let is_inlined = inline_constrains.is_some();
+
         let block_size = self.block_size();
         let align_size = constrains.fill_size_or(block_size);
         let align_x = align.x(direction);
-        let align_y = if inline_constrains.is_some() { 0.fct() } else { align.y() };
+        let align_y = if is_inlined { 0.fct() } else { align.y() };
 
-        let (first, mid, last) = if let Some(l) = &inline_constrains {
-            (l.first, l.mid_clear, l.last)
+        let (first, mid, last, first_segs, last_segs) = if let Some(l) = &inline_constrains {
+            (l.first, l.mid_clear, l.last, &*l.first_segs, &*l.last_segs)
         } else {
             // calculate our own first & last
             let mut first = PxRect::from_size(self.first_line().map(|l| l.rect().size).unwrap_or_default());
@@ -494,35 +497,81 @@ impl ShapedText {
             first.origin.y += align_y;
             last.origin.y += align_y;
 
-            (first, Px(0), last)
+            static EMPTY: Vec<InlineSegmentPos> = vec![];
+            // !!: TODO, re-order first and last if needed
+            //           we already sort when the text is created, so it is only needed
+            //           if the previous reshape_lines call was inlined.
+
+            (first, Px(0), last, &EMPTY, &EMPTY)
         };
 
-        if self.first_line != first && !self.lines.0.is_empty() {
-            let first_offset = (first.origin - self.first_line.origin).cast::<f32>().cast_unit();
+        if !self.lines.0.is_empty() {
+            if self.first_line != first {
+                let first_offset = (first.origin - self.first_line.origin).cast::<f32>().cast_unit();
 
-            let first_segs = self.lines.segs(0);
-            let first_glyphs = self.segments.glyphs_range(first_segs);
+                let first_range = self.lines.segs(0);
+                let first_glyphs = self.segments.glyphs_range(first_range);
 
-            for g in &mut self.glyphs[first_glyphs.iter()] {
-                g.point += first_offset;
+                for g in &mut self.glyphs[first_glyphs.iter()] {
+                    g.point += first_offset;
+                }
+
+                self.lines.first_mut().x_offset = first.origin.x.0 as f32;
             }
+            if !first_segs.is_empty() {
+                // parent set first_segs.
+                let first_range = self.lines.segs(0);
 
-            self.lines.first_mut().x_offset = first.origin.x.0 as f32;
-        }
-        if self.last_line != last && self.lines.0.len() > 1 {
-            // last changed and it is not first
+                for i in first_range.iter() {
+                    if i >= first_segs.len() {
+                        // wrong count.
+                        break;
+                    }
 
-            let last_offset = (last.origin - self.last_line.origin).cast::<f32>().cast_unit();
-
-            let last_segs = self.lines.segs(self.lines.0.len() - 1);
-            let last_glyphs = self.segments.glyphs_range(last_segs);
-
-            for g in &mut self.glyphs[last_glyphs.iter()] {
-                g.point += last_offset;
+                    let seg_offset = first_segs[i].x.0 as f32 - self.segments.0[i].x;
+                    println!("!!: {seg_offset} = {:?} - {:?}", first_segs[i].x.0 as f32, self.segments.0[i].x);
+                    let glyphs = self.segments.glyphs(i);
+                    for g in &mut self.glyphs[glyphs.iter()] {
+                        g.point.x += seg_offset;
+                    }
+                }
             }
-
-            self.lines.last_mut().x_offset = last.origin.x.0 as f32;
         }
+
+        if self.lines.0.len() > 1 {
+            if self.last_line != last {
+                // last changed and it is not first
+
+                let last_offset = (last.origin - self.last_line.origin).cast::<f32>().cast_unit();
+
+                let last_range = self.lines.segs(self.lines.0.len() - 1);
+                let last_glyphs = self.segments.glyphs_range(last_range);
+
+                for g in &mut self.glyphs[last_glyphs.iter()] {
+                    g.point += last_offset;
+                }
+
+                self.lines.last_mut().x_offset = last.origin.x.0 as f32;
+            }
+            if !last_segs.is_empty() {
+                // parent set last_segs.
+                let last_range = self.lines.segs(self.lines.0.len() - 1);
+
+                for i in last_range.iter() {
+                    if i >= last_segs.len() {
+                        // wrong count.
+                        break;
+                    }
+
+                    let seg_offset = last_segs[i].x.0 as f32 - self.segments.0[i].x;
+                    let glyphs = self.segments.glyphs(i);
+                    for g in &mut self.glyphs[glyphs.iter()] {
+                        g.point.x += seg_offset;
+                    }
+                }
+            }
+        }
+
         self.first_line = first;
         self.last_line = last;
 
@@ -573,7 +622,7 @@ impl ShapedText {
 
         self.align_size = align_size;
         self.align = align;
-        self.is_inlined = inline_constrains.is_some();
+        self.is_inlined = is_inlined;
     }
     fn reshape_line_height_and_spacing(&mut self, line_height: Px, line_spacing: Px) {
         let mut update_height = false;
