@@ -799,7 +799,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 i.push(InlineSegment {
                                     width: seg.advance(),
                                     kind: seg.kind(),
-                                    level: seg.level(),
                                 });
                             }
                         });
@@ -818,7 +817,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                                 i.push(InlineSegment {
                                     width: seg.advance(),
                                     kind: seg.kind(),
-                                    level: seg.level(),
                                 })
                             }
                         })

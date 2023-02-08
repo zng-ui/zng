@@ -183,7 +183,10 @@ pub struct InlineLayout {
     rows: Vec<RowInfo>,
     bidi_layout: bool,
     desired_size: PxSize,
-    bidi_sorted: Vec<usize>, // alloc here for reuse.
+
+    // alloc here for reuse
+    bidi_sorted: Vec<usize>,
+    bidi_levels: Vec<BidiLevel>,
 }
 impl InlineLayout {
     pub fn measure(
@@ -629,9 +632,18 @@ impl InlineLayout {
         for row in &mut self.rows[our_rows] {
             // rows we sort and set x
 
+            unicode_bidi_levels(
+                direction,
+                row.segs.iter().flat_map(|i| i.measure.iter().map(|i| i.kind)),
+                &mut self.bidi_levels,
+            );
+
             unicode_bidi_sort(
                 direction,
-                row.segs.iter().flat_map(|i| i.measure.iter().map(|i| (i.kind, i.level))),
+                row.segs
+                    .iter()
+                    .flat_map(|i| i.measure.iter().map(|i| i.kind))
+                    .zip(self.bidi_levels.iter().copied()),
                 0,
                 &mut self.bidi_sorted,
             );

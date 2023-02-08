@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use crate::{
     context::{MeasureContext, StateMapMut},
-    text::{BidiLevel, TextSegmentKind},
+    text::TextSegmentKind,
 };
 
 use super::*;
@@ -275,12 +275,10 @@ pub struct InlineSegment {
     pub width: f32,
     /// Info for bidirectional reorder.
     pub kind: TextSegmentKind,
-    /// Direction of this item.
-    pub level: BidiLevel,
 }
 impl PartialEq for InlineSegment {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.width, other.width, 0.001) && self.kind == other.kind && self.level == other.level
+        about_eq(self.width, other.width, 0.001) && self.kind == other.kind
     }
 }
 impl Eq for InlineSegment {}
@@ -288,7 +286,6 @@ impl Hash for InlineSegment {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.width, 0.001, state);
         self.kind.hash(state);
-        self.level.number().hash(state);
     }
 }
 
