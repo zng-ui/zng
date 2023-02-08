@@ -653,7 +653,7 @@ impl InlineLayout {
             for &new_i in self.bidi_sorted.iter() {
                 let mut seg_i = 0;
 
-                // bidi_sorted is flatten of row.segs
+                // `bidi_sorted` is flatten of `row.segs`
                 for s in &mut row.segs {
                     if seg_i + s.measure.len() <= new_i {
                         seg_i += s.measure.len();

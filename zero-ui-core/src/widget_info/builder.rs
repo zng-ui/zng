@@ -402,6 +402,8 @@ pub struct WidgetInlineInfo {
     ///
     /// Note that the segment count may be less then [`WidgetInlineMeasure::first_segs`] as contiguous segments
     /// may be merged.
+    ///
+    /// The segments are from left to right.
     pub first_segs: Vec<InlineSegmentInfo>,
 
     /// Segments of the last row.
