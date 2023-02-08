@@ -437,7 +437,7 @@ impl InlineLayout {
                                 },
                             );
                             o.child_offset = row.origin.to_vector() + offset;
-                            o.child_offset.x = bidi_x;
+                            o.child_offset.x = row.origin.x + bidi_x;
                             o.define_reference_frame = define_ref_frame;
 
                             row_advance += child_last.size.width + spacing.column;
@@ -461,7 +461,7 @@ impl InlineLayout {
                         }
                         offset.y = (row.size.height - size.height) * child_align_y;
                         o.child_offset = row.origin.to_vector() + offset;
-                        o.child_offset.x = bidi_x;
+                        o.child_offset.x = row.origin.x + bidi_x;
                         o.define_reference_frame = define_ref_frame;
                         row_advance += size.width + spacing.column;
                     }
