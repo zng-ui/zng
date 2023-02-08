@@ -261,7 +261,7 @@ impl InlineLayout {
             self.measure_rows(&mut ctx.as_measure(), children, child_align, spacing);
         }
         if !self.bidi_layout {
-            self.layout_bidi(inline_constrains.clone(), direction)
+            self.layout_bidi(inline_constrains.clone(), direction, spacing.column);
         }
 
         let constrains = ctx.constrains();
@@ -329,6 +329,10 @@ impl InlineLayout {
                         next_row_i += 1;
                         row_advance = Px(0);
                     }
+
+                    let bidi_info = &row_segs[i - row_first_i];
+                    let bidi_x = Px(bidi_info.x.floor() as i32);
+                    let bidi_width = Px(bidi_info.width.ceil() as i32);
 
                     let child_inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
                     if let Some(child_inline) = child_inline {
@@ -414,10 +418,6 @@ impl InlineLayout {
                             }
                             offset.y = (row.size.height - child_inline.first.height) * child_align_y;
 
-                            let bidi_info = &row_segs[i - row_first_i];
-                            let bidi_x = Px(bidi_info.x.floor() as i32);
-                            let bidi_width = Px(bidi_info.width.ceil() as i32);
-
                             let mut max_size = child_inline.first;
                             max_size.width = bidi_width;
                             child_first.size.width = bidi_width;
@@ -445,11 +445,7 @@ impl InlineLayout {
                     } else {
                         // inline block
                         let (size, define_ref_frame) = ctx.with_constrains(
-                            |_| {
-                                child_constrains
-                                    .with_fill(false, false)
-                                    .with_max(row.size.width - row_advance, row.size.height)
-                            },
+                            |_| child_constrains.with_fill(false, false).with_max(bidi_width, row.size.height),
                             |ctx| ctx.with_inline_constrains(|_| None, |ctx| wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))),
                         );
                         if size.is_empty() {
@@ -465,6 +461,7 @@ impl InlineLayout {
                         }
                         offset.y = (row.size.height - size.height) * child_align_y;
                         o.child_offset = row.origin.to_vector() + offset;
+                        o.child_offset.x = bidi_x;
                         o.define_reference_frame = define_ref_frame;
                         row_advance += size.width + spacing.column;
                     }
@@ -598,7 +595,8 @@ impl InlineLayout {
         self.rows.push(row);
     }
 
-    fn layout_bidi(&mut self, constrains: Option<InlineConstrains>, direction: LayoutDirection) {
+    fn layout_bidi(&mut self, constrains: Option<InlineConstrains>, direction: LayoutDirection, spacing_x: Px) {
+        let spacing_x = spacing_x.0 as f32;
         let mut our_rows = 0..self.rows.len();
 
         if let Some(l) = constrains {
@@ -612,7 +610,7 @@ impl InlineLayout {
                     for s in self.rows[0].segs.iter_mut() {
                         for (seg, pos) in s.iter_mut() {
                             pos.x = x;
-                            x += seg.width;
+                            x += seg.width + spacing_x;
                         }
                     }
                 } else {
@@ -632,7 +630,7 @@ impl InlineLayout {
                         for s in last.segs.iter_mut() {
                             for (seg, pos) in s.iter_mut() {
                                 pos.x = x;
-                                x += seg.width;
+                                x += seg.width + spacing_x;
                             }
                         }
                     } else {
@@ -681,12 +679,15 @@ impl InlineLayout {
                     } else {
                         let new_i = new_i - seg_i;
                         s.layout_mut()[new_i].x = x;
-                        x += s.measure[new_i].width;
+                        x += s.measure[new_i].width + spacing_x;
                         break;
                     }
                 }
             }
+        }
 
+        for row in &mut self.rows {
+            // update seg.x and seg.width
             for seg in &mut row.segs {
                 if seg.measure.is_empty() {
                     continue;
