@@ -126,3 +126,6 @@ dlopen
 wm
 lft
 unicode_bidi
+sos
+eos
+bpt

@@ -1,5 +1,11 @@
 # Inline Bidi
 
+* Can't combine levels?
+  - levels of a single text run are different from the same text in parts in a wrap panel.
+  - Only space segments for now, but this highlights a real issue, an entire widget can be quoted by
+    special bidi chars before and after it.
+  - We need to compute levels on the `wrap!`.
+  - No need to store levels in the measure info?
 * Wrap panels need to do something about blocks.
   - Treat then like an isolated insert?
 * Wrap panels need to shape the "row" for each widget in its row to cover all reordered segments.

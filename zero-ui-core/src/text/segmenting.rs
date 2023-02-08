@@ -1,6 +1,6 @@
 use std::ops;
 
-use crate::context::LayoutDirection;
+use crate::{context::LayoutDirection, crate_util::FxHashMap};
 
 use super::Text;
 use unicode_bidi::BidiInfo;
@@ -39,26 +39,26 @@ pub enum TextSegmentKind {
     Space,
     /// Most other symbols and punctuation marks.
     OtherNeutral,
+    /// Open or close bidi bracket.
+    ///
+    /// Can be any chars in <https://unicode.org/Public/UNIDATA/BidiBrackets.txt>.
+    Bracket(char),
 
-    /// U+202A: the LR embedding control.
-    LeftToRightEmbedding,
-    /// U+202D: the LR override control.
-    LeftToRightOverride,
-    /// U+202B: the RL embedding control.
-    RightToLeftEmbedding,
-    /// U+202E: the RL override control.
-    RightToLeftOverride,
-    /// U+202C: terminates an embedding or override control.
-    PopDirectionalFormat,
-
-    /// U+2066: the LR isolate control.
-    LeftToRightIsolate,
-    /// U+2067: the RL isolate control.
-    RightToLeftIsolate,
-    /// U+2068: the first strong isolate control.
-    FirstStrongIsolate,
-    /// U+2069: terminates an isolate control
-    PopDirectionalIsolate,
+    /// Bidi control character.
+    ///
+    /// Chars can be:
+    ///
+    /// * `\u{202A}`: The LR embedding control.
+    /// * `\u{202D}`: The LR override control.
+    /// * `\u{202B}`: The RL embedding control.
+    /// * `\u{202E}`: The RL override control.
+    /// * `\u{202C}`: Terminates an embedding or override control.
+    ///
+    /// * `\u{2066}`: The LR isolate control.
+    /// * `\u{2067}`: The RL isolate control.
+    /// * `\u{2068}`: The first strong isolate control.
+    /// * `\u{2069}`: Terminates an isolate control.
+    BidiCtrl(char),
 }
 impl TextSegmentKind {
     /// Returns `true` if the segment can be considered part of a word for the purpose of inserting letter spacing.
@@ -77,6 +77,7 @@ impl TextSegmentKind {
                 | NonSpacingMark
                 | BoundaryNeutral
                 | OtherNeutral
+                | Bracket(_)
         )
     }
 
@@ -92,21 +93,19 @@ impl TextSegmentKind {
         matches!(self, Self::LineBreak)
     }
 
-    /// Segment is a single character that affects the bidirectional format of the subsequent segments.
-    pub fn is_bidi_control(self) -> bool {
+    /// If multiple segments of this same kind can be represented by a single segment in the Unicode bidi algorithm.
+    pub fn can_merge(self) -> bool {
         use TextSegmentKind::*;
-        matches!(
-            self,
-            LeftToRightEmbedding
-                | LeftToRightOverride
-                | RightToLeftEmbedding
-                | RightToLeftOverride
-                | PopDirectionalFormat
-                | LeftToRightIsolate
-                | RightToLeftIsolate
-                | FirstStrongIsolate
-                | PopDirectionalIsolate
-        )
+        !matches!(self, Bracket(_) | BidiCtrl(_))
+    }
+
+    /// Get more info about the bracket char if `self` is `Bracket(_)` with a valid char.
+    pub fn bracket_info(self) -> Option<unicode_bidi::data_source::BidiMatchedOpeningBracket> {
+        if let TextSegmentKind::Bracket(c) = self {
+            super::unicode_bidi_util::bidi_bracket_data(c)
+        } else {
+            None
+        }
     }
 }
 impl From<char> for TextSegmentKind {
@@ -208,11 +207,14 @@ impl SegmentedText {
 
         let mut kind = TextSegmentKind::LeftToRight;
         let mut level = BidiLevel::ltr();
-        for (i, _) in text[start..end].char_indices() {
-            let c_kind = bidi.original_classes[start + i].into();
+        for (i, c) in text[start..end].char_indices() {
+            let c_kind = match TextSegmentKind::from(bidi.original_classes[start + i]) {
+                TextSegmentKind::OtherNeutral if super::unicode_bidi_util::bidi_bracket_data(c).is_some() => TextSegmentKind::Bracket(c),
+                k => k,
+            };
             let c_level = bidi.levels[start + i];
 
-            if c_kind != kind || c_level != level {
+            if c_kind != kind || c_level != level || !c_kind.can_merge() {
                 if i > 0 {
                     segs.push(TextSegment {
                         kind,
@@ -349,7 +351,7 @@ impl SegmentedText {
     pub fn reorder_line_to_ltr(&self, segs_range: ops::Range<usize>) -> Vec<usize> {
         let mut r = Vec::with_capacity(segs_range.len());
         let offset = segs_range.start;
-        reorder_bidi_segments(
+        unicode_bidi_sort(
             self.base_direction,
             self.segments[segs_range].iter().map(|s| (s.kind, s.level)),
             offset,
@@ -359,16 +361,57 @@ impl SegmentedText {
     }
 }
 
+/// Compute initial bidirectional levels of each segment of a `line`.
+///
+/// The result is set in `levels`.
+pub fn unicode_bidi_levels(base_direction: LayoutDirection, line: impl Iterator<Item = TextSegmentKind>, levels: &mut Vec<BidiLevel>) {
+    let mut original_classes = Vec::with_capacity(line.size_hint().0);
+    let mut brackets = FxHashMap::default();
+    for (i, k) in line.enumerate() {
+        original_classes.push(k.into());
+        if let TextSegmentKind::Bracket(c) = k {
+            brackets.insert(i, c);
+        }
+    }
+
+    unicode_bidi_levels_impl(levels, base_direction, original_classes, brackets);
+}
+fn unicode_bidi_levels_impl(
+    levels: &mut Vec<BidiLevel>,
+    base_direction: LayoutDirection,
+    original_classes: Vec<unicode_bidi::BidiClass>,
+    brackets: FxHashMap<usize, char>,
+) {
+    levels.clear();
+    let para_level = BidiLevel::from(base_direction);
+    levels.resize(original_classes.len(), para_level);
+
+    if !original_classes.is_empty() {
+        let mut processing_classes = original_classes.clone();
+
+        super::unicode_bidi_util::explicit_compute(para_level, &original_classes, levels, &mut processing_classes);
+
+        let sequences = super::unicode_bidi_util::prepare_isolating_run_sequences(para_level, &original_classes, levels);
+        for sequence in &sequences {
+            super::unicode_bidi_util::implicit_resolve_weak(sequence, &mut processing_classes);
+            super::unicode_bidi_util::implicit_resolve_neutral(sequence, levels, &original_classes, &mut processing_classes, &brackets);
+        }
+        super::unicode_bidi_util::implicit_resolve_levels(&processing_classes, levels);
+
+        super::unicode_bidi_util::assign_levels_to_removed_chars(para_level, &original_classes, levels);
+    }
+}
+
 /// Compute a map of segments in `line` to their final LTR display order.
 ///
-/// The result is set in `reordered`.
-pub fn reorder_bidi_segments(
+/// The result is set in `sort_map`.
+pub fn unicode_bidi_sort(
     base_direction: LayoutDirection,
     line: impl Iterator<Item = (TextSegmentKind, BidiLevel)>,
     idx_offset: usize,
-    reordered: &mut Vec<usize>,
+    sort_map: &mut Vec<usize>,
 ) {
-    reordered.clear();
+    sort_map.clear();
 
     let cap = line.size_hint().0;
     let mut line_classes = Vec::with_capacity(cap);
@@ -379,134 +422,20 @@ pub fn reorder_bidi_segments(
     }
 
     if !levels.is_empty() {
-        let (directions, vis_ranges) = visual_runs(levels, line_classes, base_direction.into());
+        let (directions, vis_ranges) = super::unicode_bidi_util::visual_runs(levels, line_classes, base_direction.into());
 
         for vis_range in vis_ranges {
             if directions[vis_range.start].is_rtl() {
                 for i in vis_range.rev() {
-                    reordered.push(idx_offset + i);
+                    sort_map.push(idx_offset + i);
                 }
             } else {
                 for i in vis_range {
-                    reordered.push(idx_offset + i);
+                    sort_map.push(idx_offset + i);
                 }
             }
         }
     }
-}
-/// mostly a copy of `unicode_bidi::BidiInfo` that does not require the text string.
-fn visual_runs(
-    mut levels: Vec<unicode_bidi::Level>,
-    line_classes: Vec<unicode_bidi::BidiClass>,
-    para_level: unicode_bidi::Level,
-) -> (Vec<unicode_bidi::Level>, Vec<unicode_bidi::LevelRun>) {
-    use unicode_bidi::BidiClass::*;
-
-    let line_levels = &mut levels;
-
-    // Reset some whitespace chars to paragraph level.
-    // <http://www.unicode.org/reports/tr9/#L1>
-    let mut reset_from: Option<usize> = Some(0);
-    let mut reset_to: Option<usize> = None;
-    let mut prev_level = para_level;
-    for i in 0..line_classes.len() {
-        match line_classes[i] {
-            // Segment separator, Paragraph separator
-            B | S => {
-                assert_eq!(reset_to, None);
-                reset_to = Some(i + 1);
-                if reset_from.is_none() {
-                    reset_from = Some(i);
-                }
-            }
-            // Whitespace, isolate formatting
-            WS | FSI | LRI | RLI | PDI => {
-                if reset_from.is_none() {
-                    reset_from = Some(i);
-                }
-            }
-            // <https://www.unicode.org/reports/tr9/#Retaining_Explicit_Formatting_Characters>
-            // same as above + set the level
-            RLE | LRE | RLO | LRO | PDF | BN => {
-                if reset_from.is_none() {
-                    reset_from = Some(i);
-                }
-                // also set the level to previous
-                line_levels[i] = prev_level;
-            }
-            _ => {
-                reset_from = None;
-            }
-        }
-        if let (Some(from), Some(to)) = (reset_from, reset_to) {
-            for level in &mut line_levels[from..to] {
-                *level = para_level;
-            }
-            reset_from = None;
-            reset_to = None;
-        }
-        prev_level = line_levels[i];
-    }
-    if let Some(from) = reset_from {
-        for level in &mut line_levels[from..] {
-            *level = para_level;
-        }
-    }
-
-    // Find consecutive level runs.
-    let mut runs = Vec::new();
-    let mut start = 0;
-    let mut run_level = levels[start];
-    let mut min_level = run_level;
-    let mut max_level = run_level;
-
-    for (i, &new_level) in levels.iter().enumerate().skip(1) {
-        if new_level != run_level {
-            // End of the previous run, start of a new one.
-            runs.push(start..i);
-            start = i;
-            run_level = new_level;
-            min_level = std::cmp::min(run_level, min_level);
-            max_level = std::cmp::max(run_level, max_level);
-        }
-    }
-    runs.push(start..line_classes.len());
-
-    let run_count = runs.len();
-
-    // Re-order the odd runs.
-    // <http://www.unicode.org/reports/tr9/#L2>
-
-    // Stop at the lowest *odd* level.
-    min_level = min_level.new_lowest_ge_rtl().expect("Level error");
-
-    while max_level >= min_level {
-        // Look for the start of a sequence of consecutive runs of max_level or higher.
-        let mut seq_start = 0;
-        while seq_start < run_count {
-            if levels[runs[seq_start].start] < max_level {
-                seq_start += 1;
-                continue;
-            }
-
-            // Found the start of a sequence. Now find the end.
-            let mut seq_end = seq_start + 1;
-            while seq_end < run_count {
-                if levels[runs[seq_end].start] < max_level {
-                    break;
-                }
-                seq_end += 1;
-            }
-
-            // Reverse the runs within this sequence.
-            runs[seq_start..seq_end].reverse();
-
-            seq_start = seq_end;
-        }
-        max_level.lower(1).expect("Lowering embedding level below zero");
-    }
-
-    (levels, runs)
 }
 
 /// Segmented text iterator.
@@ -526,71 +455,6 @@ impl<'a> Iterator for SegmentedTextIter<'a> {
             r
         } else {
             None
-        }
-    }
-}
-
-impl From<unicode_bidi::BidiClass> for TextSegmentKind {
-    fn from(value: unicode_bidi::BidiClass) -> Self {
-        use unicode_bidi::BidiClass::*;
-        use TextSegmentKind::*;
-
-        match value {
-            WS => Space,
-            L => LeftToRight,
-            R => RightToLeft,
-            AL => ArabicLetter,
-            AN => ArabicNumber,
-            CS => CommonSeparator,
-            B => LineBreak,
-            EN => EuropeanNumber,
-            ES => EuropeanSeparator,
-            ET => EuropeanTerminator,
-            S => Tab,
-            ON => OtherNeutral,
-            BN => BoundaryNeutral,
-            NSM => NonSpacingMark,
-            RLE => RightToLeftEmbedding,
-            LRI => LeftToRightIsolate,
-            RLI => RightToLeftIsolate,
-            LRO => LeftToRightOverride,
-            FSI => FirstStrongIsolate,
-            PDF => PopDirectionalFormat,
-            LRE => LeftToRightEmbedding,
-            PDI => PopDirectionalIsolate,
-            RLO => RightToLeftOverride,
-        }
-    }
-}
-impl From<TextSegmentKind> for unicode_bidi::BidiClass {
-    fn from(value: TextSegmentKind) -> Self {
-        use unicode_bidi::BidiClass::*;
-        use TextSegmentKind::*;
-
-        match value {
-            Space => WS,
-            LeftToRight => L,
-            RightToLeft => R,
-            ArabicLetter => AL,
-            ArabicNumber => AN,
-            CommonSeparator => CS,
-            LineBreak => B,
-            EuropeanNumber => EN,
-            EuropeanSeparator => ES,
-            EuropeanTerminator => ET,
-            Tab => S,
-            OtherNeutral => ON,
-            BoundaryNeutral => BN,
-            NonSpacingMark => NSM,
-            RightToLeftEmbedding => RLE,
-            LeftToRightIsolate => LRI,
-            RightToLeftIsolate => RLI,
-            LeftToRightOverride => LRO,
-            FirstStrongIsolate => FSI,
-            PopDirectionalFormat => PDF,
-            LeftToRightEmbedding => LRE,
-            PopDirectionalIsolate => PDI,
-            RightToLeftOverride => RLO,
         }
     }
 }

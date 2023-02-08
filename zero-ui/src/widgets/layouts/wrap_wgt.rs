@@ -629,7 +629,7 @@ impl InlineLayout {
         for row in &mut self.rows[our_rows] {
             // rows we sort and set x
 
-            reorder_bidi_segments(
+            unicode_bidi_sort(
                 direction,
                 row.segs.iter().flat_map(|i| i.measure.iter().map(|i| (i.kind, i.level))),
                 0,
