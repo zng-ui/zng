@@ -124,9 +124,20 @@ struct SegInfo {
     width: f32,
 }
 impl SegInfo {
-    fn block_or_collapsed() -> Self {
-        // !!: TODO, avoid Arc alloc here?
-        //           if we make SegInfo an enum it can also work like an assert
+    fn new_block(width: Px) -> Self {
+        let width = width.0 as f32;
+        Self {
+            measure: Arc::new(vec![InlineSegment {
+                width,
+                kind: TextSegmentKind::OtherNeutral,
+            }]),
+            layout: Arc::new(vec![]),
+            x: 0.0,
+            width,
+        }
+    }
+
+    fn new_collapsed() -> Self {
         Self {
             measure: Arc::new(vec![]),
             layout: Arc::new(vec![]),
@@ -135,7 +146,7 @@ impl SegInfo {
         }
     }
 
-    fn measure(measure: Arc<Vec<InlineSegment>>) -> Self {
+    fn new_inlined(measure: Arc<Vec<InlineSegment>>) -> Self {
         Self {
             measure,
             layout: Arc::new(vec![]),
@@ -507,7 +518,7 @@ impl InlineLayout {
                     let (inline, size) = ctx.measure_inline(inline_constrain, row.size.height - spacing.row, child);
 
                     if size.is_empty() {
-                        row.segs.push(SegInfo::block_or_collapsed());
+                        row.segs.push(SegInfo::new_collapsed());
                         // collapsed, continue.
                         return true;
                     }
@@ -532,7 +543,7 @@ impl InlineLayout {
                             row.size.width += inline.first.width;
                             row.size.height = row.size.height.max(inline.first.height);
                         }
-                        row.segs.push(SegInfo::measure(inline.first_segs.clone()));
+                        row.segs.push(SegInfo::new_inlined(inline.first_segs.clone()));
 
                         if inline.last_wrapped {
                             // wrap by child
@@ -543,7 +554,7 @@ impl InlineLayout {
                             row.size = inline.last;
                             row.size.width += spacing.column;
                             row.first_child = i + 1;
-                            row.segs.push(SegInfo::measure(inline.last_segs));
+                            row.segs.push(SegInfo::new_inlined(inline.last_segs));
                         } else {
                             // child inlined, but fit in row
                             row.size.width += spacing.column;
@@ -551,7 +562,7 @@ impl InlineLayout {
                     } else if size.width <= inline_constrain {
                         row.size.width += size.width + spacing.column;
                         row.size.height = row.size.height.max(size.height);
-                        row.segs.push(SegInfo::block_or_collapsed());
+                        row.segs.push(SegInfo::new_block(size.width));
                     } else {
                         // wrap by us
                         if row.size.is_empty() {
@@ -571,7 +582,7 @@ impl InlineLayout {
                         row.size = size;
                         row.size.width += spacing.column;
                         row.first_child = i;
-                        row.segs.push(SegInfo::block_or_collapsed());
+                        row.segs.push(SegInfo::new_block(size.width));
                     }
 
                     true

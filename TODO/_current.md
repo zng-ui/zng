@@ -1,15 +1,14 @@
 # Inline Bidi
 
 * Wrap panel layout refactor:
-  - Items can get resized and repositioned because of bidi sort.
-  - Right now we just *flow* in the layout direction, adding offset and spacing to the next item.
-  - Problems with this:
-    - The bidi algorithm does not know block items.
-      - See what HTML does, turn then into an *isolated insert*?
-    - The `spacing` is not inserted in interleaved segments.
-  - Change horizontal positioning all to resort algorithm.
-    - But still track wrap the old way?
-    - The 
+  - Implement bidi reposition of wrapped widgets.
+    - Only rows for this?
+    - Already expands the full width.
+  - Review offset of blocks, need to use the bidi info too.
+  - Review layout offset in general, need to be removed or get a better name?
+    - Still used to implement wrap?
+  - Review alloc during layout, any way to avoid it at least for instances that only have block items.
+  - Review `spacing`, how does it work for segmented widgets.
 
 # Other
 
