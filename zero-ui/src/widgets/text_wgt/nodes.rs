@@ -848,7 +848,34 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if let (Some(inline), Some(l)) = (wl.inline(), txt.txt.as_ref()) {
-                for line in l.shaped_text.lines() {
+                let clip_segs = ctx.inline_constrains().is_some();
+                let last_line = l.shaped_text.lines_len().saturating_sub(1);
+
+                for (i, line) in l.shaped_text.lines().enumerate() {
+                    if clip_segs {
+                        if i == 0 {
+                            inline.first_segs.extend(l.shaped_text.first_line().unwrap().segs().map(|s| {
+                                let r = s.rect();
+                                InlineSegmentInfo {
+                                    x: r.origin.x,
+                                    width: r.width(),
+                                }
+                            }));
+
+                            continue;
+                        } else if i == last_line {
+                            inline.last_segs.extend(l.shaped_text.last_line().unwrap().segs().map(|s| {
+                                let r = s.rect();
+                                InlineSegmentInfo {
+                                    x: r.origin.x,
+                                    width: r.width(),
+                                }
+                            }));
+
+                            continue;
+                        }
+                    }
+
                     inline.rows.push(line.rect());
                 }
             }
