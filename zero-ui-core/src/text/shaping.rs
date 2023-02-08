@@ -477,8 +477,6 @@ impl ShapedText {
 
         let is_inlined = inline_constrains.is_some();
 
-        let block_size = self.block_size();
-        let align_size = constrains.fill_size_or(block_size);
         let align_x = align.x(direction);
         let align_y = if is_inlined { 0.fct() } else { align.y() };
 
@@ -486,6 +484,9 @@ impl ShapedText {
             (l.first, l.mid_clear, l.last, &*l.first_segs, &*l.last_segs)
         } else {
             // calculate our own first & last
+            let block_size = self.block_size();
+            let align_size = constrains.fill_size_or(block_size);
+
             let mut first = PxRect::from_size(self.first_line().map(|l| l.rect().size).unwrap_or_default());
             let mut last = PxRect::from_size(self.last_line().map(|l| l.rect().size).unwrap_or_default());
             last.origin.y = block_size.height - last.size.height;
@@ -573,6 +574,9 @@ impl ShapedText {
 
         self.first_line = first;
         self.last_line = last;
+
+        let block_size = self.block_size();
+        let align_size = constrains.fill_size_or(block_size);
 
         if self.lines.0.len() > 2 {
             // has mid-lines
