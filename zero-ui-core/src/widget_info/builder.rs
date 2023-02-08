@@ -415,6 +415,65 @@ pub struct WidgetInlineInfo {
     negative_space: Mutex<(Arc<Vec<PxRect>>, bool)>,
 }
 impl WidgetInlineInfo {
+    /// Replace the [`first_segs`] with `segs`.
+    ///
+    /// The segments are sorted when needed, but prefer inputs that are mostly sorted.
+    ///
+    /// The segments are merged when there is no gap or there is a small one pixel overlap to the previous segment.
+    ///
+    /// [`first_segs`]: Self::first_sets
+    pub fn set_first_segs(&mut self, segs: impl Iterator<Item = InlineSegmentInfo>) {
+        Self::set_segs(&mut self.first_segs, segs);
+        self.invalidate_negative_space();
+    }
+
+    /// Replace the [`last_segs`] with `segs`.
+    ///
+    /// The segments are sorted when needed, but prefer inputs that are mostly sorted.
+    ///
+    /// The segments are merged when there is no gap or there is a small one pixel overlap to the previous segment.
+    ///
+    /// [`last_segs`]: Self::last_segs
+    pub fn set_last_segs(&mut self, segs: impl Iterator<Item = InlineSegmentInfo>) {
+        Self::set_segs(&mut self.last_segs, segs);
+        self.invalidate_negative_space();
+    }
+
+    fn set_segs(vec: &mut Vec<InlineSegmentInfo>, segs: impl Iterator<Item = InlineSegmentInfo>) {
+        vec.clear();
+        vec.reserve(segs.size_hint().0);
+
+        let mut needs_sort = false;
+
+        for seg in segs {
+            if seg.width <= Px(0) {
+                continue;
+            }
+
+            if let Some(last) = vec.last_mut() {
+                let la = last.x;
+                let lb = last.x + last.width;
+
+                let a = seg.x;
+                let b = seg.x + seg.width;
+
+                if la.max(a) <= lb.min(b) {
+                    // merge overlap
+                    last.x = a.min(la);
+                    last.width = b.max(lb) - last.x;
+                    continue;
+                }
+
+                needs_sort |= a < la;
+            }
+            vec.push(seg);
+        }
+
+        if needs_sort {
+            vec.sort_unstable_by_key(|s| s.x);
+        }
+    }
+
     /// Gets the union of all row rectangles.
     pub fn union(&self) -> PxRect {
         self.rows.iter().fold(PxRect::zero(), |union, row| union.union(row))

@@ -854,32 +854,20 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 for (i, line) in l.shaped_text.lines().enumerate() {
                     if clip_segs {
                         if i == 0 {
-                            inline.first_segs.clear();
-                            for seg in l.shaped_text.first_line().unwrap().segs() {
-                                let r = seg.rect();
-                                let seg = InlineSegmentInfo {
-                                    x: r.origin.x,
-                                    width: r.width(),
-                                };
-                                if let Some(i) = inline.first_segs.iter().position(|s| s.x > seg.x) {
-                                    inline.first_segs.insert(i, seg);
-                                } else {
-                                    inline.first_segs.push(seg);
-                                }
+                            let info = l.shaped_text.first_line().unwrap().segs().map(|s| s.inline_info());
+                            if ctx.direction().is_rtl() {
+                                // help sort
+                                inline.set_first_segs(info.rev());
+                            } else {
+                                inline.set_first_segs(info);
                             }
                         } else if i == last_line {
-                            inline.last_segs.clear();
-                            for seg in l.shaped_text.last_line().unwrap().segs() {
-                                let r = seg.rect();
-                                let seg = InlineSegmentInfo {
-                                    x: r.origin.x,
-                                    width: r.width(),
-                                };
-                                if let Some(i) = inline.last_segs.iter().position(|s| s.x > seg.x) {
-                                    inline.last_segs.insert(i, seg);
-                                } else {
-                                    inline.last_segs.push(seg);
-                                }
+                            let info = l.shaped_text.last_line().unwrap().segs().map(|s| s.inline_info());
+                            if ctx.direction().is_rtl() {
+                                // help sort
+                                inline.set_first_segs(info.rev());
+                            } else {
+                                inline.set_last_segs(info);
                             }
                         }
                     }

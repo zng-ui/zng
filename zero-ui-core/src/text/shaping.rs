@@ -13,7 +13,7 @@ use crate::{
     crate_util::{f32_cmp, IndexRange},
     text::BidiLevel,
     units::*,
-    widget_info::InlineSegmentPos,
+    widget_info::{InlineSegmentInfo, InlineSegmentPos},
 };
 
 pub use font_kit::error::GlyphLoadingError;
@@ -1594,7 +1594,7 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Iterate over word and space segments in this line.
-    pub fn segs(&self) -> impl Iterator<Item = ShapedSegment<'a>> {
+    pub fn segs(&self) -> impl Iterator<Item = ShapedSegment<'a>> + DoubleEndedIterator + ExactSizeIterator {
         let text = self.text;
         let line_index = self.index;
         self.seg_range.iter().map(move |i| ShapedSegment {
@@ -1766,7 +1766,7 @@ impl<'a> ShapedSegment<'a> {
                 .unwrap_or(0.0),
         };
 
-        (Px(start_x as i32), Px(self.advance() as i32))
+        (Px(start_x.floor() as i32), Px(self.advance().ceil() as i32))
     }
 
     /// Segment exact *width* in pixels.
@@ -1780,6 +1780,12 @@ impl<'a> ShapedSegment<'a> {
         let size = PxSize::new(width, self.text.line_height);
         let origin = PxPoint::new(x, self.text.line_height * Px(self.line_index as i32));
         PxRect::new(origin, size)
+    }
+
+    /// Segment info for widget inline segments.
+    pub fn inline_info(&self) -> InlineSegmentInfo {
+        let (x, width) = self.x_width();
+        InlineSegmentInfo { x, width }
     }
 
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
