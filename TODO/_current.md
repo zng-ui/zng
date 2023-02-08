@@ -1,16 +1,15 @@
 # Inline Bidi
 
-* Can't combine levels?
-  - levels of a single text run are different from the same text in parts in a wrap panel.
-  - Only space segments for now, but this highlights a real issue, an entire widget can be quoted by
-    special bidi chars before and after it.
-  - We need to compute levels on the `wrap!`.
-  - No need to store levels in the measure info?
-* Wrap panels need to do something about blocks.
-  - Treat then like an isolated insert?
-* Wrap panels need to shape the "row" for each widget in its row to cover all reordered segments.
+* Wrap panel layout refactor:
+  - Items can get resized and repositioned because of bidi sort.
+  - Right now we just *flow* in the layout direction, adding offset and spacing to the next item.
+  - Problems with this:
+    - The bidi algorithm does not know block items.
+      - See what HTML does, turn then into an *isolated insert*?
+    - The `spacing` is not inserted in interleaved segments.
   - Change horizontal positioning all to resort algorithm.
-  - But still track wrap the old way?
+    - But still track wrap the old way?
+    - The 
 
 # Other
 

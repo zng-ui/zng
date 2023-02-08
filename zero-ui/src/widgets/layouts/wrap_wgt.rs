@@ -403,8 +403,17 @@ impl InlineLayout {
                             }
                             offset.y = (row.size.height - child_inline.first.height) * child_align_y;
 
+                            let bidi_info = &row_segs[i - row_first_i];
+                            let bidi_x = Px(bidi_info.x.floor() as i32);
+                            let bidi_width = Px(bidi_info.width.ceil() as i32);
+
+                            let mut max_size = child_inline.first;
+                            max_size.width = bidi_width;
+                            child_first.size.width = bidi_width;
+                            child_last.size.width = bidi_width;
+
                             let (_, define_ref_frame) = ctx.with_constrains(
-                                |_| child_constrains.with_fill(false, false).with_max_size(child_inline.first),
+                                |_| child_constrains.with_fill(false, false).with_max_size(max_size),
                                 |ctx| {
                                     ctx.with_inline(
                                         child_first,
@@ -417,6 +426,7 @@ impl InlineLayout {
                                 },
                             );
                             o.child_offset = row.origin.to_vector() + offset;
+                            o.child_offset.x = bidi_x;
                             o.define_reference_frame = define_ref_frame;
 
                             row_advance += child_last.size.width + spacing.column;
