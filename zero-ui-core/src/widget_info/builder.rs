@@ -441,7 +441,6 @@ impl WidgetInlineInfo {
 
     fn set_segs(vec: &mut Vec<InlineSegmentInfo>, segs: impl Iterator<Item = InlineSegmentInfo>) {
         vec.clear();
-        vec.reserve(segs.size_hint().0);
 
         let mut needs_sort = false;
 

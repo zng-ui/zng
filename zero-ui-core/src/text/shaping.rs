@@ -527,7 +527,7 @@ impl ShapedText {
                     if i >= first_segs.len() {
                         #[cfg(debug_assertions)]
                         {
-                            tracing::error!("expected {} segments in `first_segs`, was {}", first_range.1, first_segs.len());
+                            tracing::error!("expected {} segments in `first_segs`, was {}", first_range.len(), first_segs.len());
                         }
                         break;
                     }
@@ -537,6 +537,7 @@ impl ShapedText {
                     for g in &mut self.glyphs[glyphs.iter()] {
                         g.point.x += seg_offset;
                     }
+                    self.segments.0[i].x = first_segs[i].x;
                 }
             }
         }
@@ -561,16 +562,22 @@ impl ShapedText {
                 let last_range = self.lines.segs(self.lines.0.len() - 1);
 
                 for i in last_range.iter() {
-                    if i >= last_segs.len() {
-                        // wrong count.
+                    let li = i - last_range.start();
+
+                    if li >= last_segs.len() {
+                        #[cfg(debug_assertions)]
+                        {
+                            tracing::error!("expected {} segments in `last_segs`, was {}", last_range.len(), last_segs.len());
+                        }
                         break;
                     }
 
-                    let seg_offset = last_segs[i].x - self.segments.0[i].x;
+                    let seg_offset = last_segs[li].x - self.segments.0[i].x;
                     let glyphs = self.segments.glyphs(i);
                     for g in &mut self.glyphs[glyphs.iter()] {
                         g.point.x += seg_offset;
                     }
+                    self.segments.0[i].x = last_segs[li].x;
                 }
             }
         }

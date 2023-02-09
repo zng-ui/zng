@@ -851,6 +851,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let clip_segs = ctx.inline_constrains().is_some();
                 let last_line = l.shaped_text.lines_len().saturating_sub(1);
 
+                inline.first_segs.clear();
+                inline.last_segs.clear();
+
                 for (i, line) in l.shaped_text.lines().enumerate() {
                     if clip_segs {
                         if i == 0 {
