@@ -169,15 +169,6 @@ impl GlyphSegmentVec {
 
         IndexRange(start, end)
     }
-
-    fn iter_glyphs(&self, start_seg: usize) -> impl Iterator<Item = (TextSegment, IndexRange)> + '_ {
-        let mut start = if start_seg == 0 { 0 } else { self.0[start_seg - 1].end };
-        self.0[start_seg..].iter().map(move |s| {
-            let r = IndexRange(start, s.end);
-            start = s.end;
-            (s.text, r)
-        })
-    }
 }
 
 /// `Vec<LineRange>` with helper methods.
@@ -522,22 +513,20 @@ impl ShapedText {
             if !first_segs.is_empty() {
                 // parent set first_segs.
                 let first_range = self.lines.segs(0);
-
-                for i in first_range.iter() {
-                    if i >= first_segs.len() {
-                        #[cfg(debug_assertions)]
-                        {
-                            tracing::error!("expected {} segments in `first_segs`, was {}", first_range.len(), first_segs.len());
+                if first_range.len() == first_segs.len() {
+                    for i in first_range.iter() {
+                        let seg_offset = first_segs[i].x - self.segments.0[i].x;
+                        let glyphs = self.segments.glyphs(i);
+                        for g in &mut self.glyphs[glyphs.iter()] {
+                            g.point.x += seg_offset;
                         }
-                        break;
+                        self.segments.0[i].x = first_segs[i].x;
                     }
-
-                    let seg_offset = first_segs[i].x - self.segments.0[i].x;
-                    let glyphs = self.segments.glyphs(i);
-                    for g in &mut self.glyphs[glyphs.iter()] {
-                        g.point.x += seg_offset;
+                } else {
+                    #[cfg(debug_assertions)]
+                    {
+                        tracing::error!("expected {} segments in `first_segs`, was {}", first_range.len(), first_segs.len());
                     }
-                    self.segments.0[i].x = first_segs[i].x;
                 }
             }
         }
@@ -561,23 +550,22 @@ impl ShapedText {
                 // parent set last_segs.
                 let last_range = self.lines.segs(self.lines.0.len() - 1);
 
-                for i in last_range.iter() {
-                    let li = i - last_range.start();
+                if last_range.len() == last_segs.len() {
+                    for i in last_range.iter() {
+                        let li = i - last_range.start();
 
-                    if li >= last_segs.len() {
-                        #[cfg(debug_assertions)]
-                        {
-                            tracing::error!("expected {} segments in `last_segs`, was {}", last_range.len(), last_segs.len());
+                        let seg_offset = last_segs[li].x - self.segments.0[i].x;
+                        let glyphs = self.segments.glyphs(i);
+                        for g in &mut self.glyphs[glyphs.iter()] {
+                            g.point.x += seg_offset;
                         }
-                        break;
+                        self.segments.0[i].x = last_segs[li].x;
                     }
-
-                    let seg_offset = last_segs[li].x - self.segments.0[i].x;
-                    let glyphs = self.segments.glyphs(i);
-                    for g in &mut self.glyphs[glyphs.iter()] {
-                        g.point.x += seg_offset;
+                } else {
+                    #[cfg(debug_assertions)]
+                    {
+                        tracing::error!("expected {} segments in `last_segs`, was {}", last_range.len(), last_segs.len());
                     }
-                    self.segments.0[i].x = last_segs[li].x;
                 }
             }
         }
@@ -860,7 +848,7 @@ impl ShapedText {
 
                 let glyphs = self.segments.glyphs_range(IndexRange(prev_line_end, line.end));
                 for g in &self.glyphs[glyphs.iter()] {
-                    assert!(g.point.x <= line.width, "{:?} <= {:?}", g.point.x, line.width);
+                    assert!(g.point.x <= line.width, "glyph.x({:?}) <= line.width({:?})", g.point.x, line.width);
                 }
 
                 prev_line_end = line.end;
@@ -1356,19 +1344,16 @@ impl ShapedTextBuilder {
                 // entire line RTL
                 let line_width = self.origin.x;
 
-                for (_, range) in self.out.segments.iter_glyphs(seg_start) {
-                    if range.iter().is_empty() {
-                        continue;
-                    }
-                    let seg_x = self.out.glyphs[range.0].point.x;
-                    let seg_width = if self.out.glyphs.len() == range.1 {
-                        line_width - seg_x
-                    } else {
-                        self.out.glyphs[range.1].point.x - seg_x
-                    };
+                let mut x = line_width;
+                for i in seg_start..self.out.segments.0.len() {
+                    x -= self.out.segments.0[i].advance;
 
-                    let offset = (line_width - seg_width - seg_x) - seg_x;
-                    for g in &mut self.out.glyphs[range.iter()] {
+                    let g_range = self.out.segments.glyphs(i);
+
+                    let glyphs = &mut self.out.glyphs[g_range.iter()];
+                    let offset = x - self.out.segments.0[i].x;
+                    self.out.segments.0[i].x = x;
+                    for g in glyphs {
                         g.point.x += offset;
                     }
                 }
