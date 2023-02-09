@@ -9,6 +9,8 @@
     - Still used to implement wrap?
   - Review alloc during layout, any way to avoid it at least for instances that only have block items.
   - Review `spacing`, how does it work for segmented widgets.
+    - Using spacing with fragmented text can affect row width?
+    - Maybe we can say that horizontal spacing is one per widget only.
 
 # Other
 

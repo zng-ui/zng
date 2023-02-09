@@ -117,13 +117,13 @@ impl UiNode for WrapNode {
 
 /// Info about segments of a widget in a row.
 #[derive(Debug, Clone)]
-struct SegInfo {
+struct ItemSegsInfo {
     measure: Arc<Vec<InlineSegment>>,
     layout: Arc<Vec<InlineSegmentPos>>,
     x: f32,
     width: f32,
 }
-impl SegInfo {
+impl ItemSegsInfo {
     fn new_block(width: Px) -> Self {
         let width = width.0 as f32;
         Self {
@@ -185,7 +185,7 @@ impl SegInfo {
 struct RowInfo {
     size: PxSize,
     first_child: usize,
-    segs: Vec<SegInfo>,
+    item_segs: Vec<ItemSegsInfo>,
 }
 
 #[derive(Default)]
@@ -225,7 +225,7 @@ impl InlineLayout {
             if let Some(first) = self.rows.first() {
                 inline.first = first.size;
                 inline.with_first_segs(|i| {
-                    i.extend(first.segs.iter().flat_map(|i| i.measure.iter().copied()));
+                    i.extend(first.item_segs.iter().flat_map(|i| i.measure.iter().copied()));
                 });
             } else {
                 inline.first = PxSize::zero();
@@ -234,7 +234,7 @@ impl InlineLayout {
             if let Some(last) = self.rows.last() {
                 inline.last = last.size;
                 inline.with_last_segs(|i| {
-                    i.extend(last.segs.iter().flat_map(|i| i.measure.iter().copied()));
+                    i.extend(last.item_segs.iter().flat_map(|i| i.measure.iter().copied()));
                 })
             } else {
                 inline.last = PxSize::zero();
@@ -301,7 +301,7 @@ impl InlineLayout {
             |_| child_constrains,
             |ctx| {
                 let mut row = first;
-                let mut row_segs = &self.rows[0].segs;
+                let mut row_segs = &self.rows[0].item_segs;
                 let mut row_advance = Px(0);
                 let mut next_row_i = 1;
                 let mut row_first_i = 0;
@@ -324,7 +324,7 @@ impl InlineLayout {
                             row.size = self.rows[next_row_i].size;
                             row.origin.x = (panel_width - row.size.width) * child_align_x;
                         }
-                        row_segs = &self.rows[next_row_i].segs;
+                        row_segs = &self.rows[next_row_i].item_segs;
                         row_first_i = self.rows[next_row_i].first_child;
                         next_row_i += 1;
                         row_advance = Px(0);
@@ -381,7 +381,7 @@ impl InlineLayout {
                             child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
                             child_last.origin.y += spacing.row;
 
-                            let last_bidi_info = &self.rows[next_row_i].segs[0];
+                            let last_bidi_info = &self.rows[next_row_i].item_segs[0];
                             let child_last_segs = last_bidi_info.layout.clone();
 
                             child_last.origin.x = next_row.origin.x + Px(last_bidi_info.x.floor() as i32);
@@ -413,7 +413,7 @@ impl InlineLayout {
                             }
                             row = next_row;
                             row_advance = child_last.size.width + spacing.column;
-                            row_segs = &self.rows[next_row_i].segs;
+                            row_segs = &self.rows[next_row_i].item_segs;
                             row_first_i = self.rows[next_row_i].first_child;
                             debug_assert_eq!(row_first_i, i + 1);
                             next_row_i += 1;
@@ -523,7 +523,7 @@ impl InlineLayout {
                     let (inline, size) = ctx.measure_inline(inline_constrain, row.size.height - spacing.row, child);
 
                     if size.is_empty() {
-                        row.segs.push(SegInfo::new_collapsed());
+                        row.item_segs.push(ItemSegsInfo::new_collapsed());
                         // collapsed, continue.
                         return true;
                     }
@@ -548,7 +548,7 @@ impl InlineLayout {
                             row.size.width += inline.first.width;
                             row.size.height = row.size.height.max(inline.first.height);
                         }
-                        row.segs.push(SegInfo::new_inlined(inline.first_segs.clone()));
+                        row.item_segs.push(ItemSegsInfo::new_inlined(inline.first_segs.clone()));
 
                         if inline.last_wrapped {
                             // wrap by child
@@ -559,7 +559,7 @@ impl InlineLayout {
                             row.size = inline.last;
                             row.size.width += spacing.column;
                             row.first_child = i + 1;
-                            row.segs.push(SegInfo::new_inlined(inline.last_segs));
+                            row.item_segs.push(ItemSegsInfo::new_inlined(inline.last_segs));
                         } else {
                             // child inlined, but fit in row
                             row.size.width += spacing.column;
@@ -567,7 +567,7 @@ impl InlineLayout {
                     } else if size.width <= inline_constrain {
                         row.size.width += size.width + spacing.column;
                         row.size.height = row.size.height.max(size.height);
-                        row.segs.push(SegInfo::new_block(size.width));
+                        row.item_segs.push(ItemSegsInfo::new_block(size.width));
                     } else {
                         // wrap by us
                         if row.size.is_empty() {
@@ -587,7 +587,7 @@ impl InlineLayout {
                         row.size = size;
                         row.size.width += spacing.column;
                         row.first_child = i;
-                        row.segs.push(SegInfo::new_block(size.width));
+                        row.item_segs.push(ItemSegsInfo::new_block(size.width));
                     }
 
                     true
@@ -612,10 +612,10 @@ impl InlineLayout {
             our_rows = 0..0;
 
             if !self.rows.is_empty() {
-                if l.first_segs.len() != self.rows[0].segs.len() {
+                if l.first_segs.len() != self.rows[0].item_segs.len() {
                     // parent set first_segs empty (not sorted), or wrong
                     let mut x = 0.0;
-                    for s in self.rows[0].segs.iter_mut() {
+                    for s in self.rows[0].item_segs.iter_mut() {
                         for (seg, pos) in s.iter_mut() {
                             pos.x = x;
                             x += seg.width + spacing_x;
@@ -623,7 +623,11 @@ impl InlineLayout {
                     }
                 } else {
                     // parent set first_segs
-                    for (pos, (_seg, seg_pos)) in l.first_segs.iter().zip(self.rows[0].segs.iter_mut().flat_map(|s| s.iter_mut())) {
+                    for (pos, (_seg, seg_pos)) in l
+                        .first_segs
+                        .iter()
+                        .zip(self.rows[0].item_segs.iter_mut().flat_map(|s| s.iter_mut()))
+                    {
                         seg_pos.x = pos.x;
                     }
                 }
@@ -632,10 +636,10 @@ impl InlineLayout {
                     // last row not the same as first
                     let last_i = self.rows.len() - 1;
                     let last = &mut self.rows[last_i];
-                    if l.last_segs.len() != last.segs.len() {
+                    if l.last_segs.len() != last.item_segs.len() {
                         // parent set last_segs empty (not sorted), or wrong
                         let mut x = 0.0;
-                        for s in last.segs.iter_mut() {
+                        for s in last.item_segs.iter_mut() {
                             for (seg, pos) in s.iter_mut() {
                                 pos.x = x;
                                 x += seg.width + spacing_x;
@@ -643,7 +647,7 @@ impl InlineLayout {
                         }
                     } else {
                         // parent set last_segs
-                        for (pos, (_seg, seg_pos)) in l.last_segs.iter().zip(last.segs.iter_mut().flat_map(|s| s.iter_mut())) {
+                        for (pos, (_seg, seg_pos)) in l.last_segs.iter().zip(last.item_segs.iter_mut().flat_map(|s| s.iter_mut())) {
                             seg_pos.x = pos.x;
                         }
                     }
@@ -660,13 +664,13 @@ impl InlineLayout {
 
             unicode_bidi_levels(
                 direction,
-                row.segs.iter().flat_map(|i| i.measure.iter().map(|i| i.kind)),
+                row.item_segs.iter().flat_map(|i| i.measure.iter().map(|i| i.kind)),
                 &mut self.bidi_levels,
             );
 
             unicode_bidi_sort(
                 direction,
-                row.segs
+                row.item_segs
                     .iter()
                     .flat_map(|i| i.measure.iter().map(|i| i.kind))
                     .zip(self.bidi_levels.iter().copied()),
@@ -680,7 +684,7 @@ impl InlineLayout {
                 let mut seg_i = 0;
 
                 // `bidi_sorted` is flatten of `row.segs`
-                for s in &mut row.segs {
+                for s in &mut row.item_segs {
                     if seg_i + s.measure.len() <= new_i {
                         seg_i += s.measure.len();
                     } else {
@@ -695,7 +699,7 @@ impl InlineLayout {
 
         for row in &mut self.rows {
             // update seg.x and seg.width
-            for seg in &mut row.segs {
+            for seg in &mut row.item_segs {
                 if seg.measure.is_empty() {
                     continue;
                 }
