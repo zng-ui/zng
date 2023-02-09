@@ -421,7 +421,7 @@ impl WidgetInlineInfo {
     ///
     /// The segments are merged when there is no gap or there is a small one pixel overlap to the previous segment.
     ///
-    /// [`first_segs`]: Self::first_sets
+    /// [`first_segs`]: Self::first_segs
     pub fn set_first_segs(&mut self, segs: impl Iterator<Item = InlineSegmentInfo>) {
         Self::set_segs(&mut self.first_segs, segs);
         self.invalidate_negative_space();

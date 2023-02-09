@@ -865,7 +865,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                             let info = l.shaped_text.last_line().unwrap().segs().map(|s| s.inline_info());
                             if ctx.direction().is_rtl() {
                                 // help sort
-                                inline.set_first_segs(info.rev());
+                                inline.set_last_segs(info.rev());
                             } else {
                                 inline.set_last_segs(info);
                             }

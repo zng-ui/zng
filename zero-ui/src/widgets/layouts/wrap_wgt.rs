@@ -362,6 +362,9 @@ impl InlineLayout {
                             child_mid = (row.size.height - child_first.size.height).max(Px(0));
                             child_last.origin.y = child_desired_size.height - child_last.size.height;
 
+                            child_first.origin.x = row.origin.x + bidi_x;
+                            child_first.size.width = bidi_width;
+
                             let next_row = if next_row_i == self.rows.len() - 1 {
                                 last
                             } else {
@@ -377,7 +380,12 @@ impl InlineLayout {
                             }
                             child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
                             child_last.origin.y += spacing.row;
-                            let child_last_segs = self.rows[next_row_i].segs[0].layout.clone();
+
+                            let last_bidi_info = &self.rows[next_row_i].segs[0];
+                            let child_last_segs = last_bidi_info.layout.clone();
+
+                            child_last.origin.x = next_row.origin.x + Px(last_bidi_info.x.floor() as i32);
+                            child_last.size.width = Px(last_bidi_info.width.ceil() as i32);
 
                             let (_, define_ref_frame) =
                                 ctx.with_inline(child_first, child_mid, child_last, child_first_segs, child_last_segs, |ctx| {
@@ -635,7 +643,6 @@ impl InlineLayout {
                         }
                     } else {
                         // parent set last_segs
-
                         for (pos, (_seg, seg_pos)) in l.last_segs.iter().zip(last.segs.iter_mut().flat_map(|s| s.iter_mut())) {
                             seg_pos.x = pos.x;
                         }

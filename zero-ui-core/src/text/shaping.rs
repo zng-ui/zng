@@ -525,7 +525,10 @@ impl ShapedText {
 
                 for i in first_range.iter() {
                     if i >= first_segs.len() {
-                        // wrong count.
+                        #[cfg(debug_assertions)]
+                        {
+                            tracing::error!("expected {} segments in `first_segs`, was {}", first_range.1, first_segs.len());
+                        }
                         break;
                     }
 
