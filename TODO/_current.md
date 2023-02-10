@@ -1,10 +1,6 @@
 # Inline Bidi
 
 * Wrap panel layout refactor:
-  - Implement bidi reposition of wrapped widgets.
-    - Only rows for this?
-    - Already expands the full width.
-  - Review offset of blocks, need to use the bidi info too.
   - Review layout offset in general, need to be removed or get a better name?
     - Still used to implement wrap?
   - Review alloc during layout, any way to avoid it at least for instances that only have block items.
