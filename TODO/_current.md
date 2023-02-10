@@ -5,11 +5,14 @@
   - Even after requesting full reshape when counts don't match.
 
 * Wrap panel layout refactor:
-  - Optimize:
-    - `item_segs` owns heap, and is not used if `bidi_layout_fresh`, two optimizations.
+  - Optimize `ItemSegsInfo`:
+    - Delay `Arc` alloc for `new_block`, may not be used if wrap does not contain any bidi stuff.
+    - Don't alloc anything for `new_collapsed`.
   - Review `spacing`, how does it work for segmented widgets.
     - Using spacing with fragmented text can affect row width?
     - Maybe we can say that horizontal spacing is one per widget only.
+
+* Test nested `wrap!` panels with bidi.
 
 # Other
 

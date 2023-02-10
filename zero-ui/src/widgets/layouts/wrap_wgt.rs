@@ -1,6 +1,6 @@
-use std::{mem, sync::Arc};
+use std::sync::Arc;
 
-use crate::prelude::new_widget::*;
+use crate::{crate_util::RecycleVec, prelude::new_widget::*};
 
 use task::parking_lot::Mutex;
 
@@ -187,11 +187,18 @@ struct RowInfo {
     first_child: usize,
     item_segs: Vec<ItemSegsInfo>,
 }
+impl crate::crate_util::Recycle for RowInfo {
+    fn recycle(&mut self) {
+        self.size = Default::default();
+        self.first_child = Default::default();
+        self.item_segs.clear();
+    }
+}
 
 #[derive(Default)]
 pub struct InlineLayout {
     first_wrapped: bool,
-    rows: Vec<RowInfo>,
+    rows: RecycleVec<RowInfo>,
     desired_size: PxSize,
 
     // has segments in the opposite direction, requires bidi sorting and positioning.
@@ -516,7 +523,7 @@ impl InlineLayout {
     }
 
     fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &PanelList, child_align: Align, spacing: PxGridSpacing) {
-        self.rows.clear();
+        self.rows.begin_reuse();
         self.bidi_layout_fresh = false;
 
         self.first_wrapped = false;
@@ -530,7 +537,7 @@ impl InlineLayout {
         let child_constrains = PxConstrains2d::new_unbounded()
             .with_fill_x(child_align.is_fill_x())
             .with_max_x(child_inline_constrain);
-        let mut row = RowInfo::default();
+        let mut row = self.rows.new_item();
         ctx.with_constrains(
             |_| child_constrains,
             |ctx| {
@@ -581,7 +588,8 @@ impl InlineLayout {
                                 row.size.width = row.size.width.max(Px(0));
                                 self.desired_size.width = self.desired_size.width.max(row.size.width);
                                 self.desired_size.height += row.size.height + spacing.row;
-                                self.rows.push(mem::take(&mut row));
+
+                                self.rows.push_renew(&mut row);
                             }
 
                             row.size = inline.first;
@@ -597,7 +605,7 @@ impl InlineLayout {
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
                             self.desired_size.height += size.height - inline.first.height + spacing.row;
 
-                            self.rows.push(mem::take(&mut row));
+                            self.rows.push_renew(&mut row);
                             row.size = inline.last;
                             row.size.width += spacing.column;
                             row.first_child = i + 1;
@@ -623,7 +631,7 @@ impl InlineLayout {
                             if !self.rows.is_empty() || inline_constrains.is_none() {
                                 self.desired_size.height += spacing.row;
                             }
-                            self.rows.push(mem::take(&mut row));
+                            self.rows.push_renew(&mut row);
                         }
 
                         row.size = size;
@@ -643,6 +651,8 @@ impl InlineLayout {
         self.desired_size.width = self.desired_size.width.max(row.size.width);
         self.desired_size.height += row.size.height;
         self.rows.push(row);
+
+        self.rows.commit_reuse();
     }
 
     fn layout_bidi(&mut self, constrains: Option<InlineConstrains>, direction: LayoutDirection, spacing_x: Px) {
@@ -739,7 +749,7 @@ impl InlineLayout {
             }
         }
 
-        for row in &mut self.rows {
+        for row in self.rows.iter_mut() {
             // update seg.x and seg.width
             for seg in &mut row.item_segs {
                 if seg.measure.is_empty() {
