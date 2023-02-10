@@ -192,12 +192,15 @@ struct RowInfo {
 pub struct InlineLayout {
     first_wrapped: bool,
     rows: Vec<RowInfo>,
-    bidi_layout: bool,
     desired_size: PxSize,
 
-    // alloc here for reuse
+    // has segments in the opposite direction, requires bidi sorting and positioning.
+    has_bidi_inline: bool,
+    bidi_layout_fresh: bool,
+    // reused heap alloc
     bidi_sorted: Vec<usize>,
     bidi_levels: Vec<BidiLevel>,
+    bidi_default_segs: Arc<Vec<InlineSegmentPos>>,
 }
 impl InlineLayout {
     pub fn measure(
@@ -260,7 +263,7 @@ impl InlineLayout {
             // if not already measured by parent inline
             self.measure_rows(&mut ctx.as_measure(), children, child_align, spacing);
         }
-        if !self.bidi_layout {
+        if self.has_bidi_inline && !self.bidi_layout_fresh {
             self.layout_bidi(inline_constrains.clone(), direction, spacing.column);
         }
 
@@ -330,9 +333,16 @@ impl InlineLayout {
                         row_advance = Px(0);
                     }
 
-                    let bidi_info = &row_segs[i - row_segs_i_start];
-                    let bidi_x = Px(bidi_info.x.floor() as i32);
-                    let bidi_width = Px(bidi_info.width.ceil() as i32);
+                    let (bidi_x, bidi_width, bidi_segs) = if self.has_bidi_inline {
+                        let bidi_info = &row_segs[i - row_segs_i_start];
+                        (
+                            Px(bidi_info.x.floor() as i32),
+                            Px(bidi_info.width.ceil() as i32),
+                            bidi_info.layout.clone(),
+                        )
+                    } else {
+                        (Px(0), Px(0), self.bidi_default_segs.clone())
+                    };
 
                     let child_inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
                     if let Some(child_inline) = child_inline {
@@ -348,7 +358,6 @@ impl InlineLayout {
                         let mut child_first = PxRect::from_size(child_inline.first);
                         let mut child_mid = Px(0);
                         let mut child_last = PxRect::from_size(child_inline.last);
-                        let child_first_segs = row_segs[i - row_segs_i_start].layout.clone();
 
                         if child_inline.last_wrapped {
                             // child wraps
@@ -362,8 +371,10 @@ impl InlineLayout {
                             child_mid = (row.size.height - child_first.size.height).max(Px(0));
                             child_last.origin.y = child_desired_size.height - child_last.size.height;
 
-                            child_first.origin.x = row.origin.x + bidi_x;
-                            child_first.size.width = bidi_width;
+                            if self.has_bidi_inline {
+                                child_first.origin.x = row.origin.x + bidi_x;
+                                child_first.size.width = bidi_width;
+                            }
 
                             let next_row = if next_row_i == self.rows.len() - 1 {
                                 last
@@ -381,14 +392,24 @@ impl InlineLayout {
                             child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
                             child_last.origin.y += spacing.row;
 
-                            let last_bidi_info = &self.rows[next_row_i].item_segs[0];
-                            let child_last_segs = last_bidi_info.layout.clone();
+                            let (last_bidi_x, last_bidi_width, last_bidi_segs) = if self.has_bidi_inline {
+                                let last_bidi_info = &self.rows[next_row_i].item_segs[0];
+                                (
+                                    Px(last_bidi_info.x.floor() as i32),
+                                    Px(last_bidi_info.width.ceil() as i32),
+                                    last_bidi_info.layout.clone(),
+                                )
+                            } else {
+                                (Px(0), Px(0), self.bidi_default_segs.clone())
+                            };
 
-                            child_last.origin.x = next_row.origin.x + Px(last_bidi_info.x.floor() as i32);
-                            child_last.size.width = Px(last_bidi_info.width.ceil() as i32);
+                            if self.has_bidi_inline {
+                                child_last.origin.x = next_row.origin.x + last_bidi_x;
+                                child_last.size.width = last_bidi_width;
+                            }
 
                             let (_, define_ref_frame) =
-                                ctx.with_inline(child_first, child_mid, child_last, child_first_segs, child_last_segs, |ctx| {
+                                ctx.with_inline(child_first, child_mid, child_last, bidi_segs, last_bidi_segs, |ctx| {
                                     wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))
                                 });
                             o.child_offset = PxVector::new(Px(0), row.origin.y);
@@ -427,33 +448,38 @@ impl InlineLayout {
                             offset.y = (row.size.height - child_inline.first.height) * child_align_y;
 
                             let mut max_size = child_inline.first;
-                            max_size.width = bidi_width;
-                            child_first.size.width = bidi_width;
-                            child_last.size.width = bidi_width;
+
+                            if self.has_bidi_inline {
+                                max_size.width = bidi_width;
+                                child_first.size.width = bidi_width;
+                                child_last.size.width = bidi_width;
+                            }
 
                             let (_, define_ref_frame) = ctx.with_constrains(
                                 |_| child_constrains.with_fill(false, false).with_max_size(max_size),
                                 |ctx| {
-                                    ctx.with_inline(
-                                        child_first,
-                                        child_mid,
-                                        child_last,
-                                        child_first_segs.clone(),
-                                        child_first_segs,
-                                        |ctx| wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl)),
-                                    )
+                                    ctx.with_inline(child_first, child_mid, child_last, bidi_segs.clone(), bidi_segs, |ctx| {
+                                        wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))
+                                    })
                                 },
                             );
                             o.child_offset = row.origin.to_vector() + offset;
-                            o.child_offset.x = row.origin.x + bidi_x;
+                            if self.has_bidi_inline {
+                                o.child_offset.x = row.origin.x + bidi_x;
+                            }
                             o.define_reference_frame = define_ref_frame;
 
                             row_advance += child_last.size.width + spacing.column;
                         }
                     } else {
                         // inline block
+                        let max_width = if self.has_bidi_inline {
+                            bidi_width
+                        } else {
+                            row.size.width - row_advance
+                        };
                         let (size, define_ref_frame) = ctx.with_constrains(
-                            |_| child_constrains.with_fill(false, false).with_max(bidi_width, row.size.height),
+                            |_| child_constrains.with_fill(false, false).with_max(max_width, row.size.height),
                             |ctx| ctx.with_inline_constrains(|_| None, |ctx| wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))),
                         );
                         if size.is_empty() {
@@ -469,7 +495,9 @@ impl InlineLayout {
                         }
                         offset.y = (row.size.height - size.height) * child_align_y;
                         o.child_offset = row.origin.to_vector() + offset;
-                        o.child_offset.x = row.origin.x + bidi_x;
+                        if self.has_bidi_inline {
+                            o.child_offset.x = row.origin.x + bidi_x;
+                        }
                         o.define_reference_frame = define_ref_frame;
                         row_advance += size.width + spacing.column;
                     }
@@ -488,12 +516,14 @@ impl InlineLayout {
     }
 
     fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &PanelList, child_align: Align, spacing: PxGridSpacing) {
-        self.rows.clear(); // !!: TODO, reuse items now that some Arc<Vec<_>> are alloc.
-        self.bidi_layout = false;
+        self.rows.clear();
+        self.bidi_layout_fresh = false;
 
         self.first_wrapped = false;
         self.desired_size = PxSize::zero();
+        self.has_bidi_inline = false;
 
+        let direction = ctx.direction();
         let constrains = ctx.constrains();
         let inline_constrains = ctx.inline_constrains();
         let child_inline_constrain = constrains.x.max_or(Px::MAX);
@@ -529,6 +559,18 @@ impl InlineLayout {
                     }
 
                     if let Some(inline) = inline {
+                        if !self.has_bidi_inline {
+                            self.has_bidi_inline =
+                                inline
+                                    .first_segs
+                                    .iter()
+                                    .chain(inline.last_segs.iter())
+                                    .any(|s| match s.kind.strong_direction() {
+                                        Some(d) => d != direction,
+                                        None => false,
+                                    });
+                        }
+
                         if inline.first_wrapped {
                             // wrap by us, detected by child
                             if row.size.is_empty() {

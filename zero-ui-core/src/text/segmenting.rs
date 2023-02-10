@@ -107,6 +107,27 @@ impl TextSegmentKind {
             None
         }
     }
+
+    /// Gets the layout direction this segment will always be in, independent of the base direction.
+    ///
+    /// Returns `None` if the segment
+    pub fn strong_direction(self) -> Option<LayoutDirection> {
+        use TextSegmentKind::*;
+
+        match self {
+            LeftToRight => Some(LayoutDirection::LTR),
+            RightToLeft | ArabicLetter => Some(LayoutDirection::RTL),
+            BidiCtrl(_) => {
+                use unicode_bidi::BidiClass::*;
+                match unicode_bidi::BidiClass::from(self) {
+                    LRE | LRO | LRI => Some(LayoutDirection::LTR),
+                    RLE | RLO | RLI => Some(LayoutDirection::RTL),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
 }
 impl From<char> for TextSegmentKind {
     fn from(c: char) -> Self {

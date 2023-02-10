@@ -490,10 +490,6 @@ impl ShapedText {
             last.origin.y += align_y;
 
             static EMPTY: Vec<InlineSegmentPos> = vec![];
-            // !!: TODO, re-order first and last if needed
-            //           we already sort when the text is created, so it is only needed
-            //           if the previous reshape_lines call was inlined.
-
             (first, Px(0), last, &EMPTY, &EMPTY)
         };
 
