@@ -304,7 +304,7 @@ impl InlineLayout {
                 let mut row_segs = &self.rows[0].item_segs;
                 let mut row_advance = Px(0);
                 let mut next_row_i = 1;
-                let mut row_first_i = 0;
+                let mut row_segs_i_start = 0;
 
                 children.for_each_mut(|i, child, o| {
                     if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
@@ -325,12 +325,12 @@ impl InlineLayout {
                             row.origin.x = (panel_width - row.size.width) * child_align_x;
                         }
                         row_segs = &self.rows[next_row_i].item_segs;
-                        row_first_i = self.rows[next_row_i].first_child;
+                        row_segs_i_start = self.rows[next_row_i].first_child;
                         next_row_i += 1;
                         row_advance = Px(0);
                     }
 
-                    let bidi_info = &row_segs[i - row_first_i];
+                    let bidi_info = &row_segs[i - row_segs_i_start];
                     let bidi_x = Px(bidi_info.x.floor() as i32);
                     let bidi_width = Px(bidi_info.width.ceil() as i32);
 
@@ -348,7 +348,7 @@ impl InlineLayout {
                         let mut child_first = PxRect::from_size(child_inline.first);
                         let mut child_mid = Px(0);
                         let mut child_last = PxRect::from_size(child_inline.last);
-                        let child_first_segs = row_segs[i - row_first_i].layout.clone();
+                        let child_first_segs = row_segs[i - row_segs_i_start].layout.clone();
 
                         if child_inline.last_wrapped {
                             // child wraps
@@ -414,8 +414,8 @@ impl InlineLayout {
                             row = next_row;
                             row_advance = child_last.size.width + spacing.column;
                             row_segs = &self.rows[next_row_i].item_segs;
-                            row_first_i = self.rows[next_row_i].first_child;
-                            debug_assert_eq!(row_first_i, i + 1);
+                            row_segs_i_start = self.rows[next_row_i].first_child - 1; // next row first item is also this widget
+                            debug_assert_eq!(row_segs_i_start, i);
                             next_row_i += 1;
                         } else {
                             // child inlined, but fits in the row
