@@ -1,5 +1,9 @@
 # Inline Bidi
 
+* Some times the `ensure_layout_for_render` gets an older version of the `layout_metrics`?
+  - Seg counts don't match.
+  - Even after requesting full reshape when counts don't match.
+
 * Wrap panel layout refactor:
   - Review layout offset in general, need to be removed or get a better name?
     - Still used to implement wrap?

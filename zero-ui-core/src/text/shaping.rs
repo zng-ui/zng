@@ -1603,6 +1603,11 @@ impl<'a> ShapedLine<'a> {
         })
     }
 
+    /// Number of segments in this line.
+    pub fn segs_len(&self) -> usize {
+        self.seg_range.len()
+    }
+
     /// Returns `true` if this line was started by the wrap algorithm.
     ///
     /// If this is `false` then the line is the first or the previous line ends in a [`LineBreak`].

@@ -663,6 +663,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let t = write.as_mut().expect("expected `ResolvedText` in `render` or `render_update`");
                 let metrics = self.layout_metrics.clone();
                 self.layout(&metrics, t, false);
+                debug_assert!(!self.txt_is_measured);
             }
         }
     }
