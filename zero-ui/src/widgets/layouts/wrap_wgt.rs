@@ -117,37 +117,26 @@ impl UiNode for WrapNode {
 
 /// Info about segments of a widget in a row.
 #[derive(Debug, Clone)]
-struct ItemSegsInfo {
-    measure: Arc<Vec<InlineSegment>>,
-    layout: Arc<Vec<InlineSegmentPos>>,
-    x: f32,
-    width: f32,
+enum ItemSegsInfo {
+    Block(Px),
+    Built {
+        measure: Arc<Vec<InlineSegment>>,
+        layout: Arc<Vec<InlineSegmentPos>>,
+        x: f32,
+        width: f32,
+    },
 }
 impl ItemSegsInfo {
-    fn new_block(width: Px) -> Self {
-        let width = width.0 as f32;
-        Self {
-            measure: Arc::new(vec![InlineSegment {
-                width,
-                kind: TextSegmentKind::OtherNeutral,
-            }]),
-            layout: Arc::new(vec![]),
-            x: 0.0,
-            width,
-        }
+    pub fn new_collapsed() -> Self {
+        Self::Block(Px(0))
     }
 
-    fn new_collapsed() -> Self {
-        Self {
-            measure: Arc::new(vec![]),
-            layout: Arc::new(vec![]),
-            x: 0.0,
-            width: 0.0,
-        }
+    pub fn new_block(width: Px) -> Self {
+        Self::Block(width)
     }
 
-    fn new_inlined(measure: Arc<Vec<InlineSegment>>) -> Self {
-        Self {
+    pub fn new_inlined(measure: Arc<Vec<InlineSegment>>) -> Self {
+        Self::Built {
             measure,
             layout: Arc::new(vec![]),
             x: 0.0,
@@ -155,28 +144,82 @@ impl ItemSegsInfo {
         }
     }
 
-    fn layout_mut(&mut self) -> &mut Vec<InlineSegmentPos> {
-        // Borrow checker limitation does not allow `if let Some(l) = Arc::get_mut(..) { l } else { <insert-return> }`
-
-        if Arc::get_mut(&mut self.layout).is_none() {
-            self.layout = Arc::new(vec![]);
+    pub fn measure(&self) -> &[InlineSegment] {
+        match self {
+            ItemSegsInfo::Built { measure, .. } => measure,
+            _ => &[],
         }
-
-        let r = Arc::get_mut(&mut self.layout).unwrap();
-        r.resize(self.measure.len(), InlineSegmentPos { x: 0.0 });
-
-        r
     }
 
-    fn iter_mut(&mut self) -> impl Iterator<Item = (&InlineSegment, &mut InlineSegmentPos)> {
-        if Arc::get_mut(&mut self.layout).is_none() {
-            self.layout = Arc::new(vec![]);
+    pub fn layout_mut(&mut self) -> &mut Vec<InlineSegmentPos> {
+        self.build();
+        match self {
+            ItemSegsInfo::Built { measure, layout, .. } => {
+                // Borrow checker limitation does not allow `if let Some(l) = Arc::get_mut(..) { l } else { <insert-return> }`
+
+                if Arc::get_mut(layout).is_none() {
+                    *layout = Arc::new(vec![]);
+                }
+
+                let r = Arc::get_mut(layout).unwrap();
+                r.resize(measure.len(), InlineSegmentPos { x: 0.0 });
+
+                r
+            }
+            _ => unreachable!(),
         }
+    }
 
-        let r = Arc::get_mut(&mut self.layout).unwrap();
-        r.resize(self.measure.len(), InlineSegmentPos { x: 0.0 });
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&InlineSegment, &mut InlineSegmentPos)> {
+        self.build();
+        match self {
+            ItemSegsInfo::Built { measure, layout, .. } => {
+                if Arc::get_mut(layout).is_none() {
+                    *layout = Arc::new(vec![]);
+                }
 
-        self.measure.iter().zip(r)
+                let r = Arc::get_mut(layout).unwrap();
+                r.resize(measure.len(), InlineSegmentPos { x: 0.0 });
+
+                measure.iter().zip(r)
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn x_width_segs(&self) -> (Px, Px, Arc<Vec<InlineSegmentPos>>) {
+        match self {
+            ItemSegsInfo::Built { layout, x, width, .. } => (Px(x.floor() as i32), Px(width.ceil() as i32), layout.clone()),
+            _ => unreachable!(),
+        }
+    }
+
+    fn build(&mut self) {
+        match self {
+            ItemSegsInfo::Block(width) => {
+                let width = width.0 as f32;
+                *self = ItemSegsInfo::Built {
+                    measure: Arc::new(vec![InlineSegment {
+                        width,
+                        kind: TextSegmentKind::OtherNeutral,
+                    }]),
+                    layout: Arc::new(Vec::with_capacity(1)),
+                    x: 0.0,
+                    width,
+                }
+            }
+            ItemSegsInfo::Built { .. } => {}
+        }
+    }
+
+    fn set_x_width(&mut self, new_x: f32, new_width: f32) {
+        match self {
+            ItemSegsInfo::Built { x, width, .. } => {
+                *x = new_x;
+                *width = new_width;
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -235,7 +278,7 @@ impl InlineLayout {
             if let Some(first) = self.rows.first() {
                 inline.first = first.size;
                 inline.with_first_segs(|i| {
-                    i.extend(first.item_segs.iter().flat_map(|i| i.measure.iter().copied()));
+                    i.extend(first.item_segs.iter().flat_map(|i| i.measure().iter().copied()));
                 });
             } else {
                 inline.first = PxSize::zero();
@@ -244,7 +287,7 @@ impl InlineLayout {
             if let Some(last) = self.rows.last() {
                 inline.last = last.size;
                 inline.with_last_segs(|i| {
-                    i.extend(last.item_segs.iter().flat_map(|i| i.measure.iter().copied()));
+                    i.extend(last.item_segs.iter().flat_map(|i| i.measure().iter().copied()));
                 })
             } else {
                 inline.last = PxSize::zero();
@@ -341,12 +384,7 @@ impl InlineLayout {
                     }
 
                     let (bidi_x, bidi_width, bidi_segs) = if self.has_bidi_inline {
-                        let bidi_info = &row_segs[i - row_segs_i_start];
-                        (
-                            Px(bidi_info.x.floor() as i32),
-                            Px(bidi_info.width.ceil() as i32),
-                            bidi_info.layout.clone(),
-                        )
+                        row_segs[i - row_segs_i_start].x_width_segs()
                     } else {
                         (Px(0), Px(0), self.bidi_default_segs.clone())
                     };
@@ -400,12 +438,7 @@ impl InlineLayout {
                             child_last.origin.y += spacing.row;
 
                             let (last_bidi_x, last_bidi_width, last_bidi_segs) = if self.has_bidi_inline {
-                                let last_bidi_info = &self.rows[next_row_i].item_segs[0];
-                                (
-                                    Px(last_bidi_info.x.floor() as i32),
-                                    Px(last_bidi_info.width.ceil() as i32),
-                                    last_bidi_info.layout.clone(),
-                                )
+                                self.rows[next_row_i].item_segs[0].x_width_segs()
                             } else {
                                 (Px(0), Px(0), self.bidi_default_segs.clone())
                             };
@@ -716,7 +749,7 @@ impl InlineLayout {
 
             unicode_bidi_levels(
                 direction,
-                row.item_segs.iter().flat_map(|i| i.measure.iter().map(|i| i.kind)),
+                row.item_segs.iter().flat_map(|i| i.measure().iter().map(|i| i.kind)),
                 &mut self.bidi_levels,
             );
 
@@ -724,7 +757,7 @@ impl InlineLayout {
                 direction,
                 row.item_segs
                     .iter()
-                    .flat_map(|i| i.measure.iter().map(|i| i.kind))
+                    .flat_map(|i| i.measure().iter().map(|i| i.kind))
                     .zip(self.bidi_levels.iter().copied()),
                 0,
                 &mut self.bidi_sorted,
@@ -737,12 +770,12 @@ impl InlineLayout {
 
                 // `bidi_sorted` is flatten of `row.segs`
                 for s in &mut row.item_segs {
-                    if seg_i + s.measure.len() <= new_i {
-                        seg_i += s.measure.len();
+                    if seg_i + s.measure().len() <= new_i {
+                        seg_i += s.measure().len();
                     } else {
                         let new_i = new_i - seg_i;
                         s.layout_mut()[new_i].x = x;
-                        x += s.measure[new_i].width + spacing_x;
+                        x += s.measure()[new_i].width + spacing_x;
                         break;
                     }
                 }
@@ -752,7 +785,7 @@ impl InlineLayout {
         for row in self.rows.iter_mut() {
             // update seg.x and seg.width
             for seg in &mut row.item_segs {
-                if seg.measure.is_empty() {
+                if seg.measure().is_empty() {
                     continue;
                 }
 
@@ -762,8 +795,7 @@ impl InlineLayout {
                     seg_min = seg_min.min(l.x);
                     seg_max = seg_max.max(l.x + m.width);
                 }
-                seg.x = seg_min;
-                seg.width = seg_max - seg_min;
+                seg.set_x_width(seg_min, seg_max - seg_min);
 
                 for (_, l) in seg.iter_mut() {
                     l.x -= seg_min;
