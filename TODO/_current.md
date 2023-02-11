@@ -1,9 +1,6 @@
 # Inline Bidi
 
-* Some times the `ensure_layout_for_render` gets an older version of the `layout_metrics`?
-  - Seg counts don't match.
-  - Even after requesting full reshape when counts don't match.
-  - Try to recreate exact window size change.
+* Review why texts get layout with the initial viewport after window resize.
 
 * Wrap panel layout refactor:
   - Review `spacing`, how does it work for segmented widgets.

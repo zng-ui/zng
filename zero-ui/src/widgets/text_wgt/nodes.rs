@@ -408,7 +408,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         pending: Layout,
 
         txt_is_measured: bool,
-        layout_metrics: LayoutMetrics,
+        last_layout: (LayoutMetrics, Option<InlineConstrainsMeasure>),
     }
     impl FinalText {
         fn measure(&mut self, ctx: &mut MeasureContext) -> Option<PxSize> {
@@ -420,8 +420,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         fn layout(&mut self, metrics: &LayoutMetrics, t: &mut ResolvedText, is_measure: bool) -> PxSize {
-            self.pending = Layout::empty();
-
             if t.reshape {
                 self.pending.insert(Layout::RESHAPE);
             }
@@ -476,12 +474,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                     }
                     InlineConstrains::Layout(l) => {
-                        if !self.pending.contains(Layout::RESHAPE) {
-                            if Some(l.first_segs.len()) != r.shaped_text.first_line().map(|l| l.segs_len())
-                                || Some(l.last_segs.len()) != r.shaped_text.last_line().map(|l| l.segs_len())
-                            {
-                                self.pending.insert(Layout::RESHAPE);
-                            }
+                        if !self.pending.contains(Layout::RESHAPE)
+                            && (Some(l.first_segs.len()) != r.shaped_text.first_line().map(|l| l.segs_len())
+                                || Some(l.last_segs.len()) != r.shaped_text.last_line().map(|l| l.segs_len()))
+                        {
+                            self.pending.insert(Layout::RESHAPE);
                         }
 
                         if !self.pending.contains(Layout::RESHAPE_LINES)
@@ -597,7 +594,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if !is_measure {
-                self.layout_metrics = metrics.clone();
+                self.last_layout = (metrics.clone(), self.shaping_args.inline_constrains);
 
                 if self.pending.contains(Layout::RESHAPE_LINES) {
                     r.shaped_text.reshape_lines(
@@ -661,6 +658,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         r.underlines = vec![];
                     }
                 }
+                self.pending = Layout::empty();
             }
             self.txt_is_measured = is_measure;
 
@@ -671,7 +669,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if self.txt_is_measured {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `render` or `render_update`");
-                let metrics = self.layout_metrics.clone();
+                let metrics = self.last_layout.0.clone();
+                self.shaping_args.inline_constrains = self.last_layout.1;
                 self.layout(&metrics, t, false);
                 debug_assert!(!self.txt_is_measured);
             }
@@ -920,7 +919,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             shaping_args: TextShapingArgs::default(),
             pending: Layout::empty(),
             txt_is_measured: false,
-            layout_metrics: LayoutMetrics::new(1.fct(), PxSize::zero(), Px(0)),
+            last_layout: (LayoutMetrics::new(1.fct(), PxSize::zero(), Px(0)), None),
         }),
     }
     .cfg_boxed()
