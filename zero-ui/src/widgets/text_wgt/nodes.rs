@@ -420,6 +420,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         fn layout(&mut self, metrics: &LayoutMetrics, t: &mut ResolvedText, is_measure: bool) -> PxSize {
+            self.pending = Layout::empty();
+
             if t.reshape {
                 self.pending.insert(Layout::RESHAPE);
             }
@@ -474,6 +476,14 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                     }
                     InlineConstrains::Layout(l) => {
+                        if !self.pending.contains(Layout::RESHAPE) {
+                            if Some(l.first_segs.len()) != r.shaped_text.first_line().map(|l| l.segs_len())
+                                || Some(l.last_segs.len()) != r.shaped_text.last_line().map(|l| l.segs_len())
+                            {
+                                self.pending.insert(Layout::RESHAPE);
+                            }
+                        }
+
                         if !self.pending.contains(Layout::RESHAPE_LINES)
                             && (r.shaped_text.mid_clear() != l.mid_clear
                                 || r.shaped_text.first_line().map(|l| l.rect()) != Some(l.first)

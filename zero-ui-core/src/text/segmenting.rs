@@ -110,7 +110,7 @@ impl TextSegmentKind {
 
     /// Gets the layout direction this segment will always be in, independent of the base direction.
     ///
-    /// Returns `None` if the segment
+    /// Returns `None` if the segment direction depends on the line context.
     pub fn strong_direction(self) -> Option<LayoutDirection> {
         use TextSegmentKind::*;
 
