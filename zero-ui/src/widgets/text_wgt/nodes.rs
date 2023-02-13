@@ -665,7 +665,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             metrics.constrains().fill_size_or(r.shaped_text.size())
         }
 
-        fn ensure_layout_for_render(&mut self) {
+        fn ensure_layout_for_render(&mut self, _ctx: &mut RenderContext) {
             if self.txt_is_measured {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `render` or `render_update`");
@@ -903,12 +903,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
         #[UiNode]
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.txt.lock().ensure_layout_for_render();
+            self.txt.lock().ensure_layout_for_render(ctx);
             self.with(|c| c.render(ctx, frame))
         }
         #[UiNode]
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.txt.lock().ensure_layout_for_render();
+            self.txt.lock().ensure_layout_for_render(ctx);
             self.with(|c| c.render_update(ctx, update))
         }
     }

@@ -382,7 +382,29 @@ pub mod nodes {
                 let reuse = !self.m.lock().pending_updates.layout;
 
                 ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                    wm.with_widget(ctx, reuse, |ctx, wm| self.child.measure(ctx, wm))
+                    wm.with_widget(ctx, reuse, |ctx, wm| {
+                        let child_size = self.child.measure(ctx, wm);
+
+                        // verify that inline row segments fit in row size
+                        #[cfg(debug_assertions)]
+                        if let Some(inline) = wm.inline() {
+                            for (name, size, segs) in [
+                                ("first", inline.first, &inline.first_segs),
+                                ("last", inline.last, &inline.last_segs),
+                            ] {
+                                let width = size.width.0 as f32;
+                                let sum_width = segs.iter().map(|s| s.width).sum::<f32>();
+                                if (sum_width - width) >= 1.0 {
+                                    tracing::error!(
+                                        "widget {:?} measured inline {name} row has {width} width, but row segs sum to {sum_width} width",
+                                        self.id
+                                    );
+                                }
+                            }
+                        }
+
+                        child_size
+                    })
                 })
             }
 
@@ -395,7 +417,32 @@ pub mod nodes {
                 let reuse = !mem::take(&mut self.m.get_mut().pending_updates.layout);
 
                 let (child_size, updates) = ctx.with_widget(self.id, &self.info, &mut self.state, |ctx| {
-                    wl.with_widget(ctx, reuse, |ctx, wl| self.child.layout(ctx, wl))
+                    wl.with_widget(ctx, reuse, |ctx, wl| {
+                        let child_size = self.child.layout(ctx, wl);
+
+                        // verify that inline row segments fit in row rectangle
+                        #[cfg(debug_assertions)]
+                        if let Some(inline) = wl.inline() {
+                            for (name, row, segs) in inline
+                                .rows
+                                .first()
+                                .iter()
+                                .map(|r| ("first", r, &inline.first_segs))
+                                .chain(inline.rows.last().iter().map(|r| ("last", r, &inline.last_segs)))
+                            {
+                                let width = row.width();
+                                let sum_width = segs.iter().map(|s| s.width).sum::<crate::units::Px>();
+                                if (sum_width - width) >= crate::units::Px(1) {
+                                    tracing::error!(
+                                        "widget {:?} layout inline {name} row has {width} width, but row segs widths sum to {sum_width}",
+                                        self.id
+                                    );
+                                }
+                            }
+                        }
+
+                        child_size
+                    })
                 });
                 self.m.get_mut().pending_updates |= updates;
 

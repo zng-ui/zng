@@ -187,10 +187,19 @@ impl ItemSegsInfo {
         }
     }
 
+    /// Only valid if has bidi items and is up-to-date.
     pub fn x_width_segs(&self) -> (Px, Px, Arc<Vec<InlineSegmentPos>>) {
         match self {
             ItemSegsInfo::Built { layout, x, width, .. } => (Px(x.floor() as i32), Px(width.ceil() as i32), layout.clone()),
             _ => unreachable!(),
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn measure_width(&self) -> f32 {
+        match self {
+            ItemSegsInfo::Block(w) => w.0 as f32,
+            ItemSegsInfo::Built { measure, .. } => measure.iter().map(|s| s.width).sum(),
         }
     }
 
@@ -686,6 +695,16 @@ impl InlineLayout {
         self.rows.push(row);
 
         self.rows.commit_reuse();
+
+        #[cfg(debug_assertions)]
+        for (i, row) in self.rows.iter().enumerate() {
+            let width = row.size.width;
+            let sum_width = row.item_segs.iter().map(|s| Px(s.measure_width() as i32)).sum::<Px>();
+
+            if (sum_width - width) > Px(0) {
+                tracing::error!("wrap! panel row {i} computed width {width}, but sum of segs is {sum_width}");
+            }
+        }
     }
 
     fn layout_bidi(&mut self, constrains: Option<InlineConstrains>, direction: LayoutDirection, spacing_x: Px) {

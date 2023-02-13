@@ -258,6 +258,11 @@ impl ops::Rem for Px {
         Px(self.0 % rhs.0)
     }
 }
+impl std::iter::Sum for Px {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Px(0), |a, b| a + b)
+    }
+}
 
 /// Device independent pixel.
 ///

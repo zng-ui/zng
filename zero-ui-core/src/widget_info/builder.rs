@@ -328,6 +328,8 @@ pub struct WidgetInlineMeasure {
     pub first_wrapped: bool,
 
     /// Inline segments in the first row.
+    ///
+    /// The sum of segment widths must be less or equal to the `first.width`.
     pub first_segs: Arc<Vec<InlineSegment>>,
 
     /// Preferred last size.
@@ -340,6 +342,8 @@ pub struct WidgetInlineMeasure {
     pub last_wrapped: bool,
 
     /// Inline segments in the last row.
+    ///
+    /// The sum of segment widths must be less or equal to the `last.width`.
     pub last_segs: Arc<Vec<InlineSegment>>,
 }
 impl WidgetInlineMeasure {

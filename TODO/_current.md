@@ -1,6 +1,6 @@
 # Inline Bidi
 
-* Review why texts get layout with the initial viewport after window resize.
+* If `text!` depends on `viewport` metrics the segmented texts can be wrapped incorrectly and the lines not aligned properly.
 
 * Wrap panel layout refactor:
   - Review `spacing`, how does it work for segmented widgets.
