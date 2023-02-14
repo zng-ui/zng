@@ -63,7 +63,15 @@ impl<L: Into<Length>> ops::Add<L> for Length {
     fn add(self, rhs: L) -> Self::Output {
         use Length::*;
 
-        match (self, rhs.into()) {
+        let rhs = rhs.into();
+
+        if self.is_zero() == Some(true) {
+            return rhs; // 0 + rhs
+        } else if rhs.is_zero() == Some(true) {
+            return self; // self + 0
+        }
+
+        match (self, rhs) {
             (Dip(a), Dip(b)) => Dip(a + b),
             (Px(a), Px(b)) => Px(a + b),
             (Pt(a), Pt(b)) => Pt(a + b),
@@ -95,7 +103,15 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
     fn sub(self, rhs: L) -> Self::Output {
         use Length::*;
 
-        match (self, rhs.into()) {
+        let rhs = rhs.into();
+
+        if rhs.is_zero() == Some(true) {
+            return self; // self - 0
+        } else if self.is_zero() == Some(true) {
+            return -rhs; // 0 - rhs
+        }
+
+        match (self, rhs) {
             (Dip(a), Dip(b)) => Dip(a - b),
             (Px(a), Px(b)) => Px(a - b),
             (Pt(a), Pt(b)) => Pt(a - b),
@@ -129,6 +145,13 @@ impl<F: Into<Factor>> ops::Mul<F> for Length {
     fn mul(self, rhs: F) -> Self::Output {
         use Length::*;
         let rhs = rhs.into();
+
+        if self.is_zero() == Some(true) || rhs == 1.fct() {
+            return self; // 0 * fct || len * 1.0
+        } else if rhs == 0.fct() {
+            return Self::zero(); // len * 0.0
+        }
+
         match self {
             Dip(e) => DipF32(e.to_f32() * rhs.0),
             Px(e) => PxF32(e.0 as f32 * rhs.0),
@@ -160,6 +183,10 @@ impl<F: Into<Factor>> ops::Div<F> for Length {
         use Length::*;
 
         let rhs = rhs.into();
+
+        if self.is_zero() == Some(true) && rhs != 0.fct() {
+            return self; // 0 / fct
+        }
 
         match self {
             Dip(e) => DipF32(e.to_f32() / rhs.0),

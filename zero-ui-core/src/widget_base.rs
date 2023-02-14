@@ -394,7 +394,7 @@ pub mod nodes {
                             ] {
                                 let width = size.width.0 as f32;
                                 let sum_width = segs.iter().map(|s| s.width).sum::<f32>();
-                                if (sum_width - width) >= 1.0 {
+                                if (sum_width - width) > 1.0 {
                                     tracing::error!(
                                         "widget {:?} measured inline {name} row has {width} width, but row segs sum to {sum_width} width",
                                         self.id
@@ -432,7 +432,7 @@ pub mod nodes {
                             {
                                 let width = row.width();
                                 let sum_width = segs.iter().map(|s| s.width).sum::<crate::units::Px>();
-                                if (sum_width - width) >= crate::units::Px(1) {
+                                if (sum_width - width) > crate::units::Px(1) {
                                     tracing::error!(
                                         "widget {:?} layout inline {name} row has {width} width, but row segs widths sum to {sum_width}",
                                         self.id

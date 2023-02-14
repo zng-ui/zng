@@ -658,7 +658,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         r.underlines = vec![];
                     }
                 }
-                self.pending = Layout::empty();
+
+                // self.pending is cleared in the node layout, after this method call
             }
             self.txt_is_measured = is_measure;
 
