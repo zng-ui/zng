@@ -854,6 +854,14 @@ impl ShapedText {
                     trace_assert!(g.point.x <= line_max, "glyph.x({:?}) <= line.x+width({:?})", g.point.x, line_max);
                 }
 
+                let seg_width = self.segments.0[prev_line_end..line.end].iter().map(|s| s.advance).sum::<f32>();
+                trace_assert!(
+                    (seg_width - line.width) < 1.0,
+                    "seg_width({:?}) > line.width({:?}",
+                    seg_width,
+                    line.width
+                );
+
                 prev_line_end = line.end;
             }
             trace_assert!(self.lines.0.last().map(|l| l.end == self.segments.0.len()).unwrap_or(true));

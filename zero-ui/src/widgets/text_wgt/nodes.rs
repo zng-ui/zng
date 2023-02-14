@@ -859,30 +859,27 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if let (Some(inline), Some(l)) = (wl.inline(), txt.txt.as_ref()) {
-                let clip_segs = ctx.inline_constrains().is_some();
                 let last_line = l.shaped_text.lines_len().saturating_sub(1);
 
                 inline.first_segs.clear();
                 inline.last_segs.clear();
 
                 for (i, line) in l.shaped_text.lines().enumerate() {
-                    if clip_segs {
-                        if i == 0 {
-                            let info = l.shaped_text.first_line().unwrap().segs().map(|s| s.inline_info());
-                            if ctx.direction().is_rtl() {
-                                // help sort
-                                inline.set_first_segs(info.rev());
-                            } else {
-                                inline.set_first_segs(info);
-                            }
-                        } else if i == last_line {
-                            let info = l.shaped_text.last_line().unwrap().segs().map(|s| s.inline_info());
-                            if ctx.direction().is_rtl() {
-                                // help sort
-                                inline.set_last_segs(info.rev());
-                            } else {
-                                inline.set_last_segs(info);
-                            }
+                    if i == 0 {
+                        let info = l.shaped_text.first_line().unwrap().segs().map(|s| s.inline_info());
+                        if ctx.direction().is_rtl() {
+                            // help sort
+                            inline.set_first_segs(info.rev());
+                        } else {
+                            inline.set_first_segs(info);
+                        }
+                    } else if i == last_line {
+                        let info = l.shaped_text.last_line().unwrap().segs().map(|s| s.inline_info());
+                        if ctx.direction().is_rtl() {
+                            // help sort
+                            inline.set_last_segs(info.rev());
+                        } else {
+                            inline.set_last_segs(info);
                         }
                     }
 
