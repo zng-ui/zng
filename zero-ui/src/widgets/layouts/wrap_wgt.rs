@@ -701,7 +701,12 @@ impl InlineLayout {
             let width = row.size.width;
             let sum_width = row.item_segs.iter().map(|s| Px(s.measure_width() as i32)).sum::<Px>();
 
-            if (sum_width - width) > Px(0) {
+            if (sum_width - width) > Px(1) {
+                if ctx.inline_constrains().is_some() && (i == 0 || i == self.rows.len() - 1) {
+                    tracing::error!("wrap! panel row {i} inline width is {width}, but sum of segs is {sum_width}");
+                    continue;
+                }
+
                 tracing::error!("wrap! panel row {i} computed width {width}, but sum of segs is {sum_width}");
             }
         }
