@@ -1310,3 +1310,20 @@ impl Drop for RecursionCheckExitOnDrop {
         self.check.count.fetch_sub(1, Ordering::Relaxed);
     }
 }
+
+/// Like [`assert!`], but only logs an error.
+#[allow(unused)]
+macro_rules! trace_assert {
+    ($cond:expr $(,)?) => {
+        #[allow(clippy::all)]
+        if !($cond) {
+            tracing::error!("{}", stringify!($cond));
+        }
+    };
+    ($cond:expr, $($arg:tt)+) => {
+        #[allow(clippy::all)]
+        if !($cond) {
+            tracing::error!($($arg)*);
+        }
+    };
+}

@@ -504,7 +504,9 @@ impl ShapedText {
                     g.point += first_offset;
                 }
 
-                self.lines.first_mut().x_offset = first.origin.x.0 as f32;
+                let first_line = self.lines.first_mut();
+                first_line.x_offset = first.origin.x.0 as f32;
+                first_line.width = first.size.width.0 as f32;
             }
             if !first_segs.is_empty() {
                 // parent set first_segs.
@@ -540,7 +542,9 @@ impl ShapedText {
                     g.point += last_offset;
                 }
 
-                self.lines.last_mut().x_offset = last.origin.x.0 as f32;
+                let last_line = self.lines.last_mut();
+                last_line.x_offset = last.origin.x.0 as f32;
+                last_line.width = last.size.width.0 as f32;
             }
             if !last_segs.is_empty() {
                 // parent set last_segs.
@@ -620,6 +624,8 @@ impl ShapedText {
         self.align_size = align_size;
         self.align = align;
         self.is_inlined = is_inlined;
+
+        self.debug_assert_ranges();
     }
     fn reshape_line_height_and_spacing(&mut self, line_height: Px, line_spacing: Px) {
         let mut update_height = false;
@@ -835,28 +841,29 @@ impl ShapedText {
                 assert!(seg.end >= prev_seg_end);
                 prev_seg_end = seg.end;
             }
-            assert!(self.segments.0.last().map(|s| s.end == self.glyphs.len()).unwrap_or(true));
+            trace_assert!(self.segments.0.last().map(|s| s.end == self.glyphs.len()).unwrap_or(true));
 
             let mut prev_line_end = 0;
             for line in &self.lines.0 {
-                assert!(line.end >= prev_line_end);
-                assert!(line.width >= 0.0);
+                trace_assert!(line.end >= prev_line_end);
+                trace_assert!(line.width >= 0.0);
 
+                let line_max = line.x_offset + line.width;
                 let glyphs = self.segments.glyphs_range(IndexRange(prev_line_end, line.end));
                 for g in &self.glyphs[glyphs.iter()] {
-                    assert!(g.point.x <= line.width, "glyph.x({:?}) <= line.width({:?})", g.point.x, line.width);
+                    trace_assert!(g.point.x <= line_max, "glyph.x({:?}) <= line.x+width({:?})", g.point.x, line_max);
                 }
 
                 prev_line_end = line.end;
             }
-            assert!(self.lines.0.last().map(|l| l.end == self.segments.0.len()).unwrap_or(true));
+            trace_assert!(self.lines.0.last().map(|l| l.end == self.segments.0.len()).unwrap_or(true));
 
             let mut prev_font_end = 0;
             for font in &self.fonts.0 {
-                assert!(font.end >= prev_font_end);
+                trace_assert!(font.end >= prev_font_end);
                 prev_font_end = font.end;
             }
-            assert!(self.fonts.0.last().map(|f| f.end == self.glyphs.len()).unwrap_or(true));
+            trace_assert!(self.fonts.0.last().map(|f| f.end == self.glyphs.len()).unwrap_or(true));
         }
     }
 }
