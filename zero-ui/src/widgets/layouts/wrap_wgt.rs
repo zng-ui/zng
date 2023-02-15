@@ -742,9 +742,11 @@ impl InlineLayout {
                     // parent set first_segs empty (not sorted), or wrong
                     let mut x = 0.0;
                     for s in self.rows[0].item_segs.iter_mut() {
+                        let mut spacing_x = spacing_x;
                         for (seg, pos) in s.iter_mut() {
                             pos.x = x;
                             x += seg.width + spacing_x;
+                            spacing_x = 0.0;
                         }
                     }
                 } else {
@@ -766,9 +768,11 @@ impl InlineLayout {
                         // parent set last_segs empty (not sorted), or wrong
                         let mut x = 0.0;
                         for s in last.item_segs.iter_mut() {
+                            let mut spacing_x = spacing_x;
                             for (seg, pos) in s.iter_mut() {
                                 pos.x = x;
                                 x += seg.width + spacing_x;
+                                spacing_x = 0.0;
                             }
                         }
                     } else {
@@ -806,17 +810,26 @@ impl InlineLayout {
 
             let mut x = 0.0;
 
+            let mut last_seg_i = usize::MAX;
             for &new_i in self.bidi_sorted.iter() {
-                let mut seg_i = 0;
+                let mut segs_offset = 0;
 
                 // `bidi_sorted` is flatten of `row.segs`
-                for s in &mut row.item_segs {
-                    if seg_i + s.measure().len() <= new_i {
-                        seg_i += s.measure().len();
+                for (i, s) in row.item_segs.iter_mut().enumerate() {
+                    if segs_offset + s.measure().len() <= new_i {
+                        segs_offset += s.measure().len();
                     } else {
-                        let new_i = new_i - seg_i;
+                        let new_i = new_i - segs_offset;
+
+                        if last_seg_i != i {
+                            last_seg_i = i;
+                            if x >= 0.0 {
+                                x += spacing_x;
+                            }
+                        }
+
                         s.layout_mut()[new_i].x = x;
-                        x += s.measure()[new_i].width + spacing_x;
+                        x += s.measure()[new_i].width;
                         break;
                     }
                 }

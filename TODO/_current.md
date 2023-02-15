@@ -1,9 +1,9 @@
 # Inline Bidi
 
 * Wrap panel layout refactor:
-  - Review `spacing`, how does it work for segmented widgets.
-    - Using spacing with fragmented text can affect row width?
-    - Maybe we can say that horizontal spacing is one per widget only.
+  - Fixed `spacing` to apply between each inlined widget change, even in interleaved bidi segments.
+  - Unfortunately there is no way to estimate the extra spacing width in interleaved cases.
+    - Will need to call `layout_bidi` in `measure` if has column spacing?
 
 * Test nested `wrap!` panels with bidi.
 
