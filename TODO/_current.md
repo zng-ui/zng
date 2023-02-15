@@ -11,6 +11,7 @@
 
 # Other
 
+* Update webrender to fx110.
 * Implement vertical text.
     - Need to expand `LayoutDirection` to define chars and lines direction.
     - Or a different layout property for the "lines" direction.

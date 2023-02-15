@@ -339,6 +339,23 @@ impl InlineLayout {
             let mut first = PxRect::from_size(self.rows[0].size);
             let mut last = PxRect::from_size(self.rows.last().unwrap().size);
 
+            #[cfg(debug_assertions)]
+            {
+                let segs_max = self.rows[0]
+                    .item_segs
+                    .iter()
+                    .map(|s| {
+                        let (x, width, _) = s.x_width_segs();
+                        x + width
+                    })
+                    .max()
+                    .unwrap_or_default();
+
+                if (first.width() - segs_max).abs() > Px(10) {
+                    tracing::error!("align error, used width: {:?}, but segs max is: {:?}", first.width(), segs_max);
+                }
+            }
+
             first.origin.x = (panel_width - first.size.width) * child_align_x;
             last.origin.x = (panel_width - last.size.width) * child_align_x;
             last.origin.y = self.desired_size.height - last.size.height;
