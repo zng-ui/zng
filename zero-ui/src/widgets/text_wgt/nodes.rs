@@ -419,7 +419,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             ctx.constrains().fill_or_exact()
         }
 
-        fn layout(&mut self, _id: WidgetId , metrics: &LayoutMetrics, t: &mut ResolvedText, is_measure: bool) -> PxSize {
+        fn layout(&mut self, _id: WidgetId, metrics: &LayoutMetrics, t: &mut ResolvedText, is_measure: bool) -> PxSize {
             if t.reshape {
                 self.pending.insert(Layout::RESHAPE);
             }
@@ -585,9 +585,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let prev_final_size = r.shaped_text.size();
 
             if self.pending.contains(Layout::RESHAPE) {
-                if _id.name() == "Red" {
-                    println!{"{:?}", self.shaping_args.inline_constrains.unwrap().first_max}
-                }
                 r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
                 self.pending = self.pending.intersection(Layout::RESHAPE_LINES);
             }
@@ -671,9 +668,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
         fn ensure_layout_for_render(&mut self, ctx: &mut RenderContext) {
             if self.txt_is_measured {
-                if ctx.path.widget_id().name() == "Red" {
-                    println!{"ENSURE"}
-                }
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `render` or `render_update`");
                 let metrics = self.last_layout.0.clone();
@@ -807,14 +801,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             } else {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
-                
-                if ctx.path.widget_id().name() == "Red" {
-                    println!{"MEASURE"}
-                }
+
                 let size = txt.layout(ctx.path.widget_id(), ctx.metrics, t, true);
                 if let (Some(inline), Some(l)) = (wm.inline(), txt.txt.as_ref()) {
                     if let Some(first_line) = l.shaped_text.first_line() {
-                        inline.first = first_line.rect().size;
+                        inline.first = first_line.original_size();
                         inline.with_first_segs(|i| {
                             for seg in first_line.segs() {
                                 i.push(InlineSegment {
@@ -832,7 +823,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         inline.last = inline.first;
                         inline.last_segs = inline.first_segs.clone();
                     } else if let Some(last_line) = l.shaped_text.last_line() {
-                        inline.last = last_line.rect().size;
+                        inline.last = last_line.original_size();
                         inline.with_last_segs(|i| {
                             for seg in last_line.segs() {
                                 i.push(InlineSegment {
@@ -858,14 +849,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let txt = self.txt.get_mut();
 
-            let _ = ctx.viewport();
-
             let mut write = RESOLVED_TEXT.write();
             let t = write.as_mut().expect("expected `ResolvedText` in `layout`");
 
-            if ctx.path.widget_id().name() == "Red" {
-                println!{"LAYOUT"}
-            }
             let size = txt.layout(ctx.path.widget_id(), ctx.metrics, t, false);
 
             if txt.pending != Layout::empty() {

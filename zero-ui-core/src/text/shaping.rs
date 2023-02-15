@@ -277,6 +277,8 @@ pub struct ShapedText {
 
     orig_line_height: Px,
     orig_line_spacing: Px,
+    orig_first_line: PxSize,
+    orig_last_line: PxSize,
 
     // offsets from the line_height bottom
     baseline: Px,
@@ -800,6 +802,8 @@ impl ShapedText {
             }]),
             orig_line_height: self.orig_line_height,
             orig_line_spacing: self.orig_line_spacing,
+            orig_first_line: PxSize::zero(),
+            orig_last_line: PxSize::zero(),
             line_height: self.orig_line_height,
             line_spacing: self.orig_line_spacing,
             baseline: self.baseline,
@@ -956,6 +960,8 @@ impl ShapedTextBuilder {
                 line_spacing: Default::default(),
                 orig_line_height: Default::default(),
                 orig_line_spacing: Default::default(),
+                orig_first_line: Default::default(),
+                orig_last_line: Default::default(),
                 baseline: Default::default(),
                 overline: Default::default(),
                 strikethrough: Default::default(),
@@ -1162,6 +1168,8 @@ impl ShapedTextBuilder {
 
         self.out.update_mid_size();
         self.out.update_first_last_lines();
+        self.out.orig_first_line = self.out.first_line.size;
+        self.out.orig_last_line = self.out.last_line.size;
         if self.out.is_inlined && self.out.lines.0.len() > 1 {
             self.out.last_line.origin.y += self.out.mid_clear;
         }
@@ -1507,6 +1515,22 @@ impl<'a> ShapedLine<'a> {
             self.text.line_height * Px(self.index as i32) + self.text.mid_clear,
         );
         PxRect::new(origin, size)
+    }
+
+    /// Initial size of the line, before any line reshaping.
+    ///
+    /// This can be different then the current [`rect`] size if the parent inline changed the size, usually to inject
+    /// blank spaces to justify the text or to visually insert a bidirectional fragment of another widget.
+    ///
+    /// [`rect`]: Self::rect
+    pub fn original_size(&self) -> PxSize {
+        if self.index == 0 {
+            return self.text.orig_first_line;
+        }
+        if self.index == self.text.lines.0.len() - 1 {
+            return self.text.orig_last_line;
+        }
+        PxSize::new(self.width, self.text.line_height)
     }
 
     /// Full overline, start point + width.
