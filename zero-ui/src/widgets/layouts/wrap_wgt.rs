@@ -614,6 +614,9 @@ impl InlineLayout {
                     }
                     if inline_constrain < Px::MAX {
                         inline_constrain -= row.size.width;
+                        if i == 0 {
+                            println!{"\ninline_constrain => {:?}", inline_constrain}
+                        }
                     }
 
                     let (inline, size) = ctx.measure_inline(inline_constrain, row.size.height - spacing.row, child);
@@ -654,6 +657,9 @@ impl InlineLayout {
                             row.size = inline.first;
                             row.first_child = i;
                         } else {
+                            if i == 0 {
+                                println!{"inline.first.width => {:?}", inline.first.width}
+                            }
                             row.size.width += inline.first.width;
                             row.size.height = row.size.height.max(inline.first.height);
                         }
