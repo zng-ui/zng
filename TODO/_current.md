@@ -1,5 +1,6 @@
 # Inline Bidi
 
+* Wrap measure and layout can happen with different max_width, causing many reshapes.
 * Test nested `wrap!` panels with bidi.
 
 # Other
