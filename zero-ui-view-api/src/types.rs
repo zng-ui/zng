@@ -162,6 +162,22 @@ pub enum MouseScrollDelta {
     /// platform.
     PixelDelta(f32, f32),
 }
+impl MouseScrollDelta {
+    /// Gets the sign status of x and y.
+    pub fn is_sign_positive(self) -> euclid::BoolVector2D {
+        match self {
+            MouseScrollDelta::LineDelta(x, y) | MouseScrollDelta::PixelDelta(x, y) => euclid::BoolVector2D {
+                x: x.is_sign_positive(),
+                y: y.is_sign_positive(),
+            },
+        }
+    }
+
+    /// Gets the sign status of x and y.
+    pub fn is_sign_negative(self) -> euclid::BoolVector2D {
+        self.is_sign_positive().not()
+    }
+}
 
 /// Symbolic name for a keyboard key.
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]

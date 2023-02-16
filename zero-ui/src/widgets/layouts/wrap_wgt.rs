@@ -22,9 +22,13 @@ pub mod wrap {
         /// This property only defines the spacing for rows of this panel, but it is set
         /// to [`LINE_SPACING_VAR`] for rows and zero for *column space* by default, so you can use
         /// the [`line_spacing`] property if you want to affect all nested wrap and text widgets.
+        /// 
+        /// Note that *column space* is limited for bidirectional inline items as it only inserts spacing between
+        /// items once and bidirectional text can interleave items, consider using [`word_spacing`] for inline text.
         ///
         /// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
         /// [`line_spacing`]: fn@crate::widgets::text::txt_align
+        /// [`word_spacing`]: fn@crate::widgets::text::word_spacing
         pub spacing(impl IntoVar<GridSpacing>);
 
         /// Children align.
@@ -810,7 +814,9 @@ impl InlineLayout {
 
             let mut x = 0.0;
 
-            let mut last_seg_i = usize::MAX;
+            let mut spacing_count = row.item_segs.len().saturating_sub(1);
+
+            let mut last_item_i = usize::MAX;
             for &new_i in self.bidi_sorted.iter() {
                 let mut segs_offset = 0;
 
@@ -821,10 +827,11 @@ impl InlineLayout {
                     } else {
                         let new_i = new_i - segs_offset;
 
-                        if last_seg_i != i {
-                            last_seg_i = i;
-                            if x >= 0.0 {
+                        if last_item_i != i {
+                            last_item_i = i;
+                            if x > 0.0 && spacing_count > 0 {
                                 x += spacing_x;
+                                spacing_count -= 1;
                             }
                         }
 
