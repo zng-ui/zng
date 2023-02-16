@@ -392,10 +392,10 @@ impl ShapedText {
             self.last_line = PxRect::zero();
             self.align_size = PxSize::zero();
         } else {
-            self.first_line = PxRect::from_size(PxSize::new(Px(self.lines.first_mut().width as i32), self.line_height));
+            self.first_line = PxRect::from_size(PxSize::new(Px(self.lines.first_mut().width.ceil() as i32), self.line_height));
 
             if self.lines.0.len() > 1 {
-                self.last_line.size = PxSize::new(Px(self.lines.last().width as i32), self.line_height);
+                self.last_line.size = PxSize::new(Px(self.lines.last().width.ceil() as i32), self.line_height);
                 self.last_line.origin = PxPoint::new(Px(0), self.first_line.max_y() + self.line_spacing);
                 if self.lines.0.len() > 2 {
                     self.last_line.origin.y += self.mid_size.height + self.line_spacing;
@@ -859,12 +859,7 @@ impl ShapedText {
                 }
 
                 let seg_width = self.segments.0[prev_line_end..line.end].iter().map(|s| s.advance).sum::<f32>();
-                trace_assert!(
-                    (seg_width - line.width) < 1.0,
-                    "seg_width({:?}) > line.width({:?}",
-                    seg_width,
-                    line.width
-                );
+                trace_assert!(seg_width <= line.width, "seg_width({:?}) > line.width({:?})", seg_width, line.width);
 
                 prev_line_end = line.end;
             }
