@@ -317,7 +317,7 @@ impl fmt::Display for Length {
         match self {
             Default => write!(f, "Default"),
             Dip(l) => write!(f, "{l}"),
-            Px(l) => write!(f, "{l}px"),
+            Px(l) => write!(f, "{l}"),
             Pt(l) => write!(f, "{l}pt"),
             Relative(n) => write!(f, "{:.*}%", f.precision().unwrap_or(0), n.0 * 100.0),
             Leftover(l) => write!(f, "{l}lft"),

@@ -349,6 +349,17 @@ impl WindowVars {
         self.0.actual_size.read_only()
     }
 
+    /// Window [`actual_size`], converted to pixels given the [`scale_factor`].
+    ///
+    /// [`actual_size`]: Self::actual_size
+    /// [`scale_factor`]: Self::scale_factor
+    pub fn actual_size_px(&self) -> BoxedVar<PxSize> {
+        merge_var!(self.0.actual_size.clone(), self.0.scale_factor.clone(), |size, factor| {
+            PxSize::new(size.width.to_px(factor.0), size.height.to_px(factor.0))
+        })
+        .boxed()
+    }
+
     /// Window width and height on the screen when the window is [`Normal`].
     ///
     /// When a dimension is not a finite value it is computed from other variables.

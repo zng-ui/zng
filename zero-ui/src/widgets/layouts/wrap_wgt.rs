@@ -22,7 +22,7 @@ pub mod wrap {
         /// This property only defines the spacing for rows of this panel, but it is set
         /// to [`LINE_SPACING_VAR`] for rows and zero for *column space* by default, so you can use
         /// the [`line_spacing`] property if you want to affect all nested wrap and text widgets.
-        /// 
+        ///
         /// Note that *column space* is limited for bidirectional inline items as it only inserts spacing between
         /// items once and bidirectional text can interleave items, consider using [`word_spacing`] for inline text.
         ///
