@@ -641,6 +641,9 @@ impl InlineLayout {
                                     });
                         }
 
+                        // item mid-rows can be wider
+                        self.desired_size.width = self.desired_size.width.max(size.width);
+
                         if inline.first_wrapped {
                             // wrap by us, detected by child
                             if row.size.is_empty() {

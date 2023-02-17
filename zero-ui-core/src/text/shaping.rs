@@ -1080,13 +1080,6 @@ impl ShapedTextBuilder {
                 fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, font| {
                     if self.origin.x + shaped_seg.x_advance > max_width {
                         // need wrap
-
-                        println! {"\n{:?} - {seg:?} ==>", self.out.lines.0.len()}
-                        println! {
-                            "((self.origin.x + shaped_seg.x_advance > max_width)) => (({:?} + {:?} > {:?})) => (({:?} > {:?}))",
-                            self.origin.x, shaped_seg.x_advance, max_width, self.origin.x + shaped_seg.x_advance, max_width
-                        }
-
                         if shaped_seg.x_advance > max_width {
                             // need segment split
 
