@@ -1,9 +1,3 @@
-* Deadlock trying to notify event inside `visit_subscribers`.
-    - Docs already mention deadlock for `subscribe`, but if we can't notify either this is useless.
-    - The two events alloc a temp buffer to work-around the issue, update when possible:
-        - `TRANSFORM_CHANGED_EVENT`.
-        - `INTERACTIVITY_CHANGED_EVENT`.
-
 * Initial `INTERACTIVITY_CHANGED_EVENT` interactivity event generates so many events that it triggers the infinite loop detection code.
     - We need the initial event cause `is_enabled` starts as `false`?
     - Icon example blocks all buttons when the overlay opens, this also causes a massive number of events that have worst performance then

@@ -480,7 +480,6 @@ impl Windows {
             );
             WIDGET_INFO_CHANGED_EVENT.notify(events, args);
 
-            let mut changes = vec![];
             INTERACTIVITY_CHANGED_EVENT.visit_subscribers(|wid| {
                 if let Some(new) = info_tree.get(wid) {
                     let prev = prev_tree.get(wid).map(|w| w.interactivity());
@@ -488,13 +487,10 @@ impl Windows {
                     let new_int = new.interactivity();
                     if prev != Some(new_int) {
                         let args = InteractivityChangedArgs::now(prev, new_int, new.interaction_path());
-                        changes.push(args);
+                        INTERACTIVITY_CHANGED_EVENT.notify(events, args);
                     }
                 }
             });
-            for args in changes {
-                INTERACTIVITY_CHANGED_EVENT.notify(events, args);
-            }
         }
     }
 

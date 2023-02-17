@@ -169,14 +169,29 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// [`App::is_running`]: crate::app::App::is_running
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
+        self.read_impl(self.value.read_recursive())
+    }
+
+    /// Try read lock the value associated with the current app.
+    ///
+    /// Initializes the default value for the app if this is the first read.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no app is running, see [`App::is_running`] for more details.
+    ///
+    /// [`App::is_running`]: crate::app::App::is_running
+    pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
+        Some(self.read_impl(self.value.try_read_recursive()?))
+    }
+
+    fn read_impl(&'static self, read: RwLockReadGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockReadGuard<T> {
         let id = AppScope::current_id().expect("no app running, `app_local` can only be accessed inside apps");
 
-        {
-            let read = self.value.read_recursive();
-            if let Some(i) = read.iter().position(|(s, _)| *s == id) {
-                return RwLockReadGuard::map(read, |v| &v[i].1);
-            }
+        if let Some(i) = read.iter().position(|(s, _)| *s == id) {
+            return RwLockReadGuard::map(read, |v| &v[i].1);
         }
+        drop(read);
 
         let mut write = self.value.write();
         if write.iter().any(|(s, _)| *s == id) {
@@ -205,9 +220,24 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// [`App::is_running`]: crate::app::App::is_running
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
-        let id = AppScope::current_id().expect("no app running, `app_local` can only be accessed inside apps");
+        self.write_impl(self.value.write())
+    }
 
-        let mut write = self.value.write();
+    /// Try to write lock the value associated with the current app.
+    ///
+    /// Initializes the default value for the app if this is the first read.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no app is running, see [`App::is_running`] for more details.
+    ///
+    /// [`App::is_running`]: crate::app::App::is_running
+    pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
+        Some(self.write_impl(self.value.try_write()?))
+    }
+
+    fn write_impl(&'static self, mut write: RwLockWriteGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockWriteGuard<T> {
+        let id = AppScope::current_id().expect("no app running, `app_local` can only be accessed inside apps");
 
         if let Some(i) = write.iter().position(|(s, _)| *s == id) {
             return RwLockWriteGuard::map(write, |v| &mut v[i].1);

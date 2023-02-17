@@ -151,7 +151,8 @@ impl<A: EventArgs> Event<A> {
 
     /// Calls `visit` for each widget subscribed to this event.
     ///
-    /// Note that trying to add a subscriber inside `visit` will deadlock.
+    /// Note that trying to subscribe inside `visit` will deadlock, inside `visit` you can notify the event,
+    /// generate event updates or even visit recursive.
     pub fn visit_subscribers(&self, mut visit: impl FnMut(WidgetId)) {
         for sub in self.local.read().widget_subs.keys() {
             visit(*sub);
@@ -561,15 +562,23 @@ impl fmt::Debug for EventUpdate {
 
 impl UpdateSubscribers for AnyEvent {
     fn contains(&self, widget_id: WidgetId) -> bool {
-        match self.local.write().widget_subs.entry(widget_id) {
-            std::collections::hash_map::Entry::Occupied(e) => {
-                let t = e.get().retain();
-                if !t {
-                    e.remove();
+        if let Some(mut write) = self.local.try_write() {
+            match write.widget_subs.entry(widget_id) {
+                std::collections::hash_map::Entry::Occupied(e) => {
+                    let t = e.get().retain();
+                    if !t {
+                        e.remove();
+                    }
+                    t
                 }
-                t
+                std::collections::hash_map::Entry::Vacant(_) => false,
             }
-            std::collections::hash_map::Entry::Vacant(_) => false,
+        } else {
+            // fallback without cleanup
+            match self.local.read().widget_subs.get(&widget_id) {
+                Some(e) => e.retain(),
+                None => false,
+            }
         }
     }
 

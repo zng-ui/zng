@@ -1841,7 +1841,7 @@ impl ContentCtrl {
     }
 
     fn notify_transform_changes(&mut self, ctx: &mut WindowContext) {
-        let mut changes = vec![];
+        let mut changes_count = 0;
 
         TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {
             if let Some(wgt) = self.info_tree.get(wid) {
@@ -1851,7 +1851,8 @@ impl ContentCtrl {
                     std::collections::hash_map::Entry::Occupied(mut e) => {
                         let prev = e.insert(transform);
                         if prev != transform {
-                            changes.push((wgt.path(), prev, transform));
+                            TRANSFORM_CHANGED_EVENT.notify(ctx, TransformChangedArgs::now(wgt.path(), prev, transform));
+                            changes_count += 1;
                         }
                     }
                     std::collections::hash_map::Entry::Vacant(e) => {
@@ -1861,12 +1862,8 @@ impl ContentCtrl {
             }
         });
 
-        if (self.previous_transforms.len() - changes.len()) > 500 {
+        if (self.previous_transforms.len() - changes_count) > 500 {
             self.previous_transforms.retain(|k, _| TRANSFORM_CHANGED_EVENT.is_subscriber(*k));
-        }
-
-        for (path, prev, new) in changes {
-            TRANSFORM_CHANGED_EVENT.notify(ctx, TransformChangedArgs::now(path, prev, new));
         }
     }
 }
