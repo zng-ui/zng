@@ -4,7 +4,8 @@
 
 * Support `Justify`, enabled by `Align::FILL`.
 * Implement fill/justify in `wrap!`.
-  - Panel can also add spacing? Maybe maximum row height of spacing, if it helps complete the row.
+  - Use segments API to control spacing all from the parent?
+    - Remove `first_max_fill` and `last_max_fill`.
 
 ## Direction
 
