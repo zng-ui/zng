@@ -1050,11 +1050,6 @@ impl ShapedTextBuilder {
             config.max_width.0 as f32
         };
 
-        // +1 to clear rounding errors, without it using the text full length as max_width can cause wrapping.
-        const ROUNDING_CLEAR: f32 = 0.0;
-        t.max_width += ROUNDING_CLEAR;
-        t.first_line_max += ROUNDING_CLEAR;
-
         t.break_words = match config.word_break {
             WordBreak::Normal => {
                 lang!("ch").matches(&config.lang, true, false)
