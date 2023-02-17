@@ -380,7 +380,7 @@ impl ShapedText {
         } else {
             let mid_lines = &self.lines.0[1..self.lines.0.len() - 1];
             PxSize::new(
-                Px(mid_lines.iter().map(|l| l.width).max_by(f32_cmp).unwrap_or_default() as i32),
+                Px(mid_lines.iter().map(|l| l.width).max_by(f32_cmp).unwrap_or_default().ceil() as i32),
                 Px(mid_lines.len() as i32) * self.line_height + Px((mid_lines.len() - 1) as i32) * self.line_spacing,
             )
         };
@@ -855,11 +855,21 @@ impl ShapedText {
                 let line_max = line.x_offset + line.width;
                 let glyphs = self.segments.glyphs_range(IndexRange(prev_line_end, line.end));
                 for g in &self.glyphs[glyphs.iter()] {
-                    trace_assert!(g.point.x <= line_max, "glyph.x({:?}) <= line[{i}].x+width({:?})", g.point.x, line_max);
+                    trace_assert!(
+                        g.point.x <= line_max,
+                        "glyph.x({:?}) <= line[{i}].x+width({:?})",
+                        g.point.x,
+                        line_max
+                    );
                 }
 
                 let seg_width = self.segments.0[prev_line_end..line.end].iter().map(|s| s.advance).sum::<f32>();
-                trace_assert!(seg_width <= line.width, "seg_width({:?}) > line[{i}].width({:?})", seg_width, line.width);
+                trace_assert!(
+                    seg_width <= line.width,
+                    "seg_width({:?}) > line[{i}].width({:?})",
+                    seg_width,
+                    line.width
+                );
 
                 prev_line_end = line.end;
             }
@@ -1041,7 +1051,7 @@ impl ShapedTextBuilder {
         };
 
         // +1 to clear rounding errors, without it using the text full length as max_width can cause wrapping.
-        const ROUNDING_CLEAR: f32 = 1.0;
+        const ROUNDING_CLEAR: f32 = 0.0;
         t.max_width += ROUNDING_CLEAR;
         t.first_line_max += ROUNDING_CLEAR;
 
