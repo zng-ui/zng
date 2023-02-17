@@ -10,7 +10,7 @@ use crate::{
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::EventUpdate,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
-    widget_info::{WidgetInfoTree, WidgetPath},
+    widget_info::{WidgetInfo, WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
     window::WindowId,
 };
@@ -781,7 +781,7 @@ impl UpdateDeliveryList {
         Self::new(Box::new(UpdateDeliveryListNone))
     }
 
-    /// New list that does allows all entries.
+    /// New list that allows all entries.
     ///
     /// This is the default value.
     pub fn new_any() -> Self {
@@ -804,6 +804,20 @@ impl UpdateDeliveryList {
             for w in &path.widgets_path()[..=i] {
                 self.widgets.insert(*w);
             }
+        }
+    }
+
+    /// Insert the ancestors of `wgt` and `wgt` up-to the inner most that is included in the subscribers.
+    pub fn insert_wgt(&mut self, wgt: WidgetInfo) {
+        let mut any = false;
+        for w in wgt.self_and_ancestors() {
+            if any || self.subscribers.contains(w.widget_id()) {
+                any = true;
+                self.widgets.insert(w.widget_id());
+            }
+        }
+        if any {
+            self.windows.insert(wgt.tree().window_id());
         }
     }
 
@@ -872,6 +886,29 @@ impl UpdateDeliveryList {
         self.widgets.clear();
         self.windows.clear();
         self.search.clear();
+    }
+
+    /// Windows in the delivery list.
+    ///
+    /// Note that each window that is visited is removed from the list.
+    pub fn windows(&self) -> &LinearSet<WindowId> {
+        &self.windows
+    }
+
+    /// Found widgets in the delivery list, can be targets of ancestors of targets.
+    ///
+    /// Note that each widget that is visited is removed from the list.
+    pub fn widgets(&self) -> &IdSet<WidgetId> {
+        &self.widgets
+    }
+
+    /// Not found target widgets.
+    ///
+    /// Each window searches for these widgets and adds then to the [`widgets`] list.
+    ///
+    /// [`widgets`]: Self::widgets
+    pub fn search_widgets(&self) -> &IdSet<WidgetId> {
+        &self.search
     }
 }
 

@@ -10,6 +10,7 @@ use crate::app::raw_events::{RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_WINDOW_OPEN_EVE
 use crate::app::view_process::{ViewProcess, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{AppProcess, EXIT_REQUESTED_EVENT};
 use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
+use crate::crate_util::IdSet;
 use crate::event::{AnyEventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
@@ -480,17 +481,20 @@ impl Windows {
             );
             WIDGET_INFO_CHANGED_EVENT.notify(events, args);
 
+            let mut targets = IdSet::default();
             INTERACTIVITY_CHANGED_EVENT.visit_subscribers(|wid| {
-                if let Some(new) = info_tree.get(wid) {
+                if let Some(wgt) = info_tree.get(wid) {
                     let prev = prev_tree.get(wid).map(|w| w.interactivity());
-
-                    let new_int = new.interactivity();
+                    let new_int = wgt.interactivity();
                     if prev != Some(new_int) {
-                        let args = InteractivityChangedArgs::now(prev, new_int, new.interaction_path());
-                        INTERACTIVITY_CHANGED_EVENT.notify(events, args);
+                        targets.insert(wid);
                     }
                 }
             });
+            if !targets.is_empty() {
+                let args = InteractivityChangedArgs::now(prev_tree, info_tree, targets);
+                INTERACTIVITY_CHANGED_EVENT.notify(events, args);
+            }
         }
     }
 

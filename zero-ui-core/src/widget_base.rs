@@ -759,9 +759,9 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 }
 
 fn vis_enabled_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: bool) -> impl UiNode {
-    event_is_state(child, state, true, INTERACTIVITY_CHANGED_EVENT, move |_, args| {
-        if args.is_vis_enabled_change() {
-            Some(args.new.is_vis_enabled() == expected)
+    event_is_state(child, state, true, INTERACTIVITY_CHANGED_EVENT, move |ctx, args| {
+        if let Some((_, new)) = args.vis_enabled_change(ctx.path.widget_id()) {
+            Some(new.is_vis_enabled() == expected)
         } else {
             None
         }

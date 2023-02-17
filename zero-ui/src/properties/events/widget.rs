@@ -358,7 +358,7 @@ event_property! {
     pub fn enabled_changed {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |_, a| a.is_enabled_change(),
+        filter: |ctx, a| a.enabled_change(ctx.path.widget_id()).is_some(),
     }
 
     /// Widget changed to enabled or disabled visuals.
@@ -377,7 +377,7 @@ event_property! {
     pub fn vis_enabled_changed {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |_, a| a.is_vis_enabled_change(),
+        filter: |ctx, a| a.vis_enabled_change(ctx.path.widget_id()).is_some(),
     }
 
     /// Widget interactions where blocked or unblocked.
@@ -395,7 +395,7 @@ event_property! {
     pub fn blocked_changed {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |_, a| a.is_blocked_change(),
+        filter: |ctx, a| a.blocked_change(ctx.path.widget_id()).is_some(),
     }
 
     /// Widget normal interactions now enabled.
@@ -414,7 +414,7 @@ event_property! {
     pub fn enable {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |_, a| a.is_enable(),
+        filter: |ctx, a| a.is_enable(ctx.path.widget_id()),
     }
 
     /// Widget normal interactions now disabled.
@@ -433,7 +433,7 @@ event_property! {
     pub fn disable {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |_, a| a.is_disable(),
+        filter: |ctx, a| a.is_disable(ctx.path.widget_id()),
     }
 
     /// Widget now using the enabled visuals.
@@ -452,7 +452,7 @@ event_property! {
     pub fn vis_enable {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |_, a| a.is_vis_enable(),
+        filter: |ctx, a| a.is_vis_enable(ctx.path.widget_id()),
     }
 
     /// Widget now using the disabled visuals.
@@ -471,7 +471,7 @@ event_property! {
     pub fn vis_disable {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |_, a| a.is_vis_disable(),
+        filter: |ctx, a| a.is_vis_disable(ctx.path.widget_id()),
     }
 
     /// Widget interactions now blocked.
@@ -489,7 +489,7 @@ event_property! {
     pub fn block {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |_, a| a.is_block(),
+        filter: |ctx, a| a.is_block(ctx.path.widget_id()),
     }
 
     /// Widget interactions now unblocked.
@@ -507,6 +507,6 @@ event_property! {
     pub fn unblock {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |_, a| a.is_unblock(),
+        filter: |ctx, a| a.is_unblock(ctx.path.widget_id()),
     }
 }

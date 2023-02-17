@@ -10,14 +10,14 @@ use parking_lot::Mutex;
 
 use crate::{
     context::WindowContext,
-    crate_util::NameIdMap,
+    crate_util::{IdSet, NameIdMap},
     event::{event, event_args},
     image::{Image, ImageDataFormat, ImageSource, ImageVar},
     render::{FrameId, RenderMode},
     text::Text,
     units::*,
     var::*,
-    widget_info::{InteractionPath, Interactivity, WidgetInfoTree, WidgetPath},
+    widget_info::{Interactivity, WidgetInfoTree, WidgetPath},
     widget_instance::{BoxedUiNode, IdNameError, UiNode, WidgetId},
 };
 
@@ -722,18 +722,22 @@ event_args! {
         /// Previous widget interactivity.
         ///
         /// Is `None` if the widget is new.
-        pub prev: Option<Interactivity>,
-        /// New widget interactivity.
-        pub new: Interactivity,
+        pub prev_tree: WidgetInfoTree,
 
-        /// Widget that changed, with interactivity of each parent.
-        pub target: InteractionPath,
+        /// New widget interactivity.
+        pub tree: WidgetInfoTree,
+
+        /// All event subscribers that changed interactivity in this info update.
+        pub targets: IdSet<WidgetId>,
 
         ..
 
-        /// Target the widget.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.insert_path(self.target.as_path())
+            for id in &self.targets {
+                if let Some(wgt) = self.tree.get(*id) {
+                    list.insert_wgt(wgt);
+                }
+            }
         }
     }
 
@@ -886,67 +890,101 @@ impl TransformChangedArgs {
     }
 }
 impl InteractivityChangedArgs {
+    /// Previous interactivity of this widget.
+    ///
+    /// Returns `None` if the widget was not in the previous info tree.
+    pub fn prev_interactivity(&self, widget_id: WidgetId) -> Option<Interactivity> {
+        self.prev_tree.get(widget_id).map(|w| w.interactivity())
+    }
+
+    /// New interactivity of the widget.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `widget_id` is not in [`tree`]. This method must be called only for [`targets`].
+    ///
+    /// [`tree`]: Self::tree
+    /// [`targets`]: Self::targets
+    pub fn new_interactivity(&self, widget_id: WidgetId) -> Interactivity {
+        if let Some(w) = self.tree.get(widget_id) {
+            w.interactivity()
+        } else if self.targets.contains(&widget_id) {
+            panic!("widget {widget_id} was in targets and not in new tree, invalid args");
+        } else {
+            panic!("widget {widget_id} is not in targets");
+        }
+    }
+
     /// Widget was disabled or did not exist, now is enabled.
-    pub fn is_enable(&self) -> bool {
-        self.prev.unwrap_or(Interactivity::DISABLED).is_disabled() && self.new.is_enabled()
+    pub fn is_enable(&self, widget_id: WidgetId) -> bool {
+        self.prev_interactivity(widget_id).unwrap_or(Interactivity::DISABLED).is_disabled()
+            && self.new_interactivity(widget_id).is_enabled()
     }
 
     /// Widget was enabled or did not exist, now is disabled.
-    pub fn is_disable(&self) -> bool {
-        self.prev.unwrap_or(Interactivity::ENABLED).is_enabled() && self.new.is_disabled()
+    pub fn is_disable(&self, widget_id: WidgetId) -> bool {
+        self.prev_interactivity(widget_id).unwrap_or(Interactivity::ENABLED).is_enabled() && self.new_interactivity(widget_id).is_disabled()
     }
 
     /// Widget was blocked or did not exist, now is unblocked.
-    pub fn is_unblock(&self) -> bool {
-        self.prev.unwrap_or(Interactivity::BLOCKED).is_blocked() && !self.new.is_blocked()
+    pub fn is_unblock(&self, widget_id: WidgetId) -> bool {
+        self.prev_interactivity(widget_id).unwrap_or(Interactivity::BLOCKED).is_blocked() && !self.new_interactivity(widget_id).is_blocked()
     }
 
     /// Widget was unblocked or did not exist, now is blocked.
-    pub fn is_block(&self) -> bool {
-        !self.prev.unwrap_or(Interactivity::BLOCKED).is_blocked() && self.new.is_blocked()
+    pub fn is_block(&self, widget_id: WidgetId) -> bool {
+        !self.prev_interactivity(widget_id).unwrap_or(Interactivity::BLOCKED).is_blocked() && self.new_interactivity(widget_id).is_blocked()
     }
 
     /// Widget was visually disabled or did not exist, now is visually enabled.
-    pub fn is_vis_enable(&self) -> bool {
-        self.prev.unwrap_or(Interactivity::DISABLED).is_vis_disabled() && self.new.is_vis_enabled()
+    pub fn is_vis_enable(&self, widget_id: WidgetId) -> bool {
+        self.prev_interactivity(widget_id)
+            .unwrap_or(Interactivity::DISABLED)
+            .is_vis_disabled()
+            && self.new_interactivity(widget_id).is_vis_enabled()
     }
 
     /// Widget was visually enabled or did not exist, now is visually disabled.
-    pub fn is_vis_disable(&self) -> bool {
-        self.prev.unwrap_or(Interactivity::ENABLED).is_vis_enabled() && self.new.is_vis_disabled()
+    pub fn is_vis_disable(&self, widget_id: WidgetId) -> bool {
+        self.prev_interactivity(widget_id)
+            .unwrap_or(Interactivity::ENABLED)
+            .is_vis_enabled()
+            && self.new_interactivity(widget_id).is_vis_disabled()
     }
 
-    /// Widget was enabled, disabled or is new.
-    pub fn is_enabled_change(&self) -> bool {
-        if let Some(prev) = self.prev {
-            prev.is_disabled() != self.new.is_disabled()
-        } else {
-            true
-        }
+    /// Returns the previous and new interactivity if the widget was enabled, disabled or is new.
+    pub fn enabled_change(&self, widget_id: WidgetId) -> Option<(Option<Interactivity>, Interactivity)> {
+        self.change_check(widget_id, Interactivity::is_enabled)
     }
 
-    /// Widget was visually enabled, visually disabled or is new.
-    pub fn is_vis_enabled_change(&self) -> bool {
-        if let Some(prev) = self.prev {
-            prev.is_vis_enabled() != self.new.is_vis_enabled()
-        } else {
-            true
-        }
+    /// Returns the previous and new interactivity if the widget was visually enabled, visually disabled or is new.
+    pub fn vis_enabled_change(&self, widget_id: WidgetId) -> Option<(Option<Interactivity>, Interactivity)> {
+        self.change_check(widget_id, Interactivity::is_vis_enabled)
     }
 
-    /// Widget was blocked, unblocked or is new.
-    pub fn is_blocked_change(&self) -> bool {
-        if let Some(prev) = self.prev {
-            prev.is_blocked() != self.new.is_blocked()
+    /// Returns the previous and new interactivity if the widget was blocked, unblocked or is new.
+    pub fn blocked_change(&self, widget_id: WidgetId) -> Option<(Option<Interactivity>, Interactivity)> {
+        self.change_check(widget_id, Interactivity::is_blocked)
+    }
+
+    fn change_check(&self, widget_id: WidgetId, mtd: impl Fn(Interactivity) -> bool) -> Option<(Option<Interactivity>, Interactivity)> {
+        let new = self.new_interactivity(widget_id);
+        let prev = self.prev_interactivity(widget_id);
+        if let Some(prev) = prev {
+            if mtd(prev) != mtd(new) {
+                Some((Some(prev), new))
+            } else {
+                None
+            }
         } else {
-            true
+            Some((prev, new))
         }
     }
 
     /// Widget is new, no previous interactivity state is known, events that filter by interactivity change
     /// update by default if the widget is new.
-    pub fn is_new(&self) -> bool {
-        self.prev.is_none()
+    pub fn is_new(&self, widget_id: WidgetId) -> bool {
+        !self.prev_tree.contains(widget_id) && self.tree.contains(widget_id)
     }
 }
 
