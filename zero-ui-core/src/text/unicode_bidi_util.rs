@@ -446,10 +446,10 @@ impl From<TextSegmentKind> for unicode_bidi::BidiClass {
                 '\u{2067}' => RLI,
                 '\u{2068}' => FSI,
                 '\u{2069}' => PDI,
-                c => {
+                _c => {
                     #[cfg(debug_assertions)]
                     {
-                        tracing::error!("invalid bidi ctrl char '{c}'");
+                        tracing::error!("invalid bidi ctrl char '{_c}'");
                     }
                     ON
                 }

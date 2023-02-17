@@ -75,10 +75,10 @@ pub fn getter_var<T: VarValue + Default>() -> ArcVar<T> {
     var(T::default())
 }
 
-fn validate_getter_var<T: VarValue>(ctx: &mut WidgetContext, var: &impl Var<T>) {
+fn validate_getter_var<T: VarValue>(_ctx: &mut WidgetContext, _var: &impl Var<T>) {
     #[cfg(debug_assertions)]
-    if var.capabilities().is_always_read_only() {
-        tracing::error!("`is_`, `has_` or `get_` property inited with read-only var in {:?}", ctx.path);
+    if _var.capabilities().is_always_read_only() {
+        tracing::error!("`is_`, `has_` or `get_` property inited with read-only var in {:?}", _ctx.path);
     }
 }
 

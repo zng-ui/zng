@@ -852,16 +852,16 @@ impl ShapedText {
                 trace_assert!(line.end >= prev_line_end);
                 trace_assert!(line.width >= 0.0);
 
-                // let line_max = line.x_offset + line.width;
-                // let glyphs = self.segments.glyphs_range(IndexRange(prev_line_end, line.end));
-                // for g in &self.glyphs[glyphs.iter()] {
-                //     trace_assert!(
-                //         g.point.x <= line_max,
-                //         "glyph.x({:?}) > line[{i}].x+width({:?})",
-                //         g.point.x,
-                //         line_max
-                //     );
-                // }
+                let line_max = line.x_offset + line.width;
+                let glyphs = self.segments.glyphs_range(IndexRange(prev_line_end, line.end));
+                for g in &self.glyphs[glyphs.iter()] {
+                    trace_assert!(
+                        g.point.x <= line_max,
+                        "glyph.x({:?}) > line[{i}].x+width({:?})",
+                        g.point.x,
+                        line_max
+                    );
+                }
 
                 let seg_width = self.segments.0[prev_line_end..line.end].iter().map(|s| s.advance).sum::<f32>();
                 trace_assert!(
