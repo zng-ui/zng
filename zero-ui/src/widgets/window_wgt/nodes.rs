@@ -1,7 +1,6 @@
 //! UI nodes used for building a window widget.
 
-use zero_ui_core::window::WindowVars;
-
+use crate::core::window::{WindowVars, WIDGET_INFO_CHANGED_EVENT};
 use crate::prelude::new_property::*;
 
 use std::{

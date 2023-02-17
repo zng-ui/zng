@@ -41,6 +41,8 @@ use crate::{
 /// * [`WINDOW_CLOSE_EVENT`]
 /// * [`MONITORS_CHANGED_EVENT`]
 /// * [`WIDGET_INFO_CHANGED_EVENT`]
+/// * [`TRANSFORM_CHANGED_EVENT`]
+/// * [`INTERACTIVITY_CHANGED_EVENT`]
 ///
 /// # Services
 ///

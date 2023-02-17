@@ -26,9 +26,9 @@ use crate::{
 
 use super::{
     commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, Monitors, StartPosition, WidgetTransformChangedArgs, Window,
+    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, Monitors, StartPosition, TransformChangedArgs, Window,
     WindowChangedArgs, WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, Windows, FRAME_IMAGE_READY_EVENT,
-    MONITORS_CHANGED_EVENT, WIDGET_TRANSFORM_CHANGED_EVENT, WINDOW_CHANGED_EVENT,
+    MONITORS_CHANGED_EVENT, TRANSFORM_CHANGED_EVENT, WINDOW_CHANGED_EVENT,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -1843,7 +1843,7 @@ impl ContentCtrl {
     fn notify_transform_changes(&mut self, ctx: &mut WindowContext) {
         let mut changes = vec![];
 
-        WIDGET_TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {
+        TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {
             if let Some(wgt) = self.info_tree.get(wid) {
                 let transform = wgt.bounds_info().inner_transform();
 
@@ -1862,12 +1862,11 @@ impl ContentCtrl {
         });
 
         if (self.previous_transforms.len() - changes.len()) > 500 {
-            self.previous_transforms
-                .retain(|k, _| WIDGET_TRANSFORM_CHANGED_EVENT.is_subscriber(*k));
+            self.previous_transforms.retain(|k, _| TRANSFORM_CHANGED_EVENT.is_subscriber(*k));
         }
 
         for (path, prev, new) in changes {
-            WIDGET_TRANSFORM_CHANGED_EVENT.notify(ctx, WidgetTransformChangedArgs::now(path, prev, new));
+            TRANSFORM_CHANGED_EVENT.notify(ctx, TransformChangedArgs::now(path, prev, new));
         }
     }
 }

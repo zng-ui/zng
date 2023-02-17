@@ -471,8 +471,26 @@ impl Windows {
             let prev_tree = info.widget_tree.clone();
             info.widget_tree = info_tree.clone();
 
-            let args = WidgetInfoChangedArgs::now(info_tree.window_id(), prev_tree, info_tree, pending_layout, pending_render);
+            let args = WidgetInfoChangedArgs::now(
+                info_tree.window_id(),
+                prev_tree.clone(),
+                info_tree.clone(),
+                pending_layout,
+                pending_render,
+            );
             WIDGET_INFO_CHANGED_EVENT.notify(events, args);
+
+            INTERACTIVITY_CHANGED_EVENT.visit_subscribers(|wid| {
+                if let Some(new) = info_tree.get(wid) {
+                    let prev = prev_tree.get(wid).map(|w| w.interactivity());
+
+                    let new_int = new.interactivity();
+                    if prev != Some(new_int) {
+                        let args = InteractivityChangedArgs::now(prev, new_int, new.interaction_path());
+                        INTERACTIVITY_CHANGED_EVENT.notify(events, args);
+                    }
+                }
+            });
         }
     }
 

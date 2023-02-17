@@ -1773,7 +1773,7 @@ impl Interactivity {
     }
 
     /// Enabled visuals, may still be blocked.
-    pub fn is_visually_enabled(self) -> bool {
+    pub fn is_vis_enabled(self) -> bool {
         !self.contains(Self::DISABLED)
     }
 
@@ -1783,7 +1783,7 @@ impl Interactivity {
     }
 
     /// Disabled visuals, maybe also blocked.
-    pub fn is_visually_disabled(self) -> bool {
+    pub fn is_vis_disabled(self) -> bool {
         self.contains(Self::DISABLED)
     }
 

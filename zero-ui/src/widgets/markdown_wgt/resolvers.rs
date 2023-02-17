@@ -7,7 +7,7 @@ use std::time::Instant;
 use zero_ui_core::focus::Focus;
 use zero_ui_core::task::http::Uri;
 use zero_ui_core::widget_info::WidgetInfo;
-use zero_ui_core::window::WidgetTransformChangedArgs;
+use zero_ui_core::window::TransformChangedArgs;
 
 use crate::core::{focus::WidgetInfoFocusExt as _, image::ImageSource, text::ToText};
 use crate::prelude::new_property::*;
@@ -321,7 +321,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                             WindowLayers::remove(ctx, popup_id);
                         });
                     });
-                    on_move = async_hn!(status, |ctx, args: WidgetTransformChangedArgs| {
+                    on_move = async_hn!(status, |ctx, args: TransformChangedArgs| {
                         if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
                             return;
                         }

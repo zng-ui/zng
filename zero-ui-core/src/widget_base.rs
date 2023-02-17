@@ -14,7 +14,7 @@ use crate::{
     widget_builder::*,
     widget_info::*,
     widget_instance::*,
-    window::WIDGET_INFO_CHANGED_EVENT,
+    window::INTERACTIVITY_CHANGED_EVENT,
 };
 
 use parking_lot::Mutex;
@@ -759,15 +759,12 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 }
 
 fn vis_enabled_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: bool) -> impl UiNode {
-    event_is_state(child, state, true, WIDGET_INFO_CHANGED_EVENT, move |ctx, _| {
-        let is_enabled = ctx
-            .info_tree
-            .get(ctx.path.widget_id())
-            .unwrap()
-            .interactivity()
-            .is_visually_enabled();
-
-        Some(is_enabled == expected)
+    event_is_state(child, state, true, INTERACTIVITY_CHANGED_EVENT, move |_, args| {
+        if args.is_vis_enabled_change() {
+            Some(args.new.is_vis_enabled() == expected)
+        } else {
+            None
+        }
     })
 }
 

@@ -313,15 +313,200 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
 
 event_property! {
     /// Widget global inner transform changed.
-    pub fn widget_transform_changed {
-        event: window::WIDGET_TRANSFORM_CHANGED_EVENT,
-        args: window::WidgetTransformChangedArgs,
+    pub fn transform_changed {
+        event: window::TRANSFORM_CHANGED_EVENT,
+        args: window::TransformChangedArgs,
     }
 
     /// Widget global position changed.
     pub fn move {
-        event: window::WIDGET_TRANSFORM_CHANGED_EVENT,
-        args: window::WidgetTransformChangedArgs,
+        event: window::TRANSFORM_CHANGED_EVENT,
+        args: window::TransformChangedArgs,
         filter: |_, a| a.offset() != PxVector::zero(),
+    }
+
+    /// Widget interactivity changed.
+    ///
+    /// Note that there are multiple specific events for interactivity changes, [`on_enable`], [`on_disable`], [`on_block`] and [`on_unblock`]
+    /// are some of then.
+    ///
+    /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
+    /// from `None`, this initial event can be detected using the [`is_new`] method in the args.
+    ///
+    /// [`on_enable`]: fn@on_enable
+    /// [`on_disable`]: fn@on_disable
+    /// [`on_block`]: fn@on_block
+    /// [`on_unblock`]: fn@on_unblock
+    /// [`is_new`]: window::WidgetInteractivityChangedArgs::is_new
+    pub fn interactivity_changed {
+        event: window::INTERACTIVITY_CHANGED_EVENT,
+        args: window::InteractivityChangedArgs,
+    }
+
+    /// Widget was enabled or disabled.
+    ///
+    /// Note that this event tracks the *actual* enabled status of the widget, not the *visually enabled* status,
+    /// see [`Interactivity`] for more details.
+    ///
+    /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
+    /// from `None`, this initial event can be detected using the [`is_new`] method in the args.
+    ///
+    /// See [`on_interactivity_changed`] for a more general interactivity event.
+    ///
+    /// [`on_interactivity_changed`]: fn@on_interactivity_changed
+    /// [`is_new`]: window::WidgetInteractivityChangedArgs::is_new
+    pub fn enabled_changed {
+        event: window::INTERACTIVITY_CHANGED_EVENT,
+        args: window::InteractivityChangedArgs,
+        filter: |_, a| a.is_enabled_change(),
+    }
+
+    /// Widget changed to enabled or disabled visuals.
+    ///
+    /// Note that this event tracks the *visual* enabled status of the widget, not the *actual* status, the widget may
+    /// still be blocked, see [`Interactivity`] for more details.
+    ///
+    /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
+    /// from `None`, this initial event can be detected using the [`is_new`] method in the args.
+    ///
+    /// See [`on_interactivity_changed`] for a more general interactivity event.
+    ///
+    /// [`on_interactivity_changed`]: fn@on_interactivity_changed
+    /// [`Interactivity`]: crate::core::widget_info::Interactivity
+    /// [`is_new`]: window::WidgetInteractivityChangedArgs::is_new
+    pub fn vis_enabled_changed {
+        event: window::INTERACTIVITY_CHANGED_EVENT,
+        args: window::InteractivityChangedArgs,
+        filter: |_, a| a.is_vis_enabled_change(),
+    }
+
+    /// Widget interactions where blocked or unblocked.
+    ///
+    /// Note  that blocked widgets may still be visually enabled, see [`Interactivity`] for more details.
+    ///
+    /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
+    /// from `None`, this initial event can be detected using the [`is_new`] method in the args.
+    ///
+    /// See [`on_interactivity_changed`] for a more general interactivity event.
+    ///
+    /// [`on_interactivity_changed`]: fn@on_interactivity_changed
+    /// [`Interactivity`]: crate::core::widget_info::Interactivity
+    /// [`is_new`]: window::WidgetInteractivityChangedArgs::is_new
+    pub fn blocked_changed {
+        event: window::INTERACTIVITY_CHANGED_EVENT,
+        args: window::InteractivityChangedArgs,
+        filter: |_, a| a.is_blocked_change(),
+    }
+
+    /// Widget normal interactions now enabled.
+    ///
+    /// Note that this event tracks the *actual* enabled status of the widget, not the *visually enabled* status,
+    /// see [`Interactivity`] for more details.
+    ///
+    /// Note that an event is received when the widget first initializes in the widget info tree if it starts enabled,
+    /// this initial event can be detected using the [`is_new`] method in the args.
+    ///
+    /// See [`on_enabled_changed`] for a more general event.
+    ///
+    /// [`on_enabled_changed`]: fn@on_enabled_changed
+    /// [`Interactivity`]: crate::core::widget_info::Interactivity
+    /// [`is_new`]: window::WidgetInteractivityChangedArgs::is_new
+    pub fn enable {
+        event: window::INTERACTIVITY_CHANGED_EVENT,
+        args: window::InteractivityChangedArgs,
+        filter: |_, a| a.is_enable(),
+    }
+
+    /// Widget normal interactions now disabled.
+    ///
+    /// Note that this event tracks the *actual* enabled status of the widget, not the *visually enabled* status,
+    /// see [`Interactivity`] for more details.
+    ///
+    /// Note that an event is received when the widget first initializes in the widget info tree if it starts disabled,
+    /// this initial event can be detected using the [`is_new`] method in the args.
+    ///
+    /// See [`on_enabled_changed`] for a more general event.
+    ///
+    /// [`on_enabled_changed`]: fn@on_enabled_changed
+    /// [`Interactivity`]: crate::core::widget_info::Interactivity
+    /// [`is_new`]: window::WidgetInteractivityChangedArgs::is_new
+    pub fn disable {
+        event: window::INTERACTIVITY_CHANGED_EVENT,
+        args: window::InteractivityChangedArgs,
+        filter: |_, a| a.is_disable(),
+    }
+
+    /// Widget now using the enabled visuals.
+    ///
+    /// Note that this event tracks the *visual* enabled status of the widget, not the *actual* status, the widget may
+    /// still be blocked, see [`Interactivity`] for more details.
+    ///
+    /// Note that an event is received when the widget first initializes in the widget info tree if it starts visually enabled,
+    /// this initial event can be detected using the [`is_new`] method in the args.
+    ///
+    /// See [`on_vis_enabled_changed`] for a more general event.
+    ///
+    /// [`on_vis_enabled_changed`]: fn@on_vis_enabled_changed
+    /// [`Interactivity`]: crate::core::widget_info::Interactivity
+    /// [`is_new`]: window::WidgetInteractivityChangedArgs::is_new
+    pub fn vis_enable {
+        event: window::INTERACTIVITY_CHANGED_EVENT,
+        args: window::InteractivityChangedArgs,
+        filter: |_, a| a.is_vis_enable(),
+    }
+
+    /// Widget now using the disabled visuals.
+    ///
+    /// Note that this event tracks the *visual* enabled status of the widget, not the *actual* status, the widget may
+    /// still be blocked, see [`Interactivity`] for more details.
+    ///
+    /// Note that an event is received when the widget first initializes in the widget info tree if it starts visually disabled,
+    /// this initial event can be detected using the [`is_new`] method in the args.
+    ///
+    /// See [`on_vis_enabled_changed`] for a more general event.
+    ///
+    /// [`on_vis_enabled_changed`]: fn@on_vis_enabled_changed
+    /// [`Interactivity`]: crate::core::widget_info::Interactivity
+    /// [`is_new`]: window::WidgetInteractivityChangedArgs::is_new
+    pub fn vis_disable {
+        event: window::INTERACTIVITY_CHANGED_EVENT,
+        args: window::InteractivityChangedArgs,
+        filter: |_, a| a.is_vis_disable(),
+    }
+
+    /// Widget interactions now blocked.
+    ///
+    /// Note  that blocked widgets may still be visually enabled, see [`Interactivity`] for more details.
+    ///
+    /// Note that an event is received when the widget first initializes in the widget info tree if it starts blocked,
+    /// this initial event can be detected using the [`is_new`] method in the args.
+    ///
+    /// See [`on_blocked_changed`] for a more general event.
+    ///
+    /// [`on_blocked_changed`]: fn@on_blocked_changed
+    /// [`Interactivity`]: crate::core::widget_info::Interactivity
+    /// [`is_new`]: window::WidgetInteractivityChangedArgs::is_new
+    pub fn block {
+        event: window::INTERACTIVITY_CHANGED_EVENT,
+        args: window::InteractivityChangedArgs,
+        filter: |_, a| a.is_block(),
+    }
+
+    /// Widget interactions now unblocked.
+    ///
+    /// Note that the widget may still be disabled.
+    ///
+    /// Note that an event is received when the widget first initializes in the widget info tree if it starts unblocked,
+    /// this initial event can be detected using the [`is_new`] method in the args.
+    ///
+    /// See [`on_blocked_changed`] for a more general event.
+    ///
+    /// [`on_blocked_changed`]: fn@on_blocked_changed
+    /// [`Interactivity`]: crate::core::widget_info::Interactivity
+    /// [`is_new`]: window::WidgetInteractivityChangedArgs::is_new
+    pub fn unblock {
+        event: window::INTERACTIVITY_CHANGED_EVENT,
+        args: window::InteractivityChangedArgs,
+        filter: |_, a| a.is_unblock(),
     }
 }

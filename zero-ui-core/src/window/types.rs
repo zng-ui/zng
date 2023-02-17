@@ -17,7 +17,7 @@ use crate::{
     text::Text,
     units::*,
     var::*,
-    widget_info::{WidgetInfoTree, WidgetPath},
+    widget_info::{InteractionPath, Interactivity, WidgetInfoTree, WidgetPath},
     widget_instance::{BoxedUiNode, IdNameError, UiNode, WidgetId},
 };
 
@@ -700,8 +700,8 @@ event_args! {
         }
     }
 
-    /// [`WIDGET_TRANSFORM_CHANGED_EVENT`] args.
-    pub struct WidgetTransformChangedArgs {
+    /// [`TRANSFORM_CHANGED_EVENT`] args.
+    pub struct TransformChangedArgs {
         /// The widget.
         pub widget: WidgetPath,
         /// Previous inner transform.
@@ -714,6 +714,26 @@ event_args! {
         /// Target the `widget`.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             list.insert_path(&self.widget);
+        }
+    }
+
+    /// [`INTERACTIVITY_CHANGED_EVENT`] args.
+    pub struct InteractivityChangedArgs {
+        /// Previous widget interactivity.
+        ///
+        /// Is `None` if the widget is new.
+        pub prev: Option<Interactivity>,
+        /// New widget interactivity.
+        pub new: Interactivity,
+
+        /// Widget that changed, with interactivity of each parent.
+        pub target: InteractionPath,
+
+        ..
+
+        /// Target the widget.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_path(self.target.as_path())
         }
     }
 
@@ -857,12 +877,76 @@ impl WindowFocusChangedArgs {
         }
     }
 }
-impl WidgetTransformChangedArgs {
+impl TransformChangedArgs {
     /// Gets the movement between previous and new transformed top-left corner.
     pub fn offset(&self) -> PxVector {
         let prev = self.prev_transform.transform_point(PxPoint::zero()).unwrap_or_default();
         let new = self.new_transform.transform_point(PxPoint::zero()).unwrap_or_default();
         prev - new
+    }
+}
+impl InteractivityChangedArgs {
+    /// Widget was disabled or did not exist, now is enabled.
+    pub fn is_enable(&self) -> bool {
+        self.prev.unwrap_or(Interactivity::DISABLED).is_disabled() && self.new.is_enabled()
+    }
+
+    /// Widget was enabled or did not exist, now is disabled.
+    pub fn is_disable(&self) -> bool {
+        self.prev.unwrap_or(Interactivity::ENABLED).is_enabled() && self.new.is_disabled()
+    }
+
+    /// Widget was blocked or did not exist, now is unblocked.
+    pub fn is_unblock(&self) -> bool {
+        self.prev.unwrap_or(Interactivity::BLOCKED).is_blocked() && !self.new.is_blocked()
+    }
+
+    /// Widget was unblocked or did not exist, now is blocked.
+    pub fn is_block(&self) -> bool {
+        !self.prev.unwrap_or(Interactivity::BLOCKED).is_blocked() && self.new.is_blocked()
+    }
+
+    /// Widget was visually disabled or did not exist, now is visually enabled.
+    pub fn is_vis_enable(&self) -> bool {
+        self.prev.unwrap_or(Interactivity::DISABLED).is_vis_disabled() && self.new.is_vis_enabled()
+    }
+
+    /// Widget was visually enabled or did not exist, now is visually disabled.
+    pub fn is_vis_disable(&self) -> bool {
+        self.prev.unwrap_or(Interactivity::ENABLED).is_vis_enabled() && self.new.is_vis_disabled()
+    }
+
+    /// Widget was enabled, disabled or is new.
+    pub fn is_enabled_change(&self) -> bool {
+        if let Some(prev) = self.prev {
+            prev.is_disabled() != self.new.is_disabled()
+        } else {
+            true
+        }
+    }
+
+    /// Widget was visually enabled, visually disabled or is new.
+    pub fn is_vis_enabled_change(&self) -> bool {
+        if let Some(prev) = self.prev {
+            prev.is_vis_enabled() != self.new.is_vis_enabled()
+        } else {
+            true
+        }
+    }
+
+    /// Widget was blocked, unblocked or is new.
+    pub fn is_blocked_change(&self) -> bool {
+        if let Some(prev) = self.prev {
+            prev.is_blocked() != self.new.is_blocked()
+        } else {
+            true
+        }
+    }
+
+    /// Widget is new, no previous interactivity state is known, events that filter by interactivity change
+    /// update by default if the widget is new.
+    pub fn is_new(&self) -> bool {
+        self.prev.is_none()
     }
 }
 
@@ -904,7 +988,15 @@ event! {
     ///
     /// All subscribers of this event are checked after render, if the previous inner transform was recorded and
     /// the new inner transform is different an event is sent to the widget.
-    pub static WIDGET_TRANSFORM_CHANGED_EVENT: WidgetTransformChangedArgs;
+    pub static TRANSFORM_CHANGED_EVENT: TransformChangedArgs;
+
+    /// A widget interactivity has changed after an info update.
+    ///
+    /// All subscribers of this event are checked after info rebuild, if the interactivity changes from the previous tree
+    /// the event notifies.
+    ///
+    /// The event only notifies if the widget is present in the new info tree.
+    pub static INTERACTIVITY_CHANGED_EVENT: InteractivityChangedArgs;
 
     /// A window frame has finished rendering.
     ///

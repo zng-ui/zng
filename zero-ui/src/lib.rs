@@ -956,7 +956,7 @@ pub mod prelude {
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition, Window,
             WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowState, WindowVars,
-            Windows, WIDGET_INFO_CHANGED_EVENT,
+            Windows,
         },
     };
 
@@ -1050,7 +1050,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::widget_base::HitTestMode;
         #[doc(no_inline)]
-        pub use crate::core::window::{WindowId, WIDGET_INFO_CHANGED_EVENT};
+        pub use crate::core::window::{WindowId, INTERACTIVITY_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
             property, ui_node, widget, widget_base,
@@ -1113,7 +1113,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::widget_builder::*;
         #[doc(no_inline)]
-        pub use crate::core::window::{CursorIcon, WindowId, WIDGET_INFO_CHANGED_EVENT};
+        pub use crate::core::window::{CursorIcon, WindowId, INTERACTIVITY_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
             property, ui_node, widget,
