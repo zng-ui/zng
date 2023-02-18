@@ -11,6 +11,16 @@
 
 * Expand `LayoutDirection` to support vertical text, and to control the direction *rows* are added.
   - See CSS `writing-mode`, lang define direction glyphs flow, but also direction wrap grows.
+  - Or we can have specialized vertical text and wrap widgets.
+    - Text and wrap code is already very complex, a separate widget may be more easy to maintain.
+  - Does vertical text need to implement bidi sorting?
+  - Can vertical and horizontal be mixed?
+    - Yes, and we can have any widget in wrap so a `vertical_text` can be inserted as a block.
+  - CSS has vertical text that is just rotated.
+    - This can be done with something like `rotate_layout` that implements layout rotation in  90º increments 
+      (swaps the constrain axis and renders a transform).
+        - Need to set a context flag for properties like `cursor` to swap visual.
+        - Need to clear inline info.
 * Integrate `LayoutDirection` with all widgets.
   - grid, mirror grid indexes.
 
