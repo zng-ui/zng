@@ -24,7 +24,7 @@
 * Try to detect unsupported render mode without glutin.
 * Try to implement async context creation in default view crate.
     - Problem, glutin needs the event-loop window target to build a context (it is not send and must be in main).
-      - glutin-v2 will not need this?
+      - glutin-v2 will not need this? No it needs the window handle (in Windows).
     - gleam uses a `Rc<dyn Gl>` for the OpenGL functions.
     - There are obscure bugs with sending OpenGL contexts across threads, maybe review using `surfman` again.
 
@@ -40,7 +40,7 @@
 
 * The main crate generates a massive amount of "llvm-lines".
 * The final executables are pretty big as well.
-* Probably a lot of type name strings?
+  - Probably a lot of type name strings?
 
 # Parallel UI
 
