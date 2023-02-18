@@ -21,14 +21,14 @@ use crate::{
     var::*,
     widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
-    window::AutoSize,
+    window::{AutoSize, MONITORS},
 };
 
 use super::{
     commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, Monitors, StartPosition, TransformChangedArgs, Window,
-    WindowChangedArgs, WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, Windows, FRAME_IMAGE_READY_EVENT,
-    MONITORS_CHANGED_EVENT, TRANSFORM_CHANGED_EVENT, WINDOW_CHANGED_EVENT,
+    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, TransformChangedArgs, Window, WindowChangedArgs,
+    WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, Windows, FRAME_IMAGE_READY_EVENT, MONITORS_CHANGED_EVENT,
+    TRANSFORM_CHANGED_EVENT, WINDOW_CHANGED_EVENT,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -155,7 +155,8 @@ impl HeadedCtrl {
                 let mut new_state = prev_state.clone();
 
                 if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
-                    let monitors = Monitors::req(ctx.services);
+                    let mut monitors = MONITORS.write();
+                    let monitors = &mut *monitors;
 
                     if self.monitor.is_none() {
                         let monitor = query.select_fallback(monitors);
@@ -662,7 +663,7 @@ impl HeadedCtrl {
 
     /// First layout, opens the window.
     fn layout_init(&mut self, ctx: &mut WindowContext) {
-        self.monitor = Some(self.vars.monitor().get().select_fallback(Monitors::req(ctx.services)));
+        self.monitor = Some(self.vars.monitor().get().select_fallback(&mut MONITORS.write()));
 
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().get();
@@ -872,7 +873,7 @@ impl HeadedCtrl {
     /// First layout after respawn, opens the window but used previous sizes.
     fn layout_respawn(&mut self, ctx: &mut WindowContext) {
         if self.monitor.is_none() {
-            self.monitor = Some(self.vars.monitor().get().select_fallback(Monitors::req(ctx.services)));
+            self.monitor = Some(self.vars.monitor().get().select_fallback(&mut MONITORS.write()));
         }
 
         self.layout_update(ctx);

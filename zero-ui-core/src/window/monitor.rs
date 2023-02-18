@@ -8,10 +8,10 @@ use crate::{
         raw_events::{RawMonitorsChangedArgs, RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT},
         view_process::VIEW_PROCESS_INITED_EVENT,
     },
+    app_local,
     context::AppContext,
     event::{event, AnyEventArgs, EventUpdate, Events},
     event_args,
-    service::Service,
     text::*,
     units::*,
     var::*,
@@ -46,6 +46,15 @@ impl MonitorId {
     }
 }
 
+app_local! {
+    /// Monitors service instance for the current app.
+    ///
+    /// This service is only active in apps running with the [`WindowManager`] extension.
+    ///
+    /// See [`Monitors`] for service details.
+    pub static MONITORS: Monitors = Monitors::new();
+}
+
 /// Monitors service.
 ///
 /// List monitor screens and configure the PPI of a given monitor.
@@ -78,14 +87,13 @@ impl MonitorId {
 ///
 /// # Provider
 ///
-/// This service is provided by the [`WindowManager`].
+/// This service is provided by the [`WindowManager`], the service instance is in [`MONITORS`].
 ///
 /// [`ppi`]: MonitorInfo::ppi
 /// [`scale_factor`]: MonitorInfo::scale_factor
 /// [`LayoutMetrics`]: crate::context::LayoutMetrics
 /// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen
 /// [`WindowManager`]: crate::window::WindowManager
-#[derive(Service)]
 pub struct Monitors {
     monitors: LinearMap<MonitorId, MonitorInfo>,
 }
@@ -152,14 +160,14 @@ impl Monitors {
 
     pub(super) fn on_pre_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
-            if let Some(m) = Monitors::req(ctx.services).monitor(args.monitor_id) {
+            if let Some(m) = MONITORS.read().monitor(args.monitor_id) {
                 m.scale_factor.set_ne(ctx.vars, args.scale_factor);
             }
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
-            Monitors::req(ctx.services).on_monitors_changed(ctx.events, ctx.vars, args);
+            MONITORS.write().on_monitors_changed(ctx.events, ctx.vars, args);
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let args = RawMonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), args.available_monitors.clone());
-            Monitors::req(ctx.services).on_monitors_changed(ctx.events, ctx.vars, &args);
+            MONITORS.write().on_monitors_changed(ctx.events, ctx.vars, &args);
         }
     }
 }

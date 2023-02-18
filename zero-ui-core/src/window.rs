@@ -54,7 +54,6 @@ use crate::{
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        ctx.services.register(Monitors::new());
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 

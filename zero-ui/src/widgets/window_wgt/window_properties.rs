@@ -5,8 +5,8 @@ use crate::core::color::ColorScheme;
 use crate::core::config::{Config, ConfigKey};
 use crate::core::text::formatx;
 use crate::core::window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, Monitors, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState, WindowVars,
-    Windows, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT,
+    AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState, WindowVars, Windows,
+    MONITORS, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
@@ -325,9 +325,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                         window_vars.state().set_ne(ctx.vars, s.state);
                         let restore_rect: DipRect = s.restore_rect.cast();
 
-                        let visible = Monitors::req(ctx.services)
-                            .available_monitors()
-                            .any(|m| m.dip_rect().intersects(&restore_rect));
+                        let visible = MONITORS.read().available_monitors().any(|m| m.dip_rect().intersects(&restore_rect));
                         if visible {
                             window_vars.position().set_ne(ctx.vars, restore_rect.origin);
                         }
