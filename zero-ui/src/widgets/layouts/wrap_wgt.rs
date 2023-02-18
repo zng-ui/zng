@@ -745,7 +745,7 @@ impl InlineLayout {
             our_rows = 0..0;
 
             if !self.rows.is_empty() {
-                if l.first_segs.len() != self.rows[0].item_segs.len() {
+                if l.first_segs.len() != self.rows[0].item_segs.iter().map(|s| s.measure().len()).sum::<usize>() {
                     // parent set first_segs empty (not sorted), or wrong
                     let mut x = 0.0;
                     for s in self.rows[0].item_segs.iter_mut() {
@@ -771,7 +771,7 @@ impl InlineLayout {
                     // last row not the same as first
                     let last_i = self.rows.len() - 1;
                     let last = &mut self.rows[last_i];
-                    if l.last_segs.len() != last.item_segs.len() {
+                    if l.last_segs.len() != last.item_segs.iter().map(|s| s.measure().len()).sum::<usize>() {
                         // parent set last_segs empty (not sorted), or wrong
                         let mut x = 0.0;
                         for s in last.item_segs.iter_mut() {
