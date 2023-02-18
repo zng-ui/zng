@@ -1,7 +1,7 @@
 use super::{about_eq, ByteLength, ByteUnits, Dip, DipToPx, Factor, FactorPercent, FactorUnits, Px, EPSILON, EPSILON_100};
 use std::{fmt, mem, ops};
 
-use crate::{context::Layout1dMetrics, impl_from_and_into_var};
+use crate::{context::Layout1dMetrics, impl_from_and_into_var, var::animation::Transitionable};
 
 /// 1D length units.
 ///
@@ -210,6 +210,52 @@ impl<F: Into<Factor>> ops::DivAssign<F> for Length {
     fn div_assign(&mut self, rhs: F) {
         let lhs = mem::take(self);
         *self = lhs / rhs.into();
+    }
+}
+impl Transitionable for Length {
+    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
+        use Length::*;
+
+        if step == 0.fct() {
+            return self;
+        }
+        if step == 1.fct() {
+            return to.clone();
+        }
+
+        match (self, to) {
+            (Dip(a), Dip(b)) => Dip(a.lerp(b, step)),
+            (Px(a), Px(b)) => Px(a.lerp(b, step)),
+            (Pt(a), Pt(b)) => Pt(a.lerp(b, step)),
+            (Relative(a), Relative(b)) => Relative(a.lerp(b, step)),
+            (Leftover(a), Leftover(b)) => Leftover(a.lerp(b, step)),
+            (Em(a), Em(b)) => Em(a.lerp(b, step)),
+            (RootEm(a), RootEm(b)) => RootEm(a.lerp(b, step)),
+            (ViewportWidth(a), ViewportWidth(b)) => ViewportWidth(a.lerp(b, step)),
+            (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a.lerp(b, step)),
+            (ViewportMin(a), ViewportMin(b)) => ViewportMin(a.lerp(b, step)),
+            (ViewportMax(a), ViewportMax(b)) => ViewportMax(a.lerp(b, step)),
+            (PxF32(a), PxF32(b)) => PxF32(a.lerp(b, step)),
+            (DipF32(a), DipF32(b)) => DipF32(a.lerp(b, step)),
+            (Px(a), PxF32(b)) => PxF32((a.0 as f32).lerp(b, step)),
+            (PxF32(a), Px(b)) => PxF32(a.lerp(&(b.0 as f32), step)),
+            (Dip(a), DipF32(b)) => DipF32(a.to_f32().lerp(b, step)),
+            (DipF32(a), Dip(b)) => DipF32(a.lerp(&b.to_f32(), step)),
+            (a, b) => LengthExpr::Lerp(a, b.clone(), step).to_length_checked(),
+        }
+    }
+
+    fn chase(&mut self, increment: Self) {
+        if let Length::Expr(e) = self {
+            if let LengthExpr::Add(_, i) = &mut **e {
+                if std::mem::discriminant(i) == std::mem::discriminant(&increment) {
+                    // avoid expr explosion.
+                    *i += increment;
+                    return;
+                }
+            }
+        }
+        *self += increment;
     }
 }
 impl ops::Neg for Length {
@@ -708,6 +754,8 @@ pub enum LengthExpr {
     Abs(Length),
     /// Negate the layout length.
     Neg(Length),
+    /// Linear interpolate between lengths by factor.
+    Lerp(Length, Length, Factor),
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
@@ -738,6 +786,7 @@ impl LengthExpr {
             }
             Abs(e) => e.layout_f32(ctx, default_value).abs(),
             Neg(e) => -e.layout_f32(ctx, default_value),
+            Lerp(a, b, f) => a.layout_f32(ctx, &mut default_value).lerp(&b.layout_f32(ctx, default_value), *f),
         }
     }
 
@@ -756,6 +805,7 @@ impl LengthExpr {
             Min(a, b) => a.affect_mask() | b.affect_mask(),
             Abs(a) => a.affect_mask(),
             Neg(a) => a.affect_mask(),
+            Lerp(a, b, _) => a.affect_mask() | b.affect_mask(),
         }
     }
 
@@ -774,14 +824,15 @@ impl LengthExpr {
                 Min(a, b) => a.heap_memory_used() + b.heap_memory_used(),
                 Abs(a) => a.heap_memory_used(),
                 Neg(a) => a.heap_memory_used(),
+                Lerp(a, b, _) => a.heap_memory_used() + b.heap_memory_used(),
             }
     }
 
     /// Convert to [`Length::Expr`], logs warning for memory use above 1kB, logs error for use > 20kB and collapses to [`Length::zero`].
     ///
     /// Every length expression created using the [`std::ops`] uses this method to check the constructed expression. Some operations
-    /// like animation transitions or iterator fold can cause an *expression explosion* where two lengths of different units that cannot
-    /// be evaluated immediately start an expression length that subsequently is wrapped in a new expression length for each operation done on it.
+    /// like iterator fold can cause an *expression explosion* where two lengths of different units that cannot
+    /// be evaluated immediately start an expression that subsequently is wrapped in a new expression for each operation done on it.
     pub fn to_length_checked(self) -> Length {
         let bytes = self.memory_used();
         if bytes > 20.kibibytes() {
@@ -804,6 +855,7 @@ impl fmt::Debug for LengthExpr {
                 Min(a, b) => f.debug_tuple("LengthExpr::Min").field(a).field(b).finish(),
                 Abs(e) => f.debug_tuple("LengthExpr::Abs").field(e).finish(),
                 Neg(e) => f.debug_tuple("LengthExpr::Neg").field(e).finish(),
+                Lerp(a, b, n) => f.debug_tuple("LengthExpr::Lerp").field(a).field(b).field(n).finish(),
             }
         } else {
             match self {
@@ -815,6 +867,7 @@ impl fmt::Debug for LengthExpr {
                 Min(a, b) => write!(f, "min({a:?}, {b:?})"),
                 Abs(e) => write!(f, "abs({e:?})"),
                 Neg(e) => write!(f, "-({e:?})"),
+                Lerp(a, b, n) => write!(f, "lerp({a:?}, {b:?}, {n:?})"),
             }
         }
     }
@@ -831,6 +884,7 @@ impl fmt::Display for LengthExpr {
             Min(a, b) => write!(f, "min({a}, {b})"),
             Abs(e) => write!(f, "abs({e})"),
             Neg(e) => write!(f, "-({e})"),
+            Lerp(a, b, n) => write!(f, "lerp({a}, {b}, {n})"),
         }
     }
 }

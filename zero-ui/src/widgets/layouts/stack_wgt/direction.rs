@@ -1,6 +1,9 @@
+use crate::core::{
+    context::*,
+    units::*,
+    var::{animation::Transitionable, impl_from_and_into_var},
+};
 use std::{fmt, mem, ops};
-
-use crate::core::{context::*, units::*, var::impl_from_and_into_var};
 
 /// Defines a placement point in the previous item and the origin point of the next.
 ///
@@ -247,7 +250,6 @@ impl_from_and_into_var! {
         StackDirection::new(origin, size, rtl_aware)
     }
 }
-
 impl<S: Into<Factor2d>> ops::Mul<S> for StackDirection {
     type Output = Self;
 
@@ -256,7 +258,6 @@ impl<S: Into<Factor2d>> ops::Mul<S> for StackDirection {
         self
     }
 }
-
 impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a StackDirection {
     type Output = StackDirection;
 
@@ -264,7 +265,6 @@ impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a StackDirection {
         self.clone() * rhs
     }
 }
-
 impl<S: Into<Factor2d>> ops::MulAssign<S> for StackDirection {
     fn mul_assign(&mut self, rhs: S) {
         let rhs = rhs.into();
@@ -272,7 +272,6 @@ impl<S: Into<Factor2d>> ops::MulAssign<S> for StackDirection {
         self.origin *= rhs;
     }
 }
-
 impl<S: Into<Factor2d>> ops::Div<S> for StackDirection {
     type Output = Self;
 
@@ -281,7 +280,6 @@ impl<S: Into<Factor2d>> ops::Div<S> for StackDirection {
         self
     }
 }
-
 impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a StackDirection {
     type Output = StackDirection;
 
@@ -289,7 +287,6 @@ impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a StackDirection {
         self.clone() / rhs
     }
 }
-
 impl<S: Into<Factor2d>> ops::DivAssign<S> for StackDirection {
     fn div_assign(&mut self, rhs: S) {
         let rhs = rhs.into();
@@ -297,7 +294,6 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for StackDirection {
         self.origin /= rhs;
     }
 }
-
 impl ops::Add for StackDirection {
     type Output = Self;
 
@@ -306,14 +302,12 @@ impl ops::Add for StackDirection {
         self
     }
 }
-
 impl ops::AddAssign for StackDirection {
     fn add_assign(&mut self, rhs: Self) {
         self.place += rhs.place;
         self.origin += rhs.origin;
     }
 }
-
 impl ops::Sub for StackDirection {
     type Output = Self;
 
@@ -322,10 +316,25 @@ impl ops::Sub for StackDirection {
         self
     }
 }
-
 impl ops::SubAssign for StackDirection {
     fn sub_assign(&mut self, rhs: Self) {
         self.place -= rhs.place;
         self.origin -= rhs.origin;
+    }
+}
+
+impl Transitionable for StackDirection {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        Self {
+            place: self.place.lerp(&to.place, step),
+            origin: self.origin.lerp(&to.origin, step),
+            is_rtl_aware: if step < 1.fct() { self.is_rtl_aware } else { to.is_rtl_aware },
+        }
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.place.chase(increment.place);
+        self.origin.chase(increment.origin);
+        self.is_rtl_aware = increment.is_rtl_aware;
     }
 }

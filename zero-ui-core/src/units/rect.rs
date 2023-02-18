@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var};
+use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{impl_length_comp_conversions, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
 
@@ -221,6 +221,19 @@ impl ops::SubAssign for Rect {
     fn sub_assign(&mut self, rhs: Self) {
         self.origin -= rhs.origin;
         self.size -= rhs.size;
+    }
+}
+impl Transitionable for Rect {
+    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
+        Self {
+            origin: self.origin.lerp(&to.origin, step),
+            size: self.size.lerp(&to.size, step),
+        }
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.origin.chase(increment.origin);
+        self.size.chase(increment.size);
     }
 }
 

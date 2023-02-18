@@ -152,12 +152,18 @@ impl From<BorderStyle> for w_api::BorderStyle {
     }
 }
 impl animation::Transitionable for BorderStyle {
+    /// Returns `self` for `step < 1.fct()` or `to` for `step >= 1.fct()`.
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        if step >= 1.fct() {
-            *to
-        } else {
+        if step < 1.fct() {
             self
+        } else {
+            *to
         }
+    }
+
+    /// Replaces `self` with `increment`.
+    fn chase(&mut self, increment: Self) {
+        *self = increment;
     }
 }
 
@@ -257,6 +263,11 @@ impl animation::Transitionable for BorderSide {
         self.color = self.color.lerp(&to.color, step);
         self.style = self.style.lerp(&to.style, step);
         self
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.color.chase(increment.color);
+        self.style.chase(increment.style);
     }
 }
 
@@ -513,6 +524,13 @@ impl animation::Transitionable for BorderSides {
         self.bottom = self.right.lerp(&to.bottom, step);
         self.left = self.right.lerp(&to.left, step);
         self
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.top.chase(increment.top);
+        self.right.chase(increment.right);
+        self.bottom.chase(increment.bottom);
+        self.left.chase(increment.left);
     }
 }
 

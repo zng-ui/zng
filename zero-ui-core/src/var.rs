@@ -1808,7 +1808,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V: WithVars,
         N: Into<T>,
         F: Fn(EasingTime) -> EasingStep + 'static,
-        T: animation::ChaseTransitionable,
+        T: animation::Transitionable,
     {
         let (anim, next_target) = animation::var_chase(self.get(), first_target.into(), duration, easing);
         let handle = self.animate(vars, anim);
@@ -1830,7 +1830,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V: WithVars,
         N: Into<T>,
         F: Fn(EasingTime) -> EasingStep + 'static,
-        T: animation::ChaseTransitionable + std::cmp::PartialOrd<T>,
+        T: animation::Transitionable + std::cmp::PartialOrd<T>,
     {
         let (anim, next_target) = animation::var_chase_bounded(self.get(), first_target.into(), duration, easing, bounds);
         let handle = self.animate(vars, anim);

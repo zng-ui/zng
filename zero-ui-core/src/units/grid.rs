@@ -1,6 +1,6 @@
 use std::{fmt, mem, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var};
+use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, LayoutMask, Length, Px, PxVector};
 
@@ -149,6 +149,19 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for GridSpacing {
 
         self.column = column / fct.x;
         self.row = row / fct.y;
+    }
+}
+impl Transitionable for GridSpacing {
+    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
+        Self {
+            column: self.column.lerp(&to.column, step),
+            row: self.row.lerp(&to.row, step),
+        }
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.column.chase(increment.column);
+        self.row.chase(increment.row);
     }
 }
 

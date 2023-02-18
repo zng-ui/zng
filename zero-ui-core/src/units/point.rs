@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var};
+use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{impl_length_comp_conversions, DipPoint, Factor2d, LayoutMask, Length, PxPoint, Size, Vector};
 
@@ -307,5 +307,18 @@ impl<'a> ops::Neg for &'a Point {
 
     fn neg(self) -> Self::Output {
         -self.clone()
+    }
+}
+impl Transitionable for Point {
+    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
+        Self {
+            x: self.x.lerp(&to.x, step),
+            y: self.y.lerp(&to.y, step),
+        }
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.x.chase(increment.x);
+        self.y.chase(increment.y);
     }
 }

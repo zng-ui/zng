@@ -647,11 +647,45 @@ impl<Z: Into<ZIndex>> ops::Add<Z> for ZIndex {
         self.saturating_add(rhs)
     }
 }
+impl<Z: Into<ZIndex>> ops::AddAssign<Z> for ZIndex {
+    fn add_assign(&mut self, rhs: Z) {
+        *self = *self + rhs;
+    }
+}
 impl<Z: Into<ZIndex>> ops::Sub<Z> for ZIndex {
     type Output = Self;
 
     fn sub(self, rhs: Z) -> Self::Output {
         self.saturating_sub(rhs)
+    }
+}
+impl<Z: Into<ZIndex>> ops::SubAssign<Z> for ZIndex {
+    fn sub_assign(&mut self, rhs: Z) {
+        *self = *self - rhs;
+    }
+}
+impl ops::Mul<Factor> for ZIndex {
+    type Output = Self;
+
+    fn mul(self, rhs: Factor) -> Self::Output {
+        ZIndex(self.0 * rhs)
+    }
+}
+impl ops::Div<Factor> for ZIndex {
+    type Output = Self;
+
+    fn div(self, rhs: Factor) -> Self::Output {
+        ZIndex(self.0 / rhs)
+    }
+}
+impl ops::MulAssign<Factor> for ZIndex {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.0 *= rhs;
+    }
+}
+impl ops::DivAssign<Factor> for ZIndex {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.0 /= rhs;
     }
 }
 impl fmt::Debug for ZIndex {

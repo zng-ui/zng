@@ -2,6 +2,7 @@
 
 pub use crate::render::webrender_api::{GlyphIndex, GlyphInstance};
 use crate::units::*;
+use crate::var::animation::Transitionable;
 use crate::var::impl_from_and_into_var;
 use derive_more as dm;
 use parking_lot::Mutex;
@@ -228,6 +229,26 @@ mod hyphenation;
 pub use self::hyphenation::*;
 
 pub use font_kit::properties::{Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
+
+impl Transitionable for FontWeight {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        FontWeight(self.0.lerp(&to.0, step))
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.0 += increment.0;
+    }
+}
+
+impl Transitionable for FontStretch {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        FontStretch(self.0.lerp(&to.0, step))
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.0 += increment.0;
+    }
+}
 
 /// Configuration of text wrapping for Chinese, Japanese, or Korean text.
 #[derive(Copy, Clone, PartialEq, Eq)]

@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var};
+use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{impl_length_comp_conversions, DipSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, PxSize, Rect, Vector};
 
@@ -228,5 +228,18 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for Size {
         let rhs = rhs.into();
         self.width /= rhs.x;
         self.height /= rhs.y;
+    }
+}
+impl Transitionable for Size {
+    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
+        Self {
+            width: self.width.lerp(&to.width, step),
+            height: self.height.lerp(&to.height, step),
+        }
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.width.chase(increment.width);
+        self.height.chase(increment.height);
     }
 }

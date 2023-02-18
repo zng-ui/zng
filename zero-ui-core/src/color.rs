@@ -1,6 +1,10 @@
 //! Color types, functions and macros, [`Rgba`], [`filters`], [`hex!`](crate::color::hex) and more.
 
-use crate::{units::*, var::*, widget_instance::UiNode};
+use crate::{
+    units::*,
+    var::{animation::Transitionable, *},
+    widget_instance::UiNode,
+};
 use std::{fmt, ops};
 
 pub use crate::app::view_process::ColorScheme;
@@ -1231,6 +1235,19 @@ impl ColorPair {
     /// [`light`]: ColorPair::light
     pub fn highlight_light(self, hightlight: impl Into<Factor>) -> Rgba {
         colors::BLACK.with_alpha(hightlight.into()).mix_normal(self.light)
+    }
+}
+impl Transitionable for ColorPair {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        Self {
+            dark: self.dark.lerp(&to.dark, step),
+            light: self.light.lerp(&to.light, step),
+        }
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.dark.chase(increment.dark);
+        self.light.chase(increment.light);
     }
 }
 

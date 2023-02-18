@@ -326,33 +326,27 @@ impl Animation {
     }
 }
 
-/// A type that can linear interpolate between two values using an [`EasingStep`] alpha.
+/// A type that can be animated between two values.
+///
+/// This trait is auto-implemented for all [`Copy`] types that can add, subtract and multiply by [`Factor`], [`Clone`]
+/// only types must implement this trait manually.
 pub trait Transitionable: VarValue {
-    /// Sample the linear interpolation from `self` -> `to` selected by `step`.
+    /// Sample the linear interpolation from `self` -> `to` by `step`.  
     fn lerp(self, to: &Self, step: EasingStep) -> Self;
+
+    /// Adjust the animation end `self` by `increment`.
+    fn chase(&mut self, increment: Self);
 }
 impl<T> Transitionable for T
 where
-    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: VarValue + Copy + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
 {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        self.clone() + (to.clone() - self) * step
+        self + (*to - self) * step
     }
-}
 
-/// A type that is [`Transitionable`] and can adjust its end points mid animation.
-pub trait ChaseTransitionable: Transitionable {
-    /// Add `increment` to `self`.
-    ///
-    /// Self is the end point of the animation.
-    fn add_to(&mut self, increment: Self);
-}
-impl<T> ChaseTransitionable for T
-where
-    T: VarValue + Transitionable + ops::AddAssign,
-{
-    fn add_to(&mut self, increment: Self) {
-        *self += increment;
+    fn chase(&mut self, increment: Self) {
+        *self = *self + increment;
     }
 }
 
@@ -966,7 +960,7 @@ pub(super) fn var_chase<T>(
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
 ) -> (impl FnMut(&Animation, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
 where
-    T: VarValue + animation::ChaseTransitionable,
+    T: VarValue + animation::Transitionable,
 {
     let mut prev_step = 0.fct();
     let next_target = Arc::new(Mutex::new(ChaseMsg::None));
@@ -979,7 +973,7 @@ where
                 args.restart();
                 let from = transition.sample(step);
                 transition.from = from;
-                transition.to.add_to(inc);
+                transition.to.chase(inc);
                 if step != prev_step {
                     prev_step = step;
                     *value = Cow::Owned(transition.from.clone());
@@ -1014,7 +1008,7 @@ pub(super) fn var_chase_bounded<T>(
     bounds: ops::RangeInclusive<T>,
 ) -> (impl FnMut(&Animation, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
 where
-    T: VarValue + animation::ChaseTransitionable + std::cmp::PartialOrd<T>,
+    T: VarValue + animation::Transitionable + std::cmp::PartialOrd<T>,
 {
     let mut prev_step = 0.fct();
     let mut check_linear = !bounds.contains(&first_target);
@@ -1031,7 +1025,7 @@ where
 
                 let from = transition.sample(step);
                 transition.from = from;
-                transition.to.add_to(inc);
+                transition.to.chase(inc);
 
                 check_linear = !bounds.contains(&transition.to);
 

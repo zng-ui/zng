@@ -3,6 +3,7 @@
 use crate::core::window::{WindowVars, WIDGET_INFO_CHANGED_EVENT};
 use crate::prelude::new_property::*;
 
+use std::ops;
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
@@ -553,7 +554,7 @@ impl_from_and_into_var! {
     }
 }
 /// Calls [`LayerIndex::saturating_add`].
-impl<T: Into<Self>> std::ops::Add<T> for LayerIndex {
+impl<T: Into<Self>> ops::Add<T> for LayerIndex {
     type Output = Self;
 
     fn add(self, rhs: T) -> Self::Output {
@@ -561,7 +562,7 @@ impl<T: Into<Self>> std::ops::Add<T> for LayerIndex {
     }
 }
 /// Calls [`LayerIndex::saturating_sub`].
-impl<T: Into<Self>> std::ops::Sub<T> for LayerIndex {
+impl<T: Into<Self>> ops::Sub<T> for LayerIndex {
     type Output = Self;
 
     fn sub(self, rhs: T) -> Self::Output {
@@ -569,15 +570,39 @@ impl<T: Into<Self>> std::ops::Sub<T> for LayerIndex {
     }
 }
 /// Calls [`LayerIndex::saturating_add`].
-impl<T: Into<Self>> std::ops::AddAssign<T> for LayerIndex {
+impl<T: Into<Self>> ops::AddAssign<T> for LayerIndex {
     fn add_assign(&mut self, rhs: T) {
         *self = *self + rhs;
     }
 }
 /// Calls [`LayerIndex::saturating_sub`].
-impl<T: Into<Self>> std::ops::SubAssign<T> for LayerIndex {
+impl<T: Into<Self>> ops::SubAssign<T> for LayerIndex {
     fn sub_assign(&mut self, rhs: T) {
         *self = *self - rhs;
+    }
+}
+impl ops::Mul<Factor> for LayerIndex {
+    type Output = Self;
+
+    fn mul(self, rhs: Factor) -> Self::Output {
+        LayerIndex(self.0 * rhs)
+    }
+}
+impl ops::MulAssign<Factor> for LayerIndex {
+    fn mul_assign(&mut self, rhs: Factor) {
+        self.0 *= rhs;
+    }
+}
+impl ops::Div<Factor> for LayerIndex {
+    type Output = Self;
+
+    fn div(self, rhs: Factor) -> Self::Output {
+        LayerIndex(self.0 / rhs)
+    }
+}
+impl ops::DivAssign<Factor> for LayerIndex {
+    fn div_assign(&mut self, rhs: Factor) {
+        self.0 /= rhs;
     }
 }
 

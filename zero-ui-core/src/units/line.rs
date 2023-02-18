@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var};
+use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{Factor2d, LayoutMask, Length, Point, Px, PxPoint, PxRect, PxToWr};
 
@@ -264,5 +264,18 @@ impl ops::SubAssign for Line {
     fn sub_assign(&mut self, rhs: Self) {
         self.start -= rhs.start;
         self.end -= rhs.end;
+    }
+}
+impl Transitionable for Line {
+    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
+        Self {
+            start: self.start.lerp(&to.start, step),
+            end: self.end.lerp(&to.end, step),
+        }
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.start.chase(increment.start);
+        self.end.chase(increment.end);
     }
 }

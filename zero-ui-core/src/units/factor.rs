@@ -1,6 +1,9 @@
 use derive_more as dm;
 
-use super::{about_eq, about_eq_hash, about_eq_ord, Px, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size, EPSILON, EPSILON_100};
+use super::{
+    about_eq, about_eq_hash, about_eq_ord, Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Px, PxPoint, PxRect, PxSideOffsets,
+    PxSize, PxVector, Size, EPSILON, EPSILON_100,
+};
 use crate::impl_from_and_into_var;
 use std::{fmt, ops, time::Duration};
 
@@ -170,6 +173,32 @@ impl ops::DivAssign<Factor> for Px {
         *self = *self / rhs;
     }
 }
+
+impl ops::Mul<Factor> for Dip {
+    type Output = Dip;
+
+    fn mul(self, rhs: Factor) -> Dip {
+        self * rhs.0
+    }
+}
+impl ops::Div<Factor> for Dip {
+    type Output = Dip;
+
+    fn div(self, rhs: Factor) -> Dip {
+        self / rhs.0
+    }
+}
+impl ops::MulAssign<Factor> for Dip {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for Dip {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
 impl ops::Mul<Factor> for PxPoint {
     type Output = PxPoint;
 
@@ -194,6 +223,32 @@ impl ops::DivAssign<Factor> for PxPoint {
         *self = *self / rhs;
     }
 }
+
+impl ops::Mul<Factor> for DipPoint {
+    type Output = DipPoint;
+
+    fn mul(self, rhs: Factor) -> DipPoint {
+        self * Factor2d::uniform(rhs)
+    }
+}
+impl ops::Div<Factor> for DipPoint {
+    type Output = DipPoint;
+
+    fn div(self, rhs: Factor) -> DipPoint {
+        self / Factor2d::uniform(rhs)
+    }
+}
+impl ops::MulAssign<Factor> for DipPoint {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for DipPoint {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
 impl ops::Mul<Factor> for PxVector {
     type Output = PxVector;
 
@@ -218,6 +273,32 @@ impl ops::DivAssign<Factor> for PxVector {
         *self = *self / rhs;
     }
 }
+
+impl ops::Mul<Factor> for DipVector {
+    type Output = DipVector;
+
+    fn mul(self, rhs: Factor) -> DipVector {
+        self * Factor2d::uniform(rhs)
+    }
+}
+impl ops::Div<Factor> for DipVector {
+    type Output = DipVector;
+
+    fn div(self, rhs: Factor) -> DipVector {
+        self / Factor2d::uniform(rhs)
+    }
+}
+impl ops::MulAssign<Factor> for DipVector {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for DipVector {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
 impl ops::Mul<Factor> for PxSize {
     type Output = PxSize;
 
@@ -242,6 +323,32 @@ impl ops::DivAssign<Factor> for PxSize {
         *self = *self / rhs;
     }
 }
+
+impl ops::Mul<Factor> for DipSize {
+    type Output = DipSize;
+
+    fn mul(self, rhs: Factor) -> DipSize {
+        self * Factor2d::uniform(rhs)
+    }
+}
+impl ops::Div<Factor> for DipSize {
+    type Output = DipSize;
+
+    fn div(self, rhs: Factor) -> DipSize {
+        self / Factor2d::uniform(rhs)
+    }
+}
+impl ops::MulAssign<Factor> for DipSize {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for DipSize {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
 impl ops::Mul<Factor> for Factor2d {
     type Output = Factor2d;
 
@@ -290,6 +397,32 @@ impl ops::DivAssign<Factor> for PxRect {
         *self = *self / rhs;
     }
 }
+
+impl ops::Mul<Factor> for DipRect {
+    type Output = DipRect;
+
+    fn mul(self, rhs: Factor) -> DipRect {
+        self * Factor2d::uniform(rhs)
+    }
+}
+impl ops::Div<Factor> for DipRect {
+    type Output = DipRect;
+
+    fn div(self, rhs: Factor) -> DipRect {
+        self / Factor2d::uniform(rhs)
+    }
+}
+impl ops::MulAssign<Factor> for DipRect {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for DipRect {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
 impl ops::Neg for Factor {
     type Output = Factor;
 
@@ -548,6 +681,13 @@ impl ops::Mul<Factor2d> for PxSize {
         PxSize::new(self.width * rhs.x, self.height * rhs.y)
     }
 }
+impl ops::Mul<Factor2d> for DipSize {
+    type Output = DipSize;
+
+    fn mul(self, rhs: Factor2d) -> DipSize {
+        DipSize::new(self.width * rhs.x, self.height * rhs.y)
+    }
+}
 impl ops::Div<Factor2d> for PxSize {
     type Output = PxSize;
 
@@ -555,12 +695,29 @@ impl ops::Div<Factor2d> for PxSize {
         PxSize::new(self.width / rhs.x, self.height / rhs.y)
     }
 }
+impl ops::Div<Factor2d> for DipSize {
+    type Output = DipSize;
+
+    fn div(self, rhs: Factor2d) -> DipSize {
+        DipSize::new(self.width / rhs.x, self.height / rhs.y)
+    }
+}
 impl ops::MulAssign<Factor2d> for PxSize {
     fn mul_assign(&mut self, rhs: Factor2d) {
         *self = *self * rhs;
     }
 }
+impl ops::MulAssign<Factor2d> for DipSize {
+    fn mul_assign(&mut self, rhs: Factor2d) {
+        *self = *self * rhs;
+    }
+}
 impl ops::DivAssign<Factor2d> for PxSize {
+    fn div_assign(&mut self, rhs: Factor2d) {
+        *self = *self / rhs;
+    }
+}
+impl ops::DivAssign<Factor2d> for DipSize {
     fn div_assign(&mut self, rhs: Factor2d) {
         *self = *self / rhs;
     }
@@ -589,6 +746,32 @@ impl ops::DivAssign<Factor2d> for PxPoint {
         *self = *self / rhs;
     }
 }
+
+impl ops::Mul<Factor2d> for DipPoint {
+    type Output = DipPoint;
+
+    fn mul(self, rhs: Factor2d) -> DipPoint {
+        DipPoint::new(self.x * rhs.x, self.y * rhs.y)
+    }
+}
+impl ops::Div<Factor2d> for DipPoint {
+    type Output = DipPoint;
+
+    fn div(self, rhs: Factor2d) -> DipPoint {
+        DipPoint::new(self.x / rhs.x, self.y / rhs.y)
+    }
+}
+impl ops::MulAssign<Factor2d> for DipPoint {
+    fn mul_assign(&mut self, rhs: Factor2d) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor2d> for DipPoint {
+    fn div_assign(&mut self, rhs: Factor2d) {
+        *self = *self / rhs;
+    }
+}
+
 impl ops::Mul<Factor2d> for PxVector {
     type Output = PxVector;
 
@@ -613,6 +796,32 @@ impl ops::DivAssign<Factor2d> for PxVector {
         *self = *self / rhs;
     }
 }
+
+impl ops::Mul<Factor2d> for DipVector {
+    type Output = DipVector;
+
+    fn mul(self, rhs: Factor2d) -> DipVector {
+        DipVector::new(self.x * rhs.x, self.y * rhs.y)
+    }
+}
+impl ops::Div<Factor2d> for DipVector {
+    type Output = DipVector;
+
+    fn div(self, rhs: Factor2d) -> DipVector {
+        DipVector::new(self.x / rhs.x, self.y / rhs.y)
+    }
+}
+impl ops::MulAssign<Factor2d> for DipVector {
+    fn mul_assign(&mut self, rhs: Factor2d) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor2d> for DipVector {
+    fn div_assign(&mut self, rhs: Factor2d) {
+        *self = *self / rhs;
+    }
+}
+
 impl ops::Mul<Factor2d> for Factor2d {
     type Output = Factor2d;
 
@@ -657,6 +866,31 @@ impl ops::MulAssign<Factor2d> for PxRect {
     }
 }
 impl ops::DivAssign<Factor2d> for PxRect {
+    fn div_assign(&mut self, rhs: Factor2d) {
+        *self = *self / rhs;
+    }
+}
+
+impl ops::Mul<Factor2d> for DipRect {
+    type Output = DipRect;
+
+    fn mul(self, rhs: Factor2d) -> DipRect {
+        DipRect::new(self.origin * rhs, self.size * rhs)
+    }
+}
+impl ops::Div<Factor2d> for DipRect {
+    type Output = DipRect;
+
+    fn div(self, rhs: Factor2d) -> DipRect {
+        DipRect::new(self.origin / rhs, self.size / rhs)
+    }
+}
+impl ops::MulAssign<Factor2d> for DipRect {
+    fn mul_assign(&mut self, rhs: Factor2d) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor2d> for DipRect {
     fn div_assign(&mut self, rhs: Factor2d) {
         *self = *self / rhs;
     }
@@ -777,6 +1011,42 @@ impl ops::DivAssign<FactorSideOffsets> for PxSideOffsets {
         *self = *self / rhs;
     }
 }
+
+impl ops::Mul<FactorSideOffsets> for DipSideOffsets {
+    type Output = DipSideOffsets;
+
+    fn mul(self, rhs: FactorSideOffsets) -> DipSideOffsets {
+        DipSideOffsets::new(
+            self.top * rhs.top,
+            self.right * rhs.right,
+            self.bottom * rhs.bottom,
+            self.left * rhs.left,
+        )
+    }
+}
+impl ops::Div<FactorSideOffsets> for DipSideOffsets {
+    type Output = DipSideOffsets;
+
+    fn div(self, rhs: FactorSideOffsets) -> DipSideOffsets {
+        DipSideOffsets::new(
+            self.top / rhs.top,
+            self.right / rhs.right,
+            self.bottom / rhs.bottom,
+            self.left / rhs.left,
+        )
+    }
+}
+impl ops::MulAssign<FactorSideOffsets> for DipSideOffsets {
+    fn mul_assign(&mut self, rhs: FactorSideOffsets) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<FactorSideOffsets> for DipSideOffsets {
+    fn div_assign(&mut self, rhs: FactorSideOffsets) {
+        *self = *self / rhs;
+    }
+}
+
 impl_from_and_into_var! {
     /// All sides equal.
     fn from(all: Factor) -> FactorSideOffsets {

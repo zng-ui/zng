@@ -33,7 +33,7 @@ context_var! {
     pub static LINE_HEIGHT_VAR: LineHeight = LineHeight::Default;
 
     /// Extra spacing in between lines of [`text`](crate::widgets::text) spans.
-    pub static LINE_SPACING_VAR: Length = Px(0);
+    pub static LINE_SPACING_VAR: LineSpacing = LineSpacing::Default;
 
     /// Extra letter spacing of [`text`](crate::widgets::text) spans.
     pub static LETTER_SPACING_VAR: LetterSpacing = LetterSpacing::Default;

@@ -365,6 +365,33 @@ impl_from_and_into_var! {
         LinearGradientAxis::Line(line)
     }
 }
+impl Transitionable for LinearGradientAxis {
+    /// Linear interpolates for same axis kinds, or changes in one step between axis kinds.
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        use LinearGradientAxis::*;
+        match (self, to) {
+            (Angle(s), Angle(t)) => Angle(s.lerp(t, step)),
+            (Line(s), Line(t)) => Line(s.lerp(t, step)),
+            (s, t) => {
+                if step <= 1.fct() {
+                    s
+                } else {
+                    t.clone()
+                }
+            }
+        }
+    }
+
+    /// Increment for same axis kinds, or replaces `self` with `increment` for different axis kinds.
+    fn chase(&mut self, increment: Self) {
+        use LinearGradientAxis::*;
+        match (self, increment) {
+            (Angle(s), Angle(i)) => *s += i,
+            (Line(s), Line(i)) => s.chase(i),
+            (s, i) => *s = i,
+        }
+    }
+}
 
 /// A color stop in a gradient.
 #[derive(Clone, PartialEq)]
@@ -474,6 +501,19 @@ impl_from_and_into_var! {
 
     fn from(positional_color: Hsva) -> ColorStop {
         ColorStop::new_positional(positional_color)
+    }
+}
+impl Transitionable for ColorStop {
+    fn lerp(self, to: &Self, step: EasingStep) -> Self {
+        Self {
+            color: self.color.lerp(&to.color, step),
+            offset: self.offset.lerp(&to.offset, step),
+        }
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.color.chase(increment.color);
+        self.offset.chase(increment.offset);
     }
 }
 
@@ -1207,6 +1247,7 @@ macro_rules! stops {
 }
 #[doc(inline)]
 pub use crate::stops;
+use crate::var::animation::Transitionable;
 
 #[cfg(test)]
 mod tests {
