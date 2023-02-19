@@ -13,6 +13,7 @@
     - Make the update sender an `app_local!` too.
         - Most services want it.
         - Maybe not, we are using then to validate extensions not inited.
+    - Review extension docs about services they provide.
 
 * Review all docs.
     - Mentions of threads in particular.

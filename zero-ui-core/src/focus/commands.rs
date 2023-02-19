@@ -126,15 +126,15 @@ impl FocusCommands {
         self.enter_handle.set_enabled(nav.contains(FocusNavAction::ENTER));
     }
 
-    pub fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    pub fn event_preview(&mut self, update: &mut EventUpdate) {
         macro_rules! handle {
             ($($CMD:ident($handle:ident) => $method:ident,)+) => {$(
                 if let Some(args) = $CMD.on(update) {
                     args.handle(|args| {
                         if args.enabled && self.$handle.is_enabled() {
-                            Focus::req(ctx.services).$method();
+                            FOCUS.write().$method();
                         } else {
-                            Focus::req(ctx.services).on_disabled_cmd();
+                            FOCUS.write().on_disabled_cmd();
                         }
                     });
                     return;
@@ -156,7 +156,7 @@ impl FocusCommands {
         if let Some(args) = FOCUS_CMD.on(update) {
             if let Some(req) = args.param::<FocusRequest>() {
                 args.handle_enabled(&self.focus_handle, |_| {
-                    Focus::req(ctx.services).focus(*req);
+                    FOCUS.write().focus(*req);
                 });
             }
         }

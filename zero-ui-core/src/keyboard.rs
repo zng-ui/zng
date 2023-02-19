@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use crate::app::view_process::{AnimationsConfig, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{raw_events::*, *};
 use crate::event::*;
-use crate::focus::Focus;
+use crate::focus::FOCUS;
 use crate::service::*;
 use crate::units::*;
 use crate::var::{var, var_default, ArcVar, ReadOnlyArcVar, Var, Vars, WithVars};
@@ -192,11 +192,11 @@ impl AppExtension for KeyboardManager {
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
-            let focused = Focus::req(ctx.services).focused().get();
+            let focused = FOCUS.read().focused().get();
             let keyboard = Keyboard::req(ctx.services);
             keyboard.key_input(ctx.events, ctx.vars, args, focused);
         } else if let Some(args) = RAW_CHAR_INPUT_EVENT.on(update) {
-            let focused = Focus::req(ctx.services).focused().get();
+            let focused = FOCUS.read().focused().get();
             if let Some(target) = focused {
                 if target.window_id() == args.window_id {
                     CHAR_INPUT_EVENT.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));

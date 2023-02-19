@@ -919,7 +919,7 @@ pub mod prelude {
         color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
         context::{AppContext, LayoutDirection, WidgetContext, WindowContext},
         event::{AnyEventArgs, Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, Events},
-        focus::{DirectionalNav, Focus, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav},
+        focus::{DirectionalNav, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav, FOCUS},
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
         handler::*,

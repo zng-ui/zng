@@ -208,24 +208,24 @@ fn delayed_focus() -> impl UiNode {
         children = ui_vec![
             title("Delayed 4s (D)"),
 
-            delayed_btn("Force Focus", |ctx| {
-                Focus::req(ctx.services).focus(FocusRequest {
+            delayed_btn("Force Focus", |_| {
+                FOCUS.write().focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
                     force_window_focus: true,
                     window_indicator: None,
                 });
             }),
-            delayed_btn("Info Indicator", |ctx| {
-                Focus::req(ctx.services).focus(FocusRequest {
+            delayed_btn("Info Indicator", |_| {
+                FOCUS.write().focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
                     force_window_focus: false,
                     window_indicator: Some(FocusIndicator::Info),
                 });
             }),
-            delayed_btn("Critical Indicator", |ctx| {
-                Focus::req(ctx.services).focus(FocusRequest {
+            delayed_btn("Critical Indicator", |_| {
+                FOCUS.write().focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
                     force_window_focus: false,

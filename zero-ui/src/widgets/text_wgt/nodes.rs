@@ -9,7 +9,7 @@ use font_features::FontVariations;
 
 use super::text_properties::*;
 use crate::core::{
-    focus::{Focus, FocusInfoBuilder, FOCUS_CHANGED_EVENT},
+    focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
     keyboard::{Keyboard, CHAR_INPUT_EVENT},
     task::parking_lot::Mutex,
     text::*,
@@ -192,8 +192,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
 
             let editable = TEXT_EDITABLE_VAR.get();
-            let caret_opacity = if editable && Focus::req(ctx.services).focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id())
-            {
+            let caret_opacity = if editable && FOCUS.read().focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
                 let v = Keyboard::req(ctx.services).caret_animation(ctx.vars);
                 self.caret_opacity_handle = Some(v.subscribe(ctx.path.widget_id()));
                 v
@@ -344,7 +343,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     self.event_handles.push(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
                     self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
 
-                    if Focus::req(ctx.services).focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
+                    if FOCUS.read().focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
                         let new_animation = Keyboard::req(ctx.services).caret_animation(ctx.vars);
                         self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
                         self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;

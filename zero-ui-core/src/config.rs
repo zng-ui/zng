@@ -101,9 +101,9 @@ app_local! {
 /// ```no_run
 /// # use zero_ui_core::{app::*, window::*, config::*, units::*};
 /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
-/// App::default().run_window(|ctx| {
-///     // require the Config service, it is available in the default App.
-///     let cfg = Config::req(ctx.services);
+/// App::default().run_window(|_| {
+///     // the Config service, it is available in the default App.
+///     let mut cfg = CONFIG.write();
 ///
 ///     // load a ConfigSource.
 ///     cfg.load(ConfigFile::new("app.config.json"));

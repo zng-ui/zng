@@ -596,11 +596,20 @@ fn assert_not_view_process() {
 #[cfg(feature = "deadlock_detection")]
 fn check_deadlock() {
     use parking_lot::deadlock;
-    use std::{thread, time::*};
+    use std::{
+        sync::atomic::{self, AtomicBool},
+        thread,
+        time::*,
+    };
 
-    if !cfg!(test) {
-        println!("deadlock detection enabled, 10s interval");
+    static CHECK_RUNNING: AtomicBool = AtomicBool::new(false);
+
+    if CHECK_RUNNING.swap(true, atomic::Ordering::SeqCst) {
+        return;
     }
+
+    #[cfg(not(feature = "test_util"))]
+    println!("deadlock detection enabled, 10s interval");
 
     thread::spawn(|| loop {
         thread::sleep(Duration::from_secs(10));
@@ -610,13 +619,28 @@ fn check_deadlock() {
             continue;
         }
 
-        println!("{} deadlocks detected", deadlocks.len());
+        use std::fmt::Write;
+        let mut msg = String::new();
+
+        let _ = writeln!(&mut msg, "{} deadlocks detected", deadlocks.len());
         for (i, threads) in deadlocks.iter().enumerate() {
-            println!("Deadlock #{}", i);
+            let _ = writeln!(&mut msg, "Deadlock #{}, {} threads", i, threads.len());
             for t in threads {
-                println!("Thread Id {:#?}", t.thread_id());
-                println!("{:#?}", t.backtrace());
+                let _ = writeln!(&mut msg, "Thread Id {:#?}", t.thread_id());
+                let _ = writeln!(&mut msg, "{:#?}", t.backtrace());
             }
+        }
+
+        #[cfg(not(feature = "test_util"))]
+        eprint!("{msg}");
+
+        #[cfg(feature = "test_util")]
+        {
+            // test runner captures output and ignores panics in background threads, so
+            // we write directly to stderr and exit the process.
+            use std::io::Write;
+            let _ = write!(&mut std::io::stderr(), "{msg}");
+            std::process::exit(-1);
         }
     });
 }

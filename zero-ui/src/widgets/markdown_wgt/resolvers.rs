@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-use zero_ui_core::focus::Focus;
+use zero_ui_core::focus::FOCUS;
 use zero_ui_core::task::http::Uri;
 use zero_ui_core::widget_info::WidgetInfo;
 use zero_ui_core::window::TransformChangedArgs;
@@ -230,7 +230,7 @@ pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                     .find(|w| w.is_focusable())
                     .or_else(|| md.as_focus_info(false, false).self_and_ancestors().find(|w| w.is_focusable()))
                 {
-                    Focus::req(ctx.services).focus_widget(focus.info.widget_id(), false);
+                    FOCUS.write().focus_widget(focus.info.widget_id(), false);
                 }
             }
         }

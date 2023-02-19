@@ -88,12 +88,12 @@ mod tests;
 
 use crate::{
     app::{AppEventSender, AppExtension},
+    app_local,
     context::*,
     crate_util::IdMap,
     event::*,
     mouse::MOUSE_INPUT_EVENT,
     render::FrameId,
-    service::{Service, ServiceTuple},
     units::{Px, PxPoint, PxRect, TimeUnits},
     var::{var, AnyVar, ArcVar, ReadOnlyArcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
@@ -407,13 +407,14 @@ impl Default for FocusManager {
 }
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        ctx.services.register(Focus::new(ctx.updates.sender()));
+        FOCUS.write().app_event_sender = Some(ctx.updates.sender());
         self.commands = Some(FocusCommands::new(ctx.events));
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
-            if Focus::req(ctx)
+            if FOCUS
+                .read()
                 .focused
                 .as_ref()
                 .map(|f| f.path.window_id() == args.window_id)
@@ -431,7 +432,7 @@ impl AppExtension for FocusManager {
             }
             focus_info::FocusTreeData::consolidate_alt_scopes(&args.prev_tree, &args.tree);
         } else {
-            self.commands.as_mut().unwrap().event_preview(ctx, update);
+            self.commands.as_mut().unwrap().event_preview(update);
         }
     }
 
@@ -440,7 +441,8 @@ impl AppExtension for FocusManager {
             self.on_info_tree_update(&tree, ctx);
         } else {
             // update visibility or enabled commands, they may have changed if the `spatial_frame_id` changed.
-            let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
+            let focus = FOCUS.read();
+            let windows = Windows::req(ctx.services);
             let mut invalidated_cmds_or_focused = None;
 
             if let Some(f) = &focus.focused {
@@ -453,6 +455,7 @@ impl AppExtension for FocusManager {
             }
 
             if let Some(tree) = invalidated_cmds_or_focused {
+                drop(focus);
                 self.on_info_tree_update(&tree, ctx);
             }
         }
@@ -468,13 +471,14 @@ impl AppExtension for FocusManager {
             }
         } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
             // foreground window maybe changed
-            let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
+            let mut focus = FOCUS.write();
+            let windows = Windows::req(ctx.services);
             if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
                 if args.is_focus(window_id) {
                     request = Some(FocusRequest::direct(widget_id, highlight));
                 }
             } else if let Some(args) = focus.continue_focus(ctx.vars, windows) {
-                self.notify(ctx.vars, ctx.events, focus, windows, Some(args));
+                self.notify(ctx.vars, ctx.events, &mut focus, windows, Some(args));
             }
 
             if let Some(window_id) = args.closed() {
@@ -487,28 +491,32 @@ impl AppExtension for FocusManager {
         }
 
         if let Some(request) = request {
-            let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
+            let mut focus = FOCUS.write();
+            let windows = Windows::req(ctx.services);
             focus.pending_highlight = false;
             let args = focus.fulfill_request(ctx.vars, windows, request);
-            self.notify(ctx.vars, ctx.events, focus, windows, args);
+            self.notify(ctx.vars, ctx.events, &mut focus, windows, args);
         }
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
+        let mut focus = FOCUS.write();
+        let windows = Windows::req(ctx.services);
         if let Some(request) = focus.request.take() {
             focus.pending_highlight = false;
             let args = focus.fulfill_request(ctx.vars, windows, request);
-            self.notify(ctx.vars, ctx.events, focus, windows, args);
+            self.notify(ctx.vars, ctx.events, &mut focus, windows, args);
         } else if mem::take(&mut focus.pending_highlight) {
             let args = focus.continue_focus_highlight(ctx.vars, windows, true);
-            self.notify(ctx.vars, ctx.events, focus, windows, args);
+            self.notify(ctx.vars, ctx.events, &mut focus, windows, args);
         }
     }
 }
 impl FocusManager {
     fn on_info_tree_update(&mut self, tree: &WidgetInfoTree, ctx: &mut AppContext) {
-        let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
+        let mut focus = FOCUS.write();
+        let focus = &mut *focus;
+        let windows = Windows::req(ctx.services);
         focus.update_focused_center();
 
         // widget tree rebuilt or visibility may have changed, check if focus is still valid
@@ -555,12 +563,18 @@ impl FocusManager {
     }
 }
 
+app_local! {
+    /// Focus service instance for the current app.
+    ///
+    /// This service is only active in apps running with the [`FocusManager`] extension.
+    pub static FOCUS: Focus = Focus::new();
+}
+
 /// Keyboard focus service.
 ///
 /// # Provider
 ///
-/// This service is provided by the [`FocusManager`] extension.
-#[derive(Service)]
+/// This service is provided by the [`FocusManager`] extension, the service instance is in [`FOCUS`].
 pub struct Focus {
     /// If set to a duration, starts highlighting focus when a focus change happen within the duration of
     /// a keyboard input event.
@@ -593,7 +607,7 @@ pub struct Focus {
     pub focus_hidden_widgets: bool,
 
     request: Option<FocusRequest>,
-    app_event_sender: AppEventSender,
+    app_event_sender: Option<AppEventSender>,
 
     focused_var: ArcVar<Option<InteractionPath>>,
     focused: Option<FocusedInfo>,
@@ -615,14 +629,14 @@ pub struct Focus {
 impl Focus {
     /// New focus service, the `update_sender` is used to flag an update after a focus change request.
     #[must_use]
-    pub fn new(app_event_sender: AppEventSender) -> Self {
+    fn new() -> Self {
         Focus {
             focus_disabled_widgets: true,
             focus_hidden_widgets: true,
             auto_highlight: Some(300.ms()),
 
             request: None,
-            app_event_sender,
+            app_event_sender: None,
 
             focused_var: var(None),
             focused: None,
@@ -686,7 +700,7 @@ impl Focus {
     pub fn focus(&mut self, request: FocusRequest) {
         self.pending_window_focus = None;
         self.request = Some(request);
-        let _ = self.app_event_sender.send_ext_update();
+        let _ = self.app_event_sender.as_ref().expect("`FocusManager` not init").send_ext_update();
     }
 
     /// Enables focus highlight for the current focus if the key-press allows it.
@@ -701,7 +715,7 @@ impl Focus {
     /// [`is_highlighting`]: Self::is_highlighting
     pub fn highlight(&mut self) {
         self.pending_highlight = true;
-        let _ = self.app_event_sender.send_ext_update();
+        let _ = self.app_event_sender.as_ref().expect("`FocusManager` not init").send_ext_update();
     }
 
     /// Focus the widget if it is focusable and change the highlight.

@@ -8,7 +8,7 @@ use crate::{
     crate_util::{Handle, HandleOwner, WeakHandle},
     event::*,
     event::{Command, CommandMetaVar, CommandScope, StaticCommandMetaVarId},
-    focus::{Focus, FocusRequest, FocusTarget},
+    focus::{Focus, FocusRequest, FocusTarget, FOCUS},
     keyboard::*,
     mouse::*,
     service::Service,
@@ -760,12 +760,14 @@ impl AppExtension for GestureManager {
             }
         } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
             // Generate shortcut events from keyboard input.
-            let (gestures, windows, focus) = <(Gestures, Windows, Focus)>::req(ctx.services);
-            gestures.on_key_input(ctx.events, focus, windows, args);
+            let mut focus = FOCUS.write();
+            let (gestures, windows) = <(Gestures, Windows)>::req(ctx.services);
+            gestures.on_key_input(ctx.events, &mut focus, windows, args);
         } else if let Some(args) = SHORTCUT_EVENT.on(update) {
             // Run shortcut actions.
-            let (gestures, focus) = <(Gestures, Focus)>::req(ctx.services);
-            gestures.on_shortcut(ctx.events, focus, args);
+            let mut focus = FOCUS.write();
+            let gestures = Gestures::req(ctx.services);
+            gestures.on_shortcut(ctx.events, &mut focus, args);
         }
     }
 }

@@ -1707,8 +1707,7 @@ impl TestApp {
     }
 
     pub fn focused(&mut self) -> Option<WidgetId> {
-        let ctx = self.app.ctx();
-        Focus::req(ctx.services).focused().get().as_ref().map(|w| w.widget_id())
+        FOCUS.read().focused().get().as_ref().map(|w| w.widget_id())
     }
 
     pub fn can_tab(&self) -> bool {
@@ -1751,17 +1750,17 @@ impl TestApp {
     }
 
     pub fn focus(&mut self, widget_id: WidgetId) {
-        Focus::req(&mut self.app).focus_widget(widget_id, true);
+        FOCUS.write().focus_widget(widget_id, true);
         let _ = self.app.update(false);
     }
 
     pub fn focus_or_parent(&mut self, widget_id: WidgetId) {
-        Focus::req(&mut self.app).focus_widget_or_exit(widget_id, true);
+        FOCUS.write().focus_widget_or_exit(widget_id, true);
         let _ = self.app.update(false);
     }
 
     pub fn focus_or_child(&mut self, widget_id: WidgetId) {
-        Focus::req(&mut self.app).focus_widget_or_enter(widget_id, true);
+        FOCUS.write().focus_widget_or_enter(widget_id, true);
         let _ = self.app.update(false);
     }
 
