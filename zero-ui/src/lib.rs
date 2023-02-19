@@ -935,7 +935,7 @@ pub mod prelude {
                 NumVariant,
             },
             formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, Justify, LineBreak, Text,
-            TextTransformFn, ToText, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak,
+            TextTransformFn, ToText, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak, FONTS,
         },
         units::{
             rotate, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_x, translate_y, Align, AngleUnits,

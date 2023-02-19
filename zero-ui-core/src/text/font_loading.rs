@@ -20,10 +20,10 @@ use crate::{
         view_process::{ViewProcessOffline, ViewRenderer, VIEW_PROCESS_INITED_EVENT},
         AppEventSender, AppExtension,
     },
+    app_local,
     context::AppContext,
     crate_util::FxHashMap,
     event::{event, event_args, EventUpdate},
-    service::Service,
     units::*,
     var::{var, ArcVar, Var},
 };
@@ -96,18 +96,18 @@ pub enum FontChange {
 pub struct FontManager {}
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        ctx.services.register(Fonts::new(ctx.updates.sender()));
+        FONTS.write().generics.update_sender = Some(ctx.updates.sender());
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if RAW_FONT_CHANGED_EVENT.has(update) {
             FONT_CHANGED_EVENT.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
         } else if let Some(args) = RAW_FONT_AA_CHANGED_EVENT.on(update) {
-            Fonts::req(ctx.services).font_aa.set_ne(ctx.vars, args.aa);
+            FONTS.read().font_aa.set_ne(ctx.vars, args.aa);
         } else if FONT_CHANGED_EVENT.has(update) {
-            Fonts::req(ctx.services).on_fonts_changed();
+            FONTS.write().on_fonts_changed();
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            let fonts = Fonts::req(ctx.services);
+            let mut fonts = FONTS.write();
             fonts.font_aa.set_ne(ctx.vars, args.font_aa);
             if args.is_respawn {
                 fonts.loader.on_view_process_respawn();
@@ -116,7 +116,7 @@ impl AppExtension for FontManager {
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        let fonts = Fonts::req(ctx.services);
+        let mut fonts = FONTS.write();
 
         for args in fonts.take_updates() {
             FONT_CHANGED_EVENT.notify(ctx.events, args);
@@ -128,8 +128,20 @@ impl AppExtension for FontManager {
     }
 }
 
+app_local! {
+    /// Fonts service instance for the current app.
+    ///
+    /// This service is only active in apps running with the [`FontManager`] extension.
+    ///
+    /// See [`Fonts`] for service details.
+    pub static FONTS: Fonts = Fonts::new();
+}
+
 /// Font loading, custom fonts and app font configuration.
-#[derive(Service)]
+///
+/// # Provider
+///
+/// This service is provided by the [`FontManager`] extension, the service instance is in [`FONTS`].
 pub struct Fonts {
     loader: FontFaceLoader,
     generics: GenericFonts,
@@ -137,10 +149,10 @@ pub struct Fonts {
     font_aa: ArcVar<FontAntiAliasing>,
 }
 impl Fonts {
-    fn new(update_sender: AppEventSender) -> Self {
+    fn new() -> Self {
         Fonts {
             loader: FontFaceLoader::new(),
-            generics: GenericFonts::new(update_sender),
+            generics: GenericFonts::new(),
             prune_requested: false,
             font_aa: var(FontAntiAliasing::Default),
         }
@@ -171,7 +183,12 @@ impl Fonts {
     pub fn prune(&mut self) {
         if !self.prune_requested {
             self.prune_requested = true;
-            let _ = self.generics.update_sender.send_ext_update();
+            let _ = self
+                .generics
+                .update_sender
+                .as_ref()
+                .expect("`FontManager` not inited")
+                .send_ext_update();
         }
     }
 
@@ -246,8 +263,7 @@ impl Fonts {
 
     /// Gets all font families available in the system.
     pub fn system_fonts(&self) -> Vec<FontName> {
-        self.loader
-            .system_fonts
+        font_kit::source::SystemSource::new()
             .all_families()
             .unwrap_or_default()
             .into_iter()
@@ -1000,7 +1016,6 @@ impl<I: SliceIndex<[FontRef]>> std::ops::Index<I> for FontList {
 
 struct FontFaceLoader {
     custom_fonts: HashMap<FontName, Vec<FontFaceRef>>,
-    system_fonts: font_kit::source::SystemSource,
     system_fonts_cache: HashMap<FontName, Vec<SystemFontFace>>,
     #[cfg(debug_assertions)]
     not_found_names: linear_map::set::LinearSet<FontName>,
@@ -1015,7 +1030,6 @@ impl FontFaceLoader {
     fn new() -> Self {
         FontFaceLoader {
             custom_fonts: HashMap::new(),
-            system_fonts: font_kit::source::SystemSource::new(),
             system_fonts_cache: HashMap::new(),
             #[cfg(debug_assertions)]
             not_found_names: linear_map::set::LinearSet::new(),
@@ -1040,7 +1054,6 @@ impl FontFaceLoader {
     }
 
     fn on_refresh(&mut self) {
-        self.system_fonts = font_kit::source::SystemSource::new();
         for (_, sys_family) in self.system_fonts_cache.drain() {
             for sys_font in sys_family {
                 if let SystemFontFace::Found(_, _, _, ref_) = sys_font {
@@ -1204,8 +1217,7 @@ impl FontFaceLoader {
     ) -> Option<font_kit::handle::Handle> {
         let _span = tracing::trace_span!("FontFaceLoader::get_system").entered();
         let family_name = font_kit::family_name::FamilyName::from(font_name.clone());
-        match self
-            .system_fonts
+        match font_kit::source::SystemSource::new()
             .select_best_match(&[family_name], &font_kit::properties::Properties { style, weight, stretch })
         {
             Ok(handle) => Some(handle),
@@ -1399,12 +1411,12 @@ pub struct GenericFonts {
     cursive: LangMap<FontName>,
     fantasy: LangMap<FontName>,
     fallback: LangMap<FontName>,
-    update_sender: AppEventSender,
     updates: Vec<FontChangedArgs>,
+    update_sender: Option<AppEventSender>,
 }
 impl GenericFonts {
     #[allow(unused_mut)]
-    fn new(update_sender: AppEventSender) -> Self {
+    fn new() -> Self {
         fn default(name: impl Into<FontName>) -> LangMap<FontName> {
             let mut f = LangMap::with_capacity(1);
             f.insert(lang!(und), name.into());
@@ -1433,7 +1445,7 @@ impl GenericFonts {
 
             fallback: default(fallback),
 
-            update_sender,
+            update_sender: None,
             updates: vec![],
         }
     }
@@ -1506,7 +1518,7 @@ impl GenericFonts {
 
     fn notify(&mut self, change: FontChange) {
         if self.updates.is_empty() {
-            let _ = self.update_sender.send_ext_update();
+            let _ = self.update_sender.as_ref().expect("`FontManager` not inited").send_ext_update();
         }
         self.updates.push(FontChangedArgs::now(change));
     }
@@ -1664,7 +1676,8 @@ mod tests {
     #[test]
     fn generic_fonts_default() {
         let mut app = App::minimal().run_headless(false);
-        let gen = GenericFonts::new(app.ctx().updates.sender());
+        let mut gen = GenericFonts::new();
+        gen.update_sender = Some(app.ctx().updates.sender());
 
         assert_eq!(&FontName::sans_serif(), gen.sans_serif(&lang!(und)))
     }
@@ -1672,7 +1685,8 @@ mod tests {
     #[test]
     fn generic_fonts_fallback() {
         let mut app = App::minimal().run_headless(false);
-        let gen = GenericFonts::new(app.ctx().updates.sender());
+        let mut gen = GenericFonts::new();
+        gen.update_sender = Some(app.ctx().updates.sender());
 
         assert_eq!(&FontName::sans_serif(), gen.sans_serif(&lang!(en_US)));
         assert_eq!(&FontName::sans_serif(), gen.sans_serif(&lang!(es)));
@@ -1681,7 +1695,8 @@ mod tests {
     #[test]
     fn generic_fonts_get1() {
         let mut app = App::minimal().run_headless(false);
-        let mut gen = GenericFonts::new(app.ctx().updates.sender());
+        let mut gen = GenericFonts::new();
+        gen.update_sender = Some(app.ctx().updates.sender());
         gen.set_sans_serif(lang!(en_US), "Test Value");
 
         assert_eq!(gen.sans_serif(&lang!("en-US")), "Test Value");
@@ -1691,7 +1706,8 @@ mod tests {
     #[test]
     fn generic_fonts_get2() {
         let mut app = App::minimal().run_headless(false);
-        let mut gen = GenericFonts::new(app.ctx().updates.sender());
+        let mut gen = GenericFonts::new();
+        gen.update_sender = Some(app.ctx().updates.sender());
         gen.set_sans_serif(lang!(en), "Test Value");
 
         assert_eq!(gen.sans_serif(&lang!("en-US")), "Test Value");
@@ -1701,7 +1717,8 @@ mod tests {
     #[test]
     fn generic_fonts_get_best() {
         let mut app = App::minimal().run_headless(false);
-        let mut gen = GenericFonts::new(app.ctx().updates.sender());
+        let mut gen = GenericFonts::new();
+        gen.update_sender = Some(app.ctx().updates.sender());
         gen.set_sans_serif(lang!(en), "Test Value");
         gen.set_sans_serif(lang!(en_US), "Best");
 
@@ -1713,7 +1730,8 @@ mod tests {
     #[test]
     fn generic_fonts_get_no_lang_match() {
         let mut app = App::minimal().run_headless(false);
-        let mut gen = GenericFonts::new(app.ctx().updates.sender());
+        let mut gen = GenericFonts::new();
+        gen.update_sender = Some(app.ctx().updates.sender());
         gen.set_sans_serif(lang!(es_US), "Test Value");
 
         assert_eq!(gen.sans_serif(&lang!("en-US")), "sans-serif");

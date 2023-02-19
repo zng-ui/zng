@@ -18,8 +18,8 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|ctx| {
-        set_fallback_font(ctx);
+    App::default().run_window(|_| {
+        set_fallback_font();
 
         let calc = var(Calculator::default());
         window! {
@@ -233,10 +233,10 @@ impl Calculator {
 }
 
 /// set custom fallback font for the ⌫ symbol.
-fn set_fallback_font(ctx: &mut WindowContext) {
+fn set_fallback_font() {
     use zero_ui::core::text::*;
 
-    let fonts = Fonts::req(ctx.services);
+    let mut fonts = FONTS.write();
     let und = lang!(und);
     if fonts
         .list(

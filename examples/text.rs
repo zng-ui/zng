@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::text::{Fonts, UnderlinePosition, UnderlineSkip};
+use zero_ui::core::text::{UnderlinePosition, UnderlineSkip, FONTS};
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -17,7 +17,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|ctx| {
+    App::default().run_window(|_| {
         let fs = var(Length::Pt(11.0));
 
         window! {
@@ -34,7 +34,7 @@ fn app_main() {
                             spacing = 20;
                             children = ui_vec![
                                 basic(),
-                                defaults(ctx),
+                                defaults(),
                             ];
                         },
                         stack! {
@@ -256,11 +256,11 @@ fn decoration_lines() -> impl UiNode {
     )
 }
 
-fn defaults(ctx: &mut WindowContext) -> impl UiNode {
-    fn demo(ctx: &mut WindowContext, title: &str, font_family: impl Into<FontNames>) -> impl UiNode {
+fn defaults() -> impl UiNode {
+    fn demo(title: &str, font_family: impl Into<FontNames>) -> impl UiNode {
         let font_family = font_family.into();
 
-        let font = Fonts::req(ctx.services).list(
+        let font = FONTS.write().list(
             &font_family,
             FontStyle::Normal,
             FontWeight::NORMAL,
@@ -289,13 +289,13 @@ fn defaults(ctx: &mut WindowContext) -> impl UiNode {
         "defaults",
         ui_vec![
             // Generic
-            demo(ctx, "", FontName::serif()),
-            demo(ctx, "", FontName::sans_serif()),
-            demo(ctx, "", FontName::monospace()),
-            demo(ctx, "", FontName::cursive()),
-            demo(ctx, "", FontName::fantasy()),
-            demo(ctx, "Fallback", "not-a-font-get-fallback"),
-            demo(ctx, "UI", FontNames::default())
+            demo("", FontName::serif()),
+            demo("", FontName::sans_serif()),
+            demo("", FontName::monospace()),
+            demo("", FontName::cursive()),
+            demo("", FontName::fantasy()),
+            demo("Fallback", "not-a-font-get-fallback"),
+            demo("UI", FontNames::default())
         ],
     )
 }

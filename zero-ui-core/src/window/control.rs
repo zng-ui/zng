@@ -16,7 +16,7 @@ use crate::{
     event::{AnyEventArgs, EventHandles, EventUpdate},
     image::{Image, ImageVar, Images},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
-    text::Fonts,
+    text::FONTS,
     units::*,
     var::*,
     widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
@@ -1736,7 +1736,7 @@ impl ContentCtrl {
 
                 self.frame_id = self.frame_id.next();
 
-                let default_text_aa = ctx.services.get::<Fonts>().map(|f| f.system_font_aa().get()).unwrap_or_default();
+                let default_text_aa = FONTS.read().system_font_aa().get();
 
                 let mut frame = FrameBuilder::new(
                     self.frame_id,

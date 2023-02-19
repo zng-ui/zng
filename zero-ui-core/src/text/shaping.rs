@@ -2442,11 +2442,14 @@ mod tests {
     use crate::{app::App, context::LayoutDirection, text::*};
 
     fn test_font() -> FontRef {
-        let mut app = App::default().run_headless(false);
-        Fonts::req(&mut app)
+        let _app = App::default().run_headless(false);
+        let font = FONTS
+            .write()
             .normal(&FontName::sans_serif(), &lang!(und))
             .unwrap()
-            .sized(Px(20), vec![])
+            .sized(Px(20), vec![]);
+        drop(_app);
+        font
     }
 
     #[test]
@@ -2536,8 +2539,9 @@ mod tests {
 
     #[test]
     fn font_fallback_issue() {
-        let mut app = App::default().run_headless(false);
-        let font = Fonts::req(&mut app)
+        let _app = App::default().run_headless(false);
+        let font = FONTS
+            .write()
             .list(
                 &[FontName::new("Consolas"), FontName::monospace()],
                 FontStyle::Normal,
