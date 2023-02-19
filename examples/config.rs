@@ -19,8 +19,8 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|ctx| {
-        let cfg = Config::req(ctx);
+    App::default().run_window(|_| {
+        let mut cfg = CONFIG.write();
         cfg.load(ConfigFile::new("target/tmp/example.config.json"));
         // cfg.remove("old.key");
 

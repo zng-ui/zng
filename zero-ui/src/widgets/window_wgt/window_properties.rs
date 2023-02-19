@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 use crate::core::color::ColorScheme;
-use crate::core::config::{Config, ConfigKey};
+use crate::core::config::{ConfigKey, CONFIG};
 use crate::core::text::formatx;
 use crate::core::window::{
     AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState, WindowVars, Windows,
@@ -266,7 +266,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
     impl UiNode for SaveStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             if let Some(key) = self.enabled.window_key(ctx.path.window_id()) {
-                let rsp = Config::req(ctx.services).read(key);
+                let rsp = CONFIG.write().read(key);
                 let loading = self
                     .enabled
                     .loading_timeout()
@@ -306,7 +306,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                                     restore_rect: window_vars.restore_rect().get().cast(),
                                 };
 
-                                Config::req(ctx.services).write(key, cfg);
+                                CONFIG.write().write(key, cfg);
                             }
                             Task::Read { .. } => {
                                 // closing quick, ignore
