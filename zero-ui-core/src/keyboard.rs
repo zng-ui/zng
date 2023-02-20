@@ -11,7 +11,6 @@ use crate::app::view_process::{AnimationsConfig, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{raw_events::*, *};
 use crate::event::*;
 use crate::focus::FOCUS;
-use crate::service::*;
 use crate::units::*;
 use crate::var::{var, var_default, ArcVar, ReadOnlyArcVar, Var, Vars, WithVars};
 use crate::widget_info::InteractionPath;
@@ -185,16 +184,10 @@ event! {
 #[derive(Default)]
 pub struct KeyboardManager;
 impl AppExtension for KeyboardManager {
-    fn init(&mut self, r: &mut AppContext) {
-        let kb = Keyboard::new();
-        r.services.register(kb);
-    }
-
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
             let focused = FOCUS.read().focused().get();
-            let keyboard = Keyboard::req(ctx.services);
-            keyboard.key_input(ctx.events, ctx.vars, args, focused);
+            KEYBOARD.write().key_input(ctx.events, ctx.vars, args, focused);
         } else if let Some(args) = RAW_CHAR_INPUT_EVENT.on(update) {
             let focused = FOCUS.read().focused().get();
             if let Some(target) = focused {
@@ -203,16 +196,16 @@ impl AppExtension for KeyboardManager {
                 }
             }
         } else if let Some(args) = RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.on(update) {
-            let kb = Keyboard::req(ctx.services);
+            let mut kb = KEYBOARD.write();
             kb.repeat_config.set_ne(ctx.vars, args.config);
             kb.last_key_down = None;
         } else if let Some(args) = RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.on(update) {
-            let kb = Keyboard::req(ctx.services);
+            let kb = KEYBOARD.read();
             kb.caret_animation_config
                 .set_ne(ctx.vars, (args.config.caret_blink_interval, args.config.caret_blink_timeout));
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
-                let kb = Keyboard::req(ctx.services);
+                let mut kb = KEYBOARD.write();
 
                 kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
                 kb.current_modifiers.clear();
@@ -222,7 +215,7 @@ impl AppExtension for KeyboardManager {
                 kb.last_key_down = None;
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            let kb = Keyboard::req(ctx.services);
+            let mut kb = KEYBOARD.write();
             kb.repeat_config.set_ne(ctx.vars, args.key_repeat_config);
             kb.caret_animation_config.set_ne(
                 ctx.vars,
@@ -244,12 +237,20 @@ impl AppExtension for KeyboardManager {
     }
 }
 
+app_local! {
+    /// Keyboard service instance for the current app.
+    ///
+    /// This service is only active in apps running with the [`KeyboardManager`] extension.
+    ///
+    /// See [`Keyboard`] for service details.
+    pub static KEYBOARD: Keyboard = Keyboard::new();
+}
+
 /// Keyboard service.
 ///
 /// # Provider
 ///
-/// This service is provided by the [`KeyboardManager`] extension.
-#[derive(Service)]
+/// This service is provided by the [`KeyboardManager`] extension, the instance is in [`KEYBOARD`].
 pub struct Keyboard {
     current_modifiers: LinearSet<Key>,
 

@@ -729,10 +729,8 @@
 //!
 //! ## Services
 //!
-//! A service is a type with an instance registered in [`Services`]. The [`Services`] collection is available in most context structs,
-//! and service instances are usually registered during the app initialization by the app extensions, so services are singletons that
-//! represent a set of operations and states, it is a very generalized concept, for example, the [`Windows`] service is used to open
-//! and close windows, list the open windows and control if the app is exited when all windows are closed.
+//! A service is any type with a *single* [`app_local!`] instance. Services are usually backed by an app extension, serving as an extension 
+//! API that can be accessed anywhere in any app thread.
 //!
 //! ```
 //! # use zero_ui::prelude::*;
@@ -741,7 +739,7 @@
 //! button! {
 //!     child = text!("Open Window");
 //!     on_click = hn!(|ctx, _| {
-//!         Windows::req(ctx).open(|_| window! {
+//!         WINDOWS.write().open(|_| window! {
 //!             child = text!("Hello!");
 //!         });
 //!     });
@@ -749,21 +747,8 @@
 //! # ;
 //! ```
 //!
-//! The example above, requests the [`Windows`] service, and then creates an [`open`][win_open] request.
-//!
-//! Acquiring a service reference exclusively borrows the [`Services`], but you can borrow more then one service at the same time:
-//!
-//! ```
-//! # use zero_ui::prelude::*;
-//! # use zero_ui::core::keyboard::Keyboard;
-//! # use zero_ui::core::mouse::Mouse;
-//! # fn test(ctx: &mut WidgetContext) {
-//! let (mouse, keyboard) = <(Mouse, Keyboard)>::req(ctx);
-//! # }
-//! ```
-//!
-//! There is a quick runtime check that the types are not the same in this case, otherwise like borrowing a single service, it compiles
-//! down to a direct reference to the service instances.
+//! The example above gets an exclusive lock to the [`Windows`] service, and then creates an [`open`][win_open] request. Services
+//! follow this request pattern where the requests are processed only after every widget has finished the current update.
 //!
 //! You can learn more about services in the documentation of the **[`service`]** module.
 //!
