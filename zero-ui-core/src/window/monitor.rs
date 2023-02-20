@@ -52,7 +52,7 @@ app_local! {
     /// This service is only active in apps running with the [`WindowManager`] extension.
     ///
     /// See [`Monitors`] for service details.
-    /// 
+    ///
     /// [`WindowManager`]: crate::window::WindowManager
     pub static MONITORS: Monitors = Monitors::new();
 }

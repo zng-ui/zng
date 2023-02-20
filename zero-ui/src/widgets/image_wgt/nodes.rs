@@ -57,7 +57,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     parent: Some(ctx.path.window_id()),
                 });
             }
-            self.img = Images::req(ctx.services).image(source, mode, limits);
+            self.img = IMAGES.write().image(source, mode, limits);
 
             self.ctx_img.set(ctx.vars, self.img.get());
             self.ctx_binding = Some(self.img.bind(&self.ctx_img));
@@ -89,13 +89,13 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 };
                 let limits = IMAGE_LIMITS_VAR.get();
 
-                self.img = Images::req(ctx.services).image(source, mode, limits);
+                self.img = IMAGES.write().image(source, mode, limits);
 
                 self.ctx_img.set(ctx.vars, self.img.get());
                 self.ctx_binding = Some(self.img.bind(&self.ctx_img));
             } else if let Some(enabled) = IMAGE_CACHE_VAR.get_new(ctx) {
                 // cache-mode update:
-                let images = Images::req(ctx.services);
+                let mut images = IMAGES.write();
                 let is_cached = self.ctx_img.with(|img| images.is_cached(img));
                 if enabled != is_cached {
                     self.img = if is_cached {
@@ -108,7 +108,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
                         let source = self.source.get();
                         let limits = IMAGE_LIMITS_VAR.get();
-                        Images::req(ctx.services).image(source, ImageCacheMode::Cache, limits)
+                        images.image(source, ImageCacheMode::Cache, limits)
                     };
 
                     self.ctx_img.set(ctx.vars, self.img.get());

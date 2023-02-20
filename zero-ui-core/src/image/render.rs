@@ -3,7 +3,6 @@ use crate::{
     event::{AnyEventArgs, EventUpdate},
     property,
     render::RenderMode,
-    service::ServiceTuple,
     ui_node,
     units::*,
     var::{types::WeakArcVar, *},
@@ -11,7 +10,7 @@ use crate::{
     window::*,
 };
 
-use super::{Image, ImageManager, ImageVar, Images};
+use super::{Image, ImageManager, ImageVar, Images, IMAGES};
 
 impl Images {
     /// Render the *window* to an image.
@@ -24,7 +23,7 @@ impl Images {
     /// Requires the [`Windows`] service.
     pub fn render<N>(&mut self, render: N) -> ImageVar
     where
-        N: FnOnce(&mut WindowContext) -> Window + 'static,
+        N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
     {
         let result = var(Image::new_none(None));
         self.render_img(
@@ -42,13 +41,13 @@ impl Images {
 
     pub(super) fn render_img<N>(&mut self, render: N, result: &ArcVar<Image>)
     where
-        N: FnOnce(&mut WindowContext) -> Window + 'static,
+        N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
     {
         self.render.requests.push(RenderRequest {
             render: Box::new(render),
             image: result.downgrade(),
         });
-        let _ = self.updates.send_ext_update();
+        let _ = self.updates.as_ref().expect("`ImageManager` not inited").send_ext_update();
     }
 
     /// Render an [`UiNode`] to an image.
@@ -60,7 +59,7 @@ impl Images {
     pub fn render_node<U, N>(&mut self, render_mode: RenderMode, scale_factor: impl Into<Factor>, render: N) -> ImageVar
     where
         U: UiNode,
-        N: FnOnce(&mut WindowContext) -> U + 'static,
+        N: FnOnce(&mut WindowContext) -> U + Send + Sync + 'static,
     {
         let scale_factor = scale_factor.into();
         self.render(move |ctx| {
@@ -82,7 +81,8 @@ impl Images {
 impl ImageManager {
     /// AppExtension::update
     pub(super) fn update_render(&mut self, ctx: &mut AppContext) {
-        let (images, windows) = <(Images, Windows)>::req(ctx.services);
+        let mut images = IMAGES.write();
+        let windows = Windows::req(ctx.services);
 
         images.render.active.retain(|r| {
             let mut retain = false;
@@ -123,7 +123,7 @@ impl ImageManager {
                             image: img.downgrade(),
                             retain,
                         };
-                        Images::req(ctx.services).render.active.push(a);
+                        IMAGES.write().render.active.push(a);
 
                         w
                     },
@@ -137,7 +137,7 @@ impl ImageManager {
     pub(super) fn event_preview_render(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update) {
             if let Some(img) = &args.frame_image {
-                let imgs = Images::req(ctx.services);
+                let imgs = IMAGES.read();
                 if let Some(a) = imgs.render.active.iter().find(|a| a.window_id == args.window_id) {
                     if let Some(img_var) = a.image.upgrade() {
                         img_var.set(ctx.vars, img.clone());
@@ -163,7 +163,7 @@ struct ActiveRenderer {
 }
 
 struct RenderRequest {
-    render: Box<dyn FnOnce(&mut WindowContext) -> Window>,
+    render: Box<dyn FnOnce(&mut WindowContext) -> Window + Send + Sync>,
     image: WeakArcVar<Image>,
 }
 

@@ -1,7 +1,7 @@
 use zero_ui::{
     core::{
         app::{view_process::VIEW_PROCESS_INITED_EVENT, HeadlessApp},
-        image::{ImageDataFormat, Images},
+        image::{ImageDataFormat, IMAGES},
     },
     prelude::*,
 };
@@ -15,7 +15,7 @@ fn main() {
 }
 
 pub fn get_before_view_init(app: &mut HeadlessApp) {
-    let img = Images::req(app).cache(image());
+    let img = IMAGES.write().cache(image());
 
     assert!(img.get().is_loading());
 

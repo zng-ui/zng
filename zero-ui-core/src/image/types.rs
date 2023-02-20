@@ -28,7 +28,7 @@ pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
 /// Implementers can intercept cache requests and redirect to another cache request or returns an image directly.
 ///
 /// [`Images`]: super::Images
-pub trait ImageCacheProxy {
+pub trait ImageCacheProxy: Send + Sync {
     /// Intercept a get request.
     fn get(&mut self, key: &ImageHash, source: &ImageSource, mode: ImageCacheMode) -> ProxyGetResult {
         let _ = (key, source, mode);

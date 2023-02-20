@@ -2,7 +2,7 @@
 
 use zero_ui::core::task::http;
 use zero_ui::core::{
-    image::{ImageLimits, Images},
+    image::{ImageLimits, IMAGES},
     timer::Timers,
 };
 use zero_ui::prelude::*;
@@ -25,7 +25,7 @@ fn app_main() {
     App::default().run_window(|ctx| {
         // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
         // in here and overridden for each image with the "img_limits" property.
-        Images::req(ctx.services).limits.allow_uri = zero_ui::core::image::UriFilter::AllowAll;
+        IMAGES.write().limits.allow_uri = zero_ui::core::image::UriFilter::AllowAll;
 
         // setup a file cache so we don't download the images every run.
         http::set_default_client_init(move || {

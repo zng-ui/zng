@@ -74,7 +74,7 @@ pub fn image(source: impl IntoVar<ImageSource>) -> impl UiNode {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::image::Images;
+    use crate::core::image::IMAGES;
     use crate::prelude::*;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
@@ -86,7 +86,7 @@ mod tests {
         let img = var(crate::core::image::Image::dummy(Some("test error".to_string()))).read_only();
 
         let mut app = App::default().run_headless(false);
-        Images::req(&mut app).load_in_headless = true;
+        IMAGES.write().load_in_headless = true;
         let ok = Arc::new(AtomicBool::new(false));
         let window_id = app.open_window(clone_move!(ok, |_| {
             window! {

@@ -14,7 +14,7 @@ use crate::{
     context::{state_map, InfoLayoutRenderUpdates, LayoutContext, OwnedStateMap, WidgetUpdates, WindowContext, WindowRenderUpdate},
     crate_util::IdMap,
     event::{AnyEventArgs, EventHandles, EventUpdate},
-    image::{Image, ImageVar, Images},
+    image::{Image, ImageVar, IMAGES},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::FONTS,
     units::*,
@@ -300,13 +300,13 @@ impl HeadedCtrl {
 
                 self.icon = match ico {
                     WindowIcon::Default => None,
-                    WindowIcon::Image(ImageSource::Render(ico, _)) => Some(Images::req(ctx.services).cache(ImageSource::Render(
+                    WindowIcon::Image(ImageSource::Render(ico, _)) => Some(IMAGES.write().cache(ImageSource::Render(
                         ico.clone(),
                         Some(crate::image::ImageRenderArgs {
                             parent: Some(*ctx.window_id),
                         }),
                     ))),
-                    WindowIcon::Image(source) => Some(Images::req(ctx.services).cache(source)),
+                    WindowIcon::Image(source) => Some(IMAGES.write().cache(source)),
                 };
 
                 if let Some(ico) = &self.icon {

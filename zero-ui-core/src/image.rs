@@ -1,7 +1,18 @@
 //! Image loading and cache.
 
-use std::{cell::Cell, collections::HashMap, env, future::Future, mem, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap,
+    env,
+    future::Future,
+    mem,
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
+use parking_lot::Mutex;
 use zero_ui_view_api::IpcBytes;
 
 use crate::{
@@ -10,10 +21,10 @@ use crate::{
         view_process::{ViewImage, ViewProcess, ViewProcessOffline, VIEW_PROCESS_INITED_EVENT},
         AppEventSender, AppExtension,
     },
+    app_local,
     context::AppContext,
     crate_util::IdMap,
     event::EventUpdate,
-    service::Service,
     task::{self, fs, io::*, ui::UiTask},
     text::Text,
     units::*,
@@ -44,13 +55,14 @@ pub use render::{render_retain, ImageRenderVars};
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        let images = Images::new(ctx.services.get::<ViewProcess>().cloned(), ctx.updates.sender());
-        ctx.services.register(images);
+        IMAGES
+            .write()
+            .init(ctx.services.get::<ViewProcess>().cloned(), ctx.updates.sender());
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT.on(update) {
-            let images = Images::req(ctx.services);
+            let images = IMAGES.read();
 
             if let Some(var) = images
                 .decoding
@@ -65,7 +77,7 @@ impl AppExtension for ImageManager {
 
             // image finished decoding, remove from `decoding`
             // and notify image var value update.
-            let images = Images::req(ctx.services);
+            let mut images = IMAGES.write();
 
             if let Some(i) = images
                 .decoding
@@ -81,7 +93,7 @@ impl AppExtension for ImageManager {
 
             // image failed to decode, remove from `decoding`
             // and notify image var value update.
-            let images = Images::req(ctx.services);
+            let mut images = IMAGES.write();
 
             if let Some(i) = images
                 .decoding
@@ -95,7 +107,7 @@ impl AppExtension for ImageManager {
 
                     if let Some(k) = &img.cache_key {
                         if let Some(e) = images.cache.get(k) {
-                            e.error.set(true);
+                            e.error.store(true, Ordering::Relaxed);
                         }
                     }
 
@@ -107,7 +119,8 @@ impl AppExtension for ImageManager {
                 return;
             }
 
-            let images = Images::req(ctx.services);
+            let mut images = IMAGES.write();
+            let images = &mut *images;
             images.cleanup_not_cached(true);
             images.download_accept.clear();
             let vp = images.view.as_mut().unwrap();
@@ -168,15 +181,16 @@ impl AppExtension for ImageManager {
     fn update_preview(&mut self, ctx: &mut AppContext) {
         // update loading tasks:
 
-        let images = Images::req(ctx.services);
+        let mut images = IMAGES.write();
+        let images = &mut *images;
         let view = &images.view;
         let vars = ctx.vars;
         let decoding = &mut images.decoding;
         let mut loading = Vec::with_capacity(images.loading.len());
 
-        for (mut task, var, max_decoded_size) in mem::take(&mut images.loading) {
-            task.update();
-            match task.into_result() {
+        for (task, var, max_decoded_size) in mem::take(&mut images.loading) {
+            task.lock().update();
+            match task.into_inner().into_result() {
                 Ok(d) => {
                     match d.r {
                         Ok(data) => {
@@ -219,14 +233,14 @@ impl AppExtension for ImageManager {
                             // flag error for user retry
                             if let Some(k) = &var.with(|img| img.cache_key) {
                                 if let Some(e) = images.cache.get(k) {
-                                    e.error.set(true)
+                                    e.error.store(true, Ordering::Relaxed);
                                 }
                             }
                         }
                     }
                 }
                 Err(task) => {
-                    loading.push((task, var, max_decoded_size));
+                    loading.push((Mutex::new(task), var, max_decoded_size));
                 }
             }
         }
@@ -238,13 +252,21 @@ impl AppExtension for ImageManager {
     }
 }
 
+app_local! {
+    /// Images service instance for the current app.
+    ///
+    /// This service is only active in apps running with the [`ImageManager`] extension.
+    ///
+    /// See [`Images`] for service details.
+    pub static IMAGES: Images = Images::new();
+}
+
 /// The [`Image`] loading cache service.
 ///
 /// If the app is running without a [`ViewProcess`] all images are dummy, see [`load_in_headless`] for
 /// details.
 ///
 /// [`load_in_headless`]: Images::load_in_headless
-#[derive(Service)]
 pub struct Images {
     /// If should still download/read image bytes in headless/renderless mode.
     ///
@@ -262,10 +284,10 @@ pub struct Images {
 
     view: Option<ViewProcess>,
     download_accept: Text,
-    updates: AppEventSender,
+    updates: Option<AppEventSender>,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
 
-    loading: Vec<(UiTask<ImageData>, ArcVar<Image>, ByteLength)>,
+    loading: Vec<(Mutex<UiTask<ImageData>>, ArcVar<Image>, ByteLength)>,
     decoding: Vec<(ImageDataFormat, IpcBytes, ArcVar<Image>)>,
     cache: IdMap<ImageHash, CacheEntry>,
     not_cached: Vec<(WeakArcVar<Image>, ByteLength)>,
@@ -274,16 +296,16 @@ pub struct Images {
 }
 struct CacheEntry {
     img: ArcVar<Image>,
-    error: Cell<bool>,
+    error: AtomicBool,
     max_decoded_size: ByteLength,
 }
 impl Images {
-    fn new(view: Option<ViewProcess>, updates: AppEventSender) -> Self {
+    fn new() -> Self {
         Images {
             load_in_headless: false,
             limits: ImageLimits::default(),
-            view,
-            updates,
+            view: None,
+            updates: None,
             proxies: vec![],
             loading: vec![],
             decoding: vec![],
@@ -292,6 +314,11 @@ impl Images {
             not_cached: vec![],
             render: render::ImagesRender::default(),
         }
+    }
+
+    fn init(&mut self, view: Option<ViewProcess>, updates: AppEventSender) {
+        self.view = view;
+        self.updates = Some(updates);
     }
 
     /// Returns a dummy image that reports it is loaded or an error.
@@ -330,7 +357,7 @@ impl Images {
     /// # use zero_ui_core::{image::*, context::AppContext};
     /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
     /// # fn demo(ctx: &mut AppContext) {
-    /// let image_var = Images::req(ctx.services).from_static(include_bytes!("ico.png"), "png");
+    /// let image_var = IMAGES.write().from_static(include_bytes!("ico.png"), "png");
     /// # }
     pub fn from_static(&mut self, data: &'static [u8], format: impl Into<ImageDataFormat>) -> ImageVar {
         self.cache((data, format.into()))
@@ -387,7 +414,7 @@ impl Images {
             allow_uri: UriFilter::BlockAll,
         };
         let entry = CacheEntry {
-            error: Cell::new(image.is_error()),
+            error: AtomicBool::new(image.is_error()),
             img: var(Image::new(image)),
             max_decoded_size: limits.max_decoded_size,
         };
@@ -544,7 +571,7 @@ impl Images {
             }
             ImageCacheMode::Retry => {
                 if let Some(e) = self.cache.get(&key) {
-                    if !e.error.get() {
+                    if !e.error.load(Ordering::Relaxed) {
                         return e.img.read_only();
                     }
                 }
@@ -560,7 +587,7 @@ impl Images {
                 key,
                 CacheEntry {
                     img: dummy.clone(),
-                    error: Cell::new(false),
+                    error: AtomicBool::new(false),
                     max_decoded_size: limits.max_decoded_size,
                 },
             );
@@ -722,7 +749,7 @@ impl Images {
                 .entry(key)
                 .or_insert_with(|| CacheEntry {
                     img: var(Image::new_none(Some(key))),
-                    error: Cell::new(false),
+                    error: AtomicBool::new(false),
                     max_decoded_size,
                 })
                 .img
@@ -737,7 +764,7 @@ impl Images {
                 key,
                 CacheEntry {
                     img: img.clone(),
-                    error: Cell::new(false),
+                    error: AtomicBool::new(false),
                     max_decoded_size,
                 },
             );
@@ -755,8 +782,8 @@ impl Images {
     ) -> ImageVar {
         let img = self.new_cache_image(key, mode, max_decoded_size);
 
-        let task = UiTask::new(&self.updates, None, fetch_bytes);
-        self.loading.push((task, img.clone(), max_decoded_size));
+        let task = UiTask::new(self.updates.as_ref().expect("`ImageManager` not inited"), None, fetch_bytes);
+        self.loading.push((Mutex::new(task), img.clone(), max_decoded_size));
 
         img.read_only()
     }
