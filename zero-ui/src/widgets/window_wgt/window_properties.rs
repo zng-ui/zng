@@ -240,7 +240,7 @@ impl_from_and_into_var! {
 
 /// Save and restore the window state.
 ///
-/// If enabled a config entry is created for the window state in [`Config`], and if a config backend is set
+/// If enabled a config entry is created for the window state in [`CONFIG`], and if a config backend is set
 /// the window state is persisted and restored when the app reopens.
 ///
 /// This property is enabled by default in the `window!` widget, it is recommended to open the window with a name if

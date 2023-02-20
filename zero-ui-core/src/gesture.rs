@@ -1,6 +1,7 @@
 //! Aggregate events.
 
 use linear_map::{set::LinearSet, LinearMap};
+use parking_lot::Mutex;
 
 use crate::{
     app::*,
@@ -11,8 +12,6 @@ use crate::{
     focus::{Focus, FocusRequest, FocusTarget, FOCUS},
     keyboard::*,
     mouse::*,
-    service::Service,
-    service::ServiceTuple,
     units::DipPoint,
     var::{impl_from_and_into_var, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetPath},
@@ -20,11 +19,10 @@ use crate::{
     window::{WindowId, Windows},
 };
 use std::{
-    cell::RefCell,
     convert::{TryFrom, TryInto},
     fmt::{self, Display},
     num::NonZeroU32,
-    rc::Rc,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -748,10 +746,6 @@ event! {
 #[derive(Default)]
 pub struct GestureManager {}
 impl AppExtension for GestureManager {
-    fn init(&mut self, r: &mut AppContext) {
-        r.services.register(Gestures::new());
-    }
-
     fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = MOUSE_CLICK_EVENT.on(update) {
             // Generate click events from mouse clicks.
@@ -760,19 +754,27 @@ impl AppExtension for GestureManager {
             }
         } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
             // Generate shortcut events from keyboard input.
-            let mut focus = FOCUS.write();
-            let (gestures, windows) = <(Gestures, Windows)>::req(ctx.services);
-            gestures.on_key_input(ctx.events, &mut focus, windows, args);
+            let windows = Windows::req(ctx.services);
+            GESTURES.write().on_key_input(ctx.events, &mut FOCUS.write(), windows, args);
         } else if let Some(args) = SHORTCUT_EVENT.on(update) {
             // Run shortcut actions.
-            let mut focus = FOCUS.write();
-            let gestures = Gestures::req(ctx.services);
-            gestures.on_shortcut(ctx.events, &mut focus, args);
+            GESTURES.write().on_shortcut(ctx.events, &mut FOCUS.write(), args);
         }
     }
 }
 
-/// Gesture events configuration.
+app_local! {
+    /// Gestures service instance for the current app.
+    ///
+    /// This service is only active in apps running with the [`GestureManager`] extension.
+    ///
+    /// See [`Gestures`] for service details.
+    pub static GESTURES: Gestures = Gestures::new();
+}
+
+/// Gesture events config service.
+///
+/// This service is provided by [`GestureManager`] and the service instance is in [`GESTURES`].
 ///
 /// # Shortcuts
 ///
@@ -832,7 +834,6 @@ impl AppExtension for GestureManager {
 /// [`event_ui`]: AppExtension::event_ui
 /// [`event`]: AppExtension::event
 /// [`propagation`]: EventArgs::propagation
-#[derive(Service)]
 pub struct Gestures {
     /// Shortcuts that generate a primary [`CLICK_EVENT`] for the focused widget.
     /// The shortcut only works if no widget or command claims it.
@@ -860,18 +861,18 @@ pub struct Gestures {
     primed_starter: Option<KeyGesture>,
     chords: LinearMap<KeyGesture, LinearSet<KeyGesture>>,
 
-    primary_clicks: Vec<(Shortcut, Rc<ShortcutTarget>)>,
-    context_clicks: Vec<(Shortcut, Rc<ShortcutTarget>)>,
-    focus: Vec<(Shortcut, Rc<ShortcutTarget>)>,
+    primary_clicks: Vec<(Shortcut, Arc<ShortcutTarget>)>,
+    context_clicks: Vec<(Shortcut, Arc<ShortcutTarget>)>,
+    focus: Vec<(Shortcut, Arc<ShortcutTarget>)>,
 }
 struct ShortcutTarget {
     widget_id: WidgetId,
-    last_found: RefCell<Option<WidgetPath>>,
+    last_found: Mutex<Option<WidgetPath>>,
     handle: HandleOwner<()>,
 }
 impl ShortcutTarget {
     fn resolve_path(&self, windows: &mut Windows) -> Option<InteractionPath> {
-        let mut found = self.last_found.borrow_mut();
+        let mut found = self.last_found.lock();
         if let Some(found) = &mut *found {
             if let Ok(tree) = windows.widget_tree(found.window_id()) {
                 if let Some(w) = tree.get(found.widget_id()) {
@@ -930,9 +931,9 @@ impl Gestures {
         }
 
         let (owner, handle) = ShortcutsHandle::new();
-        let target = Rc::new(ShortcutTarget {
+        let target = Arc::new(ShortcutTarget {
             widget_id: target,
-            last_found: RefCell::new(None),
+            last_found: Mutex::new(None),
             handle: owner,
         });
 

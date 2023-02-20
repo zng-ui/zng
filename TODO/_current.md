@@ -14,6 +14,10 @@
         - Most services want it.
         - Maybe not, we are using then to validate extensions not inited.
     - Review extension docs about services they provide.
+    - Review extensions usage of services, used to have to pass then around as mutable params.
+    - Review service usage without any backing extension responding to requests.
+        - Some extensions like `Gestures` never panic when `GestureManager` is not running.
+        - Maybe print an error instead for those that panic.
 
 * Review all docs.
     - Mentions of threads in particular.
