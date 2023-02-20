@@ -7,7 +7,6 @@ use crate::{
     context::*,
     event::*,
     keyboard::{ModifiersState, MODIFIERS_CHANGED_EVENT},
-    service::*,
     units::*,
     var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfoTree, WidgetPath},
@@ -744,7 +743,8 @@ impl MouseManager {
         } else {
             DipPoint::default()
         };
-        let (windows, mouse) = <(Windows, Mouse)>::req(ctx.services);
+        let windows = Windows::req(ctx.services);
+        let mut mouse = MOUSE.write();
 
         let hits = self.pos_hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
 
@@ -973,7 +973,7 @@ impl MouseManager {
                 Err(_) => {
                     // window not found
                     if let Some(hovered) = self.hovered.take() {
-                        let capture = self.capture_info(Mouse::req(ctx.services));
+                        let capture = self.capture_info(&mut MOUSE.write());
                         let args = MouseHoverArgs::now(
                             window_id,
                             device_id,
@@ -1003,7 +1003,7 @@ impl MouseManager {
             }
             .unblocked();
 
-            let capture = self.capture_info(Mouse::req(ctx.services));
+            let capture = self.capture_info(&mut MOUSE.write());
 
             // mouse_enter/mouse_leave.
             let hovered_args = if self.hovered != target {
@@ -1084,7 +1084,7 @@ impl MouseManager {
     fn on_cursor_left_window(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
         if Some(window_id) == self.pos_window.take() {
             if let Some(path) = self.hovered.take() {
-                let capture = Mouse::req(ctx.services).current_capture().map(|(path, mode)| CaptureInfo {
+                let capture = MOUSE.read().current_capture().map(|(path, mode)| CaptureInfo {
                     target: path.clone(),
                     mode,
                 });
@@ -1112,7 +1112,7 @@ impl MouseManager {
     }
 
     fn release_window_capture(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        let mouse = Mouse::req(ctx.services);
+        let mut mouse = MOUSE.write();
         if let Some((path, _)) = mouse.current_capture() {
             if path.window_id() == window_id {
                 mouse.end_window_capture(ctx.events);
@@ -1123,15 +1123,17 @@ impl MouseManager {
 }
 impl AppExtension for MouseManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        ctx.services
-            .register(Mouse::new(ctx.updates.sender(), self.multi_click_config.clone()));
+        let mut mouse = MOUSE.write();
+        mouse.update_sender = Some(ctx.updates.sender());
+        mouse.multi_click_config = self.multi_click_config.clone();
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             // update hovered
             if self.pos_window == Some(args.window_id) {
-                let (windows, mouse) = <(Windows, Mouse)>::req(ctx.services);
+                let windows = Windows::req(ctx.services);
+                let mut mouse = MOUSE.write();
                 let frame_info = windows.widget_tree(args.window_id).unwrap();
                 let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
                 self.pos_hits = Some(pos_hits.clone());
@@ -1146,7 +1148,7 @@ impl AppExtension for MouseManager {
                 .unblocked();
 
                 if self.hovered != target {
-                    let capture = self.capture_info(mouse);
+                    let capture = self.capture_info(&mut mouse);
                     let prev = mem::replace(&mut self.hovered, target.clone());
                     let args = MouseHoverArgs::now(args.window_id, None, self.pos, pos_hits, prev, target, capture.clone(), capture);
                     MOUSE_HOVERED_EVENT.notify(ctx.events, args);
@@ -1154,7 +1156,8 @@ impl AppExtension for MouseManager {
             }
             // update capture
             if self.capture_count > 0 {
-                let (mouse, windows) = <(Mouse, Windows)>::req(ctx.services);
+                let mut mouse = MOUSE.write();
+                let windows = Windows::req(ctx.services);
                 if let Ok(frame) = windows.widget_tree(args.window_id) {
                     mouse.continue_capture(frame, ctx.events);
                 }
@@ -1182,7 +1185,7 @@ impl AppExtension for MouseManager {
             self.multi_click_config.set_ne(ctx.vars, args.multi_click_config);
 
             if args.is_respawn {
-                let mouse = Mouse::req(ctx.services);
+                let mut mouse = MOUSE.write();
 
                 if let Some(window_id) = self.pos_window.take() {
                     if let Some(path) = self.hovered.take() {
@@ -1259,9 +1262,7 @@ impl AppExtension for MouseManager {
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        let (mouse, windows) = <(Mouse, Windows)>::req(ctx.services);
-
-        mouse.fulfill_requests(windows, ctx.events);
+        MOUSE.write().fulfill_requests(Windows::req(ctx.services), ctx.events);
     }
 }
 
@@ -1284,6 +1285,15 @@ enum ClickState {
     },
 }
 
+app_local! {
+    /// Mouse service instance for the current app.
+    ///
+    /// This service is only active in apps running with the [`MouseManager`] extension.
+    ///
+    /// See [`Mouse`] for service details.
+    pub static MOUSE: Mouse = Mouse::new();
+}
+
 /// Mouse service.
 ///
 /// # Mouse Capture
@@ -1299,24 +1309,23 @@ enum ClickState {
 ///
 /// # Provider
 ///
-/// This service is provided by the [`MouseManager`] extension.
-#[derive(Service)]
+/// This service is provided by the [`MouseManager`] extension, the instance is in [`MOUSE`].
 pub struct Mouse {
     current_capture: Option<(WidgetPath, CaptureMode)>,
     capture_request: Option<(WidgetId, CaptureMode)>,
     release_requested: bool,
-    update_sender: AppEventSender,
+    update_sender: Option<AppEventSender>,
     multi_click_config: ArcVar<MultiClickConfig>,
     buttons: ArcVar<Vec<MouseButton>>,
 }
 impl Mouse {
-    fn new(update_sender: AppEventSender, multi_click_config: ArcVar<MultiClickConfig>) -> Self {
+    fn new() -> Self {
         Mouse {
             current_capture: None,
             capture_request: None,
             release_requested: false,
-            update_sender,
-            multi_click_config,
+            update_sender: None,
+            multi_click_config: var(MultiClickConfig::default()),
             buttons: var(vec![]),
         }
     }
@@ -1355,7 +1364,7 @@ impl Mouse {
     /// The capture will be set only if the pointer is currently pressed over the widget.
     pub fn capture_widget(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Widget));
-        let _ = self.update_sender.send_ext_update();
+        let _ = self.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
     }
 
     /// Set a widget to be the root of a capture subtree.
@@ -1366,7 +1375,7 @@ impl Mouse {
     /// The capture will be set only if the pointer is currently pressed over the widget.
     pub fn capture_subtree(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Subtree));
-        let _ = self.update_sender.send_ext_update();
+        let _ = self.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
     }
 
     /// Release the current mouse capture back to window.
@@ -1375,7 +1384,7 @@ impl Mouse {
     /// or when the window loses focus.
     pub fn release_capture(&mut self) {
         self.release_requested = true;
-        let _ = self.update_sender.send_ext_update();
+        let _ = self.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
     }
 
     /// Call when the mouse starts pressing on the window.

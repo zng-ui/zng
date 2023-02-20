@@ -729,7 +729,7 @@
 //!
 //! ## Services
 //!
-//! A service is any type with a *single* [`app_local!`] instance. Services are usually backed by an app extension, serving as an extension 
+//! A service is any type with a *single* [`app_local!`] instance. Services are usually backed by an app extension, serving as an extension
 //! API that can be accessed anywhere in any app thread.
 //!
 //! ```

@@ -1,4 +1,4 @@
-use crate::core::mouse::{CaptureMode, Mouse, MOUSE_INPUT_EVENT};
+use crate::core::mouse::{CaptureMode, MOUSE, MOUSE_INPUT_EVENT};
 use crate::prelude::new_property::*;
 
 use crate::core::task::parking_lot::Mutex;
@@ -46,7 +46,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                 if args.is_mouse_down() {
-                    let mouse = Mouse::req(ctx.services);
+                    let mut mouse = MOUSE.write();
                     let widget_id = ctx.path.widget_id();
 
                     match self.mode.get() {
@@ -71,7 +71,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                     .map(|w| w.interactivity().is_enabled())
                     .unwrap_or(false)
                 {
-                    let mouse = Mouse::req(ctx.services);
+                    let mut mouse = MOUSE.write();
                     let widget_id = ctx.path.widget_id();
                     if let Some((current, _)) = mouse.current_capture() {
                         if current.widget_id() == widget_id {
