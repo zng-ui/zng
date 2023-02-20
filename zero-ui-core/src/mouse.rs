@@ -11,7 +11,7 @@ use crate::{
     var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
-    window::{WindowId, Windows},
+    window::{WindowId, Windows, WINDOWS},
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 
@@ -743,7 +743,7 @@ impl MouseManager {
         } else {
             DipPoint::default()
         };
-        let windows = Windows::req(ctx.services);
+        let windows = WINDOWS.read();
         let mut mouse = MOUSE.write();
 
         let hits = self.pos_hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
@@ -965,9 +965,8 @@ impl MouseManager {
 
             self.pos = position;
 
-            let windows = Windows::req(ctx.services);
-
             // mouse_move data
+            let windows = WINDOWS.read();
             let frame_info = match windows.widget_tree(window_id) {
                 Ok(f) => f,
                 Err(_) => {
@@ -1053,10 +1052,9 @@ impl MouseManager {
             DipPoint::default()
         };
 
-        let windows = Windows::req(ctx.services);
-
         let hits = self.pos_hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
 
+        let windows = WINDOWS.read();
         let frame_info = windows.widget_tree(window_id).unwrap();
 
         let target = hits
@@ -1132,7 +1130,7 @@ impl AppExtension for MouseManager {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             // update hovered
             if self.pos_window == Some(args.window_id) {
-                let windows = Windows::req(ctx.services);
+                let windows = WINDOWS.read();
                 let mut mouse = MOUSE.write();
                 let frame_info = windows.widget_tree(args.window_id).unwrap();
                 let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
@@ -1157,8 +1155,7 @@ impl AppExtension for MouseManager {
             // update capture
             if self.capture_count > 0 {
                 let mut mouse = MOUSE.write();
-                let windows = Windows::req(ctx.services);
-                if let Ok(frame) = windows.widget_tree(args.window_id) {
+                if let Ok(frame) = WINDOWS.read().widget_tree(args.window_id) {
                     mouse.continue_capture(frame, ctx.events);
                 }
             }
@@ -1262,7 +1259,7 @@ impl AppExtension for MouseManager {
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        MOUSE.write().fulfill_requests(Windows::req(ctx.services), ctx.events);
+        MOUSE.write().fulfill_requests(&WINDOWS.read(), ctx.events);
     }
 }
 

@@ -2,7 +2,7 @@
 
 use crate::{context::WindowContext, event::*, gesture::*, var::*};
 
-use super::{WindowId, WindowState, WindowVars, Windows};
+use super::{WindowId, WindowState, WindowVars, WINDOWS};
 
 command! {
     /// Represents the window **close** action.
@@ -101,7 +101,7 @@ impl WindowCommands {
             });
         } else if let Some(args) = CLOSE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.close_handle, |_| {
-                let _ = Windows::req(ctx.services).close(scope);
+                let _ = WINDOWS.write().close(scope);
             });
         } else if let Some(args) = FULLSCREEN_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.fullscreen_handle, |_| {

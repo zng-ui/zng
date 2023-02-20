@@ -84,7 +84,7 @@ impl AppExtension for AppIntrinsic {
 app_local! {
     /// App process service instance for the current app.
     ///
-    /// See [`Mouse`] for service details.
+    /// See [`AppProcess`] for service details.
     pub static APP_PROCESS: AppProcess = AppProcess::new();
 }
 

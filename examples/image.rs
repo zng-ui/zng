@@ -246,8 +246,8 @@ fn sprite(timers: &mut Timers) -> impl UiNode {
 fn large_image() -> impl UiNode {
     button! {
         child = text!("Large Image (205MB download)");
-        on_click = hn!(|ctx, _| {
-            Windows::req(ctx.services).open(|_|img_window(
+        on_click = hn!(|_, _| {
+            WINDOWS.write().open(|_|img_window(
                 "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
                 image! {
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
@@ -265,8 +265,8 @@ fn large_image() -> impl UiNode {
 fn panorama_image() -> impl UiNode {
     button! {
         child = text!("Panorama Image (100MB download)");
-        on_click = hn!(|ctx, _| {
-            Windows::req(ctx.services).open(|_|img_window(
+        on_click = hn!(|_, _| {
+            WINDOWS.write().open(|_|img_window(
                 "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
                 scroll! {
                     mode = ScrollMode::HORIZONTAL;
@@ -291,7 +291,7 @@ fn block_window_load_image() -> impl UiNode {
         enabled = enabled.clone();
         on_click = hn!(|ctx, _| {
             enabled.set(ctx, false);
-            Windows::req(ctx.services).open(clone_move!(enabled, |_| img_window! {
+            WINDOWS.write().open(clone_move!(enabled, |_| img_window! {
                 title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
                 state = WindowState::Normal;
 

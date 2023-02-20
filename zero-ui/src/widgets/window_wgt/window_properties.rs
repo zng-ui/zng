@@ -5,8 +5,8 @@ use crate::core::color::ColorScheme;
 use crate::core::config::{ConfigKey, CONFIG};
 use crate::core::text::formatx;
 use crate::core::window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState, WindowVars, Windows,
-    MONITORS, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT,
+    AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState, WindowVars, MONITORS,
+    WINDOWS, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
@@ -270,7 +270,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                 let loading = self
                     .enabled
                     .loading_timeout()
-                    .and_then(|t| Windows::req(ctx.services).loading_handle(ctx.path.window_id(), t));
+                    .and_then(|t| WINDOWS.write().loading_handle(ctx.path.window_id(), t));
                 rsp.subscribe(ctx.path.widget_id()).perm();
                 self.task = Task::Read { rsp, loading };
             }

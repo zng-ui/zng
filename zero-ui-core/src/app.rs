@@ -608,9 +608,6 @@ fn check_deadlock() {
         return;
     }
 
-    #[cfg(not(feature = "test_util"))]
-    println!("deadlock detection enabled, 10s interval");
-
     thread::spawn(|| loop {
         thread::sleep(Duration::from_secs(10));
 

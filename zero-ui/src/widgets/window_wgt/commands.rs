@@ -23,7 +23,7 @@ pub(super) fn inspect_node(
         inspector::prompt::WriteTreeState,
         text::Text,
         var::var,
-        window::{WindowId, Windows},
+        window::{WindowId, WINDOWS},
     };
 
     let mut inspector_state = WriteTreeState::new();
@@ -50,9 +50,9 @@ pub(super) fn inspect_node(
                 inspector_text.set_ne(ctx, txt);
                 let inspected = ctx.path.window_id();
 
-                Windows::req(ctx).focus_or_open(
+                WINDOWS.write().focus_or_open(
                     inspector,
-                    clone_move!(inspector_text, |ctx| { inspector_window::new(ctx, inspected, inspector_text) }),
+                    clone_move!(inspector_text, |_| { inspector_window::new(inspected, inspector_text) }),
                 );
             }
         }),
@@ -64,10 +64,10 @@ mod inspector_window {
     use crate::core::{inspector::*, window::*};
     use crate::prelude::new_widget::*;
 
-    pub fn new(ctx: &mut WindowContext, inspected: WindowId, inspector_text: ArcVar<Text>) -> Window {
+    pub fn new(inspected: WindowId, inspector_text: ArcVar<Text>) -> Window {
         use crate::widgets::*;
 
-        let windows = Windows::req(ctx.services);
+        let windows = WINDOWS.read();
 
         let parent = windows.vars(inspected).unwrap().parent().get().unwrap_or(inspected);
 

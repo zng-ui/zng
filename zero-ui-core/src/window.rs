@@ -54,7 +54,7 @@ use crate::{
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        ctx.services.register(Windows::new(ctx.updates.sender()));
+        WINDOWS.write().init(ctx.updates.sender());
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
@@ -115,10 +115,10 @@ pub trait AppRunWindowExt {
     /// Which is a shortcut for:
     /// ```no_run
     /// # use zero_ui_core::app::App;
-    /// # use zero_ui_core::window::Windows;
+    /// # use zero_ui_core::window::WINDOWS;
     /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
-    /// App::default().run(|ctx| {
-    ///     Windows::req(ctx.services).open(|ctx| {
+    /// App::default().run(|_| {
+    ///     WINDOWS.write().open(|ctx| {
     ///         println!("starting app with window {:?}", ctx.window_id);
     ///         window! {
     ///             title = "Window 1";
@@ -127,12 +127,12 @@ pub trait AppRunWindowExt {
     ///     });
     /// })   
     /// ```
-    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static);
+    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static);
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
-    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) {
-        self.run(|ctx| {
-            Windows::req(ctx).open(new_window);
+    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) {
+        self.run(|_| {
+            WINDOWS.write().open(new_window);
         })
     }
 }
@@ -147,7 +147,7 @@ pub trait HeadlessAppWindowExt {
     /// The `new_window` argument is the [`WindowContext`] of the new window.
     ///
     /// Returns the [`WindowId`] of the new window.
-    fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId;
+    fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> WindowId;
 
     /// Cause the headless window to think it is focused in the screen.
     fn focus_window(&mut self, window_id: WindowId);
@@ -163,11 +163,11 @@ pub trait HeadlessAppWindowExt {
     fn close_window(&mut self, window_id: WindowId) -> bool;
 
     /// Open a new headless window and update the app until the window closes.
-    fn run_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static);
+    fn run_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static);
 }
 impl HeadlessAppWindowExt for HeadlessApp {
-    fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
-        let response = Windows::req(self).open(new_window);
+    fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> WindowId {
+        let response = WINDOWS.write().open(new_window);
         self.run_task(move |ctx| async move {
             response.wait_rsp(&ctx).await;
             response.rsp().unwrap().window_id
@@ -188,7 +188,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
     }
 
     fn window_frame_image(&mut self, window_id: WindowId) -> ImageVar {
-        Windows::req(self).frame_image(window_id)
+        WINDOWS.write().frame_image(window_id)
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
@@ -216,9 +216,9 @@ impl HeadlessAppWindowExt for HeadlessApp {
         closed
     }
 
-    fn run_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) {
+    fn run_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) {
         let window_id = self.open_window(new_window);
-        while Windows::req(self).is_open(window_id) {
+        while WINDOWS.read().is_open(window_id) {
             if let ControlFlow::Exit = self.update(true) {
                 return;
             }

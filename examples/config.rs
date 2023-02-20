@@ -99,7 +99,7 @@ fn app_main() {
                         if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
                             let pos = DipPoint::new(Dip::new(x), Dip::new(y));
                             WindowVars::req(&ctx.window_state).position().set(ctx.vars, pos);
-                            Windows::req(ctx.services).focus(ctx.path.window_id()).unwrap();
+                            WINDOWS.write().focus(ctx.path.window_id()).unwrap();
                         }
                     }
                 }

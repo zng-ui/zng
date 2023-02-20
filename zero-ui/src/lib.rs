@@ -713,7 +713,7 @@
 //! # static FOO_ID: zero_ui::core::context::StaticStateId<bool> = zero_ui::core::context::StaticStateId::new_unique();
 //! hn!(|ctx, _| {
 //!     let value_ref = foo_var.get();
-//!     let service_ref = Windows::req(ctx.services);
+//!     let service_ref = WINDOWS.read();
 //!     let state_ref = ctx.widget_state.get(&FOO_ID);
 //! })
 //! # }
@@ -854,6 +854,7 @@
 //! [`Services`]: crate::core::service::Services
 //! [`Windows`]: crate::core::window::Windows
 //! [win_open]: crate::core::window::Windows::open
+//! [`app_local!`]: crate::core::app::app_local
 
 // to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]
@@ -941,7 +942,7 @@ pub mod prelude {
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition, Window,
             WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowState, WindowVars,
-            Windows,
+            WINDOWS,
         },
     };
 

@@ -93,8 +93,8 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             // New Window
             button! {
                 child = text!("New Window");
-                on_click = hn!(|ctx, _| {
-                    Windows::req(ctx.services).open(|ctx| {
+                on_click = hn!(|_, _| {
+                    WINDOWS.write().open(|ctx| {
                         let _ = ctx.window_id.set_name("other");
                         window! {
                             title = "Other Window";
@@ -122,9 +122,9 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
                     let btn = button! {
                         child = text!("Detach Button");
                         // focus_on_init = true;
-                        on_click = hn!(|ctx, _| {
+                        on_click = hn!(|_, _| {
                             let wwk = wk.clone();
-                            Windows::req(ctx.services).open(move |_| {
+                            WINDOWS.write().open(move |_| {
                                 window! {
                                     title = "Detached Button";
                                     child_align = Align::CENTER;
@@ -327,7 +327,7 @@ fn commands() -> impl UiNode {
 
 fn trace_focus() {
     FOCUS_CHANGED_EVENT
-        .on_pre_event(app_hn!(|ctx, args: &FocusChangedArgs, _| {
+        .on_pre_event(app_hn!(|_, args: &FocusChangedArgs, _| {
             if args.is_hightlight_changed() {
                 println!("highlight: {}", args.highlight);
             } else if args.is_widget_move() {
@@ -335,11 +335,7 @@ fn trace_focus() {
             } else if args.is_enabled_change() {
                 println!("focused {:?} enabled/disabled", args.new_focus.as_ref().unwrap());
             } else {
-                println!(
-                    "{} -> {}",
-                    inspect::focus(ctx.services, &args.prev_focus),
-                    inspect::focus(ctx.services, &args.new_focus)
-                );
+                println!("{} -> {}", inspect::focus(&args.prev_focus), inspect::focus(&args.new_focus));
             }
         }))
         .perm();
@@ -349,9 +345,9 @@ fn nested_focusables() -> impl UiNode {
     button! {
         child = text!("Nested Focusables");
 
-        on_click = hn!(|ctx, args: &ClickArgs| {
+        on_click = hn!(|_, args: &ClickArgs| {
             args.propagation().stop();
-            Windows::req(ctx.services).focus_or_open("nested-focusables", |_| {
+            WINDOWS.write().focus_or_open("nested-focusables", |_| {
                 window! {
                     title = "Focus Example - Nested Focusables";
 
@@ -419,10 +415,11 @@ mod inspect {
     use zero_ui::core::focus::WidgetInfoFocusExt;
     use zero_ui::core::inspector::WidgetInfoInspectorExt;
 
-    pub fn focus(services: &mut Services, path: &Option<InteractionPath>) -> String {
+    pub fn focus(path: &Option<InteractionPath>) -> String {
         path.as_ref()
             .map(|p| {
-                let frame = if let Ok(w) = Windows::req(services).widget_tree(p.window_id()) {
+                let windows = WINDOWS.read();
+                let frame = if let Ok(w) = windows.widget_tree(p.window_id()) {
                     w
                 } else {
                     return format!("<{p}>");

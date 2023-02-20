@@ -16,7 +16,7 @@ use crate::{
     var::{impl_from_and_into_var, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetPath},
     widget_instance::WidgetId,
-    window::{WindowId, Windows},
+    window::{WindowId, Windows, WINDOWS},
 };
 use std::{
     convert::{TryFrom, TryInto},
@@ -754,8 +754,9 @@ impl AppExtension for GestureManager {
             }
         } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
             // Generate shortcut events from keyboard input.
-            let windows = Windows::req(ctx.services);
-            GESTURES.write().on_key_input(ctx.events, &mut FOCUS.write(), windows, args);
+            GESTURES
+                .write()
+                .on_key_input(ctx.events, &mut FOCUS.write(), &mut WINDOWS.write(), args);
         } else if let Some(args) = SHORTCUT_EVENT.on(update) {
             // Run shortcut actions.
             GESTURES.write().on_shortcut(ctx.events, &mut FOCUS.write(), args);

@@ -28,7 +28,7 @@ use super::{
     commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
     FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, TransformChangedArgs, Window, WindowChangedArgs,
     WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, Windows, FRAME_IMAGE_READY_EVENT, MONITORS_CHANGED_EVENT,
-    TRANSFORM_CHANGED_EVENT, WINDOW_CHANGED_EVENT,
+    TRANSFORM_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -36,7 +36,7 @@ struct HeadedCtrl {
     window_id: WindowId,
     window: Option<ViewWindow>,
     waiting_view: bool,
-    delayed_view_updates: Vec<Box<dyn FnOnce(&ViewWindow)>>,
+    delayed_view_updates: Vec<Box<dyn FnOnce(&ViewWindow) + Send>>,
     vars: WindowVars,
     respawned: bool,
 
@@ -94,7 +94,7 @@ impl HeadedCtrl {
         }
     }
 
-    fn update_gen(&mut self, update: impl FnOnce(&ViewWindow) + 'static) {
+    fn update_gen(&mut self, update: impl FnOnce(&ViewWindow) + Send + 'static) {
         if let Some(view) = &self.window {
             // view is online, just update.
             update(view);
@@ -374,7 +374,7 @@ impl HeadedCtrl {
             }
 
             if let Some(indicator) = self.vars.focus_indicator().get_new(ctx) {
-                if Windows::req(ctx.services).is_focused(*ctx.window_id).unwrap_or(false) {
+                if WINDOWS.read().is_focused(*ctx.window_id).unwrap_or(false) {
                     self.vars.focus_indicator().set_ne(ctx, None);
                 } else if let Some(view) = &self.window {
                     let _ = view.set_focus_indicator(indicator);
@@ -388,7 +388,7 @@ impl HeadedCtrl {
             if update_parent(ctx, &mut self.actual_parent, &self.vars) {
                 self.parent_color_scheme = self
                     .actual_parent
-                    .and_then(|id| Windows::req(ctx.services).vars(id).ok().map(|v| v.actual_color_scheme()));
+                    .and_then(|id| WINDOWS.read().vars(id).ok().map(|v| v.actual_color_scheme()));
                 update_color_scheme = true;
             }
 
@@ -525,7 +525,7 @@ impl HeadedCtrl {
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus == Some(self.window_id) {
                 self.vars.0.children.with(|c| {
-                    let w = Windows::req(ctx.services);
+                    let mut w = WINDOWS.write();
                     for &c in c {
                         let _ = w.bring_to_top(c);
                     }
@@ -533,7 +533,7 @@ impl HeadedCtrl {
             } else if let Some(new_focus) = args.new_focus {
                 self.vars.0.children.with(|c| {
                     if c.contains(&new_focus) {
-                        let w = Windows::req(ctx.services);
+                        let mut w = WINDOWS.write();
                         let _ = w.bring_to_top(self.window_id);
 
                         for c in c {
@@ -558,7 +558,7 @@ impl HeadedCtrl {
             if args.window_id == self.window_id {
                 self.waiting_view = false;
 
-                Windows::req(ctx.services).set_renderer(*ctx.window_id, args.window.renderer());
+                WINDOWS.write().set_renderer(*ctx.window_id, args.window.renderer());
 
                 self.window = Some(args.window.clone());
                 self.vars.0.render_mode.set_ne(ctx, args.data.render_mode);
@@ -708,7 +708,7 @@ impl HeadedCtrl {
         }
 
         // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
-        if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
+        if !WINDOWS.write().try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
             // block on loading handles.
             return;
         }
@@ -738,7 +738,7 @@ impl HeadedCtrl {
                 let mut parent_rect = screen_rect;
 
                 if let Some(parent) = self.vars.parent().get() {
-                    if let Ok(w) = Windows::req(ctx.services).vars(parent) {
+                    if let Ok(w) = WINDOWS.read().vars(parent) {
                         let factor = w.scale_factor().get();
                         let pos = w.actual_position().get().to_px(factor.0);
                         let size = w.actual_size().get().to_px(factor.0);
@@ -784,7 +784,7 @@ impl HeadedCtrl {
             cursor: self.vars.cursor().get(),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
-            render_mode: self.render_mode.unwrap_or_else(|| Windows::req(ctx.services).default_render_mode),
+            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode),
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
@@ -894,9 +894,9 @@ impl HeadedCtrl {
             cursor: self.vars.cursor().get(),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
-            render_mode: self.render_mode.unwrap_or_else(|| Windows::req(ctx.services).default_render_mode),
+            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode),
 
-            focus: Windows::req(ctx.services).is_focused(self.window_id).unwrap_or(false),
+            focus: WINDOWS.read().is_focused(self.window_id).unwrap_or(false),
             focus_indicator: self.vars.focus_indicator().get(),
         };
 
@@ -961,7 +961,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                     return false;
                 }
 
-                let windows = Windows::req(ctx.services);
+                let windows = WINDOWS.read();
                 if let Ok(parent_vars) = windows.vars(parent_id) {
                     // redirect to parent's parent.
                     if let Some(grand) = parent_vars.parent().get() {
@@ -1000,7 +1000,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
             }
             None => {
                 if let Some(parent_id) = parent.take() {
-                    if let Ok(parent_vars) = Windows::req(ctx.services).vars(parent_id) {
+                    if let Ok(parent_vars) = WINDOWS.read().vars(parent_id) {
                         let id = *ctx.window_id;
                         parent_vars.0.children.modify(ctx.vars, move |c| {
                             c.to_mut().remove(&id);
@@ -1022,7 +1022,7 @@ struct HeadlessWithRendererCtrl {
     window_id: WindowId,
     surface: Option<ViewHeadless>,
     waiting_view: bool,
-    delayed_view_updates: Vec<Box<dyn FnOnce(&ViewHeadless)>>,
+    delayed_view_updates: Vec<Box<dyn FnOnce(&ViewHeadless) + Send>>,
     vars: WindowVars,
     content: ContentCtrl,
 
@@ -1076,7 +1076,7 @@ impl HeadlessWithRendererCtrl {
         }
 
         if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
-            self.var_bindings = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
+            self.var_bindings = update_headless_vars(ctx.vars, &mut WINDOWS.write(), self.headless_monitor.scale_factor, &self.vars);
         }
 
         self.content.update(ctx, updates);
@@ -1091,7 +1091,7 @@ impl HeadlessWithRendererCtrl {
             if args.window_id == *ctx.window_id {
                 self.waiting_view = false;
 
-                Windows::req(ctx.services).set_renderer(args.window_id, args.surface.renderer());
+                WINDOWS.write().set_renderer(args.window_id, args.surface.renderer());
 
                 self.surface = Some(args.surface.clone());
                 self.vars.0.render_mode.set_ne(ctx.vars, args.data.render_mode);
@@ -1180,12 +1180,12 @@ impl HeadlessWithRendererCtrl {
         } else if !self.waiting_view {
             // (re)spawn the view surface:
 
-            if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
+            if !WINDOWS.write().try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
                 return;
             }
 
             let window_id = *ctx.window_id;
-            let render_mode = self.render_mode.unwrap_or_else(|| Windows::req(ctx.services).default_render_mode);
+            let render_mode = self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode);
 
             let r = ViewProcess::req(ctx.services).open_headless(HeadlessRequest {
                 id: window_id.get(),
@@ -1318,7 +1318,7 @@ impl HeadlessCtrl {
         }
 
         if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
-            self.var_bindings = update_headless_vars(ctx.vars, Windows::req(ctx.services), self.headless_monitor.scale_factor, &self.vars);
+            self.var_bindings = update_headless_vars(ctx.vars, &mut WINDOWS.write(), self.headless_monitor.scale_factor, &self.vars);
         }
 
         self.content.update(ctx, updates);
@@ -1342,7 +1342,7 @@ impl HeadlessCtrl {
             return;
         }
 
-        if !Windows::req(ctx.services).try_load(ctx.vars, ctx.events, ctx.timers, *ctx.window_id) {
+        if !WINDOWS.write().try_load(ctx.vars, ctx.events, ctx.timers, *ctx.window_id) {
             return;
         }
 
@@ -1428,7 +1428,7 @@ impl HeadlessSimulator {
 
     pub fn focus(&mut self, ctx: &mut WindowContext) {
         let mut prev = None;
-        if let Some(id) = Windows::req(ctx.services).focused_window_id() {
+        if let Some(id) = WINDOWS.read().focused_window_id() {
             prev = Some(id);
         }
         let args = RawWindowFocusArgs::now(prev, Some(*ctx.window_id));
@@ -1563,7 +1563,9 @@ impl ContentCtrl {
             self.info_tree = info.clone();
             self.used_info_builder = Some(used);
 
-            Windows::req(ctx.services).set_widget_tree(ctx.events, info, self.layout_requested, !self.render_requested.is_none());
+            WINDOWS
+                .write()
+                .set_widget_tree(ctx.events, info, self.layout_requested, !self.render_requested.is_none());
         }
     }
 

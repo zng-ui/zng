@@ -80,9 +80,9 @@ impl Images {
 
 impl ImageManager {
     /// AppExtension::update
-    pub(super) fn update_render(&mut self, ctx: &mut AppContext) {
+    pub(super) fn update_render(&mut self) {
         let mut images = IMAGES.write();
-        let windows = Windows::req(ctx.services);
+        let mut windows = WINDOWS.write();
 
         images.render.active.retain(|r| {
             let mut retain = false;

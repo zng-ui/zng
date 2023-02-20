@@ -247,8 +247,8 @@ impl AppExtension for ImageManager {
         images.loading = loading;
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        self.update_render(ctx);
+    fn update(&mut self, _: &mut AppContext) {
+        self.update_render();
     }
 }
 

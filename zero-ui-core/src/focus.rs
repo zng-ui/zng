@@ -98,7 +98,7 @@ use crate::{
     var::{var, AnyVar, ArcVar, ReadOnlyArcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
     widget_instance::WidgetId,
-    window::{WindowId, Windows, WIDGET_INFO_CHANGED_EVENT, WINDOW_FOCUS_CHANGED_EVENT},
+    window::{WindowId, Windows, WIDGET_INFO_CHANGED_EVENT, WINDOWS, WINDOW_FOCUS_CHANGED_EVENT},
 };
 
 use std::{
@@ -442,12 +442,11 @@ impl AppExtension for FocusManager {
         } else {
             // update visibility or enabled commands, they may have changed if the `spatial_frame_id` changed.
             let focus = FOCUS.read();
-            let windows = Windows::req(ctx.services);
             let mut invalidated_cmds_or_focused = None;
 
             if let Some(f) = &focus.focused {
                 let w_id = f.path.window_id();
-                if let Ok(tree) = windows.widget_tree(w_id) {
+                if let Ok(tree) = WINDOWS.read().widget_tree(w_id) {
                     if focus.enabled_nav.needs_refresh(tree) {
                         invalidated_cmds_or_focused = Some(tree.clone());
                     }
@@ -472,13 +471,13 @@ impl AppExtension for FocusManager {
         } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
             // foreground window maybe changed
             let mut focus = FOCUS.write();
-            let windows = Windows::req(ctx.services);
+            let mut windows = WINDOWS.write();
             if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
                 if args.is_focus(window_id) {
                     request = Some(FocusRequest::direct(widget_id, highlight));
                 }
-            } else if let Some(args) = focus.continue_focus(ctx.vars, windows) {
-                self.notify(ctx.vars, ctx.events, &mut focus, windows, Some(args));
+            } else if let Some(args) = focus.continue_focus(ctx.vars, &windows) {
+                self.notify(ctx.vars, ctx.events, &mut focus, &mut windows, Some(args));
             }
 
             if let Some(window_id) = args.closed() {
@@ -492,23 +491,24 @@ impl AppExtension for FocusManager {
 
         if let Some(request) = request {
             let mut focus = FOCUS.write();
-            let windows = Windows::req(ctx.services);
+            let mut windows = WINDOWS.write();
             focus.pending_highlight = false;
-            let args = focus.fulfill_request(ctx.vars, windows, request);
-            self.notify(ctx.vars, ctx.events, &mut focus, windows, args);
+            let args = focus.fulfill_request(ctx.vars, &mut windows, request);
+            self.notify(ctx.vars, ctx.events, &mut focus, &mut windows, args);
         }
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
         let mut focus = FOCUS.write();
-        let windows = Windows::req(ctx.services);
         if let Some(request) = focus.request.take() {
             focus.pending_highlight = false;
-            let args = focus.fulfill_request(ctx.vars, windows, request);
-            self.notify(ctx.vars, ctx.events, &mut focus, windows, args);
+            let mut windows = WINDOWS.write();
+            let args = focus.fulfill_request(ctx.vars, &mut windows, request);
+            self.notify(ctx.vars, ctx.events, &mut focus, &mut windows, args);
         } else if mem::take(&mut focus.pending_highlight) {
-            let args = focus.continue_focus_highlight(ctx.vars, windows, true);
-            self.notify(ctx.vars, ctx.events, &mut focus, windows, args);
+            let mut windows = WINDOWS.write();
+            let args = focus.continue_focus_highlight(ctx.vars, &windows, true);
+            self.notify(ctx.vars, ctx.events, &mut focus, &mut windows, args);
         }
     }
 }
@@ -516,12 +516,12 @@ impl FocusManager {
     fn on_info_tree_update(&mut self, tree: &WidgetInfoTree, ctx: &mut AppContext) {
         let mut focus = FOCUS.write();
         let focus = &mut *focus;
-        let windows = Windows::req(ctx.services);
+        let mut windows = WINDOWS.write();
         focus.update_focused_center();
 
         // widget tree rebuilt or visibility may have changed, check if focus is still valid
-        let args = focus.continue_focus(ctx.vars, windows);
-        self.notify(ctx.vars, ctx.events, focus, windows, args);
+        let args = focus.continue_focus(ctx.vars, &windows);
+        self.notify(ctx.vars, ctx.events, focus, &mut windows, args);
 
         // cleanup return focuses.
         for args in focus.cleanup_returns(
