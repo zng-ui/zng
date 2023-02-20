@@ -2,7 +2,6 @@ use std::fmt;
 
 use crate::app::*;
 use crate::event::*;
-use crate::service::*;
 use crate::var::*;
 
 pub(super) struct AppIntrinsic {
@@ -23,7 +22,7 @@ impl AppIntrinsic {
         view_process_exe: Option<PathBuf>,
         device_events: bool,
     ) -> Self {
-        ctx.services.register(AppProcess::new(ctx.updates.sender()));
+        APP_PROCESS.write().update_sender = Some(ctx.updates.sender());
 
         if is_headed {
             debug_assert!(with_renderer);
@@ -62,16 +61,16 @@ impl AppIntrinsic {
     }
 }
 impl AppExtension for AppIntrinsic {
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = EXIT_CMD.on(update) {
             args.handle_enabled(&self.exit_handle, |_| {
-                AppProcess::req(ctx.services).exit();
+                APP_PROCESS.write().exit();
             });
         }
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        if let Some(response) = AppProcess::req(ctx.services).take_requests() {
+        if let Some(response) = APP_PROCESS.write().take_requests() {
             let args = ExitRequestedArgs::now();
             self.pending_exit = Some(PendingExit {
                 handle: args.propagation().clone(),
@@ -82,19 +81,25 @@ impl AppExtension for AppIntrinsic {
     }
 }
 
+app_local! {
+    /// App process service instance for the current app.
+    ///
+    /// See [`Mouse`] for service details.
+    pub static APP_PROCESS: AppProcess = AppProcess::new();
+}
+
 /// Service for managing the application process.
 ///
-/// This service is registered for all apps.
-#[derive(Service)]
+/// This service is available in all apps, the instance is in [`APP_PROCESS`].
 pub struct AppProcess {
     exit_requests: Option<ResponderVar<ExitCancelled>>,
-    update_sender: AppEventSender,
+    update_sender: Option<AppEventSender>,
 }
 impl AppProcess {
-    fn new(update_sender: AppEventSender) -> Self {
+    fn new() -> Self {
         AppProcess {
             exit_requests: None,
-            update_sender,
+            update_sender: None,
         }
     }
 
@@ -112,7 +117,7 @@ impl AppProcess {
         } else {
             let (responder, response) = response_var();
             self.exit_requests = Some(responder);
-            let _ = self.update_sender.send_ext_update();
+            let _ = self.update_sender.as_ref().unwrap().send_ext_update();
             response
         }
     }

@@ -1918,7 +1918,7 @@ impl HeadlessApp {
     /// Forces deinit if exit is cancelled.
     pub fn exit(mut self) {
         self.run_task(|ctx| async move {
-            let req = ctx.with(|ctx| AppProcess::req(ctx.services).exit());
+            let req = APP_PROCESS.write().exit();
             req.wait_rsp(&ctx).await;
         });
     }

@@ -8,7 +8,7 @@ use super::commands::WindowCommands;
 use super::*;
 use crate::app::raw_events::{RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_WINDOW_OPEN_EVENT};
 use crate::app::view_process::{ViewProcess, VIEW_PROCESS_INITED_EVENT};
-use crate::app::{AppProcess, EXIT_REQUESTED_EVENT};
+use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
 use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
 use crate::crate_util::IdSet;
 use crate::event::{AnyEventArgs, EventUpdate};
@@ -644,7 +644,7 @@ impl Windows {
                     .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
             {
                 // fulfill `exit_on_last_close`
-                AppProcess::req(ctx.services).exit();
+                APP_PROCESS.write().exit();
             }
         } else if let Some(args) = EXIT_REQUESTED_EVENT.on(update) {
             if !args.propagation().is_stopped() {
