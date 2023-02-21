@@ -96,7 +96,7 @@ impl Events {
 ///     BAR_EVENT.notify(ctx, BarArgs::now("we are not borrowing `ctx` so can use it directly"));
 ///
 ///    // ..
-/// 
+///
 ///    BAR_EVENT.notify(ctx, BarArgs::now("we are partially borrowing `ctx` but not `ctx.vars` so we use that"));
 /// }
 ///

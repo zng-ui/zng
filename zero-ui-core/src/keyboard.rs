@@ -165,7 +165,7 @@ event! {
 ///
 /// Services this extension provides.
 ///
-/// * [Keyboard]
+/// * [`KEYBOARD`]
 ///
 /// # Default
 ///
@@ -187,7 +187,7 @@ impl AppExtension for KeyboardManager {
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
             let focused = FOCUS.read().focused().get();
-            KEYBOARD.write().key_input(ctx.events, ctx.vars, args, focused);
+            KEYBOARD_IMPL.write().key_input(ctx.events, ctx.vars, args, focused);
         } else if let Some(args) = RAW_CHAR_INPUT_EVENT.on(update) {
             let focused = FOCUS.read().focused().get();
             if let Some(target) = focused {
@@ -196,16 +196,16 @@ impl AppExtension for KeyboardManager {
                 }
             }
         } else if let Some(args) = RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.on(update) {
-            let mut kb = KEYBOARD.write();
+            let mut kb = KEYBOARD_IMPL.write();
             kb.repeat_config.set_ne(ctx.vars, args.config);
             kb.last_key_down = None;
         } else if let Some(args) = RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.on(update) {
-            let kb = KEYBOARD.read();
+            let kb = KEYBOARD_IMPL.read();
             kb.caret_animation_config
                 .set_ne(ctx.vars, (args.config.caret_blink_interval, args.config.caret_blink_timeout));
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
-                let mut kb = KEYBOARD.write();
+                let mut kb = KEYBOARD_IMPL.write();
 
                 kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
                 kb.current_modifiers.clear();
@@ -215,7 +215,7 @@ impl AppExtension for KeyboardManager {
                 kb.last_key_down = None;
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            let mut kb = KEYBOARD.write();
+            let mut kb = KEYBOARD_IMPL.write();
             kb.repeat_config.set_ne(ctx.vars, args.key_repeat_config);
             kb.caret_animation_config.set_ne(
                 ctx.vars,
@@ -237,21 +237,83 @@ impl AppExtension for KeyboardManager {
     }
 }
 
-app_local! {
-    /// Keyboard service instance for the current app.
-    ///
-    /// This service is only active in apps running with the [`KeyboardManager`] extension.
-    ///
-    /// See [`Keyboard`] for service details.
-    pub static KEYBOARD: Keyboard = Keyboard::new();
-}
+/// Keyboard service instance for the current app.
+///
+/// This service is only active in apps running with the [`KeyboardManager`] extension.
+///
+/// See [`Keyboard`] for service details.
+pub static KEYBOARD: Keyboard = Keyboard {};
 
 /// Keyboard service.
 ///
 /// # Provider
 ///
 /// This service is provided by the [`KeyboardManager`] extension, the instance is in [`KEYBOARD`].
-pub struct Keyboard {
+pub struct Keyboard {}
+impl Keyboard {
+    /// Returns a read-only variable that tracks the currently pressed modifier keys.
+    pub fn modifiers(&self) -> ReadOnlyArcVar<ModifiersState> {
+        KEYBOARD_IMPL.read().modifiers.read_only()
+    }
+
+    /// Returns a read-only variable that tracks the [`ScanCode`] of the keys currently pressed.
+    pub fn codes(&self) -> ReadOnlyArcVar<Vec<ScanCode>> {
+        KEYBOARD_IMPL.read().codes.read_only()
+    }
+
+    /// Returns a read-only variable that tracks the [`Key`] identifier of the keys currently pressed.
+    pub fn keys(&self) -> ReadOnlyArcVar<Vec<Key>> {
+        KEYBOARD_IMPL.read().keys.read_only()
+    }
+
+    /// Returns a read-only variable that tracks the operating system key press repeat start delay and repeat speed.
+    ///
+    /// This delay is roughly the time the user must hold a key pressed to start repeating. When a second key press
+    /// happens without any other keyboard event and within twice this value it is marked [`is_repeat`] by the [`KeyboardManager`].
+    ///
+    /// [`is_repeat`]: KeyInputArgs::is_repeat
+    /// [`repeat_speed`]: Self::repeat_speed
+    pub fn repeat_config(&self) -> ReadOnlyArcVar<KeyRepeatConfig> {
+        KEYBOARD_IMPL.read().repeat_config.read_only()
+    }
+
+    /// Returns a read-only variable that defines the system config for the caret blink speed and timeout.
+    ///
+    /// The first value defines the blink speed interval, the caret is visible for the duration, then not visible for the duration. The
+    /// second value defines the animation total duration, the caret stops animating and sticks to visible after this timeout is reached.
+    ///
+    /// You can use the [`caret_animation`] method to generate a new animation.
+    ///
+    /// [`caret_animation`]: Self::caret_animation
+    pub fn caret_animation_config(&self) -> ReadOnlyArcVar<(Duration, Duration)> {
+        KEYBOARD_IMPL.read().caret_animation_config.read_only()
+    }
+
+    /// Returns a new read-only variable that animates the caret opacity.
+    ///
+    /// A new animation must be started after each key press. The value is always 1 or 0, no easing is used by default,
+    /// it can be added using the [`Var::easing`] method.
+    pub fn caret_animation(&self, vars: &impl WithVars) -> ReadOnlyArcVar<Factor> {
+        vars.with_vars(|vars| KEYBOARD_IMPL.read().caret_animation(vars))
+    }
+}
+
+app_local! {
+    static KEYBOARD_IMPL: KeyboardImpl = KeyboardImpl {
+        current_modifiers: LinearSet::new(),
+        modifiers: var(ModifiersState::empty()),
+        codes: var(vec![]),
+        keys: var(vec![]),
+        repeat_config: var_default(),
+        caret_animation_config: {
+            let cfg = AnimationsConfig::default();
+            var((cfg.caret_blink_interval, cfg.caret_blink_timeout))
+        },
+        last_key_down: None,
+    };
+}
+
+struct KeyboardImpl {
     current_modifiers: LinearSet<Key>,
 
     modifiers: ArcVar<ModifiersState>,
@@ -262,22 +324,7 @@ pub struct Keyboard {
 
     last_key_down: Option<(DeviceId, ScanCode, Instant)>,
 }
-impl Keyboard {
-    fn new() -> Self {
-        Keyboard {
-            current_modifiers: LinearSet::new(),
-            modifiers: var(ModifiersState::empty()),
-            codes: var(vec![]),
-            keys: var(vec![]),
-            repeat_config: var_default(),
-            caret_animation_config: {
-                let cfg = AnimationsConfig::default();
-                var((cfg.caret_blink_interval, cfg.caret_blink_timeout))
-            },
-            last_key_down: None,
-        }
-    }
-
+impl KeyboardImpl {
     fn key_input(&mut self, events: &mut Events, vars: &Vars, args: &RawKeyInputArgs, focused: Option<InteractionPath>) {
         let mut repeat = false;
 
@@ -386,52 +433,7 @@ impl Keyboard {
         state
     }
 
-    /// Returns a read-only variable that tracks the currently pressed modifier keys.
-    pub fn modifiers(&self) -> ReadOnlyArcVar<ModifiersState> {
-        self.modifiers.read_only()
-    }
-
-    /// Returns a read-only variable that tracks the [`ScanCode`] of the keys currently pressed.
-    pub fn codes(&self) -> ReadOnlyArcVar<Vec<ScanCode>> {
-        self.codes.read_only()
-    }
-
-    /// Returns a read-only variable that tracks the [`Key`] identifier of the keys currently pressed.
-    pub fn keys(&self) -> ReadOnlyArcVar<Vec<Key>> {
-        self.keys.read_only()
-    }
-
-    /// Returns a read-only variable that tracks the operating system key press repeat start delay and repeat speed.
-    ///
-    /// This delay is roughly the time the user must hold a key pressed to start repeating. When a second key press
-    /// happens without any other keyboard event and within twice this value it is marked [`is_repeat`] by the [`KeyboardManager`].
-    ///
-    /// [`is_repeat`]: KeyInputArgs::is_repeat
-    /// [`repeat_speed`]: Self::repeat_speed
-    pub fn repeat_config(&self) -> ReadOnlyArcVar<KeyRepeatConfig> {
-        self.repeat_config.read_only()
-    }
-
-    /// Returns a read-only variable that defines the system config for the caret blink speed and timeout.
-    ///
-    /// The first value defines the blink speed interval, the caret is visible for the duration, then not visible for the duration. The
-    /// second value defines the animation total duration, the caret stops animating and sticks to visible after this timeout is reached.
-    ///
-    /// You can use the [`caret_animation`] method to generate a new animation.
-    ///
-    /// [`caret_animation`]: Self::caret_animation
-    pub fn caret_animation_config(&self) -> ReadOnlyArcVar<(Duration, Duration)> {
-        self.caret_animation_config.read_only()
-    }
-
-    /// Returns a new read-only variable that animates the caret opacity.
-    ///
-    /// A new animation must be started after each key press. The value is always 1 or 0, no easing is used by default,
-    /// it can be added using the [`Var::easing`] method.
-    pub fn caret_animation(&self, vars: &impl WithVars) -> ReadOnlyArcVar<Factor> {
-        vars.with_vars(|vars| self.caret_animation_impl(vars))
-    }
-    fn caret_animation_impl(&self, vars: &Vars) -> ReadOnlyArcVar<Factor> {
+    fn caret_animation(&self, vars: &Vars) -> ReadOnlyArcVar<Factor> {
         let var = var(1.fct());
         let cfg = self.caret_animation_config.clone();
 

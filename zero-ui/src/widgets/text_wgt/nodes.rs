@@ -193,7 +193,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 
             let editable = TEXT_EDITABLE_VAR.get();
             let caret_opacity = if editable && FOCUS.read().focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
-                let v = KEYBOARD.read().caret_animation(ctx.vars);
+                let v = KEYBOARD.caret_animation(ctx.vars);
                 self.caret_opacity_handle = Some(v.subscribe(ctx.path.widget_id()));
                 v
             } else {
@@ -239,7 +239,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 {
                     args.propagation().stop();
 
-                    let new_animation = KEYBOARD.read().caret_animation(ctx.vars);
+                    let new_animation = KEYBOARD.caret_animation(ctx.vars);
                     self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
                     self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
 
@@ -259,7 +259,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if TEXT_EDITABLE_VAR.get() {
                     if args.is_focused(ctx.path.widget_id()) {
-                        let new_animation = KEYBOARD.read().caret_animation(ctx.vars);
+                        let new_animation = KEYBOARD.caret_animation(ctx.vars);
                         self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
                         self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
                     } else {
@@ -344,7 +344,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
 
                     if FOCUS.read().focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
-                        let new_animation = KEYBOARD.read().caret_animation(ctx.vars);
+                        let new_animation = KEYBOARD.caret_animation(ctx.vars);
                         self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
                         self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
                     }
