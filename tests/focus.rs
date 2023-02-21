@@ -24,8 +24,8 @@ pub fn first_and_last_window_events() {
         child = stack!(id = stack_id; direction = StackDirection::top_to_bottom(); children = buttons);
         id = root_id;
     });
-    let root_path = InteractionPath::new_enabled(app.window_id, [root_id]);
-    let button_0_path = InteractionPath::new_enabled(app.window_id, [root_id, stack_id, button_0_id]);
+    let root_path = InteractionPath::new_enabled(app.window_id, vec![root_id].into());
+    let button_0_path = InteractionPath::new_enabled(app.window_id, vec![root_id, stack_id, button_0_id].into());
 
     let events = app.take_focus_changed();
     assert_eq!(2, events.len());

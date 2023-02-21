@@ -1,10 +1,12 @@
 use super::*;
 
 /// Full address of a widget.
+///
+/// The path is reference counted, cloning this struct does not alloc.
 #[derive(Clone)]
 pub struct WidgetPath {
     window_id: WindowId,
-    path: Box<[WidgetId]>,
+    path: Arc<Vec<WidgetId>>,
 }
 impl PartialEq for WidgetPath {
     /// Paths are equal if they share the same [window](Self::window_id) and [widget paths](Self::widgets_path).
@@ -43,11 +45,13 @@ impl WidgetPath {
     /// New custom widget path.
     ///
     /// The path is not guaranteed to have ever existed.
-    pub fn new<P: Into<Box<[WidgetId]>>>(window_id: WindowId, path: P) -> WidgetPath {
-        WidgetPath {
-            window_id,
-            path: path.into(),
-        }
+    pub fn new(window_id: WindowId, path: Arc<Vec<WidgetId>>) -> WidgetPath {
+        WidgetPath { window_id, path }
+    }
+
+    /// Into internal parts.
+    pub fn into_parts(self) -> (WindowId, Arc<Vec<WidgetId>>) {
+        (self.window_id, self.path)
     }
 
     /// Id of the window that contains the widgets.
@@ -83,7 +87,7 @@ impl WidgetPath {
             } else {
                 Cow::Owned(WidgetPath {
                     window_id: self.window_id,
-                    path: self.path[..i].to_vec().into_boxed_slice(),
+                    path: self.path[..i].to_vec().into(),
                 })
             }
         })
@@ -96,7 +100,7 @@ impl WidgetPath {
                 if i == 0 {
                     None
                 } else {
-                    let path = self.path[..i].to_vec().into_boxed_slice();
+                    let path = self.path[..i].to_vec().into();
                     Some(Cow::Owned(WidgetPath {
                         window_id: self.window_id,
                         path,
@@ -119,7 +123,7 @@ impl WidgetPath {
         } else {
             Cow::Owned(WidgetPath {
                 window_id: self.window_id,
-                path: Box::new([self.path[0]]),
+                path: Arc::new(vec![self.path[0]]),
             })
         }
     }
@@ -188,7 +192,7 @@ impl InteractionPath {
         }
         let len = path.len();
         InteractionPath {
-            path: WidgetPath::new(window_id, path),
+            path: WidgetPath::new(window_id, path.into()),
             blocked: blocked.unwrap_or(len),
             disabled: disabled.unwrap_or(len),
         }
@@ -197,7 +201,7 @@ impl InteractionPath {
     /// New custom widget path with all widgets enabled.
     ///
     /// The path is not guaranteed to have ever existed.
-    pub fn new_enabled<P: Into<Box<[WidgetId]>>>(window_id: WindowId, path: P) -> InteractionPath {
+    pub fn new_enabled(window_id: WindowId, path: Arc<Vec<WidgetId>>) -> InteractionPath {
         let path = WidgetPath::new(window_id, path);
         Self::from_enabled(path)
     }
@@ -313,7 +317,7 @@ impl InteractionPath {
             Some(InteractionPath {
                 path: WidgetPath {
                     window_id: self.path.window_id,
-                    path: self.path.path[..self.blocked].to_vec().into_boxed_slice(),
+                    path: self.path.path[..self.blocked].to_vec().into(),
                 },
                 blocked: self.blocked,
                 disabled: self.disabled,
@@ -335,7 +339,7 @@ impl InteractionPath {
             }
             Some(WidgetPath {
                 window_id: self.path.window_id,
-                path: self.path.path[..enabled_end].to_vec().into_boxed_slice(),
+                path: self.path.path[..enabled_end].to_vec().into(),
             })
         } else {
             Some(self.path)
@@ -351,7 +355,7 @@ impl InteractionPath {
                 Cow::Owned(InteractionPath {
                     path: WidgetPath {
                         window_id: self.window_id,
-                        path: self.path.path[..i].to_vec().into_boxed_slice(),
+                        path: self.path.path[..i].to_vec().into(),
                     },
                     blocked: self.blocked,
                     disabled: self.disabled,
@@ -367,7 +371,7 @@ impl InteractionPath {
                 if i == 0 {
                     None
                 } else {
-                    let path = self.path.path[..i].to_vec().into_boxed_slice();
+                    let path = self.path.path[..i].to_vec().into();
                     Some(Cow::Owned(InteractionPath {
                         path: WidgetPath {
                             window_id: self.window_id,
@@ -395,7 +399,7 @@ impl InteractionPath {
             Cow::Owned(InteractionPath {
                 path: WidgetPath {
                     window_id: self.window_id,
-                    path: Box::new([self.path.path[0]]),
+                    path: Arc::new(vec![self.path.path[0]]),
                 },
                 blocked: self.blocked,
                 disabled: self.disabled,

@@ -602,7 +602,7 @@ impl TestWidgetContext {
         } else {
             let id = node.with_context(|ctx| ctx.id).unwrap_or(self.root_id);
             let mut list = UpdateDeliveryList::new_any();
-            list.insert_path(&crate::widget_info::WidgetPath::new(self.window_id, [id]));
+            list.insert_path(&crate::widget_info::WidgetPath::new(self.window_id, Arc::new(vec![id])));
             list.enter_window(self.window_id);
             self.widget_context(|ctx| node.update(ctx, &mut WidgetUpdates::new(list)));
         }

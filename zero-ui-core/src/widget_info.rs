@@ -938,8 +938,9 @@ impl<'a> WidgetInfo<'a> {
         let mut path: Vec<_> = self.ancestors().map(|a| a.widget_id()).collect();
         path.reverse();
         path.push(self.widget_id());
+        path.shrink_to_fit();
 
-        WidgetPath::new(self.tree.0.window_id, path)
+        WidgetPath::new(self.tree.0.window_id, path.into())
     }
 
     /// Full path to this widget with [`interactivity`] values.
@@ -963,10 +964,11 @@ impl<'a> WidgetInfo<'a> {
             path.push(w.widget_id());
         }
         path.reverse();
+        path.shrink_to_fit();
 
         let len = path.len();
 
-        let path = WidgetPath::new(self.tree.0.window_id, path);
+        let path = WidgetPath::new(self.tree.0.window_id, path.into());
         InteractionPath::new_internal(
             path,
             blocked.map(|i| len - i - 1).unwrap_or(len),
