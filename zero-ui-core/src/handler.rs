@@ -160,7 +160,6 @@ where
 /// # let
 /// on_click = hn!(|ctx, args: &ClickArgs| {
 ///     println!("Clicked {}!", args.click_count);
-///     let _ = ctx.services;
 /// });
 /// # on_click }
 /// ```
@@ -730,7 +729,6 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// CLICK_EVENT.on_event(app_hn!(|ctx, args: &ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
-///     let _ = ctx.services;
 ///     handle.unsubscribe();
 /// })).perm();
 /// # }
