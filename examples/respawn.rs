@@ -14,7 +14,7 @@ fn main() {
             start_position = StartPosition::CenterMonitor;
             on_key_down = hn!(|_, args: &KeyInputArgs| {
                 if args.key == Some(Key::F5) {
-                    VIEW_PROCESS.read().respawn();
+                    VIEW_PROCESS.respawn();
                 }
             });
             foreground = window_status(ctx);
@@ -46,7 +46,7 @@ fn respawn() -> impl UiNode {
     button! {
         child = text!("Respawn (F5)");
         on_click = hn!(|_, _| {
-            VIEW_PROCESS.read().respawn();
+            VIEW_PROCESS.respawn();
         });
     }
 }
@@ -56,7 +56,7 @@ fn crash_respawn() -> impl UiNode {
     button! {
         child = text!("Crash View-Process");
         on_click = hn!(|_, _| {
-            VIEW_PROCESS.read().crash_view_process();
+            VIEW_PROCESS.crash_view_process();
         });
     }
 }

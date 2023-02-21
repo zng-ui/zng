@@ -790,7 +790,7 @@ impl HeadedCtrl {
             focus_indicator: self.vars.focus_indicator().get(),
         };
 
-        match VIEW_PROCESS.read().open_window(request) {
+        match VIEW_PROCESS.open_window(request) {
             Ok(()) => {
                 self.state = Some(state);
                 self.waiting_view = true;
@@ -900,7 +900,7 @@ impl HeadedCtrl {
             focus_indicator: self.vars.focus_indicator().get(),
         };
 
-        match VIEW_PROCESS.read().open_window(request) {
+        match VIEW_PROCESS.open_window(request) {
             Ok(()) => self.waiting_view = true,
             Err(ViewProcessOffline) => {} // respawn.
         }
@@ -1187,7 +1187,7 @@ impl HeadlessWithRendererCtrl {
             let window_id = *ctx.window_id;
             let render_mode = self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode);
 
-            let r = VIEW_PROCESS.read().open_headless(HeadlessRequest {
+            let r = VIEW_PROCESS.open_headless(HeadlessRequest {
                 id: window_id.get(),
                 scale_factor: scale_factor.0,
                 size,

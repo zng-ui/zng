@@ -264,6 +264,28 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     pub fn set(&'static self, value: T) {
         *self.write() = value;
     }
+
+    /// Create a read lock and `map` it to a sub-value.
+    pub fn read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> MappedRwLockReadGuard<O> {
+        MappedRwLockReadGuard::map(self.read(), map)
+    }
+
+    /// Try to create a read lock and `map` it to a sub-value.
+    pub fn try_wread_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> Option<MappedRwLockReadGuard<O>> {
+        let lock = self.try_read()?;
+        Some(MappedRwLockReadGuard::map(lock, map))
+    }
+
+    /// Create a write lock and `map` it to a sub-value.
+    pub fn write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> MappedRwLockWriteGuard<O> {
+        MappedRwLockWriteGuard::map(self.write(), map)
+    }
+
+    /// Try to create a write lock and `map` it to a sub-value.
+    pub fn try_write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> Option<MappedRwLockWriteGuard<O>> {
+        let lock = self.try_write()?;
+        Some(MappedRwLockWriteGuard::map(lock, map))
+    }
 }
 
 ///<span data-del-macro-root></span> Declares new app local variable.

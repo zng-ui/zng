@@ -55,10 +55,14 @@ pub use render::{render_retain, ImageRenderVars};
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        let vp = VIEW_PROCESS.read();
-        IMAGES
-            .write()
-            .init(if vp.is_available() { Some(vp.clone()) } else { None }, ctx.updates.sender());
+        IMAGES.write().init(
+            if VIEW_PROCESS.is_available() {
+                Some(VIEW_PROCESS.clone())
+            } else {
+                None
+            },
+            ctx.updates.sender(),
+        );
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {

@@ -28,16 +28,14 @@ impl AppIntrinsic {
             debug_assert!(with_renderer);
 
             let view_evs_sender = ctx.updates.sender();
-            let view_app = ViewProcess::start(view_process_exe, device_events, false, move |ev| {
+            ViewProcess::start(view_process_exe, device_events, false, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
-            *VIEW_PROCESS.write() = view_app;
         } else if with_renderer {
             let view_evs_sender = ctx.updates.sender();
-            let renderer = ViewProcess::start(view_process_exe, false, true, move |ev| {
+            ViewProcess::start(view_process_exe, false, true, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
-            *VIEW_PROCESS.write() = renderer;
         }
 
         AppIntrinsic {

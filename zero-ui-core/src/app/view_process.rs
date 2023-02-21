@@ -35,13 +35,15 @@ struct EncodeRequest {
 }
 
 app_local! {
-    /// The running View Process.
-    ///
-    /// See [`ViewProcess`] for more details.
-    pub static VIEW_PROCESS: ViewProcess = ViewProcess(None);
+    static VIEW_APP: Option<Arc<Mutex<ViewApp>>> = None;
 }
 
-/// Reference to the running View Process.
+/// The running app View Process.
+///
+/// See [`ViewProcess`] for more details.
+pub static VIEW_PROCESS: ViewProcess = ViewProcess(None);
+
+/// Reference to a running View Process.
 ///
 /// This is the lowest level API, used for implementing fundamental services for headed apps or headless apps with renderer.
 /// the current app's instance is in [`VIEW_PROCESS`] and can be cloned to get a strong reference to the view process.
@@ -49,7 +51,6 @@ app_local! {
 /// The process shuts down when all clones of this struct drops.
 ///
 /// All methods except [`ViewProcess::is_available`] panic if `is_available` returns `false`.
-#[derive(Clone)]
 pub struct ViewProcess(Option<Arc<Mutex<ViewApp>>>);
 struct ViewApp {
     process: zero_ui_view_api::Controller,
@@ -82,16 +83,21 @@ impl ViewApp {
         invalid
     }
 }
+impl Clone for ViewProcess {
+    fn clone(&self) -> Self {
+        Self(Some(self.req()))
+    }
+}
 impl ViewProcess {
     /// Spawn the View Process.
-    pub(super) fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F) -> Self
+    pub(super) fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F)
     where
         F: FnMut(Event) + Send + 'static,
     {
         let _s = tracing::debug_span!("ViewProcess::start").entered();
 
         let process = zero_ui_view_api::Controller::start(view_process_exe, device_events, headless, on_event);
-        Self(Some(Arc::new(Mutex::new(ViewApp {
+        *VIEW_APP.write() = Some(Arc::new(Mutex::new(ViewApp {
             data_generation: process.generation(),
             process,
             device_ids: LinearMap::default(),
@@ -100,18 +106,26 @@ impl ViewProcess {
             encoding_images: vec![],
             frame_images: vec![],
             pending_frames: 0,
-        }))))
+        })));
     }
 
     #[track_caller]
-    fn req(&self) -> &Mutex<ViewApp> {
-        self.0.as_ref().expect("VIEW_PROCESS not available in headless app")
+    fn req(&self) -> Arc<Mutex<ViewApp>> {
+        if let Some(a) = &self.0 {
+            a.clone()
+        } else {
+            VIEW_APP
+                .read()
+                .as_ref()
+                .expect("VIEW_PROCESS not available in headless app")
+                .clone()
+        }
     }
 
     /// If the `VIEW_PROCESS` can be used, this is only `true` in headed apps and headless-with-render apps, all other
     /// methods will panic if called when this is `false`.
     pub fn is_available(&self) -> bool {
-        self.0.is_some()
+        VIEW_APP.read().is_some()
     }
 
     /// View-process connected and ready.
@@ -141,17 +155,20 @@ impl ViewProcess {
     }
 
     pub(crate) fn on_window_opened(&self, window_id: WindowId, data: zero_ui_view_api::WindowOpenData) -> (ViewWindow, WindowOpenData) {
-        let mut app = self.req().lock();
+        let app_ref = self.req();
+        let mut app = app_ref.lock();
         let _ = app.check_generation();
 
         let win = ViewWindow(Arc::new(WindowConnection {
             id: window_id.get(),
-            app: self.0.as_ref().unwrap().clone(),
             id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
             generation: app.data_generation,
+            app: {
+                drop(app);
+                app_ref
+            },
         }));
-        drop(app);
 
         let data = WindowOpenData::new(data, |id| self.monitor_id(id));
 
@@ -173,15 +190,19 @@ impl ViewProcess {
     }
 
     pub(crate) fn on_headless_opened(&self, id: WindowId, data: zero_ui_view_api::HeadlessOpenData) -> (ViewHeadless, HeadlessOpenData) {
-        let mut app = self.req().lock();
+        let app_ref = self.req();
+        let mut app = app_ref.lock();
         let _ = app.check_generation();
 
         let surf = ViewHeadless(Arc::new(WindowConnection {
             id: id.get(),
-            app: self.0.as_ref().unwrap().clone(),
             id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
             generation: app.data_generation,
+            app: {
+                drop(app);
+                app_ref
+            },
         }));
 
         (surf, data)
@@ -218,7 +239,7 @@ impl ViewProcess {
     /// Handle an [`Event::Disconnected`].
     ///
     /// The process will exit if the view-process was killed by the user.
-    pub fn handle_disconnect(&mut self, gen: ViewProcessGen) {
+    pub fn handle_disconnect(&self, gen: ViewProcessGen) {
         self.req().lock().process.handle_disconnect(gen)
     }
 
@@ -232,12 +253,12 @@ impl ViewProcess {
     /// This function returns immediately, the [`ViewImage`] will update when
     /// [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
     pub fn add_image(&self, format: ImageDataFormat, data: IpcBytes, max_decoded_size: u64) -> Result<ViewImage> {
-        let mut app = self.req().lock();
+        let app_ref = self.req();
+        let mut app = app_ref.lock();
         let id = app.process.add_image(format, data, max_decoded_size)?;
         let img = ViewImage(Arc::new(Mutex::new(ImageConnection {
             id,
             generation: app.process.generation(),
-            app: Some(self.0.as_ref().unwrap().clone()),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             ppi: None,
@@ -245,6 +266,7 @@ impl ViewProcess {
             partial_bgra8: None,
             bgra8: None,
             done_signal: SignalOnce::new(),
+            app: Some(app_ref.clone()),
         })));
         app.loading_images.push(Arc::downgrade(&img.0));
         Ok(img)
@@ -256,12 +278,12 @@ impl ViewProcess {
     /// [`Event::ImageMetadataLoaded`], [`Event::ImagePartiallyLoaded`],
     /// [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
     pub fn add_image_pro(&self, format: ImageDataFormat, data: IpcBytesReceiver, max_decoded_size: u64) -> Result<ViewImage> {
-        let mut app = self.req().lock();
+        let app_ref = self.req();
+        let mut app = app_ref.lock();
         let id = app.process.add_image_pro(format, data, max_decoded_size)?;
         let img = ViewImage(Arc::new(Mutex::new(ImageConnection {
             id,
             generation: app.process.generation(),
-            app: Some(self.0.as_ref().unwrap().clone()),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             ppi: None,
@@ -269,6 +291,7 @@ impl ViewProcess {
             partial_bgra8: None,
             bgra8: None,
             done_signal: SignalOnce::new(),
+            app: Some(app_ref.clone()),
         })));
         app.loading_images.push(Arc::downgrade(&img.0));
         Ok(img)
@@ -296,7 +319,8 @@ impl ViewProcess {
     }
 
     fn loading_image_index(&self, id: ImageId) -> Option<usize> {
-        let mut app = self.req().lock();
+        let app_ref = self.req();
+        let mut app = app_ref.lock();
 
         // cleanup
         app.loading_images.retain(|i| i.strong_count() > 0);
@@ -306,7 +330,8 @@ impl ViewProcess {
 
     pub(super) fn on_image_metadata_loaded(&self, id: ImageId, size: PxSize, ppi: ImagePpi) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
-            let app = self.req().lock();
+            let app_ref = self.req();
+            let app = app_ref.lock();
             let img = app.loading_images[i].upgrade().unwrap();
             {
                 let mut img = img.lock();
@@ -328,7 +353,8 @@ impl ViewProcess {
         partial_bgra8: IpcBytes,
     ) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
-            let app = self.req().lock();
+            let app_ref = self.req();
+            let app = app_ref.lock();
             let img = app.loading_images[i].upgrade().unwrap();
             {
                 let mut img = img.lock();
@@ -345,7 +371,8 @@ impl ViewProcess {
 
     pub(super) fn on_image_loaded(&self, data: ImageLoadedData) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(data.id) {
-            let mut app = self.req().lock();
+            let app_ref = self.req();
+            let mut app = app_ref.lock();
             let img = app.loading_images.swap_remove(i).upgrade().unwrap();
             {
                 let mut img = img.lock();
@@ -365,7 +392,8 @@ impl ViewProcess {
 
     pub(super) fn on_image_error(&self, id: ImageId, error: String) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
-            let mut app = self.req().lock();
+            let app_ref = self.req();
+            let mut app = app_ref.lock();
             let img = app.loading_images.swap_remove(i).upgrade().unwrap();
             {
                 let mut img = img.lock();
@@ -379,15 +407,16 @@ impl ViewProcess {
     }
 
     pub(crate) fn on_frame_rendered(&self, _id: WindowId) {
-        let mut vp = self.req().lock();
+        let app_ref = self.req();
+        let mut vp = app_ref.lock();
         vp.pending_frames = vp.pending_frames.saturating_sub(1);
     }
 
     pub(crate) fn on_frame_image(&self, data: ImageLoadedData) -> ViewImage {
         ViewImage(Arc::new(Mutex::new(ImageConnection {
+            app: Some(self.req()),
             id: data.id,
             generation: self.generation(),
-            app: Some(self.0.as_ref().unwrap().clone()),
             size: data.size,
             partial_size: data.size,
             ppi: data.ppi,
@@ -399,7 +428,8 @@ impl ViewProcess {
     }
 
     pub(super) fn on_frame_image_ready(&self, id: ImageId) -> Option<ViewImage> {
-        let mut app = self.req().lock();
+        let app_ref = self.req();
+        let mut app = app_ref.lock();
 
         // cleanup
         app.frame_images.retain(|i| i.strong_count() > 0);
@@ -416,7 +446,8 @@ impl ViewProcess {
         self.on_image_encode_result(id, format, Err(EncodeError::Encode(error)));
     }
     fn on_image_encode_result(&self, id: ImageId, format: String, result: std::result::Result<Arc<Vec<u8>>, EncodeError>) {
-        let mut app = self.req().lock();
+        let app_ref = self.req();
+        let mut app = app_ref.lock();
         app.encoding_images.retain(move |r| {
             let done = r.image_id == id && r.format == format;
             if done {
@@ -429,8 +460,7 @@ impl ViewProcess {
     }
 
     pub(super) fn on_respawed(&self, _gen: ViewProcessGen) {
-        let mut vp = self.req().lock();
-        vp.pending_frames = 0;
+        self.req().lock().pending_frames = 0;
     }
 }
 

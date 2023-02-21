@@ -696,12 +696,9 @@ impl Windows {
     }
 
     fn fullfill_requests(ctx: &mut AppContext) {
-        {
-            let vp = VIEW_PROCESS.read();
-            if vp.is_available() && !vp.is_online() {
-                // wait ViewProcessInitedEvent
-                return;
-            }
+        if VIEW_PROCESS.is_available() && !VIEW_PROCESS.is_online() {
+            // wait ViewProcessInitedEvent
+            return;
         }
 
         let ((open, close, focus, bring_to_top), color_scheme) = {
