@@ -22,7 +22,7 @@ impl AppIntrinsic {
         view_process_exe: Option<PathBuf>,
         device_events: bool,
     ) -> Self {
-        APP_PROCESS.write().update_sender = Some(ctx.updates.sender());
+        APP_PROCESS_IMPL.write().update_sender = Some(ctx.updates.sender());
 
         if is_headed {
             debug_assert!(with_renderer);
@@ -62,13 +62,13 @@ impl AppExtension for AppIntrinsic {
     fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = EXIT_CMD.on(update) {
             args.handle_enabled(&self.exit_handle, |_| {
-                APP_PROCESS.write().exit();
+                APP_PROCESS.exit();
             });
         }
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        if let Some(response) = APP_PROCESS.write().take_requests() {
+        if let Some(response) = APP_PROCESS_IMPL.write().take_requests() {
             let args = ExitRequestedArgs::now();
             self.pending_exit = Some(PendingExit {
                 handle: args.propagation().clone(),
@@ -80,36 +80,22 @@ impl AppExtension for AppIntrinsic {
 }
 
 app_local! {
-    /// App process service instance for the current app.
-    ///
-    /// See [`AppProcess`] for service details.
-    pub static APP_PROCESS: AppProcess = AppProcess::new();
+    pub(super) static APP_PROCESS_IMPL: AppProcessImpl = AppProcessImpl {
+        exit_requests: None,
+        update_sender: None,
+    };
 }
 
-/// Service for managing the application process.
-///
-/// This service is available in all apps, the instance is in [`APP_PROCESS`].
-pub struct AppProcess {
+pub(super) struct AppProcessImpl {
     exit_requests: Option<ResponderVar<ExitCancelled>>,
     update_sender: Option<AppEventSender>,
 }
-impl AppProcess {
-    fn new() -> Self {
-        AppProcess {
-            exit_requests: None,
-            update_sender: None,
-        }
+impl AppProcessImpl {
+    pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {
+        self.exit_requests.take()
     }
 
-    /// Register a request for process exit with code `0` in the next update.
-    ///
-    /// The [`EXIT_REQUESTED_EVENT`] will be raised, and if not cancelled the app process will exit.
-    ///
-    /// Returns a response variable that is updated once with the unit value [`ExitCancelled`]
-    /// if the exit operation is cancelled.
-    ///
-    /// See also the [`EXIT_CMD`] that also causes an exit request.
-    pub fn exit(&mut self) -> ResponseVar<ExitCancelled> {
+    fn exit(&mut self) -> ResponseVar<ExitCancelled> {
         if let Some(r) = &self.exit_requests {
             r.response_var()
         } else {
@@ -119,9 +105,28 @@ impl AppProcess {
             response
         }
     }
+}
 
-    pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {
-        self.exit_requests.take()
+/// App process service instance for the current app.
+///
+/// See [`AppProcess`] for service details.
+pub static APP_PROCESS: AppProcess = AppProcess {};
+
+/// Service for managing the application process.
+///
+/// This service is available in all apps, the instance is in [`APP_PROCESS`].
+pub struct AppProcess {}
+impl AppProcess {
+    /// Register a request for process exit with code `0` in the next update.
+    ///
+    /// The [`EXIT_REQUESTED_EVENT`] will be raised, and if not cancelled the app process will exit.
+    ///
+    /// Returns a response variable that is updated once with the unit value [`ExitCancelled`]
+    /// if the exit operation is cancelled.
+    ///
+    /// See also the [`EXIT_CMD`] that also causes an exit request.
+    pub fn exit(&self) -> ResponseVar<ExitCancelled> {
+        APP_PROCESS_IMPL.write().exit()
     }
 }
 

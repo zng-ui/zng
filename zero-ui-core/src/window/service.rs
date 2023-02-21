@@ -663,7 +663,7 @@ impl Windows {
                     .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
             {
                 // fulfill `exit_on_last_close`
-                APP_PROCESS.write().exit();
+                APP_PROCESS.exit();
             }
         } else if let Some(args) = EXIT_REQUESTED_EVENT.on(update) {
             if !args.propagation().is_stopped() {
