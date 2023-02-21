@@ -20,14 +20,13 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(|_| {
-        let mut cfg = CONFIG.write();
-        cfg.load(ConfigFile::new("target/tmp/example.config.json"));
-        // cfg.remove("old.key");
+        CONFIG.load(ConfigFile::new("target/tmp/example.config.json"));
+        // CONFIG.remove("old.key");
 
-        let checked = cfg.var("main.checked", || false);
-        let count = cfg.var("main.count", || 0);
-        let txt = cfg.var("main.txt", || "Save this".to_text());
-        let status = cfg.status();
+        let checked = CONFIG.var("main.checked", || false);
+        let count = CONFIG.var("main.count", || 0);
+        let txt = CONFIG.var("main.txt", || "Save this".to_text());
+        let status = CONFIG.status();
 
         trace_status(&status);
 

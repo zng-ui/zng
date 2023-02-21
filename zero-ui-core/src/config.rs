@@ -45,17 +45,17 @@ pub struct ConfigManager {}
 impl ConfigManager {}
 impl AppExtension for ConfigManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        CONFIG.write().update = Some(ctx.updates.sender());
+        CONFIG_IMPL.write().update = Some(ctx.updates.sender());
     }
 
     fn deinit(&mut self, _: &mut AppContext) {
-        if let Some((mut source, _)) = CONFIG.write().source.take() {
+        if let Some((mut source, _)) = CONFIG_IMPL.write().source.take() {
             source.deinit();
         }
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
-        CONFIG.write().update(ctx.vars);
+        CONFIG_IMPL.write().update(ctx.vars);
     }
 }
 
@@ -76,55 +76,10 @@ type ConfigTask = Box<dyn FnMut(&Vars, &ArcVar<ConfigStatus>) -> bool + Send + S
 type OnceConfigTask = Box<dyn FnOnce(&Vars, &ArcVar<ConfigStatus>) + Send + Sync>;
 
 app_local! {
-    /// Config service instance for the current app.
-    ///
-    /// Note that this is a service *singleton* that represents the config in use by the app, to load other config files
-    /// you can use the [`Config::load_alt`].
-    ///
-    /// This service is only active in apps running with the [`ConfigManager`] extension.
-    ///
-    /// See [`Config`] for service details.
-    pub static CONFIG: Config = Config::new();
+    static CONFIG_IMPL: ConfigImpl = ConfigImpl::new();
 }
 
-/// Represents the configuration of the app.
-///
-/// This type does not implement any config scheme, a [`ConfigSource`] must be set to enable persistence, without a source
-/// only the config variables work, and only for the duration of the app process.
-///
-/// The default app config instance is in [`CONFIG`].
-///
-/// # Examples
-///
-/// The example demonstrates loading a config file and binding a config to a variable that is auto saves every time it changes.
-///
-/// ```no_run
-/// # use zero_ui_core::{app::*, window::*, config::*, units::*};
-/// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
-/// App::default().run_window(|_| {
-///     // the Config service, it is available in the default App.
-///     let mut cfg = CONFIG.write();
-///
-///     // load a ConfigSource.
-///     cfg.load(ConfigFile::new("app.config.json"));
-///     
-///     // read the "main.count" config and bind it to a variable.
-///     let count = cfg.var("main.count", || 0);
-///
-///     window! {
-///         title = "Persistent Counter";
-///         padding = 20;
-///         child = button! {
-///             child = text!(count.map(|c| formatx!("Count: {c}")));
-///             on_click = hn!(|ctx, _| {
-///                 // modifying the var updates the "main.count" config.
-///                 count.modify(ctx, |mut c| *c += 1).unwrap();
-///             });
-///         }
-///     }
-/// })
-/// ```
-pub struct Config {
+struct ConfigImpl {
     update: Option<AppEventSender>,
     source: Option<(Box<dyn ConfigSource>, AppExtReceiver<ConfigSourceUpdate>)>,
     vars: HashMap<ConfigKey, ConfigVar>,
@@ -134,11 +89,11 @@ pub struct Config {
     once_tasks: Vec<OnceConfigTask>,
     tasks: Vec<ConfigTask>,
 
-    alts: Vec<std::sync::Weak<RwLock<Config>>>,
+    alts: Vec<std::sync::Weak<RwLock<ConfigImpl>>>,
 }
-impl Config {
+impl ConfigImpl {
     fn new() -> Self {
-        Config {
+        ConfigImpl {
             update: None,
             source: None,
             vars: HashMap::new(),
@@ -214,8 +169,7 @@ impl Config {
         })
     }
 
-    /// Set the config source, replaces the previous source.
-    pub fn load(&mut self, mut source: impl ConfigSource) {
+    fn load(&mut self, mut source: impl ConfigSource) {
         let (sender, receiver) = self.update.as_ref().expect("`ConfigManager` not inited").ext_channel();
         if !self.vars.is_empty() {
             let _ = sender.send(ConfigSourceUpdate::RefreshAll);
@@ -225,23 +179,13 @@ impl Config {
         self.source = Some((Box::new(source), receiver));
     }
 
-    /// Open an alternative config source disconnected from the actual app source.
-    #[must_use]
-    pub fn load_alt(&mut self, source: impl ConfigSource) -> ConfigAlt {
+    fn load_alt(&mut self, source: impl ConfigSource) -> ConfigAlt {
         let e = ConfigAlt::load(self.update.as_ref().expect("`ConfigManager` not inited").clone(), source);
         self.alts.push(Arc::downgrade(&e.0));
         e
     }
 
-    /// Gets a variable that tracks the source write tasks.
-    pub fn status(&self) -> ReadOnlyArcVar<ConfigStatus> {
-        self.status.read_only()
-    }
-
-    /// Remove any errors set in the [`status`].
-    ///
-    /// [`status`]: Self::status
-    pub fn clear_errors<Vw: WithVars>(&mut self, vars: &Vw) {
+    fn clear_errors<Vw: WithVars>(&mut self, vars: &Vw) {
         vars.with_vars(|vars| {
             self.status.modify(vars, |s| {
                 if s.as_ref().has_errors() {
@@ -254,17 +198,7 @@ impl Config {
         })
     }
 
-    /// Read the config value currently associated with the `key` if it is of the same type.
-    ///
-    /// Returns a [`ResponseVar`] that will update once when the value finishes reading.
-    pub fn read<K, T>(&mut self, key: K) -> ResponseVar<Option<T>>
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-    {
-        self.read_impl(key.into())
-    }
-    fn read_impl<T>(&mut self, key: ConfigKey) -> ResponseVar<Option<T>>
+    fn read<T>(&mut self, key: ConfigKey) -> ResponseVar<Option<T>>
     where
         T: ConfigValue,
     {
@@ -319,15 +253,7 @@ impl Config {
         }
     }
 
-    /// Write the config value associated with the `key`.
-    pub fn write<K, T>(&mut self, key: K, value: T)
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-    {
-        self.write_impl(key.into(), value)
-    }
-    fn write_impl<T>(&mut self, key: ConfigKey, value: T)
+    fn write<T>(&mut self, key: ConfigKey, value: T)
     where
         T: ConfigValue,
     {
@@ -385,14 +311,7 @@ impl Config {
         }
     }
 
-    /// Remove the `key` from the persistent storage.
-    ///
-    /// Note that if a variable is connected with the `key` it stays connected with the same value, and if the variable
-    /// is modified the `key` is reinserted. This should be called to remove obsolete configs only.
-    pub fn remove<K: Into<ConfigKey>>(&mut self, key: K) {
-        self.remove_impl(key.into())
-    }
-    fn remove_impl(&mut self, key: ConfigKey) {
+    fn remove(&mut self, key: ConfigKey) {
         if let Some((source, _)) = &mut self.source {
             let task = UiTask::new(self.update.as_ref().expect("`ConfigManager` not inited"), None, source.remove(key));
             self.track_write_task(task);
@@ -424,12 +343,7 @@ impl Config {
         let _ = self.update.as_ref().expect("`ConfigManager` not inited").send_ext_update();
     }
 
-    /// Gets a variable that updates every time the config associated with `key` changes and writes the config
-    /// every time it changes. This is equivalent of a two-way binding between the config storage and the variable.
-    ///
-    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
-    /// after it is read.
-    pub fn var<K, T, D>(&mut self, key: K, default_value: D) -> impl Var<T>
+    fn var<K, T, D>(&mut self, key: K, default_value: D) -> impl Var<T>
     where
         K: Into<ConfigKey>,
         T: ConfigValue,
@@ -444,12 +358,7 @@ impl Config {
         )
     }
 
-    /// Binds a variable that updates every time the config associated with `key` changes and writes the config
-    /// every time it changes. If the `target` is dropped the binding is dropped.
-    ///
-    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
-    /// after it is read.
-    pub fn bind<K, T, D, V>(&mut self, key: K, default_value: D, target: &V) -> VarHandles
+    fn bind<K, T, D, V>(&mut self, key: K, default_value: D, target: &V) -> VarHandles
     where
         K: Into<ConfigKey>,
         T: ConfigValue,
@@ -525,7 +434,7 @@ impl Config {
         };
 
         let (key, var) = refresh;
-        let value = self.read::<_, T>(key);
+        let value = self.read::<T>(key);
         self.tasks.push(Box::new(move |vars, _| {
             if let Some(rsp) = value.rsp() {
                 if let Some(value) = rsp {
@@ -547,67 +456,101 @@ impl Config {
     }
 }
 
-/// Represents a loaded config source that is not the main config.
+/// Config service instance for the current app.
 ///
-/// This type allows interaction with a [`ConfigSource`] just like the [`Config`] service, but without affecting the
-/// actual app config, so that the same config key can be loaded  from different sources with different values.
+/// Note that this is a service *singleton* that represents the config in use by the app, to load other config files
+/// you can use the [`Config::load_alt`].
 ///
-/// Note that some config sources can auto-reload if their backing file is modified, so modifications using this type
-/// can end-up affecting the actual [`Config`] too.
+/// This service is only active in apps running with the [`ConfigManager`] extension.
 ///
-/// You can use the [`Config::load_alt`] method to create an instance of this type.
-pub struct ConfigAlt(Arc<RwLock<Config>>);
-impl ConfigAlt {
-    fn load(updates: AppEventSender, source: impl ConfigSource) -> Self {
-        let mut cfg = Config::new();
-        cfg.update = Some(updates);
-        cfg.load(source);
-        ConfigAlt(Arc::new(RwLock::new(cfg)))
+/// See [`Config`] for service details.
+pub static CONFIG: Config = Config {};
+
+/// Represents the configuration of the app.
+///
+/// This type does not implement any config scheme, a [`ConfigSource`] must be set to enable persistence, without a source
+/// only the config variables work, and only for the duration of the app process.
+///
+/// The default app config instance is in [`CONFIG`].
+///
+/// # Examples
+///
+/// The example demonstrates loading a config file and binding a config to a variable that is auto saves every time it changes.
+///
+/// ```no_run
+/// # use zero_ui_core::{app::*, window::*, config::*, units::*};
+/// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
+/// App::default().run_window(|_| {
+///     // load a ConfigSource.
+///     CONFIG.load(ConfigFile::new("app.config.json"));
+///     
+///     // read the "main.count" config and bind it to a variable.
+///     let count = CONFIG.var("main.count", || 0);
+///
+///     window! {
+///         title = "Persistent Counter";
+///         padding = 20;
+///         child = button! {
+///             child = text!(count.map(|c| formatx!("Count: {c}")));
+///             on_click = hn!(|ctx, _| {
+///                 // modifying the var updates the "main.count" config.
+///                 count.modify(ctx, |mut c| *c += 1).unwrap();
+///             });
+///         }
+///     }
+/// })
+/// ```
+pub struct Config {}
+impl Config {
+    /// Set the config source, replaces the previous source.
+    pub fn load(&self, source: impl ConfigSource) {
+        CONFIG_IMPL.write().load(source);
     }
 
-    /// Flush writes and unload.
-    pub fn unload(self) {
-        // drop
+    /// Open an alternative config source disconnected from the actual app source.
+    #[must_use]
+    pub fn load_alt(&self, source: impl ConfigSource) -> ConfigAlt {
+        CONFIG_IMPL.write().load_alt(source)
     }
 
     /// Gets a variable that tracks the source write tasks.
     pub fn status(&self) -> ReadOnlyArcVar<ConfigStatus> {
-        self.0.read().status()
+        CONFIG_IMPL.read().status.read_only()
     }
 
     /// Remove any errors set in the [`status`].
     ///
     /// [`status`]: Self::status
-    pub fn clear_errors<Vw: WithVars>(&mut self, vars: &Vw) {
-        self.0.write().clear_errors(vars)
+    pub fn clear_errors<Vw: WithVars>(&self, vars: &Vw) {
+        CONFIG_IMPL.write().clear_errors(vars)
     }
 
     /// Read the config value currently associated with the `key` if it is of the same type.
     ///
     /// Returns a [`ResponseVar`] that will update once when the value finishes reading.
-    pub fn read<K, T>(&mut self, key: K) -> ResponseVar<Option<T>>
+    pub fn read<K, T>(&self, key: K) -> ResponseVar<Option<T>>
     where
         K: Into<ConfigKey>,
         T: ConfigValue,
     {
-        self.0.write().read(key)
+        CONFIG_IMPL.write().read(key.into())
     }
 
     /// Write the config value associated with the `key`.
-    pub fn write<K, T>(&mut self, key: K, value: T)
+    pub fn write<K, T>(&self, key: K, value: T)
     where
         K: Into<ConfigKey>,
         T: ConfigValue,
     {
-        self.0.write().write(key, value)
+        CONFIG_IMPL.write().write(key.into(), value)
     }
 
     /// Remove the `key` from the persistent storage.
     ///
     /// Note that if a variable is connected with the `key` it stays connected with the same value, and if the variable
     /// is modified the `key` is reinserted. This should be called to remove obsolete configs only.
-    pub fn remove<K: Into<ConfigKey>>(&mut self, key: K) {
-        self.0.write().remove(key)
+    pub fn remove<K: Into<ConfigKey>>(&self, key: K) {
+        CONFIG_IMPL.write().remove(key.into())
     }
 
     /// Gets a variable that updates every time the config associated with `key` changes and writes the config
@@ -615,13 +558,13 @@ impl ConfigAlt {
     ///
     /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
     /// after it is read.
-    pub fn var<K, T, D>(&mut self, key: K, default_value: D) -> impl Var<T>
+    pub fn var<K, T, D>(&self, key: K, default_value: D) -> impl Var<T>
     where
         K: Into<ConfigKey>,
         T: ConfigValue,
         D: FnOnce() -> T,
     {
-        self.0.write().var(key, default_value)
+        CONFIG_IMPL.write().var(key, default_value)
     }
 
     /// Binds a variable that updates every time the config associated with `key` changes and writes the config
@@ -636,7 +579,100 @@ impl ConfigAlt {
         D: FnOnce() -> T,
         V: Var<T>,
     {
-        Config::bind(&mut self.0.write(), key, default_value, target)
+        ConfigImpl::bind(&mut CONFIG_IMPL.write(), key.into(), default_value, target)
+    }
+}
+
+/// Represents a loaded config source that is not the main config.
+///
+/// This type allows interaction with a [`ConfigSource`] just like the [`Config`] service, but without affecting the
+/// actual app config, so that the same config key can be loaded  from different sources with different values.
+///
+/// Note that some config sources can auto-reload if their backing file is modified, so modifications using this type
+/// can end-up affecting the actual [`Config`] too.
+///
+/// You can use the [`Config::load_alt`] method to create an instance of this type.
+pub struct ConfigAlt(Arc<RwLock<ConfigImpl>>);
+impl ConfigAlt {
+    fn load(updates: AppEventSender, source: impl ConfigSource) -> Self {
+        let mut cfg = ConfigImpl::new();
+        cfg.update = Some(updates);
+        cfg.load(source);
+        ConfigAlt(Arc::new(RwLock::new(cfg)))
+    }
+
+    /// Flush writes and unload.
+    pub fn unload(self) {
+        // drop
+    }
+
+    /// Gets a variable that tracks the source write tasks.
+    pub fn status(&self) -> ReadOnlyArcVar<ConfigStatus> {
+        self.0.read().status.read_only()
+    }
+
+    /// Remove any errors set in the [`status`].
+    ///
+    /// [`status`]: Self::status
+    pub fn clear_errors<Vw: WithVars>(&self, vars: &Vw) {
+        self.0.write().clear_errors(vars)
+    }
+
+    /// Read the config value currently associated with the `key` if it is of the same type.
+    ///
+    /// Returns a [`ResponseVar`] that will update once when the value finishes reading.
+    pub fn read<K, T>(&self, key: K) -> ResponseVar<Option<T>>
+    where
+        K: Into<ConfigKey>,
+        T: ConfigValue,
+    {
+        self.0.write().read(key.into())
+    }
+
+    /// Write the config value associated with the `key`.
+    pub fn write<K, T>(&self, key: K, value: T)
+    where
+        K: Into<ConfigKey>,
+        T: ConfigValue,
+    {
+        self.0.write().write(key.into(), value)
+    }
+
+    /// Remove the `key` from the persistent storage.
+    ///
+    /// Note that if a variable is connected with the `key` it stays connected with the same value, and if the variable
+    /// is modified the `key` is reinserted. This should be called to remove obsolete configs only.
+    pub fn remove<K: Into<ConfigKey>>(&self, key: K) {
+        self.0.write().remove(key.into())
+    }
+
+    /// Gets a variable that updates every time the config associated with `key` changes and writes the config
+    /// every time it changes. This is equivalent of a two-way binding between the config storage and the variable.
+    ///
+    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
+    /// after it is read.
+    pub fn var<K, T, D>(&self, key: K, default_value: D) -> impl Var<T>
+    where
+        K: Into<ConfigKey>,
+        T: ConfigValue,
+        D: FnOnce() -> T,
+    {
+        self.0.write().var(key.into(), default_value)
+    }
+
+    /// Binds a variable that updates every time the config associated with `key` changes and writes the config
+    /// every time it changes. If the `target` is dropped the binding is dropped.
+    ///
+    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
+    /// after it is read.
+    pub fn bind<K, T, D, V>(&self, key: K, default_value: D, target: &V) -> VarHandles
+    where
+        K: Into<ConfigKey>,
+        T: ConfigValue,
+        D: FnOnce() -> T,
+        V: Var<T>,
+    {
+        ConfigImpl::bind(&mut self.0.write(), key.into(), default_value, target)
     }
 }
 impl Drop for ConfigAlt {
@@ -647,7 +683,7 @@ impl Drop for ConfigAlt {
     }
 }
 
-type VarUpdateTask = Box<dyn FnOnce(&mut Config)>;
+type VarUpdateTask = Box<dyn FnOnce(&mut ConfigImpl)>;
 
 /// ConfigVar actual value, tracks if updates need to be send to source.
 #[derive(Debug, Clone)]

@@ -266,7 +266,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
     impl UiNode for SaveStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             if let Some(key) = self.enabled.window_key(ctx.path.window_id()) {
-                let rsp = CONFIG.write().read(key);
+                let rsp = CONFIG.read(key);
                 let loading = self
                     .enabled
                     .loading_timeout()
@@ -306,7 +306,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                                     restore_rect: window_vars.restore_rect().get().cast(),
                                 };
 
-                                CONFIG.write().write(key, cfg);
+                                CONFIG.write(key, cfg);
                             }
                             Task::Read { .. } => {
                                 // closing quick, ignore
