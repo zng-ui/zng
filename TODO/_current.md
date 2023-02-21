@@ -6,7 +6,6 @@
     - `GESTURES`
     - `IMAGES`
     - `FONTS`
-    - `MONITORS`
     - `WINDOWS`
 
 * Refactor the update sender to an `app_local!` too?

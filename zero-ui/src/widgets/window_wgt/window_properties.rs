@@ -325,7 +325,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                         window_vars.state().set_ne(ctx.vars, s.state);
                         let restore_rect: DipRect = s.restore_rect.cast();
 
-                        let visible = MONITORS.read().available_monitors().any(|m| m.dip_rect().intersects(&restore_rect));
+                        let visible = MONITORS.available_monitors().iter().any(|m| m.dip_rect().intersects(&restore_rect));
                         if visible {
                             window_vars.position().set_ne(ctx.vars, restore_rect.origin);
                         }

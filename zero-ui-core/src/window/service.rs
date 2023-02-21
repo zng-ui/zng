@@ -874,7 +874,6 @@ impl AppWindow {
         loading: WindowLoading,
     ) -> (Self, AppWindowInfo) {
         let primary_scale_factor = MONITORS
-            .read()
             .primary_monitor()
             .map(|m| m.scale_factor().get())
             .unwrap_or_else(|| 1.fct());

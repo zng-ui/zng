@@ -21,7 +21,7 @@ use crate::{
     var::*,
     widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
-    window::{AutoSize, MONITORS},
+    window::AutoSize,
 };
 
 use super::{
@@ -155,21 +155,18 @@ impl HeadedCtrl {
                 let mut new_state = prev_state.clone();
 
                 if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
-                    let mut monitors = MONITORS.write();
-                    let monitors = &mut *monitors;
-
                     if self.monitor.is_none() {
-                        let monitor = query.select_fallback(monitors);
+                        let monitor = query.select_fallback();
                         let scale_factor = monitor.scale_factor().get();
                         self.vars.0.scale_factor.set_ne(ctx, scale_factor);
                         self.monitor = Some(monitor);
-                    } else if let Some(new) = query.select(monitors) {
+                    } else if let Some(new) = query.select() {
                         let current = self.vars.0.actual_monitor.get();
                         if Some(new.id()) != current {
                             let scale_factor = new.scale_factor().get();
                             self.vars.0.scale_factor.set_ne(ctx.vars, scale_factor);
                             self.vars.0.actual_monitor.set_ne(ctx.vars, new.id());
-                            self.monitor = Some(new.clone());
+                            self.monitor = Some(new);
                         }
                     }
                 }
@@ -663,7 +660,7 @@ impl HeadedCtrl {
 
     /// First layout, opens the window.
     fn layout_init(&mut self, ctx: &mut WindowContext) {
-        self.monitor = Some(self.vars.monitor().get().select_fallback(&mut MONITORS.write()));
+        self.monitor = Some(self.vars.monitor().get().select_fallback());
 
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().get();
@@ -873,7 +870,7 @@ impl HeadedCtrl {
     /// First layout after respawn, opens the window but used previous sizes.
     fn layout_respawn(&mut self, ctx: &mut WindowContext) {
         if self.monitor.is_none() {
-            self.monitor = Some(self.vars.monitor().get().select_fallback(&mut MONITORS.write()));
+            self.monitor = Some(self.vars.monitor().get().select_fallback());
         }
 
         self.layout_update(ctx);

@@ -47,15 +47,19 @@ impl MonitorId {
 }
 
 app_local! {
-    /// Monitors service instance for the current app.
-    ///
-    /// This service is only active in apps running with the [`WindowManager`] extension.
-    ///
-    /// See [`Monitors`] for service details.
-    ///
-    /// [`WindowManager`]: crate::window::WindowManager
-    pub static MONITORS: Monitors = Monitors::new();
+    pub(super) static MONITORS_IMPL: MonitorsImpl = MonitorsImpl {
+        monitors: LinearMap::new(),
+    };
 }
+
+/// Monitors service instance for the current app.
+///
+/// This service is only active in apps running with the [`WindowManager`] extension.
+///
+/// See [`Monitors`] for service details.
+///
+/// [`WindowManager`]: crate::window::WindowManager
+pub static MONITORS: Monitors = Monitors {};
 
 /// Monitors service.
 ///
@@ -96,38 +100,35 @@ app_local! {
 /// [`LayoutMetrics`]: crate::context::LayoutMetrics
 /// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen
 /// [`WindowManager`]: crate::window::WindowManager
-pub struct Monitors {
-    monitors: LinearMap<MonitorId, MonitorInfo>,
-}
+pub struct Monitors {}
 impl Monitors {
     /// Initial PPI of monitors, `96.0`.
     pub const DEFAULT_PPI: f32 = 96.0;
 
-    pub(super) fn new() -> Self {
-        Monitors {
-            monitors: LinearMap::new(),
-        }
-    }
-
-    /// Reference the monitor info.
+    /// Get monitor info.
     ///
     /// Returns `None` if the monitor was not found or the app is running in headless mode without renderer.
-    pub fn monitor(&self, monitor_id: MonitorId) -> Option<&MonitorInfo> {
-        self.monitors.get(&monitor_id)
+    pub fn monitor(&self, monitor_id: MonitorId) -> Option<MonitorInfo> {
+        MONITORS_IMPL.read().monitors.get(&monitor_id).cloned()
     }
 
     /// Iterate over all available monitors.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
-    pub fn available_monitors(&self) -> impl Iterator<Item = &MonitorInfo> {
-        self.monitors.values()
+    pub fn available_monitors(&self) -> Vec<MonitorInfo> {
+        MONITORS_IMPL.read().monitors.values().cloned().collect()
     }
 
     /// Gets the monitor info marked as primary.
-    pub fn primary_monitor(&self) -> Option<&MonitorInfo> {
-        self.available_monitors().find(|m| m.is_primary().get())
+    pub fn primary_monitor(&self) -> Option<MonitorInfo> {
+        MONITORS_IMPL.read().monitors.values().find(|m| m.is_primary().get()).cloned()
     }
+}
 
+pub(super) struct MonitorsImpl {
+    monitors: LinearMap<MonitorId, MonitorInfo>,
+}
+impl MonitorsImpl {
     fn on_monitors_changed(&mut self, events: &mut Events, vars: &Vars, args: &RawMonitorsChangedArgs) {
         let mut available_monitors: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
 
@@ -162,14 +163,14 @@ impl Monitors {
 
     pub(super) fn on_pre_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
-            if let Some(m) = MONITORS.read().monitor(args.monitor_id) {
+            if let Some(m) = MONITORS_IMPL.read().monitors.get(&args.monitor_id) {
                 m.scale_factor.set_ne(ctx.vars, args.scale_factor);
             }
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
-            MONITORS.write().on_monitors_changed(ctx.events, ctx.vars, args);
+            MONITORS_IMPL.write().on_monitors_changed(ctx.events, ctx.vars, args);
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let args = RawMonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), args.available_monitors.clone());
-            MONITORS.write().on_monitors_changed(ctx.events, ctx.vars, &args);
+            MONITORS_IMPL.write().on_monitors_changed(ctx.events, ctx.vars, &args);
         }
     }
 }
@@ -379,7 +380,7 @@ impl MonitorInfo {
     }
 }
 
-/// A *selector* that returns a [`MonitorInfo`] from [`Monitors`].
+/// A *selector* that returns a [`MonitorInfo`].
 #[derive(Clone)]
 pub enum MonitorQuery {
     /// The primary monitor, if there is any monitor.
@@ -388,33 +389,33 @@ pub enum MonitorQuery {
     ///
     /// If the closure returns `None` the primary monitor is used, if there is any.
     #[allow(clippy::type_complexity)]
-    Query(Arc<dyn Fn(&mut Monitors) -> Option<&MonitorInfo> + Send + Sync>),
+    Query(Arc<dyn Fn() -> Option<MonitorInfo> + Send + Sync>),
 }
 impl MonitorQuery {
     /// New query.
-    pub fn new(query: impl Fn(&mut Monitors) -> Option<&MonitorInfo> + Send + Sync + 'static) -> Self {
+    pub fn new(query: impl Fn() -> Option<MonitorInfo> + Send + Sync + 'static) -> Self {
         Self::Query(Arc::new(query))
     }
 
     /// Runs the query.
-    pub fn select<'m>(&self, monitors: &'m mut Monitors) -> Option<&'m MonitorInfo> {
+    pub fn select(&self) -> Option<MonitorInfo> {
         match self {
-            MonitorQuery::Primary => Self::primary_query(monitors),
-            MonitorQuery::Query(q) => q(monitors),
+            MonitorQuery::Primary => Self::primary_query(),
+            MonitorQuery::Query(q) => q(),
         }
     }
 
     /// Runs the query, fallback to `Primary` and [`MonitorInfo::fallback`]
-    pub fn select_fallback(&self, monitors: &mut Monitors) -> MonitorInfo {
+    pub fn select_fallback(&self) -> MonitorInfo {
         match self {
-            MonitorQuery::Primary => Self::primary_query(monitors).cloned(),
-            MonitorQuery::Query(q) => q(monitors).cloned().or_else(|| Self::primary_query(monitors).cloned()),
+            MonitorQuery::Primary => Self::primary_query(),
+            MonitorQuery::Query(q) => q().or_else(Self::primary_query),
         }
         .unwrap_or_else(MonitorInfo::fallback)
     }
 
-    fn primary_query(m: &mut Monitors) -> Option<&MonitorInfo> {
-        m.available_monitors().find(|m| m.is_primary.get())
+    fn primary_query() -> Option<MonitorInfo> {
+        MONITORS.primary_monitor()
     }
 }
 impl PartialEq for MonitorQuery {

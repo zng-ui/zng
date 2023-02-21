@@ -58,7 +58,7 @@ impl AppExtension for WindowManager {
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        Monitors::on_pre_event(ctx, update);
+        MonitorsImpl::on_pre_event(ctx, update);
         Windows::on_pre_event(ctx, update);
     }
 
