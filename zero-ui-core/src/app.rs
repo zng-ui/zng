@@ -13,7 +13,6 @@ use crate::config::ConfigManager;
 use crate::crate_util::{PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate};
 use crate::image::ImageManager;
-use crate::service::Services;
 use crate::timer::Timers;
 use crate::units::Deadline;
 use crate::var::Vars;
@@ -950,11 +949,6 @@ impl<E: AppExtension> RunningApp<E> {
         self.owned_ctx.vars()
     }
 
-    /// Borrow the [`Services`] only.
-    pub fn services(&mut self) -> &mut Services {
-        self.owned_ctx.services()
-    }
-
     /// Notify an event directly to the app extensions.
     pub fn notify_event<O: AppEventObserver>(&mut self, mut update: EventUpdate, observer: &mut O) {
         let _scope = tracing::trace_span!("notify_event", event = update.event().name()).entered();
@@ -1795,11 +1789,6 @@ impl HeadlessApp {
     /// Borrow the [`Vars`] only.
     pub fn vars(&self) -> &Vars {
         self.app.vars()
-    }
-
-    /// Borrow the [`Services`] only.
-    pub fn services(&mut self) -> &mut Services {
-        self.app.services()
     }
 
     /// If device events are enabled in this app.

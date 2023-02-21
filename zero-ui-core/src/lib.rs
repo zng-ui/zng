@@ -45,7 +45,6 @@ pub mod inspector;
 pub mod keyboard;
 pub mod mouse;
 pub mod render;
-pub mod service;
 pub mod task;
 pub mod text;
 pub mod timer;

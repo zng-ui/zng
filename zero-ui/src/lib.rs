@@ -748,9 +748,7 @@
 //! ```
 //!
 //! The example above gets an exclusive lock to the [`Windows`] service, and then creates an [`open`][win_open] request. Services
-//! follow this request pattern where the requests are processed only after every widget has finished the current update.
-//!
-//! You can learn more about services in the documentation of the **[`service`]** module.
+//! requests are processed only after every widget has finished the current update.
 //!
 //! ## States
 //!
@@ -850,8 +848,6 @@
 //! [futures]: std::future::Future
 //! [`AppContext`]: crate::core::context::AppContext
 //! [`context`]: crate::core::context
-//! [`Service`]: crate::core::service::Service
-//! [`Services`]: crate::core::service::Services
 //! [`Windows`]: crate::core::window::Windows
 //! [win_open]: crate::core::window::Windows::open
 //! [`app_local!`]: crate::core::app::app_local
@@ -913,7 +909,6 @@ pub mod prelude {
         keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
         mouse::{ButtonState, MouseButton, MouseMoveArgs},
         render::RenderMode,
-        service::{ServiceTuple, Services},
         task::{self, rayon::prelude::*},
         text::{
             font_features::{

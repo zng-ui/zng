@@ -11,7 +11,6 @@ use proc_macro::TokenStream;
 #[macro_use]
 mod util;
 
-mod derive_service;
 mod expr_var;
 mod hex_color;
 mod merge_var;
@@ -51,12 +50,6 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn hex_color(input: TokenStream) -> TokenStream {
     hex_color::expand(input)
-}
-
-#[doc(hidden)]
-#[proc_macro_derive(Service)]
-pub fn derive_service(item: TokenStream) -> TokenStream {
-    derive_service::derive(item)
 }
 
 /// Expands a module to a widget module and macro.

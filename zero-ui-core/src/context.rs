@@ -3,7 +3,6 @@
 use crate::{
     app::{AppEventSender, LoopTimer},
     event::{EventHandle, EventHandles, Events},
-    service::Services,
     timer::Timers,
     units::*,
     var::{VarHandle, VarHandles, Vars},
@@ -36,7 +35,6 @@ pub(crate) struct OwnedAppContext {
     app_state: OwnedStateMap<state_map::App>,
     vars: Vars,
     events: Events,
-    services: Services,
     timers: Timers,
     updates: Updates,
 }
@@ -48,7 +46,6 @@ impl OwnedAppContext {
             app_state: OwnedStateMap::new(),
             vars: Vars::instance(app_event_sender.clone()),
             events: Events::instance(app_event_sender),
-            services: Services::default(),
             timers: Timers::new(),
             updates,
         }
@@ -70,7 +67,6 @@ impl OwnedAppContext {
             app_state: self.app_state.borrow_mut(),
             vars: &self.vars,
             events: &mut self.events,
-            services: &mut self.services,
             timers: &mut self.timers,
             updates: &mut self.updates,
         }
@@ -79,11 +75,6 @@ impl OwnedAppContext {
     /// Borrow the [`Vars`] only.
     pub fn vars(&self) -> &Vars {
         &self.vars
-    }
-
-    /// Borrow the [`Services`] only.
-    pub fn services(&mut self) -> &mut Services {
-        &mut self.services
     }
 
     /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update
@@ -137,8 +128,6 @@ pub struct AppContext<'a> {
     pub vars: &'a Vars,
     /// Access to application events.
     pub events: &'a mut Events,
-    /// Access to application services.
-    pub services: &'a mut Services,
 
     /// Event loop based timers.
     pub timers: &'a mut Timers,
@@ -171,7 +160,6 @@ impl<'a> AppContext<'a> {
             update_state: update_state.borrow_mut(),
             vars: self.vars,
             events: self.events,
-            services: self.services,
             timers: self.timers,
             updates: self.updates,
         });
@@ -206,8 +194,6 @@ pub struct WindowContext<'a> {
     pub vars: &'a Vars,
     /// Access to application events.
     pub events: &'a mut Events,
-    /// Access to application services.
-    pub services: &'a mut Services,
 
     /// Event loop based timers.
     pub timers: &'a mut Timers,
@@ -245,7 +231,6 @@ impl<'a> WindowContext<'a> {
 
             vars: self.vars,
             events: self.events,
-            services: self.services,
 
             timers: self.timers,
 
@@ -381,11 +366,6 @@ pub struct TestWidgetContext {
     /// Event subscriptions storage used in [`WidgetHandles`].
     pub event_handles: EventHandles,
 
-    /// The [`services`] repository. Empty by default.
-    ///
-    /// [`services`]: WidgetContext::services
-    pub services: Services,
-
     /// The [`updates`] repository. No request by default.
     ///
     /// WARNING: This is drained of requests after each update, you can do this manually by calling
@@ -448,7 +428,6 @@ impl TestWidgetContext {
             update_state: OwnedStateMap::new(),
             var_handles: Default::default(),
             event_handles: Default::default(),
-            services: Services::default(),
             events: Events::instance(sender.clone()),
             vars: Vars::instance(sender.clone()),
             updates: Updates::new(sender),
@@ -479,7 +458,6 @@ impl TestWidgetContext {
             },
             vars: &self.vars,
             events: &mut self.events,
-            services: &mut self.services,
             timers: &mut self.timers,
             updates: &mut self.updates,
         })
@@ -774,8 +752,6 @@ pub struct WidgetContext<'a> {
     pub vars: &'a Vars,
     /// Access to application events.
     pub events: &'a mut Events,
-    /// Access to application services.
-    pub services: &'a mut Services,
 
     /// Event loop based timers.
     pub timers: &'a mut Timers,
@@ -816,7 +792,6 @@ impl<'a> WidgetContext<'a> {
 
             vars: self.vars,
             events: self.events,
-            services: self.services,
 
             timers: self.timers,
 
@@ -852,7 +827,6 @@ impl<'a> WidgetContext<'a> {
             },
             vars: self.vars,
             events: self.events,
-            services: self.services,
             timers: self.timers,
             updates: self.updates,
         })
