@@ -16,7 +16,7 @@ use zero_ui::{
     core::{
         app::AppExtension,
         impl_from_and_into_var,
-        text::{CustomFont, FontDataRef, FontName, Fonts, FONTS},
+        text::{CustomFont, FontDataRef, FontName, FONTS},
     },
     widgets::icon::GlyphIcon,
 };
@@ -30,7 +30,7 @@ pub struct MaterialFonts;
 #[cfg(feature = "embedded")]
 impl MaterialFonts {
     /// Register the material fonts in an app.
-    pub fn register(fonts: &mut Fonts) {
+    pub fn register() {
         let sets = [
             (outlined::meta::FONT_NAME, outlined::meta::FONT_BYTES),
             (filled::meta::FONT_NAME, filled::meta::FONT_BYTES),
@@ -41,14 +41,14 @@ impl MaterialFonts {
 
         for (name, bytes) in sets {
             let font = CustomFont::from_bytes(name, FontDataRef::from_static(bytes), 0);
-            fonts.register(font).unwrap();
+            FONTS.register(font).unwrap();
         }
     }
 }
 #[cfg(feature = "embedded")]
 impl AppExtension for MaterialFonts {
     fn init(&mut self, _: &mut zero_ui::prelude::AppContext) {
-        Self::register(&mut FONTS.write())
+        Self::register()
     }
 }
 

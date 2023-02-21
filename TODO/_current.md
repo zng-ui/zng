@@ -5,7 +5,6 @@
     - `FOCUS`
     - `GESTURES`
     - `IMAGES`
-    - `FONTS`
     - `WINDOWS`
 
 * Refactor the update sender to an `app_local!` too?

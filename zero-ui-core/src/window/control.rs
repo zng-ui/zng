@@ -1733,7 +1733,7 @@ impl ContentCtrl {
 
                 self.frame_id = self.frame_id.next();
 
-                let default_text_aa = FONTS.read().system_font_aa().get();
+                let default_text_aa = FONTS.system_font_aa().get();
 
                 let mut frame = FrameBuilder::new(
                     self.frame_id,

@@ -236,9 +236,8 @@ impl Calculator {
 fn set_fallback_font() {
     use zero_ui::core::text::*;
 
-    let mut fonts = FONTS.write();
     let und = lang!(und);
-    if fonts
+    if FONTS
         .list(
             &FontNames::system_ui(&und),
             FontStyle::Normal,
@@ -254,7 +253,7 @@ fn set_fallback_font() {
         static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
         let fallback = zero_ui::core::text::CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
 
-        fonts.register(fallback).unwrap();
-        fonts.generics_mut().set_fallback(und, "fallback");
+        FONTS.register(fallback).unwrap();
+        FONTS.generics().set_fallback(und, "fallback");
     }
 }

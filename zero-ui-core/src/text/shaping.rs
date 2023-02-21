@@ -2443,11 +2443,7 @@ mod tests {
 
     fn test_font() -> FontRef {
         let _app = App::default().run_headless(false);
-        let font = FONTS
-            .write()
-            .normal(&FontName::sans_serif(), &lang!(und))
-            .unwrap()
-            .sized(Px(20), vec![]);
+        let font = FONTS.normal(&FontName::sans_serif(), &lang!(und)).unwrap().sized(Px(20), vec![]);
         drop(_app);
         font
     }
@@ -2541,7 +2537,6 @@ mod tests {
     fn font_fallback_issue() {
         let _app = App::default().run_headless(false);
         let font = FONTS
-            .write()
             .list(
                 &[FontName::new("Consolas"), FontName::monospace()],
                 FontStyle::Normal,

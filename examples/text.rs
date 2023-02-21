@@ -260,7 +260,7 @@ fn defaults() -> impl UiNode {
     fn demo(title: &str, font_family: impl Into<FontNames>) -> impl UiNode {
         let font_family = font_family.into();
 
-        let font = FONTS.write().list(
+        let font = FONTS.list(
             &font_family,
             FontStyle::Normal,
             FontWeight::NORMAL,
