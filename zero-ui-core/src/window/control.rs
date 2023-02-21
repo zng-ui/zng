@@ -790,7 +790,7 @@ impl HeadedCtrl {
             focus_indicator: self.vars.focus_indicator().get(),
         };
 
-        match ViewProcess::req(ctx.services).open_window(request) {
+        match VIEW_PROCESS.read().open_window(request) {
             Ok(()) => {
                 self.state = Some(state);
                 self.waiting_view = true;
@@ -900,7 +900,7 @@ impl HeadedCtrl {
             focus_indicator: self.vars.focus_indicator().get(),
         };
 
-        match ViewProcess::req(ctx.services).open_window(request) {
+        match VIEW_PROCESS.read().open_window(request) {
             Ok(()) => self.waiting_view = true,
             Err(ViewProcessOffline) => {} // respawn.
         }
@@ -1134,7 +1134,7 @@ impl HeadlessWithRendererCtrl {
 
         self.content.pre_event(ctx, update);
 
-        self.headless_simulator.pre_event(ctx, update);
+        self.headless_simulator.pre_event(update);
     }
 
     pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
@@ -1187,7 +1187,7 @@ impl HeadlessWithRendererCtrl {
             let window_id = *ctx.window_id;
             let render_mode = self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode);
 
-            let r = ViewProcess::req(ctx.services).open_headless(HeadlessRequest {
+            let r = VIEW_PROCESS.read().open_headless(HeadlessRequest {
                 id: window_id.get(),
                 scale_factor: scale_factor.0,
                 size,
@@ -1330,7 +1330,7 @@ impl HeadlessCtrl {
 
     pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
         self.content.pre_event(ctx, update);
-        self.headless_simulator.pre_event(ctx, update);
+        self.headless_simulator.pre_event(update);
     }
 
     pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
@@ -1407,20 +1407,18 @@ impl HeadlessSimulator {
         }
     }
 
-    fn enabled(&mut self, ctx: &mut WindowContext) -> bool {
-        *self
-            .is_enabled
-            .get_or_insert_with(|| crate::app::App::window_mode(ctx.services).is_headless())
+    fn enabled(&mut self) -> bool {
+        *self.is_enabled.get_or_insert_with(|| crate::app::App::window_mode().is_headless())
     }
 
-    pub fn pre_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
-        if self.enabled(ctx) && self.is_open && VIEW_PROCESS_INITED_EVENT.on(update).map(|a| a.is_respawn).unwrap_or(false) {
+    pub fn pre_event(&mut self, update: &mut EventUpdate) {
+        if self.enabled() && self.is_open && VIEW_PROCESS_INITED_EVENT.on(update).map(|a| a.is_respawn).unwrap_or(false) {
             self.is_open = false;
         }
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
-        if self.enabled(ctx) && !self.is_open {
+        if self.enabled() && !self.is_open {
             self.is_open = true;
             self.focus(ctx);
         }

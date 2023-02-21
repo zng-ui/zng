@@ -31,13 +31,13 @@ impl AppIntrinsic {
             let view_app = ViewProcess::start(view_process_exe, device_events, false, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
-            ctx.services.register(view_app);
+            *VIEW_PROCESS.write() = view_app;
         } else if with_renderer {
             let view_evs_sender = ctx.updates.sender();
             let renderer = ViewProcess::start(view_process_exe, false, true, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
-            ctx.services.register(renderer);
+            *VIEW_PROCESS.write() = renderer;
         }
 
         AppIntrinsic {

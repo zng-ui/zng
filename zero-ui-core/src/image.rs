@@ -18,7 +18,7 @@ use zero_ui_view_api::IpcBytes;
 use crate::{
     app::{
         raw_events::{RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
-        view_process::{ViewImage, ViewProcess, ViewProcessOffline, VIEW_PROCESS_INITED_EVENT},
+        view_process::{ViewImage, ViewProcess, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
         AppEventSender, AppExtension,
     },
     app_local,
@@ -55,9 +55,10 @@ pub use render::{render_retain, ImageRenderVars};
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn init(&mut self, ctx: &mut AppContext) {
+        let vp = VIEW_PROCESS.read();
         IMAGES
             .write()
-            .init(ctx.services.get::<ViewProcess>().cloned(), ctx.updates.sender());
+            .init(if vp.is_available() { Some(vp.clone()) } else { None }, ctx.updates.sender());
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {

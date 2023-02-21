@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 use super::commands::WindowCommands;
 use super::*;
 use crate::app::raw_events::{RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_WINDOW_OPEN_EVENT};
-use crate::app::view_process::{ViewProcess, VIEW_PROCESS_INITED_EVENT};
+use crate::app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
 use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
 use crate::crate_util::IdSet;
@@ -649,7 +649,7 @@ impl Windows {
                 }
             }
 
-            let is_headless_app = app::App::window_mode(ctx.services).is_headless();
+            let is_headless_app = app::App::window_mode().is_headless();
             let wns = WINDOWS.read();
 
             // if set to exit on last headed window close in a headed app,
@@ -696,8 +696,9 @@ impl Windows {
     }
 
     fn fullfill_requests(ctx: &mut AppContext) {
-        if let Some(vp) = ctx.services.get::<ViewProcess>() {
-            if !vp.online() {
+        {
+            let vp = VIEW_PROCESS.read();
+            if vp.is_available() && !vp.is_online() {
                 // wait ViewProcessInitedEvent
                 return;
             }
@@ -708,7 +709,7 @@ impl Windows {
             (wns.take_requests(), wns.latest_color_scheme)
         };
 
-        let window_mode = app::App::window_mode(ctx.services);
+        let window_mode = app::App::window_mode();
 
         // fulfill open requests.
         for r in open {

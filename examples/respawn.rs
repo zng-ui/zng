@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::app::view_process::ViewProcess;
+use zero_ui::core::app::view_process::VIEW_PROCESS;
 use zero_ui::prelude::*;
 
 // use zero_ui_view_prebuilt as zero_ui_view;
@@ -12,9 +12,9 @@ fn main() {
             title = "View-Process Respawn Example";
             icon = WindowIcon::render(|_| icon());
             start_position = StartPosition::CenterMonitor;
-            on_key_down = hn!(|ctx, args: &KeyInputArgs| {
+            on_key_down = hn!(|_, args: &KeyInputArgs| {
                 if args.key == Some(Key::F5) {
-                    ViewProcess::req(ctx.services).respawn();
+                    VIEW_PROCESS.read().respawn();
                 }
             });
             foreground = window_status(ctx);
@@ -45,8 +45,8 @@ fn main() {
 fn respawn() -> impl UiNode {
     button! {
         child = text!("Respawn (F5)");
-        on_click = hn!(|ctx, _| {
-            ViewProcess::req(ctx.services).respawn();
+        on_click = hn!(|_, _| {
+            VIEW_PROCESS.read().respawn();
         });
     }
 }
@@ -55,8 +55,8 @@ fn respawn() -> impl UiNode {
 fn crash_respawn() -> impl UiNode {
     button! {
         child = text!("Crash View-Process");
-        on_click = hn!(|ctx, _| {
-            ViewProcess::req(ctx.services).crash_view_process();
+        on_click = hn!(|_, _| {
+            VIEW_PROCESS.read().crash_view_process();
         });
     }
 }
