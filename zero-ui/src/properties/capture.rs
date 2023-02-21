@@ -46,15 +46,14 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                 if args.is_mouse_down() {
-                    let mut mouse = MOUSE.write();
                     let widget_id = ctx.path.widget_id();
 
                     match self.mode.get() {
                         CaptureMode::Widget => {
-                            mouse.capture_widget(widget_id);
+                            MOUSE.capture_widget(widget_id);
                         }
                         CaptureMode::Subtree => {
-                            mouse.capture_subtree(widget_id);
+                            MOUSE.capture_subtree(widget_id);
                         }
                         CaptureMode::Window => (),
                     }
@@ -71,15 +70,14 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                     .map(|w| w.interactivity().is_enabled())
                     .unwrap_or(false)
                 {
-                    let mut mouse = MOUSE.write();
                     let widget_id = ctx.path.widget_id();
-                    if let Some((current, _)) = mouse.current_capture() {
+                    if let Some((current, _)) = MOUSE.current_capture() {
                         if current.widget_id() == widget_id {
                             // If mode updated and we are capturing the mouse:
                             match new_mode {
-                                CaptureMode::Widget => mouse.capture_widget(widget_id),
-                                CaptureMode::Subtree => mouse.capture_subtree(widget_id),
-                                CaptureMode::Window => mouse.release_capture(),
+                                CaptureMode::Widget => MOUSE.capture_widget(widget_id),
+                                CaptureMode::Subtree => MOUSE.capture_subtree(widget_id),
+                                CaptureMode::Window => MOUSE.release_capture(),
                             }
                         }
                     }
