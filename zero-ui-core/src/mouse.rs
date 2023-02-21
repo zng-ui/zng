@@ -13,7 +13,7 @@ use crate::{
     widget_instance::WidgetId,
     window::{WindowId, Windows, WINDOWS},
 };
-use std::{fmt, mem, num::NonZeroU8, time::*};
+use std::{fmt, mem, num::NonZeroU8, sync::Arc, time::*};
 
 use linear_map::LinearMap;
 pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchForce, TouchPhase};
@@ -1282,14 +1282,12 @@ enum ClickState {
     },
 }
 
-app_local! {
-    /// Mouse service instance for the current app.
-    ///
-    /// This service is only active in apps running with the [`MouseManager`] extension.
-    ///
-    /// See [`Mouse`] for service details.
-    pub static MOUSE: Mouse = Mouse::new();
-}
+/// Mouse service instance for the current app.
+///
+/// This service is only active in apps running with the [`MouseManager`] extension.
+///
+/// See [`Mouse`] for service details.
+pub static MOUSE: Mouse = Mouse {};
 
 /// Mouse service.
 ///
@@ -1307,31 +1305,13 @@ app_local! {
 /// # Provider
 ///
 /// This service is provided by the [`MouseManager`] extension, the instance is in [`MOUSE`].
-pub struct Mouse {
-    current_capture: Option<(WidgetPath, CaptureMode)>,
-    capture_request: Option<(WidgetId, CaptureMode)>,
-    release_requested: bool,
-    update_sender: Option<AppEventSender>,
-    multi_click_config: ArcVar<MultiClickConfig>,
-    buttons: ArcVar<Vec<MouseButton>>,
-}
+pub struct Mouse {}
 impl Mouse {
-    fn new() -> Self {
-        Mouse {
-            current_capture: None,
-            capture_request: None,
-            release_requested: false,
-            update_sender: None,
-            multi_click_config: var(MultiClickConfig::default()),
-            buttons: var(vec![]),
-        }
-    }
-
     /// Returns a read-only variable that tracks the [buttons] that are currently pressed.
     ///
     /// [buttons]: MouseButton
     pub fn buttons(&self) -> ReadOnlyArcVar<Vec<MouseButton>> {
-        self.buttons.read_only()
+        MOUSE_IMPL.read().buttons.read_only()
     }
 
     /// Read-only variable that tracks the system click-count increment time and area, a.k.a. the double-click config.
@@ -1348,20 +1328,21 @@ impl Mouse {
     /// Internally the [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`] is listened to update this variable, so you can notify
     /// this event to set this variable, if you really must.
     pub fn multi_click_config(&self) -> ReadOnlyArcVar<MultiClickConfig> {
-        self.multi_click_config.read_only()
+        MOUSE_IMPL.read().multi_click_config.read_only()
     }
 
     /// The current capture target and mode.
-    pub fn current_capture(&self) -> Option<(&WidgetPath, CaptureMode)> {
-        self.current_capture.as_ref().map(|(p, c)| (p, *c))
+    pub fn current_capture(&self) -> Option<(Arc<WidgetPath>, CaptureMode)> {
+        MOUSE_IMPL.read().current_capture.as_ref().map(|(p, c)| (p.clone(), *c))
     }
 
     /// Set a widget to redirect all mouse events to.
     ///
     /// The capture will be set only if the pointer is currently pressed over the widget.
-    pub fn capture_widget(&mut self, widget_id: WidgetId) {
-        self.capture_request = Some((widget_id, CaptureMode::Widget));
-        let _ = self.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
+    pub fn capture_widget(&self, widget_id: WidgetId) {
+        let mut m = MOUSE_IMPL.write();
+        m.capture_request = Some((widget_id, CaptureMode::Widget));
+        let _ = m.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
     }
 
     /// Set a widget to be the root of a capture subtree.
@@ -1371,8 +1352,9 @@ impl Mouse {
     ///
     /// The capture will be set only if the pointer is currently pressed over the widget.
     pub fn capture_subtree(&mut self, widget_id: WidgetId) {
-        self.capture_request = Some((widget_id, CaptureMode::Subtree));
-        let _ = self.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
+        let mut m = MOUSE_IMPL.write();
+        m.capture_request = Some((widget_id, CaptureMode::Subtree));
+        let _ = m.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
     }
 
     /// Release the current mouse capture back to window.
@@ -1380,10 +1362,31 @@ impl Mouse {
     /// **Note:** The capture is released automatically when the mouse buttons are released
     /// or when the window loses focus.
     pub fn release_capture(&mut self) {
-        self.release_requested = true;
-        let _ = self.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
+        let mut m = MOUSE_IMPL.write();
+        m.release_requested = true;
+        let _ = m.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
     }
+}
 
+app_local! {
+    static MOUSE_IMPL: MouseImpl = MouseImpl {
+        current_capture: None,
+        capture_request: None,
+        release_requested: false,
+        update_sender: None,
+        multi_click_config: var(MultiClickConfig::default()),
+        buttons: var(vec![]),
+    };
+}
+struct MouseImpl {
+    current_capture: Option<(Arc<WidgetPath>, CaptureMode)>,
+    capture_request: Option<(WidgetId, CaptureMode)>,
+    release_requested: bool,
+    update_sender: Option<AppEventSender>,
+    multi_click_config: ArcVar<MultiClickConfig>,
+    buttons: ArcVar<Vec<MouseButton>>,
+}
+impl MouseImpl {
     /// Call when the mouse starts pressing on the window.
     fn start_window_capture(&mut self, mouse_down: InteractionPath, events: &mut Events) {
         self.release_requested = false;
