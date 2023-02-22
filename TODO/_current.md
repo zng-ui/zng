@@ -1,3 +1,6 @@
+* New services use variables to config, there is a delay on init now.
+    - This causes stuff like the `IMAGES` filter to not work.
+
 * Dropping app with service locked deadlocks.
     - See `test_font` for a case.
 

@@ -778,39 +778,42 @@ impl Windows {
             WINDOW_OPEN_EVENT.notify(ctx, args);
         }
 
-        let mut wns = WINDOWS_IMPL.write();
-        let wns = &mut *wns;
-
         // notify close requests, the request is fulfilled or canceled
         // in the `event` handler.
 
-        let mut close_wns = LinearSet::new();
-        for r in close {
-            for w in r.windows {
-                if let Some(info) = wns.windows_info.get(&w) {
-                    if close_wns.insert(w) {
-                        wns.close_responders
-                            .entry(w)
-                            .or_insert_with(Default::default)
-                            .push(r.responder.clone());
+        {
+            let mut wns = WINDOWS_IMPL.write();
+            let wns = &mut *wns;
 
-                        info.vars.0.children.with(|c| {
-                            for &c in c {
-                                if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
-                                    wns.close_responders
-                                        .entry(c)
-                                        .or_insert_with(Default::default)
-                                        .push(r.responder.clone());
+            let mut close_wns = LinearSet::new();
+
+            for r in close {
+                for w in r.windows {
+                    if let Some(info) = wns.windows_info.get(&w) {
+                        if close_wns.insert(w) {
+                            wns.close_responders
+                                .entry(w)
+                                .or_insert_with(Default::default)
+                                .push(r.responder.clone());
+
+                            info.vars.0.children.with(|c| {
+                                for &c in c {
+                                    if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
+                                        wns.close_responders
+                                            .entry(c)
+                                            .or_insert_with(Default::default)
+                                            .push(r.responder.clone());
+                                    }
                                 }
-                            }
-                        });
+                            });
+                        }
                     }
                 }
             }
-        }
-        if !close_wns.is_empty() {
-            let args = WindowCloseRequestedArgs::now(close_wns);
-            WINDOW_CLOSE_REQUESTED_EVENT.notify(ctx.events, args);
+            if !close_wns.is_empty() {
+                let args = WindowCloseRequestedArgs::now(close_wns);
+                WINDOW_CLOSE_REQUESTED_EVENT.notify(ctx.events, args);
+            }
         }
 
         // fulfill focus request
