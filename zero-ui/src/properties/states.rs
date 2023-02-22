@@ -2,7 +2,10 @@
 
 use std::time::Duration;
 
-use crate::core::{mouse::*, timer::DeadlineVar};
+use crate::core::{
+    mouse::*,
+    timer::{DeadlineVar, TIMERS},
+};
 use crate::prelude::new_property::*;
 
 /// If the mouse pointer is over the widget or a descendant and the widget is [`DISABLED`].
@@ -198,7 +201,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
                     if self.shortcut_press.take().is_none() {
                         let duration = GESTURES.shortcut_pressed_duration().get();
                         if duration != Duration::default() {
-                            let dl = ctx.timers.deadline(duration);
+                            let dl = TIMERS.deadline(duration);
                             dl.subscribe(ctx.path.widget_id()).perm();
                             self.shortcut_press = Some(dl);
                             let _ = self.state.set_ne(ctx, true);

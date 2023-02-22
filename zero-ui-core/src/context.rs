@@ -3,7 +3,7 @@
 use crate::{
     app::{AppEventSender, LoopTimer},
     event::{EventHandle, EventHandles, Events},
-    timer::Timers,
+    timer::TIMERS_IMPL,
     units::*,
     var::{VarHandle, VarHandles, Vars},
     widget_info::{InlineSegmentPos, WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
@@ -35,7 +35,6 @@ pub(crate) struct OwnedAppContext {
     app_state: OwnedStateMap<state_map::App>,
     vars: Vars,
     events: Events,
-    timers: Timers,
     updates: Updates,
 }
 impl OwnedAppContext {
@@ -46,7 +45,6 @@ impl OwnedAppContext {
             app_state: OwnedStateMap::new(),
             vars: Vars::instance(app_event_sender.clone()),
             events: Events::instance(app_event_sender),
-            timers: Timers::new(),
             updates,
         }
     }
@@ -67,7 +65,6 @@ impl OwnedAppContext {
             app_state: self.app_state.borrow_mut(),
             vars: &self.vars,
             events: &mut self.events,
-            timers: &mut self.timers,
             updates: &mut self.updates,
         }
     }
@@ -97,13 +94,13 @@ impl OwnedAppContext {
 
     /// Returns next timer or animation tick time.
     pub fn next_deadline(&mut self, timer: &mut LoopTimer) {
-        self.timers.next_deadline(timer);
+        TIMERS_IMPL.write().next_deadline(timer);
         self.vars.next_deadline(timer);
     }
 
     /// Update timers and animations, returns next wake time.
     pub fn update_timers(&mut self, timer: &mut LoopTimer) {
-        self.timers.apply_updates(&self.vars, timer);
+        TIMERS_IMPL.write().apply_updates(&self.vars, timer);
         self.vars.update_animations(timer);
     }
 
@@ -115,7 +112,7 @@ impl OwnedAppContext {
             || self.updates.render_requested()
             || self.vars.has_pending_updates()
             || self.events.has_pending_updates()
-            || self.timers.has_pending_updates()
+            || TIMERS_IMPL.read().has_pending_updates()
     }
 }
 
@@ -128,9 +125,6 @@ pub struct AppContext<'a> {
     pub vars: &'a Vars,
     /// Access to application events.
     pub events: &'a mut Events,
-
-    /// Event loop based timers.
-    pub timers: &'a mut Timers,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -160,7 +154,6 @@ impl<'a> AppContext<'a> {
             update_state: update_state.borrow_mut(),
             vars: self.vars,
             events: self.events,
-            timers: self.timers,
             updates: self.updates,
         });
 
@@ -195,9 +188,6 @@ pub struct WindowContext<'a> {
     /// Access to application events.
     pub events: &'a mut Events,
 
-    /// Event loop based timers.
-    pub timers: &'a mut Timers,
-
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 }
@@ -231,8 +221,6 @@ impl<'a> WindowContext<'a> {
 
             vars: self.vars,
             events: self.events,
-
-            timers: self.timers,
 
             updates: self.updates,
         })
@@ -385,9 +373,6 @@ pub struct TestWidgetContext {
     /// [`events`]: WidgetContext::events
     pub events: Events,
 
-    /// Event loop bases timers.
-    pub timers: Timers,
-
     pub(crate) root_translation_key: crate::render::FrameValueKey<PxTransform>,
     receiver: flume::Receiver<crate::app::AppEvent>,
     loop_timer: crate::app::LoopTimer,
@@ -431,7 +416,6 @@ impl TestWidgetContext {
             events: Events::instance(sender.clone()),
             vars: Vars::instance(sender.clone()),
             updates: Updates::new(sender),
-            timers: Timers::new(),
             root_translation_key: crate::render::FrameValueKey::new_unique(),
 
             receiver,
@@ -458,7 +442,6 @@ impl TestWidgetContext {
             },
             vars: &self.vars,
             events: &mut self.events,
-            timers: &mut self.timers,
             updates: &mut self.updates,
         })
     }
@@ -567,7 +550,7 @@ impl TestWidgetContext {
     pub fn update_timers(&mut self) -> Option<Deadline> {
         self.loop_timer.awake();
 
-        self.timers.apply_updates(&self.vars, &mut self.loop_timer);
+        TIMERS_IMPL.write().apply_updates(&self.vars, &mut self.loop_timer);
         self.vars.update_animations(&mut self.loop_timer);
 
         self.loop_timer.poll()
@@ -753,9 +736,6 @@ pub struct WidgetContext<'a> {
     /// Access to application events.
     pub events: &'a mut Events,
 
-    /// Event loop based timers.
-    pub timers: &'a mut Timers,
-
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 }
@@ -793,8 +773,6 @@ impl<'a> WidgetContext<'a> {
             vars: self.vars,
             events: self.events,
 
-            timers: self.timers,
-
             updates: self.updates,
         });
 
@@ -827,7 +805,6 @@ impl<'a> WidgetContext<'a> {
             },
             vars: self.vars,
             events: self.events,
-            timers: self.timers,
             updates: self.updates,
         })
     }

@@ -2,6 +2,8 @@
 
 * Make a proc-macro that derives the service pattern from a normal looking struct.
 
+* OR we can derive from a public `Foo` from `FooService`.
+
 ```rust
 /// Foo service.
 /// 
@@ -15,7 +17,7 @@ pub struct Foo {
     data: bool,
 }
 
-#[service(FOO)]
+#[service]
 impl Foo {
     fn new() -> Self {
         Foo {
@@ -41,11 +43,16 @@ impl Foo {
 Expands too:
 
 ```rust
-pub(crate) struct __Foo_Service__ {
+pub(crate) struct FooService {
     data: bool,
 }
-app_local! {
-    pub(crate) static __FOO_SERVICE__: __Foo_Service__ = __Foo_Service__::new();
+impl Foo {
+    fn __app_local__() -> &'static crate::app::AppLocal<FooService> {       
+        app_local! {
+            __FOO__: FooService = FooService::new();
+        }
+        &__FOO__
+    }
 }
 
 /// Foo service.
@@ -60,7 +67,7 @@ pub struct Foo { }
 /// Instance of [`Foo`] for the current app.
 pub static FOO: Foo = Foo { };
 
-impl __Foo_Service__ {
+impl FooService {
     fn new() -> Self {
         Foo {
             data: false,
@@ -78,15 +85,21 @@ impl __Foo_Service__ {
 
     fn private_mtd(&mut self) { }
 }
+
 impl Foo {
     /// Foo data.
     pub fn data(&self) -> bool {
-        __FOO_SERVICE__.read().data()
+        Self::__app_local__().read().data()
     }
 
     /// Foo action.
     pub fn action(&self, r: bool) {
-        __FOO_SERVICE__.write().action(r);
+        Self::__app_local__().write().action(r);
+    }
+
+    #[allow(unused)]
+    fn private_mtd(&mut self) { 
+        Self::__app_local__().write().private_mtd(self);
     }
 }
 ```

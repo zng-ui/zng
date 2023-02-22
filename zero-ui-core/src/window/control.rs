@@ -703,7 +703,7 @@ impl HeadedCtrl {
         }
 
         // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
-        if !WINDOWS.try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
+        if !WINDOWS.try_load(ctx.vars, ctx.events, self.window_id) {
             // block on loading handles.
             return;
         }
@@ -1174,7 +1174,7 @@ impl HeadlessWithRendererCtrl {
         } else if !self.waiting_view {
             // (re)spawn the view surface:
 
-            if !WINDOWS.try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
+            if !WINDOWS.try_load(ctx.vars, ctx.events, self.window_id) {
                 return;
             }
 
@@ -1336,7 +1336,7 @@ impl HeadlessCtrl {
             return;
         }
 
-        if !WINDOWS.try_load(ctx.vars, ctx.events, ctx.timers, *ctx.window_id) {
+        if !WINDOWS.try_load(ctx.vars, ctx.events, *ctx.window_id) {
             return;
         }
 

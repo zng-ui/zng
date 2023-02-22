@@ -15,7 +15,7 @@ use crate::crate_util::IdSet;
 use crate::event::{AnyEventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
-use crate::timer::{DeadlineHandle, Timers};
+use crate::timer::{DeadlineHandle, TIMERS};
 use crate::widget_info::WidgetInfoTree;
 use crate::{
     app::{
@@ -566,9 +566,9 @@ impl Windows {
     /// Change window state to loaded if there are no load handles active.
     ///
     /// Returns `true` if loaded.
-    pub(super) fn try_load(&self, vars: &Vars, events: &mut Events, timers: &mut Timers, window_id: WindowId) -> bool {
+    pub(super) fn try_load(&self, vars: &Vars, events: &mut Events, window_id: WindowId) -> bool {
         if let Some(info) = WINDOWS_IMPL.write().windows_info.get_mut(&window_id) {
-            info.is_loaded = info.loading_handle.try_load(timers);
+            info.is_loaded = info.loading_handle.try_load();
 
             if info.is_loaded && !info.vars.0.is_loaded.get() {
                 info.vars.0.is_loaded.set_ne(vars, true);
@@ -1013,7 +1013,7 @@ impl WindowLoading {
     }
 
     /// Returns `true` if the window can load.
-    pub fn try_load(&mut self, timers: &mut Timers) -> bool {
+    pub fn try_load(&mut self) -> bool {
         let mut deadline = Deadline::timeout(1.hours());
         self.handles.retain(|h| match h.upgrade() {
             Some(h) => {
@@ -1036,7 +1036,7 @@ impl WindowLoading {
                 }
             }
             if self.timer.is_none() {
-                let t = timers.on_deadline(deadline, app_hn_once!(|ctx, _| ctx.updates.update_ext()));
+                let t = TIMERS.on_deadline(deadline, app_hn_once!(|ctx, _| ctx.updates.update_ext()));
                 self.timer = Some(t);
             }
 

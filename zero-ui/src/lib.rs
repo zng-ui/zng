@@ -917,6 +917,7 @@ pub mod prelude {
             formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, Justify, LineBreak, Text,
             TextTransformFn, ToText, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak, FONTS,
         },
+        timer::TIMERS,
         units::{
             rotate, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_x, translate_y, Align, AngleUnits,
             ByteUnits, EasingStep, EasingTime, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight, Point, Px,

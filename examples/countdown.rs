@@ -12,8 +12,8 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|ctx| {
-        let count = ctx.timers.interval(1.secs(), false).map(move |t| {
+    App::default().run_window(|_| {
+        let count = TIMERS.interval(1.secs(), false).map(move |t| {
             let count = 10 - t.count();
             if count == 0 {
                 t.stop();

@@ -1,8 +1,13 @@
+* Rename `_IMPL`, `Impl` to `_SV`, `Service`.
+    - Implement basic `service` proc-macro, test if derived code auto-completes in rust-analyzer.
+    - Refactor manually impl services to use this.
+
 * Refactor the update sender to an `app_local!` too?
     - It is the most common dependency of services.
     - For the user, `Vars`, `Events`, `Timers`, `Updates` all look like services.
         - Refactor `Timers` into a `TIMERS` service, to see if we like it.
-        - After do `Events` and `Vars`, no more need for context in many places.
+            - Done.
+        - After, do `Events` and `Vars`, no more need for context in many places.
             - `Vars::get` works in any thread, but `Vars::set` panics outside app threads.
                 - Confusing, right now this is clear because `ctx.vars` needs to be borrowed.
             - Most apps are a single app per process, review `single_app` feature in `./Performance.md`.

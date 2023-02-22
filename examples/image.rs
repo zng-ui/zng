@@ -1,12 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::core::task::http;
-use zero_ui::core::{
-    image::{ImageLimits, IMAGES},
-    timer::Timers,
-};
-use zero_ui::prelude::*;
 use zero_ui::widgets::image::{img_error_gen, img_loading_gen, ImageErrorArgs};
+use zero_ui::{
+    core::image::{ImageLimits, IMAGES},
+    prelude::*,
+};
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
@@ -140,7 +139,7 @@ fn app_main() {
                             ),
                             section(
                                 "Sprite",
-                                ui_vec![sprite(ctx.timers)]
+                                ui_vec![sprite()]
                             ),
                             section(
                                 "Window",
@@ -203,8 +202,8 @@ fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl UiNode {
     }
 }
 
-fn sprite(timers: &mut Timers) -> impl UiNode {
-    let timer = timers.interval((1.0 / 24.0).secs(), true);
+fn sprite() -> impl UiNode {
+    let timer = TIMERS.interval((1.0 / 24.0).secs(), true);
     let label = var_from("play");
 
     stack! {
@@ -368,9 +367,9 @@ pub mod img_window {
         color_scheme = ColorScheme::Dark;
 
         // content shown by all images when loading.
-        img_loading_gen = wgt_gen!(|ctx, _| {
+        img_loading_gen = wgt_gen!(|_, _| {
             let mut dots_count = 3;
-            let msg = ctx.timers.interval(300.ms(), false).map(move |_| {
+            let msg = TIMERS.interval(300.ms(), false).map(move |_| {
                 dots_count += 1;
                 if dots_count == 8 {
                     dots_count = 0;
