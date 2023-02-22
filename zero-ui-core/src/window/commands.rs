@@ -101,7 +101,7 @@ impl WindowCommands {
             });
         } else if let Some(args) = CLOSE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.close_handle, |_| {
-                let _ = WINDOWS.write().close(scope);
+                let _ = WINDOWS.close(scope);
             });
         } else if let Some(args) = FULLSCREEN_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.fullscreen_handle, |_| {

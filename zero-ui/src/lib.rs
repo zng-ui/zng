@@ -713,7 +713,6 @@
 //! # static FOO_ID: zero_ui::core::context::StaticStateId<bool> = zero_ui::core::context::StaticStateId::new_unique();
 //! hn!(|ctx, _| {
 //!     let value_ref = foo_var.get();
-//!     let service_ref = WINDOWS.read();
 //!     let state_ref = ctx.widget_state.get(&FOO_ID);
 //! })
 //! # }
@@ -739,7 +738,7 @@
 //! button! {
 //!     child = text!("Open Window");
 //!     on_click = hn!(|ctx, _| {
-//!         WINDOWS.write().open(|_| window! {
+//!         WINDOWS.open(|_| window! {
 //!             child = text!("Hello!");
 //!         });
 //!     });

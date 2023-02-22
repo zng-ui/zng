@@ -29,7 +29,7 @@ use crate::{app_local, var::*};
 use crate::{units::*, widget_instance::WidgetId};
 
 app_local! {
-    static WINDOWS_IMPL: WindowsImpl = WindowsImpl::new();
+    pub(super) static WINDOWS_IMPL: WindowsImpl = WindowsImpl::new();
 }
 
 /// Windows service instance for the current app.
@@ -39,7 +39,7 @@ app_local! {
 /// See [`Windows`] for service details.
 pub static WINDOWS: Windows = Windows {};
 
-struct WindowsImpl {
+pub(super) struct WindowsImpl {
     exit_on_last_close: ArcVar<bool>,
     default_render_mode: ArcVar<RenderMode>,
 
@@ -228,7 +228,7 @@ impl Windows {
     ) -> ResponseVar<WindowOpenArgs> {
         let window_id = window_id.into();
         self.assert_id_unused(window_id);
-        WINDOWS_IMPL.read().open_impl(window_id, new_window, None)
+        WINDOWS_IMPL.write().open_impl(window_id, new_window, None)
     }
 
     /// Requests a new headless window.
@@ -244,7 +244,7 @@ impl Windows {
         new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
         with_renderer: bool,
     ) -> ResponseVar<WindowOpenArgs> {
-        WINDOWS_IMPL.read().open_impl(
+        WINDOWS_IMPL.write().open_impl(
             WindowId::new_unique(),
             new_window,
             Some(if with_renderer {
@@ -268,7 +268,7 @@ impl Windows {
     ) -> ResponseVar<WindowOpenArgs> {
         let window_id = window_id.into();
         self.assert_id_unused(window_id);
-        WINDOWS_IMPL.read().open_impl(
+        WINDOWS_IMPL.write().open_impl(
             window_id,
             new_window,
             Some(if with_renderer {
@@ -510,7 +510,7 @@ impl Windows {
     /// [`focus`]: Self::focus
     pub fn bring_to_top(&self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
         let window_id = window_id.into();
-        let w = WINDOWS_IMPL.write();
+        let mut w = WINDOWS_IMPL.write();
         if w.windows_info.contains_key(&window_id) {
             w.bring_to_top_requests.push(window_id);
             let _ = w.update_sender.as_ref().expect("`WindowManager` not inited").send_ext_update();
@@ -646,7 +646,7 @@ impl Windows {
 
     pub(super) fn on_ui_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if update.delivery_list().has_pending_search() {
-            update.fulfill_search(WINDOWS.read().windows_info.values().map(|w| &w.widget_tree));
+            update.fulfill_search(WINDOWS_IMPL.read().windows_info.values().map(|w| &w.widget_tree));
         }
         Self::with_detached_windows(ctx, |ctx, windows| {
             for (_, window) in windows {
@@ -710,11 +710,12 @@ impl Windows {
             }
         } else if let Some(args) = EXIT_REQUESTED_EVENT.on(update) {
             if !args.propagation().is_stopped() {
-                let mut windows = WINDOWS_IMPL.write();
+                let windows = WINDOWS_IMPL.read();
                 if windows.windows_info.values().any(|w| w.mode == WindowMode::Headed) {
                     args.propagation().stop();
                     windows.exit_on_last_close.set(ctx, true);
-                    windows.close_all();
+                    drop(windows);
+                    WINDOWS.close_all();
                 }
             }
         }
@@ -724,7 +725,7 @@ impl Windows {
         Self::fullfill_requests(ctx);
 
         if updates.delivery_list().has_pending_search() {
-            updates.fulfill_search(WINDOWS.read().windows_info.values().map(|w| &w.widget_tree));
+            updates.fulfill_search(WINDOWS_IMPL.read().windows_info.values().map(|w| &w.widget_tree));
         }
 
         Self::with_detached_windows(ctx, |ctx, windows| {
@@ -851,9 +852,9 @@ impl Windows {
     /// The windows map is empty for the duration of `f` and should not be used, this is for
     /// mutating the window content while still allowing it to query the `Windows::windows_info`.
     fn with_detached_windows(ctx: &mut AppContext, f: impl FnOnce(&mut AppContext, &mut LinearMap<WindowId, AppWindow>)) {
-        let mut windows = mem::take(&mut WINDOWS.write().windows);
+        let mut windows = mem::take(&mut WINDOWS_IMPL.write().windows);
         f(ctx, &mut windows);
-        let mut wns = WINDOWS.write();
+        let mut wns = WINDOWS_IMPL.write();
         debug_assert!(wns.windows.is_empty());
         wns.windows = windows;
     }
@@ -921,7 +922,7 @@ impl AppWindow {
             .map(|m| m.scale_factor().get())
             .unwrap_or_else(|| 1.fct());
 
-        let vars = WindowVars::new(WINDOWS.read().default_render_mode.get(), primary_scale_factor, color_scheme);
+        let vars = WindowVars::new(WINDOWS_IMPL.read().default_render_mode.get(), primary_scale_factor, color_scheme);
         let mut state = OwnedStateMap::new();
         state.borrow_mut().set(&WINDOW_VARS_ID, vars.clone());
         let (window, _) = ctx.window_context(id, mode, &mut state, new);

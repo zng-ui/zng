@@ -27,8 +27,8 @@ use crate::{
 use super::{
     commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
     FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, TransformChangedArgs, Window, WindowChangedArgs,
-    WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, Windows, FRAME_IMAGE_READY_EVENT, MONITORS_CHANGED_EVENT,
-    TRANSFORM_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT,
+    WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS_CHANGED_EVENT, TRANSFORM_CHANGED_EVENT,
+    WINDOWS, WINDOW_CHANGED_EVENT,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -371,7 +371,7 @@ impl HeadedCtrl {
             }
 
             if let Some(indicator) = self.vars.focus_indicator().get_new(ctx) {
-                if WINDOWS.read().is_focused(*ctx.window_id).unwrap_or(false) {
+                if WINDOWS.is_focused(*ctx.window_id).unwrap_or(false) {
                     self.vars.focus_indicator().set_ne(ctx, None);
                 } else if let Some(view) = &self.window {
                     let _ = view.set_focus_indicator(indicator);
@@ -385,7 +385,7 @@ impl HeadedCtrl {
             if update_parent(ctx, &mut self.actual_parent, &self.vars) {
                 self.parent_color_scheme = self
                     .actual_parent
-                    .and_then(|id| WINDOWS.read().vars(id).ok().map(|v| v.actual_color_scheme()));
+                    .and_then(|id| WINDOWS.vars(id).ok().map(|v| v.actual_color_scheme()));
                 update_color_scheme = true;
             }
 
@@ -522,24 +522,22 @@ impl HeadedCtrl {
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus == Some(self.window_id) {
                 self.vars.0.children.with(|c| {
-                    let mut w = WINDOWS.write();
                     for &c in c {
-                        let _ = w.bring_to_top(c);
+                        let _ = WINDOWS.bring_to_top(c);
                     }
                 });
             } else if let Some(new_focus) = args.new_focus {
                 self.vars.0.children.with(|c| {
                     if c.contains(&new_focus) {
-                        let mut w = WINDOWS.write();
-                        let _ = w.bring_to_top(self.window_id);
+                        let _ = WINDOWS.bring_to_top(self.window_id);
 
                         for c in c {
                             if *c != new_focus {
-                                let _ = w.bring_to_top(self.window_id);
+                                let _ = WINDOWS.bring_to_top(self.window_id);
                             }
                         }
 
-                        let _ = w.bring_to_top(new_focus);
+                        let _ = WINDOWS.bring_to_top(new_focus);
                     }
                 });
             }
@@ -555,7 +553,7 @@ impl HeadedCtrl {
             if args.window_id == self.window_id {
                 self.waiting_view = false;
 
-                WINDOWS.write().set_renderer(*ctx.window_id, args.window.renderer());
+                WINDOWS.set_renderer(*ctx.window_id, args.window.renderer());
 
                 self.window = Some(args.window.clone());
                 self.vars.0.render_mode.set_ne(ctx, args.data.render_mode);
@@ -705,7 +703,7 @@ impl HeadedCtrl {
         }
 
         // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
-        if !WINDOWS.write().try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
+        if !WINDOWS.try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
             // block on loading handles.
             return;
         }
@@ -735,7 +733,7 @@ impl HeadedCtrl {
                 let mut parent_rect = screen_rect;
 
                 if let Some(parent) = self.vars.parent().get() {
-                    if let Ok(w) = WINDOWS.read().vars(parent) {
+                    if let Ok(w) = WINDOWS.vars(parent) {
                         let factor = w.scale_factor().get();
                         let pos = w.actual_position().get().to_px(factor.0);
                         let size = w.actual_size().get().to_px(factor.0);
@@ -781,7 +779,7 @@ impl HeadedCtrl {
             cursor: self.vars.cursor().get(),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
-            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode().get()),
+            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
@@ -891,9 +889,9 @@ impl HeadedCtrl {
             cursor: self.vars.cursor().get(),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
-            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode().get()),
+            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
 
-            focus: WINDOWS.read().is_focused(self.window_id).unwrap_or(false),
+            focus: WINDOWS.is_focused(self.window_id).unwrap_or(false),
             focus_indicator: self.vars.focus_indicator().get(),
         };
 
@@ -958,8 +956,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
                     return false;
                 }
 
-                let windows = WINDOWS.read();
-                if let Ok(parent_vars) = windows.vars(parent_id) {
+                if let Ok(parent_vars) = WINDOWS.vars(parent_id) {
                     // redirect to parent's parent.
                     if let Some(grand) = parent_vars.parent().get() {
                         tracing::debug!("using `{grand:?}` as parent, because it is the parent of requested `{parent_id:?}`");
@@ -973,7 +970,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
 
                     // remove previous
                     if let Some(parent_id) = parent.take() {
-                        if let Ok(parent_vars) = windows.vars(parent_id) {
+                        if let Ok(parent_vars) = WINDOWS.vars(parent_id) {
                             let id = *ctx.window_id;
                             parent_vars.0.children.modify(ctx.vars, move |c| {
                                 c.to_mut().remove(&id);
@@ -997,7 +994,7 @@ fn update_parent(ctx: &mut WindowContext, parent: &mut Option<WindowId>, vars: &
             }
             None => {
                 if let Some(parent_id) = parent.take() {
-                    if let Ok(parent_vars) = WINDOWS.read().vars(parent_id) {
+                    if let Ok(parent_vars) = WINDOWS.vars(parent_id) {
                         let id = *ctx.window_id;
                         parent_vars.0.children.modify(ctx.vars, move |c| {
                             c.to_mut().remove(&id);
@@ -1073,7 +1070,7 @@ impl HeadlessWithRendererCtrl {
         }
 
         if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
-            self.var_bindings = update_headless_vars(ctx.vars, &mut WINDOWS.write(), self.headless_monitor.scale_factor, &self.vars);
+            self.var_bindings = update_headless_vars(ctx.vars, self.headless_monitor.scale_factor, &self.vars);
         }
 
         self.content.update(ctx, updates);
@@ -1088,7 +1085,7 @@ impl HeadlessWithRendererCtrl {
             if args.window_id == *ctx.window_id {
                 self.waiting_view = false;
 
-                WINDOWS.write().set_renderer(args.window_id, args.surface.renderer());
+                WINDOWS.set_renderer(args.window_id, args.surface.renderer());
 
                 self.surface = Some(args.surface.clone());
                 self.vars.0.render_mode.set_ne(ctx.vars, args.data.render_mode);
@@ -1177,12 +1174,12 @@ impl HeadlessWithRendererCtrl {
         } else if !self.waiting_view {
             // (re)spawn the view surface:
 
-            if !WINDOWS.write().try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
+            if !WINDOWS.try_load(ctx.vars, ctx.events, ctx.timers, self.window_id) {
                 return;
             }
 
             let window_id = *ctx.window_id;
-            let render_mode = self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode().get());
+            let render_mode = self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get());
 
             let r = VIEW_PROCESS.open_headless(HeadlessRequest {
                 id: window_id.get(),
@@ -1225,10 +1222,10 @@ impl HeadlessWithRendererCtrl {
     }
 }
 
-fn update_headless_vars(vars: &Vars, windows: &mut Windows, mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandles {
+fn update_headless_vars(vars: &Vars, mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandles {
     let mut handles = VarHandles::dummy();
 
-    if let Some(parent_vars) = hvars.parent().get().and_then(|id| windows.vars(id).ok()) {
+    if let Some(parent_vars) = hvars.parent().get().and_then(|id| WINDOWS.vars(id).ok()) {
         // bind parent factor
         if mfactor.is_none() {
             let h = hvars.0.scale_factor.bind(&parent_vars.0.scale_factor);
@@ -1315,7 +1312,7 @@ impl HeadlessCtrl {
         }
 
         if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
-            self.var_bindings = update_headless_vars(ctx.vars, &mut WINDOWS.write(), self.headless_monitor.scale_factor, &self.vars);
+            self.var_bindings = update_headless_vars(ctx.vars, self.headless_monitor.scale_factor, &self.vars);
         }
 
         self.content.update(ctx, updates);
@@ -1339,7 +1336,7 @@ impl HeadlessCtrl {
             return;
         }
 
-        if !WINDOWS.write().try_load(ctx.vars, ctx.events, ctx.timers, *ctx.window_id) {
+        if !WINDOWS.try_load(ctx.vars, ctx.events, ctx.timers, *ctx.window_id) {
             return;
         }
 
@@ -1423,7 +1420,7 @@ impl HeadlessSimulator {
 
     pub fn focus(&mut self, ctx: &mut WindowContext) {
         let mut prev = None;
-        if let Some(id) = WINDOWS.read().focused_window_id() {
+        if let Some(id) = WINDOWS.focused_window_id() {
             prev = Some(id);
         }
         let args = RawWindowFocusArgs::now(prev, Some(*ctx.window_id));
@@ -1558,9 +1555,7 @@ impl ContentCtrl {
             self.info_tree = info.clone();
             self.used_info_builder = Some(used);
 
-            WINDOWS
-                .write()
-                .set_widget_tree(ctx.events, info, self.layout_requested, !self.render_requested.is_none());
+            WINDOWS.set_widget_tree(ctx.events, info, self.layout_requested, !self.render_requested.is_none());
         }
     }
 

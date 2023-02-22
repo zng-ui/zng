@@ -270,7 +270,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                 let loading = self
                     .enabled
                     .loading_timeout()
-                    .and_then(|t| WINDOWS.write().loading_handle(ctx.path.window_id(), t));
+                    .and_then(|t| WINDOWS.loading_handle(ctx.path.window_id(), t));
                 rsp.subscribe(ctx.path.widget_id()).perm();
                 self.task = Task::Read { rsp, loading };
             }

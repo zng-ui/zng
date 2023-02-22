@@ -480,7 +480,7 @@ mod context {
 
         use crate::window::*;
         let mut app = app.run_headless(false);
-        WINDOWS.write().open(move |_| crate::window::Window::new_test(root));
+        WINDOWS.open(move |_| crate::window::Window::new_test(root));
         let _ = app.update(false);
         app
     }

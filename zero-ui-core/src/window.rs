@@ -54,7 +54,7 @@ use crate::{
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        WINDOWS.write().init(ctx.updates.sender());
+        WINDOWS_IMPL.write().init(ctx.updates.sender());
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
@@ -118,7 +118,7 @@ pub trait AppRunWindowExt {
     /// # use zero_ui_core::window::WINDOWS;
     /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
     /// App::default().run(|_| {
-    ///     WINDOWS.write().open(|ctx| {
+    ///     WINDOWS.open(|ctx| {
     ///         println!("starting app with window {:?}", ctx.window_id);
     ///         window! {
     ///             title = "Window 1";
@@ -132,7 +132,7 @@ pub trait AppRunWindowExt {
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) {
         self.run(|_| {
-            WINDOWS.write().open(new_window);
+            WINDOWS.open(new_window);
         })
     }
 }
@@ -167,7 +167,7 @@ pub trait HeadlessAppWindowExt {
 }
 impl HeadlessAppWindowExt for HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> WindowId {
-        let response = WINDOWS.write().open(new_window);
+        let response = WINDOWS.open(new_window);
         self.run_task(move |ctx| async move {
             response.wait_rsp(&ctx).await;
             response.rsp().unwrap().window_id
@@ -188,7 +188,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
     }
 
     fn window_frame_image(&mut self, window_id: WindowId) -> ImageVar {
-        WINDOWS.write().frame_image(window_id)
+        WINDOWS.frame_image(window_id)
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
@@ -218,7 +218,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
 
     fn run_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) {
         let window_id = self.open_window(new_window);
-        while WINDOWS.read().is_open(window_id) {
+        while WINDOWS.is_open(window_id) {
             if let ControlFlow::Exit = self.update(true) {
                 return;
             }

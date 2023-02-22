@@ -47,7 +47,7 @@ fn headless_example() {
                 println!("done");
 
                 // and close the window, causing the app to exit.
-                WINDOWS.write().close(ctx.with(|ctx| ctx.path.window_id())).unwrap();
+                WINDOWS.close(ctx.with(|ctx| ctx.path.window_id())).unwrap();
             });
         }
     });

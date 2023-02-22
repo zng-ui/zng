@@ -11,7 +11,7 @@ use crate::{
     var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
-    window::{WindowId, Windows, WINDOWS},
+    window::{WindowId, WINDOWS},
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 
@@ -743,12 +743,11 @@ impl MouseManager {
         } else {
             DipPoint::default()
         };
-        let windows = WINDOWS.read();
         let mut mouse = MOUSE_IMPL.write();
 
         let hits = self.pos_hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
 
-        let frame_info = windows.widget_tree(window_id).unwrap();
+        let frame_info = WINDOWS.widget_tree(window_id).unwrap();
 
         let target = hits
             .target()
@@ -966,8 +965,7 @@ impl MouseManager {
             self.pos = position;
 
             // mouse_move data
-            let windows = WINDOWS.read();
-            let frame_info = match windows.widget_tree(window_id) {
+            let frame_info = match WINDOWS.widget_tree(window_id) {
                 Ok(f) => f,
                 Err(_) => {
                     // window not found
@@ -1054,8 +1052,7 @@ impl MouseManager {
 
         let hits = self.pos_hits.clone().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
 
-        let windows = WINDOWS.read();
-        let frame_info = windows.widget_tree(window_id).unwrap();
+        let frame_info = WINDOWS.widget_tree(window_id).unwrap();
 
         let target = hits
             .target()
@@ -1130,9 +1127,8 @@ impl AppExtension for MouseManager {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             // update hovered
             if self.pos_window == Some(args.window_id) {
-                let windows = WINDOWS.read();
                 let mut mouse = MOUSE_IMPL.write();
-                let frame_info = windows.widget_tree(args.window_id).unwrap();
+                let frame_info = WINDOWS.widget_tree(args.window_id).unwrap();
                 let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
                 self.pos_hits = Some(pos_hits.clone());
                 let target = if let Some(t) = pos_hits.target() {
@@ -1155,7 +1151,7 @@ impl AppExtension for MouseManager {
             // update capture
             if self.capture_count > 0 {
                 let mut mouse = MOUSE_IMPL.write();
-                if let Ok(frame) = WINDOWS.read().widget_tree(args.window_id) {
+                if let Ok(frame) = WINDOWS.widget_tree(args.window_id) {
                     mouse.continue_capture(frame, ctx.events);
                 }
             }
@@ -1259,7 +1255,7 @@ impl AppExtension for MouseManager {
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        MOUSE_IMPL.write().fulfill_requests(&WINDOWS.read(), ctx.events);
+        MOUSE_IMPL.write().fulfill_requests(ctx.events);
     }
 }
 
@@ -1403,12 +1399,12 @@ impl MouseImpl {
     }
 
     /// Call after UI update.
-    fn fulfill_requests(&mut self, windows: &Windows, events: &mut Events) {
+    fn fulfill_requests(&mut self, events: &mut Events) {
         if let Some((current_target, current_mode)) = &self.current_capture {
             if let Some((widget_id, mode)) = self.capture_request.take() {
-                if let Ok(true) = windows.is_focused(current_target.window_id()) {
+                if let Ok(true) = WINDOWS.is_focused(current_target.window_id()) {
                     // current window pressed
-                    if let Some(widget) = windows.widget_tree(current_target.window_id()).unwrap().get(widget_id) {
+                    if let Some(widget) = WINDOWS.widget_tree(current_target.window_id()).unwrap().get(widget_id) {
                         // request valid
                         self.set_capture(widget.interaction_path(), mode, events);
                     }

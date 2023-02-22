@@ -697,7 +697,7 @@ impl Images {
     /// # use zero_ui_core::{image::*, context::AppContext};
     /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
     /// # fn demo(ctx: &mut AppContext) {
-    /// let image_var = IMAGES.write().from_static(include_bytes!("ico.png"), "png");
+    /// let image_var = IMAGES.from_static(include_bytes!("ico.png"), "png");
     /// # }
     pub fn from_static(&self, data: &'static [u8], format: impl Into<ImageDataFormat>) -> ImageVar {
         self.cache((data, format.into()))
@@ -708,7 +708,7 @@ impl Images {
     /// The image key is a [`ImageHash`] of the image data. The data reference is held only until the image is decoded.
     ///
     /// The data can be any of the formats described in [`ImageDataFormat`].
-    pub fn from_data(&mut self, data: Arc<Vec<u8>>, format: impl Into<ImageDataFormat>) -> ImageVar {
+    pub fn from_data(&self, data: Arc<Vec<u8>>, format: impl Into<ImageDataFormat>) -> ImageVar {
         self.cache((data, format.into()))
     }
 
@@ -790,7 +790,7 @@ impl Images {
     }
 
     /// Clear cached images that are not referenced outside of the cache.
-    pub fn clean_all(&mut self) {
+    pub fn clean_all(&self) {
         let mut img = IMAGES_IMPL.write();
         img.proxies.iter_mut().for_each(|p| p.clear(false));
         img.cache.retain(|_, v| v.img.strong_count() > 1);
@@ -800,7 +800,7 @@ impl Images {
     ///
     /// Image memory only drops when all strong references are removed, so if an image is referenced
     /// outside of the cache it will merely be disconnected from the cache by this method.
-    pub fn purge_all(&mut self) {
+    pub fn purge_all(&self) {
         let mut img = IMAGES_IMPL.write();
         img.cache.clear();
         img.proxies.iter_mut().for_each(|p| p.clear(true));
@@ -809,7 +809,7 @@ impl Images {
     /// Add a cache proxy.
     ///
     /// Proxies can intercept cache requests and map to a different request or return an image directly.
-    pub fn install_proxy(&mut self, proxy: Box<dyn ImageCacheProxy>) {
+    pub fn install_proxy(&self, proxy: Box<dyn ImageCacheProxy>) {
         IMAGES_IMPL.write().proxies.push(proxy);
     }
 }

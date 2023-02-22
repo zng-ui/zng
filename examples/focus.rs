@@ -94,7 +94,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             button! {
                 child = text!("New Window");
                 on_click = hn!(|_, _| {
-                    WINDOWS.write().open(|ctx| {
+                    WINDOWS.open(|ctx| {
                         let _ = ctx.window_id.set_name("other");
                         window! {
                             title = "Other Window";
@@ -124,7 +124,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
                         // focus_on_init = true;
                         on_click = hn!(|_, _| {
                             let wwk = wk.clone();
-                            WINDOWS.write().open(move |_| {
+                            WINDOWS.open(move |_| {
                                 window! {
                                     title = "Detached Button";
                                     child_align = Align::CENTER;
@@ -347,7 +347,7 @@ fn nested_focusables() -> impl UiNode {
 
         on_click = hn!(|_, args: &ClickArgs| {
             args.propagation().stop();
-            WINDOWS.write().focus_or_open("nested-focusables", |_| {
+            WINDOWS.focus_or_open("nested-focusables", |_| {
                 window! {
                     title = "Focus Example - Nested Focusables";
 
@@ -418,8 +418,7 @@ mod inspect {
     pub fn focus(path: &Option<InteractionPath>) -> String {
         path.as_ref()
             .map(|p| {
-                let windows = WINDOWS.read();
-                let frame = if let Ok(w) = windows.widget_tree(p.window_id()) {
+                let frame = if let Ok(w) = WINDOWS.widget_tree(p.window_id()) {
                     w
                 } else {
                     return format!("<{p}>");

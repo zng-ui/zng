@@ -26,7 +26,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     let window_vars = WindowVars::req(&ctx.window_state);
     let window_id = *ctx.window_id;
 
-    // WINDOWS.write().exit_on_last_close = false;
+    // WINDOWS.exit_on_last_close().set(ctx, false);
 
     let title = merge_var!(
         window_vars.actual_position(),
@@ -145,7 +145,7 @@ fn screenshot() -> impl UiNode {
 
                 let t = Instant::now();
                 let img = ctx.with(|ctx|{
-                    WINDOWS.write().frame_image(ctx.path.window_id()).get()
+                    WINDOWS.frame_image(ctx.path.window_id()).get()
                 });
                 img.wait_done().await;
                 println!("taken in {:?}, saving..", t.elapsed());
@@ -185,7 +185,7 @@ fn screenshot() -> impl UiNode {
                 enabled.set(ctx.vars, false);
 
                 println!("taking `screenshot.png` using a new headless window ..");
-                WINDOWS.write().open_headless(clone_move!(enabled, |_| window! {
+                WINDOWS.open_headless(clone_move!(enabled, |_| window! {
                         size = (500, 400);
                         background_color = colors::DARK_GREEN;
                         font_size = 72;
@@ -201,7 +201,7 @@ fn screenshot() -> impl UiNode {
                             }
 
                             let window_id = args.window_id;
-                            WINDOWS.write().close(window_id).unwrap();
+                            WINDOWS.close(window_id).unwrap();
 
                             enabled.set(&ctx, true);
                         });
@@ -305,7 +305,7 @@ fn focus_control() -> impl UiNode {
             enabled.set(&ctx, false);
             task::deadline(5.secs()).await;
 
-            WINDOWS.write().focus(ctx.with(|ctx| ctx.path.window_id())).unwrap();
+            WINDOWS.focus(ctx.with(|ctx| ctx.path.window_id())).unwrap();
             enabled.set(&ctx, true);
         });
     };
@@ -409,7 +409,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
                         child_count += 1;
 
                         let parent = ctx.path.window_id();
-                        WINDOWS.write().open(move |_| window! {
+                        WINDOWS.open(move |_| window! {
                             title = formatx!("Window Example - Child {child_count}");
                             size = (400, 300);
                             parent;
@@ -431,7 +431,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
                     on_click = hn!(|_, _| {
                         other_count += 1;
 
-                        WINDOWS.write().open(move |_| window! {
+                        WINDOWS.open(move |_| window! {
                             title = formatx!("Window Example - Other {other_count}");
                             size = (400, 300);
                             child_align = Align::CENTER;
@@ -516,7 +516,7 @@ fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) 
                                 child = strong!("Close");
                                 on_click = hn_once!(state, |ctx, _| {
                                     state.set(ctx, CloseState::Close);
-                                    WINDOWS.write().close_together(windows).unwrap();
+                                    WINDOWS.close_together(windows).unwrap();
                                 })
                             },
                             button! {

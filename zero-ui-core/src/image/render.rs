@@ -99,7 +99,6 @@ impl ImageManager {
     /// AppExtension::update
     pub(super) fn update_render(&mut self) {
         let mut images = IMAGES_IMPL.write();
-        let mut windows = WINDOWS.write();
 
         images.render.active.retain(|r| {
             let mut retain = false;
@@ -113,7 +112,7 @@ impl ImageManager {
             retain |= r.retain.get();
 
             if !retain {
-                let _ = windows.close(r.window_id);
+                let _ = WINDOWS.close(r.window_id);
             }
 
             retain
@@ -121,7 +120,7 @@ impl ImageManager {
 
         for req in images.render.requests.drain(..) {
             if let Some(img) = req.image.upgrade() {
-                windows.open_headless(
+                WINDOWS.open_headless(
                     move |ctx| {
                         let vars = ImageRenderVars::new();
                         let retain = vars.retain.clone();

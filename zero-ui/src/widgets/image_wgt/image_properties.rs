@@ -419,7 +419,7 @@ pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWi
             ctx.sub_var(&CONTEXT_IMAGE_VAR);
 
             if let Some(delay) = self.enabled.deadline() {
-                self.block = WINDOWS.write().loading_handle(ctx.path.window_id(), delay);
+                self.block = WINDOWS.loading_handle(ctx.path.window_id(), delay);
             }
             self.child.init(ctx);
         }

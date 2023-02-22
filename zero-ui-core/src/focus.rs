@@ -98,7 +98,7 @@ use crate::{
     var::{var, AnyVar, ArcVar, ReadOnlyArcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
     widget_instance::WidgetId,
-    window::{WindowId, Windows, WIDGET_INFO_CHANGED_EVENT, WINDOWS, WINDOW_FOCUS_CHANGED_EVENT},
+    window::{WindowId, WIDGET_INFO_CHANGED_EVENT, WINDOWS, WINDOW_FOCUS_CHANGED_EVENT},
 };
 
 use std::{
@@ -378,7 +378,7 @@ event! {
 ///
 /// # Dependencies
 ///
-/// This extension requires the [`Windows`] service.
+/// This extension requires the [`WINDOWS`] service.
 ///
 /// This extension listens to the [`MOUSE_INPUT_EVENT`], [`SHORTCUT_EVENT`] [`WINDOW_FOCUS_CHANGED_EVENT`] and [`WIDGET_INFO_CHANGED_EVENT`].
 ///
@@ -446,7 +446,7 @@ impl AppExtension for FocusManager {
 
             if let Some(f) = &focus.focused {
                 let w_id = f.path.window_id();
-                if let Ok(tree) = WINDOWS.read().widget_tree(w_id) {
+                if let Ok(tree) = WINDOWS.widget_tree(w_id) {
                     if focus.enabled_nav.needs_refresh(&tree) {
                         invalidated_cmds_or_focused = Some(tree);
                     }
@@ -471,13 +471,12 @@ impl AppExtension for FocusManager {
         } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
             // foreground window maybe changed
             let mut focus = FOCUS_IMPL.write();
-            let mut windows = WINDOWS.write();
             if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
                 if args.is_focus(window_id) {
                     request = Some(FocusRequest::direct(widget_id, highlight));
                 }
-            } else if let Some(args) = focus.continue_focus(ctx.vars, &windows) {
-                self.notify(ctx.vars, ctx.events, &mut focus, &mut windows, Some(args));
+            } else if let Some(args) = focus.continue_focus(ctx.vars) {
+                self.notify(ctx.vars, ctx.events, &mut focus, Some(args));
             }
 
             if let Some(window_id) = args.closed() {
@@ -491,10 +490,9 @@ impl AppExtension for FocusManager {
 
         if let Some(request) = request {
             let mut focus = FOCUS_IMPL.write();
-            let mut windows = WINDOWS.write();
             focus.pending_highlight = false;
-            let args = focus.fulfill_request(ctx.vars, &mut windows, request);
-            self.notify(ctx.vars, ctx.events, &mut focus, &mut windows, args);
+            let args = focus.fulfill_request(ctx.vars, request);
+            self.notify(ctx.vars, ctx.events, &mut focus, args);
         }
     }
 
@@ -502,13 +500,11 @@ impl AppExtension for FocusManager {
         let mut focus = FOCUS_IMPL.write();
         if let Some(request) = focus.request.take() {
             focus.pending_highlight = false;
-            let mut windows = WINDOWS.write();
-            let args = focus.fulfill_request(ctx.vars, &mut windows, request);
-            self.notify(ctx.vars, ctx.events, &mut focus, &mut windows, args);
+            let args = focus.fulfill_request(ctx.vars, request);
+            self.notify(ctx.vars, ctx.events, &mut focus, args);
         } else if mem::take(&mut focus.pending_highlight) {
-            let mut windows = WINDOWS.write();
-            let args = focus.continue_focus_highlight(ctx.vars, &windows, true);
-            self.notify(ctx.vars, ctx.events, &mut focus, &mut windows, args);
+            let args = focus.continue_focus_highlight(ctx.vars, true);
+            self.notify(ctx.vars, ctx.events, &mut focus, args);
         }
     }
 }
@@ -516,12 +512,11 @@ impl FocusManager {
     fn on_info_tree_update(&mut self, tree: WidgetInfoTree, ctx: &mut AppContext) {
         let mut focus = FOCUS_IMPL.write();
         let focus = &mut *focus;
-        let mut windows = WINDOWS.write();
         focus.update_focused_center();
 
         // widget tree rebuilt or visibility may have changed, check if focus is still valid
-        let args = focus.continue_focus(ctx.vars, &windows);
-        self.notify(ctx.vars, ctx.events, focus, &mut windows, args);
+        let args = focus.continue_focus(ctx.vars);
+        self.notify(ctx.vars, ctx.events, focus, args);
 
         // cleanup return focuses.
         for args in focus.cleanup_returns(
@@ -532,7 +527,7 @@ impl FocusManager {
         }
     }
 
-    fn notify(&mut self, vars: &Vars, events: &mut Events, focus: &mut FocusImpl, windows: &mut Windows, args: Option<FocusChangedArgs>) {
+    fn notify(&mut self, vars: &Vars, events: &mut Events, focus: &mut FocusImpl, args: Option<FocusChangedArgs>) {
         if let Some(mut args) = args {
             if !args.highlight && args.new_focus.is_some() {
                 if let Some(dur) = focus.auto_highlight.get() {
@@ -549,11 +544,11 @@ impl FocusManager {
             FOCUS_CHANGED_EVENT.notify(events, args);
 
             // may have focused scope.
-            while let Some(after_args) = focus.move_after_focus(vars, windows, reverse) {
+            while let Some(after_args) = focus.move_after_focus(vars, reverse) {
                 FOCUS_CHANGED_EVENT.notify(events, after_args);
             }
 
-            for return_args in focus.update_returns(vars, prev_focus, windows) {
+            for return_args in focus.update_returns(vars, prev_focus) {
                 RETURN_FOCUS_CHANGED_EVENT.notify(events, return_args);
             }
         }
@@ -882,20 +877,14 @@ impl FocusImpl {
     }
 
     #[must_use]
-    fn fulfill_request(&mut self, vars: &Vars, windows: &mut Windows, request: FocusRequest) -> Option<FocusChangedArgs> {
+    fn fulfill_request(&mut self, vars: &Vars, request: FocusRequest) -> Option<FocusChangedArgs> {
         match (&self.focused, request.target) {
-            (_, FocusTarget::Direct(widget_id)) => self.focus_direct(vars, windows, widget_id, request.highlight, false, false, request),
-            (_, FocusTarget::DirectOrExit(widget_id)) => {
-                self.focus_direct(vars, windows, widget_id, request.highlight, false, true, request)
-            }
-            (_, FocusTarget::DirectOrEnter(widget_id)) => {
-                self.focus_direct(vars, windows, widget_id, request.highlight, true, false, request)
-            }
-            (_, FocusTarget::DirectOrRelated(widget_id)) => {
-                self.focus_direct(vars, windows, widget_id, request.highlight, true, true, request)
-            }
+            (_, FocusTarget::Direct(widget_id)) => self.focus_direct(vars, widget_id, request.highlight, false, false, request),
+            (_, FocusTarget::DirectOrExit(widget_id)) => self.focus_direct(vars, widget_id, request.highlight, false, true, request),
+            (_, FocusTarget::DirectOrEnter(widget_id)) => self.focus_direct(vars, widget_id, request.highlight, true, false, request),
+            (_, FocusTarget::DirectOrRelated(widget_id)) => self.focus_direct(vars, widget_id, request.highlight, true, true, request),
             (Some(prev), move_) => {
-                if let Ok(info) = windows.widget_tree(prev.path.window_id()) {
+                if let Ok(info) = WINDOWS.widget_tree(prev.path.window_id()) {
                     let info = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get());
                     if let Some(w) = info.get(prev.path.widget_id()) {
                         if let Some(new_focus) = match move_ {
@@ -945,15 +934,15 @@ impl FocusImpl {
                             )
                         } else {
                             // no `new_focus`, maybe update highlight and widget path.
-                            self.continue_focus_highlight(vars, windows, request.highlight)
+                            self.continue_focus_highlight(vars, request.highlight)
                         }
                     } else {
                         // widget not found
-                        self.continue_focus_highlight(vars, windows, request.highlight)
+                        self.continue_focus_highlight(vars, request.highlight)
                     }
                 } else {
                     // window not found
-                    self.continue_focus_highlight(vars, windows, request.highlight)
+                    self.continue_focus_highlight(vars, request.highlight)
                 }
             }
             _ => None,
@@ -962,10 +951,10 @@ impl FocusImpl {
 
     /// Checks if `focused()` is still valid, if not moves focus to nearest valid.
     #[must_use]
-    fn continue_focus(&mut self, vars: &Vars, windows: &Windows) -> Option<FocusChangedArgs> {
+    fn continue_focus(&mut self, vars: &Vars) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
-            if let Ok(true) = windows.is_focused(focused.path.window_id()) {
-                let info = windows.widget_tree(focused.path.window_id()).unwrap();
+            if let Ok(true) = WINDOWS.is_focused(focused.path.window_id()) {
+                let info = WINDOWS.widget_tree(focused.path.window_id()).unwrap();
                 if let Some(widget) = info
                     .get(focused.path.widget_id())
                     .map(|w| w.as_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
@@ -993,7 +982,7 @@ impl FocusImpl {
                             );
                         } else {
                             // no focusable parent or root
-                            return self.focus_focused_window(vars, windows, self.is_highlighting);
+                            return self.focus_focused_window(vars, self.is_highlighting);
                         }
                     }
                 } else {
@@ -1017,12 +1006,12 @@ impl FocusImpl {
                 }
             } // else window not found or not focused
         } // else no current focus
-        self.focus_focused_window(vars, windows, false)
+        self.focus_focused_window(vars, false)
     }
 
     #[must_use]
-    fn continue_focus_highlight(&mut self, vars: &Vars, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
-        if let Some(mut args) = self.continue_focus(vars, windows) {
+    fn continue_focus_highlight(&mut self, vars: &Vars, highlight: bool) -> Option<FocusChangedArgs> {
+        if let Some(mut args) = self.continue_focus(vars) {
             args.highlight = highlight;
             self.is_highlighting = highlight;
             self.is_highlighting_var.set_ne(vars, highlight);
@@ -1048,7 +1037,6 @@ impl FocusImpl {
     fn focus_direct(
         &mut self,
         vars: &Vars,
-        windows: &mut Windows,
         widget_id: WidgetId,
         highlight: bool,
         fallback_to_childs: bool,
@@ -1056,7 +1044,7 @@ impl FocusImpl {
         request: FocusRequest,
     ) -> Option<FocusChangedArgs> {
         let mut target = None;
-        if let Some(w) = windows
+        if let Some(w) = WINDOWS
             .widget_trees()
             .iter()
             .find_map(|info| info.get(widget_id))
@@ -1076,13 +1064,13 @@ impl FocusImpl {
         }
 
         if let Some((target, enabled_nav)) = target {
-            if let Ok(false) = windows.is_focused(target.path.window_id()) {
-                if request.force_window_focus || windows.focused_window_id().is_some() {
+            if let Ok(false) = WINDOWS.is_focused(target.path.window_id()) {
+                if request.force_window_focus || WINDOWS.focused_window_id().is_some() {
                     // if can steal focus from other apps or focus is already in another window of the app.
-                    windows.focus(target.path.window_id()).unwrap();
+                    WINDOWS.focus(target.path.window_id()).unwrap();
                 } else if request.window_indicator.is_some() {
                     // if app does not have focus, focus stealing is not allowed, but a request indicator can be set.
-                    windows
+                    WINDOWS
                         .vars(target.path.window_id())
                         .unwrap()
                         .focus_indicator()
@@ -1120,8 +1108,8 @@ impl FocusImpl {
     }
 
     #[must_use]
-    fn focus_focused_window(&mut self, vars: &Vars, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
-        if let Some(info) = windows.focused_info() {
+    fn focus_focused_window(&mut self, vars: &Vars, highlight: bool) -> Option<FocusChangedArgs> {
+        if let Some(info) = WINDOWS.focused_info() {
             let info = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get());
             if let Some(root) = info.focusable_root() {
                 // found focused window and it is focusable.
@@ -1181,9 +1169,9 @@ impl FocusImpl {
     }
 
     #[must_use]
-    fn move_after_focus(&mut self, vars: &Vars, windows: &Windows, reverse: bool) -> Option<FocusChangedArgs> {
+    fn move_after_focus(&mut self, vars: &Vars, reverse: bool) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
-            if let Some(info) = windows.focused_info() {
+            if let Some(info) = WINDOWS.focused_info() {
                 if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
                     .get(focused.path.widget_id())
                 {
@@ -1206,7 +1194,7 @@ impl FocusImpl {
 
     /// Updates `return_focused` and `alt_return` after `focused` changed.
     #[must_use]
-    fn update_returns(&mut self, vars: &Vars, prev_focus: Option<InteractionPath>, windows: &Windows) -> Vec<ReturnFocusChangedArgs> {
+    fn update_returns(&mut self, vars: &Vars, prev_focus: Option<InteractionPath>) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
         if let Some((scope, _)) = &self.alt_return {
@@ -1228,7 +1216,7 @@ impl FocusImpl {
             // if we don't have an `alt_return` but focused something, check if focus
             // moved inside an ALT.
 
-            if let Ok(info) = windows.widget_tree(new_focus.path.window_id()) {
+            if let Ok(info) = WINDOWS.widget_tree(new_focus.path.window_id()) {
                 if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
                     .get(new_focus.path.widget_id())
                 {
@@ -1263,7 +1251,7 @@ impl FocusImpl {
          */
 
         if let Some(new_focus) = &self.focused {
-            if let Ok(info) = windows.widget_tree(new_focus.path.window_id()) {
+            if let Ok(info) = WINDOWS.widget_tree(new_focus.path.window_id()) {
                 if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
                     .get(new_focus.path.widget_id())
                 {

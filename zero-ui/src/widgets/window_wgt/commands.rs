@@ -50,7 +50,7 @@ pub(super) fn inspect_node(
                 inspector_text.set_ne(ctx, txt);
                 let inspected = ctx.path.window_id();
 
-                WINDOWS.write().focus_or_open(
+                WINDOWS.focus_or_open(
                     inspector,
                     clone_move!(inspector_text, |_| { inspector_window::new(inspected, inspector_text) }),
                 );
@@ -67,11 +67,9 @@ mod inspector_window {
     pub fn new(inspected: WindowId, inspector_text: ArcVar<Text>) -> Window {
         use crate::widgets::*;
 
-        let windows = WINDOWS.read();
+        let parent = WINDOWS.vars(inspected).unwrap().parent().get().unwrap_or(inspected);
 
-        let parent = windows.vars(inspected).unwrap().parent().get().unwrap_or(inspected);
-
-        let tree = windows.widget_tree(inspected).unwrap();
+        let tree = WINDOWS.widget_tree(inspected).unwrap();
         let title = if let Some(title) = tree.root().inspect_property(property_id!(window::title)) {
             title.downcast_var::<Text>(0).map(|t| formatx!("{t} - Inspector")).boxed()
         } else {
