@@ -9,7 +9,7 @@ use crate::{
     crate_util::{Handle, HandleOwner, WeakHandle},
     event::*,
     event::{Command, CommandMetaVar, CommandScope, StaticCommandMetaVarId},
-    focus::{Focus, FocusRequest, FocusTarget, FOCUS},
+    focus::{FocusRequest, FocusTarget, FOCUS},
     keyboard::*,
     mouse::*,
     units::DipPoint,
@@ -754,12 +754,10 @@ impl AppExtension for GestureManager {
             }
         } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
             // Generate shortcut events from keyboard input.
-            GESTURES
-                .write()
-                .on_key_input(ctx.events, &mut FOCUS.write(), &mut WINDOWS.write(), args);
+            GESTURES.write().on_key_input(ctx.events, &mut WINDOWS.write(), args);
         } else if let Some(args) = SHORTCUT_EVENT.on(update) {
             // Run shortcut actions.
-            GESTURES.write().on_shortcut(ctx.events, &mut FOCUS.write(), args);
+            GESTURES.write().on_shortcut(ctx.events, args);
         }
     }
 }
@@ -964,24 +962,17 @@ impl Gestures {
     /// See the [struct] level docs for details of how shortcut targets are resolved.
     ///
     /// [struct]: Self
-    pub fn shortcut_actions(
-        &mut self,
-        events: &mut Events,
-        focus: &mut Focus,
-        windows: &mut Windows,
-        shortcut: Shortcut,
-    ) -> ShortcutActions {
-        ShortcutActions::new(events, self, focus, windows, shortcut)
+    pub fn shortcut_actions(&mut self, events: &mut Events, windows: &mut Windows, shortcut: Shortcut) -> ShortcutActions {
+        ShortcutActions::new(events, self, windows, shortcut)
     }
 
-    fn on_key_input(&mut self, events: &mut Events, focus: &mut Focus, windows: &mut Windows, args: &KeyInputArgs) {
+    fn on_key_input(&mut self, events: &mut Events, windows: &mut Windows, args: &KeyInputArgs) {
         if let (false, Some(key)) = (args.propagation().is_stopped(), args.key) {
             match args.state {
                 KeyState::Pressed => {
                     if let Ok(gesture_key) = GestureKey::try_from(key) {
                         self.on_shortcut_pressed(
                             events,
-                            focus,
                             windows,
                             Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)),
                             args,
@@ -1000,7 +991,7 @@ impl Gestures {
                     if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
                         if let (Some((window_id, gesture)), true) = (self.pressed_modifier.take(), args.modifiers.is_empty()) {
                             if window_id == args.target.window_id() && mod_gesture == gesture {
-                                self.on_shortcut_pressed(events, focus, windows, Shortcut::Modifier(mod_gesture), args);
+                                self.on_shortcut_pressed(events, windows, Shortcut::Modifier(mod_gesture), args);
                             }
                         }
                     }
@@ -1012,14 +1003,7 @@ impl Gestures {
             self.pressed_modifier = None;
         }
     }
-    fn on_shortcut_pressed(
-        &mut self,
-        events: &mut Events,
-        focus: &mut Focus,
-        windows: &mut Windows,
-        mut shortcut: Shortcut,
-        key_args: &KeyInputArgs,
-    ) {
+    fn on_shortcut_pressed(&mut self, events: &mut Events, windows: &mut Windows, mut shortcut: Shortcut, key_args: &KeyInputArgs) {
         if let Some(starter) = self.primed_starter.take() {
             if let Shortcut::Gesture(g) = &shortcut {
                 if let Some(complements) = self.chords.get(&starter) {
@@ -1030,7 +1014,7 @@ impl Gestures {
             }
         }
 
-        let actions = ShortcutActions::new(events, self, focus, windows, shortcut);
+        let actions = ShortcutActions::new(events, self, windows, shortcut);
 
         SHORTCUT_EVENT.notify(
             events,
@@ -1046,10 +1030,10 @@ impl Gestures {
         );
     }
 
-    fn on_shortcut(&mut self, events: &mut Events, focus: &mut Focus, args: &ShortcutArgs) {
+    fn on_shortcut(&mut self, events: &mut Events, args: &ShortcutArgs) {
         if args.actions.has_actions() {
             args.actions
-                .run(events, focus, args.timestamp, args.propagation(), args.device_id, args.is_repeat);
+                .run(events, args.timestamp, args.propagation(), args.device_id, args.is_repeat);
         } else if let Shortcut::Gesture(k) = args.shortcut {
             if self.chords.contains_key(&k) {
                 self.primed_starter = Some(k);
@@ -1076,7 +1060,7 @@ pub struct ShortcutActions {
     commands: Vec<Command>,
 }
 impl ShortcutActions {
-    fn new(events: &mut Events, gestures: &mut Gestures, focus: &mut Focus, windows: &mut Windows, shortcut: Shortcut) -> ShortcutActions {
+    fn new(events: &mut Events, gestures: &mut Gestures, windows: &mut Windows, shortcut: Shortcut) -> ShortcutActions {
         //    **First exclusively**:
         //
         //    * Primary [`click_shortcut`] targeting a widget that is enabled and focused.
@@ -1095,7 +1079,7 @@ impl ShortcutActions {
         //
         //    b. All enabled commands targeting the app.
 
-        let focused = focus.focused().get();
+        let focused = FOCUS.focused().get();
 
         let mut primary_click_focused = None;
         let mut primary_click_not_focused = None;
@@ -1320,14 +1304,13 @@ impl ShortcutActions {
     fn run(
         &self,
         events: &mut Events,
-        focus: &mut Focus,
         timestamp: Instant,
         propagation: &EventPropagationHandle,
         device_id: Option<DeviceId>,
         is_repeat: bool,
     ) {
         if let Some(target) = self.focus() {
-            focus.focus(FocusRequest::new(target, true));
+            FOCUS.focus(FocusRequest::new(target, true));
         }
 
         if let Some((target, kind)) = &self.click {

@@ -132,9 +132,9 @@ impl FocusCommands {
                 if let Some(args) = $CMD.on(update) {
                     args.handle(|args| {
                         if args.enabled && self.$handle.is_enabled() {
-                            FOCUS.write().$method();
+                            FOCUS.$method();
                         } else {
-                            FOCUS.write().on_disabled_cmd();
+                            FOCUS.on_disabled_cmd();
                         }
                     });
                     return;
@@ -156,7 +156,7 @@ impl FocusCommands {
         if let Some(args) = FOCUS_CMD.on(update) {
             if let Some(req) = args.param::<FocusRequest>() {
                 args.handle_enabled(&self.focus_handle, |_| {
-                    FOCUS.write().focus(*req);
+                    FOCUS.focus(*req);
                 });
             }
         }

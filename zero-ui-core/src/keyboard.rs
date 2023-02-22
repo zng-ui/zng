@@ -186,10 +186,10 @@ pub struct KeyboardManager;
 impl AppExtension for KeyboardManager {
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
-            let focused = FOCUS.read().focused().get();
+            let focused = FOCUS.focused().get();
             KEYBOARD_IMPL.write().key_input(ctx.events, ctx.vars, args, focused);
         } else if let Some(args) = RAW_CHAR_INPUT_EVENT.on(update) {
-            let focused = FOCUS.read().focused().get();
+            let focused = FOCUS.focused().get();
             if let Some(target) = focused {
                 if target.window_id() == args.window_id {
                     CHAR_INPUT_EVENT.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));

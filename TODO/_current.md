@@ -2,7 +2,6 @@
     - See `test_font` for a case.
 
 * Refactor services into `app_local!` backed structs, with associated functions.
-    - `FOCUS`
     - `GESTURES`
     - `IMAGES`
     - `WINDOWS`

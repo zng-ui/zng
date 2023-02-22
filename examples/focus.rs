@@ -209,7 +209,7 @@ fn delayed_focus() -> impl UiNode {
             title("Delayed 4s (D)"),
 
             delayed_btn("Force Focus", |_| {
-                FOCUS.write().focus(FocusRequest {
+                FOCUS.focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
                     force_window_focus: true,
@@ -217,7 +217,7 @@ fn delayed_focus() -> impl UiNode {
                 });
             }),
             delayed_btn("Info Indicator", |_| {
-                FOCUS.write().focus(FocusRequest {
+                FOCUS.focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
                     force_window_focus: false,
@@ -225,7 +225,7 @@ fn delayed_focus() -> impl UiNode {
                 });
             }),
             delayed_btn("Critical Indicator", |_| {
-                FOCUS.write().focus(FocusRequest {
+                FOCUS.focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
                     force_window_focus: false,

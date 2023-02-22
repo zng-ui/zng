@@ -192,7 +192,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
 
             let editable = TEXT_EDITABLE_VAR.get();
-            let caret_opacity = if editable && FOCUS.read().focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
+            let caret_opacity = if editable && FOCUS.focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
                 let v = KEYBOARD.caret_animation(ctx.vars);
                 self.caret_opacity_handle = Some(v.subscribe(ctx.path.widget_id()));
                 v
@@ -341,7 +341,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     self.event_handles.push(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
                     self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
 
-                    if FOCUS.read().focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
+                    if FOCUS.focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
                         let new_animation = KEYBOARD.caret_animation(ctx.vars);
                         self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
                         self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;

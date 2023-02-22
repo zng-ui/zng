@@ -230,7 +230,7 @@ pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                     .find(|w| w.is_focusable())
                     .or_else(|| md.as_focus_info(false, false).self_and_ancestors().find(|w| w.is_focusable()))
                 {
-                    FOCUS.write().focus_widget(focus.info.widget_id(), false);
+                    FOCUS.focus_widget(focus.info.widget_id(), false);
                 }
             }
         }

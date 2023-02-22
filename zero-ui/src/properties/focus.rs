@@ -449,7 +449,7 @@ pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             self.child.init(ctx);
 
             if self.enabled.get() {
-                FOCUS.write().focus_widget_or_related(ctx.path.widget_id(), false);
+                FOCUS.focus_widget_or_related(ctx.path.widget_id(), false);
             }
         }
     }
