@@ -10,18 +10,10 @@ use crate::{
     window::*,
 };
 
-use super::{Image, ImageManager, ImageVar, Images, IMAGES};
+use super::{Image, ImageManager, ImageVar, Images, ImagesImpl, IMAGES_IMPL};
 
-impl Images {
-    /// Render the *window* to an image.
-    ///
-    /// The *window* is created as a headless surface and rendered to the returned image. You can use the
-    /// [`ImageRenderVars::retain`] var create an image that updates with new frames, or by default only render once.
-    ///
-    /// The closure input is the [`WindowContext`] of the headless window.
-    ///
-    /// Requires the [`Windows`] service.
-    pub fn render<N>(&mut self, render: N) -> ImageVar
+impl ImagesImpl {
+    fn render<N>(&mut self, render: N) -> ImageVar
     where
         N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
     {
@@ -39,24 +31,7 @@ impl Images {
         result.read_only()
     }
 
-    pub(super) fn render_img<N>(&mut self, render: N, result: &ArcVar<Image>)
-    where
-        N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
-    {
-        self.render.requests.push(RenderRequest {
-            render: Box::new(render),
-            image: result.downgrade(),
-        });
-        let _ = self.updates.as_ref().expect("`ImageManager` not inited").send_ext_update();
-    }
-
-    /// Render an [`UiNode`] to an image.
-    ///
-    /// This method is a shortcut to [`render`] a node without needing to declare the headless window, note that
-    /// a headless window is still used, the node does not have the same context as the calling widget.
-    ///
-    /// [`render`]: Self::render
-    pub fn render_node<U, N>(&mut self, render_mode: RenderMode, scale_factor: impl Into<Factor>, render: N) -> ImageVar
+    fn render_node<U, N>(&mut self, render_mode: RenderMode, scale_factor: impl Into<Factor>, render: N) -> ImageVar
     where
         U: UiNode,
         N: FnOnce(&mut WindowContext) -> U + Send + Sync + 'static,
@@ -76,12 +51,54 @@ impl Images {
             )
         })
     }
+
+    pub(super) fn render_img<N>(&mut self, render: N, result: &ArcVar<Image>)
+    where
+        N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
+    {
+        self.render.requests.push(RenderRequest {
+            render: Box::new(render),
+            image: result.downgrade(),
+        });
+        let _ = self.updates.as_ref().expect("`ImageManager` not inited").send_ext_update();
+    }
+}
+
+impl Images {
+    /// Render the *window* to an image.
+    ///
+    /// The *window* is created as a headless surface and rendered to the returned image. You can use the
+    /// [`ImageRenderVars::retain`] var create an image that updates with new frames, or by default only render once.
+    ///
+    /// The closure input is the [`WindowContext`] of the headless window.
+    ///
+    /// Requires the [`Windows`] service.
+    pub fn render<N>(&self, render: N) -> ImageVar
+    where
+        N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
+    {
+        IMAGES_IMPL.write().render(render)
+    }
+
+    /// Render an [`UiNode`] to an image.
+    ///
+    /// This method is a shortcut to [`render`] a node without needing to declare the headless window, note that
+    /// a headless window is still used, the node does not have the same context as the calling widget.
+    ///
+    /// [`render`]: Self::render
+    pub fn render_node<U, N>(&self, render_mode: RenderMode, scale_factor: impl Into<Factor>, render: N) -> ImageVar
+    where
+        U: UiNode,
+        N: FnOnce(&mut WindowContext) -> U + Send + Sync + 'static,
+    {
+        IMAGES_IMPL.write().render_node(render_mode, scale_factor, render)
+    }
 }
 
 impl ImageManager {
     /// AppExtension::update
     pub(super) fn update_render(&mut self) {
-        let mut images = IMAGES.write();
+        let mut images = IMAGES_IMPL.write();
         let mut windows = WINDOWS.write();
 
         images.render.active.retain(|r| {
@@ -123,7 +140,7 @@ impl ImageManager {
                             image: img.downgrade(),
                             retain,
                         };
-                        IMAGES.write().render.active.push(a);
+                        IMAGES_IMPL.write().render.active.push(a);
 
                         w
                     },
@@ -137,7 +154,7 @@ impl ImageManager {
     pub(super) fn event_preview_render(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update) {
             if let Some(img) = &args.frame_image {
-                let imgs = IMAGES.read();
+                let imgs = IMAGES_IMPL.read();
                 if let Some(a) = imgs.render.active.iter().find(|a| a.window_id == args.window_id) {
                     if let Some(img_var) = a.image.upgrade() {
                         img_var.set(ctx.vars, img.clone());

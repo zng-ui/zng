@@ -55,7 +55,7 @@ pub use render::{render_retain, ImageRenderVars};
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        IMAGES.write().init(
+        IMAGES_IMPL.write().init(
             if VIEW_PROCESS.is_available() {
                 Some(VIEW_PROCESS.clone())
             } else {
@@ -67,7 +67,7 @@ impl AppExtension for ImageManager {
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT.on(update) {
-            let images = IMAGES.read();
+            let images = IMAGES_IMPL.read();
 
             if let Some(var) = images
                 .decoding
@@ -82,7 +82,7 @@ impl AppExtension for ImageManager {
 
             // image finished decoding, remove from `decoding`
             // and notify image var value update.
-            let mut images = IMAGES.write();
+            let mut images = IMAGES_IMPL.write();
 
             if let Some(i) = images
                 .decoding
@@ -98,7 +98,7 @@ impl AppExtension for ImageManager {
 
             // image failed to decode, remove from `decoding`
             // and notify image var value update.
-            let mut images = IMAGES.write();
+            let mut images = IMAGES_IMPL.write();
 
             if let Some(i) = images
                 .decoding
@@ -124,7 +124,7 @@ impl AppExtension for ImageManager {
                 return;
             }
 
-            let mut images = IMAGES.write();
+            let mut images = IMAGES_IMPL.write();
             let images = &mut *images;
             images.cleanup_not_cached(true);
             images.download_accept.clear();
@@ -186,7 +186,7 @@ impl AppExtension for ImageManager {
     fn update_preview(&mut self, ctx: &mut AppContext) {
         // update loading tasks:
 
-        let mut images = IMAGES.write();
+        let mut images = IMAGES_IMPL.write();
         let images = &mut *images;
         let view = &images.view;
         let vars = ctx.vars;
@@ -258,34 +258,19 @@ impl AppExtension for ImageManager {
 }
 
 app_local! {
-    /// Images service instance for the current app.
-    ///
-    /// This service is only active in apps running with the [`ImageManager`] extension.
-    ///
-    /// See [`Images`] for service details.
-    pub static IMAGES: Images = Images::new();
+    static IMAGES_IMPL: ImagesImpl = ImagesImpl::new();
 }
 
-/// The [`Image`] loading cache service.
+/// Images service instance for the current app.
 ///
-/// If the app is running without a [`ViewProcess`] all images are dummy, see [`load_in_headless`] for
-/// details.
+/// This service is only active in apps running with the [`ImageManager`] extension.
 ///
-/// [`load_in_headless`]: Images::load_in_headless
-pub struct Images {
-    /// If should still download/read image bytes in headless/renderless mode.
-    ///
-    /// When an app is in headless mode without renderer no [`ViewProcess`] is available, so
-    /// images cannot be decoded, in this case all images are the [`dummy`] image and no attempt
-    /// to download/read the image files is made. You can enable loading in headless tests to detect
-    /// IO errors, in this case if there is an error acquiring the image file the image will be a
-    /// [`dummy`] with error.
-    ///
-    /// [`dummy`]: Images::dummy
-    pub load_in_headless: bool,
+/// See [`Images`] for service details.
+pub static IMAGES: Images = Images {};
 
-    /// Default loading and decoding limits for each image.
-    pub limits: ImageLimits,
+struct ImagesImpl {
+    load_in_headless: ArcVar<bool>,
+    limits: ArcVar<ImageLimits>,
 
     view: Option<ViewProcess>,
     download_accept: Text,
@@ -299,16 +284,11 @@ pub struct Images {
 
     render: render::ImagesRender,
 }
-struct CacheEntry {
-    img: ArcVar<Image>,
-    error: AtomicBool,
-    max_decoded_size: ByteLength,
-}
-impl Images {
+impl ImagesImpl {
     fn new() -> Self {
-        Images {
-            load_in_headless: false,
-            limits: ImageLimits::default(),
+        Self {
+            load_in_headless: var(false),
+            limits: var(ImageLimits::default()),
             view: None,
             updates: None,
             proxies: vec![],
@@ -326,94 +306,11 @@ impl Images {
         self.updates = Some(updates);
     }
 
-    /// Returns a dummy image that reports it is loaded or an error.
-    pub fn dummy(&self, error: Option<String>) -> ImageVar {
-        var(Image::dummy(error)).read_only()
-    }
-
-    /// Cache or load an image file from a file system `path`.
-    pub fn read(&mut self, path: impl Into<PathBuf>) -> ImageVar {
-        self.cache(path.into())
-    }
-
-    /// Get a cached `uri` or download it.
-    ///
-    /// Optionally define the HTTP ACCEPT header, if not set all image formats supported by the view-process
-    /// backend are accepted.
-    #[cfg(http)]
-    pub fn download(&mut self, uri: impl task::http::TryUri, accept: Option<Text>) -> ImageVar {
-        match uri.try_uri() {
-            Ok(uri) => self.cache(ImageSource::Download(uri, accept)),
-            Err(e) => self.dummy(Some(e.to_string())),
-        }
-    }
-
-    /// Get a cached image from `&'static [u8]` data.
-    ///
-    /// The data can be any of the formats described in [`ImageDataFormat`].
-    ///
-    /// The image key is a [`ImageHash`] of the image data.
-    ///
-    /// # Examples
-    ///
-    /// Get an image from a PNG file embedded in the app executable using [`include_bytes!`].
-    ///
-    /// ```
-    /// # use zero_ui_core::{image::*, context::AppContext};
-    /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
-    /// # fn demo(ctx: &mut AppContext) {
-    /// let image_var = IMAGES.write().from_static(include_bytes!("ico.png"), "png");
-    /// # }
-    pub fn from_static(&mut self, data: &'static [u8], format: impl Into<ImageDataFormat>) -> ImageVar {
-        self.cache((data, format.into()))
-    }
-
-    /// Get a cached image from shared data.
-    ///
-    /// The image key is a [`ImageHash`] of the image data. The data reference is held only until the image is decoded.
-    ///
-    /// The data can be any of the formats described in [`ImageDataFormat`].
-    pub fn from_data(&mut self, data: Arc<Vec<u8>>, format: impl Into<ImageDataFormat>) -> ImageVar {
-        self.cache((data, format.into()))
-    }
-
-    /// Get a cached image or add it to the cache.
-    pub fn cache(&mut self, source: impl Into<ImageSource>) -> ImageVar {
-        self.image(source, ImageCacheMode::Cache, None)
-    }
-
-    /// Get a cached image or add it to the cache or retry if the cached image is an error.
-    pub fn retry(&mut self, source: impl Into<ImageSource>) -> ImageVar {
-        self.image(source, ImageCacheMode::Retry, None)
-    }
-
-    /// Load an image, if it was already cached update the cached image with the reloaded data.
-    pub fn reload(&mut self, source: impl Into<ImageSource>) -> ImageVar {
-        self.image(source, ImageCacheMode::Reload, None)
-    }
-
-    /// Get or load an image.
-    ///
-    /// If `limits` is `None` the [`Images::limits`] is used.
-    pub fn image(
-        &mut self,
-        source: impl Into<ImageSource>,
-        cache_mode: impl Into<ImageCacheMode>,
-        limits: Option<ImageLimits>,
-    ) -> ImageVar {
-        self.proxy_then_get(source.into(), cache_mode.into(), limits.unwrap_or_else(|| self.limits.clone()))
-    }
-
-    /// Associate the `image` with the `key` in the cache.
-    ///
-    /// Returns `Some(previous)` if the `key` was already associated with an image.
-    pub fn register(&mut self, key: ImageHash, image: ViewImage) -> Option<ImageVar> {
+    fn register(&mut self, key: ImageHash, image: ViewImage) -> Option<ImageVar> {
+        let limits = self.limits.get();
         let limits = ImageLimits {
-            max_encoded_size: self.limits.max_encoded_size,
-            max_decoded_size: self
-                .limits
-                .max_decoded_size
-                .max(image.bgra8().map(|b| b.len()).unwrap_or(0).bytes()),
+            max_encoded_size: limits.max_encoded_size,
+            max_decoded_size: limits.max_decoded_size.max(image.bgra8().map(|b| b.len()).unwrap_or(0).bytes()),
             allow_path: PathFilter::BlockAll,
             #[cfg(http)]
             allow_uri: UriFilter::BlockAll,
@@ -426,49 +323,10 @@ impl Images {
         self.cache.insert(key, entry).map(|v| v.img.read_only())
     }
 
-    /// Remove the image from the cache, if it is only held by the cache.
-    ///
-    /// You can use [`ImageSource::hash128_read`] and [`ImageSource::hash128_download`] to get the `key`
-    /// for files or downloads.
-    ///
-    /// Returns `true` if the image was removed.
-    pub fn clean(&mut self, key: ImageHash) -> bool {
-        self.proxy_then_remove(&key, false)
-    }
-
-    /// Remove the image from the cache, even if it is still referenced outside of the cache.
-    ///
-    /// You can use [`ImageSource::hash128_read`] and [`ImageSource::hash128_download`] to get the `key`
-    /// for files or downloads.
-    ///
-    /// Returns `true` if the image was cached.
-    pub fn purge(&mut self, key: &ImageHash) -> bool {
-        self.proxy_then_remove(key, true)
-    }
-
-    /// Gets the cache key of an image.
-    pub fn cache_key(&self, image: &Image) -> Option<ImageHash> {
-        if let Some(key) = &image.cache_key {
-            if self.cache.contains_key(key) {
-                return Some(*key);
-            }
-        }
-        None
-    }
-
-    /// If the image is cached.
-    pub fn is_cached(&self, image: &Image) -> bool {
-        image.cache_key.as_ref().map(|k| self.cache.contains_key(k)).unwrap_or(false)
-    }
-
-    /// Returns an image that is not cached.
-    ///
-    /// If the `image` is the only reference returns it and removes it from the cache. If there are other
-    /// references a new [`ImageVar`] is generated from a clone of the image.
-    pub fn detach(&mut self, image: ImageVar) -> ImageVar {
+    fn detach(&mut self, image: ImageVar) -> ImageVar {
         if let Some(key) = &image.with(|i| i.cache_key) {
             let decoded_size = image.with(|img| img.bgra8().map(|b| b.len()).unwrap_or(0).bytes());
-            let mut max_decoded_size = self.limits.max_decoded_size.max(decoded_size);
+            let mut max_decoded_size = self.limits.with(|l| l.max_decoded_size.max(decoded_size));
 
             if let Some(e) = self.cache.get(key) {
                 max_decoded_size = e.max_decoded_size;
@@ -508,28 +366,6 @@ impl Images {
         } else {
             false
         }
-    }
-
-    /// Clear cached images that are not referenced outside of the cache.
-    pub fn clean_all(&mut self) {
-        self.proxies.iter_mut().for_each(|p| p.clear(false));
-        self.cache.retain(|_, v| v.img.strong_count() > 1);
-    }
-
-    /// Clear all cached images, including images that are still referenced outside of the cache.
-    ///
-    /// Image memory only drops when all strong references are removed, so if an image is referenced
-    /// outside of the cache it will merely be disconnected from the cache by this method.
-    pub fn purge_all(&mut self) {
-        self.cache.clear();
-        self.proxies.iter_mut().for_each(|p| p.clear(true));
-    }
-
-    /// Add a cache proxy.
-    ///
-    /// Proxies can intercept cache requests and map to a different request or return an image directly.
-    pub fn install_proxy(&mut self, proxy: Box<dyn ImageCacheProxy>) {
-        self.proxies.push(proxy);
     }
 
     fn proxy_then_get(&mut self, source: ImageSource, mode: ImageCacheMode, limits: ImageLimits) -> ImageVar {
@@ -584,7 +420,7 @@ impl Images {
             ImageCacheMode::Ignore | ImageCacheMode::Reload => {}
         }
 
-        if self.view.is_none() && !self.load_in_headless {
+        if self.view.is_none() && !self.load_in_headless.get() {
             tracing::warn!("loading dummy image, set `load_in_headless=true` to actually load without renderer");
 
             let dummy = var(Image::new(ViewImage::dummy(None)));
@@ -791,6 +627,190 @@ impl Images {
         self.loading.push((Mutex::new(task), img.clone(), max_decoded_size));
 
         img.read_only()
+    }
+}
+
+/// The [`Image`] loading cache service.
+///
+/// If the app is running without a [`ViewProcess`] all images are dummy, see [`load_in_headless`] for
+/// details.
+///
+/// [`load_in_headless`]: Images::load_in_headless
+pub struct Images {}
+struct CacheEntry {
+    img: ArcVar<Image>,
+    error: AtomicBool,
+    max_decoded_size: ByteLength,
+}
+impl Images {
+    /// If should still download/read image bytes in headless/renderless mode.
+    ///
+    /// When an app is in headless mode without renderer no [`ViewProcess`] is available, so
+    /// images cannot be decoded, in this case all images are the [`dummy`] image and no attempt
+    /// to download/read the image files is made. You can enable loading in headless tests to detect
+    /// IO errors, in this case if there is an error acquiring the image file the image will be a
+    /// [`dummy`] with error.
+    ///
+    /// [`dummy`]: Images::dummy
+    pub fn load_in_headless(&self) -> ArcVar<bool> {
+        IMAGES_IMPL.read().load_in_headless.clone()
+    }
+
+    /// Default loading and decoding limits for each image.
+    pub fn limits(&self) -> ArcVar<ImageLimits> {
+        IMAGES_IMPL.read().limits.clone()
+    }
+
+    /// Returns a dummy image that reports it is loaded or an error.
+    pub fn dummy(&self, error: Option<String>) -> ImageVar {
+        var(Image::dummy(error)).read_only()
+    }
+
+    /// Cache or load an image file from a file system `path`.
+    pub fn read(&self, path: impl Into<PathBuf>) -> ImageVar {
+        self.cache(path.into())
+    }
+
+    /// Get a cached `uri` or download it.
+    ///
+    /// Optionally define the HTTP ACCEPT header, if not set all image formats supported by the view-process
+    /// backend are accepted.
+    #[cfg(http)]
+    pub fn download(&self, uri: impl task::http::TryUri, accept: Option<Text>) -> ImageVar {
+        match uri.try_uri() {
+            Ok(uri) => self.cache(ImageSource::Download(uri, accept)),
+            Err(e) => self.dummy(Some(e.to_string())),
+        }
+    }
+
+    /// Get a cached image from `&'static [u8]` data.
+    ///
+    /// The data can be any of the formats described in [`ImageDataFormat`].
+    ///
+    /// The image key is a [`ImageHash`] of the image data.
+    ///
+    /// # Examples
+    ///
+    /// Get an image from a PNG file embedded in the app executable using [`include_bytes!`].
+    ///
+    /// ```
+    /// # use zero_ui_core::{image::*, context::AppContext};
+    /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
+    /// # fn demo(ctx: &mut AppContext) {
+    /// let image_var = IMAGES.write().from_static(include_bytes!("ico.png"), "png");
+    /// # }
+    pub fn from_static(&self, data: &'static [u8], format: impl Into<ImageDataFormat>) -> ImageVar {
+        self.cache((data, format.into()))
+    }
+
+    /// Get a cached image from shared data.
+    ///
+    /// The image key is a [`ImageHash`] of the image data. The data reference is held only until the image is decoded.
+    ///
+    /// The data can be any of the formats described in [`ImageDataFormat`].
+    pub fn from_data(&mut self, data: Arc<Vec<u8>>, format: impl Into<ImageDataFormat>) -> ImageVar {
+        self.cache((data, format.into()))
+    }
+
+    /// Get a cached image or add it to the cache.
+    pub fn cache(&self, source: impl Into<ImageSource>) -> ImageVar {
+        self.image(source, ImageCacheMode::Cache, None)
+    }
+
+    /// Get a cached image or add it to the cache or retry if the cached image is an error.
+    pub fn retry(&self, source: impl Into<ImageSource>) -> ImageVar {
+        self.image(source, ImageCacheMode::Retry, None)
+    }
+
+    /// Load an image, if it was already cached update the cached image with the reloaded data.
+    pub fn reload(&self, source: impl Into<ImageSource>) -> ImageVar {
+        self.image(source, ImageCacheMode::Reload, None)
+    }
+
+    /// Get or load an image.
+    ///
+    /// If `limits` is `None` the [`Images::limits`] is used.
+    pub fn image(&self, source: impl Into<ImageSource>, cache_mode: impl Into<ImageCacheMode>, limits: Option<ImageLimits>) -> ImageVar {
+        let limits = limits.unwrap_or_else(|| IMAGES_IMPL.read().limits.get());
+        IMAGES_IMPL.write().proxy_then_get(source.into(), cache_mode.into(), limits)
+    }
+
+    /// Associate the `image` with the `key` in the cache.
+    ///
+    /// Returns `Some(previous)` if the `key` was already associated with an image.
+    pub fn register(&self, key: ImageHash, image: ViewImage) -> Option<ImageVar> {
+        IMAGES_IMPL.write().register(key, image)
+    }
+
+    /// Remove the image from the cache, if it is only held by the cache.
+    ///
+    /// You can use [`ImageSource::hash128_read`] and [`ImageSource::hash128_download`] to get the `key`
+    /// for files or downloads.
+    ///
+    /// Returns `true` if the image was removed.
+    pub fn clean(&self, key: ImageHash) -> bool {
+        IMAGES_IMPL.write().proxy_then_remove(&key, false)
+    }
+
+    /// Remove the image from the cache, even if it is still referenced outside of the cache.
+    ///
+    /// You can use [`ImageSource::hash128_read`] and [`ImageSource::hash128_download`] to get the `key`
+    /// for files or downloads.
+    ///
+    /// Returns `true` if the image was cached.
+    pub fn purge(&self, key: &ImageHash) -> bool {
+        IMAGES_IMPL.write().proxy_then_remove(key, true)
+    }
+
+    /// Gets the cache key of an image.
+    pub fn cache_key(&self, image: &Image) -> Option<ImageHash> {
+        if let Some(key) = &image.cache_key {
+            if IMAGES_IMPL.read().cache.contains_key(key) {
+                return Some(*key);
+            }
+        }
+        None
+    }
+
+    /// If the image is cached.
+    pub fn is_cached(&self, image: &Image) -> bool {
+        image
+            .cache_key
+            .as_ref()
+            .map(|k| IMAGES_IMPL.read().cache.contains_key(k))
+            .unwrap_or(false)
+    }
+
+    /// Returns an image that is not cached.
+    ///
+    /// If the `image` is the only reference returns it and removes it from the cache. If there are other
+    /// references a new [`ImageVar`] is generated from a clone of the image.
+    pub fn detach(&self, image: ImageVar) -> ImageVar {
+        IMAGES_IMPL.write().detach(image)
+    }
+
+    /// Clear cached images that are not referenced outside of the cache.
+    pub fn clean_all(&mut self) {
+        let mut img = IMAGES_IMPL.write();
+        img.proxies.iter_mut().for_each(|p| p.clear(false));
+        img.cache.retain(|_, v| v.img.strong_count() > 1);
+    }
+
+    /// Clear all cached images, including images that are still referenced outside of the cache.
+    ///
+    /// Image memory only drops when all strong references are removed, so if an image is referenced
+    /// outside of the cache it will merely be disconnected from the cache by this method.
+    pub fn purge_all(&mut self) {
+        let mut img = IMAGES_IMPL.write();
+        img.cache.clear();
+        img.proxies.iter_mut().for_each(|p| p.clear(true));
+    }
+
+    /// Add a cache proxy.
+    ///
+    /// Proxies can intercept cache requests and map to a different request or return an image directly.
+    pub fn install_proxy(&mut self, proxy: Box<dyn ImageCacheProxy>) {
+        IMAGES_IMPL.write().proxies.push(proxy);
     }
 }
 struct ImageData {

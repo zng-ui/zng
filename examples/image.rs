@@ -25,7 +25,9 @@ fn app_main() {
     App::default().run_window(|ctx| {
         // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
         // in here and overridden for each image with the "img_limits" property.
-        IMAGES.write().limits.allow_uri = zero_ui::core::image::UriFilter::AllowAll;
+        IMAGES.limits().modify(ctx, |l| {
+            l.to_mut().allow_uri = zero_ui::core::image::UriFilter::AllowAll;
+        });
 
         // setup a file cache so we don't download the images every run.
         http::set_default_client_init(move || {

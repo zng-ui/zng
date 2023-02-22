@@ -15,7 +15,7 @@ fn main() {
 }
 
 pub fn get_before_view_init(app: &mut HeadlessApp) {
-    let img = IMAGES.write().cache(image());
+    let img = IMAGES.cache(image());
 
     assert!(img.get().is_loading());
 

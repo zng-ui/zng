@@ -57,7 +57,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     parent: Some(ctx.path.window_id()),
                 });
             }
-            self.img = IMAGES.write().image(source, mode, limits);
+            self.img = IMAGES.image(source, mode, limits);
 
             self.ctx_img.set(ctx.vars, self.img.get());
             self.ctx_binding = Some(self.img.bind(&self.ctx_img));
@@ -89,26 +89,25 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 };
                 let limits = IMAGE_LIMITS_VAR.get();
 
-                self.img = IMAGES.write().image(source, mode, limits);
+                self.img = IMAGES.image(source, mode, limits);
 
                 self.ctx_img.set(ctx.vars, self.img.get());
                 self.ctx_binding = Some(self.img.bind(&self.ctx_img));
             } else if let Some(enabled) = IMAGE_CACHE_VAR.get_new(ctx) {
                 // cache-mode update:
-                let mut images = IMAGES.write();
-                let is_cached = self.ctx_img.with(|img| images.is_cached(img));
+                let is_cached = self.ctx_img.with(|img| IMAGES.is_cached(img));
                 if enabled != is_cached {
                     self.img = if is_cached {
                         // must not cache, but is cached, detach from cache.
 
                         let img = mem::replace(&mut self.img, var(Image::dummy(None)).read_only());
-                        images.detach(img)
+                        IMAGES.detach(img)
                     } else {
                         // must cache, but image is not cached, get source again.
 
                         let source = self.source.get();
                         let limits = IMAGE_LIMITS_VAR.get();
-                        images.image(source, ImageCacheMode::Cache, limits)
+                        IMAGES.image(source, ImageCacheMode::Cache, limits)
                     };
 
                     self.ctx_img.set(ctx.vars, self.img.get());

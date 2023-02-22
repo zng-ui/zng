@@ -297,13 +297,13 @@ impl HeadedCtrl {
 
                 self.icon = match ico {
                     WindowIcon::Default => None,
-                    WindowIcon::Image(ImageSource::Render(ico, _)) => Some(IMAGES.write().cache(ImageSource::Render(
+                    WindowIcon::Image(ImageSource::Render(ico, _)) => Some(IMAGES.cache(ImageSource::Render(
                         ico.clone(),
                         Some(crate::image::ImageRenderArgs {
                             parent: Some(*ctx.window_id),
                         }),
                     ))),
-                    WindowIcon::Image(source) => Some(IMAGES.write().cache(source)),
+                    WindowIcon::Image(source) => Some(IMAGES.cache(source)),
                 };
 
                 if let Some(ico) = &self.icon {

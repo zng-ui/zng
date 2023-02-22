@@ -2,7 +2,6 @@
     - See `test_font` for a case.
 
 * Refactor services into `app_local!` backed structs, with associated functions.
-    - `IMAGES`
     - `WINDOWS`
 
 * Refactor the update sender to an `app_local!` too?
