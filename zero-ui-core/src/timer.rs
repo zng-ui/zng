@@ -1,6 +1,6 @@
 //! App thread timers, deadlines and timeouts.
 //!
-//! The primary `struct` of this module is [`Timers`]. You can use it to
+//! The primary `struct` of this module is [`TIMERS`]. You can use it to
 //! create UI bound timers that run using only the main thread and can awake the app event loop
 //! to notify updates.
 use parking_lot::Mutex;
@@ -307,8 +307,8 @@ impl TimersService {
 ///
 /// [variable]: Var
 /// [`task`]: crate::task
-/// [`deadline`]: Timers::deadline
-/// [`interval`]: Timers::interval
+/// [`deadline`]: TIMERS::deadline
+/// [`interval`]: TIMERS::interval
 /// [`async_app_hn!`]: crate::handler::async_app_hn!
 /// [`async_app_hn_once!`]: crate::async_app_hn_once!
 pub struct TIMERS;
@@ -424,7 +424,7 @@ impl TIMERS {
     }
 }
 
-/// A [`deadline`](Timers::deadline) timer.
+/// A [`deadline`](TIMERS::deadline) timer.
 ///
 /// This is a read-only variable of type [`Deadline`], it will update once when the timer elapses.
 ///
@@ -449,7 +449,7 @@ impl TIMERS {
 /// including `.await` for the update in UI bound async tasks. See [`Var`] for details.
 pub type DeadlineVar = ReadOnlyArcVar<Deadline>;
 
-/// Represents a [`on_deadline`](Timers::on_deadline) handler.
+/// Represents a [`on_deadline`](TIMERS::on_deadline) handler.
 ///
 /// Drop all clones of this handle to cancel the timer, or call [`perm`](Self::perm) to drop the handle
 /// without cancelling the timer.
@@ -558,7 +558,7 @@ impl WeakDeadlineHandle {
     }
 }
 
-/// Arguments for the handler of [`on_deadline`](Timers::on_deadline).
+/// Arguments for the handler of [`on_deadline`](TIMERS::on_deadline).
 #[derive(Clone, Debug)]
 pub struct DeadlineArgs {
     /// When the handler was called.
@@ -567,7 +567,7 @@ pub struct DeadlineArgs {
     pub deadline: Deadline,
 }
 
-/// Represents a [`on_interval`](Timers::on_interval) handler.
+/// Represents a [`on_interval`](TIMERS::on_interval) handler.
 ///
 /// Drop all clones of this handler to stop the timer, or call [`perm`](Self::perm) to drop the handler
 /// without cancelling the timer.
@@ -747,7 +747,7 @@ impl WeakTimerHandle {
     }
 }
 
-/// An [`interval`](Timers::interval) timer.
+/// An [`interval`](TIMERS::interval) timer.
 ///
 /// This is a variable of type [`Timer`], it will update every time the timer elapses.
 ///
@@ -868,7 +868,7 @@ impl Timer {
     }
 }
 
-/// Arguments for an [`on_interval`](Timers::on_interval) handler.
+/// Arguments for an [`on_interval`](TIMERS::on_interval) handler.
 ///
 /// Note the timer can be stopped using the handlers [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe),
 /// and *once* handlers stop the timer automatically.

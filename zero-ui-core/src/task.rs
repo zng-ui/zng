@@ -722,12 +722,12 @@ pub async fn yield_now() {
 ///
 /// # UI Async
 ///
-/// This timer works in UI async tasks too, but you should use the [`Timers`] instead, as they are implemented using only
+/// This timer works in UI async tasks too, but you should use the [`TIMERS`] instead, as they are implemented using only
 /// the app loop they use the same *executor* as the app or widget tasks.
 ///
 /// [`Pending`]: std::task::Poll::Pending
 /// [`futures_timer`]: https://docs.rs/futures-timer
-/// [`Timers`]: crate::timer::Timers#async
+/// [`TIMERS`]: crate::timer::TIMERS#async
 pub async fn deadline(deadline: impl Into<Deadline>) {
     let deadline = deadline.into();
     if let Some(timeout) = deadline.time_left() {

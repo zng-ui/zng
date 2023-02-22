@@ -21,7 +21,7 @@ fn no_context_image() -> Image {
     Image::dummy(Some("no image source in context".to_owned()))
 }
 
-/// Requests an image from [`Images`] and sets [`CONTEXT_IMAGE_VAR`].
+/// Requests an image from [`IMAGES`] and sets [`CONTEXT_IMAGE_VAR`].
 ///
 /// Caches the image if [`img_cache`] is `true` in the context.
 ///
@@ -29,7 +29,7 @@ fn no_context_image() -> Image {
 ///
 /// In a widget this should be placed inside context properties and before event properties.
 ///
-/// [`Images`]: crate::core::image::Images
+/// [`IMAGES`]: crate::core::image::IMAGES
 /// [`img_cache`]: fn@crate::widgets::image::img_cache
 pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
     #[ui_node(struct ImageSourceNode {

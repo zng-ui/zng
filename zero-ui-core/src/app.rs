@@ -163,7 +163,7 @@ impl<'a, M> Future for RecvFut<'a, M> {
 /// ## 6 - Deinit
 ///
 /// The [`deinit`] method is called once after an exit was requested and not cancelled. Exit is
-/// requested using the [`AppProcess`] service, it causes an [`EXIT_REQUESTED_EVENT`] that can be cancelled, if it
+/// requested using the [`APP_PROCESS`] service, it causes an [`EXIT_REQUESTED_EVENT`] that can be cancelled, if it
 /// is not cancelled the extensions are deinited and then dropped.
 ///
 /// Deinit happens from the last inited extension first, so in reverse of init order, the [drop] happens in undefined order. Deinit is not called
@@ -519,7 +519,7 @@ event_args! {
 event! {
     /// Cancellable event raised when app process exit is requested.
     ///
-    /// App exit can be requested using the [`AppProcess`] service or the [`EXIT_CMD`], some extensions
+    /// App exit can be requested using the [`APP_PROCESS`] service or the [`EXIT_CMD`], some extensions
     /// also request exit if some conditions are met, [`WindowManager`] requests it after the last window
     /// is closed for example.
     ///
@@ -1753,12 +1753,12 @@ impl HeadlessApp {
     /// this means you cannot run a headless renderer in units tests.
     ///
     /// Note that [`UiNode::render`] is still called when a renderer is disabled and you can still
-    /// query the latest frame from [`Windows::widget_tree`]. The only thing that
+    /// query the latest frame from [`WINDOWS.widget_tree`]. The only thing that
     /// is disabled is WebRender and the generation of frame textures.
     ///
-    /// [frame pixels]: crate::window::Windows::frame_image
+    /// [frame pixels]: crate::window::WINDOWS::frame_image
     /// [`UiNode::render`]: crate::widget_instance::UiNode::render
-    /// [`Windows::widget_tree`]: crate::window::Windows::widget_tree
+    /// [`WINDOWS.widget_tree`]: crate::window::WINDOWS::widget_tree
     pub fn renderer_enabled(&mut self) -> bool {
         VIEW_PROCESS.is_available()
     }

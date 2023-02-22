@@ -693,7 +693,7 @@ event! {
 ///
 /// Services this extension provides.
 ///
-/// * [Mouse]
+/// * [`MOUSE`]
 pub struct MouseManager {
     // last cursor move position (scaled).
     pos: DipPoint,
@@ -1285,8 +1285,8 @@ enum ClickState {
 /// A mouse is **captured** when mouse events are redirected to a specific target. The user
 /// can still move the cursor outside of the target but the widgets outside do not interact with the cursor.
 ///
-/// You can request capture by calling [`capture_widget`](Mouse::capture_widget) or
-/// [`capture_subtree`](Mouse::capture_subtree) with a widget that was pressed by a mouse button. The capture
+/// You can request capture by calling [`capture_widget`](MOUSE::capture_widget) or
+/// [`capture_subtree`](MOUSE::capture_subtree) with a widget that was pressed by a mouse button. The capture
 /// will last for as long as any of the mouse buttons are pressed, the widget is visible and the window is focused.
 ///
 /// Windows capture the mouse by default, this cannot be disabled. For other widgets this is optional.

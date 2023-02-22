@@ -29,7 +29,7 @@ use crate::{
 };
 
 event! {
-    /// Change in [`Fonts`] that may cause a font query to now give
+    /// Change in [`FONTS`] that may cause a font query to now give
     /// a different result.
     ///
     /// # Cache
@@ -67,10 +67,10 @@ pub enum FontChange {
     /// Currently this is only supported in Microsoft Windows.
     SystemFonts,
 
-    /// Custom fonts change caused by call to [`Fonts::register`] or [`Fonts::unregister`].
+    /// Custom fonts change caused by call to [`FONTS.register`] or [`FONTS.unregister`].
     CustomFonts,
 
-    /// Custom request caused by call to [`Fonts::refresh`].
+    /// Custom request caused by call to [`FONTS.refresh`].
     Refesh,
 
     /// One of the [`GenericFonts`] was set for the language.
@@ -87,7 +87,7 @@ pub enum FontChange {
 ///
 /// Services this extension provides:
 ///
-/// * [Fonts] - Service that finds and loads fonts.
+/// * [`FONTS`] - Service that finds and loads fonts.
 ///
 /// Events this extension provides:
 ///
@@ -300,7 +300,7 @@ impl FontInstanceKey {
 /// A font face selected from a font family.
 ///
 /// Usually this is part of a [`FontList`] that can be requested from
-/// the [`Fonts`] service.
+/// the [`FONTS`] service.
 pub struct FontFace {
     data: FontDataRef,
     face: harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>,
@@ -1425,7 +1425,7 @@ impl GenericFontsService {
 
 /// Generic fonts configuration for the app.
 ///
-/// This type can be accessed from the [`Fonts`] service.
+/// This type can be accessed from the [`FONTS`] service.
 ///
 /// # Defaults
 ///
@@ -1559,7 +1559,7 @@ impl CustomFont {
     ///
     /// If the file is a collection of fonts, `font_index` determines which, otherwise just pass `0`.
     ///
-    /// The font is loaded in [`Fonts::register`].
+    /// The font is loaded in [`FONTS.register`].
     pub fn from_file<N: Into<FontName>, P: Into<PathBuf>>(name: N, path: P, font_index: u32) -> Self {
         CustomFont {
             name: name.into(),
@@ -1574,7 +1574,7 @@ impl CustomFont {
     ///
     /// If the font data is a collection of fonts, `font_index` determines which, otherwise just pass `0`.
     ///
-    /// The font is loaded in [`Fonts::register`].
+    /// The font is loaded in [`FONTS.register`].
     pub fn from_bytes<N: Into<FontName>>(name: N, data: FontDataRef, font_index: u32) -> Self {
         CustomFont {
             name: name.into(),
@@ -1587,7 +1587,7 @@ impl CustomFont {
 
     /// A custom font that maps to another font.
     ///
-    /// The font is loaded in [`Fonts::register`].
+    /// The font is loaded in [`FONTS.register`].
     pub fn from_other<N: Into<FontName>, O: Into<FontName>>(name: N, other_font: O) -> Self {
         CustomFont {
             name: name.into(),

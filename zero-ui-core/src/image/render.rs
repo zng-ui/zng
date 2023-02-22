@@ -72,7 +72,7 @@ impl IMAGES {
     ///
     /// The closure input is the [`WindowContext`] of the headless window.
     ///
-    /// Requires the [`Windows`] service.
+    /// Requires the [`WINDOWS`] service.
     pub fn render<N>(&self, render: N) -> ImageVar
     where
         N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
@@ -183,7 +183,7 @@ struct RenderRequest {
     image: WeakArcVar<Image>,
 }
 
-/// Controls properties of the render window used by [`Images::render`].
+/// Controls properties of the render window used by [`IMAGES.render`].
 ///
 /// You can get the controller inside the closure using [`req`] or [`get`] and the `window_state`
 /// in [`WindowContext`] and [`WidgetContext`].

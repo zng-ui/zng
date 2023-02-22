@@ -8,7 +8,7 @@ pub mod window_properties;
 
 /// A window container.
 ///
-/// The instance type is [`Window`], that can be given to the [`Windows`](crate::core::window::Windows) service
+/// The instance type is [`Window`], that can be given to the [`WINDOWS`](crate::core::window::WINDOWS) service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
 /// # Examples
@@ -114,7 +114,7 @@ pub mod window {
         /// [`background_color`]: fn@background_color
         pub allow_transparency(impl IntoValue<bool>);
 
-        /// Render performance mode overwrite for this window, if set to `None` the [`Windows::default_render_mode`] is used.
+        /// Render performance mode overwrite for this window, if set to `None` the [`WINDOWS.default_render_mode`] is used.
         ///
         /// # Examples
         ///
@@ -136,7 +136,7 @@ pub mod window {
         /// The `view-process` will try to match the mode, if it is not available a fallback mode is selected,
         /// see [`RenderMode`] for more details about each mode and fallbacks.
         ///
-        /// [`Windows::default_render_mode`]: crate::core::window::Windows::default_render_mode
+        /// [`WINDOWS.default_render_mode`]: crate::core::window::WINDOWS::default_render_mode
         pub render_mode(impl IntoValue<Option<RenderMode>>);
 
 

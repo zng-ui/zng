@@ -14,10 +14,10 @@ use crate::widget_info::{
 pub trait IterFocusableExt<'a, I: Iterator<Item = WidgetInfo<'a>>> {
     /// Returns an iterator of only the focusable widgets.
     ///
-    /// See the [`Focus::focus_disabled_widgets`] and [`Focus::focus_hidden_widgets`] config for more on the parameter.
+    /// See the [`FOCUS.focus_disabled_widgets`] and [`FOCUS.focus_hidden_widgets`] config for more on the parameter.
     ///
-    /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
-    /// [`Focus::focus_hidden_widgets`]: crate::focus::Focus::focus_hidden_widgets
+    /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
+    /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
     fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusuable<'a, I>;
 }
 impl<'a, I> IterFocusableExt<'a, I> for I

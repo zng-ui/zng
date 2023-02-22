@@ -190,7 +190,7 @@ pub struct HeadlessMonitor {
 
     /// Pixel-per-inches used for the headless layout and rendering.
     ///
-    /// [`Monitors::DEFAULT_PPI`] by default.
+    /// [`MONITORS::DEFAULT_PPI`] by default.
     pub ppi: f32,
 }
 impl fmt::Debug for HeadlessMonitor {
@@ -248,7 +248,7 @@ impl_from_and_into_var! {
     }
 }
 
-/// All information about a monitor that [`Monitors`] can provide.
+/// All information about a monitor that [`MONITORS`] can provide.
 #[derive(Clone)]
 pub struct MonitorInfo {
     id: MonitorId,
@@ -435,7 +435,7 @@ event_args! {
 
         /// Added monitors.
         ///
-        /// Use the [`Monitors`] service to get metadata about the added monitors.
+        /// Use the [`MONITORS`] service to get metadata about the added monitors.
         pub added: Vec<MonitorId>,
 
         /// Modified monitors.

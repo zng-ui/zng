@@ -847,8 +847,8 @@
 //! [futures]: std::future::Future
 //! [`AppContext`]: crate::core::context::AppContext
 //! [`context`]: crate::core::context
-//! [`Windows`]: crate::core::window::Windows
-//! [win_open]: crate::core::window::Windows::open
+//! [`WINDOWS`]: crate::core::window::WINDOWS
+//! [win_open]: crate::core::window::WINDOWS::open
 //! [`app_local!`]: crate::core::app::app_local
 
 // to make the proc-macro $crate substitute work in doc-tests.

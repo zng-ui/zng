@@ -129,7 +129,7 @@ impl APP_PROCESS {
 command! {
     /// Represents the app process [`exit`] request.
     ///
-    /// [`exit`]: AppProcess::exit
+    /// [`exit`]: APP_PROCESS::exit
     pub static EXIT_CMD = {
         name: "Exit",
         info: "Close all windows and exit."
@@ -138,7 +138,7 @@ command! {
 
 /// Cancellation message of an [exit request].
 ///
-/// [exit request]: AppProcess::exit
+/// [exit request]: APP_PROCESS::exit
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ExitCancelled;
 impl fmt::Display for ExitCancelled {

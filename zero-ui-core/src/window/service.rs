@@ -233,7 +233,7 @@ impl WINDOWS {
     /// Note that in a headless app the [`open`] method also creates headless windows, this method
     /// creates headless windows even in a headed app.
     ///
-    /// [`open`]: Windows::open
+    /// [`open`]: WINDOWS::open
     pub fn open_headless(
         &self,
         new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
@@ -453,7 +453,7 @@ impl WINDOWS {
 
     /// Requests that the window be made the foreground keyboard focused window.
     ///
-    /// Prefer using the [`Focus`] service and advanced [`FocusRequest`] configs instead of using this method directly.
+    /// Prefer using the [`FOCUS`] service and advanced [`FocusRequest`] configs instead of using this method directly.
     ///
     /// This operation can steal keyboard focus from other apps disrupting the user, be careful with it.
     ///
@@ -461,7 +461,7 @@ impl WINDOWS {
     ///
     /// If more than one focus request is made in the same update cycle only the last request is processed.
     ///
-    /// [`Focus`]: crate::focus::Focus
+    /// [`FOCUS`]: crate::focus::FOCUS
     /// [`FocusRequest`]: crate::focus::FocusRequest
     pub fn focus(&self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
         let window_id = window_id.into();
@@ -1043,7 +1043,7 @@ impl WindowLoading {
 
 /// Represents a handle that stops a window from opening while it exists.
 ///
-/// A handle can be retrieved using [`Windows::loading_handle`], the window does not
+/// A handle can be retrieved using [`WINDOWS.loading_handle`], the window does not
 /// open until all handles are dropped.
 #[derive(Clone)]
 pub struct WindowLoadingHandle(Arc<WindowLoadingHandleData>);

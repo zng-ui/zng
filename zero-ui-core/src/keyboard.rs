@@ -174,13 +174,13 @@ event! {
 ///
 /// # Dependencies
 ///
-/// This extension requires the [`Focus`] and [`Windows`] services before the first raw key input event. It does not
+/// This extension requires the [`FOCUS`] and [`WINDOWS`] services before the first raw key input event. It does not
 /// require anything for initialization.
 ///
 /// [extension]: AppExtension
 /// [default app]: crate::app::App::default
-/// [`Focus`]: crate::focus::Focus
-/// [`Windows`]: crate::window::Windows
+/// [`FOCUS`]: crate::focus::FOCUS
+/// [`WINDOWS`]: crate::window::WINDOWS
 #[derive(Default)]
 pub struct KeyboardManager;
 impl AppExtension for KeyboardManager {

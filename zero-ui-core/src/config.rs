@@ -1,7 +1,7 @@
 //! Config manager.
 //!
 //! The [`ConfigManager`] is an [app extension], it
-//! is included in the [default app] and manages the [`Config`] service that can be used to store and retrieve
+//! is included in the [default app] and manages the [`CONFIG`] service that can be used to store and retrieve
 //! state that is persisted between application runs.
 //!
 //! [app extension]: crate::app::AppExtension
@@ -36,7 +36,7 @@ pub use file_source::{ConfigFile, ConfigFileBuilder};
 mod combinators;
 pub use combinators::*;
 
-/// Application extension that manages the app configuration access point ([`Config`]).
+/// Application extension that manages the app configuration access point ([`CONFIG`]).
 ///
 /// Note that this extension does not implement a [`ConfigSource`], it just manages whatever source is installed and
 /// the config variables.
@@ -59,10 +59,10 @@ impl AppExtension for ConfigManager {
     }
 }
 
-/// Key to a persistent config in [`Config`].
+/// Key to a persistent config in [`CONFIG`].
 pub type ConfigKey = Text;
 
-/// A type that can be a [`Config`] value.
+/// A type that can be a [`CONFIG`] value.
 ///
 /// # Trait Alias
 ///
@@ -573,13 +573,13 @@ impl CONFIG {
 
 /// Represents a loaded config source that is not the main config.
 ///
-/// This type allows interaction with a [`ConfigSource`] just like the [`Config`] service, but without affecting the
+/// This type allows interaction with a [`ConfigSource`] just like the [`CONFIG`] service, but without affecting the
 /// actual app config, so that the same config key can be loaded  from different sources with different values.
 ///
 /// Note that some config sources can auto-reload if their backing file is modified, so modifications using this type
-/// can end-up affecting the actual [`Config`] too.
+/// can end-up affecting the actual [`CONFIG`] too.
 ///
-/// You can use the [`Config::load_alt`] method to create an instance of this type.
+/// You can use the [`CONFIG.load_alt`] method to create an instance of this type.
 pub struct ConfigAlt(Arc<RwLock<ConfigService>>);
 impl ConfigAlt {
     fn load(updates: AppEventSender, source: impl ConfigSource) -> Self {
@@ -762,7 +762,7 @@ enum ConfigVarTask {
     Write,
 }
 
-/// Current [`Config`] status.
+/// Current [`CONFIG`] status.
 #[derive(Debug, Clone, Default)]
 pub struct ConfigStatus {
     /// Number of pending writes.
@@ -786,7 +786,7 @@ pub struct ConfigStatus {
 impl ConfigStatus {
     /// Returns `true` if there are any errors currently in the status.
     ///
-    /// The errors can be cleared using [`Config::clear_errors`].
+    /// The errors can be cleared using [`CONFIG.clear_errors`].
     pub fn has_errors(&self) -> bool {
         self.read_error.is_some() || self.write_error.is_some() || self.internal_error.is_some()
     }
@@ -890,7 +890,7 @@ impl From<flume::RecvError> for ConfigError {
     }
 }
 
-/// Represents an implementation of [`Config`].
+/// Represents an implementation of [`CONFIG`].
 pub trait ConfigSource: Send + Sync + 'static {
     /// Called once when the source is installed.
     fn init(&mut self, observer: AppExtSender<ConfigSourceUpdate>);

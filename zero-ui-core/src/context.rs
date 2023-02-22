@@ -1916,11 +1916,11 @@ impl LayoutMetrics {
     /// For most of the UI you only need the [`scale_factor`].
     ///
     /// If you are implementing some feature like a "print size preview", you need to use this value, and you
-    /// can configure a PPI per screen in the [`Monitors`] service.
+    /// can configure a PPI per screen in the [`MONITORS`] service.
     ///
     /// Default is `96.0`.
     ///
-    /// [`Monitors`]: crate::window::Monitors
+    /// [`MONITORS`]: crate::window::MONITORS
     /// [`scale_factor`]: LayoutMetrics::scale_factor
     pub fn screen_ppi(&self) -> f32 {
         self.s.screen_ppi

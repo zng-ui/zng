@@ -68,14 +68,14 @@ pub(super) struct WindowVarsData {
 
 /// Controls properties of an open window using variables.
 ///
-/// You can get the controller for any window using [`Windows::vars`].
+/// You can get the controller for any window using [`WINDOWS.vars`].
 ///
 /// You can get the controller for the current context window using [`req`] or [`get`] and the `window_state`
 /// in [`WindowContext`] and [`WidgetContext`].
 ///
 /// [`WindowContext`]: crate::context::WindowContext::window_state
 /// [`WidgetContext`]: crate::context::WidgetContext::window_state
-/// [`Windows::vars`]: crate::window::Windows::vars
+/// [`WINDOWS.vars`]: crate::window::WINDOWS::vars
 /// [`req`]: WindowVars::req
 /// [`get`]: WindowVars::get
 #[derive(Clone)]
@@ -560,9 +560,9 @@ impl WindowVars {
     /// This is a read-only variable, it starts set to `false` and will update only once, after
     /// the first window layout and when all loading handles to the window are released.
     ///
-    /// A window is only opened in the view-process once it is loaded, see [`Windows::loading_handle`] for more details.
+    /// A window is only opened in the view-process once it is loaded, see [`WINDOWS.loading_handle`] for more details.
     ///
-    /// [`Windows::loading_handle`]: crate::window::Windows::loading_handle
+    /// [`WINDOWS.loading_handle`]: crate::window::WINDOWS::loading_handle
     pub fn is_loaded(&self) -> ReadOnlyArcVar<bool> {
         self.0.is_loaded.read_only()
     }
@@ -572,9 +572,9 @@ impl WindowVars {
     /// This is usually a visual indication on the taskbar icon that prompts the user to focus on the window, it is automatically
     /// changed to `None` once the window receives focus or you can set it to `None` to cancel the indicator.
     ///
-    /// Prefer using the [`Focus`] service and advanced [`FocusRequest`] configs instead of setting this variable directly.
+    /// Prefer using the [`FOCUS`] service and advanced [`FocusRequest`] configs instead of setting this variable directly.
     ///
-    /// [`Focus`]: crate::focus::Focus
+    /// [`FOCUS`]: crate::focus::FOCUS
     /// [`FocusRequest`]: crate::focus::FocusRequest
     pub fn focus_indicator(&self) -> &ArcVar<Option<FocusIndicator>> {
         &self.0.focus_indicator
@@ -598,7 +598,7 @@ impl WindowVars {
     /// The initial value is the [`default_render_mode`], it can update after the window is created, when the view-process
     /// actually creates the backend window and after a view-process respawn.
     ///
-    /// [`default_render_mode`]: crate::window::Windows::default_render_mode
+    /// [`default_render_mode`]: crate::window::WINDOWS::default_render_mode
     pub fn render_mode(&self) -> ReadOnlyArcVar<RenderMode> {
         self.0.render_mode.read_only()
     }

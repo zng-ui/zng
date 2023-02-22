@@ -149,10 +149,10 @@ pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 /// the image PPI, monitor PPI and scale factor.
 ///
 /// By default this is `false`, if `true` the image is scaled in a attempt to recreate the original physical dimensions, but it
-/// only works if the image and monitor PPI are set correctly. The monitor PPI can be set using the [`Monitors`] service.
+/// only works if the image and monitor PPI are set correctly. The monitor PPI can be set using the [`MONITORS`] service.
 ///
 /// [`img_crop`]: fn@img_crop
-/// [`Monitors`]: zero_ui::core::window::Monitors
+/// [`MONITORS`]: zero_ui::core::window::MONITORS
 ///
 /// [`scape_ppi`]: fn@crate::widgets::image::scape_ppi
 #[property(CONTEXT, default(IMAGE_SCALE_PPI_VAR))]
@@ -234,13 +234,13 @@ pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>
 /// Sets if the [`source`] is cached.
 ///
 /// By default this is `true`, meaning the image is loaded from cache and if not present it is inserted into
-/// the cache, the cache lives for the app in the [`Images`] app, the image can be manually removed from cache.
+/// the cache, the cache lives for the app in the [`IMAGES`] service, the image can be manually removed from cache.
 ///
 /// If set to `false` the image is always loaded and decoded on init or when [`source`] updates and is dropped when
 /// the widget is deinited or dropped.
 ///
 /// [`source`]: fn@crate::widgets::image::source
-/// [`Images`]: zero_ui::core::image::Images
+/// [`IMAGES`]: zero_ui::core::image::IMAGES
 #[property(CONTEXT, default(IMAGE_CACHE_VAR))]
 pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_CACHE_VAR, enabled)
@@ -248,9 +248,9 @@ pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
 
 /// Sets custom image load and decode limits.
 ///
-/// If not set or set to `None` the [`Images::limits`] is used.
+/// If not set or set to `None` the [`IMAGES.limits`] is used.
 ///
-/// [`Images::limits`]: crate::core::image::Images::limits
+/// [`IMAGES.limits`]: crate::core::image::IMAGES::limits
 #[property(CONTEXT, default(IMAGE_LIMITS_VAR))]
 pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
     with_context_var(child, IMAGE_LIMITS_VAR, limits)

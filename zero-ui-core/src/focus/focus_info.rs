@@ -170,9 +170,9 @@ impl fmt::Debug for DirectionalNav {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Focus change request.
 ///
-/// See [`Focus`] for details.
+/// See [`FOCUS`] for details.
 ///
-/// [`Focus`]: crate::focus::Focus::focus
+/// [`FOCUS`]: crate::focus::FOCUS::focus
 pub struct FocusRequest {
     /// Where to move the focus.
     pub target: FocusTarget,
@@ -181,10 +181,10 @@ pub struct FocusRequest {
 
     /// If the window should be focused even if another app has focus. By default the window
     /// is only focused if the app has keyboard focus in any of the open windows, if this is enabled
-    /// a [`Windows::focus`] request is always made, potentially stealing keyboard focus from another app
+    /// a [`WINDOWS.focus`] request is always made, potentially stealing keyboard focus from another app
     /// and disrupting the user.
     ///
-    /// [`Windows::focus`]: crate::window::Windows::focus
+    /// [`WINDOWS.focus`]: crate::window::WINDOWS::focus
     pub force_window_focus: bool,
 
     /// Focus indicator to set on the target window if the app does not have keyboard focus and
@@ -366,10 +366,10 @@ pub struct FocusInfoTree {
 impl FocusInfoTree {
     /// Wrap a `widget_info` reference to enable focus info querying.
     ///
-    /// See the [`Focus::focus_disabled_widgets`] and [`Focus::focus_hidden_widgets`] config for more details on the parameters.
+    /// See the [`FOCUS.focus_disabled_widgets`] and [`FOCUS.focus_hidden_widgets`] config for more details on the parameters.
     ///
-    /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
-    /// [`Focus::focus_hidden_widgets`]: crate::focus::Focus::focus_hidden_widgets
+    /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
+    /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
     pub fn new(tree: WidgetInfoTree, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> Self {
         FocusInfoTree {
             tree,
@@ -384,20 +384,20 @@ impl FocusInfoTree {
 
     /// If [`DISABLED`] widgets are focusable in this tree.
     ///
-    /// See the [`Focus::focus_disabled_widgets`] config for more details.
+    /// See the [`FOCUS.focus_disabled_widgets`] config for more details.
     ///
     /// [`DISABLED`]: Interactivity::DISABLED
-    /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
+    /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
     pub fn focus_disabled_widgets(&self) -> bool {
         self.mode.contains(FocusMode::DISABLED)
     }
 
     /// If [`Hidden`] widgets are focusable in this tree.
     ///
-    /// See the [`Focus::focus_hidden_widgets`] config for more details.
+    /// See the [`FOCUS.focus_hidden_widgets`] config for more details.
     ///
     /// [`Hidden`]: Visibility::Hidden
-    /// [`Focus::focus_hidden_widgets`]: crate::focus::Focus::focus_hidden_widgets
+    /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
     pub fn focus_hidden_widgets(&self) -> bool {
         self.mode.contains(FocusMode::HIDDEN)
     }
@@ -460,19 +460,19 @@ impl FocusInfoTree {
 pub trait WidgetInfoFocusExt<'a> {
     /// Wraps the [`WidgetInfo`] in a [`WidgetFocusInfo`] even if it is not focusable.
     ///
-    /// See the [`Focus::focus_disabled_widgets`] and [`Focus::focus_hidden_widgets`] config for more details on the parameters.
+    /// See the [`FOCUS.focus_disabled_widgets`] and [`FOCUS.focus_hidden_widgets`] config for more details on the parameters.
     ///
-    /// [`Focus::focus_disabled_widgets`]:  crate::focus::Focus::focus_disabled_widgets
-    /// [`Focus::focus_hidden_widgets`]:  crate::focus::Focus::focus_hidden_widgets
+    /// [`FOCUS.focus_disabled_widgets`]:  crate::focus::FOCUS::focus_disabled_widgets
+    /// [`FOCUS.focus_hidden_widgets`]:  crate::focus::FOCUS::focus_hidden_widgets
     #[allow(clippy::wrong_self_convention)] // WidgetFocusInfo is a reference wrapper.
     fn as_focus_info(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> WidgetFocusInfo<'a>;
 
     /// Returns a wrapped [`WidgetFocusInfo`] if the [`WidgetInfo`] is focusable.
     ///
-    /// See the [`Focus::focus_disabled_widgets`] and [`Focus::focus_hidden_widgets`] config for more details on the parameters.
+    /// See the [`FOCUS.focus_disabled_widgets`] and [`FOCUS.focus_hidden_widgets`] config for more details on the parameters.
     ///
-    /// [`Focus::focus_disabled_widgets`]:  crate::focus::Focus::focus_disabled_widgets
-    /// [`Focus::focus_hidden_widgets`]:  crate::focus::Focus::focus_hidden_widgets
+    /// [`FOCUS.focus_disabled_widgets`]:  crate::focus::FOCUS::focus_disabled_widgets
+    /// [`FOCUS.focus_hidden_widgets`]:  crate::focus::FOCUS::focus_hidden_widgets
     #[allow(clippy::wrong_self_convention)] // WidgetFocusInfo is a reference wrapper.
     fn as_focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> Option<WidgetFocusInfo<'a>>;
 }
@@ -500,10 +500,10 @@ pub struct WidgetFocusInfo<'a> {
 impl<'a> WidgetFocusInfo<'a> {
     /// Wrap a `widget_info` reference to enable focus info querying.
     ///
-    /// See the [`Focus::focus_disabled_widgets`] and [`Focus::focus_hidden_widgets`] config for more details on the parameters.
+    /// See the [`FOCUS.focus_disabled_widgets`] and [`FOCUS.focus_hidden_widgets`] config for more details on the parameters.
     ///
-    /// [`Focus::focus_disabled_widgets`]:  crate::focus::Focus::focus_disabled_widgets
-    /// [`Focus::focus_hidden_widgets`]:  crate::focus::Focus::focus_hidden_widgets
+    /// [`FOCUS.focus_disabled_widgets`]:  crate::focus::FOCUS::focus_disabled_widgets
+    /// [`FOCUS.focus_hidden_widgets`]:  crate::focus::FOCUS::focus_hidden_widgets
     pub fn new(widget_info: WidgetInfo<'a>, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> Self {
         WidgetFocusInfo {
             info: widget_info,
@@ -513,20 +513,20 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// If [`DISABLED`] widgets are focusable in this tree.
     ///
-    /// See the [`Focus::focus_disabled_widgets`] config for more details.
+    /// See the [`FOCUS.focus_disabled_widgets`] config for more details.
     ///
     /// [`DISABLED`]: Interactivity::DISABLED
-    /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
+    /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
     pub fn focus_disabled_widgets(&self) -> bool {
         self.mode.contains(FocusMode::DISABLED)
     }
 
     /// If [`Hidden`] widgets are focusable in this tree.
     ///
-    /// See the [`Focus::focus_hidden_widgets`] config for more details.
+    /// See the [`FOCUS.focus_hidden_widgets`] config for more details.
     ///
     /// [`Hidden`]: Visibility::Hidden
-    /// [`Focus::focus_hidden_widgets`]: crate::focus::Focus::focus_hidden_widgets
+    /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
     pub fn focus_hidden_widgets(&self) -> bool {
         self.mode.contains(FocusMode::HIDDEN)
     }

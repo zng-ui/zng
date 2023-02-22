@@ -163,7 +163,7 @@ impl ClickArgs {
     /// A primary click causes the default widget function interaction.
     ///
     /// Returns `true` if the click source is a left mouse button click or a
-    /// [primary click shortcut](Gestures::click_focused).
+    /// [primary click shortcut](GESTURES::click_focused).
     pub fn is_primary(&self) -> bool {
         match &self.source {
             ClickArgsSource::Mouse { button, .. } => *button == MouseButton::Left,
@@ -174,7 +174,7 @@ impl ClickArgs {
     /// If the event counts as a *context menu* request.
     ///
     /// Returns `true` if the [`click_count`](Self::click_count) is `1` and the
-    /// click source is a right mouse button click or a [context click shortcut](Gestures::context_click_focused).
+    /// click source is a right mouse button click or a [context click shortcut](GESTURES::context_click_focused).
     pub fn is_context(&self) -> bool {
         self.click_count.get() == 1
             && match &self.source {
@@ -594,7 +594,7 @@ impl std::ops::DerefMut for Shortcuts {
 impl KeyInputArgs {
     /// Key gesture this key press triggers.
     ///
-    /// See also [`Gestures`].
+    /// See also [`GESTURES`].
     pub fn gesture(&self) -> Option<KeyGesture> {
         if self.state == KeyState::Released {
             return None;
@@ -608,7 +608,7 @@ impl KeyInputArgs {
 
     /// Gets [`gesture`](Self::gesture) as a shortcut.
     ///
-    /// See also [`Gestures`].
+    /// See also [`GESTURES`].
     pub fn shortcut(&self) -> Option<Shortcut> {
         self.gesture().map(Shortcut::Gesture)
     }
@@ -729,7 +729,7 @@ event! {
     ///
     /// Event happens every time a full [`Shortcut`] is completed by key press.
     ///
-    /// This event is not send to any widget, use the [`Gestures`] service to setup widget targets for shortcuts.
+    /// This event is not send to any widget, use the [`GESTURES`] service to setup widget targets for shortcuts.
     pub static SHORTCUT_EVENT: ShortcutArgs;
 }
 
@@ -1053,7 +1053,7 @@ impl GESTURES {
 
 /// Represents the resolved targets for a shortcut at a time.
 ///
-/// You can use the [`Gestures::shortcut_actions`] method to get a value of this.
+/// You can use the [`GESTURES.shortcut_actions`] method to get a value of this.
 #[derive(Debug, Clone)]
 pub struct ShortcutActions {
     shortcut: Shortcut,
@@ -1345,8 +1345,8 @@ impl ShortcutActions {
 /// but keep the animation alive until it is stopped from the inside.
 ///
 /// [`perm`]: ShortcutsHandle::perm
-/// [`click_shortcut`]: Gestures::click_shortcut
-/// [`focus_shortcut`]: Gestures::focus_shortcut
+/// [`click_shortcut`]: GESTURES::click_shortcut
+/// [`focus_shortcut`]: GESTURES::focus_shortcut
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
 #[must_use = "the shortcuts claim is removed if the handle is dropped"]
@@ -1726,7 +1726,7 @@ impl HeadlessAppGestureExt for HeadlessApp {
 /// Adds the [`shortcut`](Self::shortcut) metadata.
 ///
 /// If a command has a shortcut the [`GestureManager`] will invoke the command when the shortcut is pressed
-/// the command is enabled, if the command target is a widget it will be focused as well. See the [`Gestures`]
+/// the command is enabled, if the command target is a widget it will be focused as well. See the [`GESTURES`]
 /// service documentation for details on how shortcuts are resolved.
 pub trait CommandShortcutExt {
     /// Gets a read-write variable that is zero-or-more shortcuts that invoke the command.

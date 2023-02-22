@@ -437,7 +437,7 @@ pub fn is_return_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> 
 
 /// If the widget is focused on init.
 ///
-/// When the widget is inited a [`Focus::focus_widget_or_related`] request is made for the widget.
+/// When the widget is inited a [`FOCUS.focus_widget_or_related`] request is made for the widget.
 #[property(CONTEXT, default(false))]
 pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node( struct FocusOnInitNode {

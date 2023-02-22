@@ -48,8 +48,8 @@ use crate::{
 ///
 /// Services this extension provides:
 ///
-/// * [`Windows`]
-/// * [`Monitors`]
+/// * [`WINDOWS`]
+/// * [`MONITORS`]
 #[derive(Default)]
 pub struct WindowManager {}
 impl AppExtension for WindowManager {

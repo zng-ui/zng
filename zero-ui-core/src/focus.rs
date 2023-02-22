@@ -1,7 +1,7 @@
 //! Keyboard focus manager.
 //!
 //! The [`FocusManager`] struct is an [app extension](crate::app::AppExtension). It
-//! is included in the [default app](crate::app::App::default) and provides the [`Focus`] service
+//! is included in the [default app](crate::app::App::default) and provides the [`FOCUS`] service
 //! and focus events.
 //!
 //! # Keyboard Focus
@@ -10,12 +10,12 @@
 //! This is an extension of the windows manager own focus management that controls which window is *focused*, receiving
 //! keyboard input.
 //!
-//! You can track the focused widget by listening to the [`FOCUS_CHANGED_EVENT`] event or by calling [`focused`](Focus::focused)
-//! in the [`Focus`] service.
+//! You can track the focused widget by listening to the [`FOCUS_CHANGED_EVENT`] event or by calling [`focused`](FOCUS::focused)
+//! in the [`FOCUS`] service.
 //!
 //! # Navigation
 //!
-//! The keyboard focus can be moved from one widget to the next using the keyboard or the [`Focus`] service methods.
+//! The keyboard focus can be moved from one widget to the next using the keyboard or the [`FOCUS`] service methods.
 //! There are two styles of movement: [tabbing](#tab-navigation) that follows the logical order and [directional](#directional-navigation)
 //! that follows the visual order.
 //!
@@ -27,14 +27,14 @@
 //! Tab navigation follows a logical order, the position of the widget in the [widget tree](FocusInfoTree),
 //! optionally overridden with a [custom index](TabIndex).
 //!
-//! Focus is moved forward by pressing `TAB` or calling [`focus_next`](Focus::focus_next) and backward by pressing `SHIFT+TAB` or
-//! calling [`focus_prev`](Focus::focus_prev).
+//! Focus is moved forward by pressing `TAB` or calling [`focus_next`](FOCUS::focus_next) and backward by pressing `SHIFT+TAB` or
+//! calling [`focus_prev`](FOCUS::focus_prev).
 //!
 //! ## Directional Navigation
 //!
 //! Directional navigation follows the visual position of the widget on the screen.
 //!
-//! Focus is moved by pressing the **arrow keys** or calling the focus direction methods in the [`Focus`](Focus::focus_up) service.
+//! Focus is moved by pressing the **arrow keys** or calling the focus direction methods in the [`FOCUS`](FOCUS::focus_up) service.
 //!
 //! ## Focus Scopes
 //!
@@ -45,11 +45,11 @@
 //! ### Alt Scopes
 //!
 //! Alt scopes are specially marked focus scopes that receive focus when the `ALT`
-//! key is pressed or [`focus_alt`](Focus::focus_alt) is called in the [`Focus`] service. The alt scope of a widget
+//! key is pressed or [`focus_alt`](FOCUS::focus_alt) is called in the [`FOCUS`] service. The alt scope of a widget
 //! is selected by [`WidgetFocusInfo::alt_scope`].
 //!
 //! Alt scopes remember the previously focused widget as a [return focus](#return-focus). The focus returns ALT is pressed again,
-//! or [`focus_exit`](Focus::focus_exit) is called in the [`Focus`] service and the parent is the focus scope.
+//! or [`focus_exit`](FOCUS::focus_exit) is called in the [`FOCUS`] service and the parent is the focus scope.
 //!
 //! ### Return Focus
 //!
@@ -58,7 +58,7 @@
 //! and can also return focus back to that widget.
 //!
 //! Widgets can keep track of this by listening to the [`RETURN_FOCUS_CHANGED_EVENT`] event or by calling
-//! [`return_focused`](Focus::return_focused) in the [`Focus`] service. Usually the window root scope remembers
+//! [`return_focused`](FOCUS::return_focused) in the [`FOCUS`] service. Usually the window root scope remembers
 //! return focus and some widgets, like *text inputs* visually indicate that they will be focused when the window
 //! is focused.
 //!
@@ -370,7 +370,7 @@ event! {
 ///
 /// Services this extension provides.
 ///
-/// * [Focus]
+/// * [`FOCUS`]
 ///
 /// # Default
 ///

@@ -6,7 +6,7 @@ use super::*;
 
 /// Config wrapper that only initializes the inner config on the first read/write op.
 ///
-/// Note that [`Config`] and [`ConfigAlt`] already implement this internally, this type is useful only as
+/// Note that [`CONFIG`] and [`ConfigAlt`] already implement this internally, this type is useful only as
 /// a building block of combinator config sources.
 pub struct LazyConfig<C> {
     cfg: C,

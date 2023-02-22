@@ -23,11 +23,11 @@ use crate::{
 
 pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
 
-/// A custom proxy in [`Images`].
+/// A custom proxy in [`IMAGES`].
 ///
 /// Implementers can intercept cache requests and redirect to another cache request or returns an image directly.
 ///
-/// [`Images`]: super::Images
+/// [`IMAGES`]: super::IMAGES
 pub trait ImageCacheProxy: Send + Sync {
     /// Intercept a get request.
     fn get(&mut self, key: &ImageHash, source: &ImageSource, mode: ImageCacheMode) -> ProxyGetResult {
@@ -71,11 +71,11 @@ pub enum ProxyRemoveResult {
     Removed,
 }
 
-/// Represents an [`Image`] tracked by the [`Images`] cache.
+/// Represents an [`Image`] tracked by the [`IMAGES`] cache.
 ///
 /// The variable updates when the image updates.
 ///
-/// [`Images`]: super::Images
+/// [`IMAGES`]: super::IMAGES
 pub type ImageVar = ReadOnlyArcVar<Image>;
 
 /// State of an [`ImageVar`].
@@ -350,11 +350,11 @@ impl fmt::Debug for RenderImage {
 
 /// A 256-bit hash for image entries.
 ///
-/// This hash is used to identify image files in the [`Images`] cache.
+/// This hash is used to identify image files in the [`IMAGES`] cache.
 ///
 /// Use [`ImageHasher`] to compute.
 ///
-/// [`Images`]: super::Images
+/// [`IMAGES`]: super::IMAGES
 #[derive(Clone, Copy)]
 pub struct ImageHash([u8; 32]);
 impl ImageHash {
@@ -474,9 +474,9 @@ pub enum ImageSource {
     ///
     /// Image equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
     ///
-    /// Inside [`Images`] the reference to the bytes is held only until the image finishes decoding.
+    /// Inside [`IMAGES`] the reference to the bytes is held only until the image finishes decoding.
     ///
-    /// [`Images`]: super::Images
+    /// [`IMAGES`]: super::IMAGES
     Data(ImageHash, Arc<Vec<u8>>, ImageDataFormat),
 
     /// A boxed closure that instantiates a [`Window`] that draws the image.
@@ -536,7 +536,7 @@ impl ImageSource {
     /// The function is called every time the image source is resolved and it is not found in the cache.
     ///
     /// Note that the generated [`UiNode`] is not a child of the widget that renders the image, it is the root widget of a headless
-    /// surface, not a part of the context where it is rendered. See [`Images::render`] for more information.
+    /// surface, not a part of the context where it is rendered. See [`IMAGES.render`] for more information.
     ///
     /// # Examples
     ///
@@ -555,7 +555,7 @@ impl ImageSource {
     /// # ;
     /// ```
     ///
-    /// [`Images::render`]: crate::image::Images::render
+    /// [`IMAGES.render`]: crate::image::IMAGES::render
     pub fn render_node<U, N>(render_mode: RenderMode, render: N) -> Self
     where
         U: UiNode,
@@ -773,9 +773,9 @@ impl_from_and_into_var! {
     }
 }
 
-/// Cache mode of [`Images`].
+/// Cache mode of [`IMAGES`].
 ///
-/// [`Images`]: super::Images
+/// [`IMAGES`]: super::IMAGES
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ImageCacheMode {
     /// Don't hit the cache, just loads the image.

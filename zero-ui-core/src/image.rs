@@ -43,7 +43,7 @@ pub use render::{render_retain, ImageRenderVars};
 ///
 /// Services this extension provides.
 ///
-/// * [Images]
+/// * [`IMAGES`]
 ///
 /// # Default
 ///
@@ -628,7 +628,7 @@ impl ImagesService {
 /// If the app is running without a [`ViewProcess`] all images are dummy, see [`load_in_headless`] for
 /// details.
 ///
-/// [`load_in_headless`]: Images::load_in_headless
+/// [`load_in_headless`]: IMAGES::load_in_headless
 pub struct IMAGES;
 struct CacheEntry {
     img: ArcVar<Image>,
@@ -644,7 +644,7 @@ impl IMAGES {
     /// IO errors, in this case if there is an error acquiring the image file the image will be a
     /// [`dummy`] with error.
     ///
-    /// [`dummy`]: Images::dummy
+    /// [`dummy`]: IMAGES::dummy
     pub fn load_in_headless(&self) -> ArcVar<bool> {
         IMAGES_SV.read().load_in_headless.clone()
     }
@@ -722,7 +722,7 @@ impl IMAGES {
 
     /// Get or load an image.
     ///
-    /// If `limits` is `None` the [`Images::limits`] is used.
+    /// If `limits` is `None` the [`IMAGES.limits`] is used.
     pub fn image(&self, source: impl Into<ImageSource>, cache_mode: impl Into<ImageCacheMode>, limits: Option<ImageLimits>) -> ImageVar {
         let limits = limits.unwrap_or_else(|| IMAGES_SV.read().limits.get());
         IMAGES_SV.write().proxy_then_get(source.into(), cache_mode.into(), limits)

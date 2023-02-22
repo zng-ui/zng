@@ -174,7 +174,7 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> 
 
 /// If the widget was clicked by shortcut and the [`shortcut_pressed_duration`] has not elapsed.
 ///
-/// [`shortcut_pressed_duration`]: Gestures::shortcut_pressed_duration
+/// [`shortcut_pressed_duration`]: GESTURES::shortcut_pressed_duration
 #[property(CONTEXT)]
 pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct IsShortcutPressedNode {
