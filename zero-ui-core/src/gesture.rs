@@ -13,10 +13,10 @@ use crate::{
     keyboard::*,
     mouse::*,
     units::DipPoint,
-    var::{impl_from_and_into_var, Var},
+    var::{impl_from_and_into_var, var, ArcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetPath},
     widget_instance::WidgetId,
-    window::{WindowId, Windows, WINDOWS},
+    window::{WindowId, WINDOWS},
 };
 use std::{
     convert::{TryFrom, TryInto},
@@ -754,21 +754,163 @@ impl AppExtension for GestureManager {
             }
         } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
             // Generate shortcut events from keyboard input.
-            GESTURES.write().on_key_input(ctx.events, &mut WINDOWS.write(), args);
+            GESTURES_IMPL.write().on_key_input(ctx.events, args);
         } else if let Some(args) = SHORTCUT_EVENT.on(update) {
             // Run shortcut actions.
-            GESTURES.write().on_shortcut(ctx.events, args);
+            GESTURES_IMPL.write().on_shortcut(ctx.events, args);
         }
     }
 }
 
 app_local! {
-    /// Gestures service instance for the current app.
-    ///
-    /// This service is only active in apps running with the [`GestureManager`] extension.
-    ///
-    /// See [`Gestures`] for service details.
-    pub static GESTURES: Gestures = Gestures::new();
+    static GESTURES_IMPL: GesturesImpl = GesturesImpl::new();
+}
+
+/// Gestures service instance for the current app.
+///
+/// This service is only active in apps running with the [`GestureManager`] extension.
+///
+/// See [`Gestures`] for service details.
+pub static GESTURES: Gestures = Gestures {};
+
+struct GesturesImpl {
+    click_focused: ArcVar<Shortcuts>,
+    context_click_focused: ArcVar<Shortcuts>,
+    shortcut_pressed_duration: ArcVar<Duration>,
+
+    pressed_modifier: Option<(WindowId, ModifierGesture)>,
+    primed_starter: Option<KeyGesture>,
+    chords: LinearMap<KeyGesture, LinearSet<KeyGesture>>,
+
+    primary_clicks: Vec<(Shortcut, Arc<ShortcutTarget>)>,
+    context_clicks: Vec<(Shortcut, Arc<ShortcutTarget>)>,
+    focus: Vec<(Shortcut, Arc<ShortcutTarget>)>,
+}
+impl GesturesImpl {
+    fn new() -> Self {
+        Self {
+            click_focused: var([shortcut!(Enter), shortcut!(Space)].into()),
+            context_click_focused: var([shortcut!(Apps)].into()),
+            shortcut_pressed_duration: var(Duration::from_millis(50)),
+
+            pressed_modifier: None,
+            primed_starter: None,
+            chords: LinearMap::new(),
+
+            primary_clicks: vec![],
+            context_clicks: vec![],
+            focus: vec![],
+        }
+    }
+
+    fn register_target(&mut self, shortcuts: Shortcuts, kind: Option<ShortcutClick>, target: WidgetId) -> ShortcutsHandle {
+        if shortcuts.is_empty() {
+            return ShortcutsHandle::dummy();
+        }
+
+        let (owner, handle) = ShortcutsHandle::new();
+        let target = Arc::new(ShortcutTarget {
+            widget_id: target,
+            last_found: Mutex::new(None),
+            handle: owner,
+        });
+
+        let collection = match kind {
+            Some(ShortcutClick::Primary) => &mut self.primary_clicks,
+            Some(ShortcutClick::Context) => &mut self.context_clicks,
+            None => &mut self.focus,
+        };
+
+        if collection.len() > 500 {
+            collection.retain(|(_, e)| !e.handle.is_dropped());
+        }
+
+        for s in shortcuts.0 {
+            if let Shortcut::Chord(c) = &s {
+                self.chords.entry(c.starter).or_insert_with(LinearSet::default).insert(c.complement);
+            }
+
+            collection.push((s, target.clone()));
+        }
+
+        handle
+    }
+
+    fn on_key_input(&mut self, events: &mut Events, args: &KeyInputArgs) {
+        if let (false, Some(key)) = (args.propagation().is_stopped(), args.key) {
+            match args.state {
+                KeyState::Pressed => {
+                    if let Ok(gesture_key) = GestureKey::try_from(key) {
+                        self.on_shortcut_pressed(events, Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)), args);
+                        self.pressed_modifier = None;
+                    } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
+                        if !args.is_repeat {
+                            self.pressed_modifier = Some((args.target.window_id(), mod_gesture));
+                        }
+                    } else {
+                        self.pressed_modifier = None;
+                        self.primed_starter = None;
+                    }
+                }
+                KeyState::Released => {
+                    if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
+                        if let (Some((window_id, gesture)), true) = (self.pressed_modifier.take(), args.modifiers.is_empty()) {
+                            if window_id == args.target.window_id() && mod_gesture == gesture {
+                                self.on_shortcut_pressed(events, Shortcut::Modifier(mod_gesture), args);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // Scancode only or already handled.
+            self.primed_starter = None;
+            self.pressed_modifier = None;
+        }
+    }
+    fn on_shortcut_pressed(&mut self, events: &mut Events, mut shortcut: Shortcut, key_args: &KeyInputArgs) {
+        if let Some(starter) = self.primed_starter.take() {
+            if let Shortcut::Gesture(g) = &shortcut {
+                if let Some(complements) = self.chords.get(&starter) {
+                    if complements.contains(g) {
+                        shortcut = Shortcut::Chord(KeyChord { starter, complement: *g });
+                    }
+                }
+            }
+        }
+
+        let actions = ShortcutActions::new(events, self, shortcut);
+
+        SHORTCUT_EVENT.notify(
+            events,
+            ShortcutArgs::new(
+                key_args.timestamp,
+                key_args.propagation().clone(),
+                key_args.window_id,
+                key_args.device_id,
+                shortcut,
+                key_args.is_repeat,
+                actions,
+            ),
+        );
+    }
+
+    fn on_shortcut(&mut self, events: &mut Events, args: &ShortcutArgs) {
+        if args.actions.has_actions() {
+            args.actions
+                .run(events, args.timestamp, args.propagation(), args.device_id, args.is_repeat);
+        } else if let Shortcut::Gesture(k) = args.shortcut {
+            if self.chords.contains_key(&k) {
+                self.primed_starter = Some(k);
+            }
+        }
+    }
+
+    fn cleanup(&mut self) {
+        self.primary_clicks.retain(|(_, e)| !e.handle.is_dropped());
+        self.context_clicks.retain(|(_, e)| !e.handle.is_dropped());
+        self.focus.retain(|(_, e)| !e.handle.is_dropped());
+    }
 }
 
 /// Gesture events config service.
@@ -833,47 +975,17 @@ app_local! {
 /// [`event_ui`]: AppExtension::event_ui
 /// [`event`]: AppExtension::event
 /// [`propagation`]: EventArgs::propagation
-pub struct Gestures {
-    /// Shortcuts that generate a primary [`CLICK_EVENT`] for the focused widget.
-    /// The shortcut only works if no widget or command claims it.
-    ///
-    /// Clicks generated by this shortcut count as [primary](ClickArgs::is_primary).
-    ///
-    /// Initial shortcuts are [`Enter`](Key::Enter) and [`Space`](Key::Space).
-    pub click_focused: Shortcuts,
-
-    /// Shortcuts that generate a context [`CLICK_EVENT`] for the focused widget.
-    /// The shortcut only works if no widget or command claims it.
-    ///
-    /// Clicks generated by this shortcut count as [context](ClickArgs::is_context).
-    ///
-    /// Initial shortcut is [`Apps`](Key::Apps).
-    pub context_click_focused: Shortcuts,
-
-    /// When a shortcut primary click happens, targeted widgets can indicate that
-    /// they are pressed for this duration.
-    ///
-    /// Initial value is `50ms`, set to to `0` to deactivate this type of indication.
-    pub shortcut_pressed_duration: Duration,
-
-    pressed_modifier: Option<(WindowId, ModifierGesture)>,
-    primed_starter: Option<KeyGesture>,
-    chords: LinearMap<KeyGesture, LinearSet<KeyGesture>>,
-
-    primary_clicks: Vec<(Shortcut, Arc<ShortcutTarget>)>,
-    context_clicks: Vec<(Shortcut, Arc<ShortcutTarget>)>,
-    focus: Vec<(Shortcut, Arc<ShortcutTarget>)>,
-}
+pub struct Gestures {}
 struct ShortcutTarget {
     widget_id: WidgetId,
     last_found: Mutex<Option<WidgetPath>>,
     handle: HandleOwner<()>,
 }
 impl ShortcutTarget {
-    fn resolve_path(&self, windows: &mut Windows) -> Option<InteractionPath> {
+    fn resolve_path(&self) -> Option<InteractionPath> {
         let mut found = self.last_found.lock();
         if let Some(found) = &mut *found {
-            if let Ok(tree) = windows.widget_tree(found.window_id()) {
+            if let Ok(tree) = WINDOWS.read().widget_tree(found.window_id()) {
                 if let Some(w) = tree.get(found.widget_id()) {
                     let path = w.interaction_path();
                     *found = path.as_path().clone();
@@ -883,7 +995,7 @@ impl ShortcutTarget {
             }
         }
 
-        for tree in windows.widget_trees() {
+        for tree in WINDOWS.read().widget_trees() {
             if let Some(w) = tree.get(self.widget_id) {
                 let path = w.interaction_path();
                 *found = Some(path.as_path().clone());
@@ -896,65 +1008,44 @@ impl ShortcutTarget {
     }
 }
 impl Gestures {
-    fn new() -> Self {
-        Gestures {
-            click_focused: [shortcut!(Enter), shortcut!(Space)].into(),
-            context_click_focused: [shortcut!(Apps)].into(),
-            shortcut_pressed_duration: Duration::from_millis(50),
+    /// Shortcuts that generate a primary [`CLICK_EVENT`] for the focused widget.
+    /// The shortcut only works if no widget or command claims it.
+    ///
+    /// Clicks generated by this shortcut count as [primary](ClickArgs::is_primary).
+    ///
+    /// Initial shortcuts are [`Enter`](Key::Enter) and [`Space`](Key::Space).
+    pub fn click_focused(&self) -> ArcVar<Shortcuts> {
+        GESTURES_IMPL.read().click_focused.clone()
+    }
 
-            pressed_modifier: None,
-            primed_starter: None,
-            chords: LinearMap::new(),
+    /// Shortcuts that generate a context [`CLICK_EVENT`] for the focused widget.
+    /// The shortcut only works if no widget or command claims it.
+    ///
+    /// Clicks generated by this shortcut count as [context](ClickArgs::is_context).
+    ///
+    /// Initial shortcut is [`Apps`](Key::Apps).
+    pub fn context_click_focused(&self) -> ArcVar<Shortcuts> {
+        GESTURES_IMPL.read().context_click_focused.clone()
+    }
 
-            primary_clicks: vec![],
-            context_clicks: vec![],
-            focus: vec![],
-        }
+    /// When a shortcut primary click happens, targeted widgets can indicate that
+    /// they are pressed for this duration.
+    ///
+    /// Initial value is `50ms`, set to to `0` to deactivate this type of indication.
+    pub fn shortcut_pressed_duration(&self) -> ArcVar<Duration> {
+        GESTURES_IMPL.read().shortcut_pressed_duration.clone()
     }
 
     /// Register a widget to receive shortcut clicks when any of the `shortcuts` are pressed.
-    pub fn click_shortcut(&mut self, shortcuts: impl Into<Shortcuts>, kind: ShortcutClick, target: WidgetId) -> ShortcutsHandle {
-        self.register_target(shortcuts.into(), Some(kind), target)
+    pub fn click_shortcut(&self, shortcuts: impl Into<Shortcuts>, kind: ShortcutClick, target: WidgetId) -> ShortcutsHandle {
+        GESTURES_IMPL.write().register_target(shortcuts.into(), Some(kind), target)
     }
 
     /// Register a widget to receive keyboard focus when any of the `shortcuts` are pressed.
     ///
     /// If the widget is not focusable the focus moves to the first focusable descendant or the first focusable ancestor.
-    pub fn focus_shortcut(&mut self, shortcuts: impl Into<Shortcuts>, target: WidgetId) -> ShortcutsHandle {
-        self.register_target(shortcuts.into(), None, target)
-    }
-
-    fn register_target(&mut self, shortcuts: Shortcuts, kind: Option<ShortcutClick>, target: WidgetId) -> ShortcutsHandle {
-        if shortcuts.is_empty() {
-            return ShortcutsHandle::dummy();
-        }
-
-        let (owner, handle) = ShortcutsHandle::new();
-        let target = Arc::new(ShortcutTarget {
-            widget_id: target,
-            last_found: Mutex::new(None),
-            handle: owner,
-        });
-
-        let collection = match kind {
-            Some(ShortcutClick::Primary) => &mut self.primary_clicks,
-            Some(ShortcutClick::Context) => &mut self.context_clicks,
-            None => &mut self.focus,
-        };
-
-        if collection.len() > 500 {
-            collection.retain(|(_, e)| !e.handle.is_dropped());
-        }
-
-        for s in shortcuts.0 {
-            if let Shortcut::Chord(c) = &s {
-                self.chords.entry(c.starter).or_insert_with(LinearSet::default).insert(c.complement);
-            }
-
-            collection.push((s, target.clone()));
-        }
-
-        handle
+    pub fn focus_shortcut(&self, shortcuts: impl Into<Shortcuts>, target: WidgetId) -> ShortcutsHandle {
+        GESTURES_IMPL.write().register_target(shortcuts.into(), None, target)
     }
 
     /// Gets all the event notifications that are send if the `shortcut` was pressed at this moment.
@@ -962,89 +1053,8 @@ impl Gestures {
     /// See the [struct] level docs for details of how shortcut targets are resolved.
     ///
     /// [struct]: Self
-    pub fn shortcut_actions(&mut self, events: &mut Events, windows: &mut Windows, shortcut: Shortcut) -> ShortcutActions {
-        ShortcutActions::new(events, self, windows, shortcut)
-    }
-
-    fn on_key_input(&mut self, events: &mut Events, windows: &mut Windows, args: &KeyInputArgs) {
-        if let (false, Some(key)) = (args.propagation().is_stopped(), args.key) {
-            match args.state {
-                KeyState::Pressed => {
-                    if let Ok(gesture_key) = GestureKey::try_from(key) {
-                        self.on_shortcut_pressed(
-                            events,
-                            windows,
-                            Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)),
-                            args,
-                        );
-                        self.pressed_modifier = None;
-                    } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
-                        if !args.is_repeat {
-                            self.pressed_modifier = Some((args.target.window_id(), mod_gesture));
-                        }
-                    } else {
-                        self.pressed_modifier = None;
-                        self.primed_starter = None;
-                    }
-                }
-                KeyState::Released => {
-                    if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
-                        if let (Some((window_id, gesture)), true) = (self.pressed_modifier.take(), args.modifiers.is_empty()) {
-                            if window_id == args.target.window_id() && mod_gesture == gesture {
-                                self.on_shortcut_pressed(events, windows, Shortcut::Modifier(mod_gesture), args);
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            // Scancode only or already handled.
-            self.primed_starter = None;
-            self.pressed_modifier = None;
-        }
-    }
-    fn on_shortcut_pressed(&mut self, events: &mut Events, windows: &mut Windows, mut shortcut: Shortcut, key_args: &KeyInputArgs) {
-        if let Some(starter) = self.primed_starter.take() {
-            if let Shortcut::Gesture(g) = &shortcut {
-                if let Some(complements) = self.chords.get(&starter) {
-                    if complements.contains(g) {
-                        shortcut = Shortcut::Chord(KeyChord { starter, complement: *g });
-                    }
-                }
-            }
-        }
-
-        let actions = ShortcutActions::new(events, self, windows, shortcut);
-
-        SHORTCUT_EVENT.notify(
-            events,
-            ShortcutArgs::new(
-                key_args.timestamp,
-                key_args.propagation().clone(),
-                key_args.window_id,
-                key_args.device_id,
-                shortcut,
-                key_args.is_repeat,
-                actions,
-            ),
-        );
-    }
-
-    fn on_shortcut(&mut self, events: &mut Events, args: &ShortcutArgs) {
-        if args.actions.has_actions() {
-            args.actions
-                .run(events, args.timestamp, args.propagation(), args.device_id, args.is_repeat);
-        } else if let Shortcut::Gesture(k) = args.shortcut {
-            if self.chords.contains_key(&k) {
-                self.primed_starter = Some(k);
-            }
-        }
-    }
-
-    fn cleanup(&mut self) {
-        self.primary_clicks.retain(|(_, e)| !e.handle.is_dropped());
-        self.context_clicks.retain(|(_, e)| !e.handle.is_dropped());
-        self.focus.retain(|(_, e)| !e.handle.is_dropped());
+    pub fn shortcut_actions(&self, events: &mut Events, shortcut: Shortcut) -> ShortcutActions {
+        ShortcutActions::new(events, &mut GESTURES_IMPL.write(), shortcut)
     }
 }
 
@@ -1060,7 +1070,7 @@ pub struct ShortcutActions {
     commands: Vec<Command>,
 }
 impl ShortcutActions {
-    fn new(events: &mut Events, gestures: &mut Gestures, windows: &mut Windows, shortcut: Shortcut) -> ShortcutActions {
+    fn new(events: &mut Events, gestures: &mut GesturesImpl, shortcut: Shortcut) -> ShortcutActions {
         //    **First exclusively**:
         //
         //    * Primary [`click_shortcut`] targeting a widget that is enabled and focused.
@@ -1109,7 +1119,7 @@ impl ShortcutActions {
                     continue;
                 }
 
-                if let Some(p) = entry.resolve_path(windows) {
+                if let Some(p) = entry.resolve_path() {
                     if focused.as_ref().map(|f| f.widget_id() == p.widget_id()).unwrap_or(false) {
                         if p.interactivity().is_enabled() {
                             primary_click_focused = Some(p);
@@ -1144,7 +1154,7 @@ impl ShortcutActions {
                             if focused.as_ref().map(|f| f.widget_id() == id).unwrap_or(false) {
                                 cmd_focused_widget = Some(cmd);
                             } else if cmd_not_focused_widget.is_none() {
-                                for tree in windows.widget_trees() {
+                                for tree in WINDOWS.read().widget_trees() {
                                     if let Some(info) = tree.get(id) {
                                         if info.interactivity().is_enabled() {
                                             cmd_not_focused_widget = Some(cmd);
@@ -1169,7 +1179,7 @@ impl ShortcutActions {
                         continue;
                     }
 
-                    if let Some(p) = entry.resolve_path(windows) {
+                    if let Some(p) = entry.resolve_path() {
                         if focused.as_ref().map(|f| f.widget_id() == p.widget_id()).unwrap_or(false) {
                             if p.interactivity().is_enabled() {
                                 context_click_focused = Some(p);
@@ -1218,7 +1228,7 @@ impl ShortcutActions {
                         continue;
                     }
 
-                    if let Some(p) = entry.resolve_path(windows) {
+                    if let Some(p) = entry.resolve_path() {
                         if p.interactivity().is_enabled() {
                             focus_enabled = Some(p.widget_id());
                             break;
@@ -1234,9 +1244,9 @@ impl ShortcutActions {
         // click focused if no click or focus request matched.
         if click.is_none() && focus.is_none() {
             if let Some(p) = focused {
-                click = if gestures.click_focused.contains(shortcut) {
+                click = if gestures.click_focused.with(|c| c.contains(shortcut)) {
                     Some((p, ShortcutClick::Primary))
-                } else if gestures.context_click_focused.contains(shortcut) {
+                } else if gestures.context_click_focused.with(|c| c.contains(shortcut)) {
                     Some((p, ShortcutClick::Context))
                 } else {
                     None

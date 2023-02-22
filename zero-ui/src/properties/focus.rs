@@ -194,14 +194,14 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
             self.auto_subs(ctx);
             self.child.init(ctx);
             let s = self.shortcuts.get();
-            self.handle = Some(GESTURES.write().focus_shortcut(s, ctx.path.widget_id()));
+            self.handle = Some(GESTURES.focus_shortcut(s, ctx.path.widget_id()));
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
 
             if let Some(s) = self.shortcuts.get_new(ctx) {
-                self.handle = Some(GESTURES.write().focus_shortcut(s, ctx.path.widget_id()));
+                self.handle = Some(GESTURES.focus_shortcut(s, ctx.path.widget_id()));
             }
         }
     }
