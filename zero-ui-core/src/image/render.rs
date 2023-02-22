@@ -10,9 +10,9 @@ use crate::{
     window::*,
 };
 
-use super::{Image, ImageManager, ImageVar, Images, ImagesImpl, IMAGES_IMPL};
+use super::{Image, ImageManager, ImageVar, ImagesService, IMAGES, IMAGES_SV};
 
-impl ImagesImpl {
+impl ImagesService {
     fn render<N>(&mut self, render: N) -> ImageVar
     where
         N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
@@ -64,7 +64,7 @@ impl ImagesImpl {
     }
 }
 
-impl Images {
+impl IMAGES {
     /// Render the *window* to an image.
     ///
     /// The *window* is created as a headless surface and rendered to the returned image. You can use the
@@ -77,7 +77,7 @@ impl Images {
     where
         N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
     {
-        IMAGES_IMPL.write().render(render)
+        IMAGES_SV.write().render(render)
     }
 
     /// Render an [`UiNode`] to an image.
@@ -91,14 +91,14 @@ impl Images {
         U: UiNode,
         N: FnOnce(&mut WindowContext) -> U + Send + Sync + 'static,
     {
-        IMAGES_IMPL.write().render_node(render_mode, scale_factor, render)
+        IMAGES_SV.write().render_node(render_mode, scale_factor, render)
     }
 }
 
 impl ImageManager {
     /// AppExtension::update
     pub(super) fn update_render(&mut self) {
-        let mut images = IMAGES_IMPL.write();
+        let mut images = IMAGES_SV.write();
 
         images.render.active.retain(|r| {
             let mut retain = false;
@@ -139,7 +139,7 @@ impl ImageManager {
                             image: img.downgrade(),
                             retain,
                         };
-                        IMAGES_IMPL.write().render.active.push(a);
+                        IMAGES_SV.write().render.active.push(a);
 
                         w
                     },
@@ -153,7 +153,7 @@ impl ImageManager {
     pub(super) fn event_preview_render(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update) {
             if let Some(img) = &args.frame_image {
-                let imgs = IMAGES_IMPL.read();
+                let imgs = IMAGES_SV.read();
                 if let Some(a) = imgs.render.active.iter().find(|a| a.window_id == args.window_id) {
                     if let Some(img_var) = a.image.upgrade() {
                         img_var.set(ctx.vars, img.clone());

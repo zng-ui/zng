@@ -407,13 +407,13 @@ impl Default for FocusManager {
 }
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        FOCUS_IMPL.write().app_event_sender = Some(ctx.updates.sender());
+        FOCUS_SV.write().app_event_sender = Some(ctx.updates.sender());
         self.commands = Some(FocusCommands::new(ctx.events));
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
-            if FOCUS_IMPL
+            if FOCUS_SV
                 .read()
                 .focused
                 .as_ref()
@@ -441,7 +441,7 @@ impl AppExtension for FocusManager {
             self.on_info_tree_update(tree, ctx);
         } else {
             // update visibility or enabled commands, they may have changed if the `spatial_frame_id` changed.
-            let focus = FOCUS_IMPL.read();
+            let focus = FOCUS_SV.read();
             let mut invalidated_cmds_or_focused = None;
 
             if let Some(f) = &focus.focused {
@@ -470,7 +470,7 @@ impl AppExtension for FocusManager {
             }
         } else if let Some(args) = WINDOW_FOCUS_CHANGED_EVENT.on(update) {
             // foreground window maybe changed
-            let mut focus = FOCUS_IMPL.write();
+            let mut focus = FOCUS_SV.write();
             if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
                 if args.is_focus(window_id) {
                     request = Some(FocusRequest::direct(widget_id, highlight));
@@ -489,7 +489,7 @@ impl AppExtension for FocusManager {
         }
 
         if let Some(request) = request {
-            let mut focus = FOCUS_IMPL.write();
+            let mut focus = FOCUS_SV.write();
             focus.pending_highlight = false;
             let args = focus.fulfill_request(ctx.vars, request);
             self.notify(ctx.vars, ctx.events, &mut focus, args);
@@ -497,7 +497,7 @@ impl AppExtension for FocusManager {
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        let mut focus = FOCUS_IMPL.write();
+        let mut focus = FOCUS_SV.write();
         if let Some(request) = focus.request.take() {
             focus.pending_highlight = false;
             let args = focus.fulfill_request(ctx.vars, request);
@@ -510,7 +510,7 @@ impl AppExtension for FocusManager {
 }
 impl FocusManager {
     fn on_info_tree_update(&mut self, tree: WidgetInfoTree, ctx: &mut AppContext) {
-        let mut focus = FOCUS_IMPL.write();
+        let mut focus = FOCUS_SV.write();
         let focus = &mut *focus;
         focus.update_focused_center();
 
@@ -527,7 +527,7 @@ impl FocusManager {
         }
     }
 
-    fn notify(&mut self, vars: &Vars, events: &mut Events, focus: &mut FocusImpl, args: Option<FocusChangedArgs>) {
+    fn notify(&mut self, vars: &Vars, events: &mut Events, focus: &mut FocusService, args: Option<FocusChangedArgs>) {
         if let Some(mut args) = args {
             if !args.highlight && args.new_focus.is_some() {
                 if let Some(dur) = focus.auto_highlight.get() {
@@ -559,30 +559,23 @@ impl FocusManager {
 }
 
 app_local! {
-    static FOCUS_IMPL: FocusImpl = FocusImpl::new();
+    static FOCUS_SV: FocusService = FocusService::new();
 }
-
-/// Focus service instance for the current app.
-///
-/// This service is only active in apps running with the [`FocusManager`] extension.
-///
-/// See [`Focus`] for service details.
-pub static FOCUS: Focus = Focus {};
 
 /// Keyboard focus service.
 ///
 /// # Provider
 ///
-/// This service is provided by the [`FocusManager`] extension, the service instance is in [`FOCUS`].
-pub struct Focus {}
-impl Focus {
+/// This service is provided by the [`FocusManager`] extension.
+pub struct FOCUS;
+impl FOCUS {
     /// If set to a duration, starts highlighting focus when a focus change happen within the duration of
     /// a keyboard input event.
     ///
     /// Default is `300.ms()`.
     #[must_use]
     pub fn auto_highlight(&self) -> ArcVar<Option<Duration>> {
-        FOCUS_IMPL.read().auto_highlight.clone()
+        FOCUS_SV.read().auto_highlight.clone()
     }
 
     /// If [`DISABLED`] widgets can receive focus.
@@ -597,7 +590,7 @@ impl Focus {
     /// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
     #[must_use]
     pub fn focus_disabled_widgets(&self) -> ArcVar<bool> {
-        FOCUS_IMPL.read().focus_disabled_widgets.clone()
+        FOCUS_SV.read().focus_disabled_widgets.clone()
     }
 
     /// If [`Hidden`] widgets can receive focus.
@@ -612,19 +605,19 @@ impl Focus {
     /// [`Hidden`]: crate::widget_info::Visibility::Hidden
     #[must_use]
     pub fn focus_hidden_widgets(&self) -> ArcVar<bool> {
-        FOCUS_IMPL.read().focus_hidden_widgets.clone()
+        FOCUS_SV.read().focus_hidden_widgets.clone()
     }
 
     /// Current focused widget.
     #[must_use]
     pub fn focused(&self) -> ReadOnlyArcVar<Option<InteractionPath>> {
-        FOCUS_IMPL.read().focused_var.read_only()
+        FOCUS_SV.read().focused_var.read_only()
     }
 
     /// Current return focus of a scope.
     #[must_use]
     pub fn return_focused(&self, scope_id: WidgetId) -> ReadOnlyArcVar<Option<InteractionPath>> {
-        FOCUS_IMPL
+        FOCUS_SV
             .write()
             .return_focused_var
             .entry(scope_id)
@@ -642,26 +635,26 @@ impl Focus {
     /// Current ALT return focus.
     #[must_use]
     pub fn alt_return(&self) -> ReadOnlyArcVar<Option<InteractionPath>> {
-        FOCUS_IMPL.read().alt_return_var.read_only()
+        FOCUS_SV.read().alt_return_var.read_only()
     }
 
     /// If focus is in an ALT scope.
     #[must_use]
     pub fn in_alt(&self) -> impl Var<bool> {
-        FOCUS_IMPL.read().alt_return_var.map(|p| p.is_some())
+        FOCUS_SV.read().alt_return_var.map(|p| p.is_some())
     }
 
     /// If the current focused widget is visually indicated.
     #[must_use]
     pub fn is_highlighting(&self) -> ReadOnlyArcVar<bool> {
-        FOCUS_IMPL.read().is_highlighting_var.read_only()
+        FOCUS_SV.read().is_highlighting_var.read_only()
     }
 
     /// Request a focus update.
     ///
     /// All other focus request methods call this method.
     pub fn focus(&self, request: FocusRequest) {
-        let mut f = FOCUS_IMPL.write();
+        let mut f = FOCUS_SV.write();
         f.pending_window_focus = None;
         f.request = Some(request);
         let _ = f.app_event_sender.as_ref().expect("`FocusManager` not init").send_ext_update();
@@ -669,7 +662,7 @@ impl Focus {
 
     /// Enables focus highlight for the current focus if the key-press allows it.
     fn on_disabled_cmd(&self) {
-        let f = FOCUS_IMPL.read();
+        let f = FOCUS_SV.read();
         if f.auto_highlight.get().is_some() && !f.is_highlighting {
             drop(f);
             self.highlight();
@@ -680,7 +673,7 @@ impl Focus {
     ///
     /// [`is_highlighting`]: Self::is_highlighting
     pub fn highlight(&self) {
-        let mut f = FOCUS_IMPL.write();
+        let mut f = FOCUS_SV.write();
         f.pending_highlight = true;
         let _ = f.app_event_sender.as_ref().expect("`FocusManager` not init").send_ext_update();
     }
@@ -736,7 +729,7 @@ impl Focus {
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::enter`].
     pub fn focus_enter(&self) {
-        let req = FocusRequest::enter(FOCUS_IMPL.read().is_highlighting);
+        let req = FocusRequest::enter(FOCUS_SV.read().is_highlighting);
         self.focus(req);
     }
 
@@ -746,7 +739,7 @@ impl Focus {
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::exit`].
     pub fn focus_exit(&self) {
-        let req = FocusRequest::exit(FOCUS_IMPL.read().is_highlighting);
+        let req = FocusRequest::exit(FOCUS_SV.read().is_highlighting);
         self.focus(req)
     }
 
@@ -756,7 +749,7 @@ impl Focus {
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::next`].
     pub fn focus_next(&self) {
-        let req = FocusRequest::next(FOCUS_IMPL.read().is_highlighting);
+        let req = FocusRequest::next(FOCUS_SV.read().is_highlighting);
         self.focus(req);
     }
 
@@ -766,7 +759,7 @@ impl Focus {
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::prev`].
     pub fn focus_prev(&self) {
-        let req = FocusRequest::prev(FOCUS_IMPL.read().is_highlighting);
+        let req = FocusRequest::prev(FOCUS_SV.read().is_highlighting);
         self.focus(req);
     }
 
@@ -776,7 +769,7 @@ impl Focus {
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::up`].
     pub fn focus_up(&self) {
-        let req = FocusRequest::up(FOCUS_IMPL.read().is_highlighting);
+        let req = FocusRequest::up(FOCUS_SV.read().is_highlighting);
         self.focus(req);
     }
 
@@ -786,7 +779,7 @@ impl Focus {
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::right`].
     pub fn focus_right(&self) {
-        let req = FocusRequest::right(FOCUS_IMPL.read().is_highlighting);
+        let req = FocusRequest::right(FOCUS_SV.read().is_highlighting);
         self.focus(req);
     }
 
@@ -796,7 +789,7 @@ impl Focus {
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::down`].
     pub fn focus_down(&self) {
-        let req = FocusRequest::down(FOCUS_IMPL.read().is_highlighting);
+        let req = FocusRequest::down(FOCUS_SV.read().is_highlighting);
         self.focus(req);
     }
 
@@ -806,7 +799,7 @@ impl Focus {
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::left`].
     pub fn focus_left(&self) {
-        let req = FocusRequest::left(FOCUS_IMPL.read().is_highlighting);
+        let req = FocusRequest::left(FOCUS_SV.read().is_highlighting);
         self.focus(req);
     }
 
@@ -816,12 +809,12 @@ impl Focus {
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::alt`].
     pub fn focus_alt(&self) {
-        let req = FocusRequest::alt(FOCUS_IMPL.read().is_highlighting);
+        let req = FocusRequest::alt(FOCUS_SV.read().is_highlighting);
         self.focus(req);
     }
 }
 
-struct FocusImpl {
+struct FocusService {
     auto_highlight: ArcVar<Option<Duration>>,
     focus_disabled_widgets: ArcVar<bool>,
     focus_hidden_widgets: ArcVar<bool>,
@@ -846,7 +839,7 @@ struct FocusImpl {
     pending_window_focus: Option<(WindowId, WidgetId, bool)>,
     pending_highlight: bool,
 }
-impl FocusImpl {
+impl FocusService {
     #[must_use]
     fn new() -> Self {
         Self {

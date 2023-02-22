@@ -47,19 +47,10 @@ impl MonitorId {
 }
 
 app_local! {
-    pub(super) static MONITORS_IMPL: MonitorsImpl = MonitorsImpl {
+    pub(super) static MONITORS_SV: MonitorsService = MonitorsService {
         monitors: LinearMap::new(),
     };
 }
-
-/// Monitors service instance for the current app.
-///
-/// This service is only active in apps running with the [`WindowManager`] extension.
-///
-/// See [`Monitors`] for service details.
-///
-/// [`WindowManager`]: crate::window::WindowManager
-pub static MONITORS: Monitors = Monitors {};
 
 /// Monitors service.
 ///
@@ -100,8 +91,8 @@ pub static MONITORS: Monitors = Monitors {};
 /// [`LayoutMetrics`]: crate::context::LayoutMetrics
 /// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen
 /// [`WindowManager`]: crate::window::WindowManager
-pub struct Monitors {}
-impl Monitors {
+pub struct MONITORS;
+impl MONITORS {
     /// Initial PPI of monitors, `96.0`.
     pub const DEFAULT_PPI: f32 = 96.0;
 
@@ -109,26 +100,26 @@ impl Monitors {
     ///
     /// Returns `None` if the monitor was not found or the app is running in headless mode without renderer.
     pub fn monitor(&self, monitor_id: MonitorId) -> Option<MonitorInfo> {
-        MONITORS_IMPL.read().monitors.get(&monitor_id).cloned()
+        MONITORS_SV.read().monitors.get(&monitor_id).cloned()
     }
 
     /// Iterate over all available monitors.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
     pub fn available_monitors(&self) -> Vec<MonitorInfo> {
-        MONITORS_IMPL.read().monitors.values().cloned().collect()
+        MONITORS_SV.read().monitors.values().cloned().collect()
     }
 
     /// Gets the monitor info marked as primary.
     pub fn primary_monitor(&self) -> Option<MonitorInfo> {
-        MONITORS_IMPL.read().monitors.values().find(|m| m.is_primary().get()).cloned()
+        MONITORS_SV.read().monitors.values().find(|m| m.is_primary().get()).cloned()
     }
 }
 
-pub(super) struct MonitorsImpl {
+pub(super) struct MonitorsService {
     monitors: LinearMap<MonitorId, MonitorInfo>,
 }
-impl MonitorsImpl {
+impl MonitorsService {
     fn on_monitors_changed(&mut self, events: &mut Events, vars: &Vars, args: &RawMonitorsChangedArgs) {
         let mut available_monitors: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
 
@@ -163,14 +154,14 @@ impl MonitorsImpl {
 
     pub(super) fn on_pre_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
-            if let Some(m) = MONITORS_IMPL.read().monitors.get(&args.monitor_id) {
+            if let Some(m) = MONITORS_SV.read().monitors.get(&args.monitor_id) {
                 m.scale_factor.set_ne(ctx.vars, args.scale_factor);
             }
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
-            MONITORS_IMPL.write().on_monitors_changed(ctx.events, ctx.vars, args);
+            MONITORS_SV.write().on_monitors_changed(ctx.events, ctx.vars, args);
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let args = RawMonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), args.available_monitors.clone());
-            MONITORS_IMPL.write().on_monitors_changed(ctx.events, ctx.vars, &args);
+            MONITORS_SV.write().on_monitors_changed(ctx.events, ctx.vars, &args);
         }
     }
 }
@@ -204,7 +195,7 @@ pub struct HeadlessMonitor {
 }
 impl fmt::Debug for HeadlessMonitor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() || about_eq(self.ppi, Monitors::DEFAULT_PPI, 0.001) {
+        if f.alternate() || about_eq(self.ppi, MONITORS::DEFAULT_PPI, 0.001) {
             f.debug_struct("HeadlessMonitor")
                 .field("scale_factor", &self.scale_factor)
                 .field("screen_size", &self.size)
@@ -221,7 +212,7 @@ impl HeadlessMonitor {
         HeadlessMonitor {
             scale_factor: None,
             size,
-            ppi: Monitors::DEFAULT_PPI,
+            ppi: MONITORS::DEFAULT_PPI,
         }
     }
 
@@ -230,7 +221,7 @@ impl HeadlessMonitor {
         HeadlessMonitor {
             scale_factor: Some(scale_factor),
             size,
-            ppi: Monitors::DEFAULT_PPI,
+            ppi: MONITORS::DEFAULT_PPI,
         }
     }
 
@@ -285,7 +276,7 @@ impl MonitorInfo {
             size: var(info.size),
             scale_factor: var(info.scale_factor.fct()),
             video_modes: var(info.video_modes),
-            ppi: var(Monitors::DEFAULT_PPI),
+            ppi: var(MONITORS::DEFAULT_PPI),
         }
     }
 
@@ -375,7 +366,7 @@ impl MonitorInfo {
             size: var(defaults.size.to_px(fct.0)),
             video_modes: var(vec![]),
             scale_factor: var(fct),
-            ppi: var(Monitors::DEFAULT_PPI),
+            ppi: var(MONITORS::DEFAULT_PPI),
         }
     }
 }

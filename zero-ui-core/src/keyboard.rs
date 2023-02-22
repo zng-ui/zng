@@ -1,7 +1,7 @@
 //! Keyboard manager.
 //!
 //! The [`KeyboardManager`] struct is an [app extension](crate::app::AppExtension), it
-//! is included in the [default app](crate::app::App::default) and provides the [`Keyboard`] service
+//! is included in the [default app](crate::app::App::default) and provides the [`KEYBOARD`] service
 //! and keyboard input events.
 
 use std::borrow::Cow;
@@ -187,7 +187,7 @@ impl AppExtension for KeyboardManager {
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
             let focused = FOCUS.focused().get();
-            KEYBOARD_IMPL.write().key_input(ctx.events, ctx.vars, args, focused);
+            KEYBOARD_SV.write().key_input(ctx.events, ctx.vars, args, focused);
         } else if let Some(args) = RAW_CHAR_INPUT_EVENT.on(update) {
             let focused = FOCUS.focused().get();
             if let Some(target) = focused {
@@ -196,16 +196,16 @@ impl AppExtension for KeyboardManager {
                 }
             }
         } else if let Some(args) = RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.on(update) {
-            let mut kb = KEYBOARD_IMPL.write();
+            let mut kb = KEYBOARD_SV.write();
             kb.repeat_config.set_ne(ctx.vars, args.config);
             kb.last_key_down = None;
         } else if let Some(args) = RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.on(update) {
-            let kb = KEYBOARD_IMPL.read();
+            let kb = KEYBOARD_SV.read();
             kb.caret_animation_config
                 .set_ne(ctx.vars, (args.config.caret_blink_interval, args.config.caret_blink_timeout));
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
-                let mut kb = KEYBOARD_IMPL.write();
+                let mut kb = KEYBOARD_SV.write();
 
                 kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
                 kb.current_modifiers.clear();
@@ -215,7 +215,7 @@ impl AppExtension for KeyboardManager {
                 kb.last_key_down = None;
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            let mut kb = KEYBOARD_IMPL.write();
+            let mut kb = KEYBOARD_SV.write();
             kb.repeat_config.set_ne(ctx.vars, args.key_repeat_config);
             kb.caret_animation_config.set_ne(
                 ctx.vars,
@@ -237,33 +237,26 @@ impl AppExtension for KeyboardManager {
     }
 }
 
-/// Keyboard service instance for the current app.
-///
-/// This service is only active in apps running with the [`KeyboardManager`] extension.
-///
-/// See [`Keyboard`] for service details.
-pub static KEYBOARD: Keyboard = Keyboard {};
-
 /// Keyboard service.
 ///
 /// # Provider
 ///
-/// This service is provided by the [`KeyboardManager`] extension, the instance is in [`KEYBOARD`].
-pub struct Keyboard {}
-impl Keyboard {
+/// This service is provided by the [`KeyboardManager`] extension.
+pub struct KEYBOARD;
+impl KEYBOARD {
     /// Returns a read-only variable that tracks the currently pressed modifier keys.
     pub fn modifiers(&self) -> ReadOnlyArcVar<ModifiersState> {
-        KEYBOARD_IMPL.read().modifiers.read_only()
+        KEYBOARD_SV.read().modifiers.read_only()
     }
 
     /// Returns a read-only variable that tracks the [`ScanCode`] of the keys currently pressed.
     pub fn codes(&self) -> ReadOnlyArcVar<Vec<ScanCode>> {
-        KEYBOARD_IMPL.read().codes.read_only()
+        KEYBOARD_SV.read().codes.read_only()
     }
 
     /// Returns a read-only variable that tracks the [`Key`] identifier of the keys currently pressed.
     pub fn keys(&self) -> ReadOnlyArcVar<Vec<Key>> {
-        KEYBOARD_IMPL.read().keys.read_only()
+        KEYBOARD_SV.read().keys.read_only()
     }
 
     /// Returns a read-only variable that tracks the operating system key press repeat start delay and repeat speed.
@@ -274,7 +267,7 @@ impl Keyboard {
     /// [`is_repeat`]: KeyInputArgs::is_repeat
     /// [`repeat_speed`]: Self::repeat_speed
     pub fn repeat_config(&self) -> ReadOnlyArcVar<KeyRepeatConfig> {
-        KEYBOARD_IMPL.read().repeat_config.read_only()
+        KEYBOARD_SV.read().repeat_config.read_only()
     }
 
     /// Returns a read-only variable that defines the system config for the caret blink speed and timeout.
@@ -286,7 +279,7 @@ impl Keyboard {
     ///
     /// [`caret_animation`]: Self::caret_animation
     pub fn caret_animation_config(&self) -> ReadOnlyArcVar<(Duration, Duration)> {
-        KEYBOARD_IMPL.read().caret_animation_config.read_only()
+        KEYBOARD_SV.read().caret_animation_config.read_only()
     }
 
     /// Returns a new read-only variable that animates the caret opacity.
@@ -294,12 +287,12 @@ impl Keyboard {
     /// A new animation must be started after each key press. The value is always 1 or 0, no easing is used by default,
     /// it can be added using the [`Var::easing`] method.
     pub fn caret_animation(&self, vars: &impl WithVars) -> ReadOnlyArcVar<Factor> {
-        vars.with_vars(|vars| KEYBOARD_IMPL.read().caret_animation(vars))
+        vars.with_vars(|vars| KEYBOARD_SV.read().caret_animation(vars))
     }
 }
 
 app_local! {
-    static KEYBOARD_IMPL: KeyboardImpl = KeyboardImpl {
+    static KEYBOARD_SV: KeyboardService = KeyboardService {
         current_modifiers: LinearSet::new(),
         modifiers: var(ModifiersState::empty()),
         codes: var(vec![]),
@@ -313,7 +306,7 @@ app_local! {
     };
 }
 
-struct KeyboardImpl {
+struct KeyboardService {
     current_modifiers: LinearSet<Key>,
 
     modifiers: ArcVar<ModifiersState>,
@@ -324,7 +317,7 @@ struct KeyboardImpl {
 
     last_key_down: Option<(DeviceId, ScanCode, Instant)>,
 }
-impl KeyboardImpl {
+impl KeyboardService {
     fn key_input(&mut self, events: &mut Events, vars: &Vars, args: &RawKeyInputArgs, focused: Option<InteractionPath>) {
         let mut repeat = false;
 

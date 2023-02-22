@@ -37,17 +37,17 @@ struct TimerVarEntry {
 }
 
 app_local! {
-   pub(crate) static TIMERS_IMPL: TimersImpl = TimersImpl::new();
+   pub(crate) static TIMERS_SV: TimersService = TimersService::new();
 }
 
-pub(crate) struct TimersImpl {
+pub(crate) struct TimersService {
     deadlines: Vec<WeakArcVar<Deadline>>,
     timers: Vec<TimerVarEntry>,
     deadline_handlers: Vec<DeadlineHandlerEntry>,
     timer_handlers: Vec<TimerHandlerEntry>,
     has_pending_handlers: bool,
 }
-impl TimersImpl {
+impl TimersService {
     fn new() -> Self {
         Self {
             deadlines: vec![],
@@ -241,7 +241,7 @@ impl TimersImpl {
         // so we `mem::take` for the duration of the call. But new timers can be registered inside
         // the handlers, so we add those handlers using `extend`.
 
-        let mut timers = TIMERS_IMPL.write();
+        let mut timers = TIMERS_SV.write();
 
         if !mem::take(&mut timers.has_pending_handlers) {
             return;
@@ -257,7 +257,7 @@ impl TimersImpl {
             }
             !h.pending // drop if just called, deadline handlers are *once*.
         });
-        let mut timers = TIMERS_IMPL.write();
+        let mut timers = TIMERS_SV.write();
         handlers.append(&mut timers.deadline_handlers);
         timers.deadline_handlers = handlers;
 
@@ -276,16 +276,11 @@ impl TimersImpl {
 
             !h.handle.is_dropped() // drop if called stop inside the handler.
         });
-        let mut timers = TIMERS_IMPL.write();
+        let mut timers = TIMERS_SV.write();
         handlers.append(&mut timers.timer_handlers);
         timers.timer_handlers = handlers;
     }
 }
-
-/// App timers service instance for the current app.
-///
-/// See [`Timers`] for service details.
-pub static TIMERS: Timers = Timers {};
 
 /// App timers, deadlines and timeouts.
 ///
@@ -296,8 +291,6 @@ pub static TIMERS: Timers = Timers {};
 /// Timer updates can be observed using variables that update when the timer elapses, or you can register
 /// handlers to be called directly when the time elapses. Timers can be *one-time*, updating only once when
 /// a [`deadline`] is reached; or they can update every time on a set [`interval`].
-///
-/// The service instance is in [`TIMERS`].
 ///
 /// # Async
 ///
@@ -318,8 +311,8 @@ pub static TIMERS: Timers = Timers {};
 /// [`interval`]: Timers::interval
 /// [`async_app_hn!`]: crate::handler::async_app_hn!
 /// [`async_app_hn_once!`]: crate::async_app_hn_once!
-pub struct Timers {}
-impl Timers {
+pub struct TIMERS;
+impl TIMERS {
     /// Returns a [`DeadlineVar`] that will update once when the `deadline` is reached.
     ///
     /// If the `deadline` is in the past the variable will still update once in the next app update.
@@ -346,7 +339,7 @@ impl Timers {
     /// [`has_elapsed`]: Deadline::has_elapsed
     #[must_use]
     pub fn deadline(&self, deadline: impl Into<Deadline>) -> DeadlineVar {
-        TIMERS_IMPL.write().deadline(deadline)
+        TIMERS_SV.write().deadline(deadline)
     }
 
     /// Returns a [`TimerVar`] that will update every time the `interval` elapses.
@@ -379,7 +372,7 @@ impl Timers {
     /// be used to control the timer to some extent, see [`TimerVar`] for details.
     #[must_use]
     pub fn interval(&self, interval: Duration, paused: bool) -> TimerVar {
-        TIMERS_IMPL.write().interval(interval, paused)
+        TIMERS_SV.write().interval(interval, paused)
     }
 
     /// Register a `handler` that will be called once when the `deadline` is reached.
@@ -417,7 +410,7 @@ impl Timers {
     where
         H: AppHandler<DeadlineArgs>,
     {
-        TIMERS_IMPL.write().on_deadline(deadline, handler)
+        TIMERS_SV.write().on_deadline(deadline, handler)
     }
 
     /// Register a `handler` that will be called every time the `interval` elapses.
@@ -427,7 +420,7 @@ impl Timers {
     where
         H: AppHandler<TimerArgs>,
     {
-        TIMERS_IMPL.write().on_interval(interval, paused, handler)
+        TIMERS_SV.write().on_interval(interval, paused, handler)
     }
 }
 

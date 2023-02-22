@@ -3,7 +3,7 @@
 use crate::{
     app::{AppEventSender, LoopTimer},
     event::{EventHandle, EventHandles, Events},
-    timer::TIMERS_IMPL,
+    timer::TIMERS_SV,
     units::*,
     var::{VarHandle, VarHandles, Vars},
     widget_info::{InlineSegmentPos, WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
@@ -94,13 +94,13 @@ impl OwnedAppContext {
 
     /// Returns next timer or animation tick time.
     pub fn next_deadline(&mut self, timer: &mut LoopTimer) {
-        TIMERS_IMPL.write().next_deadline(timer);
+        TIMERS_SV.write().next_deadline(timer);
         self.vars.next_deadline(timer);
     }
 
     /// Update timers and animations, returns next wake time.
     pub fn update_timers(&mut self, timer: &mut LoopTimer) {
-        TIMERS_IMPL.write().apply_updates(&self.vars, timer);
+        TIMERS_SV.write().apply_updates(&self.vars, timer);
         self.vars.update_animations(timer);
     }
 
@@ -112,7 +112,7 @@ impl OwnedAppContext {
             || self.updates.render_requested()
             || self.vars.has_pending_updates()
             || self.events.has_pending_updates()
-            || TIMERS_IMPL.read().has_pending_updates()
+            || TIMERS_SV.read().has_pending_updates()
     }
 }
 
@@ -550,7 +550,7 @@ impl TestWidgetContext {
     pub fn update_timers(&mut self) -> Option<Deadline> {
         self.loop_timer.awake();
 
-        TIMERS_IMPL.write().apply_updates(&self.vars, &mut self.loop_timer);
+        TIMERS_SV.write().apply_updates(&self.vars, &mut self.loop_timer);
         self.vars.update_animations(&mut self.loop_timer);
 
         self.loop_timer.poll()

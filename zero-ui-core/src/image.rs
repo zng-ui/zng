@@ -55,7 +55,7 @@ pub use render::{render_retain, ImageRenderVars};
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        IMAGES_IMPL.write().init(
+        IMAGES_SV.write().init(
             if VIEW_PROCESS.is_available() {
                 Some(VIEW_PROCESS.clone())
             } else {
@@ -67,7 +67,7 @@ impl AppExtension for ImageManager {
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT.on(update) {
-            let images = IMAGES_IMPL.read();
+            let images = IMAGES_SV.read();
 
             if let Some(var) = images
                 .decoding
@@ -82,7 +82,7 @@ impl AppExtension for ImageManager {
 
             // image finished decoding, remove from `decoding`
             // and notify image var value update.
-            let mut images = IMAGES_IMPL.write();
+            let mut images = IMAGES_SV.write();
 
             if let Some(i) = images
                 .decoding
@@ -98,7 +98,7 @@ impl AppExtension for ImageManager {
 
             // image failed to decode, remove from `decoding`
             // and notify image var value update.
-            let mut images = IMAGES_IMPL.write();
+            let mut images = IMAGES_SV.write();
 
             if let Some(i) = images
                 .decoding
@@ -124,7 +124,7 @@ impl AppExtension for ImageManager {
                 return;
             }
 
-            let mut images = IMAGES_IMPL.write();
+            let mut images = IMAGES_SV.write();
             let images = &mut *images;
             images.cleanup_not_cached(true);
             images.download_accept.clear();
@@ -186,7 +186,7 @@ impl AppExtension for ImageManager {
     fn update_preview(&mut self, ctx: &mut AppContext) {
         // update loading tasks:
 
-        let mut images = IMAGES_IMPL.write();
+        let mut images = IMAGES_SV.write();
         let images = &mut *images;
         let view = &images.view;
         let vars = ctx.vars;
@@ -258,17 +258,10 @@ impl AppExtension for ImageManager {
 }
 
 app_local! {
-    static IMAGES_IMPL: ImagesImpl = ImagesImpl::new();
+    static IMAGES_SV: ImagesService = ImagesService::new();
 }
 
-/// Images service instance for the current app.
-///
-/// This service is only active in apps running with the [`ImageManager`] extension.
-///
-/// See [`Images`] for service details.
-pub static IMAGES: Images = Images {};
-
-struct ImagesImpl {
+struct ImagesService {
     load_in_headless: ArcVar<bool>,
     limits: ArcVar<ImageLimits>,
 
@@ -284,7 +277,7 @@ struct ImagesImpl {
 
     render: render::ImagesRender,
 }
-impl ImagesImpl {
+impl ImagesService {
     fn new() -> Self {
         Self {
             load_in_headless: var(false),
@@ -630,19 +623,19 @@ impl ImagesImpl {
     }
 }
 
-/// The [`Image`] loading cache service.
+/// Image loading, cache and render service.
 ///
 /// If the app is running without a [`ViewProcess`] all images are dummy, see [`load_in_headless`] for
 /// details.
 ///
 /// [`load_in_headless`]: Images::load_in_headless
-pub struct Images {}
+pub struct IMAGES;
 struct CacheEntry {
     img: ArcVar<Image>,
     error: AtomicBool,
     max_decoded_size: ByteLength,
 }
-impl Images {
+impl IMAGES {
     /// If should still download/read image bytes in headless/renderless mode.
     ///
     /// When an app is in headless mode without renderer no [`ViewProcess`] is available, so
@@ -653,12 +646,12 @@ impl Images {
     ///
     /// [`dummy`]: Images::dummy
     pub fn load_in_headless(&self) -> ArcVar<bool> {
-        IMAGES_IMPL.read().load_in_headless.clone()
+        IMAGES_SV.read().load_in_headless.clone()
     }
 
     /// Default loading and decoding limits for each image.
     pub fn limits(&self) -> ArcVar<ImageLimits> {
-        IMAGES_IMPL.read().limits.clone()
+        IMAGES_SV.read().limits.clone()
     }
 
     /// Returns a dummy image that reports it is loaded or an error.
@@ -731,15 +724,15 @@ impl Images {
     ///
     /// If `limits` is `None` the [`Images::limits`] is used.
     pub fn image(&self, source: impl Into<ImageSource>, cache_mode: impl Into<ImageCacheMode>, limits: Option<ImageLimits>) -> ImageVar {
-        let limits = limits.unwrap_or_else(|| IMAGES_IMPL.read().limits.get());
-        IMAGES_IMPL.write().proxy_then_get(source.into(), cache_mode.into(), limits)
+        let limits = limits.unwrap_or_else(|| IMAGES_SV.read().limits.get());
+        IMAGES_SV.write().proxy_then_get(source.into(), cache_mode.into(), limits)
     }
 
     /// Associate the `image` with the `key` in the cache.
     ///
     /// Returns `Some(previous)` if the `key` was already associated with an image.
     pub fn register(&self, key: ImageHash, image: ViewImage) -> Option<ImageVar> {
-        IMAGES_IMPL.write().register(key, image)
+        IMAGES_SV.write().register(key, image)
     }
 
     /// Remove the image from the cache, if it is only held by the cache.
@@ -749,7 +742,7 @@ impl Images {
     ///
     /// Returns `true` if the image was removed.
     pub fn clean(&self, key: ImageHash) -> bool {
-        IMAGES_IMPL.write().proxy_then_remove(&key, false)
+        IMAGES_SV.write().proxy_then_remove(&key, false)
     }
 
     /// Remove the image from the cache, even if it is still referenced outside of the cache.
@@ -759,13 +752,13 @@ impl Images {
     ///
     /// Returns `true` if the image was cached.
     pub fn purge(&self, key: &ImageHash) -> bool {
-        IMAGES_IMPL.write().proxy_then_remove(key, true)
+        IMAGES_SV.write().proxy_then_remove(key, true)
     }
 
     /// Gets the cache key of an image.
     pub fn cache_key(&self, image: &Image) -> Option<ImageHash> {
         if let Some(key) = &image.cache_key {
-            if IMAGES_IMPL.read().cache.contains_key(key) {
+            if IMAGES_SV.read().cache.contains_key(key) {
                 return Some(*key);
             }
         }
@@ -777,7 +770,7 @@ impl Images {
         image
             .cache_key
             .as_ref()
-            .map(|k| IMAGES_IMPL.read().cache.contains_key(k))
+            .map(|k| IMAGES_SV.read().cache.contains_key(k))
             .unwrap_or(false)
     }
 
@@ -786,12 +779,12 @@ impl Images {
     /// If the `image` is the only reference returns it and removes it from the cache. If there are other
     /// references a new [`ImageVar`] is generated from a clone of the image.
     pub fn detach(&self, image: ImageVar) -> ImageVar {
-        IMAGES_IMPL.write().detach(image)
+        IMAGES_SV.write().detach(image)
     }
 
     /// Clear cached images that are not referenced outside of the cache.
     pub fn clean_all(&self) {
-        let mut img = IMAGES_IMPL.write();
+        let mut img = IMAGES_SV.write();
         img.proxies.iter_mut().for_each(|p| p.clear(false));
         img.cache.retain(|_, v| v.img.strong_count() > 1);
     }
@@ -801,7 +794,7 @@ impl Images {
     /// Image memory only drops when all strong references are removed, so if an image is referenced
     /// outside of the cache it will merely be disconnected from the cache by this method.
     pub fn purge_all(&self) {
-        let mut img = IMAGES_IMPL.write();
+        let mut img = IMAGES_SV.write();
         img.cache.clear();
         img.proxies.iter_mut().for_each(|p| p.clear(true));
     }
@@ -810,7 +803,7 @@ impl Images {
     ///
     /// Proxies can intercept cache requests and map to a different request or return an image directly.
     pub fn install_proxy(&self, proxy: Box<dyn ImageCacheProxy>) {
-        IMAGES_IMPL.write().proxies.push(proxy);
+        IMAGES_SV.write().proxies.push(proxy);
     }
 }
 struct ImageData {

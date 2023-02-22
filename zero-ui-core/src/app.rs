@@ -13,7 +13,7 @@ use crate::config::ConfigManager;
 use crate::crate_util::{PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate};
 use crate::image::ImageManager;
-use crate::timer::TimersImpl;
+use crate::timer::TimersService;
 use crate::units::Deadline;
 use crate::var::Vars;
 use crate::window::WindowMode;
@@ -1480,7 +1480,7 @@ impl<E: AppExtension> RunningApp<E> {
             run = self.loop_monitor.update(|| {
                 let u = self.owned_ctx.apply_updates();
 
-                TimersImpl::notify(&mut self.owned_ctx.borrow());
+                TimersService::notify(&mut self.owned_ctx.borrow());
 
                 self.pending_app_events.extend(u.events);
                 self.pending_layout |= u.layout;

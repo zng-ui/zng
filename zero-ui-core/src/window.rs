@@ -54,36 +54,36 @@ use crate::{
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        WINDOWS_IMPL.write().init(ctx.updates.sender());
+        WINDOWS_SV.write().init(ctx.updates.sender());
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        MonitorsImpl::on_pre_event(ctx, update);
-        Windows::on_pre_event(ctx, update);
+        MonitorsService::on_pre_event(ctx, update);
+        WINDOWS::on_pre_event(ctx, update);
     }
 
     fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        Windows::on_ui_event(ctx, update);
+        WINDOWS::on_ui_event(ctx, update);
     }
 
     fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        Windows::on_event(ctx, update);
+        WINDOWS::on_event(ctx, update);
     }
 
     fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        Windows::on_ui_update(ctx, updates);
+        WINDOWS::on_ui_update(ctx, updates);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        Windows::on_update(ctx);
+        WINDOWS::on_update(ctx);
     }
 
     fn layout(&mut self, ctx: &mut AppContext) {
-        Windows::on_layout(ctx);
+        WINDOWS::on_layout(ctx);
     }
 
     fn render(&mut self, ctx: &mut AppContext) {
-        Windows::on_render(ctx);
+        WINDOWS::on_render(ctx);
     }
 }
 

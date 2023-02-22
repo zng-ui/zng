@@ -742,7 +742,7 @@ event! {
 ///
 /// Services this extension provides.
 ///
-/// * [Gestures]
+/// * [`GESTURES`]
 #[derive(Default)]
 pub struct GestureManager {}
 impl AppExtension for GestureManager {
@@ -754,26 +754,19 @@ impl AppExtension for GestureManager {
             }
         } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
             // Generate shortcut events from keyboard input.
-            GESTURES_IMPL.write().on_key_input(ctx.events, args);
+            GESTURES_SV.write().on_key_input(ctx.events, args);
         } else if let Some(args) = SHORTCUT_EVENT.on(update) {
             // Run shortcut actions.
-            GESTURES_IMPL.write().on_shortcut(ctx.events, args);
+            GESTURES_SV.write().on_shortcut(ctx.events, args);
         }
     }
 }
 
 app_local! {
-    static GESTURES_IMPL: GesturesImpl = GesturesImpl::new();
+    static GESTURES_SV: GesturesService = GesturesService::new();
 }
 
-/// Gestures service instance for the current app.
-///
-/// This service is only active in apps running with the [`GestureManager`] extension.
-///
-/// See [`Gestures`] for service details.
-pub static GESTURES: Gestures = Gestures {};
-
-struct GesturesImpl {
+struct GesturesService {
     click_focused: ArcVar<Shortcuts>,
     context_click_focused: ArcVar<Shortcuts>,
     shortcut_pressed_duration: ArcVar<Duration>,
@@ -786,7 +779,7 @@ struct GesturesImpl {
     context_clicks: Vec<(Shortcut, Arc<ShortcutTarget>)>,
     focus: Vec<(Shortcut, Arc<ShortcutTarget>)>,
 }
-impl GesturesImpl {
+impl GesturesService {
     fn new() -> Self {
         Self {
             click_focused: var([shortcut!(Enter), shortcut!(Space)].into()),
@@ -915,7 +908,7 @@ impl GesturesImpl {
 
 /// Gesture events config service.
 ///
-/// This service is provided by [`GestureManager`] and the service instance is in [`GESTURES`].
+/// This service is provided by [`GestureManager`].
 ///
 /// # Shortcuts
 ///
@@ -975,7 +968,7 @@ impl GesturesImpl {
 /// [`event_ui`]: AppExtension::event_ui
 /// [`event`]: AppExtension::event
 /// [`propagation`]: EventArgs::propagation
-pub struct Gestures {}
+pub struct GESTURES;
 struct ShortcutTarget {
     widget_id: WidgetId,
     last_found: Mutex<Option<WidgetPath>>,
@@ -1007,7 +1000,7 @@ impl ShortcutTarget {
         None
     }
 }
-impl Gestures {
+impl GESTURES {
     /// Shortcuts that generate a primary [`CLICK_EVENT`] for the focused widget.
     /// The shortcut only works if no widget or command claims it.
     ///
@@ -1015,7 +1008,7 @@ impl Gestures {
     ///
     /// Initial shortcuts are [`Enter`](Key::Enter) and [`Space`](Key::Space).
     pub fn click_focused(&self) -> ArcVar<Shortcuts> {
-        GESTURES_IMPL.read().click_focused.clone()
+        GESTURES_SV.read().click_focused.clone()
     }
 
     /// Shortcuts that generate a context [`CLICK_EVENT`] for the focused widget.
@@ -1025,7 +1018,7 @@ impl Gestures {
     ///
     /// Initial shortcut is [`Apps`](Key::Apps).
     pub fn context_click_focused(&self) -> ArcVar<Shortcuts> {
-        GESTURES_IMPL.read().context_click_focused.clone()
+        GESTURES_SV.read().context_click_focused.clone()
     }
 
     /// When a shortcut primary click happens, targeted widgets can indicate that
@@ -1033,19 +1026,19 @@ impl Gestures {
     ///
     /// Initial value is `50ms`, set to to `0` to deactivate this type of indication.
     pub fn shortcut_pressed_duration(&self) -> ArcVar<Duration> {
-        GESTURES_IMPL.read().shortcut_pressed_duration.clone()
+        GESTURES_SV.read().shortcut_pressed_duration.clone()
     }
 
     /// Register a widget to receive shortcut clicks when any of the `shortcuts` are pressed.
     pub fn click_shortcut(&self, shortcuts: impl Into<Shortcuts>, kind: ShortcutClick, target: WidgetId) -> ShortcutsHandle {
-        GESTURES_IMPL.write().register_target(shortcuts.into(), Some(kind), target)
+        GESTURES_SV.write().register_target(shortcuts.into(), Some(kind), target)
     }
 
     /// Register a widget to receive keyboard focus when any of the `shortcuts` are pressed.
     ///
     /// If the widget is not focusable the focus moves to the first focusable descendant or the first focusable ancestor.
     pub fn focus_shortcut(&self, shortcuts: impl Into<Shortcuts>, target: WidgetId) -> ShortcutsHandle {
-        GESTURES_IMPL.write().register_target(shortcuts.into(), None, target)
+        GESTURES_SV.write().register_target(shortcuts.into(), None, target)
     }
 
     /// Gets all the event notifications that are send if the `shortcut` was pressed at this moment.
@@ -1054,7 +1047,7 @@ impl Gestures {
     ///
     /// [struct]: Self
     pub fn shortcut_actions(&self, events: &mut Events, shortcut: Shortcut) -> ShortcutActions {
-        ShortcutActions::new(events, &mut GESTURES_IMPL.write(), shortcut)
+        ShortcutActions::new(events, &mut GESTURES_SV.write(), shortcut)
     }
 }
 
@@ -1070,7 +1063,7 @@ pub struct ShortcutActions {
     commands: Vec<Command>,
 }
 impl ShortcutActions {
-    fn new(events: &mut Events, gestures: &mut GesturesImpl, shortcut: Shortcut) -> ShortcutActions {
+    fn new(events: &mut Events, gestures: &mut GesturesService, shortcut: Shortcut) -> ShortcutActions {
         //    **First exclusively**:
         //
         //    * Primary [`click_shortcut`] targeting a widget that is enabled and focused.

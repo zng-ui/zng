@@ -45,17 +45,17 @@ pub struct ConfigManager {}
 impl ConfigManager {}
 impl AppExtension for ConfigManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        CONFIG_IMPL.write().update = Some(ctx.updates.sender());
+        CONFIG_SV.write().update = Some(ctx.updates.sender());
     }
 
     fn deinit(&mut self, _: &mut AppContext) {
-        if let Some((mut source, _)) = CONFIG_IMPL.write().source.take() {
+        if let Some((mut source, _)) = CONFIG_SV.write().source.take() {
             source.deinit();
         }
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
-        CONFIG_IMPL.write().update(ctx.vars);
+        CONFIG_SV.write().update(ctx.vars);
     }
 }
 
@@ -76,10 +76,10 @@ type ConfigTask = Box<dyn FnMut(&Vars, &ArcVar<ConfigStatus>) -> bool + Send + S
 type OnceConfigTask = Box<dyn FnOnce(&Vars, &ArcVar<ConfigStatus>) + Send + Sync>;
 
 app_local! {
-    static CONFIG_IMPL: ConfigImpl = ConfigImpl::new();
+    static CONFIG_SV: ConfigService = ConfigService::new();
 }
 
-struct ConfigImpl {
+struct ConfigService {
     update: Option<AppEventSender>,
     source: Option<(Box<dyn ConfigSource>, AppExtReceiver<ConfigSourceUpdate>)>,
     vars: HashMap<ConfigKey, ConfigVar>,
@@ -89,11 +89,11 @@ struct ConfigImpl {
     once_tasks: Vec<OnceConfigTask>,
     tasks: Vec<ConfigTask>,
 
-    alts: Vec<std::sync::Weak<RwLock<ConfigImpl>>>,
+    alts: Vec<std::sync::Weak<RwLock<ConfigService>>>,
 }
-impl ConfigImpl {
+impl ConfigService {
     fn new() -> Self {
-        ConfigImpl {
+        ConfigService {
             update: None,
             source: None,
             vars: HashMap::new(),
@@ -456,22 +456,10 @@ impl ConfigImpl {
     }
 }
 
-/// Config service instance for the current app.
-///
-/// Note that this is a service *singleton* that represents the config in use by the app, to load other config files
-/// you can use the [`Config::load_alt`].
-///
-/// This service is only active in apps running with the [`ConfigManager`] extension.
-///
-/// See [`Config`] for service details.
-pub static CONFIG: Config = Config {};
-
 /// Represents the configuration of the app.
 ///
 /// This type does not implement any config scheme, a [`ConfigSource`] must be set to enable persistence, without a source
 /// only the config variables work, and only for the duration of the app process.
-///
-/// The default app config instance is in [`CONFIG`].
 ///
 /// # Examples
 ///
@@ -500,29 +488,29 @@ pub static CONFIG: Config = Config {};
 ///     }
 /// })
 /// ```
-pub struct Config {}
-impl Config {
+pub struct CONFIG;
+impl CONFIG {
     /// Set the config source, replaces the previous source.
     pub fn load(&self, source: impl ConfigSource) {
-        CONFIG_IMPL.write().load(source);
+        CONFIG_SV.write().load(source);
     }
 
     /// Open an alternative config source disconnected from the actual app source.
     #[must_use]
     pub fn load_alt(&self, source: impl ConfigSource) -> ConfigAlt {
-        CONFIG_IMPL.write().load_alt(source)
+        CONFIG_SV.write().load_alt(source)
     }
 
     /// Gets a variable that tracks the source write tasks.
     pub fn status(&self) -> ReadOnlyArcVar<ConfigStatus> {
-        CONFIG_IMPL.read().status.read_only()
+        CONFIG_SV.read().status.read_only()
     }
 
     /// Remove any errors set in the [`status`].
     ///
     /// [`status`]: Self::status
     pub fn clear_errors<Vw: WithVars>(&self, vars: &Vw) {
-        CONFIG_IMPL.write().clear_errors(vars)
+        CONFIG_SV.write().clear_errors(vars)
     }
 
     /// Read the config value currently associated with the `key` if it is of the same type.
@@ -533,7 +521,7 @@ impl Config {
         K: Into<ConfigKey>,
         T: ConfigValue,
     {
-        CONFIG_IMPL.write().read(key.into())
+        CONFIG_SV.write().read(key.into())
     }
 
     /// Write the config value associated with the `key`.
@@ -542,7 +530,7 @@ impl Config {
         K: Into<ConfigKey>,
         T: ConfigValue,
     {
-        CONFIG_IMPL.write().write(key.into(), value)
+        CONFIG_SV.write().write(key.into(), value)
     }
 
     /// Remove the `key` from the persistent storage.
@@ -550,7 +538,7 @@ impl Config {
     /// Note that if a variable is connected with the `key` it stays connected with the same value, and if the variable
     /// is modified the `key` is reinserted. This should be called to remove obsolete configs only.
     pub fn remove<K: Into<ConfigKey>>(&self, key: K) {
-        CONFIG_IMPL.write().remove(key.into())
+        CONFIG_SV.write().remove(key.into())
     }
 
     /// Gets a variable that updates every time the config associated with `key` changes and writes the config
@@ -564,7 +552,7 @@ impl Config {
         T: ConfigValue,
         D: FnOnce() -> T,
     {
-        CONFIG_IMPL.write().var(key, default_value)
+        CONFIG_SV.write().var(key, default_value)
     }
 
     /// Binds a variable that updates every time the config associated with `key` changes and writes the config
@@ -579,7 +567,7 @@ impl Config {
         D: FnOnce() -> T,
         V: Var<T>,
     {
-        ConfigImpl::bind(&mut CONFIG_IMPL.write(), key.into(), default_value, target)
+        ConfigService::bind(&mut CONFIG_SV.write(), key.into(), default_value, target)
     }
 }
 
@@ -592,10 +580,10 @@ impl Config {
 /// can end-up affecting the actual [`Config`] too.
 ///
 /// You can use the [`Config::load_alt`] method to create an instance of this type.
-pub struct ConfigAlt(Arc<RwLock<ConfigImpl>>);
+pub struct ConfigAlt(Arc<RwLock<ConfigService>>);
 impl ConfigAlt {
     fn load(updates: AppEventSender, source: impl ConfigSource) -> Self {
-        let mut cfg = ConfigImpl::new();
+        let mut cfg = ConfigService::new();
         cfg.update = Some(updates);
         cfg.load(source);
         ConfigAlt(Arc::new(RwLock::new(cfg)))
@@ -672,7 +660,7 @@ impl ConfigAlt {
         D: FnOnce() -> T,
         V: Var<T>,
     {
-        ConfigImpl::bind(&mut self.0.write(), key.into(), default_value, target)
+        ConfigService::bind(&mut self.0.write(), key.into(), default_value, target)
     }
 }
 impl Drop for ConfigAlt {
@@ -683,7 +671,7 @@ impl Drop for ConfigAlt {
     }
 }
 
-type VarUpdateTask = Box<dyn FnOnce(&mut ConfigImpl)>;
+type VarUpdateTask = Box<dyn FnOnce(&mut ConfigService)>;
 
 /// ConfigVar actual value, tracks if updates need to be send to source.
 #[derive(Debug, Clone)]

@@ -1,7 +1,3 @@
-* Rename `_IMPL`, `Impl` to `_SV`, `Service`.
-    - Implement basic `service` proc-macro, test if derived code auto-completes in rust-analyzer.
-    - Refactor manually impl services to use this.
-
 * Refactor the update sender to an `app_local!` too?
     - It is the most common dependency of services.
     - For the user, `Vars`, `Events`, `Timers`, `Updates` all look like services.
