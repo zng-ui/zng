@@ -3,6 +3,7 @@ use std::{cell::RefCell, fmt, sync::Arc};
 use crate::{
     crate_util::{IdNameError, NameIdMap},
     text::Text,
+    units::TimeUnits,
 };
 
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -153,9 +154,20 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     }
 
     fn cleanup(&'static self, id: AppId) {
-        let mut write = self.value.write();
-        if let Some(i) = write.iter().position(|(s, _)| *s == id) {
-            write.swap_remove(i);
+        self.try_cleanup(id, 0);
+    }
+
+    fn try_cleanup(&'static self, id: AppId, tries: u8) {
+        if let Some(mut w) = self.value.try_write_for(if tries == 0 { 50.ms() } else { 500.ms() }) {
+            if let Some(i) = w.iter().position(|(s, _)| *s == id) {
+                w.swap_remove(i);
+            }
+        } else if tries > 5 {
+            tracing::error!("failed to cleanup `app_local` for {id:?}, was locked after app drop");
+        } else {
+            std::thread::spawn(move || {
+                self.try_cleanup(id, tries + 1);
+            });
         }
     }
 
