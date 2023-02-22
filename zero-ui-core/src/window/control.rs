@@ -781,7 +781,7 @@ impl HeadedCtrl {
             cursor: self.vars.cursor().get(),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
-            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode),
+            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode().get()),
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
@@ -891,7 +891,7 @@ impl HeadedCtrl {
             cursor: self.vars.cursor().get(),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
-            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode),
+            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode().get()),
 
             focus: WINDOWS.read().is_focused(self.window_id).unwrap_or(false),
             focus_indicator: self.vars.focus_indicator().get(),
@@ -1182,7 +1182,7 @@ impl HeadlessWithRendererCtrl {
             }
 
             let window_id = *ctx.window_id;
-            let render_mode = self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode);
+            let render_mode = self.render_mode.unwrap_or_else(|| WINDOWS.read().default_render_mode().get());
 
             let r = VIEW_PROCESS.open_headless(HeadlessRequest {
                 id: window_id.get(),

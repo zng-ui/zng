@@ -358,24 +358,28 @@ impl FocusMode {
 }
 
 /// A [`WidgetInfoTree`] wrapper for querying focus info out of the widget tree.
-#[derive(Copy, Clone, Debug)]
-pub struct FocusInfoTree<'a> {
-    /// Full widget info.
-    pub tree: &'a WidgetInfoTree,
+#[derive(Clone, Debug)]
+pub struct FocusInfoTree {
+    tree: WidgetInfoTree,
     mode: FocusMode,
 }
-impl<'a> FocusInfoTree<'a> {
+impl FocusInfoTree {
     /// Wrap a `widget_info` reference to enable focus info querying.
     ///
     /// See the [`Focus::focus_disabled_widgets`] and [`Focus::focus_hidden_widgets`] config for more details on the parameters.
     ///
     /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
     /// [`Focus::focus_hidden_widgets`]: crate::focus::Focus::focus_hidden_widgets
-    pub fn new(tree: &'a WidgetInfoTree, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> Self {
+    pub fn new(tree: WidgetInfoTree, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> Self {
         FocusInfoTree {
             tree,
             mode: FocusMode::new(focus_disabled_widgets, focus_hidden_widgets),
         }
+    }
+
+    /// Full widget info.
+    pub fn tree(&self) -> &WidgetInfoTree {
+        &self.tree
     }
 
     /// If [`DISABLED`] widgets are focusable in this tree.

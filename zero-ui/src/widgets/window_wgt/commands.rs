@@ -71,13 +71,13 @@ mod inspector_window {
 
         let parent = windows.vars(inspected).unwrap().parent().get().unwrap_or(inspected);
 
-        let tree = windows.widget_tree(inspected);
-        let title = if let Some(title) = tree.unwrap().root().inspect_property(property_id!(window::title)) {
+        let tree = windows.widget_tree(inspected).unwrap();
+        let title = if let Some(title) = tree.root().inspect_property(property_id!(window::title)) {
             title.downcast_var::<Text>(0).map(|t| formatx!("{t} - Inspector")).boxed()
         } else {
             var_from("Inspector").boxed()
         };
-        let icon = if let Some(icon) = tree.unwrap().root().inspect_property(property_id!(window::icon)) {
+        let icon = if let Some(icon) = tree.root().inspect_property(property_id!(window::icon)) {
             icon.downcast_var::<WindowIcon>(0).clone().boxed()
         } else {
             var(WindowIcon::Default).boxed()

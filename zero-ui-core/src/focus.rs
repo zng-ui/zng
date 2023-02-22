@@ -427,7 +427,7 @@ impl AppExtension for FocusManager {
                 } else {
                     // no visual change, update interactivity changes.
                     self.pending_render = None;
-                    self.on_info_tree_update(&args.tree, ctx);
+                    self.on_info_tree_update(args.tree.clone(), ctx);
                 }
             }
             focus_info::FocusTreeData::consolidate_alt_scopes(&args.prev_tree, &args.tree);
@@ -438,7 +438,7 @@ impl AppExtension for FocusManager {
 
     fn render(&mut self, ctx: &mut AppContext) {
         if let Some(tree) = self.pending_render.take() {
-            self.on_info_tree_update(&tree, ctx);
+            self.on_info_tree_update(tree, ctx);
         } else {
             // update visibility or enabled commands, they may have changed if the `spatial_frame_id` changed.
             let focus = FOCUS_IMPL.read();
@@ -447,15 +447,15 @@ impl AppExtension for FocusManager {
             if let Some(f) = &focus.focused {
                 let w_id = f.path.window_id();
                 if let Ok(tree) = WINDOWS.read().widget_tree(w_id) {
-                    if focus.enabled_nav.needs_refresh(tree) {
-                        invalidated_cmds_or_focused = Some(tree.clone());
+                    if focus.enabled_nav.needs_refresh(&tree) {
+                        invalidated_cmds_or_focused = Some(tree);
                     }
                 }
             }
 
             if let Some(tree) = invalidated_cmds_or_focused {
                 drop(focus);
-                self.on_info_tree_update(&tree, ctx);
+                self.on_info_tree_update(tree, ctx);
             }
         }
     }
@@ -513,7 +513,7 @@ impl AppExtension for FocusManager {
     }
 }
 impl FocusManager {
-    fn on_info_tree_update(&mut self, tree: &WidgetInfoTree, ctx: &mut AppContext) {
+    fn on_info_tree_update(&mut self, tree: WidgetInfoTree, ctx: &mut AppContext) {
         let mut focus = FOCUS_IMPL.write();
         let focus = &mut *focus;
         let mut windows = WINDOWS.write();
@@ -1058,6 +1058,7 @@ impl FocusImpl {
         let mut target = None;
         if let Some(w) = windows
             .widget_trees()
+            .iter()
             .find_map(|info| info.get(widget_id))
             .map(|w| w.as_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
         {
@@ -1311,7 +1312,7 @@ impl FocusImpl {
         }
 
         self.return_focused.retain(|&scope_id, widget_path| {
-            if widget_path.window_id() != info.tree.window_id() {
+            if widget_path.window_id() != info.tree().window_id() {
                 return true; // retain, not same window.
             }
 
@@ -1395,7 +1396,7 @@ impl FocusImpl {
 
         let mut retain_alt = true;
         if let Some((scope, widget_path)) = &mut self.alt_return {
-            if widget_path.window_id() == info.tree.window_id() {
+            if widget_path.window_id() == info.tree().window_id() {
                 // we need to update alt_return
 
                 retain_alt = false; // will retain only if still valid

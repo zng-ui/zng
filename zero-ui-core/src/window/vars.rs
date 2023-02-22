@@ -78,6 +78,7 @@ pub(super) struct WindowVarsData {
 /// [`Windows::vars`]: crate::window::Windows::vars
 /// [`req`]: WindowVars::req
 /// [`get`]: WindowVars::get
+#[derive(Clone)]
 pub struct WindowVars(pub(super) Arc<WindowVarsData>);
 impl WindowVars {
     pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor, system_color_scheme: ColorScheme) -> Self {
@@ -138,10 +139,6 @@ impl WindowVars {
             render_mode: var(default_render_mode),
         });
         Self(vars)
-    }
-
-    pub(super) fn clone(&self) -> Self {
-        Self(Arc::clone(&self.0))
     }
 
     /// Require the window vars from the window state.

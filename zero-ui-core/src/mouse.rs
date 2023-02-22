@@ -1422,7 +1422,7 @@ impl MouseImpl {
     }
 
     /// Call after a frame is generated.
-    fn continue_capture(&mut self, frame: &WidgetInfoTree, events: &mut Events) {
+    fn continue_capture(&mut self, frame: WidgetInfoTree, events: &mut Events) {
         if let Some((target, mode)) = &self.current_capture {
             if frame.window_id() == target.window_id() {
                 // is a frame from the capturing window.

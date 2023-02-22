@@ -29,34 +29,19 @@ use crate::{app_local, var::*};
 use crate::{units::*, widget_instance::WidgetId};
 
 app_local! {
-    /// Windows service instance for the current app.
-    ///
-    /// This service is only active in apps running with the [`WindowManager`] extension.
-    ///
-    /// See [`Windows`] for service details.
-    pub static WINDOWS: Windows = Windows::new();
+    static WINDOWS_IMPL: WindowsImpl = WindowsImpl::new();
 }
 
-/// Windows service.
+/// Windows service instance for the current app.
 ///
-/// # Provider
+/// This service is only active in apps running with the [`WindowManager`] extension.
 ///
-/// This service is provided by the [`WindowManager`], the instance is in [`WINDOWS`].
-pub struct Windows {
-    /// If app process exit is requested when a window closes and there are no more windows open, `true` by default.
-    ///
-    /// This setting is ignored in headless apps, in headed apps the exit happens when all headed windows
-    /// are closed, headless windows are ignored.
-    ///
-    /// If app exit is requested directly and there are headed windows open the exit op is canceled, the windows request close
-    /// and this is set to `true` so that another exit request is made after the windows close.
-    pub exit_on_last_close: bool,
+/// See [`Windows`] for service details.
+pub static WINDOWS: Windows = Windows {};
 
-    /// Default render mode of windows opened by this service, the initial value is [`RenderMode::default`].
-    ///
-    /// Note that this setting only affects windows opened after it is changed, also the view-process may select
-    /// a different render mode if it cannot support the requested mode.
-    pub default_render_mode: RenderMode,
+struct WindowsImpl {
+    exit_on_last_close: ArcVar<bool>,
+    default_render_mode: ArcVar<RenderMode>,
 
     windows: LinearMap<WindowId, AppWindow>,
     windows_info: LinearMap<WindowId, AppWindowInfo>,
@@ -70,11 +55,11 @@ pub struct Windows {
     loading_deadline: Option<DeadlineHandle>,
     latest_color_scheme: ColorScheme,
 }
-impl Windows {
+impl WindowsImpl {
     fn new() -> Self {
-        Windows {
-            exit_on_last_close: true,
-            default_render_mode: RenderMode::default(),
+        Self {
+            exit_on_last_close: var(true),
+            default_render_mode: var(RenderMode::default()),
             windows: LinearMap::with_capacity(1),
             windows_info: LinearMap::with_capacity(1),
             open_requests: Vec::with_capacity(1),
@@ -91,86 +76,6 @@ impl Windows {
 
     pub(super) fn init(&mut self, update_sender: AppEventSender) {
         self.update_sender = Some(update_sender);
-    }
-
-    // Requests a new window.
-    ///
-    /// The `new_window` argument is the [`WindowContext`] of the new window.
-    ///
-    /// Returns a response variable that will update once when the window is opened, note that while the `window_id` is
-    /// available in the `new_window` argument already, the window is only available in this service after
-    /// the returned variable updates.
-    pub fn open(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> ResponseVar<WindowOpenArgs> {
-        self.open_impl(WindowId::new_unique(), new_window, None)
-    }
-
-    /// Requests a new window with pre-defined ID.
-    ///
-    /// # Panics
-    ///
-    /// if the `window_id` is already assigned to an open or opening window.
-    pub fn open_id(
-        &mut self,
-        window_id: impl Into<WindowId>,
-        new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
-    ) -> ResponseVar<WindowOpenArgs> {
-        let window_id = window_id.into();
-        self.assert_id_unused(window_id);
-        self.open_impl(window_id, new_window, None)
-    }
-
-    /// Requests a new headless window.
-    ///
-    /// Headless windows don't show on screen, but if `with_renderer` is `true` they will still render frames.
-    ///
-    /// Note that in a headless app the [`open`] method also creates headless windows, this method
-    /// creates headless windows even in a headed app.
-    ///
-    /// [`open`]: Windows::open
-    pub fn open_headless(
-        &mut self,
-        new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
-        with_renderer: bool,
-    ) -> ResponseVar<WindowOpenArgs> {
-        self.open_impl(
-            WindowId::new_unique(),
-            new_window,
-            Some(if with_renderer {
-                WindowMode::HeadlessWithRenderer
-            } else {
-                WindowMode::Headless
-            }),
-        )
-    }
-
-    /// Requests a new headless window with pre-defined ID.
-    ///
-    /// # Panics
-    ///
-    /// if the `window_id` is already assigned to an open or opening window.
-    pub fn open_headless_id(
-        &mut self,
-        window_id: impl Into<WindowId>,
-        new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
-        with_renderer: bool,
-    ) -> ResponseVar<WindowOpenArgs> {
-        let window_id = window_id.into();
-        self.assert_id_unused(window_id);
-        self.open_impl(
-            window_id,
-            new_window,
-            Some(if with_renderer {
-                WindowMode::HeadlessWithRenderer
-            } else {
-                WindowMode::Headless
-            }),
-        )
-    }
-
-    fn assert_id_unused(&self, id: WindowId) {
-        if self.windows_info.contains_key(&id) || self.open_requests.iter().any(|r| r.id == id) {
-            panic!("window id `{id:?}` is already in use")
-        }
     }
 
     fn open_impl(
@@ -193,19 +98,6 @@ impl Windows {
         response
     }
 
-    /// Gets a handle that stops the window from loading while it exists.
-    ///
-    /// A window is only opened in the view-process after it is loaded, without any loading handles the window is considered *loaded*
-    /// after the first layout pass. Nodes in the window can request a loading handle to delay the view opening to after all async resources
-    /// it requires to render correctly are loaded.
-    ///
-    /// Note that a window is only loaded after all handles are dropped or expired, you should set a reasonable `deadline`    
-    /// after a time it is best to partially render a window than not showing anything.
-    ///
-    /// Returns `None` if the window has already loaded or is not found.
-    pub fn loading_handle(&mut self, window_id: impl Into<WindowId>, deadline: impl Into<Deadline>) -> Option<WindowLoadingHandle> {
-        self.loading_handle_impl(window_id.into(), deadline.into())
-    }
     fn loading_handle_impl(&mut self, window_id: WindowId, deadline: Deadline) -> Option<WindowLoadingHandle> {
         let mut handle = None;
 
@@ -232,31 +124,7 @@ impl Windows {
         handle
     }
 
-    /// Starts closing a window, the operation can be canceled by listeners of
-    /// [`WINDOW_CLOSE_REQUESTED_EVENT`]. If the window has children they are closed together.
-    ///
-    /// Returns a response var that will update once with the result of the operation.
-    ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
-    pub fn close(&mut self, window_id: impl Into<WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
-        self.close_together([window_id.into()])
-    }
-
-    /// Requests closing multiple windows together, the operation can be canceled by listeners of the
-    /// [`WINDOW_CLOSE_REQUESTED_EVENT`]. If canceled none of the windows are closed. Children of each window
-    /// are added to the close together set.
-    ///
-    /// Returns a response var that will update once with the result of the operation. Returns
-    /// [`Cancel`] if `windows` is empty or only contained windows that already requested close
-    /// during this update.
-    ///
-    /// Returns [`WindowNotFound`] if any of the IDs is not one of the open windows or is only an open request.
-    ///
-    /// [`Cancel`]: CloseWindowResult::Cancel
-    pub fn close_together(
-        &mut self,
-        windows: impl IntoIterator<Item = WindowId>,
-    ) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
+    fn close_together(&mut self, windows: impl IntoIterator<Item = WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
         let mut group = LinearSet::new();
 
         for w in windows {
@@ -275,59 +143,6 @@ impl Windows {
         let _ = self.update_sender.as_ref().expect("`WindowManager` not inited").send_ext_update();
 
         Ok(response)
-    }
-
-    /// Requests close of all open windows together, the operation can be canceled by listeners of
-    /// the [`WINDOW_CLOSE_REQUESTED_EVENT`]. If canceled none of the windows are closed.
-    ///
-    /// Returns a response var that will update once with the result of the operation, Returns
-    /// [`Cancel`] if no window is open or if close was already requested to all of the windows.
-    ///
-    /// [`Cancel`]: CloseWindowResult::Cancel
-    pub fn close_all(&mut self) -> ResponseVar<CloseWindowResult> {
-        let set: Vec<_> = self.windows_info.keys().copied().collect();
-        self.close_together(set).unwrap()
-    }
-
-    /// Get the window [mode].
-    ///
-    /// This value indicates if the window is headless or not.
-    ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
-    ///
-    /// [mode]: WindowMode
-    pub fn mode(&self, window_id: impl Into<WindowId>) -> Result<WindowMode, WindowNotFound> {
-        let window_id = window_id.into();
-        self.windows_info.get(&window_id).map(|w| w.mode).ok_or(WindowNotFound(window_id))
-    }
-
-    /// Reference the metadata about the window's widgets.
-    ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
-    pub fn widget_tree(&self, window_id: impl Into<WindowId>) -> Result<&WidgetInfoTree, WindowNotFound> {
-        let window_id = window_id.into();
-        self.windows_info
-            .get(&window_id)
-            .map(|w| &w.widget_tree)
-            .ok_or(WindowNotFound(window_id))
-    }
-
-    /// Generate an image from the current rendered frame of the window.
-    ///
-    /// The image is not loaded at the moment of return, it will update when it is loaded.
-    ///
-    /// If the window is not found the error is reported in the image error.
-    pub fn frame_image(&mut self, window_id: impl Into<WindowId>) -> ImageVar {
-        self.frame_image_impl(window_id.into(), |vr| vr.frame_image())
-    }
-
-    /// Generate an image from a selection of the current rendered frame of the window.
-    ///
-    /// The image is not loaded at the moment of return, it will update when it is loaded.
-    ///
-    /// If the window is not found the error is reported in the image error.
-    pub fn frame_image_rect(&mut self, window_id: impl Into<WindowId>, rect: PxRect) -> ImageVar {
-        self.frame_image_impl(window_id.into(), |vr| vr.frame_image_rect(rect))
     }
 
     fn frame_image_impl(
@@ -354,12 +169,236 @@ impl Windows {
         }
     }
 
+    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<CloseWindowRequest>, Option<WindowId>, Vec<WindowId>) {
+        (
+            mem::take(&mut self.open_requests),
+            mem::take(&mut self.close_requests),
+            self.focus_request.take(),
+            mem::take(&mut self.bring_to_top_requests),
+        )
+    }
+}
+
+/// Windows service.
+///
+/// # Provider
+///
+/// This service is provided by the [`WindowManager`], the instance is in [`WINDOWS`].
+pub struct Windows {}
+impl Windows {
+    /// If app process exit is requested when a window closes and there are no more windows open, `true` by default.
+    ///
+    /// This setting is ignored in headless apps, in headed apps the exit happens when all headed windows
+    /// are closed, headless windows are ignored.
+    ///
+    /// If app exit is requested directly and there are headed windows open the exit op is canceled, the windows request close
+    /// and this is set to `true` so that another exit request is made after the windows close.
+    pub fn exit_on_last_close(&self) -> ArcVar<bool> {
+        WINDOWS_IMPL.read().exit_on_last_close.clone()
+    }
+
+    /// Default render mode of windows opened by this service, the initial value is [`RenderMode::default`].
+    ///
+    /// Note that this setting only affects windows opened after it is changed, also the view-process may select
+    /// a different render mode if it cannot support the requested mode.
+    pub fn default_render_mode(&self) -> ArcVar<RenderMode> {
+        WINDOWS_IMPL.read().default_render_mode.clone()
+    }
+
+    // Requests a new window.
+    ///
+    /// The `new_window` argument is the [`WindowContext`] of the new window.
+    ///
+    /// Returns a response variable that will update once when the window is opened, note that while the `window_id` is
+    /// available in the `new_window` argument already, the window is only available in this service after
+    /// the returned variable updates.
+    pub fn open(&self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> ResponseVar<WindowOpenArgs> {
+        WINDOWS_IMPL.write().open_impl(WindowId::new_unique(), new_window, None)
+    }
+
+    /// Requests a new window with pre-defined ID.
+    ///
+    /// # Panics
+    ///
+    /// if the `window_id` is already assigned to an open or opening window.
+    pub fn open_id(
+        &self,
+        window_id: impl Into<WindowId>,
+        new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
+    ) -> ResponseVar<WindowOpenArgs> {
+        let window_id = window_id.into();
+        self.assert_id_unused(window_id);
+        WINDOWS_IMPL.read().open_impl(window_id, new_window, None)
+    }
+
+    /// Requests a new headless window.
+    ///
+    /// Headless windows don't show on screen, but if `with_renderer` is `true` they will still render frames.
+    ///
+    /// Note that in a headless app the [`open`] method also creates headless windows, this method
+    /// creates headless windows even in a headed app.
+    ///
+    /// [`open`]: Windows::open
+    pub fn open_headless(
+        &self,
+        new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
+        with_renderer: bool,
+    ) -> ResponseVar<WindowOpenArgs> {
+        WINDOWS_IMPL.read().open_impl(
+            WindowId::new_unique(),
+            new_window,
+            Some(if with_renderer {
+                WindowMode::HeadlessWithRenderer
+            } else {
+                WindowMode::Headless
+            }),
+        )
+    }
+
+    /// Requests a new headless window with pre-defined ID.
+    ///
+    /// # Panics
+    ///
+    /// if the `window_id` is already assigned to an open or opening window.
+    pub fn open_headless_id(
+        &self,
+        window_id: impl Into<WindowId>,
+        new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
+        with_renderer: bool,
+    ) -> ResponseVar<WindowOpenArgs> {
+        let window_id = window_id.into();
+        self.assert_id_unused(window_id);
+        WINDOWS_IMPL.read().open_impl(
+            window_id,
+            new_window,
+            Some(if with_renderer {
+                WindowMode::HeadlessWithRenderer
+            } else {
+                WindowMode::Headless
+            }),
+        )
+    }
+
+    #[track_caller]
+    fn assert_id_unused(&self, id: WindowId) {
+        let w = WINDOWS_IMPL.read();
+        if w.windows_info.contains_key(&id) || w.open_requests.iter().any(|r| r.id == id) {
+            panic!("window id `{id:?}` is already in use")
+        }
+    }
+
+    /// Gets a handle that stops the window from loading while it exists.
+    ///
+    /// A window is only opened in the view-process after it is loaded, without any loading handles the window is considered *loaded*
+    /// after the first layout pass. Nodes in the window can request a loading handle to delay the view opening to after all async resources
+    /// it requires to render correctly are loaded.
+    ///
+    /// Note that a window is only loaded after all handles are dropped or expired, you should set a reasonable `deadline`    
+    /// after a time it is best to partially render a window than not showing anything.
+    ///
+    /// Returns `None` if the window has already loaded or is not found.
+    pub fn loading_handle(&self, window_id: impl Into<WindowId>, deadline: impl Into<Deadline>) -> Option<WindowLoadingHandle> {
+        WINDOWS_IMPL.write().loading_handle_impl(window_id.into(), deadline.into())
+    }
+
+    /// Starts closing a window, the operation can be canceled by listeners of
+    /// [`WINDOW_CLOSE_REQUESTED_EVENT`]. If the window has children they are closed together.
+    ///
+    /// Returns a response var that will update once with the result of the operation.
+    ///
+    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    pub fn close(&self, window_id: impl Into<WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
+        self.close_together([window_id.into()])
+    }
+
+    /// Requests closing multiple windows together, the operation can be canceled by listeners of the
+    /// [`WINDOW_CLOSE_REQUESTED_EVENT`]. If canceled none of the windows are closed. Children of each window
+    /// are added to the close together set.
+    ///
+    /// Returns a response var that will update once with the result of the operation. Returns
+    /// [`Cancel`] if `windows` is empty or only contained windows that already requested close
+    /// during this update.
+    ///
+    /// Returns [`WindowNotFound`] if any of the IDs is not one of the open windows or is only an open request.
+    ///
+    /// [`Cancel`]: CloseWindowResult::Cancel
+    pub fn close_together(&self, windows: impl IntoIterator<Item = WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
+        WINDOWS_IMPL.write().close_together(windows)
+    }
+
+    /// Requests close of all open windows together, the operation can be canceled by listeners of
+    /// the [`WINDOW_CLOSE_REQUESTED_EVENT`]. If canceled none of the windows are closed.
+    ///
+    /// Returns a response var that will update once with the result of the operation, Returns
+    /// [`Cancel`] if no window is open or if close was already requested to all of the windows.
+    ///
+    /// [`Cancel`]: CloseWindowResult::Cancel
+    pub fn close_all(&self) -> ResponseVar<CloseWindowResult> {
+        let set: Vec<_> = WINDOWS_IMPL.read().windows_info.keys().copied().collect();
+        self.close_together(set).unwrap()
+    }
+
+    /// Get the window [mode].
+    ///
+    /// This value indicates if the window is headless or not.
+    ///
+    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    ///
+    /// [mode]: WindowMode
+    pub fn mode(&self, window_id: impl Into<WindowId>) -> Result<WindowMode, WindowNotFound> {
+        let window_id = window_id.into();
+        WINDOWS_IMPL
+            .read()
+            .windows_info
+            .get(&window_id)
+            .map(|w| w.mode)
+            .ok_or(WindowNotFound(window_id))
+    }
+
+    /// Reference the metadata about the window's widgets.
+    ///
+    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    pub fn widget_tree(&self, window_id: impl Into<WindowId>) -> Result<WidgetInfoTree, WindowNotFound> {
+        let window_id = window_id.into();
+        WINDOWS_IMPL
+            .read()
+            .windows_info
+            .get(&window_id)
+            .map(|w| w.widget_tree.clone())
+            .ok_or(WindowNotFound(window_id))
+    }
+
+    /// Generate an image from the current rendered frame of the window.
+    ///
+    /// The image is not loaded at the moment of return, it will update when it is loaded.
+    ///
+    /// If the window is not found the error is reported in the image error.
+    pub fn frame_image(&self, window_id: impl Into<WindowId>) -> ImageVar {
+        WINDOWS_IMPL.write().frame_image_impl(window_id.into(), |vr| vr.frame_image())
+    }
+
+    /// Generate an image from a selection of the current rendered frame of the window.
+    ///
+    /// The image is not loaded at the moment of return, it will update when it is loaded.
+    ///
+    /// If the window is not found the error is reported in the image error.
+    pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, rect: PxRect) -> ImageVar {
+        WINDOWS_IMPL
+            .write()
+            .frame_image_impl(window_id.into(), |vr| vr.frame_image_rect(rect))
+    }
+
     /// Reference the [`WindowVars`] for the window.
     ///
     /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
-    pub fn vars(&self, window_id: impl Into<WindowId>) -> Result<&WindowVars, WindowNotFound> {
+    pub fn vars(&self, window_id: impl Into<WindowId>) -> Result<WindowVars, WindowNotFound> {
         let window_id = window_id.into();
-        self.windows_info.get(&window_id).map(|w| &w.vars).ok_or(WindowNotFound(window_id))
+        WINDOWS_IMPL
+            .read()
+            .windows_info
+            .get(&window_id)
+            .map(|w| w.vars.clone())
+            .ok_or(WindowNotFound(window_id))
     }
 
     /// Gets if the window is focused in the OS.
@@ -368,9 +407,10 @@ impl Windows {
     /// one of the open requests.
     pub fn is_focused(&self, window_id: impl Into<WindowId>) -> Result<bool, WindowNotFound> {
         let window_id = window_id.into();
-        if let Some(w) = self.windows_info.get(&window_id) {
+        let w = WINDOWS_IMPL.read();
+        if let Some(w) = w.windows_info.get(&window_id) {
             Ok(w.is_focused)
-        } else if self.open_requests.iter().any(|r| r.id == window_id) {
+        } else if w.open_requests.iter().any(|r| r.id == window_id) {
             Ok(false)
         } else {
             Err(WindowNotFound(window_id))
@@ -378,23 +418,28 @@ impl Windows {
     }
 
     /// Iterate over the widget trees of each open window.
-    pub fn widget_trees(&self) -> impl Iterator<Item = &WidgetInfoTree> {
-        self.windows_info.values().map(|w| &w.widget_tree)
+    pub fn widget_trees(&self) -> Vec<WidgetInfoTree> {
+        WINDOWS_IMPL.read().windows_info.values().map(|w| w.widget_tree.clone()).collect()
     }
 
     /// Gets the id of the window that is focused in the OS.
     pub fn focused_window_id(&self) -> Option<WindowId> {
-        self.windows_info.values().find(|w| w.is_focused).map(|w| w.id)
+        WINDOWS_IMPL.read().windows_info.values().find(|w| w.is_focused).map(|w| w.id)
     }
 
     /// Gets the latest frame for the focused window.
-    pub fn focused_info(&self) -> Option<&WidgetInfoTree> {
-        self.windows_info.values().find(|w| w.is_focused).map(|w| &w.widget_tree)
+    pub fn focused_info(&self) -> Option<WidgetInfoTree> {
+        WINDOWS_IMPL
+            .read()
+            .windows_info
+            .values()
+            .find(|w| w.is_focused)
+            .map(|w| w.widget_tree.clone())
     }
 
     /// Returns `true` if the window is open.
     pub fn is_open(&self, window_id: impl Into<WindowId>) -> bool {
-        self.windows_info.contains_key(&window_id.into())
+        WINDOWS_IMPL.read().windows_info.contains_key(&window_id.into())
     }
 
     /// Returns `true` if a pending window open request is associated with the ID.
@@ -402,13 +447,18 @@ impl Windows {
     /// Window open requests are processed after each update.
     pub fn is_open_request(&self, window_id: impl Into<WindowId>) -> bool {
         let window_id = window_id.into();
-        self.open_requests.iter().any(|r| r.id == window_id)
+        WINDOWS_IMPL.read().open_requests.iter().any(|r| r.id == window_id)
     }
 
     /// Returns `true` if the window is open and loaded.
     pub fn is_loaded(&self, window_id: impl Into<WindowId>) -> bool {
         let window_id = window_id.into();
-        self.windows_info.get(&window_id).map(|i| i.is_loaded).unwrap_or(false)
+        WINDOWS_IMPL
+            .read()
+            .windows_info
+            .get(&window_id)
+            .map(|i| i.is_loaded)
+            .unwrap_or(false)
     }
 
     /// Requests that the window be made the foreground keyboard focused window.
@@ -423,18 +473,19 @@ impl Windows {
     ///
     /// [`Focus`]: crate::focus::Focus
     /// [`FocusRequest`]: crate::focus::FocusRequest
-    pub fn focus(&mut self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
+    pub fn focus(&self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
         let window_id = window_id.into();
         if !self.is_focused(window_id)? {
-            self.focus_request = Some(window_id);
-            let _ = self.update_sender.as_ref().expect("`WindowManager` not inited").send_ext_update();
+            let mut w = WINDOWS_IMPL.write();
+            w.focus_request = Some(window_id);
+            let _ = w.update_sender.as_ref().expect("`WindowManager` not inited").send_ext_update();
         }
         Ok(())
     }
 
     /// Focus a window if it is open or opening, otherwise opens it focused.
     pub fn focus_or_open(
-        &mut self,
+        &self,
         window_id: impl Into<WindowId>,
         open: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
     ) -> Option<ResponseVar<WindowOpenArgs>> {
@@ -443,7 +494,7 @@ impl Windows {
             None
         } else {
             let r = self.open_id(window_id, open);
-            self.focus_request = Some(window_id);
+            WINDOWS_IMPL.write().focus_request = Some(window_id);
             Some(r)
         }
     }
@@ -457,37 +508,29 @@ impl Windows {
     ///
     /// [`always_on_top`]: WindowVars::always_on_top
     /// [`focus`]: Self::focus
-    pub fn bring_to_top(&mut self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
+    pub fn bring_to_top(&self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
         let window_id = window_id.into();
-        if self.windows_info.contains_key(&window_id) {
-            self.bring_to_top_requests.push(window_id);
-            let _ = self.update_sender.as_ref().expect("`WindowManager` not inited").send_ext_update();
+        let w = WINDOWS_IMPL.write();
+        if w.windows_info.contains_key(&window_id) {
+            w.bring_to_top_requests.push(window_id);
+            let _ = w.update_sender.as_ref().expect("`WindowManager` not inited").send_ext_update();
             Ok(())
         } else {
             Err(WindowNotFound(window_id))
         }
     }
 
-    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<CloseWindowRequest>, Option<WindowId>, Vec<WindowId>) {
-        (
-            mem::take(&mut self.open_requests),
-            mem::take(&mut self.close_requests),
-            self.focus_request.take(),
-            mem::take(&mut self.bring_to_top_requests),
-        )
-    }
-
     /// Update the reference to the renderer associated with the window, we need
     /// the render to enable the hit-test function.
-    pub(super) fn set_renderer(&mut self, id: WindowId, renderer: ViewRenderer) {
-        if let Some(info) = self.windows_info.get_mut(&id) {
+    pub(super) fn set_renderer(&self, id: WindowId, renderer: ViewRenderer) {
+        if let Some(info) = WINDOWS_IMPL.write().windows_info.get_mut(&id) {
             info.renderer = Some(renderer);
         }
     }
 
     /// Update widget info tree associated with the window.
-    pub(super) fn set_widget_tree(&mut self, events: &mut Events, info_tree: WidgetInfoTree, pending_layout: bool, pending_render: bool) {
-        if let Some(info) = self.windows_info.get_mut(&info_tree.window_id()) {
+    pub(super) fn set_widget_tree(&self, events: &mut Events, info_tree: WidgetInfoTree, pending_layout: bool, pending_render: bool) {
+        if let Some(info) = WINDOWS_IMPL.write().windows_info.get_mut(&info_tree.window_id()) {
             let prev_tree = info.widget_tree.clone();
             info.widget_tree = info_tree.clone();
 
@@ -520,8 +563,8 @@ impl Windows {
     /// Change window state to loaded if there are no load handles active.
     ///
     /// Returns `true` if loaded.
-    pub(super) fn try_load(&mut self, vars: &Vars, events: &mut Events, timers: &mut Timers, window_id: WindowId) -> bool {
-        if let Some(info) = self.windows_info.get_mut(&window_id) {
+    pub(super) fn try_load(&self, vars: &Vars, events: &mut Events, timers: &mut Timers, window_id: WindowId) -> bool {
+        if let Some(info) = WINDOWS_IMPL.write().windows_info.get_mut(&window_id) {
             info.is_loaded = info.loading_handle.try_load(timers);
 
             if info.is_loaded && !info.vars.0.is_loaded.get() {
@@ -537,7 +580,7 @@ impl Windows {
 
     pub(super) fn on_pre_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
-            let mut wns = WINDOWS.write();
+            let mut wns = WINDOWS_IMPL.write();
 
             let mut prev = None;
             let mut new = None;
@@ -574,9 +617,9 @@ impl Windows {
                 WINDOW_FOCUS_CHANGED_EVENT.notify(ctx.events, args);
             }
         } else if let Some(args) = RAW_WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
-            let _ = WINDOWS.write().close(args.window_id);
+            let _ = WINDOWS.close(args.window_id);
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
-            if WINDOWS.read().windows.contains_key(&args.window_id) {
+            if WINDOWS_IMPL.read().windows.contains_key(&args.window_id) {
                 tracing::error!("view-process closed window without request");
                 let mut windows = LinearSet::with_capacity(1);
                 windows.insert(args.window_id);
@@ -584,11 +627,11 @@ impl Windows {
                 WINDOW_CLOSE_EVENT.notify(ctx, args);
             }
         } else if let Some(args) = RAW_WINDOW_OPEN_EVENT.on(update) {
-            WINDOWS.write().latest_color_scheme = args.data.color_scheme;
+            WINDOWS_IMPL.write().latest_color_scheme = args.data.color_scheme;
         } else if let Some(args) = RAW_COLOR_SCHEME_CHANGED_EVENT.on(update) {
-            WINDOWS.write().latest_color_scheme = args.color_scheme;
+            WINDOWS_IMPL.write().latest_color_scheme = args.color_scheme;
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            WINDOWS.write().latest_color_scheme = args.color_scheme;
+            WINDOWS_IMPL.write().latest_color_scheme = args.color_scheme;
 
             // we skipped request fulfillment until this event.
             ctx.updates.update_ext();
@@ -615,7 +658,7 @@ impl Windows {
     pub(super) fn on_event(ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
             let key = args.windows.iter().next().unwrap();
-            if let Some(rsp) = WINDOWS.write().close_responders.remove(key) {
+            if let Some(rsp) = WINDOWS_IMPL.write().close_responders.remove(key) {
                 if !args.propagation().is_stopped() {
                     // close requested by us and not canceled.
                     WINDOW_CLOSE_EVENT.notify(ctx.events, WindowCloseArgs::now(args.windows.clone()));
@@ -633,7 +676,7 @@ impl Windows {
             // causing the ViewWindow to drop and close.
 
             for w in &args.windows {
-                let mut wns = WINDOWS.write();
+                let mut wns = WINDOWS_IMPL.write();
                 if let Some(w) = wns.windows.remove(w) {
                     let id = w.id;
                     w.close(ctx);
@@ -650,11 +693,11 @@ impl Windows {
             }
 
             let is_headless_app = app::App::window_mode().is_headless();
-            let wns = WINDOWS.read();
+            let wns = WINDOWS_IMPL.read();
 
             // if set to exit on last headed window close in a headed app,
             // AND there is no more open headed window OR request for opening a headed window.
-            if wns.exit_on_last_close
+            if wns.exit_on_last_close.get()
                 && !is_headless_app
                 && !wns.windows.values().any(|w| matches!(w.mode, WindowMode::Headed))
                 && !wns
@@ -667,10 +710,10 @@ impl Windows {
             }
         } else if let Some(args) = EXIT_REQUESTED_EVENT.on(update) {
             if !args.propagation().is_stopped() {
-                let mut windows = WINDOWS.write();
+                let mut windows = WINDOWS_IMPL.write();
                 if windows.windows_info.values().any(|w| w.mode == WindowMode::Headed) {
                     args.propagation().stop();
-                    windows.exit_on_last_close = true;
+                    windows.exit_on_last_close.set(ctx, true);
                     windows.close_all();
                 }
             }
@@ -702,7 +745,7 @@ impl Windows {
         }
 
         let ((open, close, focus, bring_to_top), color_scheme) = {
-            let mut wns = WINDOWS.write();
+            let mut wns = WINDOWS_IMPL.write();
             (wns.take_requests(), wns.latest_color_scheme)
         };
 
@@ -722,7 +765,7 @@ impl Windows {
 
             let args = WindowOpenArgs::now(window.id);
             {
-                let mut wns = WINDOWS.write();
+                let mut wns = WINDOWS_IMPL.write();
                 if wns.windows.insert(window.id, window).is_some() {
                     // id conflict resolved on request.
                     unreachable!();
@@ -734,7 +777,7 @@ impl Windows {
             WINDOW_OPEN_EVENT.notify(ctx, args);
         }
 
-        let mut wns = WINDOWS.write();
+        let mut wns = WINDOWS_IMPL.write();
         let wns = &mut *wns;
 
         // notify close requests, the request is fulfilled or canceled
@@ -878,7 +921,7 @@ impl AppWindow {
             .map(|m| m.scale_factor().get())
             .unwrap_or_else(|| 1.fct());
 
-        let vars = WindowVars::new(WINDOWS.read().default_render_mode, primary_scale_factor, color_scheme);
+        let vars = WindowVars::new(WINDOWS.read().default_render_mode.get(), primary_scale_factor, color_scheme);
         let mut state = OwnedStateMap::new();
         state.borrow_mut().set(&WINDOW_VARS_ID, vars.clone());
         let (window, _) = ctx.window_context(id, mode, &mut state, new);
