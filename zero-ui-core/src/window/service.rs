@@ -212,6 +212,9 @@ impl Windows {
     /// Returns a response variable that will update once when the window is opened, note that while the `window_id` is
     /// available in the `new_window` argument already, the window is only available in this service after
     /// the returned variable updates.
+    ///
+    /// An update cycle is processed between the call to `new_window` and the window init, this means that you
+    /// can use the input [`WindowContext`] to set variables that will be read on init with the new value.
     pub fn open(&self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> ResponseVar<WindowOpenArgs> {
         WINDOWS_IMPL.write().open_impl(WindowId::new_unique(), new_window, None)
     }

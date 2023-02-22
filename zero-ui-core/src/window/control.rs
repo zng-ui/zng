@@ -1303,7 +1303,7 @@ impl HeadlessCtrl {
             ctx.updates.layout();
         }
 
-        if !self.content.inited {
+        if matches!(self.content.init_state, InitState::Init) {
             self.content.layout_requested = true;
             self.content.pending_render = WindowRenderUpdate::Render;
 
@@ -1432,6 +1432,16 @@ impl HeadlessSimulator {
     }
 }
 
+#[derive(Clone, Copy)]
+enum InitState {
+    /// We let one update cycle happen before init
+    /// to let the constructor closure setup vars
+    /// that are read on init.
+    SkipOne,
+    Init,
+    Inited,
+}
+
 /// Implementer of window UI node tree initialization and management.
 struct ContentCtrl {
     vars: WindowVars,
@@ -1451,7 +1461,7 @@ struct ContentCtrl {
     used_frame_builder: Option<UsedFrameBuilder>,
     used_frame_update: Option<UsedFrameUpdate>,
 
-    inited: bool,
+    init_state: InitState,
     frame_id: FrameId,
     clear_color: RenderColor,
 
@@ -1483,7 +1493,7 @@ impl ContentCtrl {
             used_frame_builder: None,
             used_frame_update: None,
 
-            inited: false,
+            init_state: InitState::SkipOne,
             frame_id: FrameId::INVALID,
             clear_color: RenderColor::BLACK,
 
@@ -1498,25 +1508,32 @@ impl ContentCtrl {
     }
 
     pub fn update(&mut self, ctx: &mut WindowContext, updates: &mut WidgetUpdates) {
-        if !self.inited {
-            self.commands.init(&self.vars);
-            ctx.widget_context(
-                &self.info_tree,
-                &self.root_info,
-                &mut self.root_state,
-                &mut self.root_var_handles,
-                &mut self.root_event_handles,
-                |ctx| {
-                    self.root.init(ctx);
+        match self.init_state {
+            InitState::Inited => {
+                self.commands.update(ctx.vars, &self.vars);
 
-                    ctx.updates.info();
-                },
-            );
-            self.inited = true;
-        } else {
-            self.commands.update(ctx.vars, &self.vars);
+                updates.with_window(ctx, |ctx, updates| {
+                    ctx.widget_context(
+                        &self.info_tree,
+                        &self.root_info,
+                        &mut self.root_state,
+                        &mut self.root_var_handles,
+                        &mut self.root_event_handles,
+                        |ctx| {
+                            updates.with_widget(ctx, |ctx, updates| {
+                                self.root.update(ctx, updates);
+                            });
+                        },
+                    );
+                });
+            }
 
-            updates.with_window(ctx, |ctx, updates| {
+            InitState::SkipOne => {
+                ctx.updates.update_ext();
+                self.init_state = InitState::Init;
+            }
+            InitState::Init => {
+                self.commands.init(&self.vars);
                 ctx.widget_context(
                     &self.info_tree,
                     &self.root_info,
@@ -1524,12 +1541,13 @@ impl ContentCtrl {
                     &mut self.root_var_handles,
                     &mut self.root_event_handles,
                     |ctx| {
-                        updates.with_widget(ctx, |ctx, updates| {
-                            self.root.update(ctx, updates);
-                        });
+                        self.root.init(ctx);
+
+                        ctx.updates.info();
                     },
                 );
-            });
+                self.init_state = InitState::Inited;
+            }
         }
     }
 
@@ -1586,7 +1604,7 @@ impl ContentCtrl {
     }
 
     pub fn ui_event(&mut self, ctx: &mut WindowContext, update: &mut EventUpdate) {
-        debug_assert!(self.inited);
+        debug_assert!(matches!(self.init_state, InitState::Inited));
 
         update.with_window(ctx, |ctx, update| {
             ctx.widget_context(
@@ -1655,7 +1673,7 @@ impl ContentCtrl {
         root_font_size: Px,
         skip_auto_size: bool,
     ) -> PxSize {
-        debug_assert!(self.inited);
+        debug_assert!(matches!(self.init_state, InitState::Inited));
         debug_assert!(self.layout_requested);
 
         let _s = tracing::trace_span!("window.on_layout", window = %ctx.window_id.sequential()).entered();
