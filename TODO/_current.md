@@ -1,3 +1,6 @@
+* Refactor `core::task` to load the caller app scope automatically for every parallel thread.
+    - We want to support valid `Var::set` from any thread in a future update with `VARS` as a service.
+
 * Refactor the update sender to an `app_local!` too?
     - It is the most common dependency of services.
     - For the user, `Vars`, `Events`, `Timers`, `Updates` all look like services.

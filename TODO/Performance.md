@@ -3,12 +3,6 @@
 * NVIDIA OpenGL takes 200ms! to startup.
 * First render is also slow.
 
-## AppLocal
-
-* Have a compile feature `single_app` that simplifies `app_local!` statics to a direct `RwMutex` instead of the id search it does now.
-  - The feature also enables a panic if more then one app is started by the process.
-  - Actually, need to be additive, `multi_apps_per_process` is a better name, it is enabled for tests.
-
 # Render
 
 * Modify display list to not include glyphs and text color in the same item.
