@@ -443,7 +443,7 @@ impl HeadedCtrl {
                                 // minimized, minimize children.
                                 self.vars.0.children.with(|c| {
                                     for &c in c {
-                                        MINIMIZE_CMD.scoped(c).notify(ctx.events);
+                                        MINIMIZE_CMD.scoped(c).notify();
                                     }
                                 });
                             }
@@ -451,7 +451,7 @@ impl HeadedCtrl {
                                 // restored, restore children.
                                 self.vars.0.children.with(|c| {
                                     for &c in c {
-                                        RESTORE_CMD.scoped(c).notify(ctx.events);
+                                        RESTORE_CMD.scoped(c).notify();
                                     }
                                 });
 
@@ -510,14 +510,14 @@ impl HeadedCtrl {
                         size_change,
                         args.cause,
                     );
-                    WINDOW_CHANGED_EVENT.notify(ctx.events, args);
+                    WINDOW_CHANGED_EVENT.notify(args);
                 }
             } else if self.actual_state.unwrap_or(WindowState::Normal) == WindowState::Minimized
                 && args.state.as_ref().map(|s| s.state != WindowState::Minimized).unwrap_or(false)
                 && self.vars.0.children.with(|c| c.contains(&args.window_id))
             {
                 // child restored.
-                RESTORE_CMD.scoped(self.window_id).notify(ctx.events);
+                RESTORE_CMD.scoped(self.window_id).notify();
             }
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus == Some(self.window_id) {
@@ -703,7 +703,7 @@ impl HeadedCtrl {
         }
 
         // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
-        if !WINDOWS.try_load(ctx.vars, ctx.events, self.window_id) {
+        if !WINDOWS.try_load(ctx.vars, self.window_id) {
             // block on loading handles.
             return;
         }
@@ -1174,7 +1174,7 @@ impl HeadlessWithRendererCtrl {
         } else if !self.waiting_view {
             // (re)spawn the view surface:
 
-            if !WINDOWS.try_load(ctx.vars, ctx.events, self.window_id) {
+            if !WINDOWS.try_load(ctx.vars, self.window_id) {
                 return;
             }
 
@@ -1336,7 +1336,7 @@ impl HeadlessCtrl {
             return;
         }
 
-        if !WINDOWS.try_load(ctx.vars, ctx.events, *ctx.window_id) {
+        if !WINDOWS.try_load(ctx.vars, *ctx.window_id) {
             return;
         }
 
@@ -1424,7 +1424,7 @@ impl HeadlessSimulator {
             prev = Some(id);
         }
         let args = RawWindowFocusArgs::now(prev, Some(*ctx.window_id));
-        RAW_WINDOW_FOCUS_EVENT.notify(ctx.events, args);
+        RAW_WINDOW_FOCUS_EVENT.notify(args);
     }
 
     pub fn bring_to_top(&mut self, _: &mut WindowContext) {
@@ -1573,7 +1573,7 @@ impl ContentCtrl {
             self.info_tree = info.clone();
             self.used_info_builder = Some(used);
 
-            WINDOWS.set_widget_tree(ctx.events, info, self.layout_requested, !self.render_requested.is_none());
+            WINDOWS.set_widget_tree(info, self.layout_requested, !self.render_requested.is_none());
         }
     }
 
@@ -1596,7 +1596,7 @@ impl ContentCtrl {
                 let image = args.frame_image.as_ref().cloned().map(Image::new);
 
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), args.window_id, args.frame_id, image);
-                FRAME_IMAGE_READY_EVENT.notify(ctx.events, args);
+                FRAME_IMAGE_READY_EVENT.notify(args);
             }
         } else {
             self.commands.event(ctx, &self.vars, update);
@@ -1862,7 +1862,7 @@ impl ContentCtrl {
                     std::collections::hash_map::Entry::Occupied(mut e) => {
                         let prev = e.insert(transform);
                         if prev != transform {
-                            TRANSFORM_CHANGED_EVENT.notify(ctx, TransformChangedArgs::now(wgt.path(), prev, transform));
+                            TRANSFORM_CHANGED_EVENT.notify(TransformChangedArgs::now(wgt.path(), prev, transform));
                             changes_count += 1;
                         }
                     }

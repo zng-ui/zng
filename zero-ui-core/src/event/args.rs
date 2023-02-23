@@ -32,7 +32,7 @@ pub trait EventArgs: AnyEventArgs + Clone {
 }
 
 /// Methods of [`EventArgs`] that don't depend on the value type.
-pub trait AnyEventArgs: fmt::Debug + Any {
+pub trait AnyEventArgs: fmt::Debug + Send + Any {
     /// Clone the variable into a type erased box.
     fn clone_any(&self) -> Box<dyn AnyEventArgs>;
 

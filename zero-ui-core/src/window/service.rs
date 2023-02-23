@@ -9,6 +9,11 @@ use super::commands::WindowCommands;
 use super::*;
 use crate::app::raw_events::{RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_WINDOW_OPEN_EVENT};
 use crate::app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
+use crate::app::{
+    raw_events::{RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT},
+    view_process::{self, ColorScheme, ViewRenderer},
+    AppEventSender,
+};
 use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
 use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
 use crate::crate_util::IdSet;
@@ -17,14 +22,6 @@ use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
 use crate::timer::{DeadlineHandle, TIMERS};
 use crate::widget_info::WidgetInfoTree;
-use crate::{
-    app::{
-        raw_events::{RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT},
-        view_process::{self, ColorScheme, ViewRenderer},
-        AppEventSender,
-    },
-    event::Events,
-};
 use crate::{app_local, var::*};
 use crate::{units::*, widget_instance::WidgetId};
 
@@ -519,7 +516,7 @@ impl WINDOWS {
     }
 
     /// Update widget info tree associated with the window.
-    pub(super) fn set_widget_tree(&self, events: &mut Events, info_tree: WidgetInfoTree, pending_layout: bool, pending_render: bool) {
+    pub(super) fn set_widget_tree(&self, info_tree: WidgetInfoTree, pending_layout: bool, pending_render: bool) {
         if let Some(info) = WINDOWS_SV.write().windows_info.get_mut(&info_tree.window_id()) {
             let prev_tree = info.widget_tree.clone();
             info.widget_tree = info_tree.clone();
@@ -531,7 +528,7 @@ impl WINDOWS {
                 pending_layout,
                 pending_render,
             );
-            WIDGET_INFO_CHANGED_EVENT.notify(events, args);
+            WIDGET_INFO_CHANGED_EVENT.notify(args);
 
             let mut targets = IdSet::default();
             INTERACTIVITY_CHANGED_EVENT.visit_subscribers(|wid| {
@@ -545,7 +542,7 @@ impl WINDOWS {
             });
             if !targets.is_empty() {
                 let args = InteractivityChangedArgs::now(prev_tree, info_tree, targets);
-                INTERACTIVITY_CHANGED_EVENT.notify(events, args);
+                INTERACTIVITY_CHANGED_EVENT.notify(args);
             }
         }
     }
@@ -553,13 +550,13 @@ impl WINDOWS {
     /// Change window state to loaded if there are no load handles active.
     ///
     /// Returns `true` if loaded.
-    pub(super) fn try_load(&self, vars: &Vars, events: &mut Events, window_id: WindowId) -> bool {
+    pub(super) fn try_load(&self, vars: &Vars, window_id: WindowId) -> bool {
         if let Some(info) = WINDOWS_SV.write().windows_info.get_mut(&window_id) {
             info.is_loaded = info.loading_handle.try_load();
 
             if info.is_loaded && !info.vars.0.is_loaded.get() {
                 info.vars.0.is_loaded.set_ne(vars, true);
-                WINDOW_LOAD_EVENT.notify(events, WindowOpenArgs::now(info.id));
+                WINDOW_LOAD_EVENT.notify(WindowOpenArgs::now(info.id));
             }
 
             info.is_loaded
@@ -604,7 +601,7 @@ impl WINDOWS {
 
             if prev.is_some() || new.is_some() {
                 let args = WindowFocusChangedArgs::new(args.timestamp, args.propagation().clone(), prev, new, false);
-                WINDOW_FOCUS_CHANGED_EVENT.notify(ctx.events, args);
+                WINDOW_FOCUS_CHANGED_EVENT.notify(args);
             }
         } else if let Some(args) = RAW_WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
             let _ = WINDOWS.close(args.window_id);
@@ -614,7 +611,7 @@ impl WINDOWS {
                 let mut windows = LinearSet::with_capacity(1);
                 windows.insert(args.window_id);
                 let args = WindowCloseArgs::new(args.timestamp, args.propagation().clone(), windows);
-                WINDOW_CLOSE_EVENT.notify(ctx, args);
+                WINDOW_CLOSE_EVENT.notify(args);
             }
         } else if let Some(args) = RAW_WINDOW_OPEN_EVENT.on(update) {
             WINDOWS_SV.write().latest_color_scheme = args.data.color_scheme;
@@ -651,7 +648,7 @@ impl WINDOWS {
             if let Some(rsp) = WINDOWS_SV.write().close_responders.remove(key) {
                 if !args.propagation().is_stopped() {
                     // close requested by us and not canceled.
-                    WINDOW_CLOSE_EVENT.notify(ctx.events, WindowCloseArgs::now(args.windows.clone()));
+                    WINDOW_CLOSE_EVENT.notify(WindowCloseArgs::now(args.windows.clone()));
                     for r in rsp {
                         r.respond(ctx, CloseWindowResult::Closed);
                     }
@@ -677,7 +674,7 @@ impl WINDOWS {
 
                     if info.is_focused {
                         let args = WindowFocusChangedArgs::now(Some(info.id), None, true);
-                        WINDOW_FOCUS_CHANGED_EVENT.notify(ctx.events, args)
+                        WINDOW_FOCUS_CHANGED_EVENT.notify(args)
                     }
                 }
             }
@@ -765,7 +762,7 @@ impl WINDOWS {
             }
 
             r.responder.respond(ctx, args.clone());
-            WINDOW_OPEN_EVENT.notify(ctx, args);
+            WINDOW_OPEN_EVENT.notify(args);
         }
 
         // notify close requests, the request is fulfilled or canceled
@@ -802,7 +799,7 @@ impl WINDOWS {
             }
             if !close_wns.is_empty() {
                 let args = WindowCloseRequestedArgs::now(close_wns);
-                WINDOW_CLOSE_REQUESTED_EVENT.notify(ctx.events, args);
+                WINDOW_CLOSE_REQUESTED_EVENT.notify(args);
             }
         }
 
@@ -928,7 +925,7 @@ impl AppWindow {
             }
         }
 
-        let commands = WindowCommands::new(id, ctx.events);
+        let commands = WindowCommands::new(id);
 
         let root_id = window.id;
         let ctrl = WindowCtrl::new(id, &vars, commands, mode, window);

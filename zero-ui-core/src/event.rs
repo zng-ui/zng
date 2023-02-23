@@ -209,14 +209,9 @@ impl<A: EventArgs> Event<A> {
     }
 
     /// Schedule an event update.
-    pub fn notify<Ev>(&self, events: &mut Ev, args: A)
-    where
-        Ev: WithEvents,
-    {
+    pub fn notify(&self, args: A) {
         let update = self.new_update(args);
-        events.with_events(|ev| {
-            ev.notify(update);
-        })
+        EVENTS.notify(update);
     }
 
     /// Creates a preview event handler.
@@ -311,7 +306,7 @@ impl<A: EventArgs> Event<A> {
     fn on_event_impl(&self, handler: impl AppHandler<A>, is_preview: bool) -> EventHandle {
         let handler = Arc::new(Mutex::new(handler));
         let (inner_handle_owner, inner_handle) = crate::crate_util::Handle::new(());
-        self.as_any().hook(move |_, update| {
+        self.as_any().hook(move |update| {
             if inner_handle_owner.is_dropped() {
                 return false;
             }
@@ -349,18 +344,18 @@ impl<A: EventArgs> Event<A> {
         let (sender, receiver) = flume::unbounded();
 
         self.as_any()
-            .hook(move |_, update| sender.send(update.args().as_any().downcast_ref::<A>().unwrap().clone()).is_ok())
+            .hook(move |update| sender.send(update.args().as_any().downcast_ref::<A>().unwrap().clone()).is_ok())
             .perm();
 
         EventReceiver { receiver, event: *self }
     }
 
     /// Creates a sender that can raise an event from other threads and without access to [`Events`].
-    pub fn sender(&self, ev: &mut impl WithEvents) -> EventSender<A>
+    pub fn sender(&self) -> EventSender<A>
     where
         A: Send,
     {
-        ev.with_events(|ev| ev.sender(*self))
+        EVENTS_SV.write().sender(*self)
     }
 }
 impl<A: EventArgs> Clone for Event<A> {
@@ -410,10 +405,10 @@ impl AnyEvent {
     }
 
     /// Register a callback that is called just before an event begins notifying.
-    pub fn hook(&self, hook: impl Fn(&mut Events, &mut EventUpdate) -> bool + Send + Sync + 'static) -> EventHandle {
+    pub fn hook(&self, hook: impl Fn(&mut EventUpdate) -> bool + Send + Sync + 'static) -> EventHandle {
         self.hook_impl(Box::new(hook))
     }
-    fn hook_impl(&self, hook: Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool + Send + Sync>) -> EventHandle {
+    fn hook_impl(&self, hook: Box<dyn Fn(&mut EventUpdate) -> bool + Send + Sync>) -> EventHandle {
         let (handle, hook) = EventHandle::new(hook);
         self.local.write().hooks.push(hook);
         handle
@@ -442,9 +437,9 @@ impl AnyEvent {
         !self.local.read().widget_subs.is_empty()
     }
 
-    fn on_update(&self, events: &mut Events, update: &mut EventUpdate) {
+    fn on_update(&self, update: &mut EventUpdate) {
         let mut hooks = mem::take(&mut self.local.write().hooks);
-        hooks.retain(|h| h.call(events, update));
+        hooks.retain(|h| h.call(update));
 
         let mut write = self.local.write();
         hooks.append(&mut write.hooks);
@@ -473,8 +468,8 @@ pub struct EventUpdate {
     event: AnyEvent,
     args: Box<dyn AnyEventArgs>,
     delivery_list: UpdateDeliveryList,
-    pre_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate)>>,
-    pos_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate)>>,
+    pre_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate) + Send>>,
+    pos_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate) + Send>>,
 }
 impl EventUpdate {
     /// The event.
@@ -527,7 +522,7 @@ impl EventUpdate {
         }
     }
 
-    fn push_once_action(&mut self, action: Box<dyn FnOnce(&mut AppContext, &EventUpdate)>, is_preview: bool) {
+    fn push_once_action(&mut self, action: Box<dyn FnOnce(&mut AppContext, &EventUpdate) + Send>, is_preview: bool) {
         if is_preview {
             self.pre_actions.push(action);
         } else {
@@ -649,7 +644,7 @@ impl IntoIterator for EventHandles {
 
 struct EventHandleData {
     perm: AtomicBool,
-    hook: Option<Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool + Send + Sync>>,
+    hook: Option<Box<dyn Fn(&mut EventUpdate) -> bool + Send + Sync>>,
 }
 
 /// Represents an event widget subscription, handler callback or hook.
@@ -684,7 +679,7 @@ impl fmt::Debug for EventHandle {
     }
 }
 impl EventHandle {
-    fn new(hook: Box<dyn Fn(&mut Events, &mut EventUpdate) -> bool + Send + Sync>) -> (Self, EventHook) {
+    fn new(hook: Box<dyn Fn(&mut EventUpdate) -> bool + Send + Sync>) -> (Self, EventHook) {
         let rc = Arc::new(EventHandleData {
             perm: AtomicBool::new(false),
             hook: Some(hook),
@@ -731,7 +726,7 @@ impl EventHandle {
 struct EventHook(Arc<EventHandleData>);
 impl EventHook {
     /// Callback, returns `true` if the handle must be retained.
-    fn call(&self, events: &mut Events, update: &mut EventUpdate) -> bool {
-        (Arc::strong_count(&self.0) > 1 || self.0.perm.load(Ordering::Relaxed)) && (self.0.hook.as_ref().unwrap())(events, update)
+    fn call(&self, update: &mut EventUpdate) -> bool {
+        (Arc::strong_count(&self.0) > 1 || self.0.perm.load(Ordering::Relaxed)) && (self.0.hook.as_ref().unwrap())(update)
     }
 }

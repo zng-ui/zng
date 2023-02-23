@@ -2,7 +2,7 @@
 
 use crate::{
     app::{AppEventSender, LoopTimer},
-    event::{EventHandle, EventHandles, Events},
+    event::{EventHandle, EventHandles, EVENTS_SV},
     timer::TIMERS_SV,
     units::*,
     var::{VarHandle, VarHandles, Vars},
@@ -34,17 +34,16 @@ pub use value::*;
 pub(crate) struct OwnedAppContext {
     app_state: OwnedStateMap<state_map::App>,
     vars: Vars,
-    events: Events,
     updates: Updates,
 }
 impl OwnedAppContext {
     /// Produces the single instance of `AppContext` for a normal app run.
     pub fn instance(app_event_sender: AppEventSender) -> Self {
+        EVENTS_SV.init(app_event_sender.clone());
         let updates = Updates::new(app_event_sender.clone());
         OwnedAppContext {
             app_state: OwnedStateMap::new(),
             vars: Vars::instance(app_event_sender.clone()),
-            events: Events::instance(app_event_sender),
             updates,
         }
     }
@@ -64,7 +63,6 @@ impl OwnedAppContext {
         AppContext {
             app_state: self.app_state.borrow_mut(),
             vars: &self.vars,
-            events: &mut self.events,
             updates: &mut self.updates,
         }
     }
@@ -123,8 +121,6 @@ pub struct AppContext<'a> {
 
     /// Access to variables.
     pub vars: &'a Vars,
-    /// Access to application events.
-    pub events: &'a mut Events,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -153,7 +149,6 @@ impl<'a> AppContext<'a> {
             window_state: window_state.borrow_mut(),
             update_state: update_state.borrow_mut(),
             vars: self.vars,
-            events: self.events,
             updates: self.updates,
         });
 
@@ -185,8 +180,6 @@ pub struct WindowContext<'a> {
 
     /// Access to variables.
     pub vars: &'a Vars,
-    /// Access to application events.
-    pub events: &'a mut Events,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -220,7 +213,6 @@ impl<'a> WindowContext<'a> {
             },
 
             vars: self.vars,
-            events: self.events,
 
             updates: self.updates,
         })
@@ -368,11 +360,6 @@ pub struct TestWidgetContext {
     /// [`vars`]: WidgetContext::vars
     pub vars: Vars,
 
-    /// The [`events`] instance. No events registered by default.
-    ///
-    /// [`events`]: WidgetContext::events
-    pub events: Events,
-
     pub(crate) root_translation_key: crate::render::FrameValueKey<PxTransform>,
     receiver: flume::Receiver<crate::app::AppEvent>,
     loop_timer: crate::app::LoopTimer,
@@ -402,6 +389,7 @@ impl TestWidgetContext {
         let (sender, receiver) = AppEventSender::new();
         let window_id = WindowId::new_unique();
         let root_id = WidgetId::new_unique();
+        EVENTS_SV.write().init(sender.clone());
         Self {
             window_id,
             root_id,
@@ -413,7 +401,6 @@ impl TestWidgetContext {
             update_state: OwnedStateMap::new(),
             var_handles: Default::default(),
             event_handles: Default::default(),
-            events: Events::instance(sender.clone()),
             vars: Vars::instance(sender.clone()),
             updates: Updates::new(sender),
             root_translation_key: crate::render::FrameValueKey::new_unique(),
@@ -441,7 +428,6 @@ impl TestWidgetContext {
                 event_handles: &mut self.event_handles,
             },
             vars: &self.vars,
-            events: &mut self.events,
             updates: &mut self.updates,
         })
     }
@@ -733,8 +719,6 @@ pub struct WidgetContext<'a> {
 
     /// Access to variables.
     pub vars: &'a Vars,
-    /// Access to application events.
-    pub events: &'a mut Events,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -771,7 +755,6 @@ impl<'a> WidgetContext<'a> {
             },
 
             vars: self.vars,
-            events: self.events,
 
             updates: self.updates,
         });
@@ -804,7 +787,6 @@ impl<'a> WidgetContext<'a> {
                 event_handles,
             },
             vars: self.vars,
-            events: self.events,
             updates: self.updates,
         })
     }

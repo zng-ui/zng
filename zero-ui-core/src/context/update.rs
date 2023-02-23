@@ -913,7 +913,7 @@ impl UpdateDeliveryList {
 }
 
 /// Represents a set of widgets that subscribe to an event source.
-pub trait UpdateSubscribers: 'static {
+pub trait UpdateSubscribers: Send + 'static {
     /// Returns `true` if the widget is one of the subscribers.
     fn contains(&self, widget_id: WidgetId) -> bool;
 

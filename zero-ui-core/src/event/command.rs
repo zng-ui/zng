@@ -1,4 +1,4 @@
-use std::{any::TypeId, mem, rc::Rc};
+use std::{any::TypeId, mem};
 
 use crate::{
     app::App,
@@ -243,8 +243,8 @@ impl Command {
     /// be used to set the [`is_enabled`](Self::is_enabled) state.
     ///
     /// If the handle is scoped on a widget it it is added to the command event subscribers.
-    pub fn subscribe<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool) -> CommandHandle {
-        events.with_events(|events| self.local.write().subscribe(events, *self, enabled, None))
+    pub fn subscribe(&self, enabled: bool) -> CommandHandle {
+        self.local.write().subscribe(&mut *EVENTS_SV.write(), *self, enabled, None)
     }
 
     /// Create a new handle for this command for a handler in the `target` widget.
@@ -253,8 +253,8 @@ impl Command {
     /// Note that for widget scoped commands only the scope can receive the event, so the `target` is ignored.
     ///
     /// [`subscribe`]: Command::subscribe
-    pub fn subscribe_wgt<Evs: WithEvents>(&self, events: &mut Evs, enabled: bool, target: WidgetId) -> CommandHandle {
-        events.with_events(|events| self.local.write().subscribe(events, *self, enabled, Some(target)))
+    pub fn subscribe_wgt(&self, enabled: bool, target: WidgetId) -> CommandHandle {
+        self.local.write().subscribe(&mut *EVENTS_SV.write(), *self, enabled, Some(target))
     }
 
     /// Raw command event.
@@ -368,25 +368,25 @@ impl Command {
     }
 
     /// Schedule a command update without param.
-    pub fn notify<Ev: WithEvents>(&self, events: &mut Ev) {
-        self.event
-            .notify(events, CommandArgs::now(None, self.scope, self.is_enabled_value()))
+    pub fn notify(&self) {
+        self.event.notify(CommandArgs::now(None, self.scope, self.is_enabled_value()))
     }
 
     /// Schedule a command update with custom `param`.
-    pub fn notify_param<Ev: WithEvents>(&self, events: &mut Ev, param: impl Any) {
-        self.event.notify(
-            events,
-            CommandArgs::now(CommandParam::new(param), self.scope, self.is_enabled_value()),
-        );
+    pub fn notify_param(&self, param: impl Any + Send + Sync) {
+        self.event
+            .notify(CommandArgs::now(CommandParam::new(param), self.scope, self.is_enabled_value()));
     }
 
     /// Schedule a command update linked with an external event `propagation`.
-    pub fn notify_linked<Ev: WithEvents>(&self, events: &mut Ev, propagation: EventPropagationHandle, param: Option<CommandParam>) {
-        self.event.notify(
-            events,
-            CommandArgs::new(Instant::now(), propagation, param, self.scope, self.is_enabled_value()),
-        )
+    pub fn notify_linked(&self, propagation: EventPropagationHandle, param: Option<CommandParam>) {
+        self.event.notify(CommandArgs::new(
+            Instant::now(),
+            propagation,
+            param,
+            self.scope,
+            self.is_enabled_value(),
+        ))
     }
 
     pub(crate) fn update_state(&self, vars: &Vars) {
@@ -647,11 +647,11 @@ impl Drop for CommandHandle {
 
 /// Represents a reference counted `dyn Any` object.
 #[derive(Clone)]
-pub struct CommandParam(pub Rc<dyn Any>);
+pub struct CommandParam(pub Arc<dyn Any + Send + Sync>);
 impl CommandParam {
     /// New param.
-    pub fn new(param: impl Any + 'static) -> Self {
-        CommandParam(Rc::new(param))
+    pub fn new(param: impl Any + Send + Sync + 'static) -> Self {
+        CommandParam(Arc::new(param))
     }
 
     /// Gets the [`TypeId`] of the parameter.
@@ -1017,7 +1017,7 @@ impl CommandData {
         }
     }
 
-    fn subscribe(&mut self, events: &mut Events, command: Command, enabled: bool, mut target: Option<WidgetId>) -> CommandHandle {
+    fn subscribe(&mut self, events: &mut EventsService, command: Command, enabled: bool, mut target: Option<WidgetId>) -> CommandHandle {
         match command.scope {
             CommandScope::App => {
                 if !mem::replace(&mut self.registered, true) {
@@ -1234,7 +1234,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
         assert!(!FOO_CMD.has_handlers_value());
 
-        let handle = FOO_CMD.subscribe(&mut ctx, true);
+        let handle = FOO_CMD.subscribe(true);
         assert!(FOO_CMD.is_enabled_value());
 
         handle.set_enabled(false);
@@ -1257,7 +1257,7 @@ mod tests {
         assert!(!cmd.has_handlers_value());
         assert!(!cmd_scoped.has_handlers_value());
 
-        let handle_scoped = cmd_scoped.subscribe(&mut ctx, true);
+        let handle_scoped = cmd_scoped.subscribe(true);
         assert!(!cmd.has_handlers_value());
         assert!(cmd_scoped.is_enabled_value());
 
@@ -1280,7 +1280,7 @@ mod tests {
         let mut ctx = TestWidgetContext::new();
         assert!(!FOO_CMD.has_handlers_value());
 
-        let handle = FOO_CMD.subscribe(&mut ctx, false);
+        let handle = FOO_CMD.subscribe(false);
         assert!(FOO_CMD.has_handlers_value());
 
         drop(handle);
@@ -1297,7 +1297,7 @@ mod tests {
         assert!(!cmd.has_handlers_value());
         assert!(!cmd_scoped.has_handlers_value());
 
-        let handle = cmd_scoped.subscribe(&mut ctx, false);
+        let handle = cmd_scoped.subscribe(false);
 
         assert!(!cmd.has_handlers_value());
         assert!(cmd_scoped.has_handlers_value());

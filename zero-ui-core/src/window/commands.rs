@@ -73,15 +73,15 @@ pub(super) struct WindowCommands {
     close_handle: CommandHandle,
 }
 impl WindowCommands {
-    pub fn new(window_id: WindowId, events: &mut Events) -> Self {
+    pub fn new(window_id: WindowId) -> Self {
         WindowCommands {
-            maximize_handle: MAXIMIZE_CMD.scoped(window_id).subscribe(events, false),
-            minimize_handle: MINIMIZE_CMD.scoped(window_id).subscribe(events, false),
-            restore_handle: RESTORE_CMD.scoped(window_id).subscribe(events, false),
-            fullscreen_handle: FULLSCREEN_CMD.scoped(window_id).subscribe(events, true),
-            exclusive_handle: EXCLUSIVE_FULLSCREEN_CMD.scoped(window_id).subscribe(events, true),
+            maximize_handle: MAXIMIZE_CMD.scoped(window_id).subscribe(false),
+            minimize_handle: MINIMIZE_CMD.scoped(window_id).subscribe(false),
+            restore_handle: RESTORE_CMD.scoped(window_id).subscribe(false),
+            fullscreen_handle: FULLSCREEN_CMD.scoped(window_id).subscribe(true),
+            exclusive_handle: EXCLUSIVE_FULLSCREEN_CMD.scoped(window_id).subscribe(true),
 
-            close_handle: CLOSE_CMD.scoped(window_id).subscribe(events, true),
+            close_handle: CLOSE_CMD.scoped(window_id).subscribe(true),
         }
     }
 

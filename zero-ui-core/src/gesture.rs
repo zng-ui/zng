@@ -750,14 +750,14 @@ impl AppExtension for GestureManager {
         if let Some(args) = MOUSE_CLICK_EVENT.on(update) {
             // Generate click events from mouse clicks.
             if !args.propagation().is_stopped() {
-                CLICK_EVENT.notify(ctx.events, args.clone().into());
+                CLICK_EVENT.notify(args.clone().into());
             }
         } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
             // Generate shortcut events from keyboard input.
-            GESTURES_SV.write().on_key_input(ctx.events, args);
+            GESTURES_SV.write().on_key_input(args);
         } else if let Some(args) = SHORTCUT_EVENT.on(update) {
             // Run shortcut actions.
-            GESTURES_SV.write().on_shortcut(ctx.events, args);
+            GESTURES_SV.write().on_shortcut(args);
         }
     }
 }
@@ -829,12 +829,12 @@ impl GesturesService {
         handle
     }
 
-    fn on_key_input(&mut self, events: &mut Events, args: &KeyInputArgs) {
+    fn on_key_input(&mut self, args: &KeyInputArgs) {
         if let (false, Some(key)) = (args.propagation().is_stopped(), args.key) {
             match args.state {
                 KeyState::Pressed => {
                     if let Ok(gesture_key) = GestureKey::try_from(key) {
-                        self.on_shortcut_pressed(events, Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)), args);
+                        self.on_shortcut_pressed(Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)), args);
                         self.pressed_modifier = None;
                     } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
                         if !args.is_repeat {
@@ -849,7 +849,7 @@ impl GesturesService {
                     if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
                         if let (Some((window_id, gesture)), true) = (self.pressed_modifier.take(), args.modifiers.is_empty()) {
                             if window_id == args.target.window_id() && mod_gesture == gesture {
-                                self.on_shortcut_pressed(events, Shortcut::Modifier(mod_gesture), args);
+                                self.on_shortcut_pressed(Shortcut::Modifier(mod_gesture), args);
                             }
                         }
                     }
@@ -861,7 +861,7 @@ impl GesturesService {
             self.pressed_modifier = None;
         }
     }
-    fn on_shortcut_pressed(&mut self, events: &mut Events, mut shortcut: Shortcut, key_args: &KeyInputArgs) {
+    fn on_shortcut_pressed(&mut self, mut shortcut: Shortcut, key_args: &KeyInputArgs) {
         if let Some(starter) = self.primed_starter.take() {
             if let Shortcut::Gesture(g) = &shortcut {
                 if let Some(complements) = self.chords.get(&starter) {
@@ -872,26 +872,22 @@ impl GesturesService {
             }
         }
 
-        let actions = ShortcutActions::new(events, self, shortcut);
+        let actions = ShortcutActions::new(self, shortcut);
 
-        SHORTCUT_EVENT.notify(
-            events,
-            ShortcutArgs::new(
-                key_args.timestamp,
-                key_args.propagation().clone(),
-                key_args.window_id,
-                key_args.device_id,
-                shortcut,
-                key_args.is_repeat,
-                actions,
-            ),
-        );
+        SHORTCUT_EVENT.notify(ShortcutArgs::new(
+            key_args.timestamp,
+            key_args.propagation().clone(),
+            key_args.window_id,
+            key_args.device_id,
+            shortcut,
+            key_args.is_repeat,
+            actions,
+        ));
     }
 
-    fn on_shortcut(&mut self, events: &mut Events, args: &ShortcutArgs) {
+    fn on_shortcut(&mut self, args: &ShortcutArgs) {
         if args.actions.has_actions() {
-            args.actions
-                .run(events, args.timestamp, args.propagation(), args.device_id, args.is_repeat);
+            args.actions.run(args.timestamp, args.propagation(), args.device_id, args.is_repeat);
         } else if let Shortcut::Gesture(k) = args.shortcut {
             if self.chords.contains_key(&k) {
                 self.primed_starter = Some(k);
@@ -1046,8 +1042,8 @@ impl GESTURES {
     /// See the [struct] level docs for details of how shortcut targets are resolved.
     ///
     /// [struct]: Self
-    pub fn shortcut_actions(&self, events: &mut Events, shortcut: Shortcut) -> ShortcutActions {
-        ShortcutActions::new(events, &mut GESTURES_SV.write(), shortcut)
+    pub fn shortcut_actions(&self, shortcut: Shortcut) -> ShortcutActions {
+        ShortcutActions::new(&mut GESTURES_SV.write(), shortcut)
     }
 }
 
@@ -1063,7 +1059,7 @@ pub struct ShortcutActions {
     commands: Vec<Command>,
 }
 impl ShortcutActions {
-    fn new(events: &mut Events, gestures: &mut GesturesService, shortcut: Shortcut) -> ShortcutActions {
+    fn new(gestures: &mut GesturesService, shortcut: Shortcut) -> ShortcutActions {
         //    **First exclusively**:
         //
         //    * Primary [`click_shortcut`] targeting a widget that is enabled and focused.
@@ -1132,7 +1128,7 @@ impl ShortcutActions {
         }
 
         // commands
-        for cmd in events.commands() {
+        for cmd in EVENTS.commands() {
             if cmd.shortcut_matches(shortcut) {
                 match cmd.scope() {
                     CommandScope::Window(w) => {
@@ -1304,14 +1300,7 @@ impl ShortcutActions {
     }
 
     /// Send all events and focus request.
-    fn run(
-        &self,
-        events: &mut Events,
-        timestamp: Instant,
-        propagation: &EventPropagationHandle,
-        device_id: Option<DeviceId>,
-        is_repeat: bool,
-    ) {
+    fn run(&self, timestamp: Instant, propagation: &EventPropagationHandle, device_id: Option<DeviceId>, is_repeat: bool) {
         if let Some(target) = self.focus() {
             FOCUS.focus(FocusRequest::new(target, true));
         }
@@ -1331,10 +1320,10 @@ impl ShortcutActions {
                 self.shortcut.modifiers_state(),
                 target.clone(),
             );
-            CLICK_EVENT.notify(events, args);
+            CLICK_EVENT.notify(args);
         }
         for command in &self.commands {
-            command.notify_linked(events, propagation.clone(), None);
+            command.notify_linked(propagation.clone(), None);
         }
     }
 }

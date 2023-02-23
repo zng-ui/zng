@@ -10,7 +10,7 @@ use crate::{
     },
     app_local,
     context::AppContext,
-    event::{event, AnyEventArgs, EventUpdate, Events},
+    event::{event, AnyEventArgs, EventUpdate},
     event_args,
     text::*,
     units::*,
@@ -120,7 +120,7 @@ pub(super) struct MonitorsService {
     monitors: LinearMap<MonitorId, MonitorInfo>,
 }
 impl MonitorsService {
-    fn on_monitors_changed(&mut self, events: &mut Events, vars: &Vars, args: &RawMonitorsChangedArgs) {
+    fn on_monitors_changed(&mut self, vars: &Vars, args: &RawMonitorsChangedArgs) {
         let mut available_monitors: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
 
         let mut removed = vec![];
@@ -148,7 +148,7 @@ impl MonitorsService {
 
         if !removed.is_empty() || !added.is_empty() || !changed.is_empty() {
             let args = MonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), removed, added, changed);
-            MONITORS_CHANGED_EVENT.notify(events, args);
+            MONITORS_CHANGED_EVENT.notify(args);
         }
     }
 
@@ -158,10 +158,10 @@ impl MonitorsService {
                 m.scale_factor.set_ne(ctx.vars, args.scale_factor);
             }
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
-            MONITORS_SV.write().on_monitors_changed(ctx.events, ctx.vars, args);
+            MONITORS_SV.write().on_monitors_changed(ctx.vars, args);
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let args = RawMonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), args.available_monitors.clone());
-            MONITORS_SV.write().on_monitors_changed(ctx.events, ctx.vars, &args);
+            MONITORS_SV.write().on_monitors_changed(ctx.vars, &args);
         }
     }
 }

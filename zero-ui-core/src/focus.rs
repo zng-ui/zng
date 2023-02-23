@@ -476,12 +476,12 @@ impl AppExtension for FocusManager {
                     request = Some(FocusRequest::direct(widget_id, highlight));
                 }
             } else if let Some(args) = focus.continue_focus(ctx.vars) {
-                self.notify(ctx.vars, ctx.events, &mut focus, Some(args));
+                self.notify(ctx.vars, &mut focus, Some(args));
             }
 
             if let Some(window_id) = args.closed() {
                 for args in focus.cleanup_returns_win_closed(ctx.vars, window_id) {
-                    RETURN_FOCUS_CHANGED_EVENT.notify(ctx.events, args);
+                    RETURN_FOCUS_CHANGED_EVENT.notify(args);
                 }
             }
         } else if let Some(args) = crate::app::raw_events::RAW_KEY_INPUT_EVENT.on(update) {
@@ -492,7 +492,7 @@ impl AppExtension for FocusManager {
             let mut focus = FOCUS_SV.write();
             focus.pending_highlight = false;
             let args = focus.fulfill_request(ctx.vars, request);
-            self.notify(ctx.vars, ctx.events, &mut focus, args);
+            self.notify(ctx.vars, &mut focus, args);
         }
     }
 
@@ -501,10 +501,10 @@ impl AppExtension for FocusManager {
         if let Some(request) = focus.request.take() {
             focus.pending_highlight = false;
             let args = focus.fulfill_request(ctx.vars, request);
-            self.notify(ctx.vars, ctx.events, &mut focus, args);
+            self.notify(ctx.vars, &mut focus, args);
         } else if mem::take(&mut focus.pending_highlight) {
             let args = focus.continue_focus_highlight(ctx.vars, true);
-            self.notify(ctx.vars, ctx.events, &mut focus, args);
+            self.notify(ctx.vars, &mut focus, args);
         }
     }
 }
@@ -516,18 +516,18 @@ impl FocusManager {
 
         // widget tree rebuilt or visibility may have changed, check if focus is still valid
         let args = focus.continue_focus(ctx.vars);
-        self.notify(ctx.vars, ctx.events, focus, args);
+        self.notify(ctx.vars, focus, args);
 
         // cleanup return focuses.
         for args in focus.cleanup_returns(
             ctx.vars,
             FocusInfoTree::new(tree, focus.focus_disabled_widgets.get(), focus.focus_hidden_widgets.get()),
         ) {
-            RETURN_FOCUS_CHANGED_EVENT.notify(ctx.events, args);
+            RETURN_FOCUS_CHANGED_EVENT.notify(args);
         }
     }
 
-    fn notify(&mut self, vars: &Vars, events: &mut Events, focus: &mut FocusService, args: Option<FocusChangedArgs>) {
+    fn notify(&mut self, vars: &Vars, focus: &mut FocusService, args: Option<FocusChangedArgs>) {
         if let Some(mut args) = args {
             if !args.highlight && args.new_focus.is_some() {
                 if let Some(dur) = focus.auto_highlight.get() {
@@ -541,15 +541,15 @@ impl FocusManager {
 
             let reverse = args.cause.is_prev_request();
             let prev_focus = args.prev_focus.clone();
-            FOCUS_CHANGED_EVENT.notify(events, args);
+            FOCUS_CHANGED_EVENT.notify(args);
 
             // may have focused scope.
             while let Some(after_args) = focus.move_after_focus(vars, reverse) {
-                FOCUS_CHANGED_EVENT.notify(events, after_args);
+                FOCUS_CHANGED_EVENT.notify(after_args);
             }
 
             for return_args in focus.update_returns(vars, prev_focus) {
-                RETURN_FOCUS_CHANGED_EVENT.notify(events, return_args);
+                RETURN_FOCUS_CHANGED_EVENT.notify(return_args);
             }
         }
 

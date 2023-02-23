@@ -187,12 +187,12 @@ impl AppExtension for KeyboardManager {
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
             let focused = FOCUS.focused().get();
-            KEYBOARD_SV.write().key_input(ctx.events, ctx.vars, args, focused);
+            KEYBOARD_SV.write().key_input(ctx.vars, args, focused);
         } else if let Some(args) = RAW_CHAR_INPUT_EVENT.on(update) {
             let focused = FOCUS.focused().get();
             if let Some(target) = focused {
                 if target.window_id() == args.window_id {
-                    CHAR_INPUT_EVENT.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));
+                    CHAR_INPUT_EVENT.notify(CharInputArgs::now(args.window_id, args.character, target));
                 }
             }
         } else if let Some(args) = RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.on(update) {
@@ -318,7 +318,7 @@ struct KeyboardService {
     last_key_down: Option<(DeviceId, ScanCode, Instant)>,
 }
 impl KeyboardService {
-    fn key_input(&mut self, events: &mut Events, vars: &Vars, args: &RawKeyInputArgs, focused: Option<InteractionPath>) {
+    fn key_input(&mut self, vars: &Vars, args: &RawKeyInputArgs, focused: Option<InteractionPath>) {
         let mut repeat = false;
 
         // update state and vars
@@ -352,7 +352,7 @@ impl KeyboardService {
                     }
 
                     if key.is_modifier() {
-                        self.set_modifiers(events, vars, key, true);
+                        self.set_modifiers(vars, key, true);
                     }
                 }
             }
@@ -378,7 +378,7 @@ impl KeyboardService {
                     }
 
                     if key.is_modifier() {
-                        self.set_modifiers(events, vars, key, false);
+                        self.set_modifiers(vars, key, false);
                     }
                 }
             }
@@ -397,11 +397,11 @@ impl KeyboardService {
                     repeat,
                     target,
                 );
-                KEY_INPUT_EVENT.notify(events, args);
+                KEY_INPUT_EVENT.notify(args);
             }
         }
     }
-    fn set_modifiers(&mut self, events: &mut Events, vars: &Vars, key: Key, pressed: bool) {
+    fn set_modifiers(&mut self, vars: &Vars, key: Key, pressed: bool) {
         let prev_modifiers = self.current_modifiers();
 
         if pressed {
@@ -414,7 +414,7 @@ impl KeyboardService {
 
         if prev_modifiers != new_modifiers {
             self.modifiers.set(vars, new_modifiers);
-            MODIFIERS_CHANGED_EVENT.notify(events, ModifiersChangedArgs::now(prev_modifiers, new_modifiers));
+            MODIFIERS_CHANGED_EVENT.notify(ModifiersChangedArgs::now(prev_modifiers, new_modifiers));
         }
     }
 
@@ -473,7 +473,7 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
         use crate::app::raw_events::*;
 
         let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), key as u32, state, Some(key));
-        RAW_KEY_INPUT_EVENT.notify(self.ctx().events, args);
+        RAW_KEY_INPUT_EVENT.notify(args);
     }
 
     fn press_key(&mut self, window_id: WindowId, key: Key) {
