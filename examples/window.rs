@@ -181,8 +181,8 @@ fn screenshot() -> impl UiNode {
                 }
             }));
             enabled = enabled.clone();
-            on_click = hn!(|ctx, _| {
-                enabled.set(ctx.vars, false);
+            on_click = hn!(|_, _| {
+                enabled.set(false);
 
                 println!("taking `screenshot.png` using a new headless window ..");
                 WINDOWS.open_headless(clone_move!(enabled, |_| window! {
@@ -193,7 +193,7 @@ fn screenshot() -> impl UiNode {
                         child = text!("No Head!");
 
                         frame_capture_mode = FrameCaptureMode::Next;
-                        on_frame_image_ready = async_hn_once!(|ctx, args: FrameImageReadyArgs| {
+                        on_frame_image_ready = async_hn_once!(|_, args: FrameImageReadyArgs| {
                             println!("saving screenshot..");
                             match args.frame_image.unwrap().save("screenshot.png").await {
                                 Ok(_) => println!("saved"),
@@ -203,7 +203,7 @@ fn screenshot() -> impl UiNode {
                             let window_id = args.window_id;
                             WINDOWS.close(window_id).unwrap();
 
-                            enabled.set(&ctx, true);
+                            enabled.set(true);
                         });
                     }),
                     true
@@ -302,11 +302,11 @@ fn focus_control() -> impl UiNode {
         enabled = enabled.clone();
         child = text!("Focus in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
-            enabled.set(&ctx, false);
+            enabled.set(false);
             task::deadline(5.secs()).await;
 
             WINDOWS.focus(ctx.with(|ctx| ctx.path.window_id())).unwrap();
-            enabled.set(&ctx, true);
+            enabled.set(true);
         });
     };
 
@@ -315,13 +315,13 @@ fn focus_control() -> impl UiNode {
         enabled = enabled.clone();
         child = text!("Critical Alert in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
-            enabled.set(&ctx, false);
+            enabled.set(false);
             task::deadline(5.secs()).await;
 
             ctx.with(|ctx| {
-                WindowVars::req(ctx).focus_indicator().set(ctx.vars, Some(FocusIndicator::Critical));
+                WindowVars::req(ctx).focus_indicator().set(Some(FocusIndicator::Critical));
             });
-            enabled.set(&ctx, true);
+            enabled.set(true);
         });
     };
 
@@ -330,13 +330,13 @@ fn focus_control() -> impl UiNode {
         enabled = enabled.clone();
         child = text!("Info Alert in 5s");
         on_click = async_hn!(enabled, |ctx, _| {
-            enabled.set(&ctx, false);
+            enabled.set(false);
             task::deadline(5.secs()).await;
 
             ctx.with(|ctx| {
-                WindowVars::req(ctx).focus_indicator().set(ctx.vars, Some(FocusIndicator::Info));
+                WindowVars::req(ctx).focus_indicator().set(Some(FocusIndicator::Info));
             });
-            enabled.set(&ctx, true);
+            enabled.set(true);
         });
     };
 
@@ -372,11 +372,11 @@ fn visibility(window_vars: &WindowVars) -> impl UiNode {
     let btn = button! {
         enabled = visible.clone();
         child = text!("Hide for 1s");
-        on_click = async_hn!(visible, |ctx, _| {
-            visible.set(&ctx, false);
+        on_click = async_hn!(visible, |_, _| {
+            visible.set(false);
             println!("visible=false");
             task::deadline(1.secs()).await;
-            visible.set(&ctx, true);
+            visible.set(true);
             println!("visible=true");
         });
     };
@@ -461,9 +461,9 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
         match state.get() {
             CloseState::Ask => {
                 args.propagation().stop();
-                state.set(ctx, CloseState::Asking);
+                state.set(CloseState::Asking);
 
-                let dlg = close_dialog(ctx.vars, args.windows.clone().into(), state.clone());
+                let dlg = close_dialog(args.windows.clone().into(), state.clone());
                 WindowLayers::insert(ctx, LayerIndex::TOP_MOST, dlg)
             }
             CloseState::Asking => args.propagation().stop(),
@@ -472,9 +472,9 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
     })
 }
 
-fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNode {
+fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNode {
     let opacity = var(0.fct());
-    opacity.ease(vars, 1.fct(), 300.ms(), easing::linear).perm();
+    opacity.ease(1.fct(), 300.ms(), easing::linear).perm();
     container! {
         opacity = opacity.clone();
 
@@ -514,19 +514,19 @@ fn close_dialog(vars: &Vars, windows: Vec<WindowId>, state: ArcVar<CloseState>) 
                         children = ui_vec![
                             button! {
                                 child = strong!("Close");
-                                on_click = hn_once!(state, |ctx, _| {
-                                    state.set(ctx, CloseState::Close);
+                                on_click = hn_once!(state, |_, _| {
+                                    state.set(CloseState::Close);
                                     WINDOWS.close_together(windows).unwrap();
                                 })
                             },
                             button! {
                                 child = text!("Cancel");
                                 on_click = async_hn!(opacity, state, |ctx, _| {
-                                    opacity.ease(&ctx, 0.fct(), 150.ms(), easing::linear).perm();
+                                    opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
                                     ctx.yield_one().await;
                                     opacity.wait_animation().await;
 
-                                    state.set(&ctx, CloseState::Ask);
+                                    state.set(CloseState::Ask);
                                     ctx.with(|ctx| {
                                         WindowLayers::remove(ctx, "close-dialog");
                                     })

@@ -16,7 +16,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|ctx| {
+    App::default().run_window(|_| {
         window! {
             title = "Animation Example";
             padding = 10;
@@ -31,13 +31,13 @@ const TO_COLOR: Rgba = colors::GREEN;
 const FPS: u32 = 60;
 
 fn example() -> impl UiNode {
-    // vars.animation_time_scale().set(vars, 0.5.fct());
-    vars.frame_duration().set(vars, (1.0 / FPS as f32).secs());
+    // VARS.animation_time_scale().set(0.5.fct());
+    VARS.frame_duration().set((1.0 / FPS as f32).secs());
 
     let x = var(0.dip());
     let color = var(FROM_COLOR);
 
-    // x.trace_value(vars, move |v| {
+    // x.trace_value(move |v| {
     //     tracing::debug_span!("x", value = ?v, thread = "<x>").entered()
     // })
     // .perm();
