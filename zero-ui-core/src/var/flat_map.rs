@@ -43,16 +43,16 @@ where
             let weak_flat = Arc::downgrade(&flat);
             let map = Mutex::new(map);
             data.var_handle = data.var.hook(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
-            data.source_handle = source.hook(Box::new(move |vars, updates, value| {
+            data.source_handle = source.hook(Box::new(move |updates, value| {
                 if let Some(flat) = weak_flat.upgrade() {
                     if let Some(value) = value.as_any().downcast_ref() {
                         let mut data = flat.write();
                         let data = &mut *data;
                         data.var = map.lock()(value);
                         data.var_handle = data.var.hook(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
-                        data.last_update = vars.update_id();
+                        data.last_update = VARS.update_id();
                         data.var.with(|value| {
-                            data.hooks.retain(|h| h.call(vars, updates, value));
+                            data.hooks.retain(|h| h.call(updates, value));
                         });
                     }
                     true
@@ -65,12 +65,12 @@ where
         Self(flat)
     }
 
-    fn on_var_hook(weak_flat: Weak<RwLock<Data<T, V>>>) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
-        Box::new(move |vars, updates, value| {
+    fn on_var_hook(weak_flat: Weak<RwLock<Data<T, V>>>) -> Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
+        Box::new(move |updates, value| {
             if let Some(flat) = weak_flat.upgrade() {
                 let mut data = flat.write();
-                data.last_update = vars.update_id();
-                data.hooks.retain(|h| h.call(vars, updates, value));
+                data.last_update = VARS.update_id();
+                data.hooks.retain(|h| h.call(updates, value));
                 true
             } else {
                 false
@@ -139,8 +139,8 @@ where
         Box::new(self.get())
     }
 
-    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(vars, var_set_any(value))
+    fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(var_set_any(value))
     }
 
     fn last_update(&self) -> VarUpdateId {
@@ -151,7 +151,7 @@ where
         self.0.read().var.capabilities() | VarCapabilities::CAPS_CHANGE
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let (handle, weak_handle) = VarHandle::new(pos_modify_action);
         self.0.write().hooks.push(weak_handle);
         handle
@@ -242,12 +242,11 @@ where
         self.0.read_recursive().var.with(read)
     }
 
-    fn modify<V2, F>(&self, vars: &V2, modify: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        V2: WithVars,
-        F: FnOnce(&mut Cow<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + Send + 'static,
     {
-        self.0.read_recursive().var.modify(vars, modify)
+        self.0.read_recursive().var.modify(modify)
     }
 
     fn actual_var(self) -> Self {

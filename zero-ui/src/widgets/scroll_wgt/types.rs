@@ -135,113 +135,93 @@ impl ScrollContext {
     }
 
     /// Offset the vertical position by the given pixel `amount`.
-    pub fn scroll_vertical<Vw: WithVars>(vars: &Vw, amount: Px) {
-        vars.with_vars(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-            let content = SCROLL_CONTENT_SIZE_VAR.get().height;
+    pub fn scroll_vertical(amount: Px) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
-            let max_scroll = content - viewport;
+        let max_scroll = content - viewport;
 
-            if max_scroll <= Px(0) {
-                return;
-            }
+        if max_scroll <= Px(0) {
+            return;
+        }
 
-            let curr_scroll_fct = SCROLL_VERTICAL_OFFSET_VAR.get();
-            let curr_scroll = max_scroll * curr_scroll_fct;
-            let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
+        let curr_scroll_fct = SCROLL_VERTICAL_OFFSET_VAR.get();
+        let curr_scroll = max_scroll * curr_scroll_fct;
+        let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
 
-            if new_scroll != curr_scroll {
-                let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-                ScrollContext::chase_vertical(vars, new_offset.fct());
-            }
-        })
+        if new_scroll != curr_scroll {
+            let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
+            ScrollContext::chase_vertical(new_offset.fct());
+        }
     }
 
     /// Offset the horizontal position by the given pixel `amount`.
-    pub fn scroll_horizontal<Vw: WithVars>(vars: &Vw, amount: Px) {
-        vars.with_vars(|vars| {
-            let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-            let content = SCROLL_CONTENT_SIZE_VAR.get().width;
+    pub fn scroll_horizontal(amount: Px) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
+        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
-            let max_scroll = content - viewport;
+        let max_scroll = content - viewport;
 
-            if max_scroll <= Px(0) {
-                return;
-            }
+        if max_scroll <= Px(0) {
+            return;
+        }
 
-            let curr_scroll_fct = SCROLL_HORIZONTAL_OFFSET_VAR.get();
-            let curr_scroll = max_scroll * curr_scroll_fct;
-            let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
+        let curr_scroll_fct = SCROLL_HORIZONTAL_OFFSET_VAR.get();
+        let curr_scroll = max_scroll * curr_scroll_fct;
+        let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
 
-            if new_scroll != curr_scroll {
-                let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-                ScrollContext::chase_horizontal(vars, new_offset.fct());
-            }
-        })
+        if new_scroll != curr_scroll {
+            let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
+            ScrollContext::chase_horizontal(new_offset.fct());
+        }
     }
 
     /// Set the [`SCROLL_VERTICAL_OFFSET_VAR`] to `offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
     /// just setting the var if smooth scrolling is disabled.
-    pub fn chase_vertical<Vw: WithVars, F: Into<Factor>>(vars: &Vw, new_offset: F) {
-        vars.with_vars(|vars| {
-            let new_offset = new_offset.into().clamp_range();
+    pub fn chase_vertical<F: Into<Factor>>(new_offset: F) {
+        let new_offset = new_offset.into().clamp_range();
 
-            //smooth scrolling
-            let smooth = SMOOTH_SCROLLING_VAR.get();
-            if smooth.is_disabled() {
-                let _ = SCROLL_VERTICAL_OFFSET_VAR.set(vars, new_offset);
-            } else {
-                let mut config = SCROLL_CONFIG.write();
-                match &config.vertical {
-                    Some(anim) if !anim.handle.is_stopped() => {
-                        anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.get());
-                    }
-                    _ => {
-                        let ease = smooth.easing.clone();
-                        let anim = SCROLL_VERTICAL_OFFSET_VAR.chase_bounded(
-                            vars,
-                            new_offset,
-                            smooth.duration,
-                            move |t| ease(t),
-                            0.fct()..=1.fct(),
-                        );
-                        config.vertical = Some(anim);
-                    }
+        //smooth scrolling
+        let smooth = SMOOTH_SCROLLING_VAR.get();
+        if smooth.is_disabled() {
+            let _ = SCROLL_VERTICAL_OFFSET_VAR.set(new_offset);
+        } else {
+            let mut config = SCROLL_CONFIG.write();
+            match &config.vertical {
+                Some(anim) if !anim.handle.is_stopped() => {
+                    anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.get());
+                }
+                _ => {
+                    let ease = smooth.easing.clone();
+                    let anim = SCROLL_VERTICAL_OFFSET_VAR.chase_bounded(new_offset, smooth.duration, move |t| ease(t), 0.fct()..=1.fct());
+                    config.vertical = Some(anim);
                 }
             }
-        })
+        }
     }
 
     /// Set the [`SCROLL_HORIZONTAL_OFFSET_VAR`] to `offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
     /// just setting the var if smooth scrolling is disabled.
-    pub fn chase_horizontal<Vw: WithVars, F: Into<Factor>>(vars: &Vw, new_offset: F) {
-        vars.with_vars(|vars| {
-            let new_offset = new_offset.into().clamp_range();
+    pub fn chase_horizontal<F: Into<Factor>>(new_offset: F) {
+        let new_offset = new_offset.into().clamp_range();
 
-            //smooth scrolling
-            let smooth = SMOOTH_SCROLLING_VAR.get();
-            if smooth.is_disabled() {
-                let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(vars, new_offset);
-            } else {
-                let mut config = SCROLL_CONFIG.write();
-                match &config.horizontal {
-                    Some(anim) if !anim.handle.is_stopped() => {
-                        anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.get());
-                    }
-                    _ => {
-                        let ease = smooth.easing.clone();
-                        let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase_bounded(
-                            vars,
-                            new_offset,
-                            smooth.duration,
-                            move |t| ease(t),
-                            0.fct()..=1.fct(),
-                        );
-                        config.horizontal = Some(anim);
-                    }
+        //smooth scrolling
+        let smooth = SMOOTH_SCROLLING_VAR.get();
+        if smooth.is_disabled() {
+            let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(new_offset);
+        } else {
+            let mut config = SCROLL_CONFIG.write();
+            match &config.horizontal {
+                Some(anim) if !anim.handle.is_stopped() => {
+                    anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.get());
+                }
+                _ => {
+                    let ease = smooth.easing.clone();
+                    let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase_bounded(new_offset, smooth.duration, move |t| ease(t), 0.fct()..=1.fct());
+                    config.horizontal = Some(anim);
                 }
             }
-        })
+        }
     }
 
     /// Returns `true` if the content height is greater then the viewport height.

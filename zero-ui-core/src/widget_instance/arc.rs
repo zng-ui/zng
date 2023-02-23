@@ -358,8 +358,8 @@ mod impls {
             self.var.get()
         }
 
-        fn take_on_update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) -> bool {
-            self.var.get_new(ctx).unwrap_or(false)
+        fn take_on_update(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates) -> bool {
+            self.var.get_new().unwrap_or(false)
         }
     }
 

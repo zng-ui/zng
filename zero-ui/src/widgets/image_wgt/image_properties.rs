@@ -339,7 +339,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
+            if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
                 if let Some(error) = new_img.error() {
                     if self.error != error {
                         self.error = error;
@@ -390,7 +390,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
+            if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
                 if new_img.is_loaded() {
                     self.handler.event(ctx, &ImageLoadArgs {});
                 }

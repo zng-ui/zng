@@ -120,17 +120,17 @@ impl<T: VarValue> ArcMergeVar<T> {
             .filter_map(|(i, var)| {
                 if var.capabilities().contains(VarCapabilities::NEW) {
                     let wk_merge = wk_merge.clone();
-                    let handle = var.hook(Box::new(move |vars, _, value| {
+                    let handle = var.hook(Box::new(move |_, value| {
                         if let Some(rc_merge) = wk_merge.upgrade() {
                             let mut data = rc_merge.m.lock();
                             let data_mut = &mut *data;
                             if value.as_any().type_id() == data_mut.inputs[i].as_any().type_id() {
                                 data_mut.inputs[i] = value.clone_boxed();
 
-                                if data_mut.last_apply_request != vars.apply_update_id() {
-                                    data_mut.last_apply_request = vars.apply_update_id();
+                                if data_mut.last_apply_request != VARS.apply_update_id() {
+                                    data_mut.last_apply_request = VARS.apply_update_id();
                                     drop(data);
-                                    vars.schedule_update(ArcMergeVar::update_merge(rc_merge));
+                                    VARS.schedule_update(ArcMergeVar::update_merge(rc_merge));
                                 }
                             }
                             true
@@ -154,11 +154,11 @@ impl<T: VarValue> ArcMergeVar<T> {
     }
 
     fn update_merge(rc_merge: Arc<Data<T>>) -> VarUpdateFn {
-        Box::new(move |vars, updates| {
+        Box::new(move |updates| {
             let mut m = rc_merge.m.lock();
             let m = &mut *m;
             let new_value = (m.merge)(&m.inputs);
-            rc_merge.value.apply_modify(vars, updates, |v| *v = Cow::Owned(new_value));
+            rc_merge.value.apply_modify(updates, |v| *v = Cow::Owned(new_value));
         })
     }
 }
@@ -200,7 +200,7 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
         Box::new(self.get())
     }
 
-    fn set_any(&self, _: &Vars, _: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+    fn set_any(&self, _: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),
         })
@@ -218,7 +218,7 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
         }
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.0.value.push_hook(pos_modify_action)
     }
 
@@ -295,9 +295,8 @@ impl<T: VarValue> Var<T> for ArcMergeVar<T> {
         self.0.value.with(read)
     }
 
-    fn modify<V, F>(&self, _: &V, _: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, _: F) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
         F: FnOnce(&mut Cow<T>) + 'static,
     {
         Err(VarIsReadOnlyError {

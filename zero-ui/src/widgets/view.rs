@@ -140,7 +140,7 @@ where
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.data.is_new(ctx) {
+            if self.data.is_new() {
                 if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
                     self.child.deinit(ctx);
                     self.child = new_child;
@@ -318,7 +318,7 @@ impl<D> WidgetGenerator<D> {
                     return;
                 }
 
-                match (self.update)(ctx, self.gen.is_new(ctx.vars)) {
+                match (self.update)(ctx, self.gen.is_new()) {
                     DataUpdate::Update(data) => {
                         if let Some(mut old) = self.child.take() {
                             old.deinit(ctx);

@@ -21,10 +21,10 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|ctx| {
+    App::default().run_window(|_| {
         // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
         // in here and overridden for each image with the "img_limits" property.
-        IMAGES.limits().modify(ctx, |l| {
+        IMAGES.limits().modify(|l| {
             l.to_mut().allow_uri = zero_ui::core::image::UriFilter::AllowAll;
         });
 
@@ -214,14 +214,14 @@ fn sprite() -> impl UiNode {
                 child = text!(label.clone());
                 align = Align::CENTER;
                 padding = (2, 3);
-                on_click = hn!(timer, |ctx, _| {
+                on_click = hn!(timer, |_, _| {
                     let t = timer.get();
                     if t.is_paused() {
                         t.play(false);
                     } else {
                         t.pause();
                     }
-                    label.set(ctx, if t.is_paused() { "play" } else { "pause" });
+                    label.set(if t.is_paused() { "play" } else { "pause" });
                 });
             },
             image! {
@@ -290,8 +290,8 @@ fn block_window_load_image() -> impl UiNode {
     button! {
         child = text!(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
         enabled = enabled.clone();
-        on_click = hn!(|ctx, _| {
-            enabled.set(ctx, false);
+        on_click = hn!(|_, _| {
+            enabled.set(false);
             WINDOWS.open(clone_move!(enabled, |_| img_window! {
                 title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
                 state = WindowState::Normal;
@@ -313,8 +313,8 @@ fn block_window_load_image() -> impl UiNode {
                     }
                 };
 
-                on_load = hn!(enabled, |ctx, _| {
-                    enabled.set(ctx, true);
+                on_load = hn!(enabled, |_, _| {
+                    enabled.set(true);
                 });
             }));
         });

@@ -2002,11 +2002,11 @@ mod tests {
         // if it builds it passes
 
         test_infer(hn!(|cx, _| {
-            let _ = cx.vars;
+            let _ = cx.updates;
         }));
 
         test_infer(hn!(|cx, a: &ClickArgs| {
-            let _ = cx.vars;
+            let _ = cx.updates;
             println!("{}", a.click_count);
         }));
     }
@@ -2015,11 +2015,11 @@ mod tests {
         // if it builds it passes
 
         test_infer(hn_once!(|cx, _| {
-            let _ = cx.vars;
+            let _ = cx.updates;
         }));
 
         test_infer(hn_once!(|cx, a: &ClickArgs| {
-            let _ = cx.vars;
+            let _ = cx.updates;
             println!("{}", a.click_count);
         }))
     }
@@ -2030,13 +2030,13 @@ mod tests {
 
         test_infer(async_hn!(|cx, _| {
             cx.with(|cx| {
-                let _ = cx.vars;
+                let _ = cx.updates;
             });
         }));
 
         test_infer(async_hn!(|cx, a: ClickArgs| {
             cx.with(|cx| {
-                let _ = cx.vars;
+                let _ = cx.updates;
             });
             println!("{}", a.click_count);
         }));
@@ -2047,13 +2047,13 @@ mod tests {
 
         test_infer(async_hn_once!(|cx, _| {
             cx.with(|cx| {
-                let _ = cx.vars;
+                let _ = cx.updates;
             });
         }));
 
         test_infer(async_hn_once!(|cx, a: ClickArgs| {
             cx.with(|cx| {
-                let _ = cx.vars;
+                let _ = cx.updates;
             });
             println!("{}", a.click_count);
         }));

@@ -13,7 +13,7 @@ use crate::event::{event, event_args, EventUpdate, EVENTS};
 use crate::image::ImageManager;
 use crate::timer::TimersService;
 use crate::units::Deadline;
-use crate::var::Vars;
+use crate::var::VARS;
 use crate::window::WindowMode;
 use crate::{context::*, widget_instance::WidgetId};
 use crate::{
@@ -934,11 +934,6 @@ impl<E: AppExtension> RunningApp<E> {
         self.owned_ctx.borrow()
     }
 
-    /// Borrow the [`Vars`] only.
-    pub fn vars(&self) -> &Vars {
-        self.owned_ctx.vars()
-    }
-
     /// Notify an event directly to the app extensions.
     pub fn notify_event<O: AppEventObserver>(&mut self, mut update: EventUpdate, observer: &mut O) {
         let _scope = tracing::trace_span!("notify_event", event = update.event().name()).entered();
@@ -1178,7 +1173,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
             Event::AnimationsConfigChanged(cfg) => {
-                self.ctx().vars.update_animations_config(&cfg);
+                VARS.update_animations_config(&cfg);
                 let args = RawAnimationsConfigChangedArgs::now(cfg);
                 self.notify_event(RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
@@ -1308,7 +1303,7 @@ impl<E: AppExtension> RunningApp<E> {
                         .map(|(id, info)| (VIEW_PROCESS.monitor_id(id), info))
                         .collect();
 
-                    self.ctx().vars.update_animations_config(&animations_config);
+                    VARS.update_animations_config(&animations_config);
 
                     let args = ViewProcessInitedArgs::now(
                         generation,
@@ -1338,7 +1333,7 @@ impl<E: AppExtension> RunningApp<E> {
                 }
             },
             AppEvent::Event(ev) => EVENTS.notify(ev.get()),
-            AppEvent::Var => self.ctx().vars.receive_sended_modify(),
+            AppEvent::Var => VARS.receive_sended_modify(),
             AppEvent::Update(targets) => self.ctx().updates.recv_update_internal(targets),
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
@@ -1453,7 +1448,7 @@ impl<E: AppExtension> RunningApp<E> {
 
         self.owned_ctx.next_deadline(&mut self.loop_timer);
 
-        if self.extensions.0.exit(self.owned_ctx.vars()) {
+        if self.extensions.0.exit() {
             ControlFlow::Exit
         } else if self.has_pending_updates() {
             ControlFlow::Poll
@@ -1759,11 +1754,6 @@ impl HeadlessApp {
         self.app.ctx()
     }
 
-    /// Borrow the [`Vars`] only.
-    pub fn vars(&self) -> &Vars {
-        self.app.vars()
-    }
-
     /// If device events are enabled in this app.
     pub fn device_events(&self) -> bool {
         self.app.device_events()
@@ -1874,9 +1864,9 @@ impl HeadlessApp {
     ///
     /// Forces deinit if exit is cancelled.
     pub fn exit(mut self) {
-        self.run_task(|ctx| async move {
+        self.run_task(|_| async move {
             let req = APP_PROCESS.exit();
-            req.wait_rsp(&ctx).await;
+            req.wait_rsp().await;
         });
     }
 }

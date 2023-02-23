@@ -70,27 +70,27 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(20);
 
         update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
-                assert_eq!(Some(20i32), a.get_new(ctx));
-                assert_eq!(Some("20".to_text()), b.get_new(ctx));
+                assert_eq!(Some(20i32), a.get_new());
+                assert_eq!(Some("20".to_text()), b.get_new());
             },
             false,
         );
         assert_eq!(1, update_count);
 
-        a.set(app.ctx().vars, 13);
+        a.set(13);
 
         update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
-                assert_eq!(Some(13i32), a.get_new(ctx));
-                assert_eq!(Some("13".to_text()), b.get_new(ctx));
+                assert_eq!(Some(13i32), a.get_new());
+                assert_eq!(Some("13".to_text()), b.get_new());
             },
             false,
         );
@@ -115,27 +115,27 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(20);
 
         update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
-                assert_eq!(Some(20i32), a.get_new(ctx));
-                assert_eq!(Some("20".to_text()), b.get_new(ctx));
+                assert_eq!(Some(20i32), a.get_new());
+                assert_eq!(Some("20".to_text()), b.get_new());
             },
             false,
         );
         assert_eq!(1, update_count);
 
-        b.set(app.ctx().vars, "55");
+        b.set("55");
 
         update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
-                assert_eq!(Some("55".to_text()), b.get_new(ctx));
-                assert_eq!(Some(55i32), a.get_new(ctx));
+                assert_eq!(Some("55".to_text()), b.get_new());
+                assert_eq!(Some(55i32), a.get_new());
             },
             false,
         );
@@ -160,28 +160,28 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(20);
 
         update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
-                assert_eq!(Some(20i32), a.get_new(ctx));
-                assert_eq!(Some("20".to_text()), b.get_new(ctx));
+                assert_eq!(Some(20i32), a.get_new());
+                assert_eq!(Some("20".to_text()), b.get_new());
             },
             false,
         );
         assert_eq!(1, update_count);
 
-        a.set(app.ctx().vars, 13);
+        a.set(13);
 
         update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
-                assert_eq!(Some(13i32), a.get_new(ctx));
+                assert_eq!(Some(13i32), a.get_new());
                 assert_eq!("20".to_text(), b.get());
-                assert!(!b.is_new(ctx));
+                assert!(!b.is_new());
             },
             false,
         );
@@ -206,41 +206,41 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(20);
 
         update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
-                assert_eq!(Some(20i32), a.get_new(ctx));
-                assert_eq!(Some("20".to_text()), b.get_new(ctx));
+                assert_eq!(Some(20i32), a.get_new());
+                assert_eq!(Some("20".to_text()), b.get_new());
             },
             false,
         );
         assert_eq!(1, update_count);
 
-        b.set(app.ctx().vars, "55");
+        b.set("55");
 
         update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
-                assert_eq!(Some("55".to_text()), b.get_new(ctx));
-                assert_eq!(Some(55i32), a.get_new(ctx));
+                assert_eq!(Some("55".to_text()), b.get_new());
+                assert_eq!(Some(55i32), a.get_new());
             },
             false,
         );
         assert_eq!(1, update_count);
 
-        b.set(app.ctx().vars, "not a i32");
+        b.set("not a i32");
 
         update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
-                assert_eq!(Some("not a i32".to_text()), b.get_new(ctx));
+                assert_eq!(Some("not a i32".to_text()), b.get_new());
                 assert_eq!(55i32, a.get());
-                assert!(!a.is_new(ctx));
+                assert!(!a.is_new());
             },
             false,
         );
@@ -269,33 +269,33 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(20);
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
 
-                assert_eq!(Some(20), a.get_new(ctx));
-                assert_eq!(Some(21), b.get_new(ctx));
-                assert_eq!(Some(22), c.get_new(ctx));
-                assert_eq!(Some(23), d.get_new(ctx));
+                assert_eq!(Some(20), a.get_new());
+                assert_eq!(Some(21), b.get_new());
+                assert_eq!(Some(22), c.get_new());
+                assert_eq!(Some(23), d.get_new());
             },
             false,
         );
         assert_eq!(1, update_count);
 
-        a.set(app.ctx().vars, 30);
+        a.set(30);
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
 
-                assert_eq!(Some(30), a.get_new(ctx));
-                assert_eq!(Some(31), b.get_new(ctx));
-                assert_eq!(Some(32), c.get_new(ctx));
-                assert_eq!(Some(33), d.get_new(ctx));
+                assert_eq!(Some(30), a.get_new());
+                assert_eq!(Some(31), b.get_new());
+                assert_eq!(Some(32), c.get_new());
+                assert_eq!(Some(33), d.get_new());
             },
             false,
         );
@@ -324,33 +324,33 @@ mod bindings {
         );
         assert_eq!(0, update_count);
 
-        a.set(app.ctx().vars, 20);
+        a.set(20);
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
 
-                assert_eq!(Some(20), a.get_new(ctx));
-                assert_eq!(Some(20), b.get_new(ctx));
-                assert_eq!(Some(20), c.get_new(ctx));
-                assert_eq!(Some(20), d.get_new(ctx));
+                assert_eq!(Some(20), a.get_new());
+                assert_eq!(Some(20), b.get_new());
+                assert_eq!(Some(20), c.get_new());
+                assert_eq!(Some(20), d.get_new());
             },
             false,
         );
         assert_eq!(1, update_count);
 
-        d.set(app.ctx().vars, 30);
+        d.set(30);
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
 
-                assert_eq!(Some(30), a.get_new(ctx));
-                assert_eq!(Some(30), b.get_new(ctx));
-                assert_eq!(Some(30), c.get_new(ctx));
-                assert_eq!(Some(30), d.get_new(ctx));
+                assert_eq!(Some(30), a.get_new());
+                assert_eq!(Some(30), b.get_new());
+                assert_eq!(Some(30), c.get_new());
+                assert_eq!(Some(30), d.get_new());
             },
             false,
         );
@@ -366,15 +366,15 @@ mod bindings {
 
         let handle = a.bind_map(&b, |i| *i + 1);
 
-        a.set(app.ctx().vars, 10);
+        a.set(10);
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
 
-                assert_eq!(Some(10), a.get_new(ctx));
-                assert_eq!(Some(11), b.get_new(ctx));
+                assert_eq!(Some(10), a.get_new());
+                assert_eq!(Some(11), b.get_new());
             },
             false,
         );
@@ -382,15 +382,15 @@ mod bindings {
 
         drop(handle);
 
-        a.set(app.ctx().vars, 100);
+        a.set(100);
 
         update_count = 0;
         let _ = app.update_observe(
-            |ctx| {
+            |_| {
                 update_count += 1;
 
-                assert_eq!(Some(100), a.get_new(ctx));
-                assert!(!b.is_new(ctx));
+                assert_eq!(Some(100), a.get_new());
+                assert!(!b.is_new());
                 assert_eq!(11, b.get());
             },
             false,
@@ -646,12 +646,10 @@ mod context {
 
         let backing_var = var(Text::from(""));
 
-        let ctx = app.ctx();
-
         TEST_VAR.with_context(ContextInitHandle::new(), backing_var.clone(), || {
             let t = TEST_VAR;
             assert!(t.capabilities().contains(VarCapabilities::MODIFY));
-            t.set(ctx.vars, "set!").unwrap();
+            t.set("set!").unwrap();
         });
 
         let _ = app.update(false);
@@ -680,7 +678,7 @@ mod context {
 
         assert_eq!(".", other_var.get());
 
-        input_var.set(test.ctx().vars, "Update!");
+        input_var.set("Update!");
 
         test.update(false).assert_wait();
 
@@ -766,32 +764,32 @@ mod flat_map {
 
         assert_eq!(32, test.get());
 
-        source.get().var.set(&ctx.vars, 42usize);
+        source.get().var.set(42usize);
 
         let (_, ctx_updates) = ctx.apply_updates();
 
         assert!(ctx_updates.update);
-        assert!(test.is_new(&ctx));
+        assert!(test.is_new());
         assert_eq!(42, test.get());
 
         let (_, ctx_updates) = ctx.apply_updates();
         assert!(!ctx_updates.update);
 
         let old_var = source.get().var;
-        source.set(&ctx, Foo { bar: false, var: var(192) });
+        source.set(Foo { bar: false, var: var(192) });
         let (_, ctx_updates) = ctx.apply_updates();
 
         assert!(ctx_updates.update);
-        assert!(test.is_new(&ctx));
+        assert!(test.is_new());
         assert_eq!(192, test.get());
 
         let (_, ctx_updates) = ctx.apply_updates();
         assert!(!ctx_updates.update);
 
-        old_var.set(&ctx, 220usize);
+        old_var.set(220usize);
         let (_, ctx_updates) = ctx.apply_updates();
         assert!(ctx_updates.update);
-        assert!(!test.is_new(&ctx));
+        assert!(!test.is_new());
         assert_eq!(192, test.get());
     }
 }

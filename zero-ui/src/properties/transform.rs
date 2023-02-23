@@ -20,7 +20,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
     impl UiNode for TransformNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
-            if self.transform.is_new(ctx.vars) {
+            if self.transform.is_new() {
                 ctx.updates.layout();
             }
         }

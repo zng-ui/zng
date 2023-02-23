@@ -5,7 +5,7 @@ use crate::{
     event::{EventHandle, EventHandles, EVENTS, EVENTS_SV},
     timer::TIMERS_SV,
     units::*,
-    var::{VarHandle, VarHandles, Vars},
+    var::{VarHandle, VarHandles, VARS, VARS_SV},
     widget_info::{InlineSegmentPos, WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
     widget_instance::{UiNode, WidgetId},
     window::{WindowId, WindowMode},
@@ -33,17 +33,16 @@ pub use value::*;
 /// You can only have one instance of this at a time per-thread at a time.
 pub(crate) struct OwnedAppContext {
     app_state: OwnedStateMap<state_map::App>,
-    vars: Vars,
     updates: Updates,
 }
 impl OwnedAppContext {
     /// Produces the single instance of `AppContext` for a normal app run.
     pub fn instance(app_event_sender: AppEventSender) -> Self {
         EVENTS_SV.write().init(app_event_sender.clone());
-        let updates = Updates::new(app_event_sender.clone());
+        VARS_SV.write().init(app_event_sender.clone());
+        let updates = Updates::new(app_event_sender);
         OwnedAppContext {
             app_state: OwnedStateMap::new(),
-            vars: Vars::instance(app_event_sender),
             updates,
         }
     }
@@ -62,22 +61,16 @@ impl OwnedAppContext {
     pub fn borrow(&mut self) -> AppContext {
         AppContext {
             app_state: self.app_state.borrow_mut(),
-            vars: &self.vars,
             updates: &mut self.updates,
         }
-    }
-
-    /// Borrow the [`Vars`] only.
-    pub fn vars(&self) -> &Vars {
-        &self.vars
     }
 
     /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update
     /// requests and a time for the loop to awake and update.
     #[must_use]
     pub fn apply_updates(&mut self) -> ContextUpdates {
-        let events = EVENTS.apply_updates(&self.vars);
-        self.vars.apply_updates(&mut self.updates);
+        let events = EVENTS.apply_updates();
+        VARS.apply_updates(&mut self.updates);
 
         let (update, update_widgets, layout, render) = self.updates.take_updates();
 
@@ -93,13 +86,13 @@ impl OwnedAppContext {
     /// Returns next timer or animation tick time.
     pub fn next_deadline(&mut self, timer: &mut LoopTimer) {
         TIMERS_SV.write().next_deadline(timer);
-        self.vars.next_deadline(timer);
+        VARS.next_deadline(timer);
     }
 
     /// Update timers and animations, returns next wake time.
     pub fn update_timers(&mut self, timer: &mut LoopTimer) {
-        TIMERS_SV.write().apply_updates(&self.vars, timer);
-        self.vars.update_animations(timer);
+        TIMERS_SV.write().apply_updates(timer);
+        VARS.update_animations(timer);
     }
 
     /// If a call to `apply_updates` will generate updates (ignoring timers).
@@ -108,7 +101,7 @@ impl OwnedAppContext {
         self.updates.update_requested()
             || self.updates.layout_requested()
             || self.updates.render_requested()
-            || self.vars.has_pending_updates()
+            || VARS.has_pending_updates()
             || EVENTS_SV.write().has_pending_updates()
             || TIMERS_SV.read().has_pending_updates()
     }
@@ -118,9 +111,6 @@ impl OwnedAppContext {
 pub struct AppContext<'a> {
     /// State that lives for the duration of the application.
     pub app_state: StateMapMut<'a, state_map::App>,
-
-    /// Access to variables.
-    pub vars: &'a Vars,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -148,7 +138,6 @@ impl<'a> AppContext<'a> {
             app_state: self.app_state.reborrow(),
             window_state: window_state.borrow_mut(),
             update_state: update_state.borrow_mut(),
-            vars: self.vars,
             updates: self.updates,
         });
 
@@ -177,9 +166,6 @@ pub struct WindowContext<'a> {
     /// state so properties and event handlers can use this state to communicate to further nodes along the
     /// update sequence.
     pub update_state: StateMapMut<'a, state_map::Update>,
-
-    /// Access to variables.
-    pub vars: &'a Vars,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -211,8 +197,6 @@ impl<'a> WindowContext<'a> {
                 var_handles,
                 event_handles,
             },
-
-            vars: self.vars,
 
             updates: self.updates,
         })
@@ -262,8 +246,6 @@ impl<'a> WindowContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: root_widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
-
-            vars: self.vars,
 
             updates: self.updates,
         })
@@ -355,11 +337,6 @@ pub struct TestWidgetContext {
     /// [`apply_updates`]: TestWidgetContext::apply_updates
     pub updates: Updates,
 
-    /// The [`vars`] instance.
-    ///
-    /// [`vars`]: WidgetContext::vars
-    pub vars: Vars,
-
     pub(crate) root_translation_key: crate::render::FrameValueKey<PxTransform>,
     receiver: flume::Receiver<crate::app::AppEvent>,
     loop_timer: crate::app::LoopTimer,
@@ -390,6 +367,7 @@ impl TestWidgetContext {
         let window_id = WindowId::new_unique();
         let root_id = WidgetId::new_unique();
         EVENTS_SV.write().init(sender.clone());
+        VARS_SV.write().init(sender.clone());
         Self {
             window_id,
             root_id,
@@ -401,7 +379,6 @@ impl TestWidgetContext {
             update_state: OwnedStateMap::new(),
             var_handles: Default::default(),
             event_handles: Default::default(),
-            vars: Vars::instance(sender.clone()),
             updates: Updates::new(sender),
             root_translation_key: crate::render::FrameValueKey::new_unique(),
 
@@ -427,7 +404,6 @@ impl TestWidgetContext {
                 var_handles: &mut self.var_handles,
                 event_handles: &mut self.event_handles,
             },
-            vars: &self.vars,
             updates: &mut self.updates,
         })
     }
@@ -482,7 +458,6 @@ impl TestWidgetContext {
             window_state: self.window_state.borrow_mut(),
             widget_state: self.widget_state.borrow_mut(),
             update_state: self.update_state.borrow_mut(),
-            vars: &self.vars,
             updates: &mut self.updates,
         })
     }
@@ -511,13 +486,13 @@ impl TestWidgetContext {
             match ev {
                 crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
                 crate::app::AppEvent::Event(ev) => EVENTS.notify(ev.get()),
-                crate::app::AppEvent::Var => self.vars.receive_sended_modify(),
+                crate::app::AppEvent::Var => VARS.receive_sended_modify(),
                 crate::app::AppEvent::Update(targets) => self.updates.recv_update_internal(targets),
                 crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
             }
         }
-        let events = EVENTS.apply_updates(&self.vars);
-        self.vars.apply_updates(&mut self.updates);
+        let events = EVENTS.apply_updates();
+        VARS.apply_updates(&mut self.updates);
         let (update, update_widgets, layout, render) = self.updates.take_updates();
 
         (
@@ -536,8 +511,8 @@ impl TestWidgetContext {
     pub fn update_timers(&mut self) -> Option<Deadline> {
         self.loop_timer.awake();
 
-        TIMERS_SV.write().apply_updates(&self.vars, &mut self.loop_timer);
-        self.vars.update_animations(&mut self.loop_timer);
+        TIMERS_SV.write().apply_updates(&mut self.loop_timer);
+        VARS.update_animations(&mut self.loop_timer);
 
         self.loop_timer.poll()
     }
@@ -717,9 +692,6 @@ pub struct WidgetContext<'a> {
     /// These handles are kept in the widget instance and are dropped on deinit.
     pub handles: WidgetHandles<'a>,
 
-    /// Access to variables.
-    pub vars: &'a Vars,
-
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 }
@@ -754,8 +726,6 @@ impl<'a> WidgetContext<'a> {
                 event_handles,
             },
 
-            vars: self.vars,
-
             updates: self.updates,
         });
 
@@ -786,7 +756,6 @@ impl<'a> WidgetContext<'a> {
                 var_handles,
                 event_handles,
             },
-            vars: self.vars,
             updates: self.updates,
         })
     }
@@ -1199,14 +1168,6 @@ pub struct LayoutContext<'a> {
     /// State that lives for the duration of the node tree layout update call in the window.
     pub update_state: StateMapMut<'a, state_map::Update>,
 
-    /// Access to variables.
-    ///
-    /// Note that if you assign a variable any frame request is deferred and the app loop goes back
-    /// to the [`UiNode::update`] cycle.
-    ///
-    /// [`UiNode::update`]: crate::widget_instance::UiNode::update
-    pub vars: &'a Vars,
-
     /// Updates that can be requested in layout context.
     pub updates: &'a mut LayoutUpdates,
 }
@@ -1238,7 +1199,6 @@ impl<'a> LayoutContext<'a> {
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
 
-            vars: self.vars,
             updates: self.updates,
         })
     }
@@ -1269,7 +1229,6 @@ impl<'a> LayoutContext<'a> {
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
 
-            vars: self.vars,
             updates: self.updates,
         })
     }
@@ -1338,7 +1297,6 @@ impl<'a> LayoutContext<'a> {
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
 
-            vars: self.vars,
             updates: self.updates,
         })
     }
@@ -1357,7 +1315,6 @@ impl<'a> LayoutContext<'a> {
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
 
-            vars: self.vars,
             updates: self.updates,
         })
     }
@@ -1393,7 +1350,6 @@ impl<'a> LayoutContext<'a> {
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
 
-            vars: self.vars,
             updates: self.updates,
         })
     }
@@ -1412,7 +1368,6 @@ impl<'a> LayoutContext<'a> {
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
 
-            vars: self.vars,
             updates: self.updates,
         })
     }
@@ -1431,7 +1386,6 @@ impl<'a> LayoutContext<'a> {
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
 
-            vars: self.vars,
             updates: self.updates,
         })
     }
@@ -1464,7 +1418,6 @@ impl<'a> LayoutContext<'a> {
             widget_state: widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
 
-            vars: self.vars,
             updates: self.updates,
         });
 

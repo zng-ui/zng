@@ -37,7 +37,7 @@ impl<T: VarValue + Send> VarReceiver<T> {
         }
         if !source.capabilities().is_always_static() {
             source
-                .hook(Box::new(move |_, _, value| {
+                .hook(Box::new(move |_, value| {
                     if let Some(value) = value.as_any().downcast_ref::<T>() {
                         if sender.send(value.clone()).is_err() {
                             return false;
@@ -150,15 +150,15 @@ where
     T: VarValue + Send,
 {
     /// New sender that sets `target`.
-    pub fn new(vars: &Vars, target: &impl Var<T>) -> Self {
+    pub fn new(target: &impl Var<T>) -> Self {
         let (sender, recv) = flume::unbounded();
 
         if !target.capabilities().is_always_read_only() {
             let wk_target = target.downgrade();
-            vars.register_channel_recv(Box::new(move |vars| {
+            VARS.register_channel_recv(Box::new(move || {
                 if let Some(target) = wk_target.upgrade() {
                     if let Some(value) = recv.try_iter().last() {
-                        match target.set(vars, value) {
+                        match target.set(value) {
                             Ok(_) => true,
                             Err(e) => !e.capabilities.is_always_read_only(),
                         }
@@ -172,7 +172,7 @@ where
         }
 
         Self {
-            wake: vars.app_event_sender(),
+            wake: VARS.app_event_sender(),
             sender,
         }
     }
@@ -222,15 +222,15 @@ where
     T: VarValue,
 {
     /// New sender that sets `target`.
-    pub fn new(vars: &Vars, target: &impl Var<T>) -> Self {
+    pub fn new(target: &impl Var<T>) -> Self {
         let (sender, recv) = flume::unbounded();
 
         if !target.capabilities().is_always_read_only() {
             let wk_target = target.downgrade();
-            vars.register_channel_recv(Box::new(move |vars| {
+            VARS.register_channel_recv(Box::new(move || {
                 if let Some(target) = wk_target.upgrade() {
                     if let Some(modify) = recv.try_iter().last() {
-                        match target.modify(vars, modify) {
+                        match target.modify(modify) {
                             Ok(_) => true,
                             Err(e) => !e.capabilities.is_always_read_only(),
                         }
@@ -244,7 +244,7 @@ where
         }
 
         Self {
-            wake: vars.app_event_sender(),
+            wake: VARS.app_event_sender(),
             sender,
         }
     }
@@ -286,7 +286,7 @@ impl<T: VarValue + Send> ResponseSender<T> {
 }
 
 /// New paired [`ResponseSender`] and [`ResponseVar`] in the waiting state.
-pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (ResponseSender<T>, ResponseVar<T>) {
+pub fn response_channel<T: VarValue + Send>() -> (ResponseSender<T>, ResponseVar<T>) {
     let (responder, response) = response_var();
-    vars.with_vars(|vars| (responder.sender(vars), response))
+    (responder.sender(), response)
 }

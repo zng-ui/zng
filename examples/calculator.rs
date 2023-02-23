@@ -73,21 +73,21 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
 
 fn btn_square(calc: ArcVar<Calculator>) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.to_mut().square()));
+        on_click = hn!(|_, _| calc.modify(| c|c.to_mut().square()));
         child = text!("x²");
     }
 }
 
 fn btn_square_root(calc: ArcVar<Calculator>) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.to_mut().square_root()));
+        on_click = hn!(|_, _| calc.modify(| c|c.to_mut().square_root()));
         child = text!("√x");
     }
 }
 
 fn btn_clear(calc: ArcVar<Calculator>) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, | c|c.to_mut().clear()));
+        on_click = hn!(|_, _| calc.modify(| c|c.to_mut().clear()));
         click_shortcut = shortcut!(Escape);
         child = text!("C");
     }
@@ -95,7 +95,7 @@ fn btn_clear(calc: ArcVar<Calculator>) -> impl UiNode {
 
 fn btn_backspace(calc: ArcVar<Calculator>) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.to_mut().backspace()));
+        on_click = hn!(|_, _| calc.modify(|c|c.to_mut().backspace()));
         click_shortcut = shortcut!(Backspace);
         child = text!("⌫");
     }
@@ -103,8 +103,8 @@ fn btn_backspace(calc: ArcVar<Calculator>) -> impl UiNode {
 
 fn btn(calc: ArcVar<Calculator>, c: char) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| {
-            calc.modify(ctx.vars, move |b| b.to_mut().push(c))
+        on_click = hn!(|_, _| {
+            calc.modify(move |b| b.to_mut().push(c))
         });
         click_shortcut = {
             let shortcuts: Shortcuts = c.try_into().unwrap_or_default();
@@ -117,7 +117,7 @@ fn btn(calc: ArcVar<Calculator>, c: char) -> impl UiNode {
 
 fn btn_eval(calc: ArcVar<Calculator>) -> impl UiNode {
     button! {
-        on_click = hn!(|ctx, _| calc.modify(ctx.vars, |c|c.to_mut().eval()));
+        on_click = hn!(|_, _| calc.modify(|c|c.to_mut().eval()));
         click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
         child = text!("=");
     }

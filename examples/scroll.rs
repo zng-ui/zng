@@ -96,8 +96,8 @@ fn commands() -> impl UiNode {
             button! {
                 child = text!(show.map(|s| if !s { "Commands" } else { "Close" }.to_text()));
                 margin = show.map(|s| if !s { 0.into() } else { (3, 0, 0, 0).into() });
-                on_click = hn!(|ctx, _| {
-                    show.modify(ctx, |s| *s.to_mut() = !**s);
+                on_click = hn!(|_, _| {
+                    show.modify(|s| *s.to_mut() = !**s);
                 });
 
                 corner_radius = (0, 0, 4, 4);

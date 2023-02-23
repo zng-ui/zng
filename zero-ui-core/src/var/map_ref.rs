@@ -60,7 +60,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         Box::new(self.get())
     }
 
-    fn set_any(&self, _: &Vars, _: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+    fn set_any(&self, _: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),
         })
@@ -74,12 +74,12 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         self.source.capabilities().as_read_only()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let map = self.map.clone();
-        self.source.hook(Box::new(move |vars, updates, value| {
+        self.source.hook(Box::new(move |updates, value| {
             if let Some(value) = value.as_any().downcast_ref() {
                 let value = map(value);
-                pos_modify_action(vars, updates, value)
+                pos_modify_action(updates, value)
             } else {
                 true
             }
@@ -161,9 +161,8 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
         })
     }
 
-    fn modify<V, F>(&self, _: &V, _: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, _: F) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
         F: FnOnce(&mut Cow<O>) + 'static,
     {
         Err(VarIsReadOnlyError {
@@ -269,8 +268,8 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
         Box::new(self.get())
     }
 
-    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(vars, var_set_any(value))
+    fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(var_set_any(value))
     }
 
     fn last_update(&self) -> VarUpdateId {
@@ -281,12 +280,12 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
         self.source.capabilities()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let map = self.map.clone();
-        self.source.hook(Box::new(move |vars, updates, value| {
+        self.source.hook(Box::new(move |updates, value| {
             if let Some(value) = value.as_any().downcast_ref() {
                 let value = map(value);
-                pos_modify_action(vars, updates, value)
+                pos_modify_action(updates, value)
             } else {
                 true
             }
@@ -368,14 +367,13 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
         })
     }
 
-    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
-        F: FnOnce(&mut Cow<O>) + 'static,
+        F: FnOnce(&mut Cow<O>) + Send + 'static,
     {
         let map = self.map.clone();
         let map_mut = self.map_mut.clone();
-        self.source.modify(vars, move |value| {
+        self.source.modify(move |value| {
             let mut inner = Cow::Borrowed(map(value.as_ref()));
             modify(&mut inner);
             if let Cow::Owned(inner) = inner {

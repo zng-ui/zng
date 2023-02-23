@@ -175,9 +175,7 @@ pub mod thumb {
                         let offset = max_length * offset;
                         let offset = offset.0 as f32 / max_length.0 as f32;
 
-                        THUMB_OFFSET_VAR
-                            .set_ne(ctx.vars, Factor(offset))
-                            .expect("ThumbOffsetVar is read-only");
+                        THUMB_OFFSET_VAR.set_ne(offset.fct()).expect("ThumbOffsetVar is read-only");
 
                         ctx.updates.layout();
                     } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
@@ -198,7 +196,7 @@ pub mod thumb {
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if THUMB_OFFSET_VAR.is_new(ctx) {
+                if THUMB_OFFSET_VAR.is_new() {
                     ctx.updates.layout();
                 }
 

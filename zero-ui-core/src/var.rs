@@ -3,7 +3,6 @@
 use std::{
     any::{Any, TypeId},
     borrow::Cow,
-    cell::{Cell, RefCell},
     fmt,
     marker::PhantomData,
     ops,
@@ -262,15 +261,15 @@ impl std::error::Error for VarIsReadOnlyError {}
 
 struct VarHandleData {
     perm: AtomicBool,
-    action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>,
+    action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>,
 }
 
 /// Represents the var side of a [`VarHandle`].
 struct VarHook(Arc<VarHandleData>);
 impl VarHook {
     /// Calls the handle action, returns `true` if the handle must be retained.
-    pub fn call(&self, vars: &Vars, update: &mut Updates, value: &dyn AnyVarValue) -> bool {
-        self.is_alive() && (self.0.action)(vars, update, value)
+    pub fn call(&self, update: &mut Updates, value: &dyn AnyVarValue) -> bool {
+        self.is_alive() && (self.0.action)(update, value)
     }
 
     /// If the handle is still held or is permanent.
@@ -288,7 +287,7 @@ impl VarHook {
 pub struct VarHandle(Option<Arc<VarHandleData>>);
 impl VarHandle {
     /// New handle, the `action` depends on the behavior the handle represents.
-    fn new(action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
+    fn new(action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
         let c = Arc::new(VarHandleData {
             perm: AtomicBool::new(false),
             action,
@@ -442,7 +441,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Panics if the `value` is not of the same [`var_type_id`].
     ///
     /// [`var_type_id`]: AnyVar::var_type_id
-    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError>;
+    fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError>;
 
     /// Last update ID a variable was modified, if the ID is equal to [`Vars::update_id`] the variable is *new*.
     fn last_update(&self) -> VarUpdateId;
@@ -485,7 +484,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     ///
     /// [`on_new`]: Var::on_new
     /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle;
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle;
 
     /// Register the widget to receive update when this variable is new.
     ///
@@ -792,26 +791,26 @@ pub trait IntoVar<T: VarValue> {
 macro_rules! impl_infallible_write {
     (for<$T:ident>) => {
         /// Infallible [`Var::modify`].
-        pub fn modify(&self, vars: &impl WithVars, modify: impl FnOnce(&mut Cow<$T>) + 'static) {
-            Var::modify(self, vars, modify).unwrap()
+        pub fn modify(&self, modify: impl FnOnce(&mut Cow<$T>) + Send + 'static) {
+            Var::modify(self, modify).unwrap()
         }
 
         /// Infallible [`Var::set`].
-        pub fn set(&self, vars: &impl WithVars, value: impl Into<$T>) {
-            Var::set(self, vars, value).unwrap()
+        pub fn set(&self, value: impl Into<$T>) {
+            Var::set(self, value).unwrap()
         }
 
         /// Infallible [`Var::set_ne`].
-        pub fn set_ne(&self, vars: &impl WithVars, value: impl Into<$T>)
+        pub fn set_ne(&self, value: impl Into<$T>)
         where
             $T: PartialEq,
         {
-            Var::set_ne(self, vars, value).unwrap()
+            Var::set_ne(self, value).unwrap()
         }
 
         /// Infallible [`Var::touch`].
-        pub fn touch(&self, vars: &impl WithVars) {
-            Var::touch(self, vars).unwrap()
+        pub fn touch(&self) {
+            Var::touch(self).unwrap()
         }
     };
 }
@@ -849,10 +848,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Try to schedule a variable update, it will be applied on the end of the current app update.
     ///
     /// The variable only updates if the [`Cow`] is upgraded to [`Cow::Owned`].
-    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
-        F: FnOnce(&mut Cow<T>) + 'static;
+        F: FnOnce(&mut Cow<T>) + Send + 'static;
 
     /// Gets the variable as a [`BoxedVar<T>`], does not double box.
     fn boxed(self) -> BoxedVar<T>
@@ -893,11 +891,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Gets if the [`last_update`] is the current update, meaning the variable value just changed.
     ///
     /// [`last_update`]: AnyVar::last_update
-    fn is_new<V>(&self, vars: &V) -> bool
-    where
-        V: WithVars,
-    {
-        vars.with_vars(Vars::update_id) == self.last_update()
+    fn is_new(&self) -> bool {
+        VARS.update_id() == self.last_update()
     }
 
     /// Create a future that awaits for [`is_new`] to be `true`.
@@ -905,11 +900,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The future can only be used in app bound async code, it can be reused.
     ///
     /// [`is_new`]: Var::is_new
-    fn wait_is_new<'a, C>(&'a self, vars: &'a C) -> types::WaitIsNewFut<'a, C, T, Self>
-    where
-        C: WithVars,
-    {
-        types::WaitIsNewFut::new(vars, self)
+    fn wait_is_new(&self) -> types::WaitIsNewFut<T, Self> {
+        types::WaitIsNewFut::new(self)
     }
 
     /// Create a future that awaits for [`is_animating`] to be `false`.
@@ -924,12 +916,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Visit the current value of the variable, if it [`is_new`].
     ///
     /// [`is_new`]: Var::is_new
-    fn with_new<V, R, F>(&self, vars: &V, read: F) -> Option<R>
+    fn with_new<R, F>(&self, read: F) -> Option<R>
     where
-        V: WithVars,
         F: FnOnce(&T) -> R,
     {
-        if self.is_new(vars) {
+        if self.is_new() {
             Some(self.with(read))
         } else {
             None
@@ -982,11 +973,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Get a clone of the current value, if it [`is_new`].
     ///
     /// [`is_new`]: Var::is_new
-    fn get_new<V>(&self, vars: &V) -> Option<T>
-    where
-        V: WithVars,
-    {
-        if self.is_new(vars) {
+    fn get_new(&self) -> Option<T> {
+        if self.is_new() {
             Some(self.with(Clone::clone))
         } else {
             None
@@ -996,11 +984,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Get a clone of the current value into `value` if the current value [`is_new`].
     ///
     /// [`is_new`]: Var::is_new
-    fn get_new_into<V>(&self, vars: &V, value: &mut T) -> bool
-    where
-        V: WithVars,
-    {
-        let is_new = self.is_new(vars);
+    fn get_new_into(&self, value: &mut T) -> bool {
+        let is_new = self.is_new();
         if is_new {
             self.with(var_get_into(value));
         }
@@ -1010,12 +995,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Get a clone of the current value into `value` if the variable value [`is_new`] and not equal to the `value`.
     ///
     /// [`is_new`]: Var::is_new
-    fn get_new_ne<V>(&self, vars: &V, value: &mut T) -> bool
+    fn get_new_ne(&self, value: &mut T) -> bool
     where
         T: PartialEq,
-        V: WithVars,
     {
-        self.is_new(vars) && self.get_ne(value)
+        self.is_new() && self.get_ne(value)
     }
 
     /// Create a future that awaits and yields [`get_new`].
@@ -1023,20 +1007,16 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The future can only be used in app bound async code, it can be reused.
     ///
     /// [`get_new`]: Var::get_new
-    fn wait_new<'a, C>(&'a self, vars: &'a C) -> types::WaitNewFut<'a, C, T, Self>
-    where
-        C: WithVars,
-    {
-        types::WaitNewFut::new(vars, self)
+    fn wait_new(&self) -> types::WaitNewFut<T, Self> {
+        types::WaitNewFut::new(self)
     }
 
     /// Try to schedule a new `value` for the variable, it will be set in the end of the current app update.
-    fn set<V, I>(&self, vars: &V, value: I) -> Result<(), VarIsReadOnlyError>
+    fn set<I>(&self, value: I) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
         I: Into<T>,
     {
-        self.modify(vars, var_set(value.into()))
+        self.modify(var_set(value.into()))
     }
 
     /// Try to schedule a new `value` for the variable, it will be set in the end of the current app update if it is not
@@ -1044,21 +1024,17 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Note that this is different from comparing with the current value and assigning,
     /// if another var modify request is already scheduled the `value` will be compared with the output of that operation.
-    fn set_ne<V, I>(&self, vars: &V, value: I) -> Result<(), VarIsReadOnlyError>
+    fn set_ne<I>(&self, value: I) -> Result<(), VarIsReadOnlyError>
     where
         T: PartialEq,
-        V: WithVars,
         I: Into<T>,
     {
-        self.modify(vars, var_set_ne(value.into()))
+        self.modify(var_set_ne(value.into()))
     }
 
     /// Causes a variable update without actually changing the variable value.
-    fn touch<V>(&self, vars: &V) -> Result<(), VarIsReadOnlyError>
-    where
-        V: WithVars,
-    {
-        self.modify(vars, var_touch)
+    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
+        self.modify(var_touch)
     }
 
     /// Create a ref-counted var that redirects to this variable until the first value touch, then it behaves like a [`ArcVar<T>`].
@@ -1313,8 +1289,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V2: Var<T2>,
         M: FnMut(&T) -> T2 + Send + 'static,
     {
-        var_bind(self, other, move |vars, _, value, other| {
-            let _ = other.set(vars, map(value));
+        var_bind(self, other, move |_, value, other| {
+            let _ = other.set(map(value));
         })
     }
 
@@ -1330,9 +1306,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V2: Var<T2>,
         F: FnMut(&T) -> Option<T2> + Send + 'static,
     {
-        var_bind(self, other, move |vars, _, value, other| {
+        var_bind(self, other, move |_, value, other| {
             if let Some(value) = map(value) {
-                let _ = other.set(vars, value);
+                let _ = other.set(value);
             }
         })
     }
@@ -1353,18 +1329,20 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         B: FnMut(&T2) -> T + Send + 'static,
     {
         let mut last_update = VarUpdateId::never();
-        let self_to_other = var_bind(self, other, move |vars, _, value, other| {
-            if vars.update_id() != last_update {
-                last_update = vars.update_id();
-                let _ = other.set(vars, map(value));
+        let self_to_other = var_bind(self, other, move |_, value, other| {
+            let update_id = VARS.update_id();
+            if update_id != last_update {
+                last_update = update_id;
+                let _ = other.set(map(value));
             }
         });
 
         let mut last_update = VarUpdateId::never();
-        let other_to_self = var_bind(other, self, move |vars, _, value, self_| {
-            if vars.update_id() != last_update {
-                last_update = vars.update_id();
-                let _ = self_.set(vars, map_back(value));
+        let other_to_self = var_bind(other, self, move |_, value, self_| {
+            let update_id = VARS.update_id();
+            if update_id != last_update {
+                last_update = update_id;
+                let _ = self_.set(map_back(value));
             }
         });
 
@@ -1386,21 +1364,23 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         B: FnMut(&T2) -> Option<T> + Send + 'static,
     {
         let mut last_update = VarUpdateId::never();
-        let self_to_other = var_bind(self, other, move |vars, _, value, other| {
-            if vars.update_id() != last_update {
-                last_update = vars.update_id();
+        let self_to_other = var_bind(self, other, move |_, value, other| {
+            let update_id = VARS.update_id();
+            if update_id != last_update {
+                last_update = update_id;
                 if let Some(value) = map(value) {
-                    let _ = other.set(vars, value);
+                    let _ = other.set(value);
                 }
             }
         });
 
         let mut last_update = VarUpdateId::never();
-        let other_to_self = var_bind(other, self, move |vars, _, value, self_| {
-            if vars.update_id() != last_update {
-                last_update = vars.update_id();
+        let other_to_self = var_bind(other, self, move |_, value, self_| {
+            let update_id = VARS.update_id();
+            if update_id != last_update {
+                last_update = update_id;
                 if let Some(value) = map_back(value) {
-                    let _ = self_.set(vars, value);
+                    let _ = self_.set(value);
                 }
             }
         });
@@ -1437,21 +1417,18 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Creates a sender that can set `self` from other threads and without access to [`Vars`].
     ///
     /// If the variable is read-only when a value is received it is silently dropped.
-    fn sender<V: WithVars>(&self, vars: &V) -> VarSender<T>
+    fn sender(&self) -> VarSender<T>
     where
         T: Send,
     {
-        vars.with_vars(|vars| VarSender::new(vars, self))
+        VarSender::new(self)
     }
 
     /// Creates a sender that modify `self` from other threads and without access to [`Vars`].
     ///
     /// If the variable is read-only when a modification is received it is silently dropped.
-    fn modify_sender<V>(&self, vars: &V) -> VarModifySender<T>
-    where
-        V: WithVars,
-    {
-        vars.with_vars(|vars| VarModifySender::new(vars, self))
+    fn modify_sender(&self) -> VarModifySender<T> {
+        VarModifySender::new(self)
     }
 
     /// Creates a channel that can receive `var` updates from another thread.
@@ -1550,12 +1527,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [`actual_var`]: Var::actual_var
     /// [`Animation`]: animation::Animation
-    fn animate<V, A>(&self, vars: &V, animate: A) -> animation::AnimationHandle
+    fn animate<A>(&self, animate: A) -> animation::AnimationHandle
     where
-        V: WithVars,
-        A: FnMut(&animation::Animation, &mut Cow<T>) + 'static,
+        A: FnMut(&animation::Animation, &mut Cow<T>) + Send + 'static,
     {
-        vars.with_vars(move |vars| animation::var_animate(vars, self, animate))
+        animation::var_animate(self, animate)
     }
 
     /// Schedule animations started by `animate`, the closure is called once at the start to begin, then again every time
@@ -1563,12 +1539,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// This can be used to create a sequence of animations or to repeat an animation. The sequence stops when `animate` returns
     /// a dummy handle or the variable is modified outside of `animate`, or animations are disabled, or the returned handle is dropped.
-    fn sequence<V, A>(&self, vars: &V, animate: A) -> VarHandle
+    fn sequence<A>(&self, animate: A) -> VarHandle
     where
-        V: WithVars,
-        A: FnMut(&Vars, &<<Self::ActualVar as Var<T>>::Downgrade as WeakVar<T>>::Upgrade) -> animation::AnimationHandle + 'static,
+        A: FnMut(&<<Self::ActualVar as Var<T>>::Downgrade as WeakVar<T>>::Upgrade) -> animation::AnimationHandle + Send + 'static,
     {
-        vars.with_vars(move |vars| animation::var_sequence(vars, self, animate))
+        animation::var_sequence(self, animate)
     }
 
     /// Schedule an easing transition from the `start_value` to `end_value`.
@@ -1580,18 +1555,20 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// See [`Var::animate`] for details about animations.
     ///
     /// [`ease_ne`]: Var::ease_ne
-    fn set_ease<V, S, E, F>(&self, vars: &V, start_value: S, end_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn set_ease<S, E, F>(&self, start_value: S, end_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: animation::Transitionable,
-        V: WithVars,
         S: Into<T>,
         E: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
-        self.animate(
-            vars,
-            animation::var_set_ease(start_value.into(), end_value.into(), duration, easing, 999.fct()),
-        )
+        self.animate(animation::var_set_ease(
+            start_value.into(),
+            end_value.into(),
+            duration,
+            easing,
+            999.fct(),
+        ))
     }
 
     /// Schedule an easing transition from the current value to `new_value`.
@@ -1603,50 +1580,46 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// See [`Var::animate`] for details about animations.
     ///
     /// [`ease_ne`]: Var::ease_ne
-    fn ease<V, E, F>(&self, vars: &V, new_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn ease<E, F>(&self, new_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: animation::Transitionable,
-        V: WithVars,
         E: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
-        self.animate(
-            vars,
-            animation::var_set_ease(self.get(), new_value.into(), duration, easing, 0.fct()),
-        )
+        self.animate(animation::var_set_ease(self.get(), new_value.into(), duration, easing, 0.fct()))
     }
 
     /// Like [`set_ease`] but checks if the sampled value actually changed before updating.
     ///
     /// [`set_ease`]: Var::set_ease
-    fn set_ease_ne<V, S, E, F>(&self, vars: &V, start_value: S, end_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn set_ease_ne<S, E, F>(&self, start_value: S, end_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: animation::Transitionable + PartialEq,
-        V: WithVars,
+
         S: Into<T>,
         E: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
-        self.animate(
-            vars,
-            animation::var_set_ease_ne(start_value.into(), end_value.into(), duration, easing, 999.fct()),
-        )
+        self.animate(animation::var_set_ease_ne(
+            start_value.into(),
+            end_value.into(),
+            duration,
+            easing,
+            999.fct(),
+        ))
     }
 
     /// Like [`ease`] but checks if the sampled value actually changed before updating.
     ///
     /// [`ease`]: Var::ease
-    fn ease_ne<V, E, F>(&self, vars: &V, new_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn ease_ne<E, F>(&self, new_value: E, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: animation::Transitionable + PartialEq,
-        V: WithVars,
+
         E: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
-        self.animate(
-            vars,
-            animation::var_set_ease_ne(self.get(), new_value.into(), duration, easing, 0.fct()),
-        )
+        self.animate(animation::var_set_ease_ne(self.get(), new_value.into(), duration, easing, 0.fct()))
     }
 
     /// Schedule a keyframed transition animation for the variable, starting from the first key.
@@ -1654,14 +1627,14 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The variable will be set to to the first keyframe, then animated across all other keys.
     ///
     /// See [`Var::animate`] for details about animations.
-    fn set_ease_keyed<V, F>(&self, vars: &V, keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn set_ease_keyed<F>(&self, keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: animation::Transitionable,
-        V: WithVars,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
         if let Some(transition) = animation::TransitionKeyed::new(keys) {
-            self.animate(vars, animation::var_set_ease_keyed(transition, duration, easing, 999.fct()))
+            self.animate(animation::var_set_ease_keyed(transition, duration, easing, 999.fct()))
         } else {
             animation::AnimationHandle::dummy()
         }
@@ -1672,29 +1645,29 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The variable will be set to to the first keyframe, then animated across all other keys.
     ///
     /// See [`Var::animate`] for details about animations.
-    fn ease_keyed<V, F>(&self, vars: &V, mut keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn ease_keyed<F>(&self, mut keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: animation::Transitionable,
-        V: WithVars,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
         keys.insert(0, (0.fct(), self.get()));
 
         let transition = animation::TransitionKeyed::new(keys).unwrap();
-        self.animate(vars, animation::var_set_ease_keyed(transition, duration, easing, 0.fct()))
+        self.animate(animation::var_set_ease_keyed(transition, duration, easing, 0.fct()))
     }
 
     /// Like [`set_ease_keyed`] but checks if the sampled value actually changed before updating.
     ///
     /// [`set_ease_keyed`]: Var::set_ease_keyed
-    fn set_ease_keyed_ne<V, F>(&self, vars: &V, keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn set_ease_keyed_ne<F>(&self, keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: animation::Transitionable + PartialEq,
-        V: WithVars,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
         if let Some(transition) = animation::TransitionKeyed::new(keys) {
-            self.animate(vars, animation::var_set_ease_keyed_ne(transition, duration, easing, 999.fct()))
+            self.animate(animation::var_set_ease_keyed_ne(transition, duration, easing, 999.fct()))
         } else {
             animation::AnimationHandle::dummy()
         }
@@ -1703,16 +1676,16 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Like [`ease_keyed`] but checks if the sampled value actually changed before updating.
     ///
     /// [`ease_keyed`]: Var::ease_keyed
-    fn ease_keyed_ne<V, F>(&self, vars: &V, mut keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn ease_keyed_ne<F>(&self, mut keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: animation::Transitionable + PartialEq,
-        V: WithVars,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
         keys.insert(0, (0.fct(), self.get()));
 
         let transition = animation::TransitionKeyed::new(keys).unwrap();
-        self.animate(vars, animation::var_set_ease_keyed_ne(transition, duration, easing, 0.fct()))
+        self.animate(animation::var_set_ease_keyed_ne(transition, duration, easing, 0.fct()))
     }
 
     /// Set the variable to `new_value` after a `delay`.
@@ -1722,35 +1695,32 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// See [`Var::animate`] for details about animations.
     ///
     /// [`is_animating`]: AnyVar::is_animating
-    fn step<V, N>(&self, vars: &V, new_value: N, delay: Duration) -> animation::AnimationHandle
+    fn step<N>(&self, new_value: N, delay: Duration) -> animation::AnimationHandle
     where
-        V: WithVars,
         N: Into<T>,
     {
-        self.animate(vars, animation::var_step(new_value.into(), delay))
+        self.animate(animation::var_step(new_value.into(), delay))
     }
 
     /// Like [`step`], but only update the variable if the `new_value` is not equal at the moment the `delay` elapses.
     ///
     /// [`step`]: Var::step
-    fn step_ne<V, N>(&self, vars: &V, new_value: N, delay: Duration) -> animation::AnimationHandle
+    fn step_ne<N>(&self, new_value: N, delay: Duration) -> animation::AnimationHandle
     where
         T: PartialEq,
-        V: WithVars,
         N: Into<T>,
     {
-        self.animate(vars, animation::var_step_ne(new_value.into(), delay))
+        self.animate(animation::var_step_ne(new_value.into(), delay))
     }
 
     /// Oscillate between the current value and `new_value`, every time the `delay` elapses the variable is set to the next value.
     ///
     /// The variable will be set a maximum of `count` times.
-    fn step_oci<V, N>(&self, vars: &V, new_value: N, delay: Duration, count: usize) -> animation::AnimationHandle
+    fn step_oci<N>(&self, new_value: N, delay: Duration, count: usize) -> animation::AnimationHandle
     where
-        V: WithVars,
         N: Into<T>,
     {
-        self.animate(vars, animation::var_step_oci([self.get(), new_value.into()], delay, count))
+        self.animate(animation::var_step_oci([self.get(), new_value.into()], delay, count))
     }
 
     /// Set the variable to a sequence of values as a time `duration` elapses.
@@ -1780,60 +1750,55 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [`is_animating`]: AnyVar::is_animating
     /// [`AnimationHandle`]: animation::AnimationHandle
-    fn steps<V, F>(&self, vars: &V, steps: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn steps<F>(&self, steps: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
     where
-        V: WithVars,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
-        self.animate(vars, animation::var_steps(steps, duration, easing))
+        self.animate(animation::var_steps(steps, duration, easing))
     }
 
     /// Like [`steps`], but the variable only updates if the selected step is not equal.
     ///
     /// [`steps`]: Var::steps
-    fn steps_ne<V, F>(&self, vars: &V, steps: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
+    fn steps_ne<F>(&self, steps: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
     where
         T: PartialEq,
-        V: WithVars,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
     {
-        self.animate(vars, animation::var_steps_ne(steps, duration, easing))
+        self.animate(animation::var_steps_ne(steps, duration, easing))
     }
 
     /// Starts an easing animation that *chases* a target value that can be changed using the [`ChaseAnimation<T>`] handle.
     ///
     /// [`ChaseAnimation<T>`]: animation::ChaseAnimation
-    fn chase<V, N, F>(&self, vars: &V, first_target: N, duration: Duration, easing: F) -> animation::ChaseAnimation<T>
+    fn chase<N, F>(&self, first_target: N, duration: Duration, easing: F) -> animation::ChaseAnimation<T>
     where
-        V: WithVars,
         N: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
         T: animation::Transitionable,
     {
         let (anim, next_target) = animation::var_chase(self.get(), first_target.into(), duration, easing);
-        let handle = self.animate(vars, anim);
+        let handle = self.animate(anim);
         animation::ChaseAnimation { handle, next_target }
     }
 
     /// Starts a [`chase`] animation that eases to a target value, but does not escape `bounds`.
     ///
     /// [`chase`]: Var::chase
-    fn chase_bounded<V, N, F>(
+    fn chase_bounded<N, F>(
         &self,
-        vars: &V,
         first_target: N,
         duration: Duration,
         easing: F,
         bounds: ops::RangeInclusive<T>,
     ) -> animation::ChaseAnimation<T>
     where
-        V: WithVars,
         N: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + 'static,
+        F: Fn(EasingTime) -> EasingStep + Send + 'static,
         T: animation::Transitionable + std::cmp::PartialOrd<T>,
     {
         let (anim, next_target) = animation::var_chase_bounded(self.get(), first_target.into(), duration, easing, bounds);
-        let handle = self.animate(vars, anim);
+        let handle = self.animate(anim);
         animation::ChaseAnimation { handle, next_target }
     }
 
@@ -1857,9 +1822,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
             let easing_fn = easing_fn.clone();
             let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |vars, _, value, easing_var| {
+            var_bind(&source, &easing_var, move |_, value, easing_var| {
                 let easing_fn = easing_fn.clone();
-                _anim_handle = easing_var.ease(vars, value.clone(), duration, move |t| easing_fn(t));
+                _anim_handle = easing_var.ease(value.clone(), duration, move |t| easing_fn(t));
             })
             .perm();
             easing_var.read_only()
@@ -1883,9 +1848,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let easing_fn = easing_fn.clone();
 
             let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |vars, _, value, easing_var| {
+            var_bind(&source, &easing_var, move |_, value, easing_var| {
                 let easing_fn = easing_fn.clone();
-                _anim_handle = easing_var.ease_ne(vars, value.clone(), duration, move |t| easing_fn(t));
+                _anim_handle = easing_var.ease_ne(value.clone(), duration, move |t| easing_fn(t));
             })
             .perm();
             easing_var.read_only()
@@ -1976,8 +1941,8 @@ where
     var_value.to_mut();
 }
 
-fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
-    Box::new(move |_, updates, _| {
+fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
+    Box::new(move |updates, _| {
         updates.update(widget_id);
         true
     })
@@ -1986,7 +1951,7 @@ fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&Vars, &mut Updates, &dyn An
 fn var_bind<I, O, V>(
     input: &impl Var<I>,
     output: &V,
-    update_output: impl FnMut(&Vars, &mut Updates, &I, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
+    update_output: impl FnMut(&mut Updates, &I, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
 ) -> VarHandle
 where
     I: VarValue,
@@ -2003,7 +1968,7 @@ where
 fn var_bind_ok<I, O, W>(
     input: &impl Var<I>,
     wk_output: W,
-    update_output: impl FnMut(&Vars, &mut Updates, &I, W::Upgrade) + Send + 'static,
+    update_output: impl FnMut(&mut Updates, &I, W::Upgrade) + Send + 'static,
 ) -> VarHandle
 where
     I: VarValue,
@@ -2011,11 +1976,11 @@ where
     W: WeakVar<O>,
 {
     let update_output = Mutex::new(update_output);
-    input.hook(Box::new(move |vars, updates, value| {
+    input.hook(Box::new(move |updates, value| {
         if let Some(output) = wk_output.upgrade() {
             if output.capabilities().contains(VarCapabilities::MODIFY) {
                 if let Some(value) = value.as_any().downcast_ref::<I>() {
-                    update_output.lock()(vars, updates, value, output);
+                    update_output.lock()(updates, value, output);
                 }
             }
             true
@@ -2035,7 +2000,7 @@ where
 
     let handler = Arc::new(Mutex::new(handler));
     let (inner_handle_owner, inner_handle) = crate::crate_util::Handle::new(());
-    var.hook(Box::new(move |_, updates, value| {
+    var.hook(Box::new(move |updates, value| {
         if inner_handle_owner.is_dropped() {
             return false;
         }

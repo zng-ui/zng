@@ -679,7 +679,7 @@ where
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
-            if let Some(v) = self.value.get_new(ctx) {
+            if let Some(v) = self.value.get_new() {
                 ctx.widget_state.set(self.id, v);
             }
         }
@@ -741,7 +741,7 @@ where
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             self.value
-                .with_new(ctx.vars, |v| (self.modify)(ctx.updates, ctx.widget_state.req_mut(self.id), v));
+                .with_new(|v| (self.modify)(ctx.updates, ctx.widget_state.req_mut(self.id), v));
         }
     }
     WithWidgetStateModifyNode {

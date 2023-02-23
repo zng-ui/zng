@@ -16,7 +16,7 @@ use crate::{
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     units::Deadline,
-    var::{types::WeakArcVar, var, ReadOnlyArcVar, Var, Vars, WeakVar},
+    var::{types::WeakArcVar, var, ReadOnlyArcVar, Var, WeakVar},
 };
 
 struct DeadlineHandlerEntry {
@@ -156,7 +156,7 @@ impl TimersService {
     }
 
     /// Update timer vars, flag handlers to be called in [`Self::notify`], returns new app wake time.
-    pub(crate) fn apply_updates(&mut self, vars: &Vars, timer: &mut LoopTimer) {
+    pub(crate) fn apply_updates(&mut self, timer: &mut LoopTimer) {
         let now = Instant::now();
 
         // update `deadline` vars
@@ -166,7 +166,7 @@ impl TimersService {
                     return true; // retain
                 }
 
-                var.touch(vars);
+                var.touch();
             }
             false // don't retain
         });
@@ -181,7 +181,7 @@ impl TimersService {
 
                             if timer.elapsed(deadline.current_deadline()) {
                                 t.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
-                                var.touch(vars);
+                                var.touch();
 
                                 deadline.last = now;
                                 timer.register(deadline.current_deadline());

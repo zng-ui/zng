@@ -34,7 +34,7 @@ impl Clone for BoxedAnyWeakVar {
 pub trait VarBoxed<T: VarValue>: AnyVar {
     fn clone_boxed(&self) -> BoxedVar<T>;
     fn with_boxed(&self, read: &mut dyn FnMut(&T));
-    fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut Cow<T>)>) -> Result<(), VarIsReadOnlyError>;
+    fn modify_boxed(&self, modify: Box<dyn FnOnce(&mut Cow<T>) + Send>) -> Result<(), VarIsReadOnlyError>;
     fn actual_var_boxed(self: Box<Self>) -> BoxedVar<T>;
     fn downgrade_boxed(&self) -> BoxedWeakVar<T>;
     fn read_only_boxed(&self) -> BoxedVar<T>;
@@ -49,8 +49,8 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
         self.with(read)
     }
 
-    fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut Cow<T>)>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(vars, modify)
+    fn modify_boxed(&self, modify: Box<dyn FnOnce(&mut Cow<T>) + Send>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(modify)
     }
 
     fn actual_var_boxed(self: Box<Self>) -> BoxedVar<T> {
@@ -145,8 +145,8 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).get_any()
     }
 
-    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        (**self).set_any(vars, value)
+    fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        (**self).set_any(value)
     }
 
     fn last_update(&self) -> VarUpdateId {
@@ -157,7 +157,7 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).capabilities()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         (**self).hook(pos_modify_action)
     }
 
@@ -218,13 +218,12 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         boxed_var_with(self, read)
     }
 
-    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
-        F: FnOnce(&mut Cow<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + Send + 'static,
     {
         let modify = Box::new(modify);
-        vars.with_vars(move |vars| (**self).modify_boxed(vars, modify))
+        (**self).modify_boxed(modify)
     }
 
     fn boxed(self) -> BoxedVar<T> {

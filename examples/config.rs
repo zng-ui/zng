@@ -55,8 +55,8 @@ fn app_main() {
                     },
                     button! {
                         child = text!(count.map(|c| formatx!("Count: {c:?}")));
-                        on_click = hn!(count, |ctx, _| {
-                            count.modify(ctx, |c| *c.to_mut() += 1).unwrap();
+                        on_click = hn!(count, |_, _| {
+                            count.modify(|c| *c.to_mut() += 1).unwrap();
                         })
                     },
                     separator(),
@@ -67,16 +67,16 @@ fn app_main() {
                     separator(),
                     button! {
                         child = text!("Reset");
-                        on_click = hn!(|ctx, _| {
-                            checked.set_ne(ctx, false).unwrap();
-                            count.set_ne(ctx, 0).unwrap();
-                            txt.set_ne(ctx, "Save this").unwrap();
+                        on_click = hn!(|_, _| {
+                            checked.set_ne(false).unwrap();
+                            count.set_ne(0).unwrap();
+                            txt.set_ne("Save this").unwrap();
                         })
                     },
                     button! {
                         child = text!("Open Another Instance");
                         on_click = hn!(|ctx, _| {
-                            let offset= Dip::new(30);
+                            let offset = Dip::new(30);
                             let pos = WindowVars::req(ctx).actual_position().get() + DipVector::new(offset, offset);
                             let pos = pos.to_i32();
                             let r: Result<(), Box<dyn std::error::Error>> = (|| {
@@ -97,7 +97,7 @@ fn app_main() {
                     if let Some((x, y)) = pos.split_once(',') {
                         if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
                             let pos = DipPoint::new(Dip::new(x), Dip::new(y));
-                            WindowVars::req(&ctx.window_state).position().set(ctx.vars, pos);
+                            WindowVars::req(&ctx.window_state).position().set(pos);
                             WINDOWS.focus(ctx.path.window_id()).unwrap();
                         }
                     }

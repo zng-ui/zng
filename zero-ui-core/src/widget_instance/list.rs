@@ -758,7 +758,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid {
-                if let Some(i) = self.index.get_new(ctx) {
+                if let Some(i) = self.index.get_new() {
                     let mut z_ctx = Z_INDEX.write();
                     debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
                     z_ctx.resort = true;

@@ -119,8 +119,8 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         Box::new(self.get())
     }
 
-    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(vars, var_set_any(value))
+    fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(var_set_any(value))
     }
 
     fn last_update(&self) -> VarUpdateId {
@@ -131,7 +131,7 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.0.read().capabilities() | VarCapabilities::CAPS_CHANGE
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.0.read().hook(pos_modify_action)
     }
 
@@ -190,12 +190,11 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
         self.0.read().with(read)
     }
 
-    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
-        F: FnOnce(&mut Cow<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + Send + 'static,
     {
-        self.0.read().modify(vars, modify)
+        self.0.read().modify(modify)
     }
 
     fn actual_var(self) -> BoxedVar<T> {

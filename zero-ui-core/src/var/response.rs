@@ -60,8 +60,8 @@ impl<T: VarValue> ResponseVar<T> {
     }
 
     /// Visit the response, if present and new.
-    pub fn with_new_rsp<V: WithVars, R>(&self, vars: &V, read: impl FnOnce(&T) -> R) -> Option<R> {
-        self.with_new(vars, |value| match value {
+    pub fn with_new_rsp<R>(&self, read: impl FnOnce(&T) -> R) -> Option<R> {
+        self.with_new(|value| match value {
             Response::Waiting => None,
             Response::Done(value) => Some(read(value)),
         })
@@ -78,15 +78,15 @@ impl<T: VarValue> ResponseVar<T> {
     /// Note that you must call [`rsp`] after this to get the response.
     ///
     /// [`rsp`]: Self::rsp
-    pub async fn wait_rsp<Vr: WithVars>(&self, vars: &Vr) {
+    pub async fn wait_rsp(&self) {
         while self.with_rsp(|_| false).unwrap_or(true) {
-            self.wait_new(vars).await;
+            self.wait_new().await;
         }
     }
 
     /// Clone the response, if present and new.
-    pub fn rsp_new<V: WithVars>(&self, vars: &V) -> Option<T> {
-        self.with_new_rsp(vars, Clone::clone)
+    pub fn rsp_new(&self) -> Option<T> {
+        self.with_new_rsp(Clone::clone)
     }
 
     /// If the variable contains a response.
@@ -175,10 +175,8 @@ impl<T: VarValue> ResponseVar<T> {
 
 impl<T: VarValue> ResponderVar<T> {
     /// Sets the one time response.
-    pub fn respond<'a, Vw: WithVars>(&'a self, vars: &'a Vw, response: T) {
-        vars.with_vars(|vars| {
-            self.set(vars, Response::Done(response));
-        })
+    pub fn respond(&self, response: T) {
+        self.set(Response::Done(response));
     }
 
     /// Creates a [`ResponseVar`] linked to this responder.

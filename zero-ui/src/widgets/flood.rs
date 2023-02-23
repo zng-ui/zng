@@ -9,7 +9,7 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
     })]
     impl UiNode for FloodNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.color.is_new(ctx) {
+            if self.color.is_new() {
                 ctx.updates.render_update();
             }
         }

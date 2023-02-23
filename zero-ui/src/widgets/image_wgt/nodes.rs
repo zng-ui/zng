@@ -59,7 +59,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             }
             self.img = IMAGES.image(source, mode, limits);
 
-            self.ctx_img.set(ctx.vars, self.img.get());
+            self.ctx_img.set(self.img.get());
             self.ctx_binding = Some(self.img.bind(&self.ctx_img));
 
             self.child.init(ctx);
@@ -67,13 +67,13 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
-            self.ctx_img.set(ctx, no_context_image());
+            self.ctx_img.set(no_context_image());
             self.img = var(no_context_image()).read_only();
             self.ctx_binding = None;
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(mut source) = self.source.get_new(ctx) {
+            if let Some(mut source) = self.source.get_new() {
                 // source update:
 
                 if let ImageSource::Render(_, args) = &mut source {
@@ -91,9 +91,9 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
                 self.img = IMAGES.image(source, mode, limits);
 
-                self.ctx_img.set(ctx.vars, self.img.get());
+                self.ctx_img.set(self.img.get());
                 self.ctx_binding = Some(self.img.bind(&self.ctx_img));
-            } else if let Some(enabled) = IMAGE_CACHE_VAR.get_new(ctx) {
+            } else if let Some(enabled) = IMAGE_CACHE_VAR.get_new() {
                 // cache-mode update:
                 let is_cached = self.ctx_img.with(|img| IMAGES.is_cached(img));
                 if enabled != is_cached {
@@ -110,7 +110,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                         IMAGES.image(source, ImageCacheMode::Cache, limits)
                     };
 
-                    self.ctx_img.set(ctx.vars, self.img.get());
+                    self.ctx_img.set(self.img.get());
                     self.ctx_binding = Some(self.img.bind(&self.ctx_img));
                 }
             }
@@ -172,7 +172,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
                 } else {
                     DataUpdate::None
                 }
-            } else if let Some(new) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
+            } else if let Some(new) = CONTEXT_IMAGE_VAR.get_new() {
                 // image var update.
                 if let Some(e) = new.error() {
                     DataUpdate::Update(ImageErrorArgs { error: e })
@@ -229,7 +229,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
                 } else {
                     DataUpdate::None
                 }
-            } else if let Some(new) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
+            } else if let Some(new) = CONTEXT_IMAGE_VAR.get_new() {
                 // image var update.
                 if new.is_loading() {
                     DataUpdate::Update(ImageLoadingArgs {})
@@ -295,7 +295,7 @@ pub fn image_presenter() -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if let Some(img) = CONTEXT_IMAGE_VAR.get_new(ctx.vars) {
+            if let Some(img) = CONTEXT_IMAGE_VAR.get_new() {
                 let img_size = img.size();
                 if self.img_size != img_size {
                     self.img_size = img_size;
@@ -306,19 +306,19 @@ pub fn image_presenter() -> impl UiNode {
                 }
             }
 
-            if IMAGE_FIT_VAR.is_new(ctx)
-                || IMAGE_SCALE_VAR.is_new(ctx)
-                || IMAGE_SCALE_FACTOR_VAR.is_new(ctx)
-                || IMAGE_SCALE_PPI_VAR.is_new(ctx)
-                || IMAGE_CROP_VAR.is_new(ctx)
-                || IMAGE_ALIGN_VAR.is_new(ctx)
-                || IMAGE_OFFSET_VAR.is_new(ctx)
+            if IMAGE_FIT_VAR.is_new()
+                || IMAGE_SCALE_VAR.is_new()
+                || IMAGE_SCALE_FACTOR_VAR.is_new()
+                || IMAGE_SCALE_PPI_VAR.is_new()
+                || IMAGE_CROP_VAR.is_new()
+                || IMAGE_ALIGN_VAR.is_new()
+                || IMAGE_OFFSET_VAR.is_new()
             {
                 ctx.updates.layout();
                 self.requested_layout = true;
             }
 
-            if IMAGE_RENDERING_VAR.is_new(ctx) {
+            if IMAGE_RENDERING_VAR.is_new() {
                 ctx.updates.render();
             }
         }

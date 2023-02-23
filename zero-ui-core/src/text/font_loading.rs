@@ -99,16 +99,16 @@ impl AppExtension for FontManager {
         GENERIC_FONTS_SV.write().update_sender = Some(ctx.updates.sender());
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
         if RAW_FONT_CHANGED_EVENT.has(update) {
             FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::SystemFonts));
         } else if let Some(args) = RAW_FONT_AA_CHANGED_EVENT.on(update) {
-            FONTS_SV.read().font_aa.set_ne(ctx.vars, args.aa);
+            FONTS_SV.read().font_aa.set_ne(args.aa);
         } else if FONT_CHANGED_EVENT.has(update) {
             FONTS_SV.write().on_fonts_changed();
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let mut fonts = FONTS_SV.write();
-            fonts.font_aa.set_ne(ctx.vars, args.font_aa);
+            fonts.font_aa.set_ne(args.font_aa);
             if args.is_respawn {
                 fonts.loader.on_view_process_respawn();
             }

@@ -98,7 +98,7 @@ impl UiNode for WrapNode {
         let mut any = false;
         self.children.update_all(ctx, updates, &mut any);
 
-        if any || self.spacing.is_new(ctx) || self.children_align.is_new(ctx) {
+        if any || self.spacing.is_new() || self.children_align.is_new() {
             ctx.updates.layout();
         }
     }

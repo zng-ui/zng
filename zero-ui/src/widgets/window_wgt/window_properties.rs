@@ -29,7 +29,7 @@ where
                 let binding = self.user_var.bind_bidi(&window_var);
                 ctx.handles.push_vars(binding);
             }
-            window_var.set_ne(ctx.vars, self.user_var.get()).unwrap();
+            window_var.set_ne(self.user_var.get()).unwrap();
             self.child.init(ctx);
         }
     }
@@ -130,7 +130,7 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
     })]
     impl UiNode for ClearColorNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.clear_color.is_new(ctx) {
+            if self.clear_color.is_new() {
                 ctx.updates.render_update();
             }
             self.child.update(ctx, updates);
@@ -322,15 +322,15 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                 if let Some(rsp) = rsp.rsp() {
                     if let Some(s) = rsp {
                         let window_vars = WindowVars::req(&ctx.window_state);
-                        window_vars.state().set_ne(ctx.vars, s.state);
+                        window_vars.state().set_ne(s.state);
                         let restore_rect: DipRect = s.restore_rect.cast();
 
                         let visible = MONITORS.available_monitors().iter().any(|m| m.dip_rect().intersects(&restore_rect));
                         if visible {
-                            window_vars.position().set_ne(ctx.vars, restore_rect.origin);
+                            window_vars.position().set_ne(restore_rect.origin);
                         }
 
-                        window_vars.size().set_ne(ctx.vars, restore_rect.size);
+                        window_vars.size().set_ne(restore_rect.size);
                     }
                     self.task = Task::None;
                 }

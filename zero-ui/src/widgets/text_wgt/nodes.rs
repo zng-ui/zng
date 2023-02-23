@@ -193,7 +193,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 
             let editable = TEXT_EDITABLE_VAR.get();
             let caret_opacity = if editable && FOCUS.focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
-                let v = KEYBOARD.caret_animation(ctx.vars);
+                let v = KEYBOARD.caret_animation();
                 self.caret_opacity_handle = Some(v.subscribe(ctx.path.widget_id()));
                 v
             } else {
@@ -239,19 +239,19 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 {
                     args.propagation().stop();
 
-                    let new_animation = KEYBOARD.caret_animation(ctx.vars);
+                    let new_animation = KEYBOARD.caret_animation();
                     self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
                     self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
 
                     if args.is_backspace() {
-                        let _ = self.text.modify(ctx.vars, move |t| {
+                        let _ = self.text.modify(move |t| {
                             if !t.as_ref().is_empty() {
                                 t.to_mut().to_mut().pop();
                             }
                         });
                     } else {
                         let c = args.character;
-                        let _ = self.text.modify(ctx.vars, move |t| {
+                        let _ = self.text.modify(move |t| {
                             t.to_mut().to_mut().push(c);
                         });
                     }
@@ -259,7 +259,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if TEXT_EDITABLE_VAR.get() {
                     if args.is_focused(ctx.path.widget_id()) {
-                        let new_animation = KEYBOARD.caret_animation(ctx.vars);
+                        let new_animation = KEYBOARD.caret_animation();
                         self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
                         self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
                     } else {
@@ -292,7 +292,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let r = self.resolved.get_mut().as_mut().unwrap();
 
             // update `r.text`, affects layout.
-            if self.text.is_new(ctx) || TEXT_TRANSFORM_VAR.is_new(ctx) || WHITE_SPACE_VAR.is_new(ctx) || LANG_VAR.is_new(ctx) {
+            if self.text.is_new() || TEXT_TRANSFORM_VAR.is_new() || WHITE_SPACE_VAR.is_new() || LANG_VAR.is_new() {
                 let text = self.text.get();
                 let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
                 let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
@@ -306,11 +306,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             }
 
             // update `r.font_face`, affects layout
-            if FONT_FAMILY_VAR.is_new(ctx)
-                || FONT_STYLE_VAR.is_new(ctx)
-                || FONT_STRETCH_VAR.is_new(ctx)
-                || FONT_WEIGHT_VAR.is_new(ctx)
-                || LANG_VAR.is_new(ctx)
+            if FONT_FAMILY_VAR.is_new()
+                || FONT_STYLE_VAR.is_new()
+                || FONT_STRETCH_VAR.is_new()
+                || FONT_WEIGHT_VAR.is_new()
+                || LANG_VAR.is_new()
             {
                 let style = FONT_STYLE_VAR.get();
                 let weight = FONT_WEIGHT_VAR.get();
@@ -327,14 +327,14 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             }
 
             // update `r.synthesis`, affects render
-            if FONT_SYNTHESIS_VAR.is_new(ctx) || FONT_STYLE_VAR.is_new(ctx) || FONT_WEIGHT_VAR.is_new(ctx) {
+            if FONT_SYNTHESIS_VAR.is_new() || FONT_STYLE_VAR.is_new() || FONT_WEIGHT_VAR.is_new() {
                 let synthesis = FONT_SYNTHESIS_VAR.get() & r.faces.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
                 if r.synthesis != synthesis {
                     r.synthesis = synthesis;
                     ctx.updates.render();
                 }
             }
-            if let Some(enabled) = TEXT_EDITABLE_VAR.get_new(ctx) {
+            if let Some(enabled) = TEXT_EDITABLE_VAR.get_new() {
                 if enabled && self.event_handles.0.is_empty() {
                     // actually enabled.
 
@@ -342,7 +342,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
 
                     if FOCUS.focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
-                        let new_animation = KEYBOARD.caret_animation(ctx.vars);
+                        let new_animation = KEYBOARD.caret_animation();
                         self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
                         self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
                     }
@@ -709,17 +709,17 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
         #[UiNode]
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if FONT_SIZE_VAR.is_new(ctx) || FONT_VARIATIONS_VAR.is_new(ctx) {
+            if FONT_SIZE_VAR.is_new() || FONT_VARIATIONS_VAR.is_new() {
                 self.txt.get_mut().pending.insert(Layout::RESHAPE);
                 ctx.updates.layout();
             }
 
-            if LETTER_SPACING_VAR.is_new(ctx)
-                || WORD_SPACING_VAR.is_new(ctx)
-                || LINE_SPACING_VAR.is_new(ctx)
-                || LINE_HEIGHT_VAR.is_new(ctx)
-                || TAB_LENGTH_VAR.is_new(ctx)
-                || LANG_VAR.is_new(ctx)
+            if LETTER_SPACING_VAR.is_new()
+                || WORD_SPACING_VAR.is_new()
+                || LINE_SPACING_VAR.is_new()
+                || LINE_HEIGHT_VAR.is_new()
+                || TAB_LENGTH_VAR.is_new()
+                || LANG_VAR.is_new()
             {
                 let txt = self.txt.get_mut();
                 txt.shaping_args.lang = LANG_VAR.get();
@@ -728,16 +728,16 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 ctx.updates.layout();
             }
 
-            if UNDERLINE_POSITION_VAR.is_new(ctx) || UNDERLINE_SKIP_VAR.is_new(ctx) {
+            if UNDERLINE_POSITION_VAR.is_new() || UNDERLINE_SKIP_VAR.is_new() {
                 self.txt.get_mut().pending.insert(Layout::UNDERLINE);
                 ctx.updates.layout();
             }
 
-            if OVERLINE_THICKNESS_VAR.is_new(ctx) || STRIKETHROUGH_THICKNESS_VAR.is_new(ctx) || UNDERLINE_THICKNESS_VAR.is_new(ctx) {
+            if OVERLINE_THICKNESS_VAR.is_new() || STRIKETHROUGH_THICKNESS_VAR.is_new() || UNDERLINE_THICKNESS_VAR.is_new() {
                 ctx.updates.layout();
             }
 
-            if let Some(lb) = LINE_BREAK_VAR.get_new(ctx) {
+            if let Some(lb) = LINE_BREAK_VAR.get_new() {
                 let txt = self.txt.get_mut();
                 if txt.shaping_args.line_break != lb {
                     txt.shaping_args.line_break = lb;
@@ -746,7 +746,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if let Some(wb) = WORD_BREAK_VAR.get_new(ctx) {
+            if let Some(wb) = WORD_BREAK_VAR.get_new() {
                 let txt = self.txt.get_mut();
                 if txt.shaping_args.word_break != wb {
                     txt.shaping_args.word_break = wb;
@@ -755,7 +755,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if let Some(h) = HYPHENS_VAR.get_new(ctx) {
+            if let Some(h) = HYPHENS_VAR.get_new() {
                 let txt = self.txt.get_mut();
                 if txt.shaping_args.hyphens != h {
                     txt.shaping_args.hyphens = h;
@@ -764,7 +764,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if let Some(c) = HYPHEN_CHAR_VAR.get_new(ctx) {
+            if let Some(c) = HYPHEN_CHAR_VAR.get_new() {
                 let txt = self.txt.get_mut();
                 txt.shaping_args.hyphen_char = c;
                 if Hyphens::None != txt.shaping_args.hyphens {
@@ -773,12 +773,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if TEXT_WRAP_VAR.is_new(ctx) {
+            if TEXT_WRAP_VAR.is_new() {
                 self.txt.get_mut().pending.insert(Layout::RESHAPE);
                 ctx.updates.layout();
             }
 
-            FONT_FEATURES_VAR.with_new(ctx.vars, |f| {
+            FONT_FEATURES_VAR.with_new(|f| {
                 let txt = self.txt.get_mut();
                 txt.shaping_args.font_features = f.finalize();
                 txt.pending.insert(Layout::RESHAPE);
@@ -933,7 +933,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
         // subscriptions are handled by the `resolve_text` node.
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if UNDERLINE_STYLE_VAR.is_new(ctx) || UNDERLINE_COLOR_VAR.is_new(ctx) {
+            if UNDERLINE_STYLE_VAR.is_new() || UNDERLINE_COLOR_VAR.is_new() {
                 ctx.updates.render();
             }
 
@@ -979,7 +979,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
     impl UiNode for RenderStrikethroughsNode {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if STRIKETHROUGH_STYLE_VAR.is_new(ctx) || STRIKETHROUGH_COLOR_VAR.is_new(ctx) {
+            if STRIKETHROUGH_STYLE_VAR.is_new() || STRIKETHROUGH_COLOR_VAR.is_new() {
                 ctx.updates.render();
             }
 
@@ -1024,7 +1024,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
     impl UiNode for RenderOverlineNode {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if OVERLINE_STYLE_VAR.is_new(ctx) || OVERLINE_COLOR_VAR.is_new(ctx) {
+            if OVERLINE_STYLE_VAR.is_new() || OVERLINE_COLOR_VAR.is_new() {
                 ctx.updates.render();
             }
 
@@ -1161,9 +1161,9 @@ pub fn render_text() -> impl UiNode {
 
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if FONT_AA_VAR.is_new(ctx) {
+            if FONT_AA_VAR.is_new() {
                 ctx.updates.render();
-            } else if TEXT_COLOR_VAR.is_new(ctx) {
+            } else if TEXT_COLOR_VAR.is_new() {
                 ctx.updates.render_update();
             }
         }

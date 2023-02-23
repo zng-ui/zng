@@ -79,8 +79,8 @@ fn icons() -> impl UiNode {
                     select_font("two_tone"),
                 ]
             },
-            view(selected_font, show_font(icons::outlined::all()), |ctx, font| {
-                match font.get_new(ctx) {
+            view(selected_font, show_font(icons::outlined::all()), |_, font| {
+                match font.get_new() {
                     Some("filled") => View::Update(show_font(icons::filled::all())),
                     Some("outlined") => View::Update(show_font(icons::outlined::all())),
                     Some("rounded") => View::Update(show_font(icons::rounded::all())),
@@ -117,15 +117,15 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
             WindowLayers::insert(
                 ctx,
                 LayerIndex::TOP_MOST,
-                expanded_icon(ctx.vars, ico.clone())
+                expanded_icon(ico.clone())
             );
         })
     }
 }
 
-fn expanded_icon(vars: &Vars, ico: icons::MaterialIcon) -> impl UiNode {
+fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
     let opacity = var(0.fct());
-    opacity.ease(vars, 1.fct(), 200.ms(), easing::linear).perm();
+    opacity.ease(1.fct(), 200.ms(), easing::linear).perm();
     container! {
         opacity = opacity.clone();
 
@@ -225,7 +225,7 @@ fn expanded_icon(vars: &Vars, ico: icons::MaterialIcon) -> impl UiNode {
                     on_click = async_hn!(opacity, |ctx, args: ClickArgs| {
                         args.propagation().stop();
 
-                        opacity.ease(&ctx, 0.fct(), 150.ms(), easing::linear).perm();
+                        opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
                         ctx.yield_one().await;
                         opacity.wait_animation().await;
 

@@ -66,10 +66,10 @@ fn click_counter() -> impl UiNode {
     let mut count = 0;
 
     button! {
-        on_click = hn!(t, |ctx, _| {
+        on_click = hn!(t, |_, _| {
             count += 1;
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
-            t.set(ctx, new_txt);
+            t.set(new_txt);
         });
         child = text!(t);
     }

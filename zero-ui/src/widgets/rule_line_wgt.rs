@@ -69,10 +69,10 @@ pub mod rule_line {
     })]
     impl UiNode for LineNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.stroke_thickness.is_new(ctx) || self.length.is_new(ctx) || self.orientation.is_new(ctx) {
+            if self.stroke_thickness.is_new() || self.length.is_new() || self.orientation.is_new() {
                 ctx.updates.layout();
             }
-            if self.color.is_new(ctx) || self.style.is_new(ctx) {
+            if self.color.is_new() || self.style.is_new() {
                 ctx.updates.render();
             }
         }

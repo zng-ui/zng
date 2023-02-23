@@ -309,7 +309,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                             return;
                         }
 
-                        status.set(&ctx, Status::Cancel);
+                        status.set(Status::Cancel);
                         task::deadline(200.ms()).await;
 
                         ctx.with(|ctx| {
@@ -321,7 +321,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                             return;
                         }
 
-                        status.set(&ctx, Status::Cancel);
+                        status.set(Status::Cancel);
                         task::deadline(200.ms()).await;
 
                         ctx.with(|ctx| {
@@ -370,7 +370,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                             }
                         };
 
-                        status.set(&ctx, if ok { Status::Ok } else { Status::Err });
+                        status.set(if ok { Status::Ok } else { Status::Err });
                         task::deadline(200.ms()).await;
 
                         ctx.with(|ctx| {
@@ -411,7 +411,7 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Text>) -> impl UiNode {
     impl UiNode for AnchorNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
-            if self.anchor.is_new(ctx) {
+            if self.anchor.is_new() {
                 ctx.updates.info();
             }
         }

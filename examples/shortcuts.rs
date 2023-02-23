@@ -29,12 +29,12 @@ fn app_main() {
             .on_pre_event(app_hn!(
                 shortcut_text,
                 shortcut_error,
-                |ctx, args: &zero_ui::core::gesture::ShortcutArgs, _| {
+                |_, args: &zero_ui::core::gesture::ShortcutArgs, _| {
                     if args.is_repeat {
                         return;
                     }
-                    shortcut_text.set(ctx, args.shortcut.to_text());
-                    shortcut_error.set(ctx, false);
+                    shortcut_text.set(args.shortcut.to_text());
+                    shortcut_error.set(false);
                 }
             ))
             .perm();
@@ -43,7 +43,7 @@ fn app_main() {
                 shortcut_text,
                 keypress_text,
                 shortcut_error,
-                |ctx, args: &KeyInputArgs, _| {
+                |_, args: &KeyInputArgs, _| {
                     if args.is_repeat || args.state != KeyState::Pressed {
                         return;
                     }
@@ -52,13 +52,13 @@ fn app_main() {
                         if key.is_modifier() {
                             new_shortcut_text = "";
                         }
-                        keypress_text.set(ctx, formatx! {"{key:?}"})
+                        keypress_text.set(formatx! {"{key:?}"})
                     } else {
-                        keypress_text.set(ctx, formatx! {"Scan Code: {:?}", args.scan_code})
+                        keypress_text.set(formatx! {"Scan Code: {:?}", args.scan_code})
                     }
 
-                    shortcut_text.set(ctx, new_shortcut_text);
-                    shortcut_error.set(ctx, true);
+                    shortcut_text.set(new_shortcut_text);
+                    shortcut_error.set(true);
                 }
             ))
             .perm();

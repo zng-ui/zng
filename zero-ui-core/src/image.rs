@@ -65,7 +65,7 @@ impl AppExtension for ImageManager {
         );
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT.on(update) {
             let images = IMAGES_SV.read();
 
@@ -75,7 +75,7 @@ impl AppExtension for ImageManager {
                 .map(|(_, _, v)| v)
                 .find(|v| v.with(|img| img.view.get().unwrap() == &args.image))
             {
-                var.touch(ctx.vars);
+                var.touch();
             }
         } else if let Some(args) = RAW_IMAGE_LOADED_EVENT.on(update) {
             let image = &args.image;
@@ -90,7 +90,7 @@ impl AppExtension for ImageManager {
                 .position(|(_, _, v)| v.with(|img| img.view.get().unwrap() == image))
             {
                 let (_, _, var) = images.decoding.swap_remove(i);
-                var.touch(ctx.vars);
+                var.touch();
                 var.with(|img| img.done_signal.set());
             }
         } else if let Some(args) = RAW_IMAGE_LOAD_ERROR_EVENT.on(update) {
@@ -106,7 +106,7 @@ impl AppExtension for ImageManager {
                 .position(|(_, _, v)| v.with(|img| img.view.get().unwrap() == image))
             {
                 let (_, _, var) = images.decoding.swap_remove(i);
-                var.touch(ctx.vars);
+                var.touch();
                 var.with(|img| {
                     img.done_signal.set();
 
@@ -138,14 +138,13 @@ impl AppExtension for ImageManager {
             {
                 let img = img_var.get();
 
-                let vars = ctx.vars;
                 if let Some(view) = img.view.get() {
                     if view.generation() == args.generation {
                         continue; // already recovered, can this happen?
                     }
                     if let Some(e) = view.error() {
                         // respawned, but image was an error.
-                        img_var.set(vars, Image::dummy(Some(e.to_owned())));
+                        img_var.set(Image::dummy(Some(e.to_owned())));
                     } else if let Some((img_format, data, _)) =
                         decoding_interrupted.iter().find(|(_, _, v)| v.with(|img| img.view() == Some(view)))
                     {
@@ -153,7 +152,7 @@ impl AppExtension for ImageManager {
 
                         match vp.add_image(img_format.clone(), data.clone(), max_decoded_size.0 as u64) {
                             Ok(img) => {
-                                img_var.set(vars, Image::new(img));
+                                img_var.set(Image::new(img));
                             }
                             Err(ViewProcessOffline) => { /*will receive another event.*/ }
                         }
@@ -172,24 +171,23 @@ impl AppExtension for ImageManager {
                             Err(ViewProcessOffline) => return, // we will receive another event.
                         };
 
-                        img_var.set(vars, Image::new(img));
+                        img_var.set(Image::new(img));
 
                         images.decoding.push((img_format, data, img_var));
                     }
                 } // else { *is loading, will continue normally in self.update_preview()* }
             }
         } else {
-            self.event_preview_render(ctx, update);
+            self.event_preview_render(update);
         }
     }
 
-    fn update_preview(&mut self, ctx: &mut AppContext) {
+    fn update_preview(&mut self, _: &mut AppContext) {
         // update loading tasks:
 
         let mut images = IMAGES_SV.write();
         let images = &mut *images;
         let view = &images.view;
-        let vars = ctx.vars;
         let decoding = &mut images.decoding;
         let mut loading = Vec::with_capacity(images.loading.len());
 
@@ -206,7 +204,7 @@ impl AppExtension for ImageManager {
                                         // request sent, add to `decoding` will receive
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
                                         // when done.
-                                        var.modify(vars, move |v| {
+                                        var.modify(move |v| {
                                             v.to_mut().view.set(img).unwrap();
                                         });
                                     }
@@ -218,7 +216,7 @@ impl AppExtension for ImageManager {
                             } else {
                                 // success, but we are only doing `load_in_headless` validation.
                                 let img = ViewImage::dummy(None);
-                                var.modify(vars, move |v| {
+                                var.modify(move |v| {
                                     let v = v.to_mut();
                                     v.view.set(img).unwrap();
                                     v.done_signal.set();
@@ -229,7 +227,7 @@ impl AppExtension for ImageManager {
                             tracing::error!("load error: {e:?}");
                             // load error.
                             let img = ViewImage::dummy(Some(e));
-                            var.modify(vars, move |v| {
+                            var.modify(move |v| {
                                 let v = v.to_mut();
                                 v.view.set(img).unwrap();
                                 v.done_signal.set();

@@ -4,7 +4,7 @@ use zero_ui_view_api::AnimationsConfig;
 
 use crate::{
     app::{AppEventSender, LoopTimer},
-    context::Updates,
+    context::{app_local, Updates},
     crate_util,
     units::Factor,
 };
@@ -49,44 +49,67 @@ impl VarApplyUpdateId {
     }
 }
 
-pub(super) type VarUpdateFn = Box<dyn FnOnce(&Vars, &mut Updates)>;
+pub(super) type VarUpdateFn = Box<dyn FnOnce(&mut Updates) + Send>;
 
-/// Enables write access for [`Var<T>`].
-pub struct Vars {
-    app_event_sender: AppEventSender,
+app_local! {
+    pub(crate) static VARS_SV: VarsService = VarsService::new();
+}
+
+pub(crate) struct VarsService {
+    app_event_sender: Option<AppEventSender>,
     pub(super) ans: Animations,
 
     update_id: VarUpdateId,
     apply_update_id: VarApplyUpdateId,
 
-    updates: RefCell<Vec<(ModifyInfo, VarUpdateFn)>>,
-    spare_updates: Vec<(ModifyInfo, VarUpdateFn)>,
+    updates: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
+    spare_updates: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
 
-    modify_receivers: RefCell<Vec<Box<dyn Fn(&Vars) -> bool>>>,
+    modify_receivers: Mutex<Vec<Box<dyn Fn() -> bool + Send>>>,
 }
-impl Vars {
+impl VarsService {
+    pub(crate) fn new() -> Self {
+        Self {
+            app_event_sender: None,
+            ans: Animations::new(),
+            update_id: VarUpdateId(1),
+            apply_update_id: VarApplyUpdateId(1),
+            updates: Mutex::new(Vec::with_capacity(128)),
+            spare_updates: Mutex::new(Vec::with_capacity(128)),
+            modify_receivers: Mutex::new(vec![]),
+        }
+    }
+
+    pub(crate) fn init(&mut self, app_event_sender: AppEventSender) {
+        self.app_event_sender = Some(app_event_sender)
+    }
+}
+
+/// Variable updates and animation service.
+pub struct VARS;
+impl VARS {
     /// Id of the current vars update in the app scope.
     ///
     /// Variable with [`AnyVar::last_update`] equal to this are *new*.
     pub fn update_id(&self) -> VarUpdateId {
-        self.update_id
+        VARS_SV.read().update_id
     }
 
     /// Returns a read-only variable that tracks if animations are enabled in the operating system.
     ///
     /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
     pub fn animations_enabled(&self) -> ReadOnlyArcVar<bool> {
-        self.ans.animations_enabled.read_only()
+        VARS_SV.read().ans.animations_enabled.read_only()
     }
 
     /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
-    pub fn frame_duration(&self) -> &ArcVar<Duration> {
-        &self.ans.frame_duration
+    pub fn frame_duration(&self) -> ArcVar<Duration> {
+        VARS_SV.read().ans.frame_duration.clone()
     }
 
     /// Variable that defines a global scale for the elapsed time of animations.
-    pub fn animation_time_scale(&self) -> &ArcVar<Factor> {
-        &self.ans.animation_time_scale
+    pub fn animation_time_scale(&self) -> ArcVar<Factor> {
+        VARS_SV.read().ans.animation_time_scale.clone()
     }
 
     /// Info about the current context when requesting variable modification.
@@ -99,7 +122,7 @@ impl Vars {
     /// [`modify_importance`]: AnyVar::modify_importance
     /// [`AnimationController`]: animation::AnimationController
     pub fn current_modify(&self) -> ModifyInfo {
-        self.ans.current_modify.borrow().clone()
+        VARS_SV.read().ans.current_modify.clone()
     }
 
     /// Adds an animation handler that is called every frame to update captured variables.
@@ -200,9 +223,9 @@ impl Vars {
     /// [`with_animation_controller`]: Self::with_animation_controller
     pub fn animate<A>(&self, animation: A) -> animation::AnimationHandle
     where
-        A: FnMut(&Vars, &animation::Animation) + 'static,
+        A: FnMut(&animation::Animation) + Send + 'static,
     {
-        Animations::animate(self, animation)
+        Animations::animate(animation)
     }
 
     /// Calls `animate` while `controller` is registered as the animation controller.
@@ -220,171 +243,93 @@ impl Vars {
     /// [`Animation`]: animation::Animation
     /// [`NilAnimationObserver`]: animation::NilAnimationObserver
     pub fn with_animation_controller<R>(&self, controller: impl animation::AnimationController, animate: impl FnOnce() -> R) -> R {
-        Animations::with_animation_controller(self, controller, animate)
-    }
-
-    pub(crate) fn instance(app_event_sender: AppEventSender) -> Vars {
-        Vars {
-            app_event_sender,
-            ans: Animations::new(),
-            update_id: VarUpdateId(1),
-            apply_update_id: VarApplyUpdateId(1),
-            updates: RefCell::new(Vec::with_capacity(128)),
-            spare_updates: Vec::with_capacity(128),
-            modify_receivers: RefCell::new(vec![]),
-        }
+        Animations::with_animation_controller(controller, animate)
     }
 
     pub(super) fn schedule_update(&self, update: VarUpdateFn) {
         let curr_modify = self.current_modify();
-        self.updates.borrow_mut().push((curr_modify, update));
+        VARS_SV.read().updates.lock().push((curr_modify, update));
     }
 
     /// Id of each `schedule_update` cycle during `apply_updates`
     pub(super) fn apply_update_id(&self) -> VarApplyUpdateId {
-        self.apply_update_id
+        VARS_SV.read().apply_update_id
     }
 
-    pub(crate) fn apply_updates(&mut self, updates: &mut Updates) {
-        debug_assert!(self.spare_updates.is_empty());
+    pub(crate) fn apply_updates(&self, updates: &mut Updates) {
+        let mut vars = VARS_SV.write();
 
-        self.update_id.next();
-        self.ans.animation_start_time.set(None);
+        debug_assert!(vars.spare_updates.get_mut().is_empty());
+
+        vars.update_id.next();
+        vars.ans.animation_start_time = None;
+
+        drop(vars);
 
         // if has pending updates, apply all,
         // var updates can generate other updates (bindings), these are applied in the same
         // app update, hence the loop and "spare" vec alloc.
-        while !self.updates.get_mut().is_empty() {
-            let mut var_updates = mem::replace(self.updates.get_mut(), mem::take(&mut self.spare_updates));
+        let mut spare = None;
+        loop {
+            let mut vars = VARS_SV.write();
+            if let Some(var_updates) = spare.take() {
+                *vars.spare_updates.get_mut() = var_updates;
+                vars.apply_update_id.next();
+            }
+            if vars.updates.get_mut().is_empty() {
+                break;
+            }
+            let mut var_updates = {
+                let vars = &mut *vars;
+                mem::replace(vars.updates.get_mut(), mem::take(vars.spare_updates.get_mut()))
+            };
+
+            drop(vars);
 
             for (animation_info, update) in var_updates.drain(..) {
                 // load animation priority that was current when the update was requested.
-                let prev_info = mem::replace(&mut *self.ans.current_modify.borrow_mut(), animation_info);
-                let _cleanup = crate_util::RunOnDrop::new(|| *self.ans.current_modify.borrow_mut() = prev_info);
+                let prev_info = mem::replace(&mut VARS_SV.write().ans.current_modify, animation_info);
+                let _cleanup = crate_util::RunOnDrop::new(|| VARS_SV.write().ans.current_modify = prev_info);
 
                 // apply.
-                update(self, updates);
+                update(updates);
             }
-            self.spare_updates = var_updates;
-
-            self.apply_update_id.next();
+            spare = Some(var_updates);
         }
     }
 
-    pub(crate) fn register_channel_recv(&self, recv_modify: Box<dyn Fn(&Vars) -> bool>) {
-        self.modify_receivers.borrow_mut().push(recv_modify);
+    pub(crate) fn register_channel_recv(&self, recv_modify: Box<dyn Fn() -> bool + Send>) {
+        VARS_SV.read().modify_receivers.lock().push(recv_modify);
     }
 
     pub(crate) fn app_event_sender(&self) -> AppEventSender {
-        self.app_event_sender.clone()
+        VARS_SV.read().app_event_sender.as_ref().unwrap().clone()
     }
 
     pub(crate) fn receive_sended_modify(&self) {
-        let mut rcvs = mem::take(&mut *self.modify_receivers.borrow_mut());
-        rcvs.retain(|rcv| rcv(self));
+        let mut rcvs = mem::take(&mut *VARS_SV.read().modify_receivers.lock());
+        rcvs.retain(|rcv| rcv());
 
-        let mut rcvs_mut = self.modify_receivers.borrow_mut();
-        rcvs.extend(rcvs_mut.drain(..));
-        *rcvs_mut = rcvs;
+        let mut vars = VARS_SV.write();
+        rcvs.append(vars.modify_receivers.get_mut());
+        *vars.modify_receivers.get_mut() = rcvs;
     }
 
     pub(crate) fn update_animations_config(&self, cfg: &AnimationsConfig) {
-        self.ans.animations_enabled.set_ne(self, cfg.enabled);
+        VARS_SV.read().ans.animations_enabled.set_ne(cfg.enabled);
     }
 
     /// Called in `update_timers`, does one animation frame if the frame duration has elapsed.
-    pub(crate) fn update_animations(&mut self, timer: &mut LoopTimer) {
-        Animations::update_animations(self, timer)
+    pub(crate) fn update_animations(&self, timer: &mut LoopTimer) {
+        Animations::update_animations(timer)
     }
 
     /// Returns the next animation frame, if there are any active animations.
-    pub(crate) fn next_deadline(&mut self, timer: &mut LoopTimer) {
-        Animations::next_deadline(self, timer)
+    pub(crate) fn next_deadline(&self, timer: &mut LoopTimer) {
+        Animations::next_deadline(timer)
     }
 
-    pub(crate) fn has_pending_updates(&mut self) -> bool {
-        !self.updates.get_mut().is_empty()
-    }
-}
-
-/// Represents temporary access to [`Vars`].
-///
-/// All contexts that provide [`Vars`] implement this trait to facilitate access to it.
-pub trait WithVars {
-    /// Visit the [`Vars`] reference.
-    fn with_vars<R, F: FnOnce(&Vars) -> R>(&self, visit: F) -> R;
-}
-impl WithVars for Vars {
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R,
-    {
-        action(self)
-    }
-}
-
-impl<'a> WithVars for crate::context::AppContext<'a> {
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R,
-    {
-        action(self.vars)
-    }
-}
-impl<'a> WithVars for crate::context::WindowContext<'a> {
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R,
-    {
-        action(self.vars)
-    }
-}
-impl<'a> WithVars for crate::context::WidgetContext<'a> {
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R,
-    {
-        action(self.vars)
-    }
-}
-impl<'a> WithVars for crate::context::LayoutContext<'a> {
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R,
-    {
-        action(self.vars)
-    }
-}
-impl WithVars for crate::context::AppContextMut {
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R,
-    {
-        self.with(move |ctx| action(ctx.vars))
-    }
-}
-impl WithVars for crate::context::WidgetContextMut {
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R,
-    {
-        self.with(move |ctx| action(ctx.vars))
-    }
-}
-#[cfg(any(test, doc, feature = "test_util"))]
-impl WithVars for crate::context::TestWidgetContext {
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R,
-    {
-        action(&self.vars)
-    }
-}
-impl WithVars for crate::app::HeadlessApp {
-    fn with_vars<R, A>(&self, action: A) -> R
-    where
-        A: FnOnce(&Vars) -> R,
-    {
-        action(self.vars())
+    pub(crate) fn has_pending_updates(&self) -> bool {
+        !VARS_SV.write().updates.get_mut().is_empty()
     }
 }

@@ -391,16 +391,16 @@ impl Command {
         ))
     }
 
-    pub(crate) fn update_state(&self, vars: &Vars) {
+    pub(crate) fn update_state(&self) {
         let read = self.local.read();
         if let CommandScope::App = self.scope {
             let has_handlers = read.handle_count > 0;
-            read.has_handlers.set_ne(vars, has_handlers);
-            read.is_enabled.set_ne(vars, has_handlers && read.enabled_count > 0);
+            read.has_handlers.set_ne(has_handlers);
+            read.is_enabled.set_ne(has_handlers && read.enabled_count > 0);
         } else if let Some(scope) = read.scopes.get(&self.scope) {
             let has_handlers = !scope.handle_count > 0;
-            scope.has_handlers.set_ne(vars, has_handlers);
-            scope.is_enabled.set_ne(vars, has_handlers && scope.enabled_count > 0);
+            scope.has_handlers.set_ne(has_handlers);
+            scope.is_enabled.set_ne(has_handlers && scope.enabled_count > 0);
         }
     }
 }
@@ -1131,7 +1131,7 @@ where
 
             self.handler.update(ctx);
 
-            if let Some(enabled) = self.enabled.as_ref().expect("OnCommandNode not initialized").get_new(ctx) {
+            if let Some(enabled) = self.enabled.as_ref().expect("OnCommandNode not initialized").get_new() {
                 self.handle.as_ref().unwrap().set_enabled(enabled);
             }
         }
@@ -1190,7 +1190,7 @@ where
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.handler.update(ctx);
 
-            if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").get_new(ctx) {
+            if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").get_new() {
                 self.handle.as_ref().unwrap().set_enabled(enabled);
             }
 

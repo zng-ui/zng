@@ -136,8 +136,8 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         Box::new(self.get())
     }
 
-    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(vars, var_set_any(value))
+    fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(var_set_any(value))
     }
 
     fn last_update(&self) -> VarUpdateId {
@@ -148,7 +148,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         self.borrow_init().capabilities()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.borrow_init().hook(pos_modify_action)
     }
 
@@ -224,12 +224,11 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
         self.borrow_init().with(read)
     }
 
-    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
-        F: FnOnce(&mut Cow<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + Send + 'static,
     {
-        self.borrow_init().modify(vars, modify)
+        self.borrow_init().modify(modify)
     }
 
     fn actual_var(self) -> Self::ActualVar {
@@ -275,13 +274,13 @@ mod tests {
         assert_eq!(0, mapped2.get());
         assert_eq!(0, mapped2_copy.get());
 
-        source.set(&app, 10u32);
+        source.set(10u32);
         let mut updated = false;
         app.update_observe(
-            |ctx| {
+            |_| {
                 updated = true;
-                assert_eq!(Some(10), mapped2.get_new(ctx));
-                assert_eq!(Some(10), mapped2_copy.get_new(ctx));
+                assert_eq!(Some(10), mapped2.get_new());
+                assert_eq!(Some(10), mapped2_copy.get_new());
             },
             false,
         )
@@ -306,14 +305,14 @@ mod tests {
             assert_eq!(0, mapped2_copy.get());
         });
 
-        source.set(&app, 10u32);
+        source.set(10u32);
         let mut updated = false;
         app.update_observe(
-            |ctx| {
+            |_| {
                 updated = true;
-                assert_eq!(Some(10), mapped2.get_new(ctx));
+                assert_eq!(Some(10), mapped2.get_new());
                 other_ctx.with_context(|| {
-                    assert_eq!(Some(10), mapped2_copy.get_new(ctx));
+                    assert_eq!(Some(10), mapped2_copy.get_new());
                 });
             },
             false,

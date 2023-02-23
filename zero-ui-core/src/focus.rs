@@ -95,7 +95,7 @@ use crate::{
     mouse::MOUSE_INPUT_EVENT,
     render::FrameId,
     units::{Px, PxPoint, PxRect, TimeUnits},
-    var::{var, AnyVar, ArcVar, ReadOnlyArcVar, Var, Vars},
+    var::{var, AnyVar, ArcVar, ReadOnlyArcVar, Var},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
     widget_instance::WidgetId,
     window::{WindowId, WIDGET_INFO_CHANGED_EVENT, WINDOWS, WINDOW_FOCUS_CHANGED_EVENT},
@@ -460,7 +460,7 @@ impl AppExtension for FocusManager {
         }
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
         let mut request = None;
 
         if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
@@ -475,12 +475,12 @@ impl AppExtension for FocusManager {
                 if args.is_focus(window_id) {
                     request = Some(FocusRequest::direct(widget_id, highlight));
                 }
-            } else if let Some(args) = focus.continue_focus(ctx.vars) {
-                self.notify(ctx.vars, &mut focus, Some(args));
+            } else if let Some(args) = focus.continue_focus() {
+                self.notify(&mut focus, Some(args));
             }
 
             if let Some(window_id) = args.closed() {
-                for args in focus.cleanup_returns_win_closed(ctx.vars, window_id) {
+                for args in focus.cleanup_returns_win_closed(window_id) {
                     RETURN_FOCUS_CHANGED_EVENT.notify(args);
                 }
             }
@@ -491,50 +491,51 @@ impl AppExtension for FocusManager {
         if let Some(request) = request {
             let mut focus = FOCUS_SV.write();
             focus.pending_highlight = false;
-            let args = focus.fulfill_request(ctx.vars, request);
-            self.notify(ctx.vars, &mut focus, args);
+            let args = focus.fulfill_request(request);
+            self.notify(&mut focus, args);
         }
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
+    fn update(&mut self, _: &mut AppContext) {
         let mut focus = FOCUS_SV.write();
         if let Some(request) = focus.request.take() {
             focus.pending_highlight = false;
-            let args = focus.fulfill_request(ctx.vars, request);
-            self.notify(ctx.vars, &mut focus, args);
+            let args = focus.fulfill_request(request);
+            self.notify(&mut focus, args);
         } else if mem::take(&mut focus.pending_highlight) {
-            let args = focus.continue_focus_highlight(ctx.vars, true);
-            self.notify(ctx.vars, &mut focus, args);
+            let args = focus.continue_focus_highlight(true);
+            self.notify(&mut focus, args);
         }
     }
 }
 impl FocusManager {
-    fn on_info_tree_update(&mut self, tree: WidgetInfoTree, ctx: &mut AppContext) {
+    fn on_info_tree_update(&mut self, tree: WidgetInfoTree, _: &mut AppContext) {
         let mut focus = FOCUS_SV.write();
         let focus = &mut *focus;
         focus.update_focused_center();
 
         // widget tree rebuilt or visibility may have changed, check if focus is still valid
-        let args = focus.continue_focus(ctx.vars);
-        self.notify(ctx.vars, focus, args);
+        let args = focus.continue_focus();
+        self.notify(focus, args);
 
         // cleanup return focuses.
-        for args in focus.cleanup_returns(
-            ctx.vars,
-            FocusInfoTree::new(tree, focus.focus_disabled_widgets.get(), focus.focus_hidden_widgets.get()),
-        ) {
+        for args in focus.cleanup_returns(FocusInfoTree::new(
+            tree,
+            focus.focus_disabled_widgets.get(),
+            focus.focus_hidden_widgets.get(),
+        )) {
             RETURN_FOCUS_CHANGED_EVENT.notify(args);
         }
     }
 
-    fn notify(&mut self, vars: &Vars, focus: &mut FocusService, args: Option<FocusChangedArgs>) {
+    fn notify(&mut self, focus: &mut FocusService, args: Option<FocusChangedArgs>) {
         if let Some(mut args) = args {
             if !args.highlight && args.new_focus.is_some() {
                 if let Some(dur) = focus.auto_highlight.get() {
                     if args.timestamp.duration_since(self.last_keyboard_event) <= dur {
                         args.highlight = true;
                         focus.is_highlighting = true;
-                        focus.is_highlighting_var.set_ne(vars, true);
+                        focus.is_highlighting_var.set_ne(true);
                     }
                 }
             }
@@ -544,11 +545,11 @@ impl FocusManager {
             FOCUS_CHANGED_EVENT.notify(args);
 
             // may have focused scope.
-            while let Some(after_args) = focus.move_after_focus(vars, reverse) {
+            while let Some(after_args) = focus.move_after_focus(reverse) {
                 FOCUS_CHANGED_EVENT.notify(after_args);
             }
 
-            for return_args in focus.update_returns(vars, prev_focus) {
+            for return_args in focus.update_returns(prev_focus) {
                 RETURN_FOCUS_CHANGED_EVENT.notify(return_args);
             }
         }
@@ -870,12 +871,12 @@ impl FocusService {
     }
 
     #[must_use]
-    fn fulfill_request(&mut self, vars: &Vars, request: FocusRequest) -> Option<FocusChangedArgs> {
+    fn fulfill_request(&mut self, request: FocusRequest) -> Option<FocusChangedArgs> {
         match (&self.focused, request.target) {
-            (_, FocusTarget::Direct(widget_id)) => self.focus_direct(vars, widget_id, request.highlight, false, false, request),
-            (_, FocusTarget::DirectOrExit(widget_id)) => self.focus_direct(vars, widget_id, request.highlight, false, true, request),
-            (_, FocusTarget::DirectOrEnter(widget_id)) => self.focus_direct(vars, widget_id, request.highlight, true, false, request),
-            (_, FocusTarget::DirectOrRelated(widget_id)) => self.focus_direct(vars, widget_id, request.highlight, true, true, request),
+            (_, FocusTarget::Direct(widget_id)) => self.focus_direct(widget_id, request.highlight, false, false, request),
+            (_, FocusTarget::DirectOrExit(widget_id)) => self.focus_direct(widget_id, request.highlight, false, true, request),
+            (_, FocusTarget::DirectOrEnter(widget_id)) => self.focus_direct(widget_id, request.highlight, true, false, request),
+            (_, FocusTarget::DirectOrRelated(widget_id)) => self.focus_direct(widget_id, request.highlight, true, true, request),
             (Some(prev), move_) => {
                 if let Ok(info) = WINDOWS.widget_tree(prev.path.window_id()) {
                     let info = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get());
@@ -920,22 +921,21 @@ impl FocusService {
                             // found `new_focus`
                             self.enabled_nav = new_focus.enabled_nav_with_frame();
                             self.move_focus(
-                                vars,
                                 Some(FocusedInfo::new(new_focus)),
                                 request.highlight,
                                 FocusChangedCause::Request(request),
                             )
                         } else {
                             // no `new_focus`, maybe update highlight and widget path.
-                            self.continue_focus_highlight(vars, request.highlight)
+                            self.continue_focus_highlight(request.highlight)
                         }
                     } else {
                         // widget not found
-                        self.continue_focus_highlight(vars, request.highlight)
+                        self.continue_focus_highlight(request.highlight)
                     }
                 } else {
                     // window not found
-                    self.continue_focus_highlight(vars, request.highlight)
+                    self.continue_focus_highlight(request.highlight)
                 }
             }
             _ => None,
@@ -944,7 +944,7 @@ impl FocusService {
 
     /// Checks if `focused()` is still valid, if not moves focus to nearest valid.
     #[must_use]
-    fn continue_focus(&mut self, vars: &Vars) -> Option<FocusChangedArgs> {
+    fn continue_focus(&mut self) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Ok(true) = WINDOWS.is_focused(focused.path.window_id()) {
                 let info = WINDOWS.widget_tree(focused.path.window_id()).unwrap();
@@ -955,27 +955,17 @@ impl FocusService {
                     if widget.is_focusable() {
                         // :-) probably in the same place, maybe moved inside same window.
                         self.enabled_nav = widget.enabled_nav_with_frame();
-                        return self.move_focus(
-                            vars,
-                            Some(FocusedInfo::new(widget)),
-                            self.is_highlighting,
-                            FocusChangedCause::Recovery,
-                        );
+                        return self.move_focus(Some(FocusedInfo::new(widget)), self.is_highlighting, FocusChangedCause::Recovery);
                     } else {
                         // widget no longer focusable
                         if let Some(parent) = widget.parent() {
                             // move to nearest inside focusable parent, or parent
                             let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
                             self.enabled_nav = new_focus.enabled_nav_with_frame();
-                            return self.move_focus(
-                                vars,
-                                Some(FocusedInfo::new(new_focus)),
-                                self.is_highlighting,
-                                FocusChangedCause::Recovery,
-                            );
+                            return self.move_focus(Some(FocusedInfo::new(new_focus)), self.is_highlighting, FocusChangedCause::Recovery);
                         } else {
                             // no focusable parent or root
-                            return self.focus_focused_window(vars, self.is_highlighting);
+                            return self.focus_focused_window(self.is_highlighting);
                         }
                     }
                 } else {
@@ -988,30 +978,25 @@ impl FocusService {
                             // move to nearest inside focusable parent, or parent
                             let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
                             self.enabled_nav = new_focus.enabled_nav_with_frame();
-                            return self.move_focus(
-                                vars,
-                                Some(FocusedInfo::new(new_focus)),
-                                self.is_highlighting,
-                                FocusChangedCause::Recovery,
-                            );
+                            return self.move_focus(Some(FocusedInfo::new(new_focus)), self.is_highlighting, FocusChangedCause::Recovery);
                         }
                     }
                 }
             } // else window not found or not focused
         } // else no current focus
-        self.focus_focused_window(vars, false)
+        self.focus_focused_window(false)
     }
 
     #[must_use]
-    fn continue_focus_highlight(&mut self, vars: &Vars, highlight: bool) -> Option<FocusChangedArgs> {
-        if let Some(mut args) = self.continue_focus(vars) {
+    fn continue_focus_highlight(&mut self, highlight: bool) -> Option<FocusChangedArgs> {
+        if let Some(mut args) = self.continue_focus() {
             args.highlight = highlight;
             self.is_highlighting = highlight;
-            self.is_highlighting_var.set_ne(vars, highlight);
+            self.is_highlighting_var.set_ne(highlight);
             Some(args)
         } else if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
-            self.is_highlighting_var.set_ne(vars, highlight);
+            self.is_highlighting_var.set_ne(highlight);
             let focused = self.focused.as_ref().map(|p| p.path.clone());
             Some(FocusChangedArgs::now(
                 focused.clone(),
@@ -1029,7 +1014,6 @@ impl FocusService {
     #[allow(clippy::too_many_arguments)]
     fn focus_direct(
         &mut self,
-        vars: &Vars,
         widget_id: WidgetId,
         highlight: bool,
         fallback_to_childs: bool,
@@ -1067,7 +1051,7 @@ impl FocusService {
                         .vars(target.path.window_id())
                         .unwrap()
                         .focus_indicator()
-                        .set(vars, request.window_indicator);
+                        .set(request.window_indicator);
                 }
 
                 // will focus when the window is focused
@@ -1075,18 +1059,18 @@ impl FocusService {
                 None
             } else {
                 self.enabled_nav = enabled_nav;
-                self.move_focus(vars, Some(target), highlight, FocusChangedCause::Request(request))
+                self.move_focus(Some(target), highlight, FocusChangedCause::Request(request))
             }
         } else {
-            self.change_highlight(vars, highlight, request)
+            self.change_highlight(highlight, request)
         }
     }
 
     #[must_use]
-    fn change_highlight(&mut self, vars: &Vars, highlight: bool, request: FocusRequest) -> Option<FocusChangedArgs> {
+    fn change_highlight(&mut self, highlight: bool, request: FocusRequest) -> Option<FocusChangedArgs> {
         if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
-            self.is_highlighting_var.set_ne(vars, highlight);
+            self.is_highlighting_var.set_ne(highlight);
             let focused = self.focused.as_ref().map(|p| p.path.clone());
             Some(FocusChangedArgs::now(
                 focused.clone(),
@@ -1101,35 +1085,29 @@ impl FocusService {
     }
 
     #[must_use]
-    fn focus_focused_window(&mut self, vars: &Vars, highlight: bool) -> Option<FocusChangedArgs> {
+    fn focus_focused_window(&mut self, highlight: bool) -> Option<FocusChangedArgs> {
         if let Some(info) = WINDOWS.focused_info() {
             let info = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get());
             if let Some(root) = info.focusable_root() {
                 // found focused window and it is focusable.
                 self.enabled_nav = root.enabled_nav_with_frame();
-                self.move_focus(vars, Some(FocusedInfo::new(root)), highlight, FocusChangedCause::Recovery)
+                self.move_focus(Some(FocusedInfo::new(root)), highlight, FocusChangedCause::Recovery)
             } else {
                 // has focused window but it is not focusable.
                 self.enabled_nav = EnabledNavWithFrame::invalid();
-                self.move_focus(vars, None, false, FocusChangedCause::Recovery)
+                self.move_focus(None, false, FocusChangedCause::Recovery)
             }
         } else {
             // no focused window
             self.enabled_nav = EnabledNavWithFrame::invalid();
-            self.move_focus(vars, None, false, FocusChangedCause::Recovery)
+            self.move_focus(None, false, FocusChangedCause::Recovery)
         }
     }
 
     #[must_use]
-    fn move_focus(
-        &mut self,
-        vars: &Vars,
-        new_focus: Option<FocusedInfo>,
-        highlight: bool,
-        cause: FocusChangedCause,
-    ) -> Option<FocusChangedArgs> {
+    fn move_focus(&mut self, new_focus: Option<FocusedInfo>, highlight: bool, cause: FocusChangedCause) -> Option<FocusChangedArgs> {
         let prev_highlight = std::mem::replace(&mut self.is_highlighting, highlight);
-        self.is_highlighting_var.set_ne(vars, highlight);
+        self.is_highlighting_var.set_ne(highlight);
 
         let r = if self.focused.as_ref().map(|p| &p.path) != new_focus.as_ref().map(|p| &p.path) {
             let new_focus = new_focus.as_ref().map(|p| p.path.clone());
@@ -1140,7 +1118,7 @@ impl FocusService {
                 cause,
                 self.enabled_nav.nav,
             );
-            self.focused_var.set_ne(vars, new_focus);
+            self.focused_var.set_ne(new_focus);
             Some(args)
         } else if prev_highlight != highlight {
             let new_focus = new_focus.as_ref().map(|p| p.path.clone());
@@ -1162,7 +1140,7 @@ impl FocusService {
     }
 
     #[must_use]
-    fn move_after_focus(&mut self, vars: &Vars, reverse: bool) -> Option<FocusChangedArgs> {
+    fn move_after_focus(&mut self, reverse: bool) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Some(info) = WINDOWS.focused_info() {
                 if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
@@ -1172,7 +1150,6 @@ impl FocusService {
                         if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused.get(&id).map(|p| p.as_path()), reverse) {
                             self.enabled_nav = widget.enabled_nav_with_frame();
                             return self.move_focus(
-                                vars,
                                 Some(FocusedInfo::new(widget)),
                                 self.is_highlighting,
                                 FocusChangedCause::ScopeGotFocus(reverse),
@@ -1187,7 +1164,7 @@ impl FocusService {
 
     /// Updates `return_focused` and `alt_return` after `focused` changed.
     #[must_use]
-    fn update_returns(&mut self, vars: &Vars, prev_focus: Option<InteractionPath>) -> Vec<ReturnFocusChangedArgs> {
+    fn update_returns(&mut self, prev_focus: Option<InteractionPath>) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
         if let Some((scope, _)) = &self.alt_return {
@@ -1202,7 +1179,7 @@ impl FocusService {
 
             if !retain_alt {
                 let (scope, widget_path) = self.alt_return.take().unwrap();
-                self.alt_return_var.set_ne(vars, None);
+                self.alt_return_var.set_ne(None);
                 r.push(ReturnFocusChangedArgs::now(scope, Some(widget_path), None));
             }
         } else if let Some(new_focus) = &self.focused {
@@ -1226,13 +1203,13 @@ impl FocusService {
                             // previous focus is the return.
                             r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(prev.clone())));
                             self.alt_return = Some((scope, prev.clone()));
-                            self.alt_return_var.set(vars, prev.clone());
+                            self.alt_return_var.set(prev.clone());
                         } else if let Some(parent) = alt_scope.parent() {
                             // no previous focus, ALT parent is the return.
                             let parent_path = parent.info.interaction_path();
                             r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(parent_path.clone())));
                             self.alt_return = Some((scope, parent_path.clone()));
-                            self.alt_return_var.set(vars, parent_path);
+                            self.alt_return_var.set(parent_path);
                         }
                     }
                 }
@@ -1260,13 +1237,13 @@ impl FocusService {
                             if let Some(current) = self.return_focused.get_mut(&scope.widget_id()) {
                                 if current != &path {
                                     let prev = std::mem::replace(current, path);
-                                    self.return_focused_var.get(&scope.widget_id()).unwrap().set(vars, current.clone());
+                                    self.return_focused_var.get(&scope.widget_id()).unwrap().set(current.clone());
                                     r.push(ReturnFocusChangedArgs::now(scope, Some(prev), Some(current.clone())));
                                 }
                             } else {
                                 self.return_focused.insert(scope.widget_id(), path.clone());
                                 match self.return_focused_var.entry(scope.widget_id()) {
-                                    hash_map::Entry::Occupied(e) => e.get().set(vars, Some(path.clone())),
+                                    hash_map::Entry::Occupied(e) => e.get().set(Some(path.clone())),
                                     hash_map::Entry::Vacant(e) => {
                                         e.insert(var(Some(path.clone())));
                                     }
@@ -1284,7 +1261,7 @@ impl FocusService {
 
     /// Cleanup `return_focused` and `alt_return` after new widget tree.
     #[must_use]
-    fn cleanup_returns(&mut self, vars: &Vars, info: FocusInfoTree) -> Vec<ReturnFocusChangedArgs> {
+    fn cleanup_returns(&mut self, info: FocusInfoTree) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
         if self.return_focused_var.len() > 20 {
@@ -1359,14 +1336,14 @@ impl FocusService {
                             if e.get().strong_count() == 1 {
                                 e.remove();
                             } else {
-                                e.get().set(vars, None);
+                                e.get().set(None);
                             }
                         }
                         hash_map::Entry::Vacant(_) => {}
                     }
                 } else if let Some(var) = self.return_focused_var.remove(&scope_id) {
                     if var.strong_count() > 1 {
-                        var.set(vars, None);
+                        var.set(None);
                     }
                 }
 
@@ -1405,14 +1382,14 @@ impl FocusService {
                             Some(path.clone()),
                         ));
                         *widget_path = path.clone();
-                        self.alt_return_var.set(vars, path);
+                        self.alt_return_var.set(path);
                     }
                 }
             }
         }
         if !retain_alt {
             let (scope_id, widget_path) = self.alt_return.take().unwrap();
-            self.alt_return_var.set(vars, None);
+            self.alt_return_var.set(None);
             r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path), None));
         }
 
@@ -1421,7 +1398,7 @@ impl FocusService {
 
     /// Cleanup `return_focused` and `alt_return` after a window closed.
     #[must_use]
-    fn cleanup_returns_win_closed(&mut self, vars: &Vars, window_id: WindowId) -> Vec<ReturnFocusChangedArgs> {
+    fn cleanup_returns_win_closed(&mut self, window_id: WindowId) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
         if self
@@ -1431,7 +1408,7 @@ impl FocusService {
             .unwrap_or_default()
         {
             let (_, widget_path) = self.alt_return.take().unwrap();
-            self.alt_return_var.set_ne(vars, None);
+            self.alt_return_var.set_ne(None);
             r.push(ReturnFocusChangedArgs::now(None, Some(widget_path), None));
         }
 
@@ -1440,7 +1417,7 @@ impl FocusService {
 
             if !retain {
                 let var = self.return_focused_var.remove(&scope_id).unwrap();
-                var.set(vars, None);
+                var.set(None);
 
                 r.push(ReturnFocusChangedArgs::now(None, Some(widget_path.clone()), None));
             }

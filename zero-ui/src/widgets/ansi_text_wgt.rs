@@ -381,8 +381,8 @@ mod ansi_gen {
         /// Widget generator for [`TextGenArgs`].
         ///
         /// The returned widgets are layout by the [`LINE_GEN_VAR`]. The default view is [`default_text_gen`].
-        pub static TEXT_GEN_VAR: WidgetGenerator<TextGenArgs> = wgt_gen!(|ctx, args: TextGenArgs|  {
-            default_text_gen(ctx.vars, args)
+        pub static TEXT_GEN_VAR: WidgetGenerator<TextGenArgs> = wgt_gen!(|_, args: TextGenArgs|  {
+            default_text_gen(args)
         });
 
         /// Widget generator for [`LineGenArgs`].
@@ -425,7 +425,7 @@ mod ansi_gen {
     /// not overridden by the ANSI style, like the font.
     ///
     /// Returns a `text!` with the text and style.
-    pub fn default_text_gen(vars: &Vars, args: TextGenArgs) -> impl UiNode {
+    pub fn default_text_gen(args: TextGenArgs) -> impl UiNode {
         use crate::widgets::text as t;
 
         let mut builder = WidgetBuilder::new(widget_mod!(t));
@@ -511,7 +511,7 @@ mod ansi_gen {
 
             let interval = BLINK_INTERVAL_VAR.get();
             if interval != Duration::ZERO && interval != Duration::MAX {
-                opacity.step_oci(vars, 0.fct(), interval, usize::MAX).perm();
+                opacity.step_oci(0.fct(), interval, usize::MAX).perm();
 
                 builder.push_property(
                     Importance::INSTANCE,
@@ -654,13 +654,13 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             use ansi_gen::*;
 
-            if self.txt.is_new(ctx)
-                || TEXT_GEN_VAR.is_new(ctx)
-                || LINE_GEN_VAR.is_new(ctx)
-                || PAGE_GEN_VAR.is_new(ctx)
-                || PANEL_GEN_VAR.is_new(ctx)
-                || LINES_PER_PAGE_VAR.is_new(ctx)
-                || BLINK_INTERVAL_VAR.is_new(ctx)
+            if self.txt.is_new()
+                || TEXT_GEN_VAR.is_new()
+                || LINE_GEN_VAR.is_new()
+                || PAGE_GEN_VAR.is_new()
+                || PANEL_GEN_VAR.is_new()
+                || LINES_PER_PAGE_VAR.is_new()
+                || BLINK_INTERVAL_VAR.is_new()
             {
                 self.child.deinit(ctx);
                 self.generate_child(ctx);

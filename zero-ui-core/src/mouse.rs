@@ -737,7 +737,7 @@ impl Default for MouseManager {
     }
 }
 impl MouseManager {
-    fn on_mouse_input(&mut self, window_id: WindowId, device_id: DeviceId, state: ButtonState, button: MouseButton, ctx: &mut AppContext) {
+    fn on_mouse_input(&mut self, window_id: WindowId, device_id: DeviceId, state: ButtonState, button: MouseButton) {
         let position = if self.pos_window == Some(window_id) {
             self.pos
         } else {
@@ -768,7 +768,7 @@ impl MouseManager {
             }
 
             if !mouse.buttons.with(|b| b.contains(&button)) {
-                mouse.buttons.modify(ctx.vars, move |btns| btns.to_mut().push(button));
+                mouse.buttons.modify(move |btns| btns.to_mut().push(button));
             }
 
             prev_pressed = self.pressed.insert(button, target.clone());
@@ -780,7 +780,7 @@ impl MouseManager {
             }
 
             if mouse.buttons.with(|b| b.contains(&button)) {
-                mouse.buttons.modify(ctx.vars, move |btns| {
+                mouse.buttons.modify(move |btns| {
                     if let Some(i) = btns.as_ref().iter().position(|k| *k == button) {
                         btns.to_mut().swap_remove(i);
                     }
@@ -1116,7 +1116,7 @@ impl AppExtension for MouseManager {
         mouse.multi_click_config = self.multi_click_config.clone();
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             // update hovered
             if self.pos_window == Some(args.window_id) {
@@ -1153,7 +1153,7 @@ impl AppExtension for MouseManager {
         } else if let Some(args) = RAW_MOUSE_WHEEL_EVENT.on(update) {
             self.on_scroll(args.window_id, args.device_id, args.delta, args.phase);
         } else if let Some(args) = RAW_MOUSE_INPUT_EVENT.on(update) {
-            self.on_mouse_input(args.window_id, args.device_id, args.state, args.button, ctx);
+            self.on_mouse_input(args.window_id, args.device_id, args.state, args.button);
         } else if let Some(args) = MODIFIERS_CHANGED_EVENT.on(update) {
             self.modifiers = args.modifiers;
         } else if let Some(args) = RAW_CURSOR_LEFT_EVENT.on(update) {
@@ -1165,10 +1165,10 @@ impl AppExtension for MouseManager {
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             self.on_window_closed(args.window_id);
         } else if let Some(args) = RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.on(update) {
-            self.multi_click_config.set_ne(ctx.vars, args.config);
+            self.multi_click_config.set_ne(args.config);
             self.click_state = ClickState::None;
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            self.multi_click_config.set_ne(ctx.vars, args.multi_click_config);
+            self.multi_click_config.set_ne(args.multi_click_config);
 
             if args.is_respawn {
                 let mut mouse = MOUSE_SV.write();

@@ -66,8 +66,8 @@ impl<T: VarValue> AnyVar for ArcVar<T> {
         Box::new(self.get())
     }
 
-    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(vars, var_set_any(value));
+    fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(var_set_any(value));
         Ok(())
     }
 
@@ -79,7 +79,7 @@ impl<T: VarValue> AnyVar for ArcVar<T> {
         VarCapabilities::MODIFY
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.0.push_hook(pos_modify_action)
     }
 
@@ -143,10 +143,10 @@ impl<T: VarValue> IntoVar<T> for ArcVar<T> {
 }
 
 impl<T: VarValue> ArcVar<T> {
-    fn modify_impl(&self, vars: &Vars, modify: impl FnOnce(&mut Cow<T>) + 'static) -> Result<(), VarIsReadOnlyError> {
+    fn modify_impl(&self, modify: impl FnOnce(&mut Cow<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
-        vars.schedule_update(Box::new(move |vars, updates| {
-            me.0.apply_modify(vars, updates, modify);
+        VARS.schedule_update(Box::new(move |updates| {
+            me.0.apply_modify(updates, modify);
         }));
         Ok(())
     }
@@ -170,12 +170,11 @@ impl<T: VarValue> Var<T> for ArcVar<T> {
         self.0.with(read)
     }
 
-    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
-        F: FnOnce(&mut Cow<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + Send + 'static,
     {
-        vars.with_vars(move |vars| self.modify_impl(vars, modify))
+        self.modify_impl(modify)
     }
 
     fn actual_var(self) -> Self {

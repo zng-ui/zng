@@ -1,6 +1,6 @@
 ///<span data-del-macro-root></span> Implements `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` without boilerplate.
 ///
-/// Unfortunately we cannot provide a wgtet impl of `IntoVar` and `IntoValue` for all `From` in Rust stable, because
+/// Unfortunately we cannot provide a widget impl of `IntoVar` and `IntoValue` for all `From` in Rust stable, because
 /// that would block all manual implementations of the trait, so you need to implement then manually to
 /// enable the easy-to-use properties that are expected.
 ///
@@ -86,7 +86,7 @@ use crate::context::Updates;
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
 
-use super::{animation::ModifyInfo, AnyVarValue, VarHandle, VarHook, VarUpdateId, VarValue, Vars};
+use super::{animation::ModifyInfo, AnyVarValue, VarHandle, VarHook, VarUpdateId, VarValue, VARS};
 
 #[doc(hidden)]
 #[macro_export]
@@ -299,17 +299,17 @@ impl<T: VarValue> VarData<T> {
         self.meta.lock().animation.importance()
     }
 
-    pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let (hook, weak) = VarHandle::new(pos_modify_action);
         self.meta.lock().hooks.push(weak);
         hook
     }
 
     /// Calls `modify` on the value, if modified the value is replaced and the previous value returned.
-    pub fn apply_modify(&self, vars: &Vars, updates: &mut Updates, modify: impl FnOnce(&mut Cow<T>)) {
+    pub fn apply_modify(&self, updates: &mut Updates, modify: impl FnOnce(&mut Cow<T>)) {
         {
             let mut meta = self.meta.lock();
-            let curr_anim = vars.current_modify();
+            let curr_anim = VARS.current_modify();
             if curr_anim.importance() < meta.animation.importance() {
                 return;
             }
@@ -328,9 +328,9 @@ impl<T: VarValue> VarData<T> {
         if let Some(new_value) = new_value {
             let mut meta = self.meta.lock();
             let _ = self.value.replace(new_value);
-            meta.last_update = vars.update_id();
+            meta.last_update = VARS.update_id();
             self.with(|val| {
-                meta.hooks.retain(|h| h.call(vars, updates, val));
+                meta.hooks.retain(|h| h.call(updates, val));
             });
             updates.update_ext();
         }

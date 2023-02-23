@@ -149,18 +149,18 @@ pub mod scroll {
                 let content_size = SCROLL_CONTENT_SIZE_VAR.get();
 
                 if content_size.height > final_size.height {
-                    SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(ctx, true).unwrap();
+                    SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(true).unwrap();
                     SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR
-                        .set_ne(ctx, content_size.width > viewport.width)
+                        .set_ne(content_size.width > viewport.width)
                         .unwrap();
                 } else if content_size.width > final_size.width {
-                    SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set_ne(ctx, true).unwrap();
+                    SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set_ne(true).unwrap();
                     SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR
-                        .set_ne(ctx, content_size.height > viewport.height)
+                        .set_ne(content_size.height > viewport.height)
                         .unwrap();
                 } else {
-                    SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(ctx, false).unwrap();
-                    SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set_ne(ctx, false).unwrap();
+                    SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(false).unwrap();
+                    SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set_ne(false).unwrap();
                 }
 
                 // collapse scrollbars if they take more the 1/3 of the total area.

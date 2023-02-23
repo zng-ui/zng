@@ -550,12 +550,12 @@ impl WINDOWS {
     /// Change window state to loaded if there are no load handles active.
     ///
     /// Returns `true` if loaded.
-    pub(super) fn try_load(&self, vars: &Vars, window_id: WindowId) -> bool {
+    pub(super) fn try_load(&self, window_id: WindowId) -> bool {
         if let Some(info) = WINDOWS_SV.write().windows_info.get_mut(&window_id) {
             info.is_loaded = info.loading_handle.try_load();
 
             if info.is_loaded && !info.vars.0.is_loaded.get() {
-                info.vars.0.is_loaded.set_ne(vars, true);
+                info.vars.0.is_loaded.set_ne(true);
                 WINDOW_LOAD_EVENT.notify(WindowOpenArgs::now(info.id));
             }
 
@@ -593,7 +593,7 @@ impl WINDOWS {
                 if let Some(window) = wns.windows_info.get_mut(&new_focus) {
                     if !window.is_focused {
                         window.is_focused = true;
-                        window.vars.focus_indicator().set_ne(ctx.vars, None);
+                        window.vars.focus_indicator().set_ne(None);
                         new = Some(new_focus);
                     }
                 }
@@ -650,11 +650,11 @@ impl WINDOWS {
                     // close requested by us and not canceled.
                     WINDOW_CLOSE_EVENT.notify(WindowCloseArgs::now(args.windows.clone()));
                     for r in rsp {
-                        r.respond(ctx, CloseWindowResult::Closed);
+                        r.respond(CloseWindowResult::Closed);
                     }
                 } else {
                     for r in rsp {
-                        r.respond(ctx, CloseWindowResult::Cancel);
+                        r.respond(CloseWindowResult::Cancel);
                     }
                 }
             }
@@ -670,7 +670,7 @@ impl WINDOWS {
 
                     let info = wns.windows_info.remove(&id).unwrap();
 
-                    info.vars.0.is_open.set(ctx.vars, false);
+                    info.vars.0.is_open.set(false);
 
                     if info.is_focused {
                         let args = WindowFocusChangedArgs::now(Some(info.id), None, true);
@@ -700,7 +700,7 @@ impl WINDOWS {
                 let windows = WINDOWS_SV.read();
                 if windows.windows_info.values().any(|w| w.mode == WindowMode::Headed) {
                     args.propagation().stop();
-                    windows.exit_on_last_close.set(ctx, true);
+                    windows.exit_on_last_close.set(true);
                     drop(windows);
                     WINDOWS.close_all();
                 }
@@ -761,7 +761,7 @@ impl WINDOWS {
                 wns.windows_info.insert(info.id, info);
             }
 
-            r.responder.respond(ctx, args.clone());
+            r.responder.respond(args.clone());
             WINDOW_OPEN_EVENT.notify(args);
         }
 
@@ -918,10 +918,10 @@ impl AppWindow {
         let (window, _) = ctx.window_context(id, mode, &mut state, new);
 
         if window.kiosk {
-            vars.chrome().set_ne(ctx, WindowChrome::None);
-            vars.visible().set_ne(ctx, true);
+            vars.chrome().set_ne(WindowChrome::None);
+            vars.visible().set_ne(true);
             if !vars.state().get().is_fullscreen() {
-                vars.state().set(ctx, WindowState::Exclusive);
+                vars.state().set(WindowState::Exclusive);
             }
         }
 

@@ -110,7 +110,7 @@ fn images_render() {
 
     app.run_task(move |ctx| async move {
         while ctx.with(|ctx| img.with(Image::is_loading)) {
-            img.wait_new(&ctx).await;
+            img.wait_new().await;
         }
         let img = img.get();
 

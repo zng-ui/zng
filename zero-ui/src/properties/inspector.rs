@@ -123,7 +123,7 @@ fn show_widget_tree(
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.valid && self.enabled.is_new(ctx) {
+            if self.valid && self.enabled.is_new() {
                 ctx.updates.render();
             }
             self.child.update(ctx, updates);
@@ -239,7 +239,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(enabled) = self.enabled.get_new(ctx) {
+            if let Some(enabled) = self.enabled.get_new() {
                 if enabled && self.valid {
                     self.handles = [
                         MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
@@ -357,7 +357,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid {
-                if let Some(ori) = self.orientation.get_new(ctx) {
+                if let Some(ori) = self.orientation.get_new() {
                     self.search_quads.clear();
 
                     if ori.is_some() {

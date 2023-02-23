@@ -846,14 +846,14 @@ impl GridNode {
 
     #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-        if self.spacing.is_new(ctx) {
+        if self.spacing.is_new() {
             ctx.updates.layout();
         }
 
         let mut any = false;
         self.children.update_all(ctx, updates, &mut any);
 
-        if self.auto_grow_gen.is_new(ctx) || self.auto_grow_mode.is_new(ctx) {
+        if self.auto_grow_gen.is_new() || self.auto_grow_mode.is_new() {
             for mut auto in downcast_auto(&mut self.children[0]).drain(..) {
                 auto.deinit(ctx);
             }

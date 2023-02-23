@@ -33,7 +33,7 @@ pub fn linear_gradient_ext(
     })]
     impl UiNode for LinearGradientNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.axis.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
+            if self.axis.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
                 self.final_size = PxSize::zero();
                 ctx.updates.layout();
             }
@@ -110,11 +110,11 @@ pub fn linear_gradient_full(
     })]
     impl UiNode for LinearGradientFullNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.axis.is_new(ctx)
-                || self.stops.is_new(ctx)
-                || self.extend_mode.is_new(ctx)
-                || self.tile_size.is_new(ctx)
-                || self.tile_spacing.is_new(ctx)
+            if self.axis.is_new()
+                || self.stops.is_new()
+                || self.extend_mode.is_new()
+                || self.tile_size.is_new()
+                || self.tile_spacing.is_new()
             {
                 self.final_size = PxSize::zero();
                 ctx.updates.layout();
@@ -223,7 +223,7 @@ pub fn radial_gradient_ext(
     })]
     impl UiNode for RadialGradientNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.center.is_new(ctx) || self.radius.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
+            if self.center.is_new() || self.radius.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
                 self.final_size = PxSize::zero();
                 ctx.updates.layout();
             }
@@ -312,12 +312,12 @@ pub fn radial_gradient_full(
     })]
     impl UiNode for RadialGradientNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.center.is_new(ctx)
-                || self.radius.is_new(ctx)
-                || self.stops.is_new(ctx)
-                || self.extend_mode.is_new(ctx)
-                || self.tile_size.is_new(ctx)
-                || self.tile_spacing.is_new(ctx)
+            if self.center.is_new()
+                || self.radius.is_new()
+                || self.stops.is_new()
+                || self.extend_mode.is_new()
+                || self.tile_size.is_new()
+                || self.tile_spacing.is_new()
             {
                 self.final_size = PxSize::zero();
                 ctx.updates.layout();
@@ -431,7 +431,7 @@ pub fn conic_gradient_ext(
     })]
     impl UiNode for ConicGradientNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.center.is_new(ctx) || self.angle.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
+            if self.center.is_new() || self.angle.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
                 self.final_size = PxSize::zero();
                 ctx.updates.layout();
             }
@@ -521,7 +521,7 @@ pub fn conic_gradient_full(
     })]
     impl UiNode for ConicGradientFullNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if self.center.is_new(ctx) || self.angle.is_new(ctx) || self.stops.is_new(ctx) || self.extend_mode.is_new(ctx) {
+            if self.center.is_new() || self.angle.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
                 self.final_size = PxSize::zero();
                 ctx.updates.layout();
             }

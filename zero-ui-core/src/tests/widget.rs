@@ -1475,7 +1475,7 @@ mod util {
         fn update_state(&mut self, ctx: &mut WidgetContext) {
             let wgt_state = ctx.widget_state.get(&IS_STATE_ID).copied().unwrap_or_default();
             if wgt_state != self.state.get() {
-                let _ = self.state.set(ctx.vars, wgt_state);
+                let _ = self.state.set(wgt_state);
             }
         }
 
@@ -1524,7 +1524,7 @@ mod util {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
-            if let Some(trace) = self.trace.get_new(ctx) {
+            if let Some(trace) = self.trace.get_new() {
                 ctx.widget_state.entry(&TRACE_ID).or_default().insert(trace);
             }
         }

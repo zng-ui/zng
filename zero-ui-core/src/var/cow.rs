@@ -38,11 +38,11 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
             let mut data = cow.write();
             if let Data::Source { source, source_handle, .. } = &mut *data {
                 let weak_cow = Arc::downgrade(&cow);
-                *source_handle = source.hook(Box::new(move |vars, updates, value| {
+                *source_handle = source.hook(Box::new(move |updates, value| {
                     if let Some(cow) = weak_cow.upgrade() {
                         match &mut *cow.write() {
                             Data::Source { hooks, .. } => {
-                                hooks.retain(|h| h.call(vars, updates, value));
+                                hooks.retain(|h| h.call(updates, value));
                                 true
                             }
                             Data::Owned { .. } => false,
@@ -56,9 +56,9 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
         Self(cow)
     }
 
-    fn modify_impl(&self, vars: &Vars, modify: impl FnOnce(&mut Cow<T>) + 'static) -> Result<(), VarIsReadOnlyError> {
+    fn modify_impl(&self, modify: impl FnOnce(&mut Cow<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
-        vars.schedule_update(Box::new(move |vars, updates| {
+        VARS.schedule_update(Box::new(move |updates| {
             let mut data = me.0.write();
             let data = &mut *data;
 
@@ -75,9 +75,9 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                     if let Some(value) = modified {
                         *data = Data::Owned {
                             value,
-                            last_update: vars.update_id(),
+                            last_update: VARS.update_id(),
                             hooks: mem::take(hooks),
-                            animation: vars.current_modify(),
+                            animation: VARS.current_modify(),
                         };
                     }
                 }
@@ -88,7 +88,7 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                     animation,
                 } => {
                     {
-                        let curr_anim = vars.current_modify();
+                        let curr_anim = VARS.current_modify();
                         if curr_anim.importance() < animation.importance() {
                             return;
                         }
@@ -106,8 +106,8 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
 
                     if let Some(new_value) = new_value {
                         *value = new_value;
-                        *last_update = vars.update_id();
-                        hooks.retain(|h| h.call(vars, updates, value));
+                        *last_update = VARS.update_id();
+                        hooks.retain(|h| h.call(updates, value));
                         updates.update_ext();
                     }
                 }
@@ -157,8 +157,8 @@ impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
         Box::new(self.get())
     }
 
-    fn set_any(&self, vars: &Vars, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(vars, var_set_any(value));
+    fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+        self.modify(var_set_any(value));
         Ok(())
     }
 
@@ -173,7 +173,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
         VarCapabilities::MODIFY
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let mut data = self.0.write();
         match &mut *data {
             Data::Source { hooks, .. } => {
@@ -271,12 +271,11 @@ impl<T: VarValue, S: Var<T>> Var<T> for ArcCowVar<T, S> {
         }
     }
 
-    fn modify<V, F>(&self, vars: &V, modify: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
-        F: FnOnce(&mut Cow<T>) + 'static,
+        F: FnOnce(&mut Cow<T>) + Send + 'static,
     {
-        vars.with_vars(|vars| self.modify_impl(vars, modify))
+        self.modify_impl(modify)
     }
 
     fn actual_var(self) -> Self {

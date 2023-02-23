@@ -186,8 +186,8 @@ fn anchor_example() -> impl UiNode {
         corner_radius: false,
     });
 
-    let next_point = hn!(|ctx, _| {
-        point_index.modify(ctx, move |i| {
+    let next_point = hn!(|_, _| {
+        point_index.modify(move |i| {
             let next = **i + 1;
             *i.to_mut() = if next == points_len { 0 } else { next };
         })

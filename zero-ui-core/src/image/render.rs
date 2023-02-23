@@ -1,5 +1,5 @@
 use crate::{
-    context::{state_map, AppContext, BorrowStateMap, StaticStateId, WindowContext},
+    context::{state_map, BorrowStateMap, StaticStateId, WindowContext},
     event::{AnyEventArgs, EventUpdate},
     property,
     render::RenderMode,
@@ -23,7 +23,7 @@ impl ImagesService {
                 let r = render(ctx);
                 WindowVars::req(&ctx.window_state)
                     .frame_capture_mode()
-                    .set_ne(ctx.vars, FrameCaptureMode::All);
+                    .set_ne(FrameCaptureMode::All);
                 r
             },
             &result,
@@ -126,13 +126,13 @@ impl ImageManager {
                         let retain = vars.retain.clone();
                         ctx.window_state.set(&IMAGE_RENDER_VARS_ID, vars);
                         let vars = WindowVars::req(&ctx.window_state);
-                        vars.auto_size().set(ctx.vars, true);
-                        vars.min_size().set(ctx.vars, (1.px(), 1.px()));
+                        vars.auto_size().set(true);
+                        vars.min_size().set((1.px(), 1.px()));
 
                         let w = (req.render)(ctx);
 
                         let vars = WindowVars::req(&ctx.window_state);
-                        vars.frame_capture_mode().set(ctx.vars, FrameCaptureMode::All);
+                        vars.frame_capture_mode().set(FrameCaptureMode::All);
 
                         let a = ActiveRenderer {
                             window_id: *ctx.window_id,
@@ -150,13 +150,13 @@ impl ImageManager {
     }
 
     /// AppExtension::event_preview
-    pub(super) fn event_preview_render(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    pub(super) fn event_preview_render(&mut self, update: &mut EventUpdate) {
         if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update) {
             if let Some(img) = &args.frame_image {
                 let imgs = IMAGES_SV.read();
                 if let Some(a) = imgs.render.active.iter().find(|a| a.window_id == args.window_id) {
                     if let Some(img_var) = a.image.upgrade() {
-                        img_var.set(ctx.vars, img.clone());
+                        img_var.set(img.clone());
                     }
                     args.propagation().stop();
                 }
@@ -239,7 +239,7 @@ pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiN
     impl UiNode for RenderRetainNode {
         fn init(&mut self, ctx: &mut crate::context::WidgetContext) {
             if let Some(vars) = ImageRenderVars::get(ctx) {
-                vars.retain.set_ne(ctx, self.retain.get());
+                vars.retain.set_ne(self.retain.get());
                 let handle = self.retain.bind(vars.retain());
                 ctx.handles.push_var(handle);
             } else {

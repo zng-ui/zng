@@ -30,7 +30,7 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         Box::new(self.0.clone())
     }
 
-    fn set_any(&self, _: &Vars, _: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
+    fn set_any(&self, _: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),
         })
@@ -44,7 +44,7 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         VarCapabilities::empty()
     }
 
-    fn hook(&self, _: Box<dyn Fn(&Vars, &mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, _: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         VarHandle::dummy()
     }
 
@@ -134,9 +134,8 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
         read(&self.0)
     }
 
-    fn modify<V, F>(&self, _: &V, _: F) -> Result<(), VarIsReadOnlyError>
+    fn modify<F>(&self, _: F) -> Result<(), VarIsReadOnlyError>
     where
-        V: WithVars,
         F: FnOnce(&mut Cow<T>) + 'static,
     {
         Err(VarIsReadOnlyError {

@@ -108,7 +108,7 @@ pub mod toggle_properties {
                     {
                         args.propagation().stop();
 
-                        let _ = self.checked.modify(ctx, |c| *c = Cow::Owned(!*c.as_ref()));
+                        let _ = self.checked.modify(|c| *c = Cow::Owned(!*c.as_ref()));
                     }
                 }
             }
@@ -172,7 +172,7 @@ pub mod toggle_properties {
                         args.propagation().stop();
 
                         if IS_TRISTATE_VAR.get() {
-                            let _ = self.checked.modify(ctx, |c| {
+                            let _ = self.checked.modify(|c| {
                                 *c = Cow::Owned(match *c.as_ref() {
                                     Some(true) => None,
                                     Some(false) => Some(true),
@@ -180,7 +180,7 @@ pub mod toggle_properties {
                                 });
                             });
                         } else {
-                            let _ = self.checked.modify(ctx, |c| {
+                            let _ = self.checked.modify(|c| {
                                 *c = Cow::Owned(match *c.as_ref() {
                                     Some(true) | None => Some(false),
                                     Some(false) => Some(true),
@@ -355,7 +355,7 @@ pub mod toggle_properties {
                     } else {
                         Self::is_selected(ctx, value)
                     };
-                    self.checked.set_ne(ctx.vars, Some(selected));
+                    self.checked.set_ne(Some(selected));
 
                     if DESELECT_ON_DEINIT_VAR.get() {
                         self.prev_value = Some(value.clone());
@@ -372,7 +372,7 @@ pub mod toggle_properties {
                 if self.checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
                     self.value.with(|value| {
                         if Self::deselect(ctx, value) {
-                            self.checked.set_ne(ctx, Some(false));
+                            self.checked.set_ne(Some(false));
                         }
                     });
                 }
@@ -398,14 +398,14 @@ pub mod toggle_properties {
                                 Self::select(ctx, value)
                             }
                         });
-                        self.checked.set_ne(ctx, Some(selected))
+                        self.checked.set_ne(Some(selected))
                     }
                 }
             }
 
             #[UiNode]
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                let selected = self.value.with_new(ctx.vars, |new| {
+                let selected = self.value.with_new(|new| {
                     // auto select new.
                     let selected = if self.checked.get() == Some(true) && SELECT_ON_NEW_VAR.get() {
                         Self::select(ctx, new)
@@ -427,7 +427,7 @@ pub mod toggle_properties {
                     // contextual selector can change in any update.
                     self.value.with(|val| Self::is_selected(ctx, val))
                 });
-                self.checked.set_ne(ctx.vars, selected);
+                self.checked.set_ne(selected);
 
                 if DESELECT_ON_NEW_VAR.get() && selected {
                     // save a clone of the value to reference it on deselection triggered by variable value changing.
@@ -604,9 +604,9 @@ pub mod toggle_properties {
                     handles.push_var(self.selection.subscribe(widget_id));
                 }
 
-                fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
+                fn select(&mut self, _: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
                     match value.downcast::<T>() {
-                        Ok(value) => match self.selection.set_ne(ctx, *value) {
+                        Ok(value) => match self.selection.set_ne(*value) {
                             Ok(_) => Ok(()),
                             Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                         },
@@ -653,14 +653,14 @@ pub mod toggle_properties {
                     handles.push_var(self.selection.subscribe(widget_id));
                 }
 
-                fn select(&mut self, ctx: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
+                fn select(&mut self, _: &mut WidgetContext, value: Box<dyn Any>) -> Result<(), SelectorError> {
                     match value.downcast::<T>() {
-                        Ok(value) => match self.selection.set_ne(ctx, Some(*value)) {
+                        Ok(value) => match self.selection.set_ne(Some(*value)) {
                             Ok(_) => Ok(()),
                             Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                         },
                         Err(value) => match value.downcast::<Option<T>>() {
-                            Ok(value) => match self.selection.set_ne(ctx, *value) {
+                            Ok(value) => match self.selection.set_ne(*value) {
                                 Ok(_) => Ok(()),
                                 Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                             },
@@ -669,11 +669,11 @@ pub mod toggle_properties {
                     }
                 }
 
-                fn deselect(&mut self, ctx: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
+                fn deselect(&mut self, _: &mut WidgetContext, value: &dyn Any) -> Result<(), SelectorError> {
                     match value.downcast_ref::<T>() {
                         Some(value) => {
                             if self.selection.with(|t| t.as_ref() == Some(value)) {
-                                match self.selection.set(ctx, None) {
+                                match self.selection.set(None) {
                                     Ok(_) => Ok(()),
                                     Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                                 }
@@ -687,7 +687,7 @@ pub mod toggle_properties {
                                     if value.is_none() {
                                         Ok(())
                                     } else {
-                                        match self.selection.set(ctx, None) {
+                                        match self.selection.set(None) {
                                             Ok(_) => Ok(()),
                                             Err(VarIsReadOnlyError { .. }) => Err(SelectorError::ReadOnly),
                                         }

@@ -67,8 +67,8 @@ fn app_main() {
 }
 
 fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
-    fn change_size(font_size: &ArcVar<Length>, change: f32, ctx: &mut WidgetContext) {
-        font_size.modify(ctx, move |s| {
+    fn change_size(font_size: &ArcVar<Length>, change: f32) {
+        font_size.modify(move |s| {
             *s.to_mut() += Length::Pt(change);
         });
     }
@@ -87,8 +87,8 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Minus), shortcut!(NumpadSubtract)];
-                on_click = hn!(font_size, |ctx, _| {
-                    change_size(&font_size, -1.0, ctx)
+                on_click = hn!(font_size, |_, _| {
+                    change_size(&font_size, -1.0)
                 });
             },
             text! {
@@ -99,8 +99,8 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Plus), shortcut!(NumpadAdd)];
-                on_click = hn!(font_size, |ctx, _| {
-                    change_size(&font_size, 1.0, ctx)
+                on_click = hn!(font_size, |_, _| {
+                    change_size(&font_size, 1.0)
                 });
             },
         ]

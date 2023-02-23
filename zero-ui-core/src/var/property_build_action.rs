@@ -111,13 +111,13 @@ impl<T: VarValue> super::types::ArcWhenVar<T> {
             let condition_easing = condition_easing.clone();
             let default_easing = default_easing.clone();
             let mut _anim_handle = AnimationHandle::dummy();
-            crate::var::var_bind(&source, &easing_var, move |vars, _, value, easing_var| {
+            crate::var::var_bind(&source, &easing_var, move |_, value, easing_var| {
                 let source = source_wk.upgrade().unwrap();
                 for ((c, _), easing) in source.conditions().iter().zip(&condition_easing) {
                     if let Some((duration, func)) = easing {
                         if c.get() {
                             let func = func.clone();
-                            _anim_handle = easing_var.ease(vars, value.clone(), *duration, move |t| func(t));
+                            _anim_handle = easing_var.ease(value.clone(), *duration, move |t| func(t));
                             return;
                         }
                     }
@@ -125,7 +125,7 @@ impl<T: VarValue> super::types::ArcWhenVar<T> {
 
                 let (duration, func) = &default_easing;
                 let func = func.clone();
-                _anim_handle = easing_var.ease(vars, value.clone(), *duration, move |t| func(t));
+                _anim_handle = easing_var.ease(value.clone(), *duration, move |t| func(t));
             })
             .perm();
             easing_var.read_only()

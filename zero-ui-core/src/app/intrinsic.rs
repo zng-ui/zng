@@ -45,10 +45,10 @@ impl AppIntrinsic {
     }
 
     /// Returns if exit was requested and not cancelled.
-    pub(super) fn exit(&mut self, vars: &Vars) -> bool {
+    pub(super) fn exit(&mut self) -> bool {
         if let Some(pending) = self.pending_exit.take() {
             if pending.handle.is_stopped() {
-                pending.response.respond(vars, ExitCancelled);
+                pending.response.respond(ExitCancelled);
                 false
             } else {
                 true

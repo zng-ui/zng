@@ -86,7 +86,7 @@ mod tests {
         let img = var(crate::core::image::Image::dummy(Some("test error".to_string()))).read_only();
 
         let mut app = App::default().run_headless(false);
-        IMAGES.load_in_headless().set(&app, true);
+        IMAGES.load_in_headless().set(true);
         let ok = Arc::new(AtomicBool::new(false));
         let window_id = app.open_window(clone_move!(ok, |_| {
             window! {

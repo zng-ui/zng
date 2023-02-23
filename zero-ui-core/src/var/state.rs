@@ -101,17 +101,17 @@ pub fn event_is_state<A: EventArgs>(
         fn init(&mut self, ctx: &mut WidgetContext) {
             validate_getter_var(ctx, &self.state);
             self.auto_subs(ctx);
-            let _ = self.state.set_ne(ctx, self.default);
+            let _ = self.state.set_ne(self.default);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            let _ = self.state.set_ne(ctx, self.default);
+            let _ = self.state.set_ne(self.default);
             self.child.deinit(ctx);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = self.event.on(update) {
                 if let Some(state) = (self.on_event)(ctx, args) {
-                    let _ = self.state.set_ne(ctx, state);
+                    let _ = self.state.set_ne(state);
                 }
             }
             self.child.event(ctx, update);
@@ -159,11 +159,11 @@ pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
             self.auto_subs(ctx);
 
             self.partial = self.partial_default;
-            let _ = self.state.set_ne(ctx, self.default);
+            let _ = self.state.set_ne(self.default);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            let _ = self.state.set_ne(ctx, self.default);
+            let _ = self.state.set_ne(self.default);
             self.child.deinit(ctx);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -187,7 +187,7 @@ pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
 
             if updated {
                 if let Some(value) = (self.merge)(ctx, self.partial.0, self.partial.1) {
-                    let _ = self.state.set_ne(ctx, value);
+                    let _ = self.state.set_ne(value);
                 }
             }
         }
@@ -244,11 +244,11 @@ pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
             self.auto_subs(ctx);
 
             self.partial = self.partial_default;
-            let _ = self.state.set_ne(ctx, self.default);
+            let _ = self.state.set_ne(self.default);
             self.child.init(ctx);
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
-            let _ = self.state.set_ne(ctx, self.default);
+            let _ = self.state.set_ne(self.default);
             self.child.deinit(ctx);
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
@@ -279,7 +279,7 @@ pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
 
             if updated {
                 if let Some(value) = (self.merge)(ctx, self.partial.0, self.partial.1, self.partial.2) {
-                    let _ = self.state.set_ne(ctx, value);
+                    let _ = self.state.set_ne(value);
                 }
             }
         }
@@ -315,7 +315,7 @@ pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl
     impl UiNode for BindIsStateNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
             validate_getter_var(ctx, &self.state);
-            let _ = self.state.set_ne(ctx, self.source.get());
+            let _ = self.state.set_ne(self.source.get());
             self.binding = self.source.bind(&self.state);
             self.child.init(ctx);
         }
@@ -356,21 +356,21 @@ pub fn widget_state_is_state(
             self.child.init(ctx);
             let state = (self.predicate)(ctx.widget_state.as_ref());
             if state != self.state.get() {
-                let _ = self.state.set(ctx.vars, state);
+                let _ = self.state.set(state);
             }
         }
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
             let state = (self.deinit)(ctx.widget_state.as_ref());
             if state != self.state.get() {
-                let _ = self.state.set(ctx.vars, state);
+                let _ = self.state.set(state);
             }
         }
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             let state = (self.predicate)(ctx.widget_state.as_ref());
             if state != self.state.get() {
-                let _ = self.state.set(ctx.vars, state);
+                let _ = self.state.set(state);
             }
         }
     }
@@ -405,7 +405,7 @@ pub fn widget_state_get_state<T: VarValue>(
             self.child.init(ctx);
             let new = self.state.with(|s| (self.get_new)(ctx.widget_state.as_ref(), s));
             if let Some(new) = new {
-                let _ = self.state.set(ctx, new);
+                let _ = self.state.set(new);
             }
         }
 
@@ -414,7 +414,7 @@ pub fn widget_state_get_state<T: VarValue>(
 
             let new = self.state.with(|s| (self.get_deinit)(ctx.widget_state.as_ref(), s));
             if let Some(new) = new {
-                let _ = self.state.set(ctx, new);
+                let _ = self.state.set(new);
             }
         }
 
@@ -422,7 +422,7 @@ pub fn widget_state_get_state<T: VarValue>(
             self.child.update(ctx, updates);
             let new = self.state.with(|s| (self.get_new)(ctx.widget_state.as_ref(), s));
             if let Some(new) = new {
-                let _ = self.state.set(ctx, new);
+                let _ = self.state.set(new);
             }
         }
     }

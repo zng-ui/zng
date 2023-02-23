@@ -92,11 +92,11 @@ pub fn node() -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
-            if let Some((c0, c1)) = COLORS_VAR.get_new(ctx) {
+            if let Some((c0, c1)) = COLORS_VAR.get_new() {
                 self.colors = [c0.into(), c1.into()];
                 ctx.updates.render();
             }
-            if SIZE_VAR.is_new(ctx) || OFFSET_VAR.is_new(ctx) {
+            if SIZE_VAR.is_new() || OFFSET_VAR.is_new() {
                 ctx.updates.layout();
             }
         }

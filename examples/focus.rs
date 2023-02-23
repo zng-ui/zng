@@ -154,10 +154,10 @@ fn disable_window(window_enabled: ArcVar<bool>) -> impl UiNode {
     button! {
         child = text!(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
         min_width = 140;
-        on_click = async_hn!(window_enabled, |ctx, _| {
-            window_enabled.set(&ctx, false);
+        on_click = async_hn!(window_enabled, |_, _| {
+            window_enabled.set(false);
             task::deadline(1.secs()).await;
-            window_enabled.set(&ctx, true);
+            window_enabled.set(true);
         });
     }
 }
@@ -260,13 +260,13 @@ fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetConte
     button! {
         child = text!(content.into());
         on_click = async_hn!(enabled, on_timeout, |ctx, _| {
-            enabled.set(&ctx, false);
+            enabled.set(false);
             task::deadline(4.secs()).await;
             ctx.with(|ctx| {
                 let mut on_timeout = on_timeout.lock();
                 on_timeout(ctx);
             });
-            enabled.set(&ctx, true);
+            enabled.set(true);
         });
         enabled;
     }

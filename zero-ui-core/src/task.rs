@@ -160,7 +160,7 @@ use crate::{
     context::ThreadContext,
     crate_util::{panic_str, PanicResult},
     units::Deadline,
-    var::{response_channel, ResponseVar, VarValue, WithVars},
+    var::{response_channel, ResponseVar, VarValue},
 };
 
 #[doc(no_inline)]
@@ -479,12 +479,12 @@ where
 /// [`spawn`] for more information about the panic handling of this function.
 ///
 /// [`resume_unwind`]: panic::resume_unwind
-pub fn respond<Vw: WithVars, R, F>(vars: &Vw, task: F) -> ResponseVar<R>
+pub fn respond<R, F>(task: F) -> ResponseVar<R>
 where
     R: VarValue + Send + 'static,
     F: Future<Output = R> + Send + 'static,
 {
-    let (sender, response) = response_channel(vars);
+    let (sender, response) = response_channel();
 
     spawn(async move {
         let r = task.await;

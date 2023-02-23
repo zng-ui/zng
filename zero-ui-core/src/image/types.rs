@@ -520,11 +520,11 @@ impl ImageSource {
     {
         Self::Render(
             Arc::new(Box::new(move |ctx, args| {
-                WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
+                WindowVars::req(&ctx.window_state).parent().set_ne(args.parent);
                 let r = new_img(ctx, args);
                 WindowVars::req(&ctx.window_state)
                     .frame_capture_mode()
-                    .set_ne(ctx.vars, FrameCaptureMode::All);
+                    .set_ne(FrameCaptureMode::All);
                 r
             })),
             None,
@@ -562,7 +562,7 @@ impl ImageSource {
         N: Fn(&mut WindowContext, &ImageRenderArgs) -> U + Send + Sync + 'static,
     {
         Self::render(move |ctx, args| {
-            WindowVars::req(&ctx.window_state).parent().set_ne(ctx.vars, args.parent);
+            WindowVars::req(&ctx.window_state).parent().set_ne(args.parent);
             let node = render(ctx, args);
             Window::new_container(
                 crate::widget_instance::WidgetId::new_unique(),

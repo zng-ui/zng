@@ -750,7 +750,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if BORDER_ALIGN_VAR.is_new(ctx) {
+            if BORDER_ALIGN_VAR.is_new() {
                 ctx.updates.layout();
             }
             self.child.update(ctx, updates);
@@ -887,7 +887,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.offsets.get_new_ne(ctx, &mut self.layout_offsets) {
+            if self.offsets.get_new_ne(&mut self.layout_offsets) {
                 ctx.updates.layout();
             }
             self.children.update_all(ctx, updates, &mut ());

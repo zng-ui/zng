@@ -54,7 +54,7 @@ impl WindowLayers {
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if let Some(index) = self.layer.get_new(ctx) {
+                if let Some(index) = self.layer.get_new() {
                     self.widget.with_context_mut(|ctx| {
                         ctx.widget_state.set(&LAYER_INDEX_ID, index);
                     });
@@ -178,14 +178,14 @@ impl WindowLayers {
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if let Some(anchor) = self.anchor.get_new(ctx) {
+                if let Some(anchor) = self.anchor.get_new() {
                     self.anchor_info = ctx.info_tree.get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                     if self.mode.with(|m| m.interaction) {
                         ctx.updates.info();
                     }
                     ctx.updates.layout_render();
                 }
-                if let Some(mode) = self.mode.get_new(ctx) {
+                if let Some(mode) = self.mode.get_new() {
                     if mode.interaction != self.interaction {
                         self.interaction = mode.interaction;
                         ctx.updates.info();

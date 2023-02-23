@@ -12,7 +12,7 @@ use crate::app::{raw_events::*, *};
 use crate::event::*;
 use crate::focus::FOCUS;
 use crate::units::*;
-use crate::var::{var, var_default, ArcVar, ReadOnlyArcVar, Var, Vars, WithVars};
+use crate::var::{var, var_default, ArcVar, ReadOnlyArcVar, Var};
 use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
 use crate::{context::*, widget_instance::WidgetId};
@@ -184,10 +184,10 @@ event! {
 #[derive(Default)]
 pub struct KeyboardManager;
 impl AppExtension for KeyboardManager {
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
             let focused = FOCUS.focused().get();
-            KEYBOARD_SV.write().key_input(ctx.vars, args, focused);
+            KEYBOARD_SV.write().key_input(args, focused);
         } else if let Some(args) = RAW_CHAR_INPUT_EVENT.on(update) {
             let focused = FOCUS.focused().get();
             if let Some(target) = focused {
@@ -197,39 +197,36 @@ impl AppExtension for KeyboardManager {
             }
         } else if let Some(args) = RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.on(update) {
             let mut kb = KEYBOARD_SV.write();
-            kb.repeat_config.set_ne(ctx.vars, args.config);
+            kb.repeat_config.set_ne(args.config);
             kb.last_key_down = None;
         } else if let Some(args) = RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.on(update) {
             let kb = KEYBOARD_SV.read();
             kb.caret_animation_config
-                .set_ne(ctx.vars, (args.config.caret_blink_interval, args.config.caret_blink_timeout));
+                .set_ne((args.config.caret_blink_interval, args.config.caret_blink_timeout));
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
                 let mut kb = KEYBOARD_SV.write();
 
-                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
+                kb.modifiers.set_ne(ModifiersState::empty());
                 kb.current_modifiers.clear();
-                kb.codes.set_ne(ctx.vars, vec![]);
-                kb.keys.set_ne(ctx.vars, vec![]);
+                kb.codes.set_ne(vec![]);
+                kb.keys.set_ne(vec![]);
 
                 kb.last_key_down = None;
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let mut kb = KEYBOARD_SV.write();
-            kb.repeat_config.set_ne(ctx.vars, args.key_repeat_config);
-            kb.caret_animation_config.set_ne(
-                ctx.vars,
-                (
-                    args.animations_config.caret_blink_interval,
-                    args.animations_config.caret_blink_timeout,
-                ),
-            );
+            kb.repeat_config.set_ne(args.key_repeat_config);
+            kb.caret_animation_config.set_ne((
+                args.animations_config.caret_blink_interval,
+                args.animations_config.caret_blink_timeout,
+            ));
 
             if args.is_respawn {
-                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
+                kb.modifiers.set_ne(ModifiersState::empty());
                 kb.current_modifiers.clear();
-                kb.codes.set_ne(ctx.vars, vec![]);
-                kb.keys.set_ne(ctx.vars, vec![]);
+                kb.codes.set_ne(vec![]);
+                kb.keys.set_ne(vec![]);
 
                 kb.last_key_down = None;
             }
@@ -286,8 +283,8 @@ impl KEYBOARD {
     ///
     /// A new animation must be started after each key press. The value is always 1 or 0, no easing is used by default,
     /// it can be added using the [`Var::easing`] method.
-    pub fn caret_animation(&self, vars: &impl WithVars) -> ReadOnlyArcVar<Factor> {
-        vars.with_vars(|vars| KEYBOARD_SV.read().caret_animation(vars))
+    pub fn caret_animation(&self) -> ReadOnlyArcVar<Factor> {
+        KEYBOARD_SV.read().caret_animation()
     }
 }
 
@@ -318,7 +315,7 @@ struct KeyboardService {
     last_key_down: Option<(DeviceId, ScanCode, Instant)>,
 }
 impl KeyboardService {
-    fn key_input(&mut self, vars: &Vars, args: &RawKeyInputArgs, focused: Option<InteractionPath>) {
+    fn key_input(&mut self, args: &RawKeyInputArgs, focused: Option<InteractionPath>) {
         let mut repeat = false;
 
         // update state and vars
@@ -339,20 +336,20 @@ impl KeyboardService {
 
                 let scan_code = args.scan_code;
                 if !self.codes.with(|c| c.contains(&scan_code)) {
-                    self.codes.modify(vars, move |cs| {
+                    self.codes.modify(move |cs| {
                         cs.to_mut().push(scan_code);
                     });
                 }
 
                 if let Some(key) = args.key {
                     if !self.keys.with(|c| c.contains(&key)) {
-                        self.keys.modify(vars, move |ks| {
+                        self.keys.modify(move |ks| {
                             ks.to_mut().push(key);
                         });
                     }
 
                     if key.is_modifier() {
-                        self.set_modifiers(vars, key, true);
+                        self.set_modifiers(key, true);
                     }
                 }
             }
@@ -361,7 +358,7 @@ impl KeyboardService {
 
                 let key = args.scan_code;
                 if self.codes.with(|c| c.contains(&key)) {
-                    self.codes.modify(vars, move |cs| {
+                    self.codes.modify(move |cs| {
                         if let Some(i) = cs.as_ref().iter().position(|c| *c == key) {
                             cs.to_mut().swap_remove(i);
                         }
@@ -370,7 +367,7 @@ impl KeyboardService {
 
                 if let Some(key) = args.key {
                     if self.keys.with(|c| c.contains(&key)) {
-                        self.keys.modify(vars, move |ks| {
+                        self.keys.modify(move |ks| {
                             if let Some(i) = ks.as_ref().iter().position(|k| *k == key) {
                                 ks.to_mut().swap_remove(i);
                             }
@@ -378,7 +375,7 @@ impl KeyboardService {
                     }
 
                     if key.is_modifier() {
-                        self.set_modifiers(vars, key, false);
+                        self.set_modifiers(key, false);
                     }
                 }
             }
@@ -401,7 +398,7 @@ impl KeyboardService {
             }
         }
     }
-    fn set_modifiers(&mut self, vars: &Vars, key: Key, pressed: bool) {
+    fn set_modifiers(&mut self, key: Key, pressed: bool) {
         let prev_modifiers = self.current_modifiers();
 
         if pressed {
@@ -413,7 +410,7 @@ impl KeyboardService {
         let new_modifiers = self.current_modifiers();
 
         if prev_modifiers != new_modifiers {
-            self.modifiers.set(vars, new_modifiers);
+            self.modifiers.set(new_modifiers);
             MODIFIERS_CHANGED_EVENT.notify(ModifiersChangedArgs::now(prev_modifiers, new_modifiers));
         }
     }
@@ -426,14 +423,14 @@ impl KeyboardService {
         state
     }
 
-    fn caret_animation(&self, vars: &Vars) -> ReadOnlyArcVar<Factor> {
+    fn caret_animation(&self) -> ReadOnlyArcVar<Factor> {
         let var = var(1.fct());
         let cfg = self.caret_animation_config.clone();
 
         let zero = 0.fct();
         let one = 1.fct();
 
-        var.animate(vars, move |anim, val| {
+        var.animate(move |anim, val| {
             let (interval, timeout) = cfg.get();
             if anim.start_time().elapsed() >= timeout {
                 if **val != one {

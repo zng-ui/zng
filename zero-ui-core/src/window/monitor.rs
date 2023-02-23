@@ -9,7 +9,6 @@ use crate::{
         view_process::VIEW_PROCESS_INITED_EVENT,
     },
     app_local,
-    context::AppContext,
     event::{event, AnyEventArgs, EventUpdate},
     event_args,
     text::*,
@@ -120,7 +119,7 @@ pub(super) struct MonitorsService {
     monitors: LinearMap<MonitorId, MonitorInfo>,
 }
 impl MonitorsService {
-    fn on_monitors_changed(&mut self, vars: &Vars, args: &RawMonitorsChangedArgs) {
+    fn on_monitors_changed(&mut self, args: &RawMonitorsChangedArgs) {
         let mut available_monitors: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
 
         let mut removed = vec![];
@@ -128,7 +127,7 @@ impl MonitorsService {
 
         self.monitors.retain(|key, value| {
             if let Some(new) = available_monitors.remove(key) {
-                if value.update(vars, new) {
+                if value.update(new) {
                     changed.push(*key);
                 }
                 true
@@ -152,16 +151,16 @@ impl MonitorsService {
         }
     }
 
-    pub(super) fn on_pre_event(ctx: &mut AppContext, update: &mut EventUpdate) {
+    pub(super) fn on_pre_event(update: &mut EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
             if let Some(m) = MONITORS_SV.read().monitors.get(&args.monitor_id) {
-                m.scale_factor.set_ne(ctx.vars, args.scale_factor);
+                m.scale_factor.set_ne(args.scale_factor);
             }
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
-            MONITORS_SV.write().on_monitors_changed(ctx.vars, args);
+            MONITORS_SV.write().on_monitors_changed(args);
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let args = RawMonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), args.available_monitors.clone());
-            MONITORS_SV.write().on_monitors_changed(ctx.vars, &args);
+            MONITORS_SV.write().on_monitors_changed(&args);
         }
     }
 }
@@ -282,19 +281,19 @@ impl MonitorInfo {
 
     /// Update variables from fresh [`zero_ui_view_api::MonitorInfo`],
     /// returns if any value changed.
-    fn update(&self, vars: &Vars, info: zero_ui_view_api::MonitorInfo) -> bool {
-        fn check_set<T: VarValue + PartialEq>(vars: &Vars, var: &impl Var<T>, value: T) -> bool {
+    fn update(&self, info: zero_ui_view_api::MonitorInfo) -> bool {
+        fn check_set<T: VarValue + PartialEq>(var: &impl Var<T>, value: T) -> bool {
             let ne = var.with(|v| v != &value);
-            var.set_ne(vars, value).unwrap();
+            var.set_ne(value).unwrap();
             ne
         }
 
-        check_set(vars, &self.is_primary, info.is_primary)
-            | check_set(vars, &self.name, info.name.to_text())
-            | check_set(vars, &self.position, info.position)
-            | check_set(vars, &self.size, info.size)
-            | check_set(vars, &self.scale_factor, info.scale_factor.fct())
-            | check_set(vars, &self.video_modes, info.video_modes)
+        check_set(&self.is_primary, info.is_primary)
+            | check_set(&self.name, info.name.to_text())
+            | check_set(&self.position, info.position)
+            | check_set(&self.size, info.size)
+            | check_set(&self.scale_factor, info.scale_factor.fct())
+            | check_set(&self.video_modes, info.video_modes)
     }
 
     /// Unique ID.

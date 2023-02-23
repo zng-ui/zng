@@ -21,7 +21,7 @@ fn app_main() {
             title = "Animation Example";
             padding = 10;
             child_align = Align::CENTER;
-            child = example(ctx.vars);
+            child = example();
         }
     })
 }
@@ -30,7 +30,7 @@ const FROM_COLOR: Rgba = colors::RED;
 const TO_COLOR: Rgba = colors::GREEN;
 const FPS: u32 = 60;
 
-fn example(vars: &Vars) -> impl UiNode {
+fn example() -> impl UiNode {
     // vars.animation_time_scale().set(vars, 0.5.fct());
     vars.frame_duration().set(vars, (1.0 / FPS as f32).secs());
 
@@ -122,9 +122,9 @@ fn example(vars: &Vars) -> impl UiNode {
                     sides: colors::DARK_RED,
                 };
                 click_shortcut = shortcut![Escape];
-                on_click = hn!(x, color, |ctx, _| {
-                    x.set(ctx, 0);
-                    color.set(ctx, FROM_COLOR);
+                on_click = hn!(x, color, |_, _| {
+                    x.set(0);
+                    color.set(FROM_COLOR);
                 });
             },
         ]
@@ -171,9 +171,9 @@ fn ease_btn(
                 },
             ]
         };
-        on_click = hn!(l, color, easing_mod, |ctx, _| {
-            l.set_ease(ctx, 0, 300, 1.secs(), easing_mod.get().modify_fn(easing)).perm();
-            color.set_ease(ctx, FROM_COLOR, TO_COLOR, 1.secs(), easing_mod.get().modify_fn(easing)).perm();
+        on_click = hn!(l, color, easing_mod, |_, _| {
+            l.set_ease(0, 300, 1.secs(), easing_mod.get().modify_fn(easing)).perm();
+            color.set_ease(FROM_COLOR, TO_COLOR, 1.secs(), easing_mod.get().modify_fn(easing)).perm();
         });
     }
 }
@@ -204,9 +204,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 )
             }
 
-            zero_ui::core::image::ImageRenderVars::req(&ctx.window_state)
-                .retain()
-                .set(ctx.vars, true);
+            zero_ui::core::image::ImageRenderVars::req(&ctx.window_state).retain().set(true);
             let meta_color = WindowVars::req(ctx).actual_color_scheme().map(|t| match t {
                 ColorScheme::Light => rgba(0, 0, 0, 0.4),
                 ColorScheme::Dark => rgba(255, 255, 255, 0.4),

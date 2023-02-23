@@ -58,7 +58,7 @@ impl AppExtension for WindowManager {
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        MonitorsService::on_pre_event(ctx, update);
+        MonitorsService::on_pre_event(update);
         WINDOWS::on_pre_event(ctx, update);
     }
 
@@ -168,8 +168,8 @@ pub trait HeadlessAppWindowExt {
 impl HeadlessAppWindowExt for HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> WindowId {
         let response = WINDOWS.open(new_window);
-        self.run_task(move |ctx| async move {
-            response.wait_rsp(&ctx).await;
+        self.run_task(move |_| async move {
+            response.wait_rsp().await;
             response.rsp().unwrap().window_id
         })
         .unwrap()

@@ -139,7 +139,7 @@ fn screenshot() -> impl UiNode {
             }));
             on_click = async_hn!(enabled, |ctx, _| {
                 // disable button until screenshot is saved.
-                enabled.set(&ctx, false);
+                enabled.set(false);
 
                 println!("taking `screenshot.png`..");
 
@@ -162,7 +162,7 @@ fn screenshot() -> impl UiNode {
                 }
 
 
-                enabled.set(&ctx, true);
+                enabled.set(true);
             });
             enabled;
         }

@@ -1,4 +1,4 @@
-use crate::{app::AppEventSender, context::app_local, var::Vars};
+use crate::{app::AppEventSender, context::app_local};
 
 use super::*;
 
@@ -65,12 +65,12 @@ impl EVENTS {
     }
 
     #[must_use]
-    pub(crate) fn apply_updates(&self, vars: &Vars) -> Vec<EventUpdate> {
+    pub(crate) fn apply_updates(&self) -> Vec<EventUpdate> {
         let _s = tracing::trace_span!("Events").entered();
 
         let mut ev = EVENTS_SV.write();
         for command in &ev.commands {
-            command.update_state(vars);
+            command.update_state();
         }
         let mut updates: Vec<_> = ev.updates.get_mut().drain(..).collect();
         drop(ev);

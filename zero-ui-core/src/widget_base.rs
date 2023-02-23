@@ -161,7 +161,7 @@ pub mod nodes {
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if HitTestMode::var().is_new(ctx) {
+                if HitTestMode::var().is_new() {
                     ctx.updates.layout();
                 }
                 self.child.update(ctx, updates);
@@ -592,7 +592,7 @@ pub mod nodes {
             }
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                if self.interactive.is_new(ctx) {
+                if self.interactive.is_new() {
                     ctx.updates.info();
                 }
                 self.child.update(ctx, updates);
@@ -697,7 +697,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.enabled.is_new(ctx) {
+            if self.enabled.is_new() {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
@@ -746,7 +746,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.interactive.is_new(ctx) {
+            if self.interactive.is_new() {
                 ctx.updates.info();
             }
             self.child.update(ctx, updates);
@@ -828,7 +828,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(vis) = self.visibility.get_new(ctx) {
+            if let Some(vis) = self.visibility.get_new() {
                 use Visibility::*;
                 match (self.prev_vis, vis) {
                     (Collapsed, Visible) | (Visible, Collapsed) => ctx.updates.layout_render(),
@@ -1014,7 +1014,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if HitTestMode::var().is_new(ctx) {
+            if HitTestMode::var().is_new() {
                 ctx.updates.render();
             }
             self.child.update(ctx, updates);
@@ -1100,7 +1100,7 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
     })]
     impl UiNode for CanAutoHideNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if let Some(new) = self.enabled.get_new(ctx) {
+            if let Some(new) = self.enabled.get_new() {
                 if ctx.widget_info.bounds.can_auto_hide() != new {
                     ctx.updates.layout_render();
                 }

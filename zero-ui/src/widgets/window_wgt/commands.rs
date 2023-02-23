@@ -47,7 +47,7 @@ pub(super) fn inspect_node(
                 INSPECT_CMD.scoped(inspected).notify();
             } else {
                 let txt = inspector_state.ansi_string_update(ctx.info_tree);
-                inspector_text.set_ne(ctx, txt);
+                inspector_text.set_ne(txt);
                 let inspected = ctx.path.window_id();
 
                 WINDOWS.focus_or_open(

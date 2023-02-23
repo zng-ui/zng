@@ -126,7 +126,7 @@ impl StackNode {
         let mut changed = false;
         self.children.update_all(ctx, updates, &mut changed);
 
-        if changed || self.direction.is_new(ctx) || self.spacing.is_new(ctx) || self.children_align.is_new(ctx) {
+        if changed || self.direction.is_new() || self.spacing.is_new() || self.children_align.is_new() {
             ctx.updates.layout_render();
         }
     }
@@ -440,7 +440,7 @@ pub fn stack_nodes_layout_by(
     })]
     impl UiNode for StackNodesFillNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            if self.index.is_new(ctx) {
+            if self.index.is_new() {
                 ctx.updates.layout();
             }
             self.children.update_all(ctx, updates, &mut ());
