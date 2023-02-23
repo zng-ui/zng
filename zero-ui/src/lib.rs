@@ -301,12 +301,7 @@
 //!
 //! The `copy` method gets a copy of the current value, the `set` method schedules a new value for the variable.
 //! Value changes **don't apply immediately**, when you set a variable the new value will be visible only in the next app
-//! update, this is done so that variable observers are always synchronized, it is not possible to enter a state where a
-//! part of the screen is showing a different value because it is changed in between.
-//!
-//! This synchronization is done using the Rust borrow checker, every value access is done using a reference to [`Vars`]
-//! and only one [`Vars`] instance exists per app. Internally [`Vars`] is exclusive-borrowed when it is time to apply
-//! variable changes, asserting that there is no dangling reference, without needing any run-time mechanism like `RefCell`.
+//! update, this is done so that variable observers are always synchronized.
 //!
 //! The [`Var<T>`] trait provides other methods for getting, there is `copy`, `get` for referencing the value and `get_clone` for cloning.
 //! The same for settings, there is `set` that replaces the value, `modify` that schedules a closure that modifies the value and `set_ne`
@@ -379,17 +374,16 @@
 //!     window! {
 //!         child = button! {
 //!             child = text!(count_text);
-//!             on_click = hn!(|ctx, _| {
-//!                 count.modify(ctx, |c| *c.to_mut() += 1);
+//!             on_click = hn!(|_, _| {
+//!                 count.modify(|c| *c.to_mut() += 1);
 //!             });
 //!         }
 //!     }
 //! })
 //! ```
 //!
-//! Notice the differences between mapping and binding, first we need a context to access the [`Vars`] reference, second the
-//! text variable already has a value and it is only overwritten when the count variable updates, and
-//! finally the bind method returned a binding handle.
+//! Notice the differences between mapping and binding, the text variable already has a value and it is only overwritten
+//! when the count variable updates, and the bind method returned a binding handle.
 //!
 //! ### Variable Send/Receive
 //!
@@ -819,7 +813,7 @@
 //! [`var()`]: crate::core::var::var
 //! [`var_from()`]: crate::core::var::var_from
 //! [`Text`]: crate::core::text::Text
-//! [`Vars`]: crate::core::var::Vars
+//! [`VARS`]: crate::core::var::VARS
 //! [`SideOffsets`]: crate::core::units::SideOffsets
 //! [`ArcVar<T>`]: crate::core::var::ArcVar
 //! [#widget]: macro@crate::core::widget

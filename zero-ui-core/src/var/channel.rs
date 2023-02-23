@@ -10,7 +10,7 @@ use crate::{
 
 use super::*;
 
-/// A variable update receiver that can be used from any thread and without access to [`Vars`].
+/// A variable update receiver that can be used from any thread and without access to [`VARS`].
 ///
 /// Use [`Var::receiver`] to create a receiver, drop to stop listening.
 pub struct VarReceiver<T: VarValue + Send> {
@@ -121,7 +121,7 @@ impl<T: VarValue + Send> IntoIterator for VarReceiver<T> {
     }
 }
 
-/// A variable update sender that can set a variable from any thread and without access to [`Vars`].
+/// A variable update sender that can set a variable from any thread and without access to [`VARS`].
 ///
 /// Use [`Var::sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
 pub struct VarSender<T>
@@ -194,7 +194,7 @@ where
     }
 }
 
-/// A variable modification sender that can be used to modify a variable from any thread and without access to [`Vars`].
+/// A variable modification sender that can be used to modify a variable from any thread and without access to [`VARS`].
 ///
 /// Use [`Var::modify_sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
 pub struct VarModifySender<T>

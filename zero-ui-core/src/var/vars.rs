@@ -35,7 +35,7 @@ impl VarUpdateId {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) struct VarApplyUpdateId(u32);
 impl VarApplyUpdateId {
-    /// ID that is never returned in `Vars`.
+    /// ID that is never returned in `VARS`.
     pub(super) const fn initial() -> Self {
         VarApplyUpdateId(0)
     }
@@ -114,7 +114,7 @@ impl VARS {
 
     /// Info about the current context when requesting variable modification.
     ///
-    /// If is current inside a [`Vars::animate`] closure, or inside a [`Var::modify`] closure requested by an animation, or inside
+    /// If is current inside a [`VARS.animate`] closure, or inside a [`Var::modify`] closure requested by an animation, or inside
     /// an [`AnimationController`], returns the info that was collected at the moment the animation was requested. Outside of animations
     /// gets an info with [`importance`] guaranteed to override the [`modify_importance`].
     ///
@@ -198,12 +198,12 @@ impl VARS {
     /// # Optimization Tips
     ///
     /// When no animation is running the app *sleeps* awaiting for an external event, update request or timer elapse, when at least one
-    /// animation is running the app awakes every [`Vars::frame_duration`]. You can use [`Animation::sleep`] to *pause* the animation
+    /// animation is running the app awakes every [`VARS.frame_duration`]. You can use [`Animation::sleep`] to *pause* the animation
     /// for a duration, if all animations are sleeping the app is also sleeping.
     ///
     /// Animations have their control over a variable permanently overridden when a newer animation modifies it or
     /// it is modified directly, but even if overridden **the animation keeps running**. This happens because the system has no insight of
-    /// all side effects caused by the `animation` closure. You can use the [`Vars::current_modify`] and [`AnyVar::modify_importance`]
+    /// all side effects caused by the `animation` closure. You can use the [`VARS.current_modify`] and [`AnyVar::modify_importance`]
     /// to detect when the animation no longer affects any variables and stop it.
     ///
     /// These optimizations are implemented by the animations provided as methods of [`Var<T>`].
@@ -231,9 +231,9 @@ impl VARS {
     /// Calls `animate` while `controller` is registered as the animation controller.
     ///
     /// The `controller` is notified of animation events for each animation spawned by `animate` and can affect then with the same
-    /// level of access as [`Vars::animate`]. Only one controller can affect animations at a time.
+    /// level of access as [`VARS.animate`]. Only one controller can affect animations at a time.
     ///
-    /// This can be used to manage multiple animations at the same time, or to get [`Vars::animate`] level of access to an animation
+    /// This can be used to manage multiple animations at the same time, or to get [`VARS.animate`] level of access to an animation
     /// that is not implemented to allow such access. Note that animation implementers are not required to support the full
     /// [`Animation`] API, for example, there is no guarantee that a restart requested by the controller will repeat the same animation.
     ///

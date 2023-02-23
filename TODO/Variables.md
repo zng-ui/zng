@@ -1,6 +1,6 @@
 # Variables TODO
 
-* Try to use sleep for `Vars::steps`, right now it runs hot trying to match the step.
+* Try to use sleep for `Var::steps`, right now it runs hot trying to match the step.
 * Implement more oscillate animations.
 
 ## Storyboard/Sequencer

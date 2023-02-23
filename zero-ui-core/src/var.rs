@@ -443,7 +443,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// [`var_type_id`]: AnyVar::var_type_id
     fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError>;
 
-    /// Last update ID a variable was modified, if the ID is equal to [`Vars::update_id`] the variable is *new*.
+    /// Last update ID a variable was modified, if the ID is equal to [`VARS.update_id`] the variable is *new*.
     fn last_update(&self) -> VarUpdateId;
 
     /// Flags that indicate what operations the variable is capable of.
@@ -460,13 +460,13 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Gets a value that indicates the *importance* clearance that is needed to modify this variable.
     ///
     /// If the variable has the [`MODIFY`] capability, the requests will return `Ok(())`, but they will be ignored
-    /// if the [`Vars::current_modify`] importance is less than the variable's at the moment the request is made.
+    /// if the [`VARS.current_modify`] importance is less than the variable's at the moment the request is made.
     ///
-    /// Note that [`Vars::current_modify`] outside animations always overrides this value, so direct modify requests
+    /// Note that [`VARS.current_modify`] outside animations always overrides this value, so direct modify requests
     /// always override running animations.
     ///
     /// This is the mechanism that ensures that only the latest animation has *control* of the variable value, most animations
-    /// check this value and automatically cancel if overridden, but event assigns from custom animations made using [`Vars::animate`]
+    /// check this value and automatically cancel if overridden, but event assigns from custom animations made using [`VARS.animate`]
     /// are ignored if the variable is modified from a newer source then the animation.
     ///
     /// If the variable does not have [`MODIFY`] capability the value returned is undefined.
@@ -1414,7 +1414,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.bind_map_bidi(other, Clone::clone, Clone::clone)
     }
 
-    /// Creates a sender that can set `self` from other threads and without access to [`Vars`].
+    /// Creates a sender that can set `self` from other threads and without access to [`VARS`].
     ///
     /// If the variable is read-only when a value is received it is silently dropped.
     fn sender(&self) -> VarSender<T>
@@ -1424,7 +1424,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         VarSender::new(self)
     }
 
-    /// Creates a sender that modify `self` from other threads and without access to [`Vars`].
+    /// Creates a sender that modify `self` from other threads and without access to [`VARS`].
     ///
     /// If the variable is read-only when a modification is received it is silently dropped.
     fn modify_sender(&self) -> VarModifySender<T> {

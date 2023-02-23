@@ -2174,7 +2174,7 @@ pub(crate) enum AppEvent {
     ViewEvent(zero_ui_view_api::Event),
     /// Notify [`Events`](crate::var::Events).
     Event(crate::event::EventUpdateMsg),
-    /// Notify [`Vars`](crate::var::Vars).
+    /// Notify [`VARS`](crate::var::VARS).
     Var,
     /// Do an update cycle.
     Update(Vec<WidgetId>),

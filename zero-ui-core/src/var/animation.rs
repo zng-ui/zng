@@ -157,7 +157,7 @@ struct AnimationData {
 
 /// Represents an animation in its closure.
 ///
-/// See the [`Vars.animate`] method for more details.
+/// See the [`VARS.animate`] method for more details.
 #[derive(Clone)]
 pub struct Animation(Arc<Mutex<AnimationData>>);
 impl Animation {
@@ -205,7 +205,7 @@ impl Animation {
 
     /// Set the duration to the next animation update. The animation will *sleep* until `duration` elapses.
     ///
-    /// The animation awakes in the next [`Vars::frame_duration`] after the `duration` elapses, if the sleep duration is not
+    /// The animation awakes in the next [`VARS.frame_duration`] after the `duration` elapses, if the sleep duration is not
     /// a multiple of the frame duration it will delay an extra `frame_duration - 1ns` in the worst case. The minimum
     /// possible `duration` is the frame duration, shorter durations behave the same as if not set.
     pub fn sleep(&self, duration: Duration) {
@@ -1114,7 +1114,7 @@ impl ModifyInfo {
 
 /// Animations controller.
 ///
-/// See [`Vars::with_animation_controller`] for more details.
+/// See [`VARS.with_animation_controller`] for more details.
 pub trait AnimationController: Send + Sync + Any {
     /// Animation started.
     fn on_start(&self, animation: &Animation) {
