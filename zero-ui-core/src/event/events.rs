@@ -2,8 +2,6 @@ use crate::{app::AppEventSender, context::app_local, var::Vars};
 
 use super::*;
 
-thread_singleton!(SingletonEvents);
-
 app_local! {
     pub(crate) static EVENTS_SV: EventsService = EventsService::new();
 }

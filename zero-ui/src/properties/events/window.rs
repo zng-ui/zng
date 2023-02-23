@@ -6,7 +6,7 @@
 //! There is no event property for the [`WINDOW_CLOSE_EVENT`](crate::core::window::WINDOW_CLOSE_EVENT) because that event notifies
 //! after the window is deinited. You can use [`on_deinit`](fn@crate::properties::events::widget::on_deinit) in the
 //! [`window!`](mod@crate::widgets::window) widget to handle a window closing, or create an app level handler for the
-//! event using [`Events`](crate::core::event::Events).
+//! event using [`EVENTS`](crate::core::event::EVENTS).
 
 use super::event_property;
 use crate::core::window::*;

@@ -21,7 +21,7 @@ impl fmt::Debug for EventUpdateMsg {
     }
 }
 
-/// An event update sender that can be used from any thread and without access to [`Events`].
+/// An event update sender that can be used from any thread and without access to [`EVENTS`].
 ///
 /// Use [`Event::sender`] to create a sender.
 pub struct EventSender<A>
@@ -78,7 +78,7 @@ where
     }
 }
 
-/// An event update receiver that can be used from any thread and without access to [`Events`].
+/// An event update receiver that can be used from any thread and without access to [`EVENTS`].
 ///
 /// Use [`Event::receiver`] to create a receiver, drop to stop listening.
 pub struct EventReceiver<A>

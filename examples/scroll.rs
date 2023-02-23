@@ -112,8 +112,8 @@ fn cmd_btn(cmd: Command) -> impl UiNode {
         child = text!(cmd.name_with_shortcut());
         enabled = cmd.is_enabled();
         // visibility = cmd.has_handlers().map_into();
-        on_click = hn!(|ctx, _| {
-            cmd.notify(ctx);
+        on_click = hn!(|_, _| {
+            cmd.notify();
         });
 
         corner_radius = 0;
@@ -128,8 +128,8 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     button! {
         child = text!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" });
         enabled = cmd.is_enabled();
-        on_click = hn!(|ctx, _| {
-            commands::scroll_to(ctx, scroll, target, mode.clone());
+        on_click = hn!(|_, _| {
+            commands::scroll_to(scroll, target, mode.clone());
         });
 
         corner_radius = 0;

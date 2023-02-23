@@ -39,7 +39,7 @@ impl AppIntrinsic {
         }
 
         AppIntrinsic {
-            exit_handle: EXIT_CMD.subscribe(ctx, true),
+            exit_handle: EXIT_CMD.subscribe(true),
             pending_exit: None,
         }
     }
@@ -67,14 +67,14 @@ impl AppExtension for AppIntrinsic {
         }
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
+    fn update(&mut self, _: &mut AppContext) {
         if let Some(response) = APP_PROCESS_SV.write().take_requests() {
             let args = ExitRequestedArgs::now();
             self.pending_exit = Some(PendingExit {
                 handle: args.propagation().clone(),
                 response,
             });
-            EXIT_REQUESTED_EVENT.notify(ctx, args);
+            EXIT_REQUESTED_EVENT.notify(args);
         }
     }
 }

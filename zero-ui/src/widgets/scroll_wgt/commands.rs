@@ -316,12 +316,9 @@ impl Default for ScrollToMode {
 /// Scroll the scroll widget so that the child widget is fully visible.
 ///
 /// This function is a helper for firing a [`SCROLL_TO_CMD`].
-pub fn scroll_to<Evs: WithEvents>(events: &mut Evs, scroll_id: WidgetId, child_id: WidgetId, mode: impl Into<ScrollToMode>) {
-    SCROLL_TO_CMD.scoped(scroll_id).notify_param(
-        events,
-        ScrollToRequest {
-            widget_id: child_id,
-            mode: mode.into(),
-        },
-    );
+pub fn scroll_to(scroll_id: WidgetId, child_id: WidgetId, mode: impl Into<ScrollToMode>) {
+    SCROLL_TO_CMD.scoped(scroll_id).notify_param(ScrollToRequest {
+        widget_id: child_id,
+        mode: mode.into(),
+    });
 }

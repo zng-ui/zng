@@ -2,7 +2,7 @@
 
 use crate::{
     app::{AppEventSender, LoopTimer},
-    event::{EventHandle, EventHandles, EVENTS_SV},
+    event::{EventHandle, EventHandles, EVENTS, EVENTS_SV},
     timer::TIMERS_SV,
     units::*,
     var::{VarHandle, VarHandles, Vars},
@@ -39,11 +39,11 @@ pub(crate) struct OwnedAppContext {
 impl OwnedAppContext {
     /// Produces the single instance of `AppContext` for a normal app run.
     pub fn instance(app_event_sender: AppEventSender) -> Self {
-        EVENTS_SV.init(app_event_sender.clone());
+        EVENTS_SV.write().init(app_event_sender.clone());
         let updates = Updates::new(app_event_sender.clone());
         OwnedAppContext {
             app_state: OwnedStateMap::new(),
-            vars: Vars::instance(app_event_sender.clone()),
+            vars: Vars::instance(app_event_sender),
             updates,
         }
     }
@@ -76,7 +76,7 @@ impl OwnedAppContext {
     /// requests and a time for the loop to awake and update.
     #[must_use]
     pub fn apply_updates(&mut self) -> ContextUpdates {
-        let events = self.events.apply_updates(&self.vars);
+        let events = EVENTS.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
 
         let (update, update_widgets, layout, render) = self.updates.take_updates();
@@ -109,7 +109,7 @@ impl OwnedAppContext {
             || self.updates.layout_requested()
             || self.updates.render_requested()
             || self.vars.has_pending_updates()
-            || self.events.has_pending_updates()
+            || EVENTS_SV.write().has_pending_updates()
             || TIMERS_SV.read().has_pending_updates()
     }
 }
@@ -510,13 +510,13 @@ impl TestWidgetContext {
         for ev in self.receiver.try_iter() {
             match ev {
                 crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
-                crate::app::AppEvent::Event(ev) => self.events.notify(ev.get()),
+                crate::app::AppEvent::Event(ev) => EVENTS.notify(ev.get()),
                 crate::app::AppEvent::Var => self.vars.receive_sended_modify(),
                 crate::app::AppEvent::Update(targets) => self.updates.recv_update_internal(targets),
                 crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
             }
         }
-        let events = self.events.apply_updates(&self.vars);
+        let events = EVENTS.apply_updates(&self.vars);
         self.vars.apply_updates(&mut self.updates);
         let (update, update_widgets, layout, render) = self.updates.take_updates();
 

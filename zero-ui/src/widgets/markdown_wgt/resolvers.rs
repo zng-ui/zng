@@ -215,12 +215,7 @@ pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
             if let Some(target) = md.find_anchor(anchor) {
                 // scroll-to
                 for scroll in target.ancestors().filter(|&a| a.is_scroll()) {
-                    crate::widgets::scroll::commands::scroll_to(
-                        ctx.events,
-                        scroll.widget_id(),
-                        target.widget_id(),
-                        LINK_SCROLL_MODE_VAR.get(),
-                    );
+                    crate::widgets::scroll::commands::scroll_to(scroll.widget_id(), target.widget_id(), LINK_SCROLL_MODE_VAR.get());
                 }
 
                 // focus

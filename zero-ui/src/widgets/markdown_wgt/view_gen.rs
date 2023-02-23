@@ -487,7 +487,7 @@ pub fn default_link_gen(args: LinkGenArgs) -> impl UiNode {
                 args.propagation().stop();
 
                 let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
-                markdown::LINK_EVENT.notify(ctx.events, markdown::LinkArgs::now(url.clone(), link));
+                markdown::LINK_EVENT.notify(markdown::LinkArgs::now(url.clone(), link));
             });
         }
         .boxed()
@@ -836,7 +836,7 @@ pub fn default_footnote_ref_gen(args: FootnoteRefGenArgs) -> impl UiNode {
             args.propagation().stop();
 
             let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
-            markdown::LINK_EVENT.notify(ctx.events, markdown::LinkArgs::now(url.clone(), link));
+            markdown::LINK_EVENT.notify(markdown::LinkArgs::now(url.clone(), link));
         });
     }
 }
@@ -872,7 +872,7 @@ pub fn default_footnote_def_gen(args: FootnoteDefGenArgs) -> impl UiNode {
                     args.propagation().stop();
 
                     let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
-                    markdown::LINK_EVENT.notify(ctx.events, markdown::LinkArgs::now(url_back.clone(), link));
+                    markdown::LINK_EVENT.notify(markdown::LinkArgs::now(url_back.clone(), link));
                 });
             },
             items,

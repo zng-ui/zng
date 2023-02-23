@@ -545,8 +545,8 @@ fn cmd_btn(cmd: Command) -> impl UiNode {
         child = text!(cmd.name_with_shortcut());
         enabled = cmd.is_enabled();
         visibility = cmd.has_handlers().map_into();
-        on_click = hn!(|ctx, _| {
-            cmd.notify(ctx);
+        on_click = hn!(|_, _| {
+            cmd.notify();
         })
     }
 }

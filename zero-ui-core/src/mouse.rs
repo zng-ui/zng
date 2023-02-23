@@ -941,14 +941,7 @@ impl MouseManager {
         }
     }
 
-    fn on_cursor_moved(
-        &mut self,
-        window_id: WindowId,
-        device_id: DeviceId,
-        coalesced_pos: Vec<DipPoint>,
-        position: DipPoint,
-        ctx: &mut AppContext,
-    ) {
+    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, coalesced_pos: Vec<DipPoint>, position: DipPoint) {
         let mut moved = Some(window_id) != self.pos_window || Some(device_id) != self.pos_device;
 
         if moved {
@@ -1043,7 +1036,7 @@ impl MouseManager {
         }
     }
 
-    fn on_scroll(&self, window_id: WindowId, device_id: DeviceId, delta: MouseScrollDelta, phase: TouchPhase, ctx: &mut AppContext) {
+    fn on_scroll(&self, window_id: WindowId, device_id: DeviceId, delta: MouseScrollDelta, phase: TouchPhase) {
         let position = if self.pos_window == Some(window_id) {
             self.pos
         } else {
@@ -1076,7 +1069,7 @@ impl MouseManager {
         }
     }
 
-    fn on_cursor_left_window(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
+    fn on_cursor_left_window(&mut self, window_id: WindowId, device_id: DeviceId) {
         if Some(window_id) == self.pos_window.take() {
             if let Some(path) = self.hovered.take() {
                 let capture = MOUSE_SV.read().current_capture.as_ref().map(|(path, mode)| CaptureInfo {
@@ -1098,15 +1091,15 @@ impl MouseManager {
         }
     }
 
-    fn on_window_blur(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        self.release_window_capture(window_id, ctx);
+    fn on_window_blur(&mut self, window_id: WindowId) {
+        self.release_window_capture(window_id);
     }
 
-    fn on_window_closed(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        self.release_window_capture(window_id, ctx);
+    fn on_window_closed(&mut self, window_id: WindowId) {
+        self.release_window_capture(window_id);
     }
 
-    fn release_window_capture(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+    fn release_window_capture(&mut self, window_id: WindowId) {
         let mut mouse = MOUSE_SV.write();
         if let Some((path, _)) = &mouse.current_capture {
             if path.window_id() == window_id {
@@ -1156,21 +1149,21 @@ impl AppExtension for MouseManager {
                 }
             }
         } else if let Some(args) = RAW_CURSOR_MOVED_EVENT.on(update) {
-            self.on_cursor_moved(args.window_id, args.device_id, args.coalesced_pos.clone(), args.position, ctx);
+            self.on_cursor_moved(args.window_id, args.device_id, args.coalesced_pos.clone(), args.position);
         } else if let Some(args) = RAW_MOUSE_WHEEL_EVENT.on(update) {
-            self.on_scroll(args.window_id, args.device_id, args.delta, args.phase, ctx);
+            self.on_scroll(args.window_id, args.device_id, args.delta, args.phase);
         } else if let Some(args) = RAW_MOUSE_INPUT_EVENT.on(update) {
             self.on_mouse_input(args.window_id, args.device_id, args.state, args.button, ctx);
         } else if let Some(args) = MODIFIERS_CHANGED_EVENT.on(update) {
             self.modifiers = args.modifiers;
         } else if let Some(args) = RAW_CURSOR_LEFT_EVENT.on(update) {
-            self.on_cursor_left_window(args.window_id, args.device_id, ctx);
+            self.on_cursor_left_window(args.window_id, args.device_id);
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if let Some(window_id) = args.prev_focus {
-                self.on_window_blur(window_id, ctx);
+                self.on_window_blur(window_id);
             }
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
-            self.on_window_closed(args.window_id, ctx);
+            self.on_window_closed(args.window_id);
         } else if let Some(args) = RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.on(update) {
             self.multi_click_config.set_ne(ctx.vars, args.config);
             self.click_state = ClickState::None;
@@ -1228,7 +1221,7 @@ impl AppExtension for MouseManager {
         }
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = MOUSE_CAPTURE_EVENT.on(update) {
             if let Some(path) = &self.hovered {
                 if let Some(window_id) = self.pos_window {
@@ -1254,7 +1247,7 @@ impl AppExtension for MouseManager {
         }
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
+    fn update(&mut self, _: &mut AppContext) {
         MOUSE_SV.write().fulfill_requests();
     }
 }

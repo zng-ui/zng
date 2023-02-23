@@ -1764,7 +1764,7 @@ impl ContentCtrl {
                     frame.finalize(ctx.info_tree)
                 });
 
-                self.notify_transform_changes(ctx);
+                self.notify_transform_changes();
 
                 self.used_frame_builder = Some(used);
 
@@ -1811,7 +1811,7 @@ impl ContentCtrl {
                     update.finalize(ctx.info_tree)
                 });
 
-                self.notify_transform_changes(ctx);
+                self.notify_transform_changes();
 
                 self.used_frame_update = Some(used);
 
@@ -1851,7 +1851,7 @@ impl ContentCtrl {
         }
     }
 
-    fn notify_transform_changes(&mut self, ctx: &mut WindowContext) {
+    fn notify_transform_changes(&mut self) {
         let mut changes_count = 0;
 
         TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {

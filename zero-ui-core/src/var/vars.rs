@@ -51,11 +51,8 @@ impl VarApplyUpdateId {
 
 pub(super) type VarUpdateFn = Box<dyn FnOnce(&Vars, &mut Updates)>;
 
-thread_singleton!(SingletonVars);
-
 /// Enables write access for [`Var<T>`].
 pub struct Vars {
-    _singleton: SingletonVars,
     app_event_sender: AppEventSender,
     pub(super) ans: Animations,
 
@@ -228,7 +225,6 @@ impl Vars {
 
     pub(crate) fn instance(app_event_sender: AppEventSender) -> Vars {
         Vars {
-            _singleton: SingletonVars::assert_new("Vars"),
             app_event_sender,
             ans: Animations::new(),
             update_id: VarUpdateId(1),

@@ -14,7 +14,7 @@ fn notify() {
     app.open_window(|_| listener_window(false));
 
     let cmd = FOO_CMD;
-    cmd.notify(&mut app);
+    cmd.notify();
 
     let _ = app.update(false);
 
@@ -30,7 +30,7 @@ fn notify_scoped() {
     let cmd = FOO_CMD;
     let cmd_scoped = cmd.scoped(window_id);
 
-    cmd_scoped.notify(&mut app);
+    cmd_scoped.notify();
 
     let _ = app.update(false);
 
@@ -99,9 +99,9 @@ fn listener_window(focused_wgt: bool) -> Window {
     })]
     impl UiNode for FooHandlerNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.handle = Some(FOO_CMD.subscribe(ctx, true));
-            self.handle_scoped = Some(FOO_CMD.scoped(ctx.path.window_id()).subscribe(ctx, true));
-            self.handle_scoped_wgt = Some(FOO_CMD.scoped(ctx.path.widget_id()).subscribe(ctx, true));
+            self.handle = Some(FOO_CMD.subscribe(true));
+            self.handle_scoped = Some(FOO_CMD.scoped(ctx.path.window_id()).subscribe(true));
+            self.handle_scoped_wgt = Some(FOO_CMD.scoped(ctx.path.widget_id()).subscribe(true));
         }
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = FOO_CMD.on(update) {

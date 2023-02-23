@@ -746,7 +746,7 @@ event! {
 #[derive(Default)]
 pub struct GestureManager {}
 impl AppExtension for GestureManager {
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
         if let Some(args) = MOUSE_CLICK_EVENT.on(update) {
             // Generate click events from mouse clicks.
             if !args.propagation().is_stopped() {

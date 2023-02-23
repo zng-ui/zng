@@ -350,7 +350,7 @@ impl<A: EventArgs> Event<A> {
         EventReceiver { receiver, event: *self }
     }
 
-    /// Creates a sender that can raise an event from other threads and without access to [`Events`].
+    /// Creates a sender that can raise an event from other threads and without access to [`EVENTS`].
     pub fn sender(&self) -> EventSender<A>
     where
         A: Send,

@@ -9,7 +9,7 @@ pub use intrinsic::*;
 
 use crate::config::ConfigManager;
 use crate::crate_util::{PanicPayload, ReceiverExt};
-use crate::event::{event, event_args, EventUpdate};
+use crate::event::{event, event_args, EventUpdate, EVENTS};
 use crate::image::ImageManager;
 use crate::timer::TimersService;
 use crate::units::Deadline;
@@ -1337,7 +1337,7 @@ impl<E: AppExtension> RunningApp<E> {
                     }
                 }
             },
-            AppEvent::Event(ev) => self.ctx().events.notify(ev.get()),
+            AppEvent::Event(ev) => EVENTS.notify(ev.get()),
             AppEvent::Var => self.ctx().vars.receive_sended_modify(),
             AppEvent::Update(targets) => self.ctx().updates.recv_update_internal(targets),
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),

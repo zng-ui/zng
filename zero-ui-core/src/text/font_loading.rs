@@ -101,7 +101,7 @@ impl AppExtension for FontManager {
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         if RAW_FONT_CHANGED_EVENT.has(update) {
-            FONT_CHANGED_EVENT.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
+            FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::SystemFonts));
         } else if let Some(args) = RAW_FONT_AA_CHANGED_EVENT.on(update) {
             FONTS_SV.read().font_aa.set_ne(ctx.vars, args.aa);
         } else if FONT_CHANGED_EVENT.has(update) {
@@ -115,11 +115,11 @@ impl AppExtension for FontManager {
         }
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
+    fn update(&mut self, _: &mut AppContext) {
         let mut fonts = FONTS_SV.write();
 
         for args in fonts.take_updates() {
-            FONT_CHANGED_EVENT.notify(ctx.events, args);
+            FONT_CHANGED_EVENT.notify(args);
         }
 
         if fonts.prune_requested {

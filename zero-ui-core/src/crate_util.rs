@@ -432,46 +432,6 @@ impl Hasher for IdHasher {
     }
 }
 
-/// Generates a type that can only have a single instance per thread.
-macro_rules! thread_singleton {
-    ($Singleton:ident) => {
-        struct $Singleton {
-            _not_send: std::marker::PhantomData<std::rc::Rc<()>>,
-        }
-        impl $Singleton {
-            std::thread_local! {
-                static IN_USE: std::cell::Cell<bool> = std::cell::Cell::new(false);
-            }
-
-            fn set(in_use: bool) {
-                Self::IN_USE.with(|f| f.set(in_use));
-            }
-
-            /// If an instance of this type already exists in this thread.
-            pub fn in_use() -> bool {
-                Self::IN_USE.with(|f| f.get())
-            }
-
-            /// Panics if [`Self::in_use`], otherwise creates the single instance of `Self` for the thread.
-            pub fn assert_new(type_name: &str) -> Self {
-                if Self::in_use() {
-                    panic!("only a single instance of `{type_name}` can exist per thread at a time")
-                }
-                Self::set(true);
-
-                Self {
-                    _not_send: std::marker::PhantomData,
-                }
-            }
-        }
-        impl Drop for $Singleton {
-            fn drop(&mut self) {
-                Self::set(false);
-            }
-        }
-    };
-}
-
 /// Runs a cleanup action once on drop.
 pub(crate) struct RunOnDrop<F: FnOnce()>(Option<F>);
 impl<F: FnOnce()> RunOnDrop<F> {

@@ -244,7 +244,8 @@ impl Command {
     ///
     /// If the handle is scoped on a widget it it is added to the command event subscribers.
     pub fn subscribe(&self, enabled: bool) -> CommandHandle {
-        self.local.write().subscribe(&mut *EVENTS_SV.write(), *self, enabled, None)
+        let mut evs = EVENTS_SV.write();
+        self.local.write().subscribe(&mut evs, *self, enabled, None)
     }
 
     /// Create a new handle for this command for a handler in the `target` widget.
@@ -254,7 +255,8 @@ impl Command {
     ///
     /// [`subscribe`]: Command::subscribe
     pub fn subscribe_wgt(&self, enabled: bool, target: WidgetId) -> CommandHandle {
-        self.local.write().subscribe(&mut *EVENTS_SV.write(), *self, enabled, Some(target))
+        let mut evs = EVENTS_SV.write();
+        self.local.write().subscribe(&mut evs, *self, enabled, Some(target))
     }
 
     /// Raw command event.
@@ -1105,7 +1107,7 @@ where
             self.enabled = Some(enabled);
 
             let command = (self.command_builder)(ctx);
-            self.handle = Some(command.subscribe_wgt(ctx, is_enabled, ctx.path.widget_id()));
+            self.handle = Some(command.subscribe_wgt(is_enabled, ctx.path.widget_id()));
             self.command = Some(command);
         }
 
@@ -1174,7 +1176,7 @@ where
             self.enabled = Some(enabled);
 
             let command = (self.command_builder)(ctx);
-            self.handle = Some(command.subscribe_wgt(ctx, is_enabled, ctx.path.widget_id()));
+            self.handle = Some(command.subscribe_wgt(is_enabled, ctx.path.widget_id()));
             self.command = Some(command);
         }
 
@@ -1231,7 +1233,7 @@ mod tests {
 
     #[test]
     fn enabled() {
-        let mut ctx = TestWidgetContext::new();
+        let _ctx = TestWidgetContext::new();
         assert!(!FOO_CMD.has_handlers_value());
 
         let handle = FOO_CMD.subscribe(true);
@@ -1250,7 +1252,7 @@ mod tests {
 
     #[test]
     fn enabled_scoped() {
-        let mut ctx = TestWidgetContext::new();
+        let ctx = TestWidgetContext::new();
 
         let cmd = FOO_CMD;
         let cmd_scoped = FOO_CMD.scoped(ctx.window_id);
@@ -1277,7 +1279,7 @@ mod tests {
 
     #[test]
     fn has_handlers() {
-        let mut ctx = TestWidgetContext::new();
+        let _ctx = TestWidgetContext::new();
         assert!(!FOO_CMD.has_handlers_value());
 
         let handle = FOO_CMD.subscribe(false);
@@ -1289,7 +1291,7 @@ mod tests {
 
     #[test]
     fn has_handlers_scoped() {
-        let mut ctx = TestWidgetContext::new();
+        let ctx = TestWidgetContext::new();
 
         let cmd = FOO_CMD;
         let cmd_scoped = FOO_CMD.scoped(ctx.window_id);

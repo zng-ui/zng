@@ -408,7 +408,7 @@ impl Default for FocusManager {
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppContext) {
         FOCUS_SV.write().app_event_sender = Some(ctx.updates.sender());
-        self.commands = Some(FocusCommands::new(ctx.events));
+        self.commands = Some(FocusCommands::new());
     }
 
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {

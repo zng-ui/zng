@@ -681,7 +681,7 @@
 //! # let _scope = App::minimal();
 //! #
 //! button! {
-//!     on_click = hn!(|ctx, _| COPY_CMD.notify(ctx));
+//!     on_click = hn!(|_, _| COPY_CMD.notify());
 //!     child = text!(COPY_CMD.name());
 //!     enabled = COPY_CMD.is_enabled();
 //!     visibility = COPY_CMD.has_handlers().map_into();
@@ -899,7 +899,7 @@ pub mod prelude {
         clone_move,
         color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
         context::{AppContext, LayoutDirection, WidgetContext, WindowContext},
-        event::{AnyEventArgs, Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, Events},
+        event::{AnyEventArgs, Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, EVENTS},
         focus::{DirectionalNav, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav, FOCUS},
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},

@@ -92,22 +92,22 @@ pub(super) struct FocusCommands {
     focus_handle: CommandHandle,
 }
 impl FocusCommands {
-    pub fn new(events: &mut Events) -> Self {
+    pub fn new() -> Self {
         Self {
-            next_handle: FOCUS_NEXT_CMD.subscribe(events, false),
-            prev_handle: FOCUS_PREV_CMD.subscribe(events, false),
+            next_handle: FOCUS_NEXT_CMD.subscribe(false),
+            prev_handle: FOCUS_PREV_CMD.subscribe(false),
 
-            alt_handle: FOCUS_ALT_CMD.subscribe(events, false),
+            alt_handle: FOCUS_ALT_CMD.subscribe(false),
 
-            up_handle: FOCUS_UP_CMD.subscribe(events, false),
-            down_handle: FOCUS_DOWN_CMD.subscribe(events, false),
-            left_handle: FOCUS_LEFT_CMD.subscribe(events, false),
-            right_handle: FOCUS_RIGHT_CMD.subscribe(events, false),
+            up_handle: FOCUS_UP_CMD.subscribe(false),
+            down_handle: FOCUS_DOWN_CMD.subscribe(false),
+            left_handle: FOCUS_LEFT_CMD.subscribe(false),
+            right_handle: FOCUS_RIGHT_CMD.subscribe(false),
 
-            exit_handle: FOCUS_EXIT_CMD.subscribe(events, false),
-            enter_handle: FOCUS_ENTER_CMD.subscribe(events, false),
+            exit_handle: FOCUS_EXIT_CMD.subscribe(false),
+            enter_handle: FOCUS_ENTER_CMD.subscribe(false),
 
-            focus_handle: FOCUS_CMD.subscribe(events, true),
+            focus_handle: FOCUS_CMD.subscribe(true),
         }
     }
 
