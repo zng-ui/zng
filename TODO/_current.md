@@ -1,7 +1,3 @@
-* Refactor `core::task` to load the caller `ThreadContext` automatically for every parallel thread.
-    - We want to support valid `Var::set` from any thread in a future update with `VARS` as a service.
-    - Review `rayon` default thread-pool, how do we load the context there?
-
 * Refactor the update sender to an `app_local!` too?
     - It is the most common dependency of services.
     - For the user, `Vars`, `Events`, `Timers`, `Updates` all look like services.
@@ -16,6 +12,10 @@
         - This actually changes things, plus causes cloning in `WidgetContextPath`.
         - `WINDOW.vars().title()` is more easy to use, and similar to `WINDOWS.vars({id}).title()`.
         - Lets try having a `WINDOW: ContextWindow`, with `id`, deref to `WindowVars` plus `WINDOWS` helpers like `close`.
+
+* Integrate `ThreadContext` with `rayon`.
+    - Need to capture and load contexts for all `rayon::join` and `rayon::scope`.
+    - See issue https://github.com/rayon-rs/rayon/issues/915
 
 * Continue "#Parallel UI" in `./Performance.md`.
 

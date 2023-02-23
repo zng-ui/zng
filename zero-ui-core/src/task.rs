@@ -1,7 +1,9 @@
 //! Parallel async tasks and async task runners.
 //!
-//! Use the [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`], [`io`] and [`fs`] to unblock
+//! Use [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`], [`io`] and [`fs`] to unblock
 //! IO operations, use [`http`] for async HTTP, and use [`ui`] to create async properties.
+//!
+//! All functions of this module propagate the [`ThreadContext`].
 //!
 //! This module also re-exports the [`rayon`] and [`parking_lot`] crates for convenience.
 //!
@@ -125,6 +127,9 @@
 //! in any thread, so we recommend manually starting its runtime in a thread and then using the `tokio::runtime::Handle` to start
 //! futures in the runtime.
 //!
+//! External tasks also don't propagate the thread context, if you want access to app services or want to set vars inside external
+//! parallel closures you must capture and load the [`ThreadContext`] manually.
+//!
 //! [`isahc`]: https://docs.rs/isahc
 //! [`AppExtension`]: crate::app::AppExtension
 //! [`blocking`]: https://docs.rs/blocking
@@ -149,8 +154,10 @@ use std::{
 
 #[doc(no_inline)]
 pub use parking_lot;
+use parking_lot::Mutex;
 
 use crate::{
+    context::ThreadContext,
     crate_util::{panic_str, PanicResult},
     units::Deadline,
     var::{response_channel, ResponseVar, VarValue, WithVars},
@@ -245,24 +252,29 @@ where
     type Fut = Pin<Box<dyn Future<Output = ()> + Send>>;
 
     // A future that is its own waker that polls inside the rayon primary thread-pool.
-    struct RayonTask(parking_lot::Mutex<Option<Fut>>);
+    struct RayonTask {
+        ctx: ThreadContext,
+        fut: Mutex<Option<Fut>>,
+    }
     impl RayonTask {
         fn poll(self: Arc<RayonTask>) {
             rayon::spawn(move || {
                 // this `Option<Fut>` dance is used to avoid a `poll` after `Ready` or panic.
-                let mut task = self.0.lock();
+                let mut task = self.fut.lock();
                 if let Some(mut t) = task.take() {
                     let waker = self.clone().into();
                     let mut cx = std::task::Context::from_waker(&waker);
 
-                    let r = panic::catch_unwind(panic::AssertUnwindSafe(move || {
-                        if t.as_mut().poll(&mut cx).is_pending() {
-                            *task = Some(t);
+                    self.ctx.with_context(move || {
+                        let r = panic::catch_unwind(panic::AssertUnwindSafe(move || {
+                            if t.as_mut().poll(&mut cx).is_pending() {
+                                *task = Some(t);
+                            }
+                        }));
+                        if let Err(p) = r {
+                            tracing::error!("panic in `task::spawn`: {}", panic_str(&p));
                         }
-                    }));
-                    if let Err(p) = r {
-                        tracing::error!("panic in `task::spawn`: {}", panic_str(&p));
-                    }
+                    });
                 }
             })
         }
@@ -273,7 +285,11 @@ where
         }
     }
 
-    Arc::new(RayonTask(parking_lot::Mutex::new(Some(Box::pin(task))))).poll()
+    Arc::new(RayonTask {
+        ctx: ThreadContext::capture(),
+        fut: Mutex::new(Some(Box::pin(task))),
+    })
+    .poll()
 }
 
 /// Spawn a parallel async task that can also be `.await` for the task result.
@@ -366,21 +382,27 @@ where
     type Fut<R> = Pin<Box<dyn Future<Output = R> + Send>>;
 
     // A future that is its own waker that polls inside the rayon primary thread-pool.
-    struct RayonCatchTask<R>(parking_lot::Mutex<Option<Fut<R>>>, flume::Sender<PanicResult<R>>);
+    struct RayonCatchTask<R> {
+        ctx: ThreadContext,
+        fut: Mutex<Option<Fut<R>>>,
+        sender: flume::Sender<PanicResult<R>>,
+    }
     impl<R: Send + 'static> RayonCatchTask<R> {
         fn poll(self: Arc<Self>) {
-            let sender = self.1.clone();
+            let sender = self.sender.clone();
             if sender.is_disconnected() {
                 return; // cancel.
             }
             rayon::spawn(move || {
                 // this `Option<Fut>` dance is used to avoid a `poll` after `Ready` or panic.
-                let mut task = self.0.lock();
+                let mut task = self.fut.lock();
                 if let Some(mut t) = task.take() {
                     let waker = self.clone().into();
                     let mut cx = std::task::Context::from_waker(&waker);
 
-                    let r = panic::catch_unwind(panic::AssertUnwindSafe(|| t.as_mut().poll(&mut cx)));
+                    let r = self
+                        .ctx
+                        .with_context(|| panic::catch_unwind(panic::AssertUnwindSafe(|| t.as_mut().poll(&mut cx))));
 
                     match r {
                         Ok(Poll::Ready(r)) => {
@@ -407,7 +429,12 @@ where
 
     let (sender, receiver) = channel::bounded(1);
 
-    Arc::new(RayonCatchTask(parking_lot::Mutex::new(Some(Box::pin(task))), sender.into())).poll();
+    Arc::new(RayonCatchTask {
+        ctx: ThreadContext::capture(),
+        fut: Mutex::new(Some(Box::pin(task))),
+        sender: sender.into(),
+    })
+    .poll();
 
     receiver.recv().await.unwrap()
 }
@@ -530,7 +557,8 @@ where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
 {
-    blocking::unblock(move || panic::catch_unwind(panic::AssertUnwindSafe(task))).await
+    let ctx = ThreadContext::capture();
+    blocking::unblock(move || ctx.with_context(move || panic::catch_unwind(panic::AssertUnwindSafe(task)))).await
 }
 
 /// Fire and forget a [`wait`] task. The `task` starts executing immediately.
@@ -754,7 +782,10 @@ pub async fn deadline(deadline: impl Into<Deadline>) {
 ///     }).await
 /// }
 /// ```
-pub async fn poll_fn<T, F: FnMut(&mut std::task::Context) -> Poll<T>>(fn_: F) -> T {
+pub async fn poll_fn<T, F>(fn_: F) -> T
+where
+    F: FnMut(&mut std::task::Context) -> Poll<T>,
+{
     struct PollFn<F>(F);
     impl<F> Unpin for PollFn<F> {}
     impl<T, F: FnMut(&mut std::task::Context<'_>) -> Poll<T>> Future for PollFn<F> {
@@ -1780,7 +1811,7 @@ impl Future for SignalOnce {
 #[derive(Default)]
 struct SignalInner {
     signaled: AtomicBool,
-    listeners: parking_lot::Mutex<Vec<std::task::Waker>>,
+    listeners: Mutex<Vec<std::task::Waker>>,
 }
 
 /// A [`Waker`] that dispatches a wake call to multiple other wakers.
@@ -1793,7 +1824,7 @@ struct SignalInner {
 pub struct McWaker(Arc<WakeVec>);
 
 #[derive(Default)]
-struct WakeVec(parking_lot::Mutex<Vec<std::task::Waker>>);
+struct WakeVec(Mutex<Vec<std::task::Waker>>);
 impl WakeVec {
     fn push(&self, waker: std::task::Waker) -> bool {
         let mut v = self.0.lock();
