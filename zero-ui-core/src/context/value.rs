@@ -186,7 +186,7 @@ impl ThreadContext {
         self.app.as_ref().map(|a| a.id)
     }
 
-    /// The current thread, followed by the thread that logically *owns* the current executing task, recursive over nested tasks.
+    /// The contextual thread stack, last item is the current thread, first item is the root thread.
     pub fn context(&self) -> &[ThreadId] {
         &self.context
     }
@@ -232,8 +232,8 @@ impl ThreadContext {
     ///     let inner_id = thread::current().id();
     ///     let ctx = ThreadContext::capture();
     ///
-    ///     assert_eq!(&[inner_id, outer_id], ctx.context());
-    /// })).join();
+    ///     assert_eq!(&[outer_id, inner_id], ctx.context());
+    /// })).join().unwrap();
     /// ```
     pub fn with_context<R>(&self, f: impl FnOnce() -> R) -> R {
         let prev = THREAD_CONTEXT.with(|s| mem::replace(&mut *s.borrow_mut(), self.clone()));
@@ -589,7 +589,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// [`write`]: Self::write
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
         let read = self.data.read();
-        for thread_id in ThreadContext::capture().context() {
+        for thread_id in ThreadContext::capture().context().iter().rev() {
             if let Some(i) = read.values.iter().position(|(id, _)| id == thread_id) {
                 // contextualized in thread or task parent thread.
                 return MappedRwLockReadGuard::map(read, move |v| &v.values[i].1);
@@ -618,7 +618,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// [`write`]: Self::write
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
         let mut write = self.data.write();
-        for thread_id in ThreadContext::capture().context() {
+        for thread_id in ThreadContext::capture().context().iter().rev() {
             if let Some(i) = write.values.iter().position(|(id, _)| id == thread_id) {
                 // contextualized in thread or task parent thread.
                 return MappedRwLockWriteGuard::map(write, move |v| &mut v.values[i].1);
