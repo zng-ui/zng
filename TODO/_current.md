@@ -1,5 +1,6 @@
-* Refactor `core::task` to load the caller app scope automatically for every parallel thread.
+* Refactor `core::task` to load the caller `ThreadContext` automatically for every parallel thread.
     - We want to support valid `Var::set` from any thread in a future update with `VARS` as a service.
+    - Review `rayon` default thread-pool, how do we load the context there?
 
 * Refactor the update sender to an `app_local!` too?
     - It is the most common dependency of services.

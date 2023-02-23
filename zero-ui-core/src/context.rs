@@ -378,7 +378,7 @@ pub struct TestWidgetContext {
     loop_timer: crate::app::LoopTimer,
 
     _no_send: std::marker::PhantomData<std::rc::Rc<()>>,
-    _scope: crate::app::AppScope,
+    _scope: crate::context::AppScope,
 }
 #[cfg(any(test, doc, feature = "test_util"))]
 impl Default for TestWidgetContext {
@@ -397,7 +397,7 @@ impl TestWidgetContext {
         if crate::app::App::is_running() {
             panic!("only one `TestWidgetContext` or app is allowed per thread")
         }
-        let scope = crate::app::AppScope::new_loaded();
+        let scope = ThreadContext::start_app(AppId::new_unique());
 
         let (sender, receiver) = AppEventSender::new();
         let window_id = WindowId::new_unique();

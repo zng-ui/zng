@@ -11,8 +11,8 @@ use std::{
 };
 
 use crate::{
-    app::{app_local, LoopTimer},
-    context::AppContext,
+    app::LoopTimer,
+    context::{app_local, AppContext},
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     units::Deadline,

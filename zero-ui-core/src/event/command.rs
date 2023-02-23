@@ -1,7 +1,7 @@
 use std::{any::TypeId, mem, rc::Rc};
 
 use crate::{
-    app::{App, AppId},
+    app::App,
     context::*,
     crate_util::FxHashMap,
     gesture::CommandShortcutExt,
@@ -115,7 +115,7 @@ macro_rules! __command {
     ) => {
         $(#[$attr])*
         $vis static $COMMAND: $crate::event::Command = {
-            $crate::app::app_local! {
+            $crate::context::app_local! {
                 static EVENT: $crate::event::EventData = $crate::event::EventData::new(std::stringify!($COMMAND));
                 static DATA: $crate::event::CommandData = $crate::event::CommandData::new(std::boxed::Box::new($meta_init));
             }

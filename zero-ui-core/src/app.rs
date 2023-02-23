@@ -3,9 +3,7 @@
 mod intrinsic;
 pub mod raw_device_events;
 pub mod raw_events;
-mod scope;
 pub mod view_process;
-pub use scope::*;
 
 pub use intrinsic::*;
 
@@ -31,7 +29,6 @@ use self::view_process::{ViewProcess, ViewProcessInitedArgs, VIEW_PROCESS, VIEW_
 use once_cell::sync::Lazy;
 use pretty_type_name::*;
 use std::future::Future;
-use std::marker::PhantomData;
 use std::mem;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -547,7 +544,7 @@ impl App {
     ///
     /// You can use [`app_local!`] to create *static* resources that live for the app lifetime.
     pub fn is_running() -> bool {
-        AppScope::current_id().is_some()
+        ThreadContext::current_app().is_some()
     }
 
     /// Gets an unique ID for the current app.
@@ -556,7 +553,7 @@ impl App {
     /// Resources that interact with [`app_local!`] values can use this ID to ensure that they are still operating in the same
     /// app.
     pub fn current_id() -> Option<AppId> {
-        AppScope::current_id()
+        ThreadContext::current_app()
     }
 
     fn assert_can_run() {
@@ -697,12 +694,11 @@ impl App {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
-        let scope = AppScope::new_loaded();
+        let scope = ThreadContext::start_app(AppId::new_unique());
         AppExtended {
-            _not_send: PhantomData,
             extensions: vec![],
             view_process_exe: None,
-            scope,
+            _cleanup: scope,
         }
     }
 
@@ -741,10 +737,8 @@ pub struct AppExtended<E: AppExtension> {
     extensions: E,
     view_process_exe: Option<PathBuf>,
 
-    // app scope must be unloaded in the same thread if a builder is dropped without running.
-    _not_send: PhantomData<std::rc::Rc<()>>,
     // cleanup on drop.
-    scope: AppScope,
+    _cleanup: AppScope,
 }
 #[cfg(dyn_app_extension)]
 impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
@@ -844,7 +838,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
     /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
     pub fn run(mut self, start: impl FnOnce(&mut AppContext)) {
-        let mut app = RunningApp::start(self.scope, self.extensions, true, true, self.view_process_exe.take());
+        let mut app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
 
         start(&mut app.ctx());
 
@@ -862,7 +856,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// [`TestWidgetContext`] are running in the current thread.
     pub fn run_headless(mut self, with_renderer: bool) -> HeadlessApp {
         let app = RunningApp::start(
-            self.scope,
+            self._cleanup,
             self.extensions.boxed(),
             false,
             with_renderer,
@@ -890,8 +884,6 @@ struct RunningApp<E: AppExtension> {
     pending_layout: bool,
     pending_render: bool,
 
-    // app scope must be unloaded in this thread on drop.
-    _not_send: PhantomData<std::rc::Rc<()>>,
     // cleans on drop
     _scope: AppScope,
 }
@@ -928,7 +920,6 @@ impl<E: AppExtension> RunningApp<E> {
             pending_layout: false,
             pending_render: false,
 
-            _not_send: PhantomData,
             _scope: scope,
         }
     }

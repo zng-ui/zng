@@ -849,7 +849,7 @@
 //! [`context`]: crate::core::context
 //! [`WINDOWS`]: crate::core::window::WINDOWS
 //! [win_open]: crate::core::window::WINDOWS::open
-//! [`app_local!`]: crate::core::app::app_local
+//! [`app_local!`]: crate::core::context::app_local
 
 // to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]

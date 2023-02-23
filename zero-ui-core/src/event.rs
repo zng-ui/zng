@@ -14,9 +14,8 @@ use std::{
 };
 
 use crate::{
-    app::AppLocal,
     clone_move,
-    context::{AppContext, UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
+    context::{AppContext, AppLocal, UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
     crate_util::{IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
     widget_info::WidgetInfoTree,
@@ -78,7 +77,7 @@ macro_rules! event_macro {
         $(
             $(#[$attr])*
             $vis static $EVENT: $crate::event::Event<$Args> = {
-                $crate::app::app_local! {
+                $crate::context::app_local! {
                     static LOCAL: $crate::event::EventData = $crate::event::EventData::new(std::stringify!($EVENT));
                 }
                 $crate::event::Event::new(&LOCAL)
