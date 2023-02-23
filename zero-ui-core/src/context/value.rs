@@ -403,6 +403,29 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
         *self.write() = value;
     }
 
+    /// Try to get a clone of the value.
+    ///
+    /// Returns `None` if can't acquire a read lock.
+    pub fn try_get(&'static self) -> Option<T>
+    where
+        T: Clone,
+    {
+        self.try_read().map(|l| l.clone())
+    }
+
+    /// Try to set the value.
+    ///
+    /// Returns `Err(value)` if can't acquire a write lock.
+    pub fn try_set(&'static self, value: T) -> Result<(), T> {
+        match self.try_write() {
+            Some(mut l) => {
+                *l = value;
+                Ok(())
+            }
+            None => Err(value),
+        }
+    }
+
     /// Create a read lock and `map` it to a sub-value.
     pub fn read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> MappedRwLockReadGuard<O> {
         MappedRwLockReadGuard::map(self.read(), map)
@@ -589,6 +612,22 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// [`write`]: Self::write
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
         let read = self.data.read();
+        self.read_impl(read)
+    }
+
+    /// Try lock the context local for read.
+    ///
+    /// The value can be read locked more than once at the same time, including on the same thread. While the
+    /// read guard is alive calls to [`with_context`] and [`write`] are blocked.
+    ///
+    /// [`with_context`]: Self::with_context
+    /// [`write`]: Self::write
+    pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
+        let read = self.data.try_read()?;
+        Some(self.read_impl(read))
+    }
+
+    fn read_impl(&'static self, read: MappedRwLockReadGuard<'static, ContextLocalData<T>>) -> MappedRwLockReadGuard<T> {
         for thread_id in ThreadContext::capture().context().iter().rev() {
             if let Some(i) = read.values.iter().position(|(id, _)| id == thread_id) {
                 // contextualized in thread or task parent thread.
@@ -617,7 +656,23 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// [`with_context`]: Self::with_context
     /// [`write`]: Self::write
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
-        let mut write = self.data.write();
+        let write = self.data.write();
+        self.write_impl(write)
+    }
+
+    /// Try to exclusive lock the context local for write.
+    ///
+    /// The value can only be locked once at the same time, deadlocks if called twice in the same thread, blocks calls
+    /// to [`with_context`] and [`write`].
+    ///
+    /// [`with_context`]: Self::with_context
+    /// [`write`]: Self::write
+    pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
+        let write = self.data.try_write()?;
+        Some(self.write_impl(write))
+    }
+
+    fn write_impl(&'static self, mut write: MappedRwLockWriteGuard<'static, ContextLocalData<T>>) -> MappedRwLockWriteGuard<T> {
         for thread_id in ThreadContext::capture().context().iter().rev() {
             if let Some(i) = write.values.iter().position(|(id, _)| id == thread_id) {
                 // contextualized in thread or task parent thread.
@@ -642,11 +697,56 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         self.read().clone()
     }
 
+    /// Try to get a clone of the current contextual value.
+    ///
+    /// Returns `None` if a read lock cannot be acquired.
+    pub fn try_get(&'static self) -> Option<T>
+    where
+        T: Clone,
+    {
+        self.try_read().map(|l| l.clone())
+    }
+
     /// Set the current contextual value.
     ///
     /// This changes the current contextual value or the **default value**.
     pub fn set(&'static self, value: T) {
         *self.write() = value;
+    }
+
+    /// Set the current contextual value.
+    ///
+    /// This changes the current contextual value or the **default value**.
+    pub fn try_set(&'static self, value: T) -> Result<(), T> {
+        match self.try_write() {
+            Some(mut l) => {
+                *l = value;
+                Ok(())
+            }
+            None => Err(value),
+        }
+    }
+
+    /// Create a read lock and `map` it to a sub-value.
+    pub fn read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> MappedRwLockReadGuard<O> {
+        MappedRwLockReadGuard::map(self.read(), map)
+    }
+
+    /// Try to create a read lock and `map` it to a sub-value.
+    pub fn try_wread_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> Option<MappedRwLockReadGuard<O>> {
+        let lock = self.try_read()?;
+        Some(MappedRwLockReadGuard::map(lock, map))
+    }
+
+    /// Create a write lock and `map` it to a sub-value.
+    pub fn write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> MappedRwLockWriteGuard<O> {
+        MappedRwLockWriteGuard::map(self.write(), map)
+    }
+
+    /// Try to create a write lock and `map` it to a sub-value.
+    pub fn try_write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> Option<MappedRwLockWriteGuard<O>> {
+        let lock = self.try_write()?;
+        Some(MappedRwLockWriteGuard::map(lock, map))
     }
 }
 
