@@ -270,8 +270,8 @@
 //! let offset = var(SideOffsets::from(10));
 //! let moving_btn = button! {
 //!     margin = offset.clone();
-//!     on_click = hn!(|ctx, _| {
-//!         offset.modify(ctx, |m|m.to_mut().left += 50.0);
+//!     on_click = hn!(|_, _| {
+//!         offset.modify(|m|m.to_mut().left += 50.0);
 //!     });
 //!     child = text!("Click to Move!")
 //! };
@@ -293,8 +293,8 @@
 //! let flag = var(false);
 //! let btn = button! {
 //!     child = text!(flag.map_to_text());
-//!     on_click = hn!(|ctx, _| {
-//!         flag.set(ctx.vars, !flag.get());
+//!     on_click = hn!(|_, _| {
+//!         flag.set(!flag.get());
 //!     });
 //! };
 //! ```
@@ -314,12 +314,12 @@
 //! let flag = var(false);
 //! let btn = button! {
 //!     child = text!(flag.map_to_text());
-//!     on_click = hn!(|ctx, _| {
+//!     on_click = hn!(|_, _| {
 //!         let new_value = !flag.get();
 //!         // 3 methods doing the same thing.
-//!         flag.set(ctx.vars, new_value);
-//!         flag.set_ne(ctx.vars, new_value);
-//!         flag.modify(ctx.vars, move |f| *f = Cow::Owned(new_value));
+//!         flag.set(new_value);
+//!         flag.set_ne(new_value);
+//!         flag.modify(move |f| *f = Cow::Owned(new_value));
 //!     });
 //! };
 //! ```
@@ -343,9 +343,9 @@
 //!             n => formatx!("Clicked {n} Times!")
 //!         }
 //!     }));
-//!     on_click = hn!(|ctx, _| {
+//!     on_click = hn!(|_, _| {
 //!         let next = count.get() + 1;
-//!         count.set(ctx, next);
+//!         count.set(next);
 //!     });
 //! };
 //! ```
@@ -361,7 +361,7 @@
 //!
 //! ```no_run
 //! # use zero_ui::prelude::*;
-//! App::default().run_window(|ctx| {
+//! App::default().run_window(|_| {
 //!     let count = var(0u32);
 //!     let count_text = var_from("Click Me!");
 //!     let handle = count.bind_map(&count_text, |c| {
@@ -415,9 +415,9 @@
 //!     // `on_click` only works when the button is enabled.
 //!     enabled = task_status.map(|s| matches!(s, Status::Idle));
 //!
-//!     on_click = hn!(|ctx, _| {
+//!     on_click = hn!(|_, _| {
 //!         // the status sender.
-//!         let status = task_status.sender(ctx);
+//!         let status = task_status.sender();
 //!         task::spawn(async move {
 //!             status.send(Status::Info("Starting..".to_text())).ok();
 //!
@@ -516,8 +516,8 @@
 //! let count = var(0u32);
 //!
 //! button! {
-//!     on_click = hn!(count, |ctx, _| {
-//!         count.modify(ctx, |c| *c.to_mut() += 1);
+//!     on_click = hn!(count, |_, _| {
+//!         count.modify(|c| *c.to_mut() += 1);
 //!     });
 //!     child = text!(count.map_to_text());
 //! }
@@ -535,15 +535,15 @@
 //! # let _scope = App::minimal();
 //! # let status = var("Waiting Click..".to_text());
 //! button! {
-//!     on_click = async_hn!(status, |ctx, _| {
-//!         status.set(&ctx, "Loading..");
+//!     on_click = async_hn!(status, |_, _| {
+//!         status.set("Loading..");
 //!         match task::wait(|| std::fs::read("some/data")).await {
 //!             Ok(data) => {
-//!                 status.set(&ctx, formatx!("Loaded {} bytes. Saving..", data.len()));
+//!                 status.set(formatx!("Loaded {} bytes. Saving..", data.len()));
 //!                 task::wait(move || std::fs::write("data.bin", data)).await;
-//!                 status.set(&ctx, "Done.");
+//!                 status.set("Done.");
 //!             },
-//!             Err(e) => status.set(&ctx, e.to_text()),
+//!             Err(e) => status.set(e.to_text()),
 //!         }
 //!     });
 //!#    child = text!("Save");
@@ -560,10 +560,10 @@
 //! # let status = var("Waiting Double Click..".to_text());
 //! # async fn some_task(status: ArcVar<Text>) { }
 //! button! {
-//!     on_click = async_hn!(status, |ctx, args: ClickArgs| {
+//!     on_click = async_hn!(status, |_, args: ClickArgs| {
 //!         if args.is_double() {
 //!             some_task(status.clone()).await;
-//!             status.set(&ctx, "Done.");
+//!             status.set("Done.");
 //!         }
 //!     });
 //!#    child = text!("Run");
@@ -989,7 +989,7 @@ pub mod prelude {
     /// impl UiNode for MyPropertyNode {
     ///     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
     ///         self.child.update(ctx, updates);
-    ///         if let Some(new_value) = self.value.get_new(ctx) {
+    ///         if let Some(new_value) = self.value.get_new() {
     ///             // ..
     ///         }
     ///     }

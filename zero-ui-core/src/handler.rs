@@ -178,8 +178,8 @@ where
 /// // ..
 ///
 /// # let
-/// on_click = hn!(foo, |ctx, args: &ClickArgs| {
-///     foo.set(ctx, args.click_count);
+/// on_click = hn!(foo, |_, args: &ClickArgs| {
+///     foo.set(args.click_count);
 /// });
 ///
 /// // can still use after:
@@ -402,14 +402,14 @@ where
 /// // ..
 ///
 /// # let
-/// on_click = async_hn!(enabled, |ctx, args: ClickArgs| {
-///     enabled.set(&ctx, false);
+/// on_click = async_hn!(enabled, |_, args: ClickArgs| {
+///     enabled.set(false);
 ///
 ///     task::run(async move {
 ///         println!("do something {}", args.click_count);
 ///     }).await;
 ///
-///     enabled.set(&ctx, true);
+///     enabled.set(true);
 /// });
 ///
 /// // can still use after:
@@ -746,8 +746,8 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let foo = var("".to_text());
 ///
-/// CLICK_EVENT.on_event(app_hn!(foo, |ctx, args: &ClickArgs, _| {
-///     foo.set(ctx, args.target.to_text());
+/// CLICK_EVENT.on_event(app_hn!(foo, |_, args: &ClickArgs, _| {
+///     foo.set(args.target.to_text());
 /// })).perm();
 ///
 /// // can still use after:
@@ -995,14 +995,14 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let status = var("pending..".to_text());
 ///
-/// CLICK_EVENT.on_event(async_app_hn!(status, |ctx, args: ClickArgs, _| {
-///     status.set(&ctx, formatx!("processing {}..", args.target));
+/// CLICK_EVENT.on_event(async_app_hn!(status, |_, args: ClickArgs, _| {
+///     status.set(formatx!("processing {}..", args.target));
 ///
 ///     task::run(async move {
 ///         println!("do something slow");
 ///     }).await;
 ///
-///     status.set(&ctx, formatx!("finished {}", args.target));
+///     status.set(formatx!("finished {}", args.target));
 /// })).perm();
 ///
 /// // can still use after:

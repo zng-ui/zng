@@ -128,17 +128,17 @@ impl AppContextMut {
     /// # app.ctx().updates.run(
     /// async_app_hn_once!(foo_var, |ctx, _| {
     ///     // variable assign will cause an update.
-    ///     foo_var.set(&ctx, true);
+    ///     foo_var.set(true);
     ///
     ///     ctx.yield_one().await;// wait next update.
     ///
     ///     // we are in the next update now, the variable value is new.
-    ///     assert_eq!(Some(true), foo_var.get_new(&ctx));
+    ///     assert_eq!(Some(true), foo_var.get_new());
     ///
     ///     ctx.update().await;// force next update and wait.
     ///
     ///     // we are in the requested update, variable value is no longer new.
-    ///     assert_eq!(None, foo_var.get_new(&ctx));
+    ///     assert_eq!(None, foo_var.get_new());
     /// })
     /// # ).perm();
     /// # app.update(false);
@@ -193,17 +193,17 @@ impl WidgetContextMut {
     /// async_hn!(|ctx, _| {
     ///     let foo_var = var(false);
     ///     // variable assign will cause an update.
-    ///     foo_var.set(&ctx, true);
+    ///     foo_var.set(true);
     ///
     ///     ctx.yield_one().await;// wait next update.
     ///
     ///     // we are in the next update now, the variable value is new.
-    ///     assert_eq!(Some(true), foo_var.get_new(&ctx));
+    ///     assert_eq!(Some(true), foo_var.get_new());
     ///
     ///     ctx.update().await;// force next update and wait.
     ///
     ///     // we are in the requested update, variable value is no longer new.
-    ///     assert_eq!(None, foo_var.get_new(&ctx));
+    ///     assert_eq!(None, foo_var.get_new());
     /// })
     /// # );
     /// ```

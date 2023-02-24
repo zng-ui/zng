@@ -158,18 +158,18 @@ impl VARS {
     /// ```
     /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
     /// #
-    /// fn animate_text(text: &impl Var<Text>, completed: &impl Var<bool>, vars: &Vars) {
+    /// fn animate_text(text: &impl Var<Text>, completed: &impl Var<bool>) {
     ///     let transition = animation::Transition::new(0u8, 100);
     ///     let mut prev_value = 101;
-    ///     vars.animate(clone_move!(text, completed, |vars, animation| {
+    ///     VARS.animate(clone_move!(text, completed, |animation| {
     ///         let step = easing::expo(animation.elapsed_stop(1.secs()));
     ///         let value = transition.sample(step);
     ///         if value != prev_value {
     ///             if value == 100 {
     ///                 animation.stop();
-    ///                 completed.set(vars, true);
+    ///                 completed.set(true);
     ///             }
-    ///             let _ = text.set(vars, formatx!("Animation at {value}%"));
+    ///             let _ = text.set(formatx!("Animation at {value}%"));
     ///             prev_value = value;
     ///         }
     ///     }))
@@ -188,10 +188,10 @@ impl VARS {
     ///
     /// ```
     /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
-    /// # fn demo(vars: &Vars) {
+    /// # fn demo() {
     /// let value = var(0u8);
     /// let text = value.map(|v| formatx!("Animation at {v}%"));
-    /// value.ease_ne(vars, 100, 1.secs(), easing::expo);
+    /// value.ease_ne(100, 1.secs(), easing::expo);
     /// # }
     /// ```
     ///

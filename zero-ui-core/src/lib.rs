@@ -206,7 +206,7 @@ pub use zero_ui_proc_macros::widget_new;
 ///     impl UiNode for MyNode {
 ///         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
 ///             self.child.update(ctx, updates);
-///             if let Some(n) = self.number.get_new(ctx) {
+///             if let Some(n) = self.number.get_new() {
 ///                 println!("new number: {n}");
 ///             }
 ///         }

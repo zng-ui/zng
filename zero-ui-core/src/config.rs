@@ -478,9 +478,9 @@ impl ConfigService {
 ///         padding = 20;
 ///         child = button! {
 ///             child = text!(count.map(|c| formatx!("Count: {c}")));
-///             on_click = hn!(|ctx, _| {
+///             on_click = hn!(|_, _| {
 ///                 // modifying the var updates the "main.count" config.
-///                 count.modify(ctx, |mut c| *c += 1).unwrap();
+///                 count.modify(|mut c| *c += 1).unwrap();
 ///             });
 ///         }
 ///     }

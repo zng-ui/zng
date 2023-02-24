@@ -711,7 +711,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///         
 ///         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
 ///             self.child.update(ctx, updates);
-///             if let Some(new) = self.bar.get_new(ctx) {
+///             if let Some(new) = self.bar.get_new() {
 ///                 println!("update: {new}");
 ///             }
 ///         }
@@ -1736,10 +1736,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// ```
     /// # use zero_ui_core::{var::*, units::*, text::*};
-    /// # fn demo(text_var: impl Var<Text>, vars: &Vars) {
+    /// # fn demo(text_var: impl Var<Text>) {
     /// let steps = (0..=100).step_by(5).map(|i| (i.pct().fct(), formatx!("{i}%"))).collect();
     /// # let _ =
-    /// text_var.steps(vars, steps, 5.secs(), easing::linear)
+    /// text_var.steps(steps, 5.secs(), easing::linear)
     /// # ;}
     /// ```
     ///

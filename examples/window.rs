@@ -26,7 +26,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     let window_vars = WindowVars::req(&ctx.window_state);
     let window_id = *ctx.window_id;
 
-    // WINDOWS.exit_on_last_close().set(ctx, false);
+    // WINDOWS.exit_on_last_close().set(false);
 
     let title = merge_var!(
         window_vars.actual_position(),

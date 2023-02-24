@@ -19,8 +19,8 @@
 //! # fn main() {
 //! let enabled = var(false);
 //! button! {
-//!     on_click = async_hn!(enabled, |ctx, _| {
-//!         enabled.set(&ctx, false);
+//!     on_click = async_hn!(enabled, |_, _| {
+//!         enabled.set(false);
 //!
 //!         let sum_task = task::run(async {
 //!             let numbers = read_numbers().await;
@@ -29,7 +29,7 @@
 //!         let sum: usize = sum_task.await;
 //!         println!("sum of squares: {sum}");
 //!
-//!         enabled.set(&ctx, true);
+//!         enabled.set(true);
 //!     });
 //!     enabled;
 //! }
@@ -96,15 +96,15 @@
 //! let enabled = var(false);
 //! let msg = var("loading..".to_text());
 //! button! {
-//!     on_click = async_hn!(enabled, msg, |ctx, _| {
-//!         enabled.set(&ctx, false);
+//!     on_click = async_hn!(enabled, msg, |_, _| {
+//!         enabled.set(false);
 //!
 //!         match task::http::get_text("https://httpbin.org/get").await {
-//!             Ok(r) => msg.set(&ctx, r),
-//!             Err(e) => msg.set(&ctx, formatx!("error: {e}")),
+//!             Ok(r) => msg.set(r),
+//!             Err(e) => msg.set(formatx!("error: {e}")),
 //!         }
 //!
-//!         enabled.set(&ctx, true);
+//!         enabled.set(true);
 //!     });
 //! }
 //! # ; }
@@ -208,7 +208,7 @@ pub mod ui;
 /// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # impl SomeStruct {
 /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-///     let (sender, response) = response_channel(ctx);
+///     let (sender, response) = response_channel();
 ///     self.sum_response = response;
 ///
 ///     task::spawn(async move {
@@ -219,7 +219,7 @@ pub mod ui;
 /// }
 ///
 /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-///     if let Some(result) = self.sum_response.rsp_new(ctx) {
+///     if let Some(result) = self.sum_response.rsp_new() {
 ///         println!("sum of squares 0..1000: {result}");   
 ///     }
 /// }
@@ -453,13 +453,13 @@ where
 /// # async fn read_numbers() -> Vec<usize> { vec![] }
 /// # impl SomeStruct {
 /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-///     self.sum_response = task::respond(ctx, async {
+///     self.sum_response = task::respond(async {
 ///         read_numbers().await.par_iter().map(|i| i * i).sum()
 ///     });
 /// }
 ///
 /// fn on_update(&mut self, ctx: &mut WidgetContext) {
-///     if let Some(result) = self.sum_response.rsp_new(ctx) {
+///     if let Some(result) = self.sum_response.rsp_new() {
 ///         println!("sum of squares: {result}");   
 ///     }
 /// }
