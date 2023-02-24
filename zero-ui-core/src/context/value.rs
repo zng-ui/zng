@@ -520,6 +520,11 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// [`with_context_opt`]: Self::with_context_opt
     /// [`App::is_running`]: crate::app::App::is_running
     pub fn with_context<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R {
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnOnce() -> R> = Box::new(f);
+        self.with_context_impl(value, f)
+    }
+    fn with_context_impl<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R {
         let new_value = value.take().expect("no override provided");
         let thread_id = std::thread::current().id();
 
@@ -563,6 +568,14 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     ///
     /// [`with_context`]: Self::with_context
     pub fn with_context_opt<R, I: Send + Sync + 'static>(&'static self, value: &mut Option<I>, f: impl FnOnce() -> R) -> R
+    where
+        T: option::Option<I>,
+    {
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnOnce() -> R> = Box::new(f);
+        self.with_context_opt_impl(value, f)
+    }
+    fn with_context_opt_impl<R, I: Send + Sync + 'static>(&'static self, value: &mut Option<I>, f: impl FnOnce() -> R) -> R
     where
         T: option::Option<I>,
     {
