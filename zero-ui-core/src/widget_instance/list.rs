@@ -912,7 +912,7 @@ impl EditableUiNodeList {
 
                 for (i, mut wgt) in r.insert {
                     wgt.init(ctx);
-                    ctx.updates.info();
+                    WIDGET.rebuild_info();
                     if i < self.len() {
                         self.insert(i, wgt);
                     } else {
@@ -921,7 +921,7 @@ impl EditableUiNodeList {
                 }
                 for mut wgt in r.push {
                     wgt.init(ctx);
-                    ctx.updates.info();
+                    WIDGET.rebuild_info();
                     self.push(wgt);
                 }
                 for (r, i) in r.move_index {
@@ -934,7 +934,7 @@ impl EditableUiNodeList {
                             self.vec.push(wgt);
                         }
 
-                        ctx.updates.info();
+                        WIDGET.rebuild_info();
                     }
                 }
                 for (id, to) in r.move_id {
@@ -950,7 +950,7 @@ impl EditableUiNodeList {
                                 self.vec.push(wgt);
                             }
 
-                            ctx.updates.info();
+                            WIDGET.rebuild_info();
                         }
                     }
                 }
@@ -959,7 +959,7 @@ impl EditableUiNodeList {
                     if let Some(i) = self.vec.iter().position(|w| w.with_context(|ctx| ctx.id == id).unwrap_or(false)) {
                         let mut wgt = self.vec.remove(i);
                         wgt.deinit(ctx);
-                        ctx.updates.info();
+                        WIDGET.rebuild_info();
 
                         observer.removed(i);
                     }
@@ -967,7 +967,7 @@ impl EditableUiNodeList {
 
                 for (i, mut wgt) in r.insert {
                     wgt.init(ctx);
-                    ctx.updates.info();
+                    WIDGET.rebuild_info();
 
                     if i < self.len() {
                         self.insert(i, wgt);
@@ -980,7 +980,7 @@ impl EditableUiNodeList {
 
                 for mut wgt in r.push {
                     wgt.init(ctx);
-                    ctx.updates.info();
+                    WIDGET.rebuild_info();
 
                     observer.inserted(self.len());
                     self.push(wgt);
@@ -1002,7 +1002,7 @@ impl EditableUiNodeList {
                             observer.moved(r, i);
                         }
 
-                        ctx.updates.info();
+                        WIDGET.rebuild_info();
                     }
                 }
 
@@ -1022,7 +1022,7 @@ impl EditableUiNodeList {
                                 observer.moved(r, i);
                             }
 
-                            ctx.updates.info();
+                            WIDGET.rebuild_info();
                         }
                     }
                 }
@@ -1199,7 +1199,7 @@ impl EditableUiNodeListRef {
     ///
     /// ```
     /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::widget_instance::EditableUiNodeListRef) {
-    /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_sub(1));
+    /// items.move_id("my-widget", |i, _len| i.saturating_sub(1));
     /// # }
     /// ```
     ///
@@ -1207,7 +1207,7 @@ impl EditableUiNodeListRef {
     ///
     /// ```
     /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::widget_instance::EditableUiNodeListRef) {
-    /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_add(1));
+    /// items.move_id("my-widget", |i, _len| i.saturating_add(1));
     /// # }
     /// ```
     ///
@@ -1218,7 +1218,7 @@ impl EditableUiNodeListRef {
     ///
     /// ```
     /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::widget_instance::EditableUiNodeListRef) {
-    /// items.move_id(ctx.updates, "my-widget", |i, len| {
+    /// items.move_id("my-widget", |i, len| {
     ///     let next = i.saturating_add(1);
     ///     if next < len { next } else { 0 }
     /// });
@@ -1675,7 +1675,7 @@ where
         if resort || (observer.changed && self.z_naturally_sorted.get()) {
             self.z_map.get_mut().clear();
             self.z_naturally_sorted.set(false);
-            ctx.updates.render();
+            WIDGET.render();
         }
         self.data.resize_with(self.list.len(), Default::default);
     }

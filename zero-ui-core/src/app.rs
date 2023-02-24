@@ -933,8 +933,7 @@ impl<E: AppExtension> RunningApp<E> {
     pub fn notify_event<O: AppEventObserver>(&mut self, mut update: EventUpdate, observer: &mut O) {
         let _scope = tracing::trace_span!("notify_event", event = update.event().name()).entered();
 
-        let mut ctx = self.ctx(); // REMOVE &mut self.owned_ctx.borrow();
-        let ctx = &mut ctx;
+        let mut ctx = todo!(); // REMOVE &mut self.owned_ctx.borrow();
 
         self.extensions.event_preview(ctx, &mut update);
         observer.event_preview(ctx, &mut update);
@@ -1505,19 +1504,17 @@ impl<E: AppExtension> RunningApp<E> {
             for mut update in events {
                 let _s = tracing::debug_span!("update_event", ?update).entered();
 
-                let ctx = todo!("remove param");
-
                 self.loop_monitor.maybe_trace(|| {
-                    self.extensions.event_preview(ctx, &mut update);
-                    observer.event_preview(ctx, &mut update);
-                    update.call_pre_actions(ctx);
+                    self.extensions.event_preview(todo!("remove param"), &mut update);
+                    observer.event_preview(todo!("remove param"), &mut update);
+                    update.call_pre_actions(todo!("remove param"));
 
-                    self.extensions.event_ui(ctx, &mut update);
-                    observer.event_ui(ctx, &mut update);
+                    self.extensions.event_ui(todo!("remove param"), &mut update);
+                    observer.event_ui(todo!("remove param"), &mut update);
 
-                    self.extensions.event(ctx, &mut update);
-                    observer.event(ctx, &mut update);
-                    update.call_pos_actions(ctx);
+                    self.extensions.event(todo!("remove param"), &mut update);
+                    observer.event(todo!("remove param"), &mut update);
+                    update.call_pos_actions(todo!("remove param"));
                 });
 
                 self.apply_updates(observer);
@@ -1536,11 +1533,9 @@ impl<E: AppExtension> RunningApp<E> {
         while mem::take(&mut self.pending_layout) {
             let _s = tracing::debug_span!("apply_layout").entered();
 
-            let ctx = todo!("remove param");
-
             self.loop_monitor.maybe_trace(|| {
-                self.extensions.layout(ctx);
-                observer.layout(ctx);
+                self.extensions.layout(todo!("remove param"));
+                observer.layout(todo!("remove param"));
             });
 
             self.apply_updates(observer);
@@ -1549,10 +1544,8 @@ impl<E: AppExtension> RunningApp<E> {
         if mem::take(&mut self.pending_render) {
             let _s = tracing::debug_span!("apply_render").entered();
 
-            let ctx = todo!("remove param");
-
-            self.extensions.render(ctx);
-            observer.render(ctx);
+            self.extensions.render(todo!("remove param"));
+            observer.render(todo!("remove param"));
         }
 
         self.loop_monitor.finish_frame();
@@ -1561,8 +1554,7 @@ impl<E: AppExtension> RunningApp<E> {
 impl<E: AppExtension> Drop for RunningApp<E> {
     fn drop(&mut self) {
         let _s = tracing::debug_span!("extensions.deinit").entered();
-        let mut ctx = todo!("remove param");
-        self.extensions.deinit(&mut ctx);
+        self.extensions.deinit(todo!("remove param"));
     }
 }
 

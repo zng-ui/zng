@@ -53,10 +53,6 @@ use crate::{
 #[derive(Default)]
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
-    fn init(&mut self, ctx: &mut AppContext) {
-        WINDOWS_SV.write().init(ctx.updates.sender());
-    }
-
     fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
         MonitorsService::on_pre_event(update);
         WINDOWS::on_pre_event(ctx, update);

@@ -87,7 +87,7 @@ use commands::FocusCommands;
 mod tests;
 
 use crate::{
-    app::{AppExtension},
+    app::AppExtension,
     app_local,
     context::*,
     crate_util::IdMap,

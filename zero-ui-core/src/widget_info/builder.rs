@@ -2,6 +2,7 @@ use std::hash::Hash;
 
 use crate::{
     context::{MeasureContext, StateMapMut},
+    new_context::WIDGET,
     text::TextSegmentKind,
 };
 
@@ -765,13 +766,13 @@ impl WidgetLayout {
         self.bounds.set_inline(self.inline.take());
 
         if prev_can_auto_hide != self.bounds.can_auto_hide() {
-            ctx.updates.render()
+            WIDGET.render();
         } else if prev_inner_offset != self.bounds.inner_offset()
             || prev_child_offset != self.bounds.child_offset()
             || prev_inner_offset_baseline != self.bounds.inner_offset_baseline()
             || (self.bounds.inner_offset_baseline() && prev_baseline != self.bounds.baseline())
         {
-            ctx.updates.render_update()
+            WIDGET.render_update();
         }
 
         self.child_count = parent_child_count;

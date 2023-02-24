@@ -100,7 +100,7 @@ pub mod nodes {
                 let (size, define_ref_frame) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
                 if self.define_ref_frame != define_ref_frame {
                     self.define_ref_frame = define_ref_frame;
-                    ctx.updates.render();
+                    WIDGET.render();
                 }
                 size
             }
@@ -162,7 +162,7 @@ pub mod nodes {
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if HitTestMode::var().is_new() {
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
                 self.child.update(ctx, updates);
             }
@@ -189,7 +189,7 @@ pub mod nodes {
 
                 if clips != self.clips {
                     self.clips = clips;
-                    ctx.updates.render();
+                    WIDGET.render();
                 }
 
                 size
@@ -593,7 +593,7 @@ pub mod nodes {
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if self.interactive.is_new() {
-                    ctx.updates.info();
+                    WIDGET.rebuild_info();
                 }
                 self.child.update(ctx, updates);
             }
@@ -698,7 +698,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.enabled.is_new() {
-                ctx.updates.info();
+                WIDGET.rebuild_info();
             }
             self.child.update(ctx, updates);
         }
@@ -747,7 +747,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.interactive.is_new() {
-                ctx.updates.info();
+                WIDGET.rebuild_info();
             }
             self.child.update(ctx, updates);
         }
@@ -831,9 +831,15 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             if let Some(vis) = self.visibility.get_new() {
                 use Visibility::*;
                 match (self.prev_vis, vis) {
-                    (Collapsed, Visible) | (Visible, Collapsed) => ctx.updates.layout_render(),
-                    (Hidden, Visible) | (Visible, Hidden) => ctx.updates.render(),
-                    (Collapsed, Hidden) | (Hidden, Collapsed) => ctx.updates.layout(),
+                    (Collapsed, Visible) | (Visible, Collapsed) => {
+                        WIDGET.layout().render();
+                    }
+                    (Hidden, Visible) | (Visible, Hidden) => {
+                        WIDGET.render();
+                    }
+                    (Collapsed, Hidden) | (Hidden, Collapsed) => {
+                        WIDGET.layout();
+                    }
                     _ => {}
                 }
                 self.prev_vis = vis;
@@ -1015,7 +1021,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if HitTestMode::var().is_new() {
-                ctx.updates.render();
+                WIDGET.render();
             }
             self.child.update(ctx, updates);
         }
@@ -1102,7 +1108,7 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if let Some(new) = self.enabled.get_new() {
                 if ctx.widget_info.bounds.can_auto_hide() != new {
-                    ctx.updates.layout_render();
+                    WIDGET.layout().render();
                 }
             }
             self.child.update(ctx, updates);

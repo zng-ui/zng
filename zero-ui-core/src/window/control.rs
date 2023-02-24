@@ -15,6 +15,7 @@ use crate::{
     crate_util::IdMap,
     event::{AnyEventArgs, EventHandles, EventUpdate},
     image::{Image, ImageVar, IMAGES},
+    new_context::{UPDATES, WIDGET},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::FONTS,
     units::*,
@@ -110,7 +111,7 @@ impl HeadedCtrl {
     pub fn update(&mut self, ctx: &mut WindowContext, updates: &mut WidgetUpdates) {
         if self.window.is_none() && !self.waiting_view {
             // we request a view on the first layout.
-            ctx.updates.layout();
+            UPDATES.layout();
 
             if let Some(enforced_fullscreen) = self.kiosk {
                 // enforce kiosk in pre-init.
@@ -204,7 +205,7 @@ impl HeadedCtrl {
                 if let Some(auto) = self.vars.auto_size().get_new() {
                     if auto != AutoSize::DISABLED {
                         self.content.layout_requested = true;
-                        ctx.updates.layout();
+                        UPDATES.layout();
                     }
                 }
 
@@ -248,7 +249,7 @@ impl HeadedCtrl {
 
                         if font_size != self.root_font_size {
                             self.root_font_size = font_size;
-                            ctx.updates.layout();
+                            UPDATES.layout();
                         }
                     }
                 }
@@ -366,7 +367,7 @@ impl HeadedCtrl {
                 }
                 if m.scale_factor().is_new() || m.size().is_new() || m.ppi().is_new() {
                     self.content.layout_requested = true;
-                    ctx.updates.layout();
+                    UPDATES.layout();
                 }
             }
 
@@ -423,7 +424,7 @@ impl HeadedCtrl {
                         self.vars.0.actual_monitor.set_ne(Some(monitor));
                         self.monitor = None;
                         self.content.layout_requested = true;
-                        ctx.updates.layout();
+                        UPDATES.layout();
                     }
                 }
 
@@ -457,10 +458,10 @@ impl HeadedCtrl {
 
                                 // we skip layout & render when minimized.
                                 if self.content.layout_requested {
-                                    ctx.updates.layout();
+                                    UPDATES.layout();
                                 }
                                 if !self.content.render_requested.is_none() {
-                                    ctx.updates.render();
+                                    UPDATES.render();
                                 }
                             }
                             _ => {}
@@ -483,7 +484,7 @@ impl HeadedCtrl {
                         size_change = Some(size);
 
                         self.content.layout_requested = true;
-                        ctx.updates.layout();
+                        UPDATES.layout();
 
                         if args.cause == EventCause::System {
                             // resize by system (user)
@@ -497,7 +498,7 @@ impl HeadedCtrl {
 
                     self.content.pending_render |= WindowRenderUpdate::RenderUpdate;
                     self.content.render_requested = self.content.pending_render.take();
-                    ctx.updates.render_update();
+                    UPDATES.render();
                 }
 
                 if state_change.is_some() || pos_change.is_some() || size_change.is_some() {
@@ -578,7 +579,7 @@ impl HeadedCtrl {
                     .unwrap_or_default();
                 self.vars.0.actual_color_scheme.set_ne(scheme);
 
-                ctx.updates.layout_render();
+                UPDATES.layout().render();
 
                 for update in mem::take(&mut self.delayed_view_updates) {
                     update(&args.window);
@@ -611,7 +612,7 @@ impl HeadedCtrl {
                 self.content.render_requested = WindowRenderUpdate::Render;
                 self.content.is_rendering = false;
 
-                ctx.updates.layout_render();
+                UPDATES.layout().render();
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.window {
@@ -627,7 +628,7 @@ impl HeadedCtrl {
                     self.content.render_requested = WindowRenderUpdate::Render;
                     self.content.is_rendering = false;
 
-                    ctx.updates.layout_render();
+                    UPDATES.layout().render();
                 }
             }
         }
@@ -1062,11 +1063,11 @@ impl HeadlessWithRendererCtrl {
                 || self.vars.font_size().is_new()
             {
                 self.content.layout_requested = true;
-                ctx.updates.layout();
+                UPDATES.layout();
             }
         } else {
             // we init on the first layout.
-            ctx.updates.layout();
+            UPDATES.layout();
         }
 
         if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
@@ -1090,7 +1091,7 @@ impl HeadlessWithRendererCtrl {
                 self.surface = Some(args.surface.clone());
                 self.vars.0.render_mode.set_ne(args.data.render_mode);
 
-                ctx.updates.render();
+                UPDATES.render();
 
                 for update in mem::take(&mut self.delayed_view_updates) {
                     update(&args.surface);
@@ -1108,7 +1109,7 @@ impl HeadlessWithRendererCtrl {
                 self.content.layout_requested = true;
                 self.content.render_requested = WindowRenderUpdate::Render;
 
-                ctx.updates.layout_render();
+                UPDATES.layout().render();
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.surface {
@@ -1121,7 +1122,7 @@ impl HeadlessWithRendererCtrl {
                     self.content.layout_requested = true;
                     self.content.render_requested = WindowRenderUpdate::Render;
 
-                    ctx.updates.layout_render();
+                    UPDATES.layout().render();
                 }
             }
         }
@@ -1237,7 +1238,7 @@ fn update_headless_vars(mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandl
         let parent = &parent_vars.0.actual_color_scheme;
         let actual = &hvars.0.actual_color_scheme;
 
-        let h = user.hook(Box::new(clone_move!(parent, actual, |_, value| {
+        let h = user.hook(Box::new(clone_move!(parent, actual, |value| {
             let value = *value.as_any().downcast_ref::<Option<ColorScheme>>().unwrap();
             let scheme = value.unwrap_or_else(|| parent.get());
             actual.set_ne(scheme);
@@ -1245,7 +1246,7 @@ fn update_headless_vars(mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandl
         })));
         handles.push(h);
 
-        let h = parent.hook(Box::new(clone_move!(user, actual, |_, value| {
+        let h = parent.hook(Box::new(clone_move!(user, actual, |value| {
             let scheme = user.get().unwrap_or_else(|| *value.as_any().downcast_ref::<ColorScheme>().unwrap());
             actual.set_ne(scheme);
             true
@@ -1293,15 +1294,15 @@ impl HeadlessCtrl {
     pub fn update(&mut self, ctx: &mut WindowContext, updates: &mut WidgetUpdates) {
         if self.vars.size().is_new() || self.vars.min_size().is_new() || self.vars.max_size().is_new() || self.vars.auto_size().is_new() {
             self.content.layout_requested = true;
-            ctx.updates.layout();
+            UPDATES.layout();
         }
 
         if matches!(self.content.init_state, InitState::Init) {
             self.content.layout_requested = true;
             self.content.pending_render = WindowRenderUpdate::Render;
 
-            ctx.updates.layout();
-            ctx.updates.render();
+            UPDATES.layout();
+            UPDATES.render();
         }
 
         if update_parent(ctx, &mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
@@ -1522,7 +1523,7 @@ impl ContentCtrl {
             }
 
             InitState::SkipOne => {
-                ctx.updates.update_ext();
+                UPDATES.update_ext();
                 self.init_state = InitState::Init;
             }
             InitState::Init => {
@@ -1536,7 +1537,7 @@ impl ContentCtrl {
                     |ctx| {
                         self.root.init(ctx);
 
-                        ctx.updates.info();
+                        WIDGET.rebuild_info();
                     },
                 );
                 self.init_state = InitState::Inited;
@@ -1578,11 +1579,11 @@ impl ContentCtrl {
                     WindowRenderUpdate::None => {}
                     WindowRenderUpdate::Render => {
                         self.render_requested = WindowRenderUpdate::Render;
-                        ctx.updates.render();
+                        UPDATES.render();
                     }
                     WindowRenderUpdate::RenderUpdate => {
                         self.render_requested |= WindowRenderUpdate::RenderUpdate;
-                        ctx.updates.render_update();
+                        UPDATES.render();
                     }
                 }
 

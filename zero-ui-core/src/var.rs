@@ -15,7 +15,8 @@ use std::{
 
 use crate::{
     handler::{app_hn, app_hn_once, AppHandler, AppHandlerArgs},
-    units::*, new_context::UPDATES,
+    new_context::UPDATES,
+    units::*,
 };
 
 pub mod animation;
@@ -1511,7 +1512,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         S: Send + 'static,
     {
         let mut span = Some(self.with(&mut enter_value));
-        self.on_pre_new(app_hn!(|value, _| {
+        self.on_pre_new(app_hn!(|_, value, _| {
             let _ = span.take();
             span = Some(enter_value(value));
         }))
@@ -1965,11 +1966,7 @@ where
     }
 }
 
-fn var_bind_ok<I, O, W>(
-    input: &impl Var<I>,
-    wk_output: W,
-    update_output: impl FnMut(&I, W::Upgrade) + Send + 'static,
-) -> VarHandle
+fn var_bind_ok<I, O, W>(input: &impl Var<I>, wk_output: W, update_output: impl FnMut(&I, W::Upgrade) + Send + 'static) -> VarHandle
 where
     I: VarValue,
     O: VarValue,

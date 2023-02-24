@@ -2,7 +2,7 @@ use crate::{
     context::{WidgetContext, WidgetUpdates},
     event::{EventHandles, EventUpdate},
     ui_node,
-    var::{BoxedVar, Var, VarHandles},
+    var::{BoxedVar, Var, VarHandles}, new_context::WIDGET,
 };
 
 use super::{BoxedUiNode, BoxedUiNodeList, UiNode, UiNodeList, UiNodeListObserver};
@@ -117,7 +117,7 @@ impl WhenUiNode {
             ctx.with_handles(var_handles, event_handles, |ctx| child.init(ctx));
         }
 
-        ctx.updates.info_layout_render();
+        WIDGET.rebuild_info().layout().render();
     }
 }
 #[ui_node(
@@ -227,7 +227,7 @@ impl WhenUiNodeList {
         }
 
         observer.reseted();
-        ctx.updates.info_layout_render();
+        WIDGET.rebuild_info().layout().render();
     }
 }
 

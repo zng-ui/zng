@@ -1265,7 +1265,7 @@ mod util {
         context::{StaticStateId, TestWidgetContext, WidgetContext, WidgetUpdates},
         property, ui_node,
         var::{IntoValue, IntoVar, Var},
-        widget_instance::UiNode,
+        widget_instance::UiNode, new_context::UPDATES,
     };
 
     /// Insert `trace` in the widget state. Can be probed using [`traced`].
@@ -1461,7 +1461,7 @@ mod util {
     /// Note only applies after update.
     pub fn set_state(ctx: &mut TestWidgetContext, wgt: &mut impl UiNode, state: bool) {
         wgt.with_context_mut(|w_ctx| {
-            ctx.updates.update(w_ctx.id);
+            UPDATES.update(w_ctx.id);
             *w_ctx.widget_state.entry(&IS_STATE_ID).or_default() = state;
         })
         .expect("expected widget");

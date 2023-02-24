@@ -594,7 +594,7 @@ pub mod ui_node_list_default {
         list.update_all(ctx, updates, &mut changed);
 
         if changed {
-            ctx.updates.layout_render();
+            WIDGET.layout().render();
         }
     }
 

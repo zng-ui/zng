@@ -2,7 +2,6 @@ use parking_lot::Mutex;
 use std::sync::{Arc, Weak};
 
 use crate::{
-    app::AppEventSender,
     event::{Event, EventArgs, EventHandles},
     var::*,
     widget_instance::*,
@@ -19,7 +18,7 @@ struct SlotsData<U> {
     next_slot: SlotId,
 
     // slot and context where the node is inited.
-    owner: Option<(SlotId, WidgetId, AppEventSender)>,
+    owner: Option<(SlotId, WidgetId)>,
     // slot and context that has requested ownership.
     move_request: Option<(SlotId, WidgetId)>,
 
@@ -92,10 +91,10 @@ impl<U: UiNode> ArcNode<U> {
     pub fn set(&self, new_node: U) {
         let mut slots = self.0.slots.lock();
         let slots = &mut *slots;
-        if let Some((_, id, u)) = &slots.owner {
+        if let Some((_, id)) = &slots.owner {
             // current node inited on a slot, signal it to replace.
             slots.replacement = Some(new_node);
-            let _ = u.send_update(vec![*id]);
+            let _ = UPDATES.update(*id);
         } else {
             // node already not inited, just replace.
             *self.0.item.lock() = new_node;
@@ -225,10 +224,10 @@ impl<L: UiNodeList> ArcNodeList<L> {
     pub fn set(&self, new_list: L) {
         let mut slots = self.0.slots.lock();
         let slots = &mut *slots;
-        if let Some((_, id, u)) = &slots.owner {
+        if let Some((_, id)) = &slots.owner {
             // current node inited on a slot, signal it to replace.
             slots.replacement = Some(new_list);
-            let _ = u.send_update(vec![*id]);
+            UPDATES.update(*id);
         } else {
             // node already not inited, just replace.
             *self.0.item.lock() = new_list;
@@ -406,7 +405,7 @@ mod impls {
             {
                 let mut slots = self.rc.slots.lock();
                 let slots = &mut *slots;
-                if let Some((slot, _, _)) = &slots.owner {
+                if let Some((slot, _)) = &slots.owner {
                     if *slot == self.slot {
                         slots.owner = None;
                         was_owner = true;
@@ -445,13 +444,13 @@ mod impls {
                     let mut node = self.rc.item.lock();
                     (self.delegate_deinit)(&mut node, ctx);
 
-                    ctx.updates.info_layout_render();
+                    WIDGET.rebuild_info().layout().render();
 
                     if let Some(new) = replacement {
                         *node = new;
                     }
 
-                    ctx.updates.update(id);
+                    UPDATES.update(id);
                 } else if let Some(mut new) = slots.replacement.take() {
                     // apply replacement.
 
@@ -469,7 +468,7 @@ mod impls {
                     });
                     *node = new;
 
-                    ctx.updates.info_layout_render();
+                    WIDGET.rebuild_info().layout().render();
                 }
             } else if self.take.take_on_update(ctx, updates) {
                 // request ownership.
@@ -491,15 +490,15 @@ mod impls {
             {
                 let mut slots = self.rc.slots.lock();
                 let slots = &mut *slots;
-                if let Some((sl, id, _)) = &slots.owner {
+                if let Some((sl, id)) = &slots.owner {
                     if *sl != self.slot {
                         // currently inited in another slot, signal it to deinit.
                         slots.move_request = Some((self.slot, ctx.path.widget_id()));
-                        ctx.updates.update(*id);
+                        UPDATES.update(*id);
                     }
                 } else {
                     // no current owner, take ownership immediately.
-                    slots.owner = Some((self.slot, ctx.path.widget_id(), ctx.updates.sender()));
+                    slots.owner = Some((self.slot, ctx.path.widget_id()));
                 }
             }
 
@@ -507,7 +506,7 @@ mod impls {
                 ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
                     (self.delegate_init)(&mut *self.rc.item.lock(), ctx);
                 });
-                ctx.updates.info_layout_render();
+                WIDGET.rebuild_info().layout().render();
             }
         }
 
@@ -517,7 +516,7 @@ mod impls {
                 .lock()
                 .owner
                 .as_ref()
-                .map(|(sl, _, _)| *sl == self.slot)
+                .map(|(sl, _)| *sl == self.slot)
                 .unwrap_or(false)
         }
 

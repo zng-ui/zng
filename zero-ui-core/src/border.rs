@@ -5,13 +5,15 @@ use std::{fmt, mem};
 use crate::{
     color::*,
     context::{LayoutContext, LayoutMetrics, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
-    context_local, property,
+    context_local,
+    new_context::WIDGET,
+    property,
     render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValueKey},
     ui_node, ui_vec,
     units::*,
     var::{impl_from_and_into_var, *},
     widget_info::{WidgetBorderInfo, WidgetLayout, WidgetMeasure},
-    widget_instance::{UiNode, UiNodeList, WidgetId}, new_context::WIDGET,
+    widget_instance::{UiNode, UiNodeList, WidgetId},
 };
 
 /// Orientation of a straight line.

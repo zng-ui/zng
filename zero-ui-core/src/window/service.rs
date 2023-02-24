@@ -19,6 +19,7 @@ use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
 use crate::crate_util::IdSet;
 use crate::event::{AnyEventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
+use crate::new_context::UPDATES;
 use crate::render::RenderMode;
 use crate::timer::{DeadlineHandle, TIMERS};
 use crate::widget_info::WidgetInfoTree;
@@ -621,7 +622,7 @@ impl WINDOWS {
             WINDOWS_SV.write().latest_color_scheme = args.color_scheme;
 
             // we skipped request fulfillment until this event.
-            ctx.updates.update_ext();
+            UPDATES.update_ext();
         }
 
         Self::with_detached_windows(ctx, |ctx, windows| {
@@ -1020,7 +1021,9 @@ impl WindowLoading {
                 }
             }
             if self.timer.is_none() {
-                let t = TIMERS.on_deadline(deadline, app_hn_once!(|ctx, _| ctx.updates.update_ext()));
+                let t = TIMERS.on_deadline(deadline, app_hn_once!(|_, _| {
+                    UPDATES.update_ext();
+                }));
                 self.timer = Some(t);
             }
 

@@ -1,6 +1,7 @@
 use crate::{
     context::{state_map, BorrowStateMap, StaticStateId, WindowContext},
     event::{AnyEventArgs, EventUpdate},
+    new_context::UPDATES,
     property,
     render::RenderMode,
     ui_node,
@@ -60,7 +61,7 @@ impl ImagesService {
             render: Box::new(render),
             image: result.downgrade(),
         });
-        let _ = self.updates.as_ref().expect("`ImageManager` not inited").send_ext_update();
+        UPDATES.update_ext();
     }
 }
 

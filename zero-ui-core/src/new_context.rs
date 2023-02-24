@@ -629,13 +629,13 @@ impl UPDATES {
     }
 
     /// Returns next timer or animation tick time.
-    pub fn next_deadline(&self, timer: &mut LoopTimer) {
+    pub(crate) fn next_deadline(&self, timer: &mut LoopTimer) {
         TIMERS_SV.write().next_deadline(timer);
         VARS.next_deadline(timer);
     }
 
     /// Update timers and animations, returns next wake time.
-    pub fn update_timers(&self, timer: &mut LoopTimer) {
+    pub(crate) fn update_timers(&self, timer: &mut LoopTimer) {
         TIMERS_SV.write().apply_updates(timer);
         VARS.update_animations(timer);
     }
@@ -660,9 +660,10 @@ impl UPDATES {
     /// Schedules an update that affects the `target`.
     ///
     /// After the current update cycle ends a new update will happen that includes the `target` widget.
-    pub fn update(&self, target: impl Into<Option<WidgetId>>) {
+    pub fn update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
         UpdatesTrace::log_update();
         self.update_internal(target.into());
+        self
     }
     pub(crate) fn update_internal(&self, target: Option<WidgetId>) {
         let mut u = UPDATES_SV.write();
@@ -691,9 +692,10 @@ impl UPDATES {
     /// This is the equivalent of calling [`update`] with a `None`.
     ///
     /// [`update`]: Self::update
-    pub fn update_ext(&self) {
+    pub fn update_ext(&self) -> &Self {
         UpdatesTrace::log_update();
         self.update_ext_internal();
+        self
     }
     pub(crate) fn update_ext_internal(&self) {
         let mut u = UPDATES_SV.write();
@@ -705,17 +707,19 @@ impl UPDATES {
     }
 
     /// Schedules a layout update that will affect all app extensions and widgets with invalidated layout.
-    pub fn layout(&self) {
+    pub fn layout(&self) -> &Self {
         UpdatesTrace::log_layout();
         self.layout_internal();
+        self
     }
     pub(crate) fn layout_internal(&self) {
         UPDATES_SV.write().flags.insert(UpdateFlags::LAYOUT);
     }
 
     /// Schedules a render update that will affect all app extensions and widgets with invalidated layout.
-    pub fn render(&self) {
+    pub fn render(&self) -> &Self {
         self.render_internal();
+        self
     }
     pub(crate) fn render_internal(&self) {
         UPDATES_SV.write().flags.insert(UpdateFlags::RENDER);
@@ -749,7 +753,8 @@ impl UPDATES {
         H: AppHandler<UpdateArgs>,
     {
         let u = UPDATES_SV.read();
-        Self::push_handler(&mut *u.pre_handlers.lock(), true, handler, false)
+        let r = Self::push_handler(&mut *u.pre_handlers.lock(), true, handler, false);
+        r
     }
 
     /// Create an update handler.
@@ -769,7 +774,8 @@ impl UPDATES {
         H: AppHandler<UpdateArgs>,
     {
         let u = UPDATES_SV.read();
-        Self::push_handler(&mut *u.pos_handlers.lock(), false, handler, false)
+        let r = Self::push_handler(&mut *u.pos_handlers.lock(), false, handler, false);
+        r
     }
 
     fn push_handler<H>(entries: &mut Vec<UpdateHandler>, is_preview: bool, mut handler: H, force_once: bool) -> OnUpdateHandle
@@ -820,7 +826,7 @@ impl UPDATES {
     }
 
     pub(super) fn take_updates(&self) -> (bool, WidgetUpdates, bool, bool) {
-        let u = UPDATES_SV.write();
+        let mut u = UPDATES_SV.write();
         let update = u.flags.contains(UpdateFlags::UPDATE);
         let layout = u.flags.contains(UpdateFlags::LAYOUT);
         let render = u.flags.contains(UpdateFlags::RENDER);
@@ -837,11 +843,13 @@ impl UPDATES {
 
     pub(crate) fn handler_lens(&self) -> (usize, usize) {
         let u = UPDATES_SV.read();
-        (u.pre_handlers.lock().len(), u.pos_handlers.lock().len())
+        let r = (u.pre_handlers.lock().len(), u.pos_handlers.lock().len());
+        r
     }
     pub(crate) fn new_update_handlers(&self, pre_from: usize, pos_from: usize) -> Vec<Box<dyn Fn() -> bool>> {
         let u = UPDATES_SV.read();
-        u.pre_handlers
+        let r = u
+            .pre_handlers
             .lock()
             .iter()
             .skip(pre_from)
@@ -851,7 +859,8 @@ impl UPDATES {
                 let r: Box<dyn Fn() -> bool> = Box::new(move || h.upgrade().is_some());
                 r
             })
-            .collect()
+            .collect();
+        r
     }
 }
 
