@@ -1,6 +1,6 @@
 use zero_ui::{
     core::{
-        context::StaticStateId,
+        context::app_local,
         event::{command, CommandHandle, EventUpdate},
         keyboard::HeadlessAppKeyboardExt,
         ui_node,
@@ -18,8 +18,7 @@ fn notify() {
 
     let _ = app.update(false);
 
-    let trace = app.ctx().app_state.into_req(&TEST_TRACE);
-    assert_eq!(trace, &vec!["no-scope / App".to_owned()]);
+    assert_eq!(&*TEST_TRACE.read(), &vec!["no-scope / App".to_owned()]);
 }
 
 #[test]
@@ -34,8 +33,7 @@ fn notify_scoped() {
 
     let _ = app.update(false);
 
-    let trace = app.ctx().app_state.into_req(&TEST_TRACE);
-    assert_eq!(trace, &vec![format!("scoped-win / Window({window_id:?})")]);
+    assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-win / Window({window_id:?})")]);
 }
 
 #[test]
@@ -47,10 +45,9 @@ fn shortcut() {
 
     app.press_key(window_id, Key::F);
 
-    let trace = app.ctx().app_state.into_req(&TEST_TRACE);
     let widget_id = WidgetId::named("test-widget");
     // because we target the scoped first.
-    assert_eq!(trace, &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
+    assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 }
 
 #[test]
@@ -62,7 +59,7 @@ fn shortcut_with_focused_scope() {
 
     app.press_key(window_id, Key::F);
 
-    let trace = app.ctx().app_state.into_req(&TEST_TRACE);
+    let trace = TEST_TRACE.read();
     let widget_id = WidgetId::named("other-widget");
     assert_eq!(1, trace.len()); // because we target the focused first.
     assert_eq!(&trace[0], &format!("scoped-wgt / Widget({widget_id:?})"));
@@ -79,16 +76,15 @@ fn shortcut_scoped() {
     app.press_key(window_id, Key::G);
 
     {
-        let trace = app.ctx().app_state.into_req_mut(&TEST_TRACE);
-        assert_eq!(trace, &vec![format!("scoped-win / Window({window_id:?})")]);
+        let mut trace = TEST_TRACE.write();
+        assert_eq!(&*trace, &vec![format!("scoped-win / Window({window_id:?})")]);
         trace.clear();
     }
 
     app.press_key(window_id, Key::F);
 
-    let trace = app.ctx().app_state.into_req(&TEST_TRACE);
     let widget_id = WidgetId::named("test-widget");
-    assert_eq!(trace, &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
+    assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 }
 
 fn listener_window(focused_wgt: bool) -> Window {
@@ -106,28 +102,19 @@ fn listener_window(focused_wgt: bool) -> Window {
         fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
             if let Some(args) = FOO_CMD.on(update) {
                 args.handle(|args| {
-                    ctx.app_state
-                        .entry(&TEST_TRACE)
-                        .or_default()
-                        .push(format!("no-scope / {:?}", args.scope));
+                    TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
                 });
             }
 
             if let Some(args) = FOO_CMD.scoped(ctx.path.window_id()).on(update) {
                 args.handle(|args| {
-                    ctx.app_state
-                        .entry(&TEST_TRACE)
-                        .or_default()
-                        .push(format!("scoped-win / {:?}", args.scope));
+                    TEST_TRACE.write().push(format!("scoped-win / {:?}", args.scope));
                 });
             }
 
             if let Some(args) = FOO_CMD.scoped(ctx.path.widget_id()).on(update) {
                 args.handle(|args| {
-                    ctx.app_state
-                        .entry(&TEST_TRACE)
-                        .or_default()
-                        .push(format!("scoped-wgt / {:?}", args.scope));
+                    TEST_TRACE.write().push(format!("scoped-wgt / {:?}", args.scope));
                 });
             }
         }
@@ -162,4 +149,6 @@ command! {
     pub static FOO_CMD;
 }
 
-static TEST_TRACE: StaticStateId<Vec<String>> = StaticStateId::new_unique();
+app_local! {
+    static TEST_TRACE: Vec<String> = vec![];
+}

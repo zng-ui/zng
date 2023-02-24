@@ -324,11 +324,6 @@ macro_rules! impl_borrow_mut_for_ctx {
     )+}
 }
 impl_borrow_mut_for_ctx! {
-    AppContext.app_state: App;
-    WindowContext.app_state: App;
-    WidgetContext.app_state: App;
-    LayoutContext.app_state: App;
-
     WindowContext.window_state: Window;
     WidgetContext.window_state: Window;
     LayoutContext.window_state: Window;
@@ -356,15 +351,12 @@ macro_rules! impl_borrow_for_ctx {
     )+}
 }
 impl_borrow_for_ctx! {
-    MeasureContext.app_state: App;
     MeasureContext.window_state: Window;
     MeasureContext.widget_state: Widget;
 
-    InfoContext.app_state: App;
     InfoContext.window_state: Window;
     InfoContext.widget_state: Widget;
 
-    RenderContext.app_state: App;
     RenderContext.window_state: Window;
     RenderContext.widget_state: Widget;
 }
@@ -388,20 +380,9 @@ macro_rules! impl_borrow_mut_for_test_ctx {
     )+}
 }
 impl_borrow_mut_for_test_ctx! {
-    app_state: App;
     window_state: Window;
     widget_state: Widget;
     update_state: Update;
-}
-impl BorrowStateMap<state_map::App> for crate::app::HeadlessApp {
-    fn borrow(&self) -> StateMapRef<state_map::App> {
-        self.app_state()
-    }
-}
-impl BorrowMutStateMap<state_map::App> for crate::app::HeadlessApp {
-    fn borrow_mut(&mut self) -> StateMapMut<state_map::App> {
-        self.app_state_mut()
-    }
 }
 
 /// State map helper types.
@@ -411,9 +392,6 @@ pub mod state_map {
     use super::*;
 
     type AnyMap = crate::crate_util::IdMap<u64, Box<dyn Any + Send + Sync>>;
-
-    /// App state-map tag.
-    pub enum App {}
 
     /// Window state-map tag.
     pub enum Window {}

@@ -411,7 +411,9 @@ mod context {
         static TEST_VAR: Text = "";
     }
 
-    static PROBE_ID: StaticStateId<Text> = StaticStateId::new_unique();
+    app_local! {
+        static PROBE_ID: Text = Text::empty();
+    }
 
     #[property(CONTEXT, default(TEST_VAR))]
     fn test_prop(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
@@ -426,7 +428,7 @@ mod context {
         })]
         impl UiNode for ProbeNode {
             fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.app_state.set(&PROBE_ID, self.var.get());
+                *PROBE_ID.write() = self.var.get();
                 self.child.init(ctx);
             }
         }
@@ -487,7 +489,7 @@ mod context {
 
     #[test]
     fn context_var_basic() {
-        let mut test = test_app(
+        let _test = test_app(
             App::default(),
             test_wgt! {
                 test_prop = "test!";
@@ -498,12 +500,12 @@ mod context {
             },
         );
 
-        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("test!")));
+        assert_eq!(&*PROBE_ID.read(), &Text::from("test!"));
     }
 
     #[test]
     fn context_var_map() {
-        let mut test = test_app(
+        let _test = test_app(
             App::default(),
             test_wgt! {
                 test_prop = "test!";
@@ -514,7 +516,7 @@ mod context {
             },
         );
 
-        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map test!")));
+        assert_eq!(&*PROBE_ID.read(), &Text::from("map test!"));
     }
 
     #[test]
@@ -527,7 +529,7 @@ mod context {
         use self::test_prop as test_prop_a;
         use self::test_prop as test_prop_b;
 
-        let mut test = test_app(
+        let _test = test_app(
             app,
             test_wgt! {
                 test_prop_a = "A!";
@@ -543,7 +545,7 @@ mod context {
             },
         );
 
-        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map B!")));
+        assert_eq!(&*PROBE_ID.read(), &Text::from("map B!"));
     }
 
     #[test]
@@ -552,7 +554,7 @@ mod context {
         // mapped context var should depend on the context.
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
-        let mut test = test_app(
+        let _test = test_app(
             app,
             test_wgt! {
                 test_prop = "A!";
@@ -574,7 +576,7 @@ mod context {
             },
         );
 
-        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map C!")));
+        assert_eq!(&*PROBE_ID.read(), &Text::from("map C!"));
     }
 
     #[test]
@@ -586,7 +588,7 @@ mod context {
         use self::test_prop as test_prop_a;
         use self::test_prop as test_prop_b;
 
-        let mut test = test_app(
+        let _test = test_app(
             app,
             test_wgt! {
                 test_prop_a = "A!";
@@ -602,7 +604,7 @@ mod context {
             },
         );
 
-        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map B!")));
+        assert_eq!(&*PROBE_ID.read(), &Text::from("map B!"));
     }
 
     #[test]
@@ -627,7 +629,7 @@ mod context {
         use self::test_prop as test_prop_a;
         use self::test_prop as test_prop_b;
 
-        let mut test = test_app(
+        let _test = test_app(
             app,
             test_wgt! {
                 test_prop_a = "A!";
@@ -637,7 +639,7 @@ mod context {
             },
         );
 
-        assert_eq!(test.ctx().app_state.get(&PROBE_ID), Some(&Text::from("map B!")));
+        assert_eq!(&*PROBE_ID.read(), &Text::from("map B!"));
     }
 
     #[test]

@@ -32,7 +32,6 @@ pub use value::*;
 ///
 /// You can only have one instance of this at a time per-thread at a time.
 pub(crate) struct OwnedAppContext {
-    app_state: OwnedStateMap<state_map::App>,
     updates: Updates,
 }
 impl OwnedAppContext {
@@ -41,26 +40,12 @@ impl OwnedAppContext {
         EVENTS_SV.write().init(app_event_sender.clone());
         VARS_SV.write().init(app_event_sender.clone());
         let updates = Updates::new(app_event_sender);
-        OwnedAppContext {
-            app_state: OwnedStateMap::new(),
-            updates,
-        }
-    }
-
-    /// State that lives for the duration of an application, including a headless application.
-    pub fn app_state(&self) -> StateMapRef<state_map::App> {
-        self.app_state.borrow()
-    }
-
-    /// State that lives for the duration of an application, including a headless application.
-    pub fn app_state_mut(&mut self) -> StateMapMut<state_map::App> {
-        self.app_state.borrow_mut()
+        OwnedAppContext { updates }
     }
 
     /// Borrow the app context as an [`AppContext`].
     pub fn borrow(&mut self) -> AppContext {
         AppContext {
-            app_state: self.app_state.borrow_mut(),
             updates: &mut self.updates,
         }
     }
@@ -109,9 +94,6 @@ impl OwnedAppContext {
 
 /// Full application context.
 pub struct AppContext<'a> {
-    /// State that lives for the duration of the application.
-    pub app_state: StateMapMut<'a, state_map::App>,
-
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 }
@@ -135,7 +117,6 @@ impl<'a> AppContext<'a> {
         let r = f(&mut WindowContext {
             window_id: &window_id,
             window_mode: &window_mode,
-            app_state: self.app_state.reborrow(),
             window_state: window_state.borrow_mut(),
             update_state: update_state.borrow_mut(),
             updates: self.updates,
@@ -152,9 +133,6 @@ pub struct WindowContext<'a> {
 
     /// Window mode, headed or not, renderer or not.
     pub window_mode: &'a WindowMode,
-
-    /// State that lives for the duration of the application.
-    pub app_state: StateMapMut<'a, state_map::App>,
 
     /// State that lives for the duration of the window.
     pub window_state: StateMapMut<'a, state_map::Window>,
@@ -188,7 +166,6 @@ impl<'a> WindowContext<'a> {
 
             info_tree,
             widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: root_widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
@@ -214,7 +191,6 @@ impl<'a> WindowContext<'a> {
             path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
             info_tree,
             widget_info,
-            app_state: self.app_state.as_ref(),
             window_state: self.window_state.as_ref(),
             widget_state: root_widget_state.borrow(),
             update_state: self.update_state.reborrow(),
@@ -242,7 +218,6 @@ impl<'a> WindowContext<'a> {
 
             info_tree,
             widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: root_widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
@@ -264,7 +239,6 @@ impl<'a> WindowContext<'a> {
             path: &mut WidgetContextPath::new(*self.window_id, root_widget_id),
             info_tree,
             widget_info,
-            app_state: self.app_state.as_ref(),
             window_state: self.window_state.as_ref(),
             widget_state: root_widget_state.borrow(),
             update_state: self.update_state.reborrow(),
@@ -300,10 +274,6 @@ pub struct TestWidgetContext {
     /// [`widget_info`]: WidgetContext::widget_info
     pub widget_info: WidgetContextInfo,
 
-    /// The [`app_state`] value. Empty by default.
-    ///
-    /// [`app_state`]: WidgetContext::app_state
-    pub app_state: OwnedStateMap<state_map::App>,
     /// The [`window_state`] value. Empty by default.
     ///
     /// [`window_state`]: WidgetContext::window_state
@@ -373,7 +343,6 @@ impl TestWidgetContext {
             root_id,
             info_tree: WidgetInfoTree::wgt(window_id, root_id),
             widget_info: WidgetContextInfo::default(),
-            app_state: OwnedStateMap::new(),
             window_state: OwnedStateMap::new(),
             widget_state: OwnedStateMap::new(),
             update_state: OwnedStateMap::new(),
@@ -396,7 +365,6 @@ impl TestWidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
             widget_info: &self.widget_info,
-            app_state: self.app_state.borrow_mut(),
             window_state: self.window_state.borrow_mut(),
             widget_state: self.widget_state.borrow_mut(),
             update_state: self.update_state.borrow_mut(),
@@ -414,7 +382,6 @@ impl TestWidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
             widget_info: &self.widget_info,
-            app_state: self.app_state.borrow(),
             window_state: self.window_state.borrow(),
             widget_state: self.widget_state.borrow(),
             update_state: self.update_state.borrow_mut(),
@@ -454,7 +421,6 @@ impl TestWidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
             widget_info: &self.widget_info,
-            app_state: self.app_state.borrow_mut(),
             window_state: self.window_state.borrow_mut(),
             widget_state: self.widget_state.borrow_mut(),
             update_state: self.update_state.borrow_mut(),
@@ -468,7 +434,6 @@ impl TestWidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
             widget_info: &self.widget_info,
-            app_state: self.app_state.borrow(),
             window_state: self.window_state.borrow(),
             widget_state: self.widget_state.borrow(),
             update_state: self.update_state.borrow_mut(),
@@ -669,9 +634,6 @@ pub struct WidgetContext<'a> {
     /// Current widget's outer, inner, border and render info.
     pub widget_info: &'a WidgetContextInfo,
 
-    /// State that lives for the duration of the application.
-    pub app_state: StateMapMut<'a, state_map::App>,
-
     /// State that lives for the duration of the window.
     pub window_state: StateMapMut<'a, state_map::Window>,
 
@@ -716,7 +678,6 @@ impl<'a> WidgetContext<'a> {
 
             info_tree: self.info_tree,
             widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
@@ -748,7 +709,6 @@ impl<'a> WidgetContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
@@ -766,7 +726,6 @@ impl<'a> WidgetContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.as_ref(),
             window_state: self.window_state.as_ref(),
             widget_state: self.widget_state.as_ref(),
             update_state: self.update_state.reborrow(),
@@ -907,9 +866,6 @@ pub struct MeasureContext<'a> {
     /// Current widget's outer, inner, border and render info.
     pub widget_info: &'a WidgetContextInfo,
 
-    /// Read-only access to the state that lives for the duration of the application.
-    pub app_state: StateMapRef<'a, state_map::App>,
-
     /// Read-only access to the state that lives for the duration of the window.
     pub window_state: StateMapRef<'a, state_map::Window>,
 
@@ -945,7 +901,6 @@ impl<'a> MeasureContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
@@ -979,7 +934,6 @@ impl<'a> MeasureContext<'a> {
 
                 info_tree: self.info_tree,
                 widget_info: self.widget_info,
-                app_state: self.app_state,
                 window_state: self.window_state,
                 widget_state: self.widget_state,
                 update_state: self.update_state.reborrow(),
@@ -1007,7 +961,6 @@ impl<'a> MeasureContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
@@ -1023,7 +976,6 @@ impl<'a> MeasureContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
@@ -1051,7 +1003,6 @@ impl<'a> MeasureContext<'a> {
 
                 info_tree: self.info_tree,
                 widget_info: self.widget_info,
-                app_state: self.app_state,
                 window_state: self.window_state,
                 widget_state: self.widget_state,
                 update_state: self.update_state.reborrow(),
@@ -1071,7 +1022,6 @@ impl<'a> MeasureContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
@@ -1087,7 +1037,6 @@ impl<'a> MeasureContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
@@ -1115,7 +1064,6 @@ impl<'a> MeasureContext<'a> {
 
             info_tree: self.info_tree,
             widget_info,
-            app_state: self.app_state,
             window_state: self.window_state,
             widget_state: widget_state.borrow(),
             update_state: self.update_state.reborrow(),
@@ -1132,7 +1080,6 @@ impl<'a> MeasureContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
@@ -1155,9 +1102,6 @@ pub struct LayoutContext<'a> {
 
     /// Current widget's outer, inner, border and render info.
     pub widget_info: &'a WidgetContextInfo,
-
-    /// State that lives for the duration of the application.
-    pub app_state: StateMapMut<'a, state_map::App>,
 
     /// State that lives for the duration of the window.
     pub window_state: StateMapMut<'a, state_map::Window>,
@@ -1194,7 +1138,6 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
@@ -1224,7 +1167,6 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
@@ -1254,7 +1196,6 @@ impl<'a> LayoutContext<'a> {
 
                 info_tree: self.info_tree,
                 widget_info: self.widget_info,
-                app_state: self.app_state.as_ref(),
                 window_state: self.window_state.as_ref(),
                 widget_state: self.widget_state.as_ref(),
                 update_state: self.update_state.reborrow(),
@@ -1292,7 +1233,6 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
@@ -1310,7 +1250,6 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
@@ -1345,7 +1284,6 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
@@ -1363,7 +1301,6 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
@@ -1381,7 +1318,6 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
@@ -1413,7 +1349,6 @@ impl<'a> LayoutContext<'a> {
 
             info_tree: self.info_tree,
             widget_info,
-            app_state: self.app_state.reborrow(),
             window_state: self.window_state.reborrow(),
             widget_state: widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
@@ -1432,7 +1367,6 @@ impl<'a> LayoutContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.as_ref(),
             window_state: self.window_state.as_ref(),
             widget_state: self.widget_state.as_ref(),
             update_state: self.update_state.reborrow(),
@@ -1446,7 +1380,6 @@ impl<'a> LayoutContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state.as_ref(),
             window_state: self.window_state.as_ref(),
             widget_state: self.widget_state.as_ref(),
             update_state: self.update_state.reborrow(),
@@ -1464,9 +1397,6 @@ pub struct RenderContext<'a> {
 
     /// Current widget's outer, inner, border and render info.
     pub widget_info: &'a WidgetContextInfo,
-
-    /// Read-only access to the state that lives for the duration of the application.
-    pub app_state: StateMapRef<'a, state_map::App>,
 
     /// Read-only access to the state that lives for the duration of the window.
     pub window_state: StateMapRef<'a, state_map::Window>,
@@ -1495,7 +1425,6 @@ impl<'a> RenderContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info,
-            app_state: self.app_state,
             window_state: self.window_state,
             widget_state: widget_state.borrow(),
             update_state: self.update_state.reborrow(),
@@ -1510,7 +1439,6 @@ impl<'a> RenderContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info: self.widget_info,
-            app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
             update_state: self.update_state.reborrow(),
@@ -1528,9 +1456,6 @@ pub struct InfoContext<'a> {
 
     /// Current widget's outer, inner, border and render info.
     pub widget_info: &'a WidgetContextInfo,
-
-    /// Read-only access to the state that lives for the duration of the application.
-    pub app_state: StateMapRef<'a, state_map::App>,
 
     /// Read-only access to the state that lives for the duration of the window.
     pub window_state: StateMapRef<'a, state_map::Window>,
@@ -1558,7 +1483,6 @@ impl<'a> InfoContext<'a> {
             path: self.path,
             info_tree: self.info_tree,
             widget_info,
-            app_state: self.app_state,
             window_state: self.window_state,
             widget_state: widget_state.borrow(),
             update_state: self.update_state.reborrow(),

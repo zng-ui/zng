@@ -1718,16 +1718,6 @@ pub struct HeadlessApp {
     app: RunningApp<Box<dyn AppExtensionBoxed>>,
 }
 impl HeadlessApp {
-    /// App state.
-    pub fn app_state(&self) -> StateMapRef<state_map::App> {
-        self.app.owned_ctx.app_state()
-    }
-
-    /// Mutable app state.
-    pub fn app_state_mut(&mut self) -> StateMapMut<state_map::App> {
-        self.app.owned_ctx.app_state_mut()
-    }
-
     /// If headless rendering is enabled.
     ///
     /// When enabled windows are still not visible but you can request [frame pixels]
