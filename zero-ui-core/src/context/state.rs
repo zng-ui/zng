@@ -690,14 +690,14 @@ where
     S: StateValue,
     V: VarValue,
     I: Fn() -> S + Send + 'static,
-    M: FnMut(&mut super::Updates, &mut S, &V) + Send + 'static,
+    M: FnMut(&mut S, &V) + Send + 'static,
 {
     #[ui_node(struct WithWidgetStateModifyNode<S: StateValue, V: VarValue> {
         child: impl UiNode,
         id: StateId<S>,
         #[var] value: impl Var<V>,
         default: impl Fn() -> S + Send + 'static,
-        modify: impl FnMut(&mut super::Updates, &mut S, &V) + Send + 'static,
+        modify: impl FnMut(&mut S, &V) + Send + 'static,
 
         _phantom: PhantomData<V>,
     })]
@@ -707,7 +707,7 @@ where
             self.child.init(ctx);
 
             self.value.with(|v| {
-                (self.modify)(ctx.updates, ctx.widget_state.entry(self.id).or_insert_with(&self.default), v);
+                (self.modify)(ctx.widget_state.entry(self.id).or_insert_with(&self.default), v);
             })
         }
 
@@ -718,8 +718,7 @@ where
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
-            self.value
-                .with_new(|v| (self.modify)(ctx.updates, ctx.widget_state.req_mut(self.id), v));
+            self.value.with_new(|v| (self.modify)(ctx.widget_state.req_mut(self.id), v));
         }
     }
     WithWidgetStateModifyNode {

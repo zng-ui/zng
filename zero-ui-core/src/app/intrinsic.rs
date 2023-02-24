@@ -22,17 +22,15 @@ impl AppIntrinsic {
         view_process_exe: Option<PathBuf>,
         device_events: bool,
     ) -> Self {
-        APP_PROCESS_SV.write().update_sender = Some(ctx.updates.sender());
-
         if is_headed {
             debug_assert!(with_renderer);
 
-            let view_evs_sender = ctx.updates.sender();
+            let view_evs_sender = UPDATES.sender();
             ViewProcess::start(view_process_exe, device_events, false, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
         } else if with_renderer {
-            let view_evs_sender = ctx.updates.sender();
+            let view_evs_sender = UPDATES.sender();
             ViewProcess::start(view_process_exe, false, true, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
@@ -82,13 +80,11 @@ impl AppExtension for AppIntrinsic {
 app_local! {
     pub(super) static APP_PROCESS_SV: AppProcessService = AppProcessService {
         exit_requests: None,
-        update_sender: None,
     };
 }
 
 pub(super) struct AppProcessService {
     exit_requests: Option<ResponderVar<ExitCancelled>>,
-    update_sender: Option<AppEventSender>,
 }
 impl AppProcessService {
     pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {
@@ -101,7 +97,7 @@ impl AppProcessService {
         } else {
             let (responder, response) = response_var();
             self.exit_requests = Some(responder);
-            let _ = self.update_sender.as_ref().unwrap().send_ext_update();
+            UPDATES.update_ext();
             response
         }
     }

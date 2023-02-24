@@ -19,7 +19,7 @@ use crate::{
     app::{
         raw_events::{RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
         view_process::{ViewImage, ViewProcess, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
-        AppEventSender, AppExtension,
+        AppExtension,
     },
     app_local,
     context::AppContext,
@@ -55,14 +55,11 @@ pub use render::{render_retain, ImageRenderVars};
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        IMAGES_SV.write().init(
-            if VIEW_PROCESS.is_available() {
-                Some(VIEW_PROCESS.clone())
-            } else {
-                None
-            },
-            ctx.updates.sender(),
-        );
+        IMAGES_SV.write().init(if VIEW_PROCESS.is_available() {
+            Some(VIEW_PROCESS.clone())
+        } else {
+            None
+        });
     }
 
     fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
@@ -265,7 +262,6 @@ struct ImagesService {
 
     view: Option<ViewProcess>,
     download_accept: Text,
-    updates: Option<AppEventSender>,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
 
     loading: Vec<(Mutex<UiTask<ImageData>>, ArcVar<Image>, ByteLength)>,
@@ -281,7 +277,6 @@ impl ImagesService {
             load_in_headless: var(false),
             limits: var(ImageLimits::default()),
             view: None,
-            updates: None,
             proxies: vec![],
             loading: vec![],
             decoding: vec![],
@@ -292,9 +287,8 @@ impl ImagesService {
         }
     }
 
-    fn init(&mut self, view: Option<ViewProcess>, updates: AppEventSender) {
+    fn init(&mut self, view: Option<ViewProcess>) {
         self.view = view;
-        self.updates = Some(updates);
     }
 
     fn register(&mut self, key: ImageHash, image: ViewImage) -> Option<ImageVar> {
@@ -614,7 +608,7 @@ impl ImagesService {
     ) -> ImageVar {
         let img = self.new_cache_image(key, mode, max_decoded_size);
 
-        let task = UiTask::new(self.updates.as_ref().expect("`ImageManager` not inited"), None, fetch_bytes);
+        let task = UiTask::new(None, fetch_bytes);
         self.loading.push((Mutex::new(task), img.clone(), max_decoded_size));
 
         img.read_only()

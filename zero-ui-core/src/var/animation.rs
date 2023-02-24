@@ -714,7 +714,7 @@ pub(super) fn var_sequence<T: VarValue, V: Var<T>>(
 
             let animate = Arc::new(Mutex::new(animate));
 
-            let (handle, handle_hook) = VarHandle::new(Box::new(|_, _| true));
+            let (handle, handle_hook) = VarHandle::new(Box::new(|_| true));
 
             let wk_target = target.downgrade();
             let controller = OnStopController(clone_move!(animate, wk_target, || {

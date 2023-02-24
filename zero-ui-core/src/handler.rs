@@ -18,6 +18,7 @@ use std::{mem, thread};
 use crate::app::HeadlessApp;
 use crate::context::{AppContext, AppContextMut, WidgetContext, WidgetContextMut};
 use crate::crate_util::{Handle, WeakHandle};
+use crate::new_context::UPDATES;
 use crate::task::ui::{AppTask, WidgetTask};
 
 /// Represents a handler in a widget context.
@@ -876,7 +877,7 @@ where
         let mut task = AppTask::new(ctx, |ctx| handler(ctx, args.clone(), handler_args.handle.clone_boxed()));
         if task.update(ctx).is_none() {
             if handler_args.is_preview {
-                ctx.updates
+                UPDATES
                     .on_pre_update(app_hn!(|ctx, _, handle| {
                         if task.update(ctx).is_some() {
                             handle.unsubscribe();
@@ -884,7 +885,7 @@ where
                     }))
                     .perm();
             } else {
-                ctx.updates
+                UPDATES
                     .on_update(app_hn!(|ctx, _, handle| {
                         if task.update(ctx).is_some() {
                             handle.unsubscribe();
@@ -1047,7 +1048,7 @@ where
             let mut task = AppTask::new(ctx, |ctx| handler(ctx, args.clone()));
             if task.update(ctx).is_none() {
                 if handler_args.is_preview {
-                    ctx.updates
+                    UPDATES
                         .on_pre_update(app_hn!(|ctx, _, handle| {
                             if task.update(ctx).is_some() {
                                 handle.unsubscribe();
@@ -1055,7 +1056,7 @@ where
                         }))
                         .perm();
                 } else {
-                    ctx.updates
+                    UPDATES
                         .on_update(app_hn!(|ctx, _, handle| {
                             if task.update(ctx).is_some() {
                                 handle.unsubscribe();
@@ -1780,7 +1781,7 @@ impl HeadlessApp {
     where
         A: Clone + 'static,
     {
-        let (pre_len, pos_len) = self.ctx().updates.handler_lens();
+        let (pre_len, pos_len) = UPDATES.handler_lens();
 
         let handler_args = AppHandlerArgs {
             handle: &Handle::dummy(()).downgrade(),
@@ -1790,7 +1791,7 @@ impl HeadlessApp {
             handler.event(&mut self.ctx(), args, &handler_args);
         }
 
-        let mut pending = self.ctx().updates.new_update_handlers(pre_len, pos_len);
+        let mut pending = UPDATES.new_update_handlers(pre_len, pos_len);
 
         if !pending.is_empty() {
             let start_time = Instant::now();
@@ -1799,7 +1800,7 @@ impl HeadlessApp {
                 pending.retain(|h| h());
                 !pending.is_empty()
             } {
-                self.ctx().updates.update_ext_internal();
+                UPDATES.update_ext_internal();
                 let flow = self.update(false);
                 if Instant::now().duration_since(start_time) >= timeout {
                     return Err(format!(
@@ -1824,7 +1825,7 @@ impl HeadlessApp {
 
     /// Polls a `future` and updates the app repeatedly until it completes or the `timeout` is reached.
     pub fn block_on_fut<F: Future>(&mut self, future: F, timeout: Duration) -> Result<F::Output, String> {
-        let waker = self.ctx().updates.sender().waker(vec![]);
+        let waker = UPDATES.waker(vec![]);
         let mut cx = std::task::Context::from_waker(&waker);
         let start_time = Instant::now();
         crate::task::pin!(future);
@@ -2002,11 +2003,11 @@ mod tests {
         // if it builds it passes
 
         test_infer(hn!(|cx, _| {
-            let _ = cx.updates;
+            let _ = cx.info_tree;
         }));
 
         test_infer(hn!(|cx, a: &ClickArgs| {
-            let _ = cx.updates;
+            let _ = cx.info_tree;
             println!("{}", a.click_count);
         }));
     }
@@ -2015,11 +2016,11 @@ mod tests {
         // if it builds it passes
 
         test_infer(hn_once!(|cx, _| {
-            let _ = cx.updates;
+            let _ = cx.info_tree;
         }));
 
         test_infer(hn_once!(|cx, a: &ClickArgs| {
-            let _ = cx.updates;
+            let _ = cx.info_tree;
             println!("{}", a.click_count);
         }))
     }
@@ -2030,13 +2031,13 @@ mod tests {
 
         test_infer(async_hn!(|cx, _| {
             cx.with(|cx| {
-                let _ = cx.updates;
+                let _ = cx.info_tree;
             });
         }));
 
         test_infer(async_hn!(|cx, a: ClickArgs| {
             cx.with(|cx| {
-                let _ = cx.updates;
+                let _ = cx.info_tree;
             });
             println!("{}", a.click_count);
         }));
@@ -2047,13 +2048,13 @@ mod tests {
 
         test_infer(async_hn_once!(|cx, _| {
             cx.with(|cx| {
-                let _ = cx.updates;
+                let _ = cx.info_tree;
             });
         }));
 
         test_infer(async_hn_once!(|cx, a: ClickArgs| {
             cx.with(|cx| {
-                let _ = cx.updates;
+                let _ = cx.info_tree;
             });
             println!("{}", a.click_count);
         }));

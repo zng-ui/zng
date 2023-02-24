@@ -74,12 +74,12 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         self.source.capabilities().as_read_only()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let map = self.map.clone();
-        self.source.hook(Box::new(move |updates, value| {
+        self.source.hook(Box::new(move |value| {
             if let Some(value) = value.as_any().downcast_ref() {
                 let value = map(value);
-                pos_modify_action(updates, value)
+                pos_modify_action(value)
             } else {
                 true
             }
@@ -280,12 +280,12 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
         self.source.capabilities()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let map = self.map.clone();
-        self.source.hook(Box::new(move |updates, value| {
+        self.source.hook(Box::new(move |value| {
             if let Some(value) = value.as_any().downcast_ref() {
                 let value = map(value);
-                pos_modify_action(updates, value)
+                pos_modify_action(value)
             } else {
                 true
             }

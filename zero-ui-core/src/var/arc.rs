@@ -79,7 +79,7 @@ impl<T: VarValue> AnyVar for ArcVar<T> {
         VarCapabilities::MODIFY
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.0.push_hook(pos_modify_action)
     }
 
@@ -145,8 +145,8 @@ impl<T: VarValue> IntoVar<T> for ArcVar<T> {
 impl<T: VarValue> ArcVar<T> {
     fn modify_impl(&self, modify: impl FnOnce(&mut Cow<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
-        VARS.schedule_update(Box::new(move |updates| {
-            me.0.apply_modify(updates, modify);
+        VARS.schedule_update(Box::new(move || {
+            me.0.apply_modify(modify);
         }));
         Ok(())
     }

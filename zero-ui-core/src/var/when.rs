@@ -67,6 +67,7 @@ macro_rules! when_var {
     }
 }
 
+use crate::new_context::UPDATES;
 #[doc(inline)]
 pub use crate::when_var;
 
@@ -296,8 +297,8 @@ impl<T: VarValue> ArcWhenVar<T> {
         }
     }
 
-    fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
-        Box::new(move |_, value| {
+    fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
+        Box::new(move |value| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let mut data_mut = rc_when.w.lock();
                 let mut update = false;
@@ -329,8 +330,8 @@ impl<T: VarValue> ArcWhenVar<T> {
         })
     }
 
-    fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
-        Box::new(move |_, _| {
+    fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
+        Box::new(move |_| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let mut data_mut = rc_when.w.lock();
                 if data_mut.active == i && data_mut.last_apply_request != VARS.apply_update_id() {
@@ -346,7 +347,7 @@ impl<T: VarValue> ArcWhenVar<T> {
     }
 
     fn apply_update(rc_merge: Arc<Data<T>>) -> VarUpdateFn {
-        Box::new(move |updates| {
+        Box::new(move || {
             let mut data = rc_merge.w.lock();
             let data = &mut *data;
 
@@ -366,9 +367,9 @@ impl<T: VarValue> ArcWhenVar<T> {
             };
 
             active.with(|value| {
-                data.hooks.retain(|h| h.call(updates, value));
+                data.hooks.retain(|h| h.call(value));
             });
-            updates.update_ext();
+            UPDATES.update_ext();
         })
     }
 
@@ -439,7 +440,7 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
         }
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let (handle, hook) = VarHandle::new(pos_modify_action);
         self.0.w.lock().hooks.push(hook);
         handle

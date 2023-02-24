@@ -131,7 +131,7 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.0.read().capabilities() | VarCapabilities::CAPS_CHANGE
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         self.0.read().hook(pos_modify_action)
     }
 

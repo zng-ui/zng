@@ -15,7 +15,7 @@ use std::{
 
 use crate::{
     handler::{app_hn, app_hn_once, AppHandler, AppHandlerArgs},
-    units::*,
+    units::*, new_context::UPDATES,
 };
 
 pub mod animation;
@@ -66,7 +66,7 @@ pub use vars::*;
 #[doc(inline)]
 pub use when::when_var;
 
-use crate::{context::Updates, widget_instance::WidgetId};
+use crate::widget_instance::WidgetId;
 
 /// Other variable types.
 pub mod types {
@@ -261,15 +261,15 @@ impl std::error::Error for VarIsReadOnlyError {}
 
 struct VarHandleData {
     perm: AtomicBool,
-    action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>,
+    action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>,
 }
 
 /// Represents the var side of a [`VarHandle`].
 struct VarHook(Arc<VarHandleData>);
 impl VarHook {
     /// Calls the handle action, returns `true` if the handle must be retained.
-    pub fn call(&self, update: &mut Updates, value: &dyn AnyVarValue) -> bool {
-        self.is_alive() && (self.0.action)(update, value)
+    pub fn call(&self, value: &dyn AnyVarValue) -> bool {
+        self.is_alive() && (self.0.action)(value)
     }
 
     /// If the handle is still held or is permanent.
@@ -287,7 +287,7 @@ impl VarHook {
 pub struct VarHandle(Option<Arc<VarHandleData>>);
 impl VarHandle {
     /// New handle, the `action` depends on the behavior the handle represents.
-    fn new(action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
+    fn new(action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
         let c = Arc::new(VarHandleData {
             perm: AtomicBool::new(false),
             action,
@@ -484,7 +484,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     ///
     /// [`on_new`]: Var::on_new
     /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle;
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle;
 
     /// Register the widget to receive update when this variable is new.
     ///
@@ -1289,7 +1289,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V2: Var<T2>,
         M: FnMut(&T) -> T2 + Send + 'static,
     {
-        var_bind(self, other, move |_, value, other| {
+        var_bind(self, other, move |value, other| {
             let _ = other.set(map(value));
         })
     }
@@ -1306,7 +1306,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         V2: Var<T2>,
         F: FnMut(&T) -> Option<T2> + Send + 'static,
     {
-        var_bind(self, other, move |_, value, other| {
+        var_bind(self, other, move |value, other| {
             if let Some(value) = map(value) {
                 let _ = other.set(value);
             }
@@ -1329,7 +1329,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         B: FnMut(&T2) -> T + Send + 'static,
     {
         let mut last_update = VarUpdateId::never();
-        let self_to_other = var_bind(self, other, move |_, value, other| {
+        let self_to_other = var_bind(self, other, move |value, other| {
             let update_id = VARS.update_id();
             if update_id != last_update {
                 last_update = update_id;
@@ -1338,7 +1338,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         });
 
         let mut last_update = VarUpdateId::never();
-        let other_to_self = var_bind(other, self, move |_, value, self_| {
+        let other_to_self = var_bind(other, self, move |value, self_| {
             let update_id = VARS.update_id();
             if update_id != last_update {
                 last_update = update_id;
@@ -1364,7 +1364,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         B: FnMut(&T2) -> Option<T> + Send + 'static,
     {
         let mut last_update = VarUpdateId::never();
-        let self_to_other = var_bind(self, other, move |_, value, other| {
+        let self_to_other = var_bind(self, other, move |value, other| {
             let update_id = VARS.update_id();
             if update_id != last_update {
                 last_update = update_id;
@@ -1375,7 +1375,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         });
 
         let mut last_update = VarUpdateId::never();
-        let other_to_self = var_bind(other, self, move |_, value, self_| {
+        let other_to_self = var_bind(other, self, move |value, self_| {
             let update_id = VARS.update_id();
             if update_id != last_update {
                 last_update = update_id;
@@ -1511,7 +1511,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         S: Send + 'static,
     {
         let mut span = Some(self.with(&mut enter_value));
-        self.on_pre_new(app_hn!(|_, value, _| {
+        self.on_pre_new(app_hn!(|value, _| {
             let _ = span.take();
             span = Some(enter_value(value));
         }))
@@ -1822,7 +1822,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
             let easing_fn = easing_fn.clone();
             let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |_, value, easing_var| {
+            var_bind(&source, &easing_var, move |value, easing_var| {
                 let easing_fn = easing_fn.clone();
                 _anim_handle = easing_var.ease(value.clone(), duration, move |t| easing_fn(t));
             })
@@ -1848,7 +1848,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let easing_fn = easing_fn.clone();
 
             let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |_, value, easing_var| {
+            var_bind(&source, &easing_var, move |value, easing_var| {
                 let easing_fn = easing_fn.clone();
                 _anim_handle = easing_var.ease_ne(value.clone(), duration, move |t| easing_fn(t));
             })
@@ -1941,9 +1941,9 @@ where
     var_value.to_mut();
 }
 
-fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync> {
-    Box::new(move |updates, _| {
-        updates.update(widget_id);
+fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
+    Box::new(move |_| {
+        UPDATES.update(widget_id);
         true
     })
 }
@@ -1951,7 +1951,7 @@ fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&mut Updates, &dyn AnyVarVal
 fn var_bind<I, O, V>(
     input: &impl Var<I>,
     output: &V,
-    update_output: impl FnMut(&mut Updates, &I, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
+    update_output: impl FnMut(&I, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
 ) -> VarHandle
 where
     I: VarValue,
@@ -1968,7 +1968,7 @@ where
 fn var_bind_ok<I, O, W>(
     input: &impl Var<I>,
     wk_output: W,
-    update_output: impl FnMut(&mut Updates, &I, W::Upgrade) + Send + 'static,
+    update_output: impl FnMut(&I, W::Upgrade) + Send + 'static,
 ) -> VarHandle
 where
     I: VarValue,
@@ -1976,11 +1976,11 @@ where
     W: WeakVar<O>,
 {
     let update_output = Mutex::new(update_output);
-    input.hook(Box::new(move |updates, value| {
+    input.hook(Box::new(move |value| {
         if let Some(output) = wk_output.upgrade() {
             if output.capabilities().contains(VarCapabilities::MODIFY) {
                 if let Some(value) = value.as_any().downcast_ref::<I>() {
-                    update_output.lock()(updates, value, output);
+                    update_output.lock()(value, output);
                 }
             }
             true
@@ -2000,7 +2000,7 @@ where
 
     let handler = Arc::new(Mutex::new(handler));
     let (inner_handle_owner, inner_handle) = crate::crate_util::Handle::new(());
-    var.hook(Box::new(move |updates, value| {
+    var.hook(Box::new(move |value| {
         if inner_handle_owner.is_dropped() {
             return false;
         }
@@ -2019,9 +2019,9 @@ where
             });
 
             if is_preview {
-                updates.on_pre_update(update_once).perm();
+                UPDATES.on_pre_update(update_once).perm();
             } else {
-                updates.on_update(update_once).perm();
+                UPDATES.on_update(update_once).perm();
             }
         }
         true

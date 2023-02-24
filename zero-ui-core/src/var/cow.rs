@@ -5,6 +5,8 @@ use std::{
 
 use parking_lot::RwLock;
 
+use crate::new_context::UPDATES;
+
 use super::{animation::ModifyInfo, *};
 
 enum Data<T: VarValue, S> {
@@ -38,11 +40,11 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
             let mut data = cow.write();
             if let Data::Source { source, source_handle, .. } = &mut *data {
                 let weak_cow = Arc::downgrade(&cow);
-                *source_handle = source.hook(Box::new(move |updates, value| {
+                *source_handle = source.hook(Box::new(move |value| {
                     if let Some(cow) = weak_cow.upgrade() {
                         match &mut *cow.write() {
                             Data::Source { hooks, .. } => {
-                                hooks.retain(|h| h.call(updates, value));
+                                hooks.retain(|h| h.call(value));
                                 true
                             }
                             Data::Owned { .. } => false,
@@ -58,7 +60,7 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
 
     fn modify_impl(&self, modify: impl FnOnce(&mut Cow<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
-        VARS.schedule_update(Box::new(move |updates| {
+        VARS.schedule_update(Box::new(move || {
             let mut data = me.0.write();
             let data = &mut *data;
 
@@ -107,8 +109,8 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                     if let Some(new_value) = new_value {
                         *value = new_value;
                         *last_update = VARS.update_id();
-                        hooks.retain(|h| h.call(updates, value));
-                        updates.update_ext();
+                        hooks.retain(|h| h.call(value));
+                        UPDATES.update_ext();
                     }
                 }
             }
@@ -173,7 +175,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
         VarCapabilities::MODIFY
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&mut Updates, &dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
         let mut data = self.0.write();
         match &mut *data {
             Data::Source { hooks, .. } => {

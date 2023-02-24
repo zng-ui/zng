@@ -1112,7 +1112,6 @@ impl MouseManager {
 impl AppExtension for MouseManager {
     fn init(&mut self, ctx: &mut AppContext) {
         let mut mouse = MOUSE_SV.write();
-        mouse.update_sender = Some(ctx.updates.sender());
         mouse.multi_click_config = self.multi_click_config.clone();
     }
 
@@ -1324,7 +1323,7 @@ impl MOUSE {
     pub fn capture_widget(&self, widget_id: WidgetId) {
         let mut m = MOUSE_SV.write();
         m.capture_request = Some((widget_id, CaptureMode::Widget));
-        let _ = m.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
+        UPDATES.update_ext();
     }
 
     /// Set a widget to be the root of a capture subtree.
@@ -1336,7 +1335,7 @@ impl MOUSE {
     pub fn capture_subtree(&self, widget_id: WidgetId) {
         let mut m = MOUSE_SV.write();
         m.capture_request = Some((widget_id, CaptureMode::Subtree));
-        let _ = m.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
+        UPDATES.update_ext();
     }
 
     /// Release the current mouse capture back to window.
@@ -1346,7 +1345,7 @@ impl MOUSE {
     pub fn release_capture(&self) {
         let mut m = MOUSE_SV.write();
         m.release_requested = true;
-        let _ = m.update_sender.as_ref().expect("`MouseManager` not inited").send_ext_update();
+        UPDATES.update_ext();
     }
 }
 
@@ -1355,7 +1354,6 @@ app_local! {
         current_capture: None,
         capture_request: None,
         release_requested: false,
-        update_sender: None,
         multi_click_config: var(MultiClickConfig::default()),
         buttons: var(vec![]),
     };
@@ -1364,7 +1362,6 @@ struct MouseService {
     current_capture: Option<(WidgetPath, CaptureMode)>,
     capture_request: Option<(WidgetId, CaptureMode)>,
     release_requested: bool,
-    update_sender: Option<AppEventSender>,
     multi_click_config: ArcVar<MultiClickConfig>,
     buttons: ArcVar<Vec<MouseButton>>,
 }

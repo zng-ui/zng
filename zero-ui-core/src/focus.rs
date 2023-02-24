@@ -87,7 +87,7 @@ use commands::FocusCommands;
 mod tests;
 
 use crate::{
-    app::{AppEventSender, AppExtension},
+    app::{AppExtension},
     app_local,
     context::*,
     crate_util::IdMap,
@@ -407,7 +407,6 @@ impl Default for FocusManager {
 }
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        FOCUS_SV.write().app_event_sender = Some(ctx.updates.sender());
         self.commands = Some(FocusCommands::new());
     }
 
@@ -658,7 +657,7 @@ impl FOCUS {
         let mut f = FOCUS_SV.write();
         f.pending_window_focus = None;
         f.request = Some(request);
-        let _ = f.app_event_sender.as_ref().expect("`FocusManager` not init").send_ext_update();
+        UPDATES.update_ext();
     }
 
     /// Enables focus highlight for the current focus if the key-press allows it.
@@ -676,7 +675,7 @@ impl FOCUS {
     pub fn highlight(&self) {
         let mut f = FOCUS_SV.write();
         f.pending_highlight = true;
-        let _ = f.app_event_sender.as_ref().expect("`FocusManager` not init").send_ext_update();
+        UPDATES.update_ext();
     }
 
     /// Focus the widget if it is focusable and change the highlight.
@@ -821,7 +820,6 @@ struct FocusService {
     focus_hidden_widgets: ArcVar<bool>,
 
     request: Option<FocusRequest>,
-    app_event_sender: Option<AppEventSender>,
 
     focused_var: ArcVar<Option<InteractionPath>>,
     focused: Option<FocusedInfo>,
@@ -849,7 +847,6 @@ impl FocusService {
             focus_hidden_widgets: var(true),
 
             request: None,
-            app_event_sender: None,
 
             focused_var: var(None),
             focused: None,

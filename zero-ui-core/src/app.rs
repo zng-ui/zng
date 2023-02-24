@@ -870,7 +870,6 @@ struct RunningApp<E: AppExtension> {
     extensions: (AppIntrinsic, E),
 
     device_events: bool,
-    owned_ctx: OwnedAppContext,
     receiver: flume::Receiver<AppEvent>,
 
     loop_timer: LoopTimer,
@@ -891,22 +890,20 @@ impl<E: AppExtension> RunningApp<E> {
 
         let (sender, receiver) = AppEventSender::new();
 
-        let mut owned_ctx = OwnedAppContext::instance(sender);
-        let mut ctx = owned_ctx.borrow();
+        UPDATES.init(sender);
 
         let device_events = extensions.enable_device_events();
-        let process = AppIntrinsic::pre_init(&mut ctx, is_headed, with_renderer, view_process_exe, device_events);
+        let process = AppIntrinsic::pre_init(todo!("remove"), is_headed, with_renderer, view_process_exe, device_events);
 
         {
             let _s = tracing::debug_span!("extensions.init").entered();
-            extensions.init(&mut ctx);
+            extensions.init(todo!("remove"));
         }
 
         RunningApp {
             extensions: (process, extensions),
 
             device_events,
-            owned_ctx,
             receiver,
 
             loop_timer: LoopTimer::default(),
@@ -929,14 +926,15 @@ impl<E: AppExtension> RunningApp<E> {
 
     /// Exclusive borrow the app context.
     pub fn ctx(&mut self) -> AppContext {
-        self.owned_ctx.borrow()
+        todo!("remove")
     }
 
     /// Notify an event directly to the app extensions.
     pub fn notify_event<O: AppEventObserver>(&mut self, mut update: EventUpdate, observer: &mut O) {
         let _scope = tracing::trace_span!("notify_event", event = update.event().name()).entered();
 
-        let ctx = &mut self.owned_ctx.borrow();
+        let mut ctx = self.ctx(); // REMOVE &mut self.owned_ctx.borrow();
+        let ctx = &mut ctx;
 
         self.extensions.event_preview(ctx, &mut update);
         observer.event_preview(ctx, &mut update);
@@ -1332,7 +1330,7 @@ impl<E: AppExtension> RunningApp<E> {
             },
             AppEvent::Event(ev) => EVENTS.notify(ev.get()),
             AppEvent::Var => VARS.receive_sended_modify(),
-            AppEvent::Update(targets) => self.ctx().updates.recv_update_internal(targets),
+            AppEvent::Update(targets) => UPDATES.recv_update_internal(targets),
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
     }
@@ -1340,7 +1338,7 @@ impl<E: AppExtension> RunningApp<E> {
     fn has_pending_updates(&mut self) -> bool {
         !self.pending_view_events.is_empty()
             || !self.pending_app_events.is_empty()
-            || self.owned_ctx.has_pending_updates()
+            || UPDATES.has_pending_updates()
             || !self.receiver.is_empty()
     }
 
@@ -1415,7 +1413,7 @@ impl<E: AppExtension> RunningApp<E> {
         let updated_timers = self.loop_timer.awake();
         if updated_timers {
             // tick timers and collect not elapsed timers.
-            self.owned_ctx.update_timers(&mut self.loop_timer);
+            UPDATES.update_timers(&mut self.loop_timer);
             self.apply_updates(observer);
         }
 
@@ -1444,7 +1442,7 @@ impl<E: AppExtension> RunningApp<E> {
 
         self.finish_frame(observer);
 
-        self.owned_ctx.next_deadline(&mut self.loop_timer);
+        UPDATES.next_deadline(&mut self.loop_timer);
 
         if self.extensions.0.exit() {
             ControlFlow::Exit
@@ -1462,9 +1460,9 @@ impl<E: AppExtension> RunningApp<E> {
         let mut run = true;
         while run {
             run = self.loop_monitor.update(|| {
-                let u = self.owned_ctx.apply_updates();
+                let u = UPDATES.apply();
 
-                TimersService::notify(&mut self.owned_ctx.borrow());
+                TimersService::notify(todo!("remove param"));
 
                 self.pending_app_events.extend(u.events);
                 self.pending_layout |= u.layout;
@@ -1476,11 +1474,11 @@ impl<E: AppExtension> RunningApp<E> {
 
                 let _s = tracing::debug_span!("extensions").entered();
 
-                let ctx = &mut self.owned_ctx.borrow();
+                let ctx = todo!("remove param");
 
                 self.extensions.update_preview(ctx);
                 observer.update_preview(ctx);
-                Updates::on_pre_updates(ctx);
+                UPDATES.on_pre_updates(ctx);
 
                 let mut wgt_updates = u.update_widgets;
                 self.extensions.update_ui(ctx, &mut wgt_updates);
@@ -1488,7 +1486,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                 self.extensions.update(ctx);
                 observer.update(ctx);
-                Updates::on_updates(ctx);
+                UPDATES.on_updates(ctx);
 
                 true
             });
@@ -1507,7 +1505,7 @@ impl<E: AppExtension> RunningApp<E> {
             for mut update in events {
                 let _s = tracing::debug_span!("update_event", ?update).entered();
 
-                let ctx = &mut self.owned_ctx.borrow();
+                let ctx = todo!("remove param");
 
                 self.loop_monitor.maybe_trace(|| {
                     self.extensions.event_preview(ctx, &mut update);
@@ -1538,7 +1536,7 @@ impl<E: AppExtension> RunningApp<E> {
         while mem::take(&mut self.pending_layout) {
             let _s = tracing::debug_span!("apply_layout").entered();
 
-            let ctx = &mut self.owned_ctx.borrow();
+            let ctx = todo!("remove param");
 
             self.loop_monitor.maybe_trace(|| {
                 self.extensions.layout(ctx);
@@ -1551,7 +1549,7 @@ impl<E: AppExtension> RunningApp<E> {
         if mem::take(&mut self.pending_render) {
             let _s = tracing::debug_span!("apply_render").entered();
 
-            let ctx = &mut self.owned_ctx.borrow();
+            let ctx = todo!("remove param");
 
             self.extensions.render(ctx);
             observer.render(ctx);
@@ -1563,7 +1561,7 @@ impl<E: AppExtension> RunningApp<E> {
 impl<E: AppExtension> Drop for RunningApp<E> {
     fn drop(&mut self) {
         let _s = tracing::debug_span!("extensions.deinit").entered();
-        let mut ctx = self.owned_ctx.borrow();
+        let mut ctx = todo!("remove param");
         self.extensions.deinit(&mut ctx);
     }
 }

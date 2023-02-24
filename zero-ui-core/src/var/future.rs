@@ -28,7 +28,7 @@ impl<'a, T: VarValue, V: Var<T>> Future for WaitNewFut<'a, T, V> {
             }
             None => {
                 let waker = cx.waker().clone();
-                self.wakers.lock().push(self.var.hook(Box::new(move |_, _| {
+                self.wakers.lock().push(self.var.hook(Box::new(move |_| {
                     waker.wake_by_ref();
                     false
                 })));
@@ -64,7 +64,7 @@ impl<'a, T: VarValue, V: Var<T>> Future for WaitIsNewFut<'a, T, V> {
             }
             false => {
                 let waker = cx.waker().clone();
-                self.wakers.lock().push(self.var.hook(Box::new(move |_, _| {
+                self.wakers.lock().push(self.var.hook(Box::new(move |_| {
                     waker.wake_by_ref();
                     false
                 })));
@@ -100,7 +100,7 @@ impl<'a, T: VarValue, V: Var<T>> Future for WaitIsNotAnimatingFut<'a, T, V> {
             }
             true => {
                 let waker = cx.waker().clone();
-                self.wakers.lock().push(self.var.hook(Box::new(move |_, _| {
+                self.wakers.lock().push(self.var.hook(Box::new(move |_| {
                     waker.wake_by_ref();
                     false
                 })));

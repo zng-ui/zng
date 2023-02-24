@@ -4,7 +4,7 @@ use zero_ui_view_api::AnimationsConfig;
 
 use crate::{
     app::{AppEventSender, LoopTimer},
-    context::{app_local, Updates},
+    context::app_local,
     crate_util,
     units::Factor,
 };
@@ -49,7 +49,7 @@ impl VarApplyUpdateId {
     }
 }
 
-pub(super) type VarUpdateFn = Box<dyn FnOnce(&mut Updates) + Send>;
+pub(super) type VarUpdateFn = Box<dyn FnOnce() + Send>;
 
 app_local! {
     pub(crate) static VARS_SV: VarsService = VarsService::new();
@@ -256,7 +256,7 @@ impl VARS {
         VARS_SV.read().apply_update_id
     }
 
-    pub(crate) fn apply_updates(&self, updates: &mut Updates) {
+    pub(crate) fn apply_updates(&self) {
         let mut vars = VARS_SV.write();
 
         debug_assert!(vars.spare_updates.get_mut().is_empty());
@@ -292,7 +292,7 @@ impl VARS {
                 let _cleanup = crate_util::RunOnDrop::new(|| VARS_SV.write().ans.current_modify = prev_info);
 
                 // apply.
-                update(updates);
+                update();
             }
             spare = Some(var_updates);
         }

@@ -11,7 +11,7 @@ use crate::{
     units::*,
     var::{impl_from_and_into_var, *},
     widget_info::{WidgetBorderInfo, WidgetLayout, WidgetMeasure},
-    widget_instance::{UiNode, UiNodeList, WidgetId},
+    widget_instance::{UiNode, UiNodeList, WidgetId}, new_context::WIDGET,
 };
 
 /// Orientation of a straight line.
@@ -751,7 +751,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if BORDER_ALIGN_VAR.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
             self.child.update(ctx, updates);
         }
@@ -779,7 +779,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             let offset = PxVector::new(our_offsets.left, our_offsets.top);
             if self.offset != offset {
                 self.offset = offset;
-                ctx.updates.render_update();
+                WIDGET.render_update();
             }
 
             let size_offset = offsets - our_offsets;
@@ -790,7 +790,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             if self.clip_bounds != fill_bounds || self.clip_corners != corners {
                 self.clip_bounds = fill_bounds;
                 self.clip_corners = corners;
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             let (_, define_ref_frame) = ctx.with_constrains(
@@ -799,7 +799,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             );
             if self.define_ref_frame != define_ref_frame {
                 self.define_ref_frame = define_ref_frame;
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             fill_bounds
@@ -888,7 +888,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.offsets.get_new_ne(&mut self.layout_offsets) {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
             self.children.update_all(ctx, updates, &mut ());
         }
@@ -915,14 +915,14 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             let offsets = self.layout_offsets.layout(ctx.metrics, |_| PxSideOffsets::zero());
             if self.render_offsets != offsets {
                 self.render_offsets = offsets;
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             let parent_offsets = ContextBorders::inner_offsets(ctx.path.widget_id());
             let origin = PxPoint::new(parent_offsets.left, parent_offsets.top);
             if self.border_rect.origin != origin {
                 self.border_rect.origin = origin;
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             // layout child and border visual

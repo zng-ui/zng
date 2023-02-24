@@ -2,7 +2,7 @@
 
 use crate::{
     app::{AppEventSender, LoopTimer},
-    event::{EventHandle, EventHandles, EVENTS, EVENTS_SV},
+    event::{EventHandle, EventHandles, EVENTS_SV},
     timer::TIMERS_SV,
     units::*,
     var::{VarHandle, VarHandles, VARS, VARS_SV},
@@ -15,9 +15,9 @@ use std::{fmt, mem, ops::Deref, sync::Arc};
 mod contextual;
 pub use contextual::*;
 
-mod update;
+pub use crate::new_context::*;
+
 use parking_lot::Mutex;
-pub use update::*;
 
 mod state;
 pub use state::*;
@@ -28,74 +28,9 @@ pub use trace::*;
 mod value;
 pub use value::*;
 
-/// Owner of [`AppContext`] objects.
-///
-/// You can only have one instance of this at a time per-thread at a time.
-pub(crate) struct OwnedAppContext {
-    updates: Updates,
-}
-impl OwnedAppContext {
-    /// Produces the single instance of `AppContext` for a normal app run.
-    pub fn instance(app_event_sender: AppEventSender) -> Self {
-        EVENTS_SV.write().init(app_event_sender.clone());
-        VARS_SV.write().init(app_event_sender.clone());
-        let updates = Updates::new(app_event_sender);
-        OwnedAppContext { updates }
-    }
-
-    /// Borrow the app context as an [`AppContext`].
-    pub fn borrow(&mut self) -> AppContext {
-        AppContext {
-            updates: &mut self.updates,
-        }
-    }
-
-    /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update
-    /// requests and a time for the loop to awake and update.
-    #[must_use]
-    pub fn apply_updates(&mut self) -> ContextUpdates {
-        let events = EVENTS.apply_updates();
-        VARS.apply_updates(&mut self.updates);
-
-        let (update, update_widgets, layout, render) = self.updates.take_updates();
-
-        ContextUpdates {
-            events,
-            update,
-            update_widgets,
-            layout,
-            render,
-        }
-    }
-
-    /// Returns next timer or animation tick time.
-    pub fn next_deadline(&mut self, timer: &mut LoopTimer) {
-        TIMERS_SV.write().next_deadline(timer);
-        VARS.next_deadline(timer);
-    }
-
-    /// Update timers and animations, returns next wake time.
-    pub fn update_timers(&mut self, timer: &mut LoopTimer) {
-        TIMERS_SV.write().apply_updates(timer);
-        VARS.update_animations(timer);
-    }
-
-    /// If a call to `apply_updates` will generate updates (ignoring timers).
-    #[must_use]
-    pub fn has_pending_updates(&mut self) -> bool {
-        self.updates.update_requested()
-            || self.updates.layout_requested()
-            || self.updates.render_requested()
-            || VARS.has_pending_updates()
-            || EVENTS_SV.write().has_pending_updates()
-            || TIMERS_SV.read().has_pending_updates()
-    }
-}
-
 /// Full application context.
 pub struct AppContext<'a> {
-    /// Schedule of actions to apply after this update.
-    pub updates: &'a mut Updates,
+    a: &'a (),
 }
 impl<'a> AppContext<'a> {
     /// Runs a function `f` in the context of a window.
@@ -110,7 +45,7 @@ impl<'a> AppContext<'a> {
     ) -> (R, InfoLayoutRenderUpdates) {
         let _span = UpdatesTrace::window_span(window_id);
 
-        self.updates.enter_window_ctx();
+        // self.updates.enter_window_ctx();
 
         let mut update_state = OwnedStateMap::new();
 
@@ -119,10 +54,9 @@ impl<'a> AppContext<'a> {
             window_mode: &window_mode,
             window_state: window_state.borrow_mut(),
             update_state: update_state.borrow_mut(),
-            updates: self.updates,
         });
 
-        (r, self.updates.exit_window_ctx())
+        (r, todo!("remove"))
     }
 }
 
@@ -144,9 +78,6 @@ pub struct WindowContext<'a> {
     /// state so properties and event handlers can use this state to communicate to further nodes along the
     /// update sequence.
     pub update_state: StateMapMut<'a, state_map::Update>,
-
-    /// Schedule of actions to apply after this update.
-    pub updates: &'a mut Updates,
 }
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` in the context of a widget.
@@ -174,8 +105,6 @@ impl<'a> WindowContext<'a> {
                 var_handles,
                 event_handles,
             },
-
-            updates: self.updates,
         })
     }
 
@@ -221,8 +150,6 @@ impl<'a> WindowContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: root_widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
-
-            updates: self.updates,
         })
     }
 
@@ -298,15 +225,6 @@ pub struct TestWidgetContext {
     /// Event subscriptions storage used in [`WidgetHandles`].
     pub event_handles: EventHandles,
 
-    /// The [`updates`] repository. No request by default.
-    ///
-    /// WARNING: This is drained of requests after each update, you can do this manually by calling
-    /// [`apply_updates`].
-    ///
-    /// [`updates`]: WidgetContext::updates
-    /// [`apply_updates`]: TestWidgetContext::apply_updates
-    pub updates: Updates,
-
     pub(crate) root_translation_key: crate::render::FrameValueKey<PxTransform>,
     receiver: flume::Receiver<crate::app::AppEvent>,
     loop_timer: crate::app::LoopTimer,
@@ -348,7 +266,6 @@ impl TestWidgetContext {
             update_state: OwnedStateMap::new(),
             var_handles: Default::default(),
             event_handles: Default::default(),
-            updates: Updates::new(sender),
             root_translation_key: crate::render::FrameValueKey::new_unique(),
 
             receiver,
@@ -372,7 +289,6 @@ impl TestWidgetContext {
                 var_handles: &mut self.var_handles,
                 event_handles: &mut self.event_handles,
             },
-            updates: &mut self.updates,
         })
     }
 
@@ -424,7 +340,6 @@ impl TestWidgetContext {
             window_state: self.window_state.borrow_mut(),
             widget_state: self.widget_state.borrow_mut(),
             update_state: self.update_state.borrow_mut(),
-            updates: &mut self.updates,
         })
     }
 
@@ -444,32 +359,8 @@ impl TestWidgetContext {
     ///
     /// Returns the [`InfoLayoutRenderUpdates`] and [`ContextUpdates`] a full app and window would
     /// use to update the application.
-    pub fn apply_updates(&mut self) -> (InfoLayoutRenderUpdates, ContextUpdates) {
-        let win_updt = self.updates.exit_window_ctx();
-
-        for ev in self.receiver.try_iter() {
-            match ev {
-                crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
-                crate::app::AppEvent::Event(ev) => EVENTS.notify(ev.get()),
-                crate::app::AppEvent::Var => VARS.receive_sended_modify(),
-                crate::app::AppEvent::Update(targets) => self.updates.recv_update_internal(targets),
-                crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
-            }
-        }
-        let events = EVENTS.apply_updates();
-        VARS.apply_updates(&mut self.updates);
-        let (update, update_widgets, layout, render) = self.updates.take_updates();
-
-        (
-            win_updt,
-            ContextUpdates {
-                events,
-                update,
-                update_widgets,
-                layout,
-                render,
-            },
-        )
+    pub fn apply_updates(&mut self) -> ((), ContextUpdates) {
+        todo!()
     }
 
     /// Update timers and animations, returns next wake time.
@@ -653,9 +544,6 @@ pub struct WidgetContext<'a> {
     ///
     /// These handles are kept in the widget instance and are dropped on deinit.
     pub handles: WidgetHandles<'a>,
-
-    /// Schedule of actions to apply after this update.
-    pub updates: &'a mut Updates,
 }
 impl<'a> WidgetContext<'a> {
     /// Runs `f` in the context of a widget, returns the function result,
@@ -671,7 +559,7 @@ impl<'a> WidgetContext<'a> {
     ) -> (R, (InfoLayoutRenderUpdates, bool)) {
         self.path.push(widget_id);
 
-        let prev_updates = self.updates.enter_widget_ctx();
+        // let prev_updates = self.updates.enter_widget_ctx();
 
         let r = f(&mut WidgetContext {
             path: self.path,
@@ -686,13 +574,11 @@ impl<'a> WidgetContext<'a> {
                 var_handles,
                 event_handles,
             },
-
-            updates: self.updates,
         });
 
         self.path.pop();
 
-        (r, self.updates.exit_widget_ctx(prev_updates))
+        (r, todo!("remove"))
     }
 
     /// Runs `f` with handles registered in custom collections.
@@ -716,7 +602,6 @@ impl<'a> WidgetContext<'a> {
                 var_handles,
                 event_handles,
             },
-            updates: self.updates,
         })
     }
 
@@ -1111,9 +996,6 @@ pub struct LayoutContext<'a> {
 
     /// State that lives for the duration of the node tree layout update call in the window.
     pub update_state: StateMapMut<'a, state_map::Update>,
-
-    /// Updates that can be requested in layout context.
-    pub updates: &'a mut LayoutUpdates,
 }
 impl<'a> Deref for LayoutContext<'a> {
     type Target = LayoutMetrics;
@@ -1141,8 +1023,6 @@ impl<'a> LayoutContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
-
-            updates: self.updates,
         })
     }
 
@@ -1170,8 +1050,6 @@ impl<'a> LayoutContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
-
-            updates: self.updates,
         })
     }
 
@@ -1236,8 +1114,6 @@ impl<'a> LayoutContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
-
-            updates: self.updates,
         })
     }
 
@@ -1253,8 +1129,6 @@ impl<'a> LayoutContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
-
-            updates: self.updates,
         })
     }
 
@@ -1287,8 +1161,6 @@ impl<'a> LayoutContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
-
-            updates: self.updates,
         })
     }
 
@@ -1304,8 +1176,6 @@ impl<'a> LayoutContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
-
-            updates: self.updates,
         })
     }
 
@@ -1321,8 +1191,6 @@ impl<'a> LayoutContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: self.widget_state.reborrow(),
             update_state: self.update_state.reborrow(),
-
-            updates: self.updates,
         })
     }
 
@@ -1340,7 +1208,7 @@ impl<'a> LayoutContext<'a> {
     ) -> (R, InfoLayoutRenderUpdates) {
         self.path.push(widget_id);
 
-        let prev_updates = self.updates.enter_widget_ctx();
+        // let prev_updates = self.updates.enter_widget_ctx();
 
         let r = f(&mut LayoutContext {
             metrics: self.metrics,
@@ -1352,13 +1220,11 @@ impl<'a> LayoutContext<'a> {
             window_state: self.window_state.reborrow(),
             widget_state: widget_state.borrow_mut(),
             update_state: self.update_state.reborrow(),
-
-            updates: self.updates,
         });
 
         self.path.pop();
 
-        (r, self.updates.exit_widget_ctx(prev_updates))
+        (r, todo!("remove"))
     }
 
     /// Returns an [`InfoContext`] generated from `self`.

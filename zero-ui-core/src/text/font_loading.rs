@@ -18,12 +18,13 @@ use crate::{
     app::{
         raw_events::{RAW_FONT_AA_CHANGED_EVENT, RAW_FONT_CHANGED_EVENT},
         view_process::{ViewProcessOffline, ViewRenderer, VIEW_PROCESS_INITED_EVENT},
-        AppEventSender, AppExtension,
+        AppExtension,
     },
     app_local,
     context::AppContext,
     crate_util::FxHashMap,
     event::{event, event_args, EventUpdate},
+    new_context::UPDATES,
     units::*,
     var::{var, ArcVar, Var},
 };
@@ -95,10 +96,6 @@ pub enum FontChange {
 #[derive(Default)]
 pub struct FontManager {}
 impl AppExtension for FontManager {
-    fn init(&mut self, ctx: &mut AppContext) {
-        GENERIC_FONTS_SV.write().update_sender = Some(ctx.updates.sender());
-    }
-
     fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
         if RAW_FONT_CHANGED_EVENT.has(update) {
             FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::SystemFonts));
@@ -177,12 +174,7 @@ impl FONTS {
         let mut ft = FONTS_SV.write();
         if !ft.prune_requested {
             ft.prune_requested = true;
-            let _ = GENERIC_FONTS_SV
-                .write()
-                .update_sender
-                .as_ref()
-                .expect("`FontManager` not inited")
-                .send_ext_update();
+            UPDATES.update_ext();
         }
     }
 
@@ -1378,7 +1370,6 @@ struct GenericFontsService {
     fantasy: LangMap<FontName>,
     fallback: LangMap<FontName>,
     updates: Vec<FontChangedArgs>,
-    update_sender: Option<AppEventSender>,
 }
 impl GenericFontsService {
     fn new() -> Self {
@@ -1410,14 +1401,13 @@ impl GenericFontsService {
 
             fallback: default(fallback),
 
-            update_sender: None,
             updates: vec![],
         }
     }
 
     fn notify(&mut self, change: FontChange) {
         if self.updates.is_empty() {
-            let _ = self.update_sender.as_ref().expect("`FontManager` not inited").send_ext_update();
+            UPDATES.update_ext();
         }
         self.updates.push(FontChangedArgs::now(change));
     }
@@ -1660,7 +1650,6 @@ mod tests {
     #[test]
     fn generic_fonts_default() {
         let mut app = App::minimal().run_headless(false);
-        GENERIC_FONTS_SV.write().update_sender = Some(app.ctx().updates.sender());
 
         assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(und)))
     }
@@ -1668,7 +1657,6 @@ mod tests {
     #[test]
     fn generic_fonts_fallback() {
         let mut app = App::minimal().run_headless(false);
-        GENERIC_FONTS_SV.write().update_sender = Some(app.ctx().updates.sender());
 
         assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(en_US)));
         assert_eq!(FontName::sans_serif(), GenericFonts {}.sans_serif(&lang!(es)));
@@ -1677,7 +1665,6 @@ mod tests {
     #[test]
     fn generic_fonts_get1() {
         let mut app = App::minimal().run_headless(false);
-        GENERIC_FONTS_SV.write().update_sender = Some(app.ctx().updates.sender());
         GenericFonts {}.set_sans_serif(lang!(en_US), "Test Value");
 
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "Test Value");
@@ -1687,7 +1674,6 @@ mod tests {
     #[test]
     fn generic_fonts_get2() {
         let mut app = App::minimal().run_headless(false);
-        GENERIC_FONTS_SV.write().update_sender = Some(app.ctx().updates.sender());
         GenericFonts {}.set_sans_serif(lang!(en), "Test Value");
 
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "Test Value");
@@ -1697,7 +1683,6 @@ mod tests {
     #[test]
     fn generic_fonts_get_best() {
         let mut app = App::minimal().run_headless(false);
-        GENERIC_FONTS_SV.write().update_sender = Some(app.ctx().updates.sender());
         GenericFonts {}.set_sans_serif(lang!(en), "Test Value");
         GenericFonts {}.set_sans_serif(lang!(en_US), "Best");
 
@@ -1709,7 +1694,6 @@ mod tests {
     #[test]
     fn generic_fonts_get_no_lang_match() {
         let mut app = App::minimal().run_headless(false);
-        GENERIC_FONTS_SV.write().update_sender = Some(app.ctx().updates.sender());
         GenericFonts {}.set_sans_serif(lang!(es_US), "Test Value");
 
         assert_eq!(&GenericFonts {}.sans_serif(&lang!("en-US")), "sans-serif");

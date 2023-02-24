@@ -37,7 +37,7 @@ impl<T: VarValue + Send> VarReceiver<T> {
         }
         if !source.capabilities().is_always_static() {
             source
-                .hook(Box::new(move |_, value| {
+                .hook(Box::new(move |value| {
                     if let Some(value) = value.as_any().downcast_ref::<T>() {
                         if sender.send(value.clone()).is_err() {
                             return false;

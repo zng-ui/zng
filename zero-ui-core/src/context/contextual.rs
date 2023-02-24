@@ -149,7 +149,8 @@ impl AppContextMut {
     /// but the second `.await` needs to cause an update if we don't want to depend on another part of the app
     /// to awake.
     pub async fn update(&self) {
-        self.with(|c| c.updates.update_ext());
+        todo!("remove");
+        // self.with(|c| c.updates.update_ext());
         self.yield_one().await
     }
 }
@@ -212,7 +213,8 @@ impl WidgetContextMut {
     /// but the second `.await` needs to cause an update if we don't want to depend on another part of the app
     /// to awake.
     pub async fn update(&self) {
-        self.with(|c| c.updates.update(c.path.widget_id()));
+        todo!("remove");
+        // self.with(|c| c.updates.update(c.path.widget_id()));
         self.yield_one().await
     }
 

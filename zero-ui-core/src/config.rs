@@ -18,7 +18,7 @@ use std::{
 };
 
 use crate::{
-    app::{AppEventSender, AppExtReceiver, AppExtSender, AppExtension},
+    app::{AppExtReceiver, AppExtSender, AppExtension},
     app_local,
     context::*,
     crate_util::BoxedFut,
@@ -44,10 +44,6 @@ pub use combinators::*;
 pub struct ConfigManager {}
 impl ConfigManager {}
 impl AppExtension for ConfigManager {
-    fn init(&mut self, ctx: &mut AppContext) {
-        CONFIG_SV.write().update = Some(ctx.updates.sender());
-    }
-
     fn deinit(&mut self, _: &mut AppContext) {
         if let Some((mut source, _)) = CONFIG_SV.write().source.take() {
             source.deinit();
@@ -80,7 +76,6 @@ app_local! {
 }
 
 struct ConfigService {
-    update: Option<AppEventSender>,
     source: Option<(Box<dyn ConfigSource>, AppExtReceiver<ConfigSourceUpdate>)>,
     vars: HashMap<ConfigKey, ConfigVar>,
 
@@ -94,7 +89,6 @@ struct ConfigService {
 impl ConfigService {
     fn new() -> Self {
         ConfigService {
-            update: None,
             source: None,
             vars: HashMap::new(),
 
@@ -170,7 +164,7 @@ impl ConfigService {
     }
 
     fn load(&mut self, mut source: impl ConfigSource) {
-        let (sender, receiver) = self.update.as_ref().expect("`ConfigManager` not inited").ext_channel();
+        let (sender, receiver) = UPDATES.sender().ext_channel();
         if !self.vars.is_empty() {
             let _ = sender.send(ConfigSourceUpdate::RefreshAll);
         }
@@ -180,7 +174,7 @@ impl ConfigService {
     }
 
     fn load_alt(&mut self, source: impl ConfigSource) -> ConfigAlt {
-        let e = ConfigAlt::load(self.update.as_ref().expect("`ConfigManager` not inited").clone(), source);
+        let e = ConfigAlt::load(source);
         self.alts.push(Arc::downgrade(&e.0));
         e
     }
@@ -215,11 +209,7 @@ impl ConfigService {
         R: FnOnce(Option<T>) + 'static + Send + Sync,
     {
         if let Some((source, _)) = &mut self.source {
-            let mut task = Some(Mutex::new(UiTask::new(
-                self.update.as_ref().expect("`ConfigManager` not inited"),
-                None,
-                source.read(key),
-            )));
+            let mut task = Some(Mutex::new(UiTask::new(None, source.read(key))));
             let mut respond = Some(respond);
             self.tasks.push(Box::new(move |status| {
                 let finished = task.as_mut().unwrap().lock().update().is_some();
@@ -241,13 +231,13 @@ impl ConfigService {
                 }
                 !finished
             }));
-            let _ = self.update.as_ref().expect("`ConfigManager` not inited").send_ext_update();
+            UPDATES.update_ext();
         } else {
             // no source, just respond with `None`.
             self.once_tasks.push(Box::new(move |_| {
                 respond(None);
             }));
-            let _ = self.update.as_ref().expect("`ConfigManager` not inited").send_ext_update();
+            UPDATES.update_ext();
         }
     }
 
@@ -271,8 +261,7 @@ impl ConfigService {
                             }
                         });
                     }));
-
-                    let _ = self.update.as_ref().expect("`ConfigManager` not inited").send_ext_update();
+                    UPDATES.update_ext();
                 } else {
                     // not observed anymore or changed type.
                     entry.remove();
@@ -292,18 +281,14 @@ impl ConfigService {
         if let Some((source, _)) = &mut self.source {
             match serde_json::value::to_value(value) {
                 Ok(json) => {
-                    let task = UiTask::new(
-                        self.update.as_ref().expect("`ConfigManager` not inited"),
-                        None,
-                        source.write(key, json),
-                    );
+                    let task = UiTask::new(None, source.write(key, json));
                     self.track_write_task(task);
                 }
                 Err(e) => {
                     self.once_tasks.push(Box::new(move |status| {
                         status.modify(move |s| s.to_mut().set_write_error(ConfigError::new(e)));
                     }));
-                    let _ = self.update.as_ref().expect("`ConfigManager` not inited").send_ext_update();
+                    UPDATES.update_ext();
                 }
             }
         }
@@ -311,7 +296,7 @@ impl ConfigService {
 
     fn remove(&mut self, key: ConfigKey) {
         if let Some((source, _)) = &mut self.source {
-            let task = UiTask::new(self.update.as_ref().expect("`ConfigManager` not inited"), None, source.remove(key));
+            let task = UiTask::new(None, source.remove(key));
             self.track_write_task(task);
         }
     }
@@ -338,7 +323,7 @@ impl ConfigService {
 
             !finished
         }));
-        let _ = self.update.as_ref().expect("`ConfigManager` not inited").send_ext_update();
+        UPDATES.update_ext();
     }
 
     fn var<K, T, D>(&mut self, key: K, default_value: D) -> impl Var<T>
@@ -367,7 +352,7 @@ impl ConfigService {
         let target = target.clone().actual_var();
         let wk_target = target.downgrade();
         if target.strong_count() > 0 {
-            let source_to_target = source.hook(Box::new(move |_, value| {
+            let source_to_target = source.hook(Box::new(move |value| {
                 if let Some(target) = wk_target.upgrade() {
                     let v = value.as_any().downcast_ref::<ValueWithSource<T>>().unwrap();
                     target.set_ne(v.value.clone()).is_ok()
@@ -377,7 +362,7 @@ impl ConfigService {
             }));
 
             let wk_source = source.downgrade();
-            let target_to_source = target.hook(Box::new(move |_, value| {
+            let target_to_source = target.hook(Box::new(move |value| {
                 if let Some(source) = wk_source.upgrade() {
                     if let Some(value) = value.as_any().downcast_ref::<T>().cloned() {
                         source.modify(move |val| {
@@ -580,9 +565,8 @@ impl CONFIG {
 /// You can use the [`CONFIG.load_alt`] method to create an instance of this type.
 pub struct ConfigAlt(Arc<RwLock<ConfigService>>);
 impl ConfigAlt {
-    fn load(updates: AppEventSender, source: impl ConfigSource) -> Self {
+    fn load(source: impl ConfigSource) -> Self {
         let mut cfg = ConfigService::new();
-        cfg.update = Some(updates);
         cfg.load(source);
         ConfigAlt(Arc::new(RwLock::new(cfg)))
     }

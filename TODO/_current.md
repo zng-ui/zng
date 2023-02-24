@@ -1,5 +1,6 @@
 * Refactor `Updates` to `UPDATES` service?
     - Refactor all contexts into `context_local!` values.
+    - Remove `TestWidgetContext`, can just use an app.
     - Figure out `ContextWidgetPath`, how to build without alloc?
     - Figure out a way to dynamically link a custom `context_local!` to load together with `WIDGET` and `WINDOW`.
         - If possible then we can fully remove `StateMap`.

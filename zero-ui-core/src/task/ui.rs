@@ -7,7 +7,7 @@ use std::{
     task::{Poll, Waker},
 };
 
-use crate::{app::AppEventSender, context::*, widget_instance::WidgetId};
+use crate::{context::*, widget_instance::WidgetId};
 
 impl<'a> AppContext<'a> {
     /// Create an app thread bound future executor that executes in the app context.
@@ -77,13 +77,13 @@ impl<R> UiTask<R> {
     /// [`UiNode::update`]: crate::widget_instance::UiNode::update
     /// [`UiNode::info`]: crate::widget_instance::UiNode::info
     /// [`subscribe`]: Self::subscribe
-    pub fn new<F>(updates: &AppEventSender, target: Option<WidgetId>, task: F) -> Self
+    pub fn new<F>(target: Option<WidgetId>, task: F) -> Self
     where
         F: Future<Output = R> + Send + 'static,
     {
         UiTask(UiTaskState::Pending {
             future: Box::pin(task),
-            event_loop_waker: updates.waker(target.into_iter().collect()),
+            event_loop_waker: UPDATES.waker(target.into_iter().collect()),
         })
     }
 
@@ -158,7 +158,7 @@ impl<R> WidgetTask<R> {
         let task = scope.with(ctx, move || task(mut_));
 
         WidgetTask {
-            task: UiTask::new(&ctx.updates.sender(), Some(ctx.path.widget_id()), task),
+            task: UiTask::new(Some(ctx.path.widget_id()), task),
             scope,
         }
     }
@@ -220,7 +220,7 @@ impl<R> AppTask<R> {
         let task = scope.with(ctx, move || task(mut_));
 
         AppTask {
-            task: UiTask::new(&ctx.updates.sender(), None, task),
+            task: UiTask::new(None, task),
             scope,
         }
     }
@@ -253,9 +253,9 @@ impl<R> AppTask<R> {
 }
 impl AppTask<()> {
     /// Schedule the app task to run to completion.
-    pub fn run(mut self, updates: &mut Updates) {
+    pub fn run(mut self) {
         if !self.is_ready() {
-            updates
+            UPDATES
                 .on_pre_update(app_hn!(|ctx, _, handle| {
                     if self.update(ctx).is_some() {
                         handle.unsubscribe();

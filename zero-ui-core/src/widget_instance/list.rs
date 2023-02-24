@@ -1142,12 +1142,10 @@ impl EditableUiNodeListRef {
     /// The `widget` will inserted, inited and the info tree updated.
     ///
     /// [`remove`]: Self::remove
-    pub fn insert(&self, updates: &mut impl WithUpdates, index: usize, widget: impl UiNode) {
-        updates.with_updates(|u| {
-            let mut s = self.0.lock();
-            s.insert.push((index, widget.boxed()));
-            u.update(s.target);
-        })
+    pub fn insert(&self, index: usize, widget: impl UiNode) {
+        let mut s = self.0.lock();
+        s.insert.push((index, widget.boxed()));
+        UPDATES.update(s.target);
     }
 
     /// Request an update for the insertion of the `widget` at the end of the list.
@@ -1157,24 +1155,20 @@ impl EditableUiNodeListRef {
     /// The `widget` will be inserted, inited and the info tree updated.
     ///
     /// [`insert`]: Self::insert
-    pub fn push(&self, updates: &mut impl WithUpdates, widget: impl UiNode) {
-        updates.with_updates(|u| {
-            let mut s = self.0.lock();
-            s.push.push(widget.boxed());
-            u.update(s.target);
-        })
+    pub fn push(&self, widget: impl UiNode) {
+        let mut s = self.0.lock();
+        s.push.push(widget.boxed());
+        UPDATES.update(s.target);
     }
 
     /// Request an update for the removal of the widget identified by `id`.
     ///
     /// The widget will be deinitialized, dropped and the info tree will update, nothing happens
     /// if the widget is not found.
-    pub fn remove(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>) {
-        updates.with_updates(|u| {
-            let mut s = self.0.lock();
-            s.remove.push(id.into());
-            u.update(s.target);
-        })
+    pub fn remove(&self, id: impl Into<WidgetId>) {
+        let mut s = self.0.lock();
+        s.remove.push(id.into());
+        UPDATES.update(s.target);
     }
 
     /// Request a widget remove and re-insert.
@@ -1183,13 +1177,11 @@ impl EditableUiNodeListRef {
     /// the widget is pushed to the end of the vector, if `remove_index` and `insert_index` are equal nothing happens.
     ///
     /// Move requests happen after all other requests.
-    pub fn move_index(&self, updates: &mut impl WithUpdates, remove_index: usize, insert_index: usize) {
+    pub fn move_index(&self, remove_index: usize, insert_index: usize) {
         if remove_index != insert_index {
-            updates.with_updates(|u| {
-                let mut s = self.0.lock();
-                s.move_index.push((remove_index, insert_index));
-                u.update(s.target);
-            })
+            let mut s = self.0.lock();
+            s.move_index.push((remove_index, insert_index));
+            UPDATES.update(s.target);
         }
     }
 
@@ -1232,23 +1224,19 @@ impl EditableUiNodeListRef {
     /// });
     /// # }
     /// ```
-    pub fn move_id(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>, get_move_to: NodeMoveToFn) {
-        updates.with_updates(|u| {
-            let mut s = self.0.lock();
-            s.move_id.push((id.into(), get_move_to));
-            u.update(s.target);
-        })
+    pub fn move_id(&self, id: impl Into<WidgetId>, get_move_to: NodeMoveToFn) {
+        let mut s = self.0.lock();
+        s.move_id.push((id.into(), get_move_to));
+        UPDATES.update(s.target);
     }
 
     /// Request a removal of all current widgets.
     ///
     /// All other requests will happen after the clear.
-    pub fn clear(&self, updates: &mut impl WithUpdates) {
-        updates.with_updates(|u| {
-            let mut s = self.0.lock();
-            s.clear = true;
-            u.update(s.target);
-        })
+    pub fn clear(&self) {
+        let mut s = self.0.lock();
+        s.clear = true;
+        UPDATES.update(s.target);
     }
 
     fn take_requests(&self) -> Option<EditRequests> {
