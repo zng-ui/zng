@@ -88,7 +88,7 @@ impl WeakOnUpdateHandle {
 struct UpdateHandler {
     handle: HandleOwner<()>,
     count: usize,
-    handler: Box<dyn FnMut(&mut AppContext, &UpdateArgs, &dyn AppWeakHandle)>,
+    handler: Box<dyn FnMut(&mut AppContext, &UpdateArgs, &dyn AppWeakHandle) + Send>,
 }
 
 /// Arguments for an [`on_pre_update`](Updates::on_pre_update), [`on_update`](Updates::on_update) or [`run`](Updates::run) handler.
@@ -913,7 +913,7 @@ impl UpdateDeliveryList {
 }
 
 /// Represents a set of widgets that subscribe to an event source.
-pub trait UpdateSubscribers: Send + 'static {
+pub trait UpdateSubscribers: Send + Sync + 'static {
     /// Returns `true` if the widget is one of the subscribers.
     fn contains(&self, widget_id: WidgetId) -> bool;
 

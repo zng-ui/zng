@@ -1,4 +1,9 @@
 * Refactor `Updates` to `UPDATES` service?
+    - Refactor all contexts into `context_local!` values.
+    - Figure out `ContextWidgetPath`, how to build without alloc?
+    - Figure out a way to dynamically link a custom `context_local!` to load together with `WIDGET` and `WINDOW`.
+        - If possible then we can fully remove `StateMap`.
+
 * Integrate `ThreadContext` with `rayon`.
     - Need to capture and load contexts for all `rayon::join` and `rayon::scope`.
     - See issue https://github.com/rayon-rs/rayon/issues/915
@@ -8,6 +13,7 @@
 
 * Implement a `WINDOW` context local with window stuff?
 * Review `ScrollContext` and any other "contextual widget service"
+* Review `ThreadContext` in disconnected parallel tasks like `task::spawn`.
 
 * Continue "#Parallel UI" in `./Performance.md`.
 

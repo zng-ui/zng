@@ -1786,8 +1786,6 @@ impl LayoutMetrics {
     }
 
     /// Computed leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
-    ///
-    /// [`leftover_count`]: Self::leftover_count
     pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
         self.register_use(LayoutMask::LEFTOVER);
         self.s.leftover
