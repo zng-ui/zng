@@ -471,6 +471,8 @@ impl Animations {
 
                 let mut min_sleep = Deadline(info.now + Duration::from_secs(60 * 60));
 
+                drop(vars);
+
                 animations.retain_mut(|animate| {
                     if let Some(sleep) = animate(info) {
                         min_sleep = min_sleep.min(sleep);
@@ -479,6 +481,8 @@ impl Animations {
                         false
                     }
                 });
+
+                let mut vars = VARS_SV.write();
 
                 let self_animations = vars.ans.animations.get_mut();
                 if !self_animations.is_empty() {

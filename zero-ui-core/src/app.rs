@@ -648,12 +648,11 @@ impl App {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
-        let scope = AppScope::new_loaded();
+        let scope = ThreadContext::start_app(AppId::new_unique());
         AppExtended {
-            _not_send: PhantomData,
             extensions: (),
             view_process_exe: None,
-            scope,
+            _cleanup: scope,
         }
     }
 
@@ -787,8 +786,7 @@ impl<E: AppExtension> AppExtended<E> {
             panic!("app already extended with `{}`", type_name::<F>())
         }
         AppExtended {
-            _not_send: PhantomData,
-            scope: self.scope,
+            _cleanup: self._cleanup,
             extensions: (self.extensions, TraceAppExt(extension)),
             view_process_exe: self.view_process_exe,
         }
