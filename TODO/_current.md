@@ -1,4 +1,3 @@
-* Refactor `Vars` to `VARS` service.
 * Refactor `Updates` to `UPDATES` service?
 * Integrate `ThreadContext` with `rayon`.
     - Need to capture and load contexts for all `rayon::join` and `rayon::scope`.
