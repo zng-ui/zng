@@ -140,7 +140,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             #core::widget_instance::ui_vec![],
                         }),
                         InputKind::WidgetHandler if !has_generics => default.extend(quote! {
-                            #core::handler::hn!(|_, _| {}),
+                            #core::handler::hn!(|_| {}),
                         }),
                         _ => {
                             default = quote!();

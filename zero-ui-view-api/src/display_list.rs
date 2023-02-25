@@ -363,7 +363,7 @@ pub struct ReuseStart {
 /// Represents a display list reuse range.
 ///
 /// See [`DisplayListBuilder::push_reuse_range`] for more details.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReuseRange {
     pipeline_id: PipelineId,
     frame_id: FrameId,

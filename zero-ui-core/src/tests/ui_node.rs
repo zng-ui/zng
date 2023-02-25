@@ -5,6 +5,7 @@
 use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
 
 use crate::{
+    app::App,
     color::RenderColor,
     context::{WidgetUpdates, WIDGET},
     render::{FrameBuilder, FrameId, FrameUpdate},
@@ -61,60 +62,60 @@ fn test_trace(node: impl UiNode) {
     let mut app = App::minimal().run_headless(false);
     let mut wgt = util::test_wgt(node);
 
-    // !!: TODO widget test helpers in `App` now that we removed `TestContext`.
+    todo!("TODO widget test helpers in `App` now that we removed `TestContext`.");
 
-    ctx.init(&mut wgt);
-    assert_only_traced!(wgt, "init");
+    // ctx.init(&mut wgt);
+    // assert_only_traced!(wgt, "init");
 
-    let l_size = PxSize::new(1000.into(), 800.into());
-    let window_id = WindowId::new_unique();
-    let mut info = WidgetInfoBuilder::new(
-        window_id,
-        ctx.root_id,
-        WidgetBoundsInfo::new_size(l_size, l_size),
-        WidgetBorderInfo::new(),
-        1.fct(),
-        None,
-    );
+    // let l_size = PxSize::new(1000.into(), 800.into());
+    // let window_id = WindowId::new_unique();
+    // let mut info = WidgetInfoBuilder::new(
+    //     window_id,
+    //     ctx.root_id,
+    //     WidgetBoundsInfo::new_size(l_size, l_size),
+    //     WidgetBorderInfo::new(),
+    //     1.fct(),
+    //     None,
+    // );
 
-    ctx.info(&wgt, &mut info);
-    ctx.info_tree = info.finalize().0;
-    assert_only_traced!(wgt, "info");
+    // ctx.info(&wgt, &mut info);
+    // ctx.info_tree = info.finalize().0;
+    // assert_only_traced!(wgt, "info");
 
-    ctx.update(&mut wgt, None);
-    assert_only_traced!(wgt, "update");
+    // ctx.update(&mut wgt, None);
+    // assert_only_traced!(wgt, "update");
 
-    ctx.layout(&mut wgt, PxConstrains2d::new_bounded_size(l_size).into());
-    assert_only_traced!(wgt, "layout");
+    // ctx.layout(&mut wgt, PxConstrains2d::new_bounded_size(l_size).into());
+    // assert_only_traced!(wgt, "layout");
 
-    let mut frame = FrameBuilder::new_renderless(
-        FrameId::INVALID,
-        ctx.root_id,
-        &ctx.widget_info.bounds,
-        &ctx.info_tree,
-        1.0.fct(),
-        Default::default(),
-        None,
-    );
-    ctx.render(&wgt, &mut frame);
-    assert_only_traced!(wgt, "render");
+    // let mut frame = FrameBuilder::new_renderless(
+    //     FrameId::INVALID,
+    //     ctx.root_id,
+    //     &ctx.widget_info.bounds,
+    //     &ctx.info_tree,
+    //     1.0.fct(),
+    //     Default::default(),
+    //     None,
+    // );
+    // ctx.render(&wgt, &mut frame);
+    // assert_only_traced!(wgt, "render");
 
-    TestTraceNode::notify_render_update(&mut wgt);
-    assert_only_traced!(wgt, "event");
+    // TestTraceNode::notify_render_update(&mut wgt);
+    // assert_only_traced!(wgt, "event");
 
-    let mut update = FrameUpdate::new(
-        FrameId::INVALID,
-        ctx.root_id,
-        wgt.with_context(|w| WIDGET.bounds()).expect("expected widget"),
-        None,
-        RenderColor::BLACK,
-        None,
-    );
-    ctx.render_update(&wgt, &mut update);
-    assert_only_traced!(wgt, "render_update");
+    // let mut update = FrameUpdate::new(
+    //     FrameId::INVALID,
+    //     ctx.root_id,
+    //     wgt.with_context(|w| WIDGET.bounds()).expect("expected widget"),
+    //     None,
+    //     RenderColor::BLACK,
+    //     None,
+    // );
+    // ctx.render_update(&wgt, &mut update);
+    // assert_only_traced!(wgt, "render_update");
 
-    ctx.deinit(&mut wgt);
-    assert_only_traced!(wgt, "deinit");
+    // ctx.deinit(&mut wgt);
+    // assert_only_traced!(wgt, "deinit");
 }
 
 #[test]
@@ -122,14 +123,14 @@ pub fn allow_missing_delegate() {
     #[ui_node(struct Node1 { child: impl UiNode })]
     impl UiNode for Node1 {
         #[allow_(zero_ui::missing_delegate)]
-        fn update(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &mut WidgetUpdates) {
             // self.child.update(ctx, updates);
         }
     }
     #[ui_node(struct Node2 { child: impl UiNode })]
     #[allow_(zero_ui::missing_delegate)]
     impl UiNode for Node2 {
-        fn update(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &mut WidgetUpdates) {
             // self.child.update(ctx, updates);
         }
     }

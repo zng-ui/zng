@@ -4,6 +4,9 @@
     - Figure out `ContextWidgetPath`, how to build without alloc?
     - Figure out a way to dynamically link a custom `context_local!` to load together with `WIDGET` and `WINDOW`.
         - If possible then we can fully remove `StateMap`.
+    - Refactor `WidgetInfo` to own the tree?
+        - Places that used the `WidgetContextPath` can maybe use `WIDGET.item(&self) -> WidgetInfo`.
+        - Can change `WINDOW.widget_tree` to returns the tree directly, only one place can panic.
 
 * Integrate `ThreadContext` with `rayon`.
     - Need to capture and load contexts for all `rayon::join` and `rayon::scope`.

@@ -669,7 +669,7 @@ mod context {
             app,
             test_wgt! {
                 test_prop = input_var.clone();
-                on_init = hn_once!(other_var, |_, _| {
+                on_init = hn_once!(other_var, |_| {
                     TEST_VAR.bind(&other_var).perm();
                 });
                 child = NilUiNode;
@@ -742,7 +742,7 @@ mod context {
 }
 
 mod flat_map {
-    use crate::{var::*, app::App};
+    use crate::{app::App, var::*};
     use std::fmt;
 
     #[derive(Clone)]
@@ -782,12 +782,10 @@ mod flat_map {
         assert!(test.is_new());
         assert_eq!(192, test.get());
 
-        let (_, ctx_updates) = app.apply_updates();
-        assert!(!ctx_updates.update);
+        let _ = app.update(false);
 
         old_var.set(220usize);
-        let (_, ctx_updates) = app.apply_updates();
-        assert!(ctx_updates.update);
+        let _ = app.update(false);
         assert!(!test.is_new());
         assert_eq!(192, test.get());
     }

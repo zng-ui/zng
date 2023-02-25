@@ -285,8 +285,8 @@ impl MouseHoverArgs {
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
-    pub fn capture_allows(&self, path: &WidgetContextPath) -> bool {
-        self.capture.as_ref().map(|c| c.allows(path)).unwrap_or(true)
+    pub fn capture_allows(&self) -> bool {
+        self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
 
     /// Event caused by the mouse position moving over/out of the widget bounds.
@@ -305,48 +305,48 @@ impl MouseHoverArgs {
     }
 
     /// Returns `true` if the widget was not hovered, but now is.
-    pub fn is_mouse_enter(&self, path: &WidgetContextPath) -> bool {
-        !self.was_over(path) && self.is_over(path)
+    pub fn is_mouse_enter(&self) -> bool {
+        !self.was_over() && self.is_over()
     }
 
     /// Returns `true` if the widget was hovered, but now isn't.
-    pub fn is_mouse_leave(&self, path: &WidgetContextPath) -> bool {
-        self.was_over(path) && !self.is_over(path)
+    pub fn is_mouse_leave(&self) -> bool {
+        self.was_over() && !self.is_over()
     }
 
     /// Returns `true` if the widget was not hovered or was disabled, but now is hovered and enabled.
-    pub fn is_mouse_enter_enabled(&self, path: &WidgetContextPath) -> bool {
-        (!self.was_over(path) || self.was_disabled(path.widget_id())) && self.is_over(path) && self.is_enabled(path.widget_id())
+    pub fn is_mouse_enter_enabled(&self) -> bool {
+        (!self.was_over() || self.was_disabled(WIDGET.id())) && self.is_over() && self.is_enabled(WIDGET.id())
     }
 
     /// Returns `true` if the widget as hovered and enabled, but now is not hovered or is disabled.
-    pub fn is_mouse_leave_enabled(&self, path: &WidgetContextPath) -> bool {
-        self.was_over(path) && self.was_enabled(path.widget_id()) && (!self.is_over(path) || self.is_disabled(path.widget_id()))
+    pub fn is_mouse_leave_enabled(&self) -> bool {
+        self.was_over() && self.was_enabled(WIDGET.id()) && (!self.is_over() || self.is_disabled(WIDGET.id()))
     }
 
     /// Returns `true` if the widget was not hovered or was enabled, but now is hovered and disabled.
-    pub fn is_mouse_enter_disabled(&self, path: &WidgetContextPath) -> bool {
-        (!self.was_over(path) || self.was_enabled(path.widget_id())) && self.is_over(path) && self.is_disabled(path.widget_id())
+    pub fn is_mouse_enter_disabled(&self) -> bool {
+        (!self.was_over() || self.was_enabled(WIDGET.id())) && self.is_over() && self.is_disabled(WIDGET.id())
     }
 
     /// Returns `true` if the widget was hovered and disabled, but now is not hovered or is enabled.
-    pub fn is_mouse_leave_disabled(&self, path: &WidgetContextPath) -> bool {
-        self.was_over(path) && self.was_disabled(path.widget_id()) && (!self.is_over(path) || self.is_enabled(path.widget_id()))
+    pub fn is_mouse_leave_disabled(&self) -> bool {
+        self.was_over() && self.was_disabled(WIDGET.id()) && (!self.is_over() || self.is_enabled(WIDGET.id()))
     }
 
     /// Returns `true` if the widget is in [`prev_target`] and is allowed by the [`prev_capture`].
     ///
     /// [`prev_target`]: Self::prev_target
     /// [`prev_capture`]: Self::prev_capture
-    pub fn was_over(&self, path: &WidgetContextPath) -> bool {
+    pub fn was_over(&self) -> bool {
         if let Some(cap) = &self.prev_capture {
-            if !cap.allows(path) {
+            if !cap.allows() {
                 return false;
             }
         }
 
         if let Some(t) = &self.prev_target {
-            return t.contains(path.widget_id());
+            return t.contains(WIDGET.id());
         }
 
         false
@@ -356,15 +356,15 @@ impl MouseHoverArgs {
     ///
     /// [`target`]: Self::target
     /// [`capture`]: Self::capture
-    pub fn is_over(&self, path: &WidgetContextPath) -> bool {
+    pub fn is_over(&self) -> bool {
         if let Some(cap) = &self.capture {
-            if !cap.allows(path) {
+            if !cap.allows() {
                 return false;
             }
         }
 
         if let Some(t) = &self.target {
-            return t.contains(path.widget_id());
+            return t.contains(WIDGET.id());
         }
 
         false
@@ -420,8 +420,8 @@ impl MouseMoveArgs {
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
-    pub fn capture_allows(&self, path: &WidgetContextPath) -> bool {
-        self.capture.as_ref().map(|c| c.allows(path)).unwrap_or(true)
+    pub fn capture_allows(&self) -> bool {
+        self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
 }
 
@@ -430,8 +430,8 @@ impl MouseInputArgs {
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
-    pub fn capture_allows(&self, path: &WidgetContextPath) -> bool {
-        self.capture.as_ref().map(|c| c.allows(path)).unwrap_or(true)
+    pub fn capture_allows(&self) -> bool {
+        self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
 
     /// If the `widget_id` is in the [`target`].
@@ -1506,16 +1506,28 @@ pub struct CaptureInfo {
 impl CaptureInfo {
     /// If the widget is allowed by the current capture.
     ///
+    /// This method uses [`WINDOW`] and [`WIDGET`] to identify the widget context.
+    ///
     /// | Mode           | Allows                                             |
     /// |----------------|----------------------------------------------------|
     /// | `Window`       | All widgets in the same window.                    |
     /// | `Subtree`      | All widgets that have the `target` in their path.  |
     /// | `Widget`       | Only the `target` widget.                          |
-    pub fn allows(&self, path: &WidgetContextPath) -> bool {
+    pub fn allows(&self) -> bool {
         match self.mode {
-            CaptureMode::Window => self.target.window_id() == path.window_id(),
-            CaptureMode::Widget => self.target.widget_id() == path.widget_id(),
-            CaptureMode::Subtree => path.contains(self.target.widget_id()),
+            CaptureMode::Window => self.target.window_id() == WINDOW.id(),
+            CaptureMode::Widget => self.target.widget_id() == WIDGET.id(),
+            CaptureMode::Subtree => {
+                let tree = WINDOW.widget_tree().unwrap();
+                if let Some(wgt) = tree.get(WIDGET.id()) {
+                    for wgt in wgt.self_and_ancestors() {
+                        if wgt.widget_id() == self.target.widget_id() {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
         }
     }
 }

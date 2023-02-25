@@ -155,11 +155,6 @@ impl<U: UiNode> ArcNode<U> {
     pub fn try_context<R>(&self, f: impl FnOnce() -> R) -> Option<R> {
         self.0.item.try_lock()?.with_context(f)
     }
-
-    /// Calls `f` in the context of the node, it it can be locked and is a full widget.
-    pub fn try_context_mut<R>(&self, f: impl FnOnce() -> R) -> Option<R> {
-        self.0.item.try_lock()?.with_context_mut(f)
-    }
 }
 
 /// `Weak` reference to a [`ArcNode<U>`].
@@ -288,13 +283,6 @@ impl<L: UiNodeList> ArcNodeList<L> {
     pub fn for_each_ctx(&self, mut f: impl FnMut(usize) -> bool) {
         if let Some(list) = self.0.item.try_lock() {
             list.for_each(|i, n| n.with_context(|| f(i)).unwrap_or(true))
-        }
-    }
-
-    /// Iterate over node contexts, if the list can be locked and the node is a full widget.
-    pub fn for_each_ctx_mut(&self, mut f: impl FnMut(usize) -> bool) {
-        if let Some(mut list) = self.0.item.try_lock() {
-            list.for_each_mut(|i, n| n.with_context_mut(|| f(i)).unwrap_or(true))
         }
     }
 }
@@ -587,13 +575,6 @@ mod impls {
             F: FnOnce() -> R,
         {
             self.delegate_owned(|n| n.with_context(f)).flatten()
-        }
-
-        fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
-        where
-            F: FnOnce() -> R,
-        {
-            self.delegate_owned_mut(|n| n.with_context_mut(f)).flatten()
         }
     }
 

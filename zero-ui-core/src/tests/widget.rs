@@ -4,6 +4,7 @@
 
 use self::util::Position;
 use crate::{
+    app::App,
     var::Var,
     widget,
     widget_instance::{UiNode, WidgetId},
@@ -301,55 +302,60 @@ pub mod when_wgt {
 }
 #[test]
 pub fn wgt_when() {
-    let mut ctx = TestWidgetContext::new();
+    let mut app = App::minimal().run_headless(false);
 
-    let mut wgt = when_wgt!();
-    ctx.init(&mut wgt);
+    todo!("test WIDGET");
 
-    assert!(util::traced(&wgt, "boo!"));
+    // let mut wgt = when_wgt!();
+    // ctx.init(&mut wgt);
 
-    util::set_state(&mut ctx, &mut wgt, true);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // assert!(util::traced(&wgt, "boo!"));
 
-    assert!(util::traced(&wgt, "ok."));
+    // util::set_state(&mut wgt, true);
 
-    util::set_state(&mut ctx, &mut wgt, false);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
 
-    assert!(util::traced(&wgt, "boo!"));
+    // assert!(util::traced(&wgt, "ok."));
+
+    // util::set_state(&mut ctx, &mut wgt, false);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
+
+    // assert!(util::traced(&wgt, "boo!"));
 }
 #[test]
 pub fn widget_user_when() {
-    let mut ctx = TestWidgetContext::new();
+    let mut app = App::minimal().run_headless(false);
 
-    let mut wgt = empty_wgt! {
-        util::live_trace = "A";
+    todo!("test widget");
 
-        when *#util::is_state {
-            util::live_trace = "B";
-        }
-    };
-    ctx.init(&mut wgt);
+    // let mut wgt = empty_wgt! {
+    //     util::live_trace = "A";
 
-    assert!(util::traced(&wgt, "A"));
+    //     when *#util::is_state {
+    //         util::live_trace = "B";
+    //     }
+    // };
+    // ctx.init(&mut wgt);
 
-    util::set_state(&mut ctx, &mut wgt, true);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // assert!(util::traced(&wgt, "A"));
 
-    assert!(util::traced(&wgt, "B"));
+    // util::set_state(&mut ctx, &mut wgt, true);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
 
-    util::set_state(&mut ctx, &mut wgt, false);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // assert!(util::traced(&wgt, "B"));
 
-    assert!(util::traced(&wgt, "A"));
+    // util::set_state(&mut ctx, &mut wgt, false);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
+
+    // assert!(util::traced(&wgt, "A"));
 }
 
 /*
@@ -372,26 +378,28 @@ pub mod multi_when_wgt {
 }
 #[test]
 pub fn wgt_multi_when() {
-    let mut ctx = TestWidgetContext::new();
+    let mut app = App::minimal().run_headless(false);
 
-    let mut wgt = multi_when_wgt!();
-    ctx.init(&mut wgt);
+    todo!("test widget");
 
-    assert!(util::traced(&wgt, "default"));
+    // let mut wgt = multi_when_wgt!();
+    // ctx.init(&mut wgt);
 
-    util::set_state(&mut ctx, &mut wgt, true);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // assert!(util::traced(&wgt, "default"));
 
-    assert!(util::traced(&wgt, "state_1"));
+    // util::set_state(&mut ctx, &mut wgt, true);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
 
-    util::set_state(&mut ctx, &mut wgt, false);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // assert!(util::traced(&wgt, "state_1"));
 
-    assert!(util::traced(&wgt, "default"));
+    // util::set_state(&mut ctx, &mut wgt, false);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
+
+    // assert!(util::traced(&wgt, "default"));
 }
 
 /*
@@ -488,69 +496,72 @@ pub mod cfg_when_wgt {
 }
 #[test]
 pub fn wgt_cfg_when() {
-    let mut ctx = TestWidgetContext::new();
+    let mut app = App::minimal().run_headless(false);
 
-    let mut wgt = cfg_when_wgt!();
+    todo!("test widget");
 
-    ctx.init(&mut wgt);
+    // let mut wgt = cfg_when_wgt!();
 
-    assert!(util::traced(&wgt, "trace"));
+    // ctx.init(&mut wgt);
 
-    util::set_state(&mut ctx, &mut wgt, true);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // assert!(util::traced(&wgt, "trace"));
 
-    assert!(util::traced(&wgt, "is_state"));
+    // util::set_state(&mut ctx, &mut wgt, true);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
 
-    util::set_state(&mut ctx, &mut wgt, false);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // assert!(util::traced(&wgt, "is_state"));
 
-    assert!(util::traced(&wgt, "trace"));
+    // util::set_state(&mut ctx, &mut wgt, false);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
+
+    // assert!(util::traced(&wgt, "trace"));
 }
 
 #[test]
 pub fn user_cfg_when() {
-    let mut ctx = TestWidgetContext::new();
+    let mut app = App::minimal().run_headless(false);
 
-    let mut wgt = empty_wgt! {
-        util::live_trace = "trace";
+    todo!("test widget");
+    // let mut wgt = empty_wgt! {
+    //     util::live_trace = "trace";
 
-        when *#util::is_state {
-            util::live_trace = {
-                #[allow(non_snake_case)]
-                #[allow(clippy::needless_late_init)]
-                let weird___name;
-                weird___name = "is_state";
-                weird___name
-            };
-        }
+    //     when *#util::is_state {
+    //         util::live_trace = {
+    //             #[allow(non_snake_case)]
+    //             #[allow(clippy::needless_late_init)]
+    //             let weird___name;
+    //             weird___name = "is_state";
+    //             weird___name
+    //         };
+    //     }
 
-        #[cfg(never)]
-        when *#util::is_state {
-            util::live_trace = "is_never_state";
-        }
-    };
+    //     #[cfg(never)]
+    //     when *#util::is_state {
+    //         util::live_trace = "is_never_state";
+    //     }
+    // };
 
-    ctx.init(&mut wgt);
+    // ctx.init(&mut wgt);
 
-    assert!(util::traced(&wgt, "trace"));
+    // assert!(util::traced(&wgt, "trace"));
 
-    util::set_state(&mut ctx, &mut wgt, true);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // util::set_state(&mut ctx, &mut wgt, true);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
 
-    assert!(util::traced(&wgt, "is_state"));
+    // assert!(util::traced(&wgt, "is_state"));
 
-    util::set_state(&mut ctx, &mut wgt, false);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // util::set_state(&mut ctx, &mut wgt, false);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
 
-    assert!(util::traced(&wgt, "trace"));
+    // assert!(util::traced(&wgt, "trace"));
 }
 
 /*
@@ -963,31 +974,33 @@ pub mod get_builder {
 #[test]
 pub fn when_reuse() {
     let test = |pass: &str| {
-        let mut ctx = TestWidgetContext::new();
+        let mut app = App::minimal().run_headless(false);
 
-        let builder = get_builder! {
-            util::live_trace = "false";
+        todo!("test widget");
 
-            when *#util::is_state {
-                util::live_trace = "true";
-            }
-        };
-        let mut wgt = builder.build();
+        // let builder = get_builder! {
+        //     util::live_trace = "false";
 
-        ctx.init(&mut wgt);
-        assert!(!util::traced(&wgt, "true"), "traced `true` in {pass} pass");
-        assert!(util::traced(&wgt, "false"), "did not trace `false` in {pass} pass");
+        //     when *#util::is_state {
+        //         util::live_trace = "true";
+        //     }
+        // };
+        // let mut wgt = builder.build();
 
-        util::set_state(&mut ctx, &mut wgt, true);
-        ctx.update(&mut wgt, None);
-        ctx.apply_updates();
-        ctx.update(&mut wgt, None);
-        assert!(util::traced(&wgt, "true"), "did not trace `true` after when in {pass} pass");
+        // ctx.init(&mut wgt);
+        // assert!(!util::traced(&wgt, "true"), "traced `true` in {pass} pass");
+        // assert!(util::traced(&wgt, "false"), "did not trace `false` in {pass} pass");
 
-        util::set_state(&mut ctx, &mut wgt, false);
-        ctx.update(&mut wgt, None);
-        ctx.apply_updates();
-        ctx.update(&mut wgt, None);
+        // util::set_state(&mut ctx, &mut wgt, true);
+        // ctx.update(&mut wgt, None);
+        // ctx.apply_updates();
+        // ctx.update(&mut wgt, None);
+        // assert!(util::traced(&wgt, "true"), "did not trace `true` after when in {pass} pass");
+
+        // util::set_state(&mut ctx, &mut wgt, false);
+        // ctx.update(&mut wgt, None);
+        // ctx.apply_updates();
+        // ctx.update(&mut wgt, None);
     };
 
     test("first");
@@ -1048,25 +1061,26 @@ pub fn inherit_override() {
 
 #[test]
 pub fn allowed_in_when_without_wgt_assign1() {
-    let mut ctx = TestWidgetContext::new();
+    let mut app = App::minimal().run_headless(false);
 
-    let mut wgt = empty_wgt! {
-        // util::live_trace_default = "default-trace";
-        when *#util::is_state {
-            util::live_trace_default = "when-trace";
-        }
-    };
+    todo!("test widget");
+    // let mut wgt = empty_wgt! {
+    //     // util::live_trace_default = "default-trace";
+    //     when *#util::is_state {
+    //         util::live_trace_default = "when-trace";
+    //     }
+    // };
 
-    ctx.init(&mut wgt);
-    assert!(util::traced(&wgt, "default-trace"));
-    assert!(!util::traced(&wgt, "when-trace"));
+    // ctx.init(&mut wgt);
+    // assert!(util::traced(&wgt, "default-trace"));
+    // assert!(!util::traced(&wgt, "when-trace"));
 
-    util::set_state(&mut ctx, &mut wgt, true);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
+    // util::set_state(&mut ctx, &mut wgt, true);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
 
-    ctx.update(&mut wgt, None);
-    assert!(util::traced(&wgt, "when-trace"));
+    // ctx.update(&mut wgt, None);
+    // assert!(util::traced(&wgt, "when-trace"));
 }
 
 #[widget($crate::tests::widget::declare_prop_with_default_wgt)]
@@ -1080,24 +1094,26 @@ pub mod declare_prop_with_default_wgt {
 
 #[test]
 pub fn allowed_in_when_without_wgt_assign2() {
-    let mut ctx = TestWidgetContext::new();
+    let mut app = App::minimal().run_headless(false);
 
-    let mut wgt = declare_prop_with_default_wgt! {
-        // live_trace_default = "default-trace";
-        when *#util::is_state {
-            trace = "when-trace";
-        }
-    };
+    todo!("test widget");
 
-    ctx.init(&mut wgt);
-    assert!(util::traced(&wgt, "default-trace"));
-    assert!(!util::traced(&wgt, "when-trace"));
+    // let mut wgt = declare_prop_with_default_wgt! {
+    //     // live_trace_default = "default-trace";
+    //     when *#util::is_state {
+    //         trace = "when-trace";
+    //     }
+    // };
 
-    util::set_state(&mut ctx, &mut wgt, true);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
-    assert!(util::traced(&wgt, "when-trace"));
+    // ctx.init(&mut wgt);
+    // assert!(util::traced(&wgt, "default-trace"));
+    // assert!(!util::traced(&wgt, "when-trace"));
+
+    // util::set_state(&mut ctx, &mut wgt, true);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
+    // assert!(util::traced(&wgt, "when-trace"));
 }
 
 /*
@@ -1129,50 +1145,53 @@ pub fn generated_name_collision() {
 
 #[test]
 pub fn generated_name_collision_in_when() {
-    let mut ctx = TestWidgetContext::new();
+    let mut app = App::minimal().run_headless(false);
 
-    let mut wgt = empty_wgt! {
-        util::live_trace = "1";
-        when *#util::is_state {
-            util::live_trace = "2";
-        }
-        when *#util::is_state {
-            util::live_trace = "3";
-        }
-    };
+    todo!("test widget");
+    // let mut wgt = empty_wgt! {
+    //     util::live_trace = "1";
+    //     when *#util::is_state {
+    //         util::live_trace = "2";
+    //     }
+    //     when *#util::is_state {
+    //         util::live_trace = "3";
+    //     }
+    // };
 
-    ctx.init(&mut wgt);
-    util::set_state(&mut ctx, &mut wgt, true);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // ctx.init(&mut wgt);
+    // util::set_state(&mut ctx, &mut wgt, true);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
 
-    assert!(util::traced(&wgt, "3"));
-    assert!(!util::traced(&wgt, "2"));
+    // assert!(util::traced(&wgt, "3"));
+    // assert!(!util::traced(&wgt, "2"));
 }
 
 #[test]
 pub fn generated_name_collision_in_when_assign() {
-    let mut ctx = TestWidgetContext::new();
+    let mut app = App::minimal().run_headless(false);
 
-    let mut wgt = empty_wgt! {
-        util::live_trace = "0";
-        util_live_trace = false;
+    todo!("test widget");
 
-        when *#util::is_state {
-            util::live_trace = "1";
-            util_live_trace = true;
-        }
-    };
+    // let mut wgt = empty_wgt! {
+    //     util::live_trace = "0";
+    //     util_live_trace = false;
 
-    ctx.init(&mut wgt);
-    util::set_state(&mut ctx, &mut wgt, true);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    //     when *#util::is_state {
+    //         util::live_trace = "1";
+    //         util_live_trace = true;
+    //     }
+    // };
 
-    assert!(util::traced(&wgt, "1"));
-    assert!(util::traced(&wgt, "true"));
+    // ctx.init(&mut wgt);
+    // util::set_state(&mut ctx, &mut wgt, true);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
+
+    // assert!(util::traced(&wgt, "1"));
+    // assert!(util::traced(&wgt, "true"));
 }
 
 #[widget($crate::tests::widget::name_collision_wgt_when)]
@@ -1194,18 +1213,20 @@ pub mod name_collision_wgt_when {
 }
 #[test]
 pub fn name_collision_wgt_when() {
-    let mut ctx = TestWidgetContext::new();
+    let mut app = App::minimal().run_headless(false);
 
-    let mut wgt = name_collision_wgt_when!();
+    todo!("test widget");
 
-    ctx.init(&mut wgt);
-    util::set_state(&mut ctx, &mut wgt, true);
-    ctx.update(&mut wgt, None);
-    ctx.apply_updates();
-    ctx.update(&mut wgt, None);
+    // let mut wgt = name_collision_wgt_when!();
 
-    assert!(util::traced(&wgt, "3"));
-    assert!(!util::traced(&wgt, "2"));
+    // ctx.init(&mut wgt);
+    // util::set_state(&mut ctx, &mut wgt, true);
+    // ctx.update(&mut wgt, None);
+    // ctx.apply_updates();
+    // ctx.update(&mut wgt, None);
+
+    // assert!(util::traced(&wgt, "3"));
+    // assert!(!util::traced(&wgt, "2"));
 }
 
 /*
@@ -1466,7 +1487,6 @@ mod util {
                 *s.entry(&IS_STATE_ID).or_default() = state;
             });
             WIDGET.update();
-            UPDATES.update(w_ctx.id);
         })
         .expect("expected widget");
     }
@@ -1477,7 +1497,7 @@ mod util {
     })]
     impl IsStateNode {
         fn update_state(&mut self) {
-            let wgt_state = WIDGET.with_state(|s| ctx.widget_state.get(&IS_STATE_ID).copied().unwrap_or_default());
+            let wgt_state = WIDGET.with_state(|s| s.get(&IS_STATE_ID).copied().unwrap_or_default());
             if wgt_state != self.state.get() {
                 let _ = self.state.set(wgt_state);
             }

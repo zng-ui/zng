@@ -315,19 +315,6 @@ pub trait UiNode: Any + Send {
         None
     }
 
-    /// Calls `f` with the [`WIDGET`] context of the node if it [`is_widget`].
-    ///
-    /// Returns `None` if the node does not represent an widget.
-    ///
-    /// [`is_widget`]: UiNode::is_widget
-    fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
-    where
-        F: FnOnce() -> R,
-    {
-        let _ = f;
-        None
-    }
-
     /// Gets this node as a [`BoxedUiNode`], if the node [`is_widget`] this is the same node, otherwise a
     /// new widget is generated with the node as the *inner*.
     ///
@@ -633,8 +620,7 @@ pub trait UiNodeBoxed: Any + Send {
     fn render_update_boxed(&self, update: &mut FrameUpdate);
 
     fn is_widget_boxed(&self) -> bool;
-    fn with_context_boxed(&self, f: &mut dyn FnMut(&mut WidgetNodeContext));
-    fn with_context_mut_boxed(&mut self, f: &mut dyn FnMut(&mut WidgetNodeMutContext));
+    fn with_context_boxed(&self, f: &mut dyn FnMut());
     fn into_widget_boxed(self: Box<Self>) -> BoxedUiNode;
     fn as_any_boxed(&self) -> &dyn Any;
     fn as_any_mut_boxed(&mut self) -> &mut dyn Any;
@@ -696,12 +682,8 @@ impl<U: UiNode> UiNodeBoxed for U {
         self
     }
 
-    fn with_context_boxed(&self, f: &mut dyn FnMut(&mut WidgetNodeContext)) {
+    fn with_context_boxed(&self, f: &mut dyn FnMut()) {
         self.with_context(f);
-    }
-
-    fn with_context_mut_boxed(&mut self, f: &mut dyn FnMut(&mut WidgetNodeMutContext)) {
-        self.with_context_mut(f);
     }
 
     fn as_any_boxed(&self) -> &dyn Any {
@@ -858,21 +840,11 @@ impl UiNode for BoxedUiNode {
 
     fn with_context<R, F>(&self, f: F) -> Option<R>
     where
-        F: FnOnce(&mut WidgetNodeContext) -> R,
+        F: FnOnce() -> R,
     {
         let mut f = Some(f);
         let mut r = None;
-        self.as_ref().with_context_boxed(&mut |ctx| r = Some((f.take().unwrap())(ctx)));
-        r
-    }
-
-    fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
-    where
-        F: FnOnce(&mut WidgetNodeMutContext) -> R,
-    {
-        let mut f = Some(f);
-        let mut r = None;
-        self.as_mut().with_context_mut_boxed(&mut |ctx| r = Some((f.take().unwrap())(ctx)));
+        self.as_ref().with_context_boxed(&mut || r = Some((f.take().unwrap())()));
         r
     }
 
@@ -1066,20 +1038,10 @@ impl<U: UiNode> UiNode for Option<U> {
 
     fn with_context<R, F>(&self, f: F) -> Option<R>
     where
-        F: FnOnce(&mut WidgetNodeContext) -> R,
+        F: FnOnce() -> R,
     {
         match self {
             Some(node) => node.with_context(f),
-            None => None,
-        }
-    }
-
-    fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
-    where
-        F: FnOnce(&mut WidgetNodeMutContext) -> R,
-    {
-        match self {
-            Some(node) => node.with_context_mut(f),
             None => None,
         }
     }
@@ -1174,12 +1136,12 @@ fn assert_bounds(len: usize, i: usize) {
 pub struct NilUiNode;
 #[ui_node(none)]
 impl UiNode for NilUiNode {
-    fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
-        ctx.constrains().min_size()
+    fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        LAYOUT.constrains().min_size()
     }
 
-    fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-        ctx.constrains().min_size()
+    fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
+        LAYOUT.constrains().min_size()
     }
 }
 

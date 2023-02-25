@@ -10,6 +10,7 @@ use linear_map::{set::LinearSet, LinearMap};
 use parking_lot::Mutex;
 
 use crate::{
+    context::WIDGET,
     handler::WidgetHandler,
     impl_from_and_into_var,
     text::{formatx, Text},
@@ -498,12 +499,12 @@ impl<A: Clone + 'static> ArcWidgetHandler<A> {
     }
 }
 impl<A: Clone + 'static> WidgetHandler<A> for ArcWidgetHandler<A> {
-    fn event(&mut self, ctx: &mut crate::context::WidgetContext, args: &A) -> bool {
-        self.0.lock().event(ctx, args)
+    fn event(&mut self, args: &A) -> bool {
+        self.0.lock().event(args)
     }
 
-    fn update(&mut self, ctx: &mut crate::context::WidgetContext) -> bool {
-        self.0.lock().update(ctx)
+    fn update(&mut self) -> bool {
+        self.0.lock().update()
     }
 }
 
@@ -579,19 +580,19 @@ struct WhenWidgetHandler<A: Clone + 'static> {
     conditions: Vec<(BoxedVar<bool>, ArcWidgetHandler<A>)>,
 }
 impl<A: Clone + 'static> WidgetHandler<A> for WhenWidgetHandler<A> {
-    fn event(&mut self, ctx: &mut crate::context::WidgetContext, args: &A) -> bool {
+    fn event(&mut self, args: &A) -> bool {
         for (c, h) in &mut self.conditions {
             if c.get() {
-                return h.event(ctx, args);
+                return h.event(args);
             }
         }
-        self.default.event(ctx, args)
+        self.default.event(args)
     }
 
-    fn update(&mut self, ctx: &mut crate::context::WidgetContext) -> bool {
-        let mut pending = self.default.update(ctx);
+    fn update(&mut self) -> bool {
+        let mut pending = self.default.update();
         for (_, h) in &mut self.conditions {
-            pending |= h.update(ctx);
+            pending |= h.update();
         }
         pending
     }
@@ -2535,7 +2536,7 @@ impl WidgetBuilding {
         if self.trace_widget {
             let name = self.widget_mod.name();
             node = node
-                .trace(move |ctx, mtd| crate::context::UpdatesTrace::widget_span(ctx.path.widget_id(), name, mtd))
+                .trace(move |mtd| crate::context::UpdatesTrace::widget_span(WIDGET.id(), name, mtd))
                 .boxed();
         }
 

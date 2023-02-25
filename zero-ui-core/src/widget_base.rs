@@ -93,38 +93,38 @@ pub mod nodes {
                 define_ref_frame: bool,
             })]
         impl UiNode for WidgetChildNode {
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-                self.child.measure(ctx, wm)
+            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+                self.child.measure(wm)
             }
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                let (size, define_ref_frame) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
+            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+                let (size, define_ref_frame) = wl.with_child(|wl| self.child.layout(wl));
                 if self.define_ref_frame != define_ref_frame {
                     self.define_ref_frame = define_ref_frame;
                     WIDGET.render();
                 }
                 size
             }
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                let offset = ctx.widget_info.bounds.child_offset();
+            fn render(&self, frame: &mut FrameBuilder) {
+                let offset = WIDGET.bounds().child_offset();
                 if self.define_ref_frame {
                     frame.push_reference_frame(self.key.into(), self.key.bind(offset.into(), true), true, false, |frame| {
-                        self.child.render(ctx, frame)
+                        self.child.render(frame)
                     });
                 } else {
                     frame.push_child(offset, |frame| {
-                        self.child.render(ctx, frame);
+                        self.child.render(frame);
                     });
                 }
             }
 
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                let offset = ctx.widget_info.bounds.child_offset();
+            fn render_update(&self, update: &mut FrameUpdate) {
+                let offset = WIDGET.bounds().child_offset();
                 if self.define_ref_frame {
                     update.with_transform(self.key.update(offset.into(), true), false, |update| {
-                        self.child.render_update(ctx, update)
+                        self.child.render_update(update)
                     });
                 } else {
-                    update.with_child(offset, |update| self.child.render_update(ctx, update))
+                    update.with_child(offset, |update| self.child.render_update(update))
                 }
             }
         }
@@ -155,30 +155,30 @@ pub mod nodes {
             clips: HitClips,
         })]
         impl UiNode for WidgetInnerNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.sub_var(&HitTestMode::var());
-                self.child.init(ctx);
+            fn init(&mut self) {
+                WIDGET.sub_var(&HitTestMode::var());
+                self.child.init();
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &mut WidgetUpdates) {
                 if HitTestMode::var().is_new() {
                     WIDGET.layout();
                 }
-                self.child.update(ctx, updates);
+                self.child.update(updates);
             }
 
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-                self.child.measure(ctx, wm)
+            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+                self.child.measure(wm)
             }
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                let size = wl.with_inner(ctx, |ctx, wl| self.child.layout(ctx, wl));
+            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+                let size = wl.with_inner(|wl| self.child.layout(wl));
 
                 let mode = HitTestMode::var().get();
                 let clips = if matches!(mode, HitTestMode::Bounds | HitTestMode::RoundedBounds) {
                     HitClips {
                         bounds: size,
                         corners: if matches!(mode, HitTestMode::RoundedBounds) {
-                            ctx.widget_info.border.corner_radius()
+                            WIDGET.border().corner_radius()
                         } else {
                             PxCornerRadius::zero()
                         },
@@ -194,11 +194,11 @@ pub mod nodes {
 
                 size
             }
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                frame.push_inner(ctx, self.transform_key, true, |ctx, frame| {
+            fn render(&self, frame: &mut FrameBuilder) {
+                frame.push_inner(self.transform_key, true, |frame| {
                     frame.hit_test().push_clips(
                         |c| {
-                            if let Some(inline) = ctx.widget_info.bounds.inline() {
+                            if let Some(inline) = WIDGET.bounds().inline() {
                                 for r in inline.negative_space().iter() {
                                     c.push_clip_rect(*r, true);
                                 }
@@ -215,11 +215,11 @@ pub mod nodes {
                         },
                     );
 
-                    self.child.render(ctx, frame);
+                    self.child.render(frame);
                 });
             }
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                update.update_inner(ctx, self.transform_key, true, |ctx, update| self.child.render_update(ctx, update));
+            fn render_update(&self, update: &mut FrameUpdate) {
+                update.update_inner(self.transform_key, true, |update| self.child.render_update(update));
             }
         }
         WidgetInnerNode {
@@ -238,152 +238,110 @@ pub mod nodes {
     ///
     /// [`base`]: mod@base
     pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
-        #[derive(Default)]
-        struct MtxData {
-            pending_updates: InfoLayoutRenderUpdates,
-            reuse: Option<ReuseRange>,
-        }
         struct WidgetNode<C> {
-            id: WidgetId,
-            state: OwnedStateMap<state_map::Widget>,
+            ctx: WidgetCtx,
             child: C,
-            info: WidgetContextInfo,
-
-            var_handles: VarHandles,
-            event_handles: crate::event::EventHandles,
 
             #[cfg(debug_assertions)]
             inited: bool,
-            m: Mutex<MtxData>,
         }
         impl<C: UiNode> UiNode for WidgetNode<C> {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                #[cfg(debug_assertions)]
-                if self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", self.id);
-                }
+            fn init(&mut self) {
+                WIDGET.with_context(&self.ctx, || {
+                    #[cfg(debug_assertions)]
+                    if self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", WIDGET.id());
+                    }
 
-                ctx.widget_context(
-                    self.id,
-                    &self.info,
-                    &mut self.state,
-                    &mut self.var_handles,
-                    &mut self.event_handles,
-                    |ctx| self.child.init(ctx),
-                );
-                self.m.get_mut().pending_updates = InfoLayoutRenderUpdates::all();
+                    self.child.init();
+                    WIDGET.update().layout().render();
 
-                #[cfg(debug_assertions)]
-                {
-                    self.inited = true;
-                }
+                    #[cfg(debug_assertions)]
+                    {
+                        self.inited = true;
+                    }
+                })
             }
 
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                #[cfg(debug_assertions)]
-                if !self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", self.id);
-                }
+            fn deinit(&mut self) {
+                WIDGET.with_context(&self.ctx, || {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", WIDGET.id());
+                    }
 
-                ctx.widget_context(
-                    self.id,
-                    &self.info,
-                    &mut self.state,
-                    &mut self.var_handles,
-                    &mut self.event_handles,
-                    |ctx| self.child.deinit(ctx),
-                );
-                self.m.get_mut().pending_updates = InfoLayoutRenderUpdates::none();
-                self.var_handles.clear();
-                self.var_handles.clear();
-                self.m.get_mut().reuse = None;
+                    self.child.deinit();
 
-                #[cfg(debug_assertions)]
-                {
-                    self.inited = false;
-                }
-            }
-
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                #[cfg(debug_assertions)]
-                if !self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", self.id);
-                }
-
-                ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                    if mem::take(&mut self.m.lock().pending_updates.info) {
-                        info.push_widget(self.id, self.info.bounds.clone(), self.info.border.clone(), |info| {
-                            self.child.info(ctx, info)
-                        });
-                    } else {
-                        info.push_widget_reuse(ctx);
+                    #[cfg(debug_assertions)]
+                    {
+                        self.inited = false;
                     }
                 });
+                self.ctx.deinit();
             }
 
-            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-                #[cfg(debug_assertions)]
-                if !self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event().name(), self.id);
-                }
+            fn info(&self, info: &mut WidgetInfoBuilder) {
+                let rebuild = self.ctx.take_info();
+                WIDGET.with_context(&self.ctx, || {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", WIDGET.id());
+                    }
 
-                let (_, (updates, reinit)) = ctx.widget_context(
-                    self.id,
-                    &self.info,
-                    &mut self.state,
-                    &mut self.var_handles,
-                    &mut self.event_handles,
-                    |ctx| {
-                        update.with_widget(ctx, |ctx, update| {
-                            self.child.event(ctx, update);
+                    if rebuild {
+                        info.push_widget(WIDGET.id(), WIDGET.bounds(), WIDGET.border(), |info| {
+                            self.child.info(info);
                         });
-                    },
-                );
-                self.m.get_mut().pending_updates |= updates;
+                    } else {
+                        info.push_widget_reuse();
+                    }
+                })
+            }
 
-                if reinit {
-                    self.deinit(ctx);
-                    self.init(ctx);
+            fn event(&mut self, update: &mut EventUpdate) {
+                WIDGET.with_context(&self.ctx, || {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event().name(), WIDGET.id());
+                    }
+
+                    update.with_widget(|update| {
+                        self.child.event(update);
+                    });
+                });
+                if self.ctx.take_reinit() {
+                    self.deinit();
+                    self.init();
                 }
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                #[cfg(debug_assertions)]
-                if !self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", self.id);
-                }
+            fn update(&mut self, updates: &mut WidgetUpdates) {
+                WIDGET.with_context(&self.ctx, || {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", WIDGET.id());
+                    }
 
-                let (_, (updates, reinit)) = ctx.widget_context(
-                    self.id,
-                    &self.info,
-                    &mut self.state,
-                    &mut self.var_handles,
-                    &mut self.event_handles,
-                    |ctx| {
-                        updates.with_widget(ctx, |ctx, updates| {
-                            self.child.update(ctx, updates);
-                        });
-                    },
-                );
-                self.m.get_mut().pending_updates |= updates;
-
-                if reinit {
-                    self.deinit(ctx);
-                    self.init(ctx);
+                    updates.with_widget(|updates| {
+                        self.child.update(updates);
+                    });
+                });
+                if self.ctx.take_reinit() {
+                    self.deinit();
+                    self.init();
                 }
             }
 
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-                #[cfg(debug_assertions)]
-                if !self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
-                }
+            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+                let reuse = !self.ctx.is_pending_layout();
+                WIDGET.with_context(&self.ctx, || {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", WIDGET.id());
+                    }
 
-                let reuse = !self.m.lock().pending_updates.layout;
-
-                ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                    wm.with_widget(ctx, reuse, |ctx, wm| {
-                        let child_size = self.child.measure(ctx, wm);
+                    wm.with_widget(reuse, |wm| {
+                        let child_size = self.child.measure(wm);
 
                         // verify that inline row segments fit in row size
                         #[cfg(debug_assertions)]
@@ -397,7 +355,7 @@ pub mod nodes {
                                 if sum_width > width {
                                     tracing::error!(
                                         "widget {:?} measured inline {name} row has {width} width, but row segs sum to {sum_width} width",
-                                        self.id
+                                        WIDGET.id()
                                     );
                                 }
                             }
@@ -408,17 +366,16 @@ pub mod nodes {
                 })
             }
 
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                #[cfg(debug_assertions)]
-                if !self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", self.id);
-                }
+            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+                let reuse = !self.ctx.take_layout();
+                WIDGET.with_context(&self.ctx, || {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", WIDGET.id());
+                    }
 
-                let reuse = !mem::take(&mut self.m.get_mut().pending_updates.layout);
-
-                let (child_size, updates) = ctx.with_widget(self.id, &self.info, &mut self.state, |ctx| {
-                    wl.with_widget(ctx, reuse, |ctx, wl| {
-                        let child_size = self.child.layout(ctx, wl);
+                    wl.with_widget(reuse, |wl| {
+                        let child_size = self.child.layout(wl);
 
                         // verify that inline row segments fit in row rectangle
                         #[cfg(debug_assertions)]
@@ -435,7 +392,7 @@ pub mod nodes {
                                 if (sum_width - width) > crate::units::Px(1) {
                                     tracing::error!(
                                         "widget {:?} layout inline {name} row has {width} width, but row segs widths sum to {sum_width}",
-                                        self.id
+                                        WIDGET.id()
                                     );
                                 }
                             }
@@ -443,43 +400,32 @@ pub mod nodes {
 
                         child_size
                     })
-                });
-                self.m.get_mut().pending_updates |= updates;
-
-                child_size
+                })
             }
 
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                #[cfg(debug_assertions)]
-                if !self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", self.id);
-                }
+            fn render(&self, frame: &mut FrameBuilder) {
+                let mut reuse = self.ctx.take_render();
+                WIDGET.with_context(&self.ctx, || {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", WIDGET.id());
+                    }
 
-                let mut m = self.m.lock();
-                if !m.pending_updates.render.take().is_none() {
-                    // cannot reuse.
-                    m.reuse = None;
-                }
-
-                ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                    frame.push_widget(ctx, &mut m.reuse, |ctx, frame| self.child.render(ctx, frame));
+                    frame.push_widget(&mut reuse, |frame| self.child.render(frame));
                 });
+                self.ctx.set_render_reuse(reuse);
             }
 
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                #[cfg(debug_assertions)]
-                if !self.inited {
-                    tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
-                }
+            fn render_update(&self, update: &mut FrameUpdate) {
+                let reuse = !self.ctx.take_render_update();
 
-                let mut m = self.m.lock();
-                let mut reuse = true;
-                if !m.pending_updates.render.take().is_none() {
-                    reuse = false;
-                }
+                WIDGET.with_context(&self.ctx, || {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", WIDGET.id());
+                    }
 
-                ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                    update.update_widget(ctx, reuse, |ctx, update| self.child.render_update(ctx, update));
+                    update.update_widget(reuse, |update| self.child.render_update(update));
                 });
             }
 
@@ -489,28 +435,9 @@ pub mod nodes {
 
             fn with_context<R, F>(&self, f: F) -> Option<R>
             where
-                F: FnOnce(&mut WidgetNodeContext) -> R,
+                F: FnOnce() -> R,
             {
-                Some(f(&mut WidgetNodeContext {
-                    id: self.id,
-                    widget_info: &self.info,
-                    widget_state: self.state.borrow(),
-                }))
-            }
-
-            fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
-            where
-                F: FnOnce(&mut WidgetNodeMutContext) -> R,
-            {
-                Some(f(&mut WidgetNodeMutContext {
-                    id: self.id,
-                    widget_info: &self.info,
-                    widget_state: self.state.borrow_mut(),
-                    handles: WidgetHandles {
-                        var_handles: &mut self.var_handles,
-                        event_handles: &mut self.event_handles,
-                    },
-                }))
+                WIDGET.with_context(&self.ctx, || Some(f()))
             }
 
             fn into_widget(self) -> BoxedUiNode
@@ -520,16 +447,13 @@ pub mod nodes {
                 self.boxed()
             }
         }
+
         WidgetNode {
-            id: id.into(),
-            state: OwnedStateMap::default(),
+            ctx: WidgetCtx::new(id.into()),
             child: child.cfg_boxed(),
-            info: WidgetContextInfo::default(),
-            var_handles: VarHandles::default(),
-            event_handles: EventHandles::default(),
+
             #[cfg(debug_assertions)]
             inited: false,
-            m: Default::default(),
         }
         .cfg_boxed()
     }
@@ -549,10 +473,10 @@ pub mod nodes {
         #[var] interactive: impl Var<bool>,
     })]
         impl UiNode for BlockInteractionNode {
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            fn info(&self, info: &mut WidgetInfoBuilder) {
                 if self.interactive.get() {
-                    self.child.info(ctx, info);
-                } else if let Some(id) = self.child.with_context(|ctx| ctx.id) {
+                    self.child.info(info);
+                } else if let Some(id) = self.child.with_context(|| WIDGET.id()) {
                     // child is a widget.
                     info.push_interactivity_filter(move |args| {
                         if args.info.widget_id() == id {
@@ -561,13 +485,13 @@ pub mod nodes {
                             Interactivity::ENABLED
                         }
                     });
-                    self.child.info(ctx, info);
+                    self.child.info(info);
                 } else {
-                    let block_range = info.with_children_range(|info| self.child.info(ctx, info));
+                    let block_range = info.with_children_range(|info| self.child.info(info));
                     if !block_range.is_empty() {
                         // has child widgets.
 
-                        let id = ctx.path.widget_id();
+                        let id = WIDGET.id();
                         info.push_interactivity_filter(move |args| {
                             if let Some(parent) = args.info.parent() {
                                 if parent.widget_id() == id {
@@ -591,11 +515,11 @@ pub mod nodes {
                 }
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &mut WidgetUpdates) {
                 if self.interactive.is_new() {
                     WIDGET.info();
                 }
-                self.child.update(ctx, updates);
+                self.child.update(updates);
             }
         }
         BlockInteractionNode {
@@ -689,18 +613,18 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for EnabledNode {
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        fn info(&self, info: &mut WidgetInfoBuilder) {
             if !self.enabled.get() {
                 info.push_interactivity(Interactivity::DISABLED);
             }
-            self.child.info(ctx, info);
+            self.child.info(info);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.enabled.is_new() {
                 WIDGET.info();
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
     }
 
@@ -738,18 +662,18 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
         #[var] interactive: impl Var<bool>,
     })]
     impl UiNode for InteractiveNode {
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        fn info(&self, info: &mut WidgetInfoBuilder) {
             if !self.interactive.get() {
                 info.push_interactivity(Interactivity::BLOCKED);
             }
-            self.child.info(ctx, info);
+            self.child.info(info);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.interactive.is_new() {
                 WIDGET.info();
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
     }
     InteractiveNode {
@@ -759,8 +683,8 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 }
 
 fn vis_enabled_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: bool) -> impl UiNode {
-    event_is_state(child, state, true, INTERACTIVITY_CHANGED_EVENT, move |ctx, args| {
-        if let Some((_, new)) = args.vis_enabled_change(ctx.path.widget_id()) {
+    event_is_state(child, state, true, INTERACTIVITY_CHANGED_EVENT, move |args| {
+        if let Some((_, new)) = args.vis_enabled_change(WIDGET.id()) {
             Some(new.is_vis_enabled() == expected)
         } else {
             None
@@ -817,17 +741,13 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         #[var] visibility: impl Var<Visibility>,
     })]
     impl UiNode for VisibilityNode {
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-        }
-
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.auto_subs(ctx);
+        fn init(&mut self) {
+            self.auto_subs();
             self.prev_vis = self.visibility.get();
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if let Some(vis) = self.visibility.get_new() {
                 use Visibility::*;
                 match (self.prev_vis, vis) {
@@ -844,29 +764,29 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
                 }
                 self.prev_vis = vis;
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
             if Visibility::Collapsed != self.visibility.get() {
-                self.child.measure(ctx, wm)
+                self.child.measure(wm)
             } else {
                 PxSize::zero()
             }
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             if Visibility::Collapsed != self.visibility.get() {
-                self.child.layout(ctx, wl)
+                self.child.layout(wl)
             } else {
-                wl.collapse(ctx);
+                wl.collapse();
                 PxSize::zero()
             }
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             match self.visibility.get() {
-                Visibility::Visible => self.child.render(ctx, frame),
-                Visibility::Hidden => frame.hide(|frame| self.child.render(ctx, frame)),
+                Visibility::Visible => self.child.render(frame),
+                Visibility::Hidden => frame.hide(|frame| self.child.render(frame)),
                 Visibility::Collapsed => {
                     #[cfg(debug_assertions)]
                     {
@@ -876,10 +796,10 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             }
         }
 
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        fn render_update(&self, update: &mut FrameUpdate) {
             match self.visibility.get() {
-                Visibility::Visible => self.child.render_update(ctx, update),
-                Visibility::Hidden => update.hidden(|update| self.child.render_update(ctx, update)),
+                Visibility::Visible => self.child.render_update(update),
+                Visibility::Hidden => update.hidden(|update| self.child.render_update(update)),
                 Visibility::Collapsed => {
                     #[cfg(debug_assertions)]
                     {
@@ -902,12 +822,9 @@ fn visibility_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: 
         state,
         expected == Visibility::Visible,
         crate::window::FRAME_IMAGE_READY_EVENT,
-        move |ctx, _| {
-            let vis = ctx
-                .info_tree
-                .get(ctx.path.widget_id())
-                .map(|w| w.visibility())
-                .unwrap_or(Visibility::Visible);
+        move |_| {
+            let tree = WINDOW.widget_tree().unwrap();
+            let vis = tree.get(WIDGET.id()).map(|w| w.visibility()).unwrap_or(Visibility::Visible);
 
             Some(vis == expected)
         },
@@ -1014,31 +931,31 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
         child: impl UiNode,
     })]
     impl UiNode for HitTestModeNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_var(&HitTestMode::var());
-            self.child.init(ctx);
+        fn init(&mut self) {
+            WIDGET.sub_var(&HitTestMode::var());
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if HitTestMode::var().is_new() {
                 WIDGET.render();
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             match HitTestMode::var().get() {
                 HitTestMode::Disabled => {
-                    frame.with_hit_tests_disabled(|frame| self.child.render(ctx, frame));
+                    frame.with_hit_tests_disabled(|frame| self.child.render(frame));
                 }
-                HitTestMode::Visual => frame.with_auto_hit_test(true, |frame| self.child.render(ctx, frame)),
-                _ => frame.with_auto_hit_test(false, |frame| self.child.render(ctx, frame)),
+                HitTestMode::Visual => frame.with_auto_hit_test(true, |frame| self.child.render(frame)),
+                _ => frame.with_auto_hit_test(false, |frame| self.child.render(frame)),
             }
         }
 
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        fn render_update(&self, update: &mut FrameUpdate) {
             update.with_auto_hit_test(matches!(HitTestMode::var().get(), HitTestMode::Visual), |update| {
-                self.child.render_update(ctx, update)
+                self.child.render_update(update)
             });
         }
     }
@@ -1105,22 +1022,22 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for CanAutoHideNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if let Some(new) = self.enabled.get_new() {
-                if ctx.widget_info.bounds.can_auto_hide() != new {
+                if WIDGET.bounds().can_auto_hide() != new {
                     WIDGET.layout().render();
                 }
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(ctx, wm)
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(wm)
         }
 
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             wl.allow_auto_hide(self.enabled.get());
-            self.child.layout(ctx, wl)
+            self.child.layout(wl)
         }
     }
     CanAutoHideNode {

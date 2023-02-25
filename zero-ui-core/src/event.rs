@@ -15,7 +15,7 @@ use std::{
 
 use crate::{
     clone_move,
-    context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WINDOW, WIDGET},
+    context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WIDGET, WINDOW},
     crate_util::{IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
     widget_info::WidgetInfoTree,
