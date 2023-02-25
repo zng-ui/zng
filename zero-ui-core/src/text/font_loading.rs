@@ -21,7 +21,6 @@ use crate::{
         AppExtension,
     },
     app_local,
-    context::AppContext,
     crate_util::FxHashMap,
     event::{event, event_args, EventUpdate},
     new_context::UPDATES,
@@ -96,7 +95,7 @@ pub enum FontChange {
 #[derive(Default)]
 pub struct FontManager {}
 impl AppExtension for FontManager {
-    fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
         if RAW_FONT_CHANGED_EVENT.has(update) {
             FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::SystemFonts));
         } else if let Some(args) = RAW_FONT_AA_CHANGED_EVENT.on(update) {
@@ -112,7 +111,7 @@ impl AppExtension for FontManager {
         }
     }
 
-    fn update(&mut self, _: &mut AppContext) {
+    fn update(&mut self) {
         let mut fonts = FONTS_SV.write();
 
         for args in fonts.take_updates() {

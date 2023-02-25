@@ -63,7 +63,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
             },
             false,
@@ -74,7 +74,7 @@ mod bindings {
 
         update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
                 assert_eq!(Some(20i32), a.get_new());
                 assert_eq!(Some("20".to_text()), b.get_new());
@@ -87,7 +87,7 @@ mod bindings {
 
         update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
                 assert_eq!(Some(13i32), a.get_new());
                 assert_eq!(Some("13".to_text()), b.get_new());
@@ -108,7 +108,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
             },
             false,
@@ -119,7 +119,7 @@ mod bindings {
 
         update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
                 assert_eq!(Some(20i32), a.get_new());
                 assert_eq!(Some("20".to_text()), b.get_new());
@@ -132,7 +132,7 @@ mod bindings {
 
         update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
                 assert_eq!(Some("55".to_text()), b.get_new());
                 assert_eq!(Some(55i32), a.get_new());
@@ -153,7 +153,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
             },
             false,
@@ -164,7 +164,7 @@ mod bindings {
 
         update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
                 assert_eq!(Some(20i32), a.get_new());
                 assert_eq!(Some("20".to_text()), b.get_new());
@@ -177,7 +177,7 @@ mod bindings {
 
         update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
                 assert_eq!(Some(13i32), a.get_new());
                 assert_eq!("20".to_text(), b.get());
@@ -199,7 +199,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
             },
             false,
@@ -210,7 +210,7 @@ mod bindings {
 
         update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
                 assert_eq!(Some(20i32), a.get_new());
                 assert_eq!(Some("20".to_text()), b.get_new());
@@ -223,7 +223,7 @@ mod bindings {
 
         update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
                 assert_eq!(Some("55".to_text()), b.get_new());
                 assert_eq!(Some(55i32), a.get_new());
@@ -236,7 +236,7 @@ mod bindings {
 
         update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
                 assert_eq!(Some("not a i32".to_text()), b.get_new());
                 assert_eq!(55i32, a.get());
@@ -262,7 +262,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
             },
             false,
@@ -273,7 +273,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
 
                 assert_eq!(Some(20), a.get_new());
@@ -289,7 +289,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
 
                 assert_eq!(Some(30), a.get_new());
@@ -317,7 +317,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
             },
             false,
@@ -328,7 +328,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
 
                 assert_eq!(Some(20), a.get_new());
@@ -344,7 +344,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
 
                 assert_eq!(Some(30), a.get_new());
@@ -370,7 +370,7 @@ mod bindings {
 
         let mut update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
 
                 assert_eq!(Some(10), a.get_new());
@@ -386,7 +386,7 @@ mod bindings {
 
         update_count = 0;
         let _ = app.update_observe(
-            |_| {
+            || {
                 update_count += 1;
 
                 assert_eq!(Some(100), a.get_new());

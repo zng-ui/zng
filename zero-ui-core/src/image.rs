@@ -22,7 +22,6 @@ use crate::{
         AppExtension,
     },
     app_local,
-    context::AppContext,
     crate_util::IdMap,
     event::EventUpdate,
     task::{self, fs, io::*, ui::UiTask},
@@ -54,7 +53,7 @@ pub use render::{render_retain, ImageRenderVars};
 #[derive(Default)]
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
-    fn init(&mut self, ctx: &mut AppContext) {
+    fn init(&mut self) {
         IMAGES_SV.write().init(if VIEW_PROCESS.is_available() {
             Some(VIEW_PROCESS.clone())
         } else {
@@ -62,7 +61,7 @@ impl AppExtension for ImageManager {
         });
     }
 
-    fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT.on(update) {
             let images = IMAGES_SV.read();
 
@@ -179,7 +178,7 @@ impl AppExtension for ImageManager {
         }
     }
 
-    fn update_preview(&mut self, _: &mut AppContext) {
+    fn update_preview(&mut self) {
         // update loading tasks:
 
         let mut images = IMAGES_SV.write();
@@ -247,7 +246,7 @@ impl AppExtension for ImageManager {
         images.loading = loading;
     }
 
-    fn update(&mut self, _: &mut AppContext) {
+    fn update(&mut self) {
         self.update_render();
     }
 }

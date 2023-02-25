@@ -11,6 +11,7 @@ use crate::config::ConfigManager;
 use crate::crate_util::{PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, EVENTS};
 use crate::image::ImageManager;
+use crate::task::ui::UiTask;
 use crate::timer::TimersService;
 use crate::units::Deadline;
 use crate::var::VARS;
@@ -200,9 +201,7 @@ pub trait AppExtension: 'static {
     }
 
     /// Initializes this extension.
-    fn init(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
-    }
+    fn init(&mut self) {}
 
     /// If the application should notify raw device events.
     ///
@@ -223,23 +222,23 @@ pub trait AppExtension: 'static {
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
     /// happen in `on_event_ui`.
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        let _ = (ctx, update);
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        let _ = update;
     }
 
     /// Called just before [`event`](Self::event).
     ///
     /// Only extensions that generate windows must handle this method. The [`UiNode::event`](crate::widget_instance::UiNode::event)
     /// method is called here.
-    fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        let _ = (ctx, update);
+    fn event_ui(&mut self, update: &mut EventUpdate) {
+        let _ = update;
     }
 
     /// Called after every [`event_ui`](Self::event_ui).
     ///
     /// This is the general extensions event handler, it gives the chance for the UI to signal stop propagation.
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        let _ = (ctx, update);
+    fn event(&mut self, update: &mut EventUpdate) {
+        let _ = update;
     }
 
     /// Called just before [`update_ui`](Self::update_ui).
@@ -248,43 +247,33 @@ pub trait AppExtension: 'static {
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
     /// happen in `update_ui`.
-    fn update_preview(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
-    }
+    fn update_preview(&mut self) {}
 
     /// Called just before [`update`](Self::update).
     ///
     /// Only extensions that generate windows must handle this method. The [`UiNode::update`](crate::widget_instance::UiNode::update)
     /// method is called here.
-    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        let _ = (ctx, updates);
+    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
+        let _ = updates;
     }
 
     /// Called after every [`update_ui`](Self::update_ui).
     ///
     /// This is the general extensions update, it gives the chance for
     /// the UI to signal stop propagation.
-    fn update(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
-    }
+    fn update(&mut self) {}
 
     /// Called after every sequence of updates if layout was requested.
-    fn layout(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
-    }
+    fn layout(&mut self) {}
 
     /// Called after every sequence of updates and layout if render was requested.
-    fn render(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
-    }
+    fn render(&mut self) {}
 
     /// Called when the application is exiting.
     ///
     /// Update requests and event notifications generated during this call are ignored,
     /// the extensions will be dropped after every extension received this call.
-    fn deinit(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
-    }
+    fn deinit(&mut self) {}
 
     /// The extension in a box.
     fn boxed(self) -> Box<dyn AppExtensionBoxed>
@@ -300,17 +289,17 @@ pub trait AppExtension: 'static {
 pub trait AppExtensionBoxed: 'static {
     fn id_boxed(&self) -> TypeId;
     fn is_or_contain_boxed(&self, app_extension_id: TypeId) -> bool;
-    fn init_boxed(&mut self, ctx: &mut AppContext);
+    fn init_boxed(&mut self);
     fn enable_device_events_boxed(&self) -> bool;
-    fn update_preview_boxed(&mut self, ctx: &mut AppContext);
-    fn update_ui_boxed(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates);
-    fn update_boxed(&mut self, ctx: &mut AppContext);
-    fn event_preview_boxed(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
-    fn event_ui_boxed(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
-    fn event_boxed(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
-    fn layout_boxed(&mut self, ctx: &mut AppContext);
-    fn render_boxed(&mut self, ctx: &mut AppContext);
-    fn deinit_boxed(&mut self, ctx: &mut AppContext);
+    fn update_preview_boxed(&mut self);
+    fn update_ui_boxed(&mut self, updates: &mut WidgetUpdates);
+    fn update_boxed(&mut self);
+    fn event_preview_boxed(&mut self, update: &mut EventUpdate);
+    fn event_ui_boxed(&mut self, update: &mut EventUpdate);
+    fn event_boxed(&mut self, update: &mut EventUpdate);
+    fn layout_boxed(&mut self);
+    fn render_boxed(&mut self);
+    fn deinit_boxed(&mut self);
 }
 impl<T: AppExtension> AppExtensionBoxed for T {
     fn id_boxed(&self) -> TypeId {
@@ -321,48 +310,48 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.is_or_contain(app_extension_id)
     }
 
-    fn init_boxed(&mut self, ctx: &mut AppContext) {
-        self.init(ctx);
+    fn init_boxed(&mut self) {
+        self.init();
     }
 
     fn enable_device_events_boxed(&self) -> bool {
         self.enable_device_events()
     }
 
-    fn update_preview_boxed(&mut self, ctx: &mut AppContext) {
-        self.update_preview(ctx);
+    fn update_preview_boxed(&mut self) {
+        self.update_preview();
     }
 
-    fn update_ui_boxed(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        self.update_ui(ctx, updates);
+    fn update_ui_boxed(&mut self, updates: &mut WidgetUpdates) {
+        self.update_ui(updates);
     }
 
-    fn update_boxed(&mut self, ctx: &mut AppContext) {
-        self.update(ctx);
+    fn update_boxed(&mut self) {
+        self.update();
     }
 
-    fn event_preview_boxed(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.event_preview(ctx, update);
+    fn event_preview_boxed(&mut self, update: &mut EventUpdate) {
+        self.event_preview(update);
     }
 
-    fn event_ui_boxed(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.event_ui(ctx, update);
+    fn event_ui_boxed(&mut self, update: &mut EventUpdate) {
+        self.event_ui(update);
     }
 
-    fn event_boxed(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.event(ctx, update);
+    fn event_boxed(&mut self, update: &mut EventUpdate) {
+        self.event(update);
     }
 
-    fn layout_boxed(&mut self, ctx: &mut AppContext) {
-        self.layout(ctx);
+    fn layout_boxed(&mut self) {
+        self.layout();
     }
 
-    fn render_boxed(&mut self, ctx: &mut AppContext) {
-        self.render(ctx);
+    fn render_boxed(&mut self) {
+        self.render();
     }
 
-    fn deinit_boxed(&mut self, ctx: &mut AppContext) {
-        self.deinit(ctx);
+    fn deinit_boxed(&mut self) {
+        self.deinit();
     }
 }
 impl AppExtension for Box<dyn AppExtensionBoxed> {
@@ -374,48 +363,48 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_ref().is_or_contain_boxed(app_extension_id)
     }
 
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.as_mut().init_boxed(ctx);
+    fn init(&mut self) {
+        self.as_mut().init_boxed();
     }
 
     fn enable_device_events(&self) -> bool {
         self.as_ref().enable_device_events_boxed()
     }
 
-    fn update_preview(&mut self, ctx: &mut AppContext) {
-        self.as_mut().update_preview_boxed(ctx);
+    fn update_preview(&mut self) {
+        self.as_mut().update_preview_boxed();
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        self.as_mut().update_ui_boxed(ctx, updates);
+    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
+        self.as_mut().update_ui_boxed(updates);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        self.as_mut().update_boxed(ctx);
+    fn update(&mut self) {
+        self.as_mut().update_boxed();
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.as_mut().event_preview_boxed(ctx, update);
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        self.as_mut().event_preview_boxed(update);
     }
 
-    fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.as_mut().event_ui_boxed(ctx, update);
+    fn event_ui(&mut self, update: &mut EventUpdate) {
+        self.as_mut().event_ui_boxed(update);
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.as_mut().event_boxed(ctx, update);
+    fn event(&mut self, update: &mut EventUpdate) {
+        self.as_mut().event_boxed(update);
     }
 
-    fn layout(&mut self, ctx: &mut AppContext) {
-        self.as_mut().layout_boxed(ctx);
+    fn layout(&mut self) {
+        self.as_mut().layout_boxed();
     }
 
-    fn render(&mut self, ctx: &mut AppContext) {
-        self.as_mut().render_boxed(ctx);
+    fn render(&mut self) {
+        self.as_mut().render_boxed();
     }
 
-    fn deinit(&mut self, ctx: &mut AppContext) {
-        self.as_mut().deinit_boxed(ctx);
+    fn deinit(&mut self) {
+        self.as_mut().deinit_boxed();
     }
 
     fn boxed(self) -> Box<dyn AppExtensionBoxed>
@@ -436,58 +425,58 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
         self.0.is_or_contain(app_extension_id)
     }
 
-    fn init(&mut self, ctx: &mut AppContext) {
+    fn init(&mut self) {
         let _span = UpdatesTrace::extension_span::<E>("init");
-        self.0.init(ctx);
+        self.0.init();
     }
 
     fn enable_device_events(&self) -> bool {
         self.0.enable_device_events()
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
         let _span = UpdatesTrace::extension_span::<E>("event_preview");
-        self.0.event_preview(ctx, update);
+        self.0.event_preview(update);
     }
 
-    fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_ui(&mut self, update: &mut EventUpdate) {
         let _span = UpdatesTrace::extension_span::<E>("event_ui");
-        self.0.event_ui(ctx, update);
+        self.0.event_ui(update);
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event(&mut self, update: &mut EventUpdate) {
         let _span = UpdatesTrace::extension_span::<E>("event");
-        self.0.event(ctx, update);
+        self.0.event(update);
     }
 
-    fn update_preview(&mut self, ctx: &mut AppContext) {
+    fn update_preview(&mut self) {
         let _span = UpdatesTrace::extension_span::<E>("update_preview");
-        self.0.update_preview(ctx);
+        self.0.update_preview();
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
         let _span = UpdatesTrace::extension_span::<E>("update_ui");
-        self.0.update_ui(ctx, updates);
+        self.0.update_ui(updates);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
+    fn update(&mut self) {
         let _span = UpdatesTrace::extension_span::<E>("update");
-        self.0.update(ctx);
+        self.0.update();
     }
 
-    fn layout(&mut self, ctx: &mut AppContext) {
+    fn layout(&mut self) {
         let _span = UpdatesTrace::extension_span::<E>("layout");
-        self.0.layout(ctx);
+        self.0.layout();
     }
 
-    fn render(&mut self, ctx: &mut AppContext) {
+    fn render(&mut self) {
         let _span = UpdatesTrace::extension_span::<E>("render");
-        self.0.render(ctx);
+        self.0.render();
     }
 
-    fn deinit(&mut self, ctx: &mut AppContext) {
+    fn deinit(&mut self) {
         let _span = UpdatesTrace::extension_span::<E>("deinit");
-        self.0.deinit(ctx);
+        self.0.deinit();
     }
 
     fn boxed(self) -> Box<dyn AppExtensionBoxed>
@@ -835,10 +824,10 @@ impl<E: AppExtension> AppExtended<E> {
     ///
     /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
     /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
-    pub fn run(mut self, start: impl FnOnce(&mut AppContext)) {
+    pub fn run(mut self, start: impl FnOnce()) {
         let mut app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
 
-        start(&mut app.ctx());
+        start();
 
         app.run_headed();
     }
@@ -893,11 +882,11 @@ impl<E: AppExtension> RunningApp<E> {
         UPDATES.init(sender);
 
         let device_events = extensions.enable_device_events();
-        let process = AppIntrinsic::pre_init(todo!("remove"), is_headed, with_renderer, view_process_exe, device_events);
+        let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, device_events);
 
         {
             let _s = tracing::debug_span!("extensions.init").entered();
-            extensions.init(todo!("remove"));
+            extensions.init();
         }
 
         RunningApp {
@@ -924,27 +913,20 @@ impl<E: AppExtension> RunningApp<E> {
         self.device_events
     }
 
-    /// Exclusive borrow the app context.
-    pub fn ctx(&mut self) -> AppContext {
-        todo!("remove")
-    }
-
     /// Notify an event directly to the app extensions.
     pub fn notify_event<O: AppEventObserver>(&mut self, mut update: EventUpdate, observer: &mut O) {
         let _scope = tracing::trace_span!("notify_event", event = update.event().name()).entered();
 
-        let mut ctx = todo!(); // REMOVE &mut self.owned_ctx.borrow();
+        self.extensions.event_preview(&mut update);
+        observer.event_preview(&mut update);
+        update.call_pre_actions();
 
-        self.extensions.event_preview(ctx, &mut update);
-        observer.event_preview(ctx, &mut update);
-        update.call_pre_actions(ctx);
+        self.extensions.event_ui(&mut update);
+        observer.event_ui(&mut update);
 
-        self.extensions.event_ui(ctx, &mut update);
-        observer.event_ui(ctx, &mut update);
-
-        self.extensions.event(ctx, &mut update);
-        observer.event(ctx, &mut update);
-        update.call_pos_actions(ctx);
+        self.extensions.event(&mut update);
+        observer.event(&mut update);
+        update.call_pos_actions();
     }
 
     fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
@@ -1461,7 +1443,7 @@ impl<E: AppExtension> RunningApp<E> {
             run = self.loop_monitor.update(|| {
                 let u = UPDATES.apply();
 
-                TimersService::notify(todo!("remove param"));
+                TimersService::notify();
 
                 self.pending_app_events.extend(u.events);
                 self.pending_layout |= u.layout;
@@ -1473,19 +1455,17 @@ impl<E: AppExtension> RunningApp<E> {
 
                 let _s = tracing::debug_span!("extensions").entered();
 
-                let ctx = todo!("remove param");
-
-                self.extensions.update_preview(ctx);
-                observer.update_preview(ctx);
-                UPDATES.on_pre_updates(ctx);
+                self.extensions.update_preview();
+                observer.update_preview();
+                UPDATES.on_pre_updates();
 
                 let mut wgt_updates = u.update_widgets;
-                self.extensions.update_ui(ctx, &mut wgt_updates);
-                observer.update_ui(ctx, &mut wgt_updates);
+                self.extensions.update_ui(&mut wgt_updates);
+                observer.update_ui(&mut wgt_updates);
 
-                self.extensions.update(ctx);
-                observer.update(ctx);
-                UPDATES.on_updates(ctx);
+                self.extensions.update();
+                observer.update();
+                UPDATES.on_updates();
 
                 true
             });
@@ -1505,16 +1485,16 @@ impl<E: AppExtension> RunningApp<E> {
                 let _s = tracing::debug_span!("update_event", ?update).entered();
 
                 self.loop_monitor.maybe_trace(|| {
-                    self.extensions.event_preview(todo!("remove param"), &mut update);
-                    observer.event_preview(todo!("remove param"), &mut update);
-                    update.call_pre_actions(todo!("remove param"));
+                    self.extensions.event_preview(&mut update);
+                    observer.event_preview(&mut update);
+                    update.call_pre_actions();
 
-                    self.extensions.event_ui(todo!("remove param"), &mut update);
-                    observer.event_ui(todo!("remove param"), &mut update);
+                    self.extensions.event_ui(&mut update);
+                    observer.event_ui(&mut update);
 
-                    self.extensions.event(todo!("remove param"), &mut update);
-                    observer.event(todo!("remove param"), &mut update);
-                    update.call_pos_actions(todo!("remove param"));
+                    self.extensions.event(&mut update);
+                    observer.event(&mut update);
+                    update.call_pos_actions();
                 });
 
                 self.apply_updates(observer);
@@ -1534,8 +1514,8 @@ impl<E: AppExtension> RunningApp<E> {
             let _s = tracing::debug_span!("apply_layout").entered();
 
             self.loop_monitor.maybe_trace(|| {
-                self.extensions.layout(todo!("remove param"));
-                observer.layout(todo!("remove param"));
+                self.extensions.layout();
+                observer.layout();
             });
 
             self.apply_updates(observer);
@@ -1544,8 +1524,8 @@ impl<E: AppExtension> RunningApp<E> {
         if mem::take(&mut self.pending_render) {
             let _s = tracing::debug_span!("apply_render").entered();
 
-            self.extensions.render(todo!("remove param"));
-            observer.render(todo!("remove param"));
+            self.extensions.render();
+            observer.render();
         }
 
         self.loop_monitor.finish_frame();
@@ -1554,7 +1534,7 @@ impl<E: AppExtension> RunningApp<E> {
 impl<E: AppExtension> Drop for RunningApp<E> {
     fn drop(&mut self) {
         let _s = tracing::debug_span!("extensions.deinit").entered();
-        self.extensions.deinit(todo!("remove param"));
+        self.extensions.deinit();
     }
 }
 
@@ -1727,11 +1707,6 @@ impl HeadlessApp {
         VIEW_PROCESS.is_available()
     }
 
-    /// Borrows the app context.
-    pub fn ctx(&mut self) -> AppContext {
-        self.app.ctx()
-    }
-
     /// If device events are enabled in this app.
     pub fn device_events(&self) -> bool {
         self.app.device_events()
@@ -1752,11 +1727,11 @@ impl HeadlessApp {
     ///
     /// [`update`]: AppEventObserver::update
     /// [`update_observed`]: HeadlessApp::update
-    pub fn update_observe(&mut self, on_update: impl FnMut(&mut AppContext), wait_app_event: bool) -> ControlFlow {
+    pub fn update_observe(&mut self, on_update: impl FnMut(), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
-        impl<F: FnMut(&mut AppContext)> AppEventObserver for Observer<F> {
-            fn update(&mut self, ctx: &mut AppContext) {
-                (self.0)(ctx)
+        impl<F: FnMut()> AppEventObserver for Observer<F> {
+            fn update(&mut self) {
+                (self.0)()
             }
         }
         let mut observer = Observer(on_update);
@@ -1770,11 +1745,11 @@ impl HeadlessApp {
     ///
     /// [`event`]: AppEventObserver::event
     /// [`update_observed`]: HeadlessApp::update
-    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut AppContext, &EventUpdate), wait_app_event: bool) -> ControlFlow {
+    pub fn update_observe_event(&mut self, on_event: impl FnMut(&mut EventUpdate), wait_app_event: bool) -> ControlFlow {
         struct Observer<F>(F);
-        impl<F: FnMut(&mut AppContext, &EventUpdate)> AppEventObserver for Observer<F> {
-            fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-                (self.0)(ctx, update);
+        impl<F: FnMut(&mut EventUpdate)> AppEventObserver for Observer<F> {
+            fn event(&mut self, update: &mut EventUpdate) {
+                (self.0)(update);
             }
         }
         let mut observer = Observer(on_event);
@@ -1804,18 +1779,18 @@ impl HeadlessApp {
     where
         R: 'static,
         F: Future<Output = R> + Send + Sync + 'static,
-        T: FnOnce(AppContextMut) -> F,
+        T: FnOnce() -> F,
     {
-        let mut task = self.ctx().async_task(task);
+        let mut task = UiTask::new(None, task());
 
         let mut flow = self.update_observe(
-            |ctx| {
-                task.update(ctx);
+            || {
+                task.update();
             },
             false,
         );
 
-        if task.update(&mut self.ctx()).is_some() {
+        if task.update().is_some() {
             let r = task.into_result().ok();
             debug_assert!(r.is_some());
             return r;
@@ -1823,8 +1798,8 @@ impl HeadlessApp {
 
         while flow != ControlFlow::Exit {
             flow = self.update_observe(
-                |ctx| {
-                    task.update(ctx);
+                || {
+                    task.update();
                 },
                 true,
             );
@@ -1842,7 +1817,7 @@ impl HeadlessApp {
     ///
     /// Forces deinit if exit is cancelled.
     pub fn exit(mut self) {
-        self.run_task(|_| async move {
+        self.run_task(|| async move {
             let req = APP_PROCESS.exit();
             req.wait_rsp().await;
         });
@@ -1854,49 +1829,41 @@ impl HeadlessApp {
 /// This works like a temporary app extension that runs only for the update call.
 pub trait AppEventObserver {
     /// Called for each raw event received.
-    fn raw_event(&mut self, ctx: &mut AppContext, ev: &zero_ui_view_api::Event) {
-        let _ = (ctx, ev);
+    fn raw_event(&mut self, ev: &zero_ui_view_api::Event) {
+        let _ = ev;
     }
 
     /// Called just after [`AppExtension::event_preview`].
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        let _ = (ctx, update);
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        let _ = update;
     }
 
     /// Called just after [`AppExtension::event_ui`].
-    fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        let _ = (ctx, update);
+    fn event_ui(&mut self, update: &mut EventUpdate) {
+        let _ = update;
     }
 
     /// Called just after [`AppExtension::event`].
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        let _ = (ctx, update);
+    fn event(&mut self, update: &mut EventUpdate) {
+        let _ = update;
     }
 
     /// Called just after [`AppExtension::update_preview`].
-    fn update_preview(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
-    }
+    fn update_preview(&mut self) {}
 
     /// Called just after [`AppExtension::update_ui`].
-    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        let _ = (ctx, updates);
+    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
+        let _ = updates;
     }
 
     /// Called just after [`AppExtension::update`].
-    fn update(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
-    }
+    fn update(&mut self) {}
 
     /// Called just after [`AppExtension::layout`].
-    fn layout(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
-    }
+    fn layout(&mut self) {}
 
     /// Called just after [`AppExtension::render`].
-    fn render(&mut self, ctx: &mut AppContext) {
-        let _ = ctx;
-    }
+    fn render(&mut self) {}
 
     /// Cast to dynamically dispatched observer, this can help avoid code bloat.
     ///
@@ -1915,88 +1882,88 @@ impl AppEventObserver for () {}
 pub struct DynAppEventObserver<'a>(&'a mut dyn AppEventObserverDyn);
 
 trait AppEventObserverDyn {
-    fn raw_event_dyn(&mut self, ctx: &mut AppContext, ev: &zero_ui_view_api::Event);
-    fn event_preview_dyn(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
-    fn event_ui_dyn(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
-    fn event_dyn(&mut self, ctx: &mut AppContext, update: &mut EventUpdate);
-    fn update_preview_dyn(&mut self, ctx: &mut AppContext);
-    fn update_ui_dyn(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates);
-    fn update_dyn(&mut self, ctx: &mut AppContext);
-    fn layout_dyn(&mut self, ctx: &mut AppContext);
-    fn render_dyn(&mut self, ctx: &mut AppContext);
+    fn raw_event_dyn(&mut self, ev: &zero_ui_view_api::Event);
+    fn event_preview_dyn(&mut self, update: &mut EventUpdate);
+    fn event_ui_dyn(&mut self, update: &mut EventUpdate);
+    fn event_dyn(&mut self, update: &mut EventUpdate);
+    fn update_preview_dyn(&mut self);
+    fn update_ui_dyn(&mut self, updates: &mut WidgetUpdates);
+    fn update_dyn(&mut self);
+    fn layout_dyn(&mut self);
+    fn render_dyn(&mut self);
 }
 impl<O: AppEventObserver> AppEventObserverDyn for O {
-    fn raw_event_dyn(&mut self, ctx: &mut AppContext, ev: &zero_ui_view_api::Event) {
-        self.raw_event(ctx, ev)
+    fn raw_event_dyn(&mut self, ev: &zero_ui_view_api::Event) {
+        self.raw_event(ev)
     }
 
-    fn event_preview_dyn(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.event_preview(ctx, update)
+    fn event_preview_dyn(&mut self, update: &mut EventUpdate) {
+        self.event_preview(update)
     }
 
-    fn event_ui_dyn(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.event_ui(ctx, update)
+    fn event_ui_dyn(&mut self, update: &mut EventUpdate) {
+        self.event_ui(update)
     }
 
-    fn event_dyn(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.event(ctx, update)
+    fn event_dyn(&mut self, update: &mut EventUpdate) {
+        self.event(update)
     }
 
-    fn update_preview_dyn(&mut self, ctx: &mut AppContext) {
-        self.update_preview(ctx)
+    fn update_preview_dyn(&mut self) {
+        self.update_preview()
     }
 
-    fn update_ui_dyn(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        self.update_ui(ctx, updates)
+    fn update_ui_dyn(&mut self, updates: &mut WidgetUpdates) {
+        self.update_ui(updates)
     }
 
-    fn update_dyn(&mut self, ctx: &mut AppContext) {
-        self.update(ctx)
+    fn update_dyn(&mut self) {
+        self.update()
     }
 
-    fn layout_dyn(&mut self, ctx: &mut AppContext) {
-        self.layout(ctx)
+    fn layout_dyn(&mut self) {
+        self.layout()
     }
 
-    fn render_dyn(&mut self, ctx: &mut AppContext) {
-        self.render(ctx)
+    fn render_dyn(&mut self) {
+        self.render()
     }
 }
 impl<'a> AppEventObserver for DynAppEventObserver<'a> {
-    fn raw_event(&mut self, ctx: &mut AppContext, ev: &zero_ui_view_api::Event) {
-        self.0.raw_event_dyn(ctx, ev)
+    fn raw_event(&mut self, ev: &zero_ui_view_api::Event) {
+        self.0.raw_event_dyn(ev)
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.0.event_preview_dyn(ctx, update)
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        self.0.event_preview_dyn(update)
     }
 
-    fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.0.event_ui_dyn(ctx, update)
+    fn event_ui(&mut self, update: &mut EventUpdate) {
+        self.0.event_ui_dyn(update)
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.0.event_dyn(ctx, update)
+    fn event(&mut self, update: &mut EventUpdate) {
+        self.0.event_dyn(update)
     }
 
-    fn update_preview(&mut self, ctx: &mut AppContext) {
-        self.0.update_preview_dyn(ctx)
+    fn update_preview(&mut self) {
+        self.0.update_preview_dyn()
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        self.0.update_ui_dyn(ctx, updates)
+    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
+        self.0.update_ui_dyn(updates)
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        self.0.update_dyn(ctx)
+    fn update(&mut self) {
+        self.0.update_dyn()
     }
 
-    fn layout(&mut self, ctx: &mut AppContext) {
-        self.0.layout_dyn(ctx)
+    fn layout(&mut self) {
+        self.0.layout_dyn()
     }
 
-    fn render(&mut self, ctx: &mut AppContext) {
-        self.0.render_dyn(ctx)
+    fn render(&mut self) {
+        self.0.render_dyn()
     }
 
     fn as_dyn(&mut self) -> DynAppEventObserver {
@@ -2010,9 +1977,9 @@ impl AppExtension for () {
     }
 }
 impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.0.init(ctx);
-        self.1.init(ctx);
+    fn init(&mut self) {
+        self.0.init();
+        self.1.init();
     }
 
     fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
@@ -2023,57 +1990,57 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.0.enable_device_events() || self.1.enable_device_events()
     }
 
-    fn update_preview(&mut self, ctx: &mut AppContext) {
-        self.0.update_preview(ctx);
-        self.1.update_preview(ctx);
+    fn update_preview(&mut self) {
+        self.0.update_preview();
+        self.1.update_preview();
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        self.0.update_ui(ctx, updates);
-        self.1.update_ui(ctx, updates);
+    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
+        self.0.update_ui(updates);
+        self.1.update_ui(updates);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        self.0.update(ctx);
-        self.1.update(ctx);
+    fn update(&mut self) {
+        self.0.update();
+        self.1.update();
     }
 
-    fn layout(&mut self, ctx: &mut AppContext) {
-        self.0.layout(ctx);
-        self.1.layout(ctx);
+    fn layout(&mut self) {
+        self.0.layout();
+        self.1.layout();
     }
 
-    fn render(&mut self, ctx: &mut AppContext) {
-        self.0.render(ctx);
-        self.1.render(ctx);
+    fn render(&mut self) {
+        self.0.render();
+        self.1.render();
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.0.event_preview(ctx, update);
-        self.1.event_preview(ctx, update);
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        self.0.event_preview(update);
+        self.1.event_preview(update);
     }
 
-    fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.0.event_ui(ctx, update);
-        self.1.event_ui(ctx, update);
+    fn event_ui(&mut self, update: &mut EventUpdate) {
+        self.0.event_ui(update);
+        self.1.event_ui(update);
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.0.event(ctx, update);
-        self.1.event(ctx, update);
+    fn event(&mut self, update: &mut EventUpdate) {
+        self.0.event(update);
+        self.1.event(update);
     }
 
-    fn deinit(&mut self, ctx: &mut AppContext) {
-        self.1.deinit(ctx);
-        self.0.deinit(ctx);
+    fn deinit(&mut self) {
+        self.1.deinit();
+        self.0.deinit();
     }
 }
 
 #[cfg(dyn_app_extension)]
 impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
-    fn init(&mut self, ctx: &mut AppContext) {
+    fn init(&mut self) {
         for ext in self {
-            ext.init(ctx);
+            ext.init();
         }
     }
 
@@ -2090,57 +2057,57 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         self.iter().any(|e| e.enable_device_events())
     }
 
-    fn update_preview(&mut self, ctx: &mut AppContext) {
+    fn update_preview(&mut self) {
         for ext in self {
-            ext.update_preview(ctx);
+            ext.update_preview();
         }
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
+    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
         for ext in self {
-            ext.update_ui(ctx, updates);
+            ext.update_ui(updates);
         }
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
+    fn update(&mut self) {
         for ext in self {
-            ext.update(ctx);
+            ext.update();
         }
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
         for ext in self {
-            ext.event_preview(ctx, update);
+            ext.event_preview(update);
         }
     }
 
-    fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_ui(&mut self, update: &mut EventUpdate) {
         for ext in self {
-            ext.event_ui(ctx, update);
+            ext.event_ui(update);
         }
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event(&mut self, update: &mut EventUpdate) {
         for ext in self {
-            ext.event(ctx, update);
+            ext.event(update);
         }
     }
 
-    fn layout(&mut self, ctx: &mut AppContext) {
+    fn layout(&mut self) {
         for ext in self {
-            ext.layout(ctx);
+            ext.layout();
         }
     }
 
-    fn render(&mut self, ctx: &mut AppContext) {
+    fn render(&mut self) {
         for ext in self {
-            ext.render(ctx);
+            ext.render();
         }
     }
 
-    fn deinit(&mut self, ctx: &mut AppContext) {
+    fn deinit(&mut self) {
         for ext in self.iter_mut().rev() {
-            ext.deinit(ctx);
+            ext.deinit();
         }
     }
 }

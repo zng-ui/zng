@@ -277,7 +277,7 @@ mod tests {
         source.set(10u32);
         let mut updated = false;
         app.update_observe(
-            |_| {
+            || {
                 updated = true;
                 assert_eq!(Some(10), mapped2.get_new());
                 assert_eq!(Some(10), mapped2_copy.get_new());
@@ -308,7 +308,7 @@ mod tests {
         source.set(10u32);
         let mut updated = false;
         app.update_observe(
-            |_| {
+            || {
                 updated = true;
                 assert_eq!(Some(10), mapped2.get_new());
                 other_ctx.with_context(|| {

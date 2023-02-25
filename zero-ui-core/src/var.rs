@@ -1512,7 +1512,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         S: Send + 'static,
     {
         let mut span = Some(self.with(&mut enter_value));
-        self.on_pre_new(app_hn!(|_, value, _| {
+        self.on_pre_new(app_hn!(|value, _| {
             let _ = span.take();
             span = Some(enter_value(value));
         }))
@@ -2004,9 +2004,8 @@ where
 
         if let Some(value) = value.as_any().downcast_ref::<T>() {
             let handle = inner_handle.downgrade();
-            let update_once = app_hn_once!(handler, value, |ctx, _| {
+            let update_once = app_hn_once!(handler, value, |_| {
                 handler.lock().event(
-                    ctx,
                     &value,
                     &AppHandlerArgs {
                         handle: &handle,

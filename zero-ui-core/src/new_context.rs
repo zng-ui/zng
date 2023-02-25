@@ -9,8 +9,8 @@ use crate::{
     app::{AppEventSender, LoopTimer},
     app_local,
     context::{
-        state_map, AppContext, InlineConstrains, LayoutDirection, LayoutMetrics, OwnedStateMap, StateMapMut, StateMapRef, UpdatesTrace,
-        WidgetContext, WindowContext,
+        state_map, InlineConstrains, LayoutDirection, LayoutMetrics, OwnedStateMap, StateMapMut, StateMapRef, UpdatesTrace, WidgetContext,
+        WindowContext,
     },
     context_local,
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
@@ -165,7 +165,10 @@ impl WINDOW {
     ///
     /// The `ctx` must be `Some(_)`, it will be moved to the [`WINDOW`] storage and back to `ctx` after `f` returns.
     pub fn with_context<R>(&self, ctx: &mut Option<WindowCtx>, f: impl FnOnce() -> R) -> R {
-        assert!(ctx.is_some());
+        let _span = match &ctx {
+            Some(c) => UpdatesTrace::window_span(c.id),
+            None => panic!("window is required"),
+        };
         WINDOW_CTX.with_context_opt(ctx, f)
     }
 
@@ -786,9 +789,9 @@ impl UPDATES {
         entries.push(UpdateHandler {
             handle: handle_owner,
             count: 0,
-            handler: Box::new(move |ctx, args, handle| {
+            handler: Box::new(move |args, handle| {
                 let handler_args = AppHandlerArgs { handle, is_preview };
-                handler.event(ctx, args, &handler_args);
+                handler.event(args, &handler_args);
                 if force_once {
                     handler_args.handle.unsubscribe();
                 }
@@ -797,29 +800,29 @@ impl UPDATES {
         handle
     }
 
-    pub(crate) fn on_pre_updates(&self, ctx: &mut AppContext) {
+    pub(crate) fn on_pre_updates(&self) {
         let mut handlers = mem::take(UPDATES_SV.write().pre_handlers.get_mut());
-        Self::retain_updates(ctx, &mut handlers);
+        Self::retain_updates(&mut handlers);
 
         let mut u = UPDATES_SV.write();
         handlers.append(u.pre_handlers.get_mut());
         *u.pre_handlers.get_mut() = handlers;
     }
 
-    pub(crate) fn on_updates(&self, ctx: &mut AppContext) {
+    pub(crate) fn on_updates(&self) {
         let mut handlers = mem::take(UPDATES_SV.write().pos_handlers.get_mut());
-        Self::retain_updates(ctx, &mut handlers);
+        Self::retain_updates(&mut handlers);
 
         let mut u = UPDATES_SV.write();
         handlers.append(u.pos_handlers.get_mut());
         *u.pos_handlers.get_mut() = handlers;
     }
 
-    fn retain_updates(ctx: &mut AppContext, handlers: &mut Vec<UpdateHandler>) {
+    fn retain_updates(handlers: &mut Vec<UpdateHandler>) {
         handlers.retain_mut(|e| {
             !e.handle.is_dropped() && {
                 e.count = e.count.wrapping_add(1);
-                (e.handler)(ctx, &UpdateArgs { count: e.count }, &e.handle.weak_handle());
+                (e.handler)(&UpdateArgs { count: e.count }, &e.handle.weak_handle());
                 !e.handle.is_dropped()
             }
         });
@@ -935,7 +938,7 @@ impl WeakOnUpdateHandle {
 struct UpdateHandler {
     handle: HandleOwner<()>,
     count: usize,
-    handler: Box<dyn FnMut(&mut AppContext, &UpdateArgs, &dyn AppWeakHandle) + Send>,
+    handler: Box<dyn FnMut(&UpdateArgs, &dyn AppWeakHandle) + Send>,
 }
 
 /// Arguments for an [`on_pre_update`](UPDATES::on_pre_update), [`on_update`](UPDATES::on_update) or [`run`](UPDATES::run) handler.

@@ -10,7 +10,7 @@ use parking_lot::Mutex;
 
 use crate::{crate_util::RunOnDrop, task, widget_instance::WidgetId, window::WindowId};
 
-use super::{AppContext, WidgetContext};
+use super::WidgetContext;
 
 macro_rules! contextual_ctx {
     ($($Context:ident),+ $(,)?) => {$(paste::paste! {
@@ -90,70 +90,7 @@ impl [<$Context Scope>] {
 
     })+};
 }
-contextual_ctx!(AppContext, WidgetContext);
-
-impl AppContextMut {
-    /// Yield for one update.
-    ///
-    /// Async event handlers run in app updates, the code each `.await` runs in a different update, but only if
-    /// the `.await` does not return immediately. This future always awaits once for each new update, so the
-    /// code after awaiting is guaranteed to run in a different update.
-    ///
-    /// Note that this does not cause an immediate update, if no update was requested it will *wait* until one is.
-    /// To force an update and then yield use [`update`](Self::update) instead.
-    ///
-    /// ```
-    /// # use zero_ui_core::{context::*, handler::*, app::*};
-    /// # HeadlessApp::doc_test((),
-    /// async_app_hn!(|ctx, _, _| {
-    ///     println!("First update");
-    ///     ctx.yield_one().await;
-    ///     println!("Second update");
-    /// })
-    /// # );
-    /// ```
-    pub async fn yield_one(&self) {
-        task::yield_one().await
-    }
-
-    /// Requests one update and returns a future that *yields* one update.
-    ///
-    /// This is like [`yield_one`](Self::yield_one) but also requests the next update, causing the code after
-    /// the `.await` to run immediately after one update is processed.
-    ///
-    /// ```
-    /// # use zero_ui_core::{context::*, handler::*, var::*};
-    /// # let mut app = zero_ui_core::app::App::minimal().run_headless(false);
-    /// let foo_var = var(false);
-    /// # app.ctx().updates.run(
-    /// async_app_hn_once!(foo_var, |ctx, _| {
-    ///     // variable assign will cause an update.
-    ///     foo_var.set(true);
-    ///
-    ///     ctx.yield_one().await;// wait next update.
-    ///
-    ///     // we are in the next update now, the variable value is new.
-    ///     assert_eq!(Some(true), foo_var.get_new());
-    ///
-    ///     ctx.update().await;// force next update and wait.
-    ///
-    ///     // we are in the requested update, variable value is no longer new.
-    ///     assert_eq!(None, foo_var.get_new());
-    /// })
-    /// # ).perm();
-    /// # app.update(false);
-    /// # assert!(foo_var.get());
-    /// ```
-    ///
-    /// In the example above, the variable assign causes an app update so `yield_one` processes it immediately,
-    /// but the second `.await` needs to cause an update if we don't want to depend on another part of the app
-    /// to awake.
-    pub async fn update(&self) {
-        todo!("remove");
-        // self.with(|c| c.updates.update_ext());
-        self.yield_one().await
-    }
-}
+contextual_ctx!(WidgetContext);
 
 impl WidgetContextMut {
     /// Yield for one update.

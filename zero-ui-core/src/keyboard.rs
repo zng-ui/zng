@@ -184,7 +184,7 @@ event! {
 #[derive(Default)]
 pub struct KeyboardManager;
 impl AppExtension for KeyboardManager {
-    fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_KEY_INPUT_EVENT.on(update) {
             let focused = FOCUS.focused().get();
             KEYBOARD_SV.write().key_input(args, focused);

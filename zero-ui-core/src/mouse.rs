@@ -1110,12 +1110,12 @@ impl MouseManager {
     }
 }
 impl AppExtension for MouseManager {
-    fn init(&mut self, ctx: &mut AppContext) {
+    fn init(&mut self) {
         let mut mouse = MOUSE_SV.write();
         mouse.multi_click_config = self.multi_click_config.clone();
     }
 
-    fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             // update hovered
             if self.pos_window == Some(args.window_id) {
@@ -1220,7 +1220,7 @@ impl AppExtension for MouseManager {
         }
     }
 
-    fn event(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
+    fn event(&mut self, update: &mut EventUpdate) {
         if let Some(args) = MOUSE_CAPTURE_EVENT.on(update) {
             if let Some(path) = &self.hovered {
                 if let Some(window_id) = self.pos_window {
@@ -1246,7 +1246,7 @@ impl AppExtension for MouseManager {
         }
     }
 
-    fn update(&mut self, _: &mut AppContext) {
+    fn update(&mut self) {
         MOUSE_SV.write().fulfill_requests();
     }
 }

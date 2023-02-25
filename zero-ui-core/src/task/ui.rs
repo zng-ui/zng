@@ -9,21 +9,6 @@ use std::{
 
 use crate::{context::*, widget_instance::WidgetId};
 
-impl<'a> AppContext<'a> {
-    /// Create an app thread bound future executor that executes in the app context.
-    ///
-    /// The `task` closure is called immediately with the [`AppContextMut`] that is paired with the task, it
-    /// should return the task future `F` in an inert state. Calls to [`AppTask::update`] exclusive borrow the
-    /// [`AppContext`] that is made available inside `F` using the [`AppContextMut::with`] method.
-    pub fn async_task<R, F, T>(&mut self, task: T) -> AppTask<R>
-    where
-        R: 'static,
-        F: Future<Output = R> + Send + 'static,
-        T: FnOnce(AppContextMut) -> F,
-    {
-        AppTask::new(self, task)
-    }
-}
 impl<'a> WidgetContext<'a> {
     /// Create an app thread bound future executor that executes in the context of a widget.
     ///
@@ -192,81 +177,5 @@ impl<R> WidgetTask<R> {
 impl<T: fmt::Debug> fmt::Debug for WidgetTask<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("WidgetTask").field(&self.task.0).finish()
-    }
-}
-
-/// Represents a [`Future`] running in the UI thread in the app context.
-///
-/// The future [`Waker`](std::task::Waker), wakes the app event loop and causes an update, a update handler
-/// then calls [`update`](Self::update) and if this task waked the app the future is polled once.
-pub struct AppTask<R> {
-    task: UiTask<R>,
-    scope: AppContextScope,
-}
-impl<R> AppTask<R> {
-    /// Create an app thread bound future executor that executes in the app context.
-    ///
-    /// The `task` closure is called immediately with the [`AppContextMut`] that is paired with the task, it
-    /// should return the task future `F` in an inert state. Calls to [`AppTask::update`] exclusive borrow the
-    /// [`AppContext`] that is made available inside `F` using the [`AppContextMut::with`] method.
-    pub fn new<F, T>(ctx: &mut AppContext, task: T) -> AppTask<R>
-    where
-        R: 'static,
-        F: Future<Output = R> + Send + 'static,
-        T: FnOnce(AppContextMut) -> F,
-    {
-        let (scope, mut_) = AppContextScope::new();
-
-        let task = scope.with(ctx, move || task(mut_));
-
-        AppTask {
-            task: UiTask::new(None, task),
-            scope,
-        }
-    }
-
-    /// Polls the future if needed, returns a reference to the result if the task is done.
-    ///
-    /// This does not poll the future if the task is done, it also only polls the future if it requested poll.
-    pub fn update(&mut self, ctx: &mut AppContext) -> Option<&R> {
-        let task = &mut self.task;
-        self.scope.with(ctx, move || task.update())
-    }
-
-    /// Returns `true` if the task is done.
-    ///
-    /// This does not poll the future.
-    pub fn is_ready(&self) -> bool {
-        self.task.is_ready()
-    }
-
-    /// Returns the result if the task is completed.
-    ///
-    /// This does not poll the future, you must call [`update`](Self::update) to poll until a result is available,
-    /// then call this method to take ownership of the result.
-    pub fn into_result(self) -> Result<R, Self> {
-        match self.task.into_result() {
-            Ok(r) => Ok(r),
-            Err(task) => Err(Self { task, scope: self.scope }),
-        }
-    }
-}
-impl AppTask<()> {
-    /// Schedule the app task to run to completion.
-    pub fn run(mut self) {
-        if !self.is_ready() {
-            UPDATES
-                .on_pre_update(app_hn!(|ctx, _, handle| {
-                    if self.update(ctx).is_some() {
-                        handle.unsubscribe();
-                    }
-                }))
-                .perm();
-        }
-    }
-}
-impl<T: fmt::Debug> fmt::Debug for AppTask<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("AppTask").field(&self.task.0).finish()
     }
 }

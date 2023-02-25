@@ -16,10 +16,10 @@ use std::time::{Duration, Instant};
 use std::{mem, thread};
 
 use crate::app::HeadlessApp;
-use crate::context::{AppContext, AppContextMut, WidgetContext, WidgetContextMut};
+use crate::context::{WidgetContext, WidgetContextMut};
 use crate::crate_util::{Handle, WeakHandle};
 use crate::new_context::UPDATES;
-use crate::task::ui::{AppTask, WidgetTask};
+use crate::task::ui::{WidgetTask, UiTask};
 
 /// Represents a handler in a widget context.
 ///
@@ -616,7 +616,7 @@ pub trait AppHandler<A: Clone + 'static>: Any + Send {
     /// **not** expected to cancel running async tasks, only to drop `self` before the next event happens.
     ///
     /// [`Updates::on_update`]: crate::context::Updates::on_update
-    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs);
+    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs);
 
     /// Boxes the handler.
     ///
@@ -648,8 +648,8 @@ pub trait AppHandler<A: Clone + 'static>: Any + Send {
     }
 }
 impl<A: Clone + 'static> AppHandler<A> for Box<dyn AppHandler<A>> {
-    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
-        self.as_mut().event(ctx, args, handler_args)
+    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
+        self.as_mut().event(args, handler_args)
     }
 
     fn boxed(self) -> Box<dyn AppHandler<A>> {
@@ -664,10 +664,10 @@ pub struct FnMutAppHandler<H> {
 impl<A, H> AppHandler<A> for FnMutAppHandler<H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + Send + 'static,
+    H: FnMut(&A, &dyn AppWeakHandle) + Send + 'static,
 {
-    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
-        (self.handler)(ctx, args, handler_args.handle);
+    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
+        (self.handler)(args, handler_args.handle);
     }
 }
 #[doc(hidden)]
@@ -675,20 +675,20 @@ where
 pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + Send + 'static,
+    H: FnMut(&A, &dyn AppWeakHandle) + Send + 'static,
 {
     FnMutAppHandler { handler }
 }
 
 #[cfg(dyn_closure)]
-type BoxedAppHn<A> = Box<dyn FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + Send>;
+type BoxedAppHn<A> = Box<dyn FnMut(&A, &dyn AppWeakHandle) + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
 pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<BoxedAppHn<A>>
 where
     A: Clone + 'static,
-    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + Send + 'static,
+    H: FnMut(&A, &dyn AppWeakHandle) + Send + 'static,
 {
     FnMutAppHandler {
         handler: Box::new(handler),
@@ -710,7 +710,7 @@ where
 /// # use zero_ui_core::context::AppContext;
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
-/// CLICK_EVENT.on_event(app_hn!(|_, _, _| {
+/// CLICK_EVENT.on_event(app_hn!(|_, _| {
 ///     println!("Clicked Somewhere!");
 /// })).perm();
 /// # }
@@ -728,7 +728,7 @@ where
 /// # use zero_ui_core::context::AppContext;
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
-/// CLICK_EVENT.on_event(app_hn!(|ctx, args: &ClickArgs, handle| {
+/// CLICK_EVENT.on_event(app_hn!(|args: &ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
 ///     handle.unsubscribe();
 /// })).perm();
@@ -747,7 +747,7 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let foo = var("".to_text());
 ///
-/// CLICK_EVENT.on_event(app_hn!(foo, |_, args: &ClickArgs, _| {
+/// CLICK_EVENT.on_event(app_hn!(foo, |args: &ClickArgs, _| {
 ///     foo.set(args.target.to_text());
 /// })).perm();
 ///
@@ -775,11 +775,11 @@ pub struct FnOnceAppHandler<H> {
 impl<A, H> AppHandler<A> for FnOnceAppHandler<H>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut AppContext, &A) + Send + 'static,
+    H: FnOnce(&A) + Send + 'static,
 {
-    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
+    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
         if let Some(handler) = self.handler.take() {
-            handler(ctx, args);
+            handler(args);
             handler_args.handle.unsubscribe();
         } else {
             tracing::error!("`app_hn_once!` called after requesting unsubscribe");
@@ -791,16 +791,16 @@ where
 pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<H>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut AppContext, &A) + Send + 'static,
+    H: FnOnce(&A) + Send + 'static,
 {
     FnOnceAppHandler { handler: Some(handler) }
 }
 #[doc(hidden)]
 #[cfg(dyn_closure)]
-pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<Box<dyn FnOnce(&mut AppContext, &A) + Send>>
+pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<Box<dyn FnOnce(&A) + Send>>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut AppContext, &A) + Send + 'static,
+    H: FnOnce(&A) + Send + 'static,
 {
     FnOnceAppHandler {
         handler: Some(Box::new(handler)),
@@ -870,24 +870,24 @@ impl<A, F, H> AppHandler<A> for AsyncFnMutAppHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
+    H: FnMut(A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
 {
-    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
+    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
         let handler = &mut self.handler;
-        let mut task = AppTask::new(ctx, |ctx| handler(ctx, args.clone(), handler_args.handle.clone_boxed()));
-        if task.update(ctx).is_none() {
+        let mut task = UiTask::new(None, handler(args.clone(), handler_args.handle.clone_boxed()));
+        if task.update().is_none() {
             if handler_args.is_preview {
                 UPDATES
-                    .on_pre_update(app_hn!(|ctx, _, handle| {
-                        if task.update(ctx).is_some() {
+                    .on_pre_update(app_hn!(|_, handle| {
+                        if task.update().is_some() {
                             handle.unsubscribe();
                         }
                     }))
                     .perm();
             } else {
                 UPDATES
-                    .on_update(app_hn!(|ctx, _, handle| {
-                        if task.update(ctx).is_some() {
+                    .on_update(app_hn!(|_, handle| {
+                        if task.update().is_some() {
                             handle.unsubscribe();
                         }
                     }))
@@ -902,14 +902,13 @@ pub fn async_app_hn<A, F, H>(handler: H) -> AsyncFnMutAppHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
+    H: FnMut(A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
 {
     AsyncFnMutAppHandler { handler }
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsynAppHn<A> =
-    Box<dyn FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
+type BoxedAsynAppHn<A> = Box<dyn FnMut(A, Box<dyn AppWeakHandle>) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
@@ -917,10 +916,10 @@ pub fn async_app_hn<A, F, H>(mut handler: H) -> AsyncFnMutAppHandler<BoxedAsynAp
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
+    H: FnMut(A, Box<dyn AppWeakHandle>) -> F + Send + 'static,
 {
     AsyncFnMutAppHandler {
-        handler: Box::new(move |ctx, args, handle| Box::pin(handler(ctx, args, handle))),
+        handler: Box::new(move |args, handle| Box::pin(handler(args, handle))),
     }
 }
 
@@ -947,7 +946,7 @@ where
 /// # use zero_ui_core::task;
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
-/// CLICK_EVENT.on_event(async_app_hn!(|_, _, _| {
+/// CLICK_EVENT.on_event(async_app_hn!(|_, _| {
 ///     println!("Clicked Somewhere!");
 ///
 ///     task::run(async {
@@ -973,9 +972,8 @@ where
 /// # use zero_ui_core::task;
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
-/// CLICK_EVENT.on_event(async_app_hn!(|ctx, args: ClickArgs, handle| {
+/// CLICK_EVENT.on_event(async_app_hn!(|args: ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
-///     ctx.with(|c| {  });
 ///     task::run(async move {
 ///         handle.unsubscribe();
 ///     });
@@ -996,7 +994,7 @@ where
 /// # fn assert_type(ctx: &mut AppContext) {
 /// let status = var("pending..".to_text());
 ///
-/// CLICK_EVENT.on_event(async_app_hn!(status, |_, args: ClickArgs, _| {
+/// CLICK_EVENT.on_event(async_app_hn!(status, |args: ClickArgs, _| {
 ///     status.set(formatx!("processing {}..", args.target));
 ///
 ///     task::run(async move {
@@ -1039,26 +1037,26 @@ impl<A, F, H> AppHandler<A> for AsyncFnOnceAppHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnOnce(AppContextMut, A) -> F + Send + 'static,
+    H: FnOnce(A) -> F + Send + 'static,
 {
-    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
+    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
         if let Some(handler) = self.handler.take() {
             handler_args.handle.unsubscribe();
 
-            let mut task = AppTask::new(ctx, |ctx| handler(ctx, args.clone()));
-            if task.update(ctx).is_none() {
+            let mut task = UiTask::new(None, handler(args.clone()));
+            if task.update().is_none() {
                 if handler_args.is_preview {
                     UPDATES
-                        .on_pre_update(app_hn!(|ctx, _, handle| {
-                            if task.update(ctx).is_some() {
+                        .on_pre_update(app_hn!(|_, handle| {
+                            if task.update().is_some() {
                                 handle.unsubscribe();
                             }
                         }))
                         .perm();
                 } else {
                     UPDATES
-                        .on_update(app_hn!(|ctx, _, handle| {
-                            if task.update(ctx).is_some() {
+                        .on_update(app_hn!(|_, handle| {
+                            if task.update().is_some() {
                                 handle.unsubscribe();
                             }
                         }))
@@ -1076,13 +1074,13 @@ pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnOnce(AppContextMut, A) -> F + Send + 'static,
+    H: FnOnce(A) -> F + Send + 'static,
 {
     AsyncFnOnceAppHandler { handler: Some(handler) }
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsynAppHnOnce<A> = Box<dyn FnOnce(AppContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
+type BoxedAsynAppHnOnce<A> = Box<dyn FnOnce(A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
@@ -1090,10 +1088,10 @@ pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<BoxedAsyn
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnOnce(AppContextMut, A) -> F + Send + 'static,
+    H: FnOnce(A) -> F + Send + 'static,
 {
     AsyncFnOnceAppHandler {
-        handler: Some(Box::new(move |ctx, args| Box::pin(handler(ctx, args)))),
+        handler: Some(Box::new(move |args| Box::pin(handler(args)))),
     }
 }
 
@@ -1788,7 +1786,7 @@ impl HeadlessApp {
             is_preview: false,
         };
         for handler in handlers {
-            handler.event(&mut self.ctx(), args, &handler_args);
+            handler.event(args, &handler_args);
         }
 
         let mut pending = UPDATES.new_update_handlers(pre_len, pos_len);

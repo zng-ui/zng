@@ -406,11 +406,11 @@ impl Default for FocusManager {
     }
 }
 impl AppExtension for FocusManager {
-    fn init(&mut self, ctx: &mut AppContext) {
+    fn init(&mut self) {
         self.commands = Some(FocusCommands::new());
     }
 
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
             if FOCUS_SV
                 .read()
@@ -426,7 +426,7 @@ impl AppExtension for FocusManager {
                 } else {
                     // no visual change, update interactivity changes.
                     self.pending_render = None;
-                    self.on_info_tree_update(args.tree.clone(), ctx);
+                    self.on_info_tree_update(args.tree.clone());
                 }
             }
             focus_info::FocusTreeData::consolidate_alt_scopes(&args.prev_tree, &args.tree);
@@ -435,9 +435,9 @@ impl AppExtension for FocusManager {
         }
     }
 
-    fn render(&mut self, ctx: &mut AppContext) {
+    fn render(&mut self) {
         if let Some(tree) = self.pending_render.take() {
-            self.on_info_tree_update(tree, ctx);
+            self.on_info_tree_update(tree);
         } else {
             // update visibility or enabled commands, they may have changed if the `spatial_frame_id` changed.
             let focus = FOCUS_SV.read();
@@ -454,12 +454,12 @@ impl AppExtension for FocusManager {
 
             if let Some(tree) = invalidated_cmds_or_focused {
                 drop(focus);
-                self.on_info_tree_update(tree, ctx);
+                self.on_info_tree_update(tree);
             }
         }
     }
 
-    fn event(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
+    fn event(&mut self, update: &mut EventUpdate) {
         let mut request = None;
 
         if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
@@ -495,7 +495,7 @@ impl AppExtension for FocusManager {
         }
     }
 
-    fn update(&mut self, _: &mut AppContext) {
+    fn update(&mut self) {
         let mut focus = FOCUS_SV.write();
         if let Some(request) = focus.request.take() {
             focus.pending_highlight = false;
@@ -508,7 +508,7 @@ impl AppExtension for FocusManager {
     }
 }
 impl FocusManager {
-    fn on_info_tree_update(&mut self, tree: WidgetInfoTree, _: &mut AppContext) {
+    fn on_info_tree_update(&mut self, tree: WidgetInfoTree) {
         let mut focus = FOCUS_SV.write();
         let focus = &mut *focus;
         focus.update_focused_center();

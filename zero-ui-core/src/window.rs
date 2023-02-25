@@ -23,7 +23,7 @@ use crate::{
         raw_events::{RawWindowFocusArgs, RAW_WINDOW_FOCUS_EVENT},
         AppExtended, AppExtension, ControlFlow, HeadlessApp,
     },
-    context::{AppContext, WidgetUpdates, WindowContext},
+    context::{WidgetUpdates, WindowContext},
     event::EventUpdate,
     image::ImageVar,
 };
@@ -53,33 +53,33 @@ use crate::{
 #[derive(Default)]
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
-    fn event_preview(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
         MonitorsService::on_pre_event(update);
-        WINDOWS::on_pre_event(ctx, update);
+        WINDOWS::on_pre_event(update);
     }
 
-    fn event_ui(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        WINDOWS::on_ui_event(ctx, update);
+    fn event_ui(&mut self, update: &mut EventUpdate) {
+        WINDOWS::on_ui_event( update);
     }
 
-    fn event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        WINDOWS::on_event(ctx, update);
+    fn event(&mut self, update: &mut EventUpdate) {
+        WINDOWS::on_event(update);
     }
 
-    fn update_ui(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        WINDOWS::on_ui_update(ctx, updates);
+    fn update_ui(&mut self,updates: &mut WidgetUpdates) {
+        WINDOWS::on_ui_update(updates);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        WINDOWS::on_update(ctx);
+    fn update(&mut self) {
+        WINDOWS::on_update();
     }
 
-    fn layout(&mut self, ctx: &mut AppContext) {
-        WINDOWS::on_layout(ctx);
+    fn layout(&mut self) {
+        WINDOWS::on_layout();
     }
 
-    fn render(&mut self, ctx: &mut AppContext) {
-        WINDOWS::on_render(ctx);
+    fn render(&mut self) {
+        WINDOWS::on_render();
     }
 }
 
@@ -127,7 +127,7 @@ pub trait AppRunWindowExt {
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) {
-        self.run(|_| {
+        self.run(|| {
             WINDOWS.open(new_window);
         })
     }
@@ -164,7 +164,7 @@ pub trait HeadlessAppWindowExt {
 impl HeadlessAppWindowExt for HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> WindowId {
         let response = WINDOWS.open(new_window);
-        self.run_task(move |_| async move {
+        self.run_task(move || async move {
             response.wait_rsp().await;
             response.rsp().unwrap().window_id
         })
@@ -197,7 +197,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
         let mut closed = false;
 
         let _ = self.update_observe_event(
-            |_, update| {
+            |update| {
                 if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
                     requested |= args.windows.contains(&window_id);
                 } else if let Some(args) = WINDOW_CLOSE_EVENT.on(update) {

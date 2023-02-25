@@ -28,38 +28,6 @@ pub use trace::*;
 mod value;
 pub use value::*;
 
-/// Full application context.
-pub struct AppContext<'a> {
-    a: &'a (),
-}
-impl<'a> AppContext<'a> {
-    /// Runs a function `f` in the context of a window.
-    ///
-    /// Returns the function result and
-    pub fn window_context<R>(
-        &mut self,
-        window_id: WindowId,
-        window_mode: WindowMode,
-        window_state: &mut OwnedStateMap<state_map::Window>,
-        f: impl FnOnce(&mut WindowContext) -> R,
-    ) -> (R, InfoLayoutRenderUpdates) {
-        let _span = UpdatesTrace::window_span(window_id);
-
-        // self.updates.enter_window_ctx();
-
-        let mut update_state = OwnedStateMap::new();
-
-        let r = f(&mut WindowContext {
-            window_id: &window_id,
-            window_mode: &window_mode,
-            window_state: window_state.borrow_mut(),
-            update_state: update_state.borrow_mut(),
-        });
-
-        (r, todo!("remove"))
-    }
-}
-
 /// A window context.
 pub struct WindowContext<'a> {
     /// Id of the context window.
@@ -1881,32 +1849,5 @@ impl From<LayoutDirection> for harfbuzz_rs::Direction {
             LayoutDirection::LTR => Self::Ltr,
             LayoutDirection::RTL => Self::Rtl,
         }
-    }
-}
-
-#[cfg(test)]
-pub mod tests {
-    use std::rc::Rc;
-
-    use crate::app::App;
-
-    use super::*;
-
-    #[test]
-    #[should_panic(expected = "already in `AppContextMut::with`, cannot borrow `&mut AppContext` twice")]
-    fn context_reentry() {
-        let mut app = App::default().run_headless(false);
-
-        let (scope, ctx) = AppContextScope::new();
-        let ctx_a = Rc::new(ctx);
-        let ctx_b = Rc::clone(&ctx_a);
-
-        scope.with(&mut app.ctx(), move || {
-            ctx_a.with(move |a| {
-                ctx_b.with(move |b| {
-                    let _invalid: (&mut AppContext, &mut AppContext) = (a, b);
-                })
-            })
-        });
     }
 }

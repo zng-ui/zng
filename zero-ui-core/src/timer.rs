@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     app::LoopTimer,
-    context::{app_local, AppContext},
+    context::{app_local},
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     units::Deadline,
@@ -21,13 +21,13 @@ use crate::{
 
 struct DeadlineHandlerEntry {
     handle: HandleOwner<DeadlineState>,
-    handler: Mutex<Box<dyn FnMut(&mut AppContext, &dyn AppWeakHandle) + Send>>, // not actually locked, just makes this Sync
+    handler: Mutex<Box<dyn FnMut(&dyn AppWeakHandle) + Send>>, // not actually locked, just makes this Sync
     pending: bool,
 }
 
 struct TimerHandlerEntry {
     handle: HandleOwner<TimerState>,
-    handler: Mutex<Box<dyn FnMut(&mut AppContext, &TimerArgs, &dyn AppWeakHandle) + Send>>, // not actually locked, just makes this Sync
+    handler: Mutex<Box<dyn FnMut(&TimerArgs, &dyn AppWeakHandle) + Send>>, // not actually locked, just makes this Sync
     pending: Option<Deadline>,                                                              // the last expected deadline
 }
 
@@ -82,9 +82,8 @@ impl TimersService {
         let (handle_owner, handle) = DeadlineHandle::new(deadline);
         self.deadline_handlers.push(DeadlineHandlerEntry {
             handle: handle_owner,
-            handler: Mutex::new(Box::new(move |ctx, handle| {
+            handler: Mutex::new(Box::new(move |handle| {
                 handler.event(
-                    ctx,
                     &DeadlineArgs {
                         timestamp: Instant::now(),
                         deadline,
@@ -105,8 +104,8 @@ impl TimersService {
 
         self.timer_handlers.push(TimerHandlerEntry {
             handle: owner,
-            handler: Mutex::new(Box::new(move |ctx, args, handle| {
-                handler.event(ctx, args, &AppHandlerArgs { handle, is_preview: true });
+            handler: Mutex::new(Box::new(move |args, handle| {
+                handler.event(args, &AppHandlerArgs { handle, is_preview: true });
             })),
             pending: None,
         });
@@ -234,7 +233,7 @@ impl TimersService {
     }
 
     /// does on_* notifications.
-    pub(crate) fn notify(ctx: &mut AppContext) {
+    pub(crate) fn notify() {
         let _s = tracing::trace_span!("Timers").entered();
 
         // we need to detach the handlers from the AppContext, so we can pass the context for then
@@ -252,7 +251,7 @@ impl TimersService {
         drop(timers);
         handlers.retain_mut(|h| {
             if h.pending {
-                (h.handler.get_mut())(ctx, &h.handle.weak_handle());
+                (h.handler.get_mut())(&h.handle.weak_handle());
                 h.handle.data().executed.store(true, Ordering::Relaxed);
             }
             !h.pending // drop if just called, deadline handlers are *once*.
@@ -271,7 +270,7 @@ impl TimersService {
                     deadline,
                     wk_handle: h.handle.weak_handle(),
                 };
-                (h.handler.get_mut())(ctx, &args, &h.handle.weak_handle());
+                (h.handler.get_mut())(&args, &h.handle.weak_handle());
             }
 
             !h.handle.is_dropped() // drop if called stop inside the handler.

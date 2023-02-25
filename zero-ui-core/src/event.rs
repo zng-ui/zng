@@ -15,7 +15,7 @@ use std::{
 
 use crate::{
     clone_move,
-    context::{AppContext, AppLocal, UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
+    context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
     crate_util::{IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
     widget_info::WidgetInfoTree,
@@ -313,11 +313,10 @@ impl<A: EventArgs> Event<A> {
 
             let handle = inner_handle.downgrade();
             update.push_once_action(
-                Box::new(clone_move!(handler, |ctx, update| {
+                Box::new(clone_move!(handler, |update| {
                     let args = update.args().as_any().downcast_ref::<A>().unwrap();
                     if !args.propagation().is_stopped() {
                         handler.lock().event(
-                            ctx,
                             args,
                             &AppHandlerArgs {
                                 handle: &handle,
@@ -468,8 +467,8 @@ pub struct EventUpdate {
     event: AnyEvent,
     args: Box<dyn AnyEventArgs>,
     delivery_list: UpdateDeliveryList,
-    pre_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate) + Send>>,
-    pos_actions: Vec<Box<dyn FnOnce(&mut AppContext, &EventUpdate) + Send>>,
+    pre_actions: Vec<Box<dyn FnOnce(&EventUpdate) + Send>>,
+    pos_actions: Vec<Box<dyn FnOnce(&EventUpdate) + Send>>,
 }
 impl EventUpdate {
     /// The event.
@@ -522,7 +521,7 @@ impl EventUpdate {
         }
     }
 
-    fn push_once_action(&mut self, action: Box<dyn FnOnce(&mut AppContext, &EventUpdate) + Send>, is_preview: bool) {
+    fn push_once_action(&mut self, action: Box<dyn FnOnce(&EventUpdate) + Send>, is_preview: bool) {
         if is_preview {
             self.pre_actions.push(action);
         } else {
@@ -530,17 +529,17 @@ impl EventUpdate {
         }
     }
 
-    pub(crate) fn call_pre_actions(&mut self, ctx: &mut AppContext) {
+    pub(crate) fn call_pre_actions(&mut self) {
         let actions = mem::take(&mut self.pre_actions);
         for action in actions {
-            action(ctx, self)
+            action( self)
         }
     }
 
-    pub(crate) fn call_pos_actions(&mut self, ctx: &mut AppContext) {
+    pub(crate) fn call_pos_actions(&mut self) {
         let actions = mem::take(&mut self.pos_actions);
         for action in actions {
-            action(ctx, self)
+            action(self)
         }
     }
 }

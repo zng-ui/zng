@@ -15,13 +15,7 @@ struct PendingExit {
 }
 impl AppIntrinsic {
     /// Pre-init intrinsic services and commands, must be called before extensions init.
-    pub(super) fn pre_init(
-        ctx: &mut AppContext,
-        is_headed: bool,
-        with_renderer: bool,
-        view_process_exe: Option<PathBuf>,
-        device_events: bool,
-    ) -> Self {
+    pub(super) fn pre_init(is_headed: bool, with_renderer: bool, view_process_exe: Option<PathBuf>, device_events: bool) -> Self {
         if is_headed {
             debug_assert!(with_renderer);
 
@@ -57,7 +51,7 @@ impl AppIntrinsic {
     }
 }
 impl AppExtension for AppIntrinsic {
-    fn event_preview(&mut self, _: &mut AppContext, update: &mut EventUpdate) {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = EXIT_CMD.on(update) {
             args.handle_enabled(&self.exit_handle, |_| {
                 APP_PROCESS.exit();
@@ -65,7 +59,7 @@ impl AppExtension for AppIntrinsic {
         }
     }
 
-    fn update(&mut self, _: &mut AppContext) {
+    fn update(&mut self) {
         if let Some(response) = APP_PROCESS_SV.write().take_requests() {
             let args = ExitRequestedArgs::now();
             self.pending_exit = Some(PendingExit {

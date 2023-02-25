@@ -112,10 +112,9 @@ impl<T: VarValue> ResponseVar<T> {
             return VarHandle::dummy();
         }
 
-        self.on_pre_new(app_hn!(|ctx, args, handler_args| {
+        self.on_pre_new(app_hn!(|args, handler_args| {
             if let Response::Done(value) = args {
                 handler.event(
-                    ctx,
                     value,
                     &crate::handler::AppHandlerArgs {
                         handle: handler_args,
@@ -141,10 +140,9 @@ impl<T: VarValue> ResponseVar<T> {
             return VarHandle::dummy();
         }
 
-        self.on_new(app_hn!(|ctx, args, handler_args| {
+        self.on_new(app_hn!(|args, handler_args| {
             if let Response::Done(value) = args {
                 handler.event(
-                    ctx,
                     value,
                     &crate::handler::AppHandlerArgs {
                         handle: handler_args,

@@ -19,7 +19,7 @@ use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
 use crate::crate_util::IdSet;
 use crate::event::{AnyEventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
-use crate::new_context::UPDATES;
+use crate::new_context::{UPDATES, WINDOW};
 use crate::render::RenderMode;
 use crate::timer::{DeadlineHandle, TIMERS};
 use crate::widget_info::WidgetInfoTree;
@@ -566,7 +566,7 @@ impl WINDOWS {
         }
     }
 
-    pub(super) fn on_pre_event(ctx: &mut AppContext, update: &mut EventUpdate) {
+    pub(super) fn on_pre_event(update: &mut EventUpdate) {
         if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             let mut wns = WINDOWS_SV.write();
 
@@ -625,25 +625,25 @@ impl WINDOWS {
             UPDATES.update_ext();
         }
 
-        Self::with_detached_windows(ctx, |ctx, windows| {
+        Self::with_detached_windows(|windows| {
             for (_, window) in windows {
-                window.pre_event(ctx, update);
+                window.pre_event(update);
             }
         })
     }
 
-    pub(super) fn on_ui_event(ctx: &mut AppContext, update: &mut EventUpdate) {
+    pub(super) fn on_ui_event(update: &mut EventUpdate) {
         if update.delivery_list().has_pending_search() {
             update.fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
-        Self::with_detached_windows(ctx, |ctx, windows| {
+        Self::with_detached_windows(|windows| {
             for (_, window) in windows {
-                window.ui_event(ctx, update);
+                window.ui_event(update);
             }
         });
     }
 
-    pub(super) fn on_event(ctx: &mut AppContext, update: &mut EventUpdate) {
+    pub(super) fn on_event(update: &mut EventUpdate) {
         if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
             let key = args.windows.iter().next().unwrap();
             if let Some(rsp) = WINDOWS_SV.write().close_responders.remove(key) {
@@ -667,7 +667,7 @@ impl WINDOWS {
                 let mut wns = WINDOWS_SV.write();
                 if let Some(w) = wns.windows.remove(w) {
                     let id = w.id;
-                    w.close(ctx);
+                    w.close();
 
                     let info = wns.windows_info.remove(&id).unwrap();
 
@@ -709,25 +709,25 @@ impl WINDOWS {
         }
     }
 
-    pub(super) fn on_ui_update(ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        Self::fullfill_requests(ctx);
+    pub(super) fn on_ui_update(updates: &mut WidgetUpdates) {
+        Self::fullfill_requests();
 
         if updates.delivery_list().has_pending_search() {
             updates.fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
 
-        Self::with_detached_windows(ctx, |ctx, windows| {
+        Self::with_detached_windows(|windows| {
             for (_, window) in windows {
-                window.update(ctx, updates);
+                window.update(updates);
             }
         });
     }
 
-    pub(super) fn on_update(ctx: &mut AppContext) {
-        Self::fullfill_requests(ctx);
+    pub(super) fn on_update() {
+        Self::fullfill_requests();
     }
 
-    fn fullfill_requests(ctx: &mut AppContext) {
+    fn fullfill_requests() {
         if VIEW_PROCESS.is_available() && !VIEW_PROCESS.is_online() {
             // wait ViewProcessInitedEvent
             return;
@@ -750,7 +750,7 @@ impl WINDOWS {
                 (mode, _) => mode,
             };
 
-            let (window, info) = AppWindow::new(ctx, r.id, window_mode, color_scheme, r.new.into_inner(), r.loading_handle);
+            let (window, info) = AppWindow::new(r.id, window_mode, color_scheme, r.new.into_inner(), r.loading_handle);
 
             let args = WindowOpenArgs::now(window.id);
             {
@@ -806,34 +806,34 @@ impl WINDOWS {
 
         // fulfill focus request
         if let Some(w_id) = focus {
-            Self::with_detached_windows(ctx, |ctx, windows| {
+            Self::with_detached_windows(|windows| {
                 if let Some(w) = windows.get_mut(&w_id) {
-                    w.focus(ctx);
+                    w.focus();
                 }
             });
         }
 
         for w_id in bring_to_top {
-            Self::with_detached_windows(ctx, |ctx, windows| {
+            Self::with_detached_windows(|windows| {
                 if let Some(w) = windows.get_mut(&w_id) {
-                    w.bring_to_top(ctx);
+                    w.bring_to_top();
                 }
             });
         }
     }
 
-    pub(super) fn on_layout(ctx: &mut AppContext) {
-        Self::with_detached_windows(ctx, |ctx, windows| {
+    pub(super) fn on_layout() {
+        Self::with_detached_windows(|windows| {
             for (_, window) in windows {
-                window.layout(ctx);
+                window.layout();
             }
         });
     }
 
-    pub(super) fn on_render(ctx: &mut AppContext) {
-        Self::with_detached_windows(ctx, |ctx, windows| {
+    pub(super) fn on_render() {
+        Self::with_detached_windows(|windows| {
             for (_, window) in windows {
-                window.render(ctx);
+                window.render();
             }
         });
     }
@@ -842,9 +842,9 @@ impl WINDOWS {
     ///
     /// The windows map is empty for the duration of `f` and should not be used, this is for
     /// mutating the window content while still allowing it to query the `Windows::windows_info`.
-    fn with_detached_windows(ctx: &mut AppContext, f: impl FnOnce(&mut AppContext, &mut LinearMap<WindowId, AppWindow>)) {
+    fn with_detached_windows(f: impl FnOnce(&mut LinearMap<WindowId, AppWindow>)) {
         let mut windows = mem::take(&mut WINDOWS_SV.write().windows);
-        f(ctx, &mut windows);
+        f(&mut windows);
         let mut wns = WINDOWS_SV.write();
         debug_assert!(wns.windows.is_empty());
         wns.windows = windows;
@@ -901,7 +901,6 @@ struct AppWindow {
 }
 impl AppWindow {
     pub fn new(
-        ctx: &mut AppContext,
         id: WindowId,
         mode: WindowMode,
         color_scheme: ColorScheme,
@@ -912,76 +911,81 @@ impl AppWindow {
             .primary_monitor()
             .map(|m| m.scale_factor().get())
             .unwrap_or_else(|| 1.fct());
+        todo!("!!:");
 
-        let vars = WindowVars::new(WINDOWS_SV.read().default_render_mode.get(), primary_scale_factor, color_scheme);
-        let mut state = OwnedStateMap::new();
-        state.borrow_mut().set(&WINDOW_VARS_ID, vars.clone());
-        let (window, _) = ctx.window_context(id, mode, &mut state, new);
+        // let vars = WindowVars::new(WINDOWS_SV.read().default_render_mode.get(), primary_scale_factor, color_scheme);
+        // let mut state = OwnedStateMap::new();
+        // state.borrow_mut().set(&WINDOW_VARS_ID, vars.clone());
+        // let (window, _) = ctx.window_context(id, mode, &mut state, new); // !!: TODO WINDOW.with_context
 
-        if window.kiosk {
-            vars.chrome().set_ne(WindowChrome::None);
-            vars.visible().set_ne(true);
-            if !vars.state().get().is_fullscreen() {
-                vars.state().set(WindowState::Exclusive);
-            }
-        }
+        // if window.kiosk {
+        //     vars.chrome().set_ne(WindowChrome::None);
+        //     vars.visible().set_ne(true);
+        //     if !vars.state().get().is_fullscreen() {
+        //         vars.state().set(WindowState::Exclusive);
+        //     }
+        // }
 
-        let commands = WindowCommands::new(id);
+        // let commands = WindowCommands::new(id);
 
-        let root_id = window.id;
-        let ctrl = WindowCtrl::new(id, &vars, commands, mode, window);
+        // let root_id = window.id;
+        // let ctrl = WindowCtrl::new(id, &vars, commands, mode, window);
 
-        let window = Self {
-            ctrl: Mutex::new(ctrl),
-            id,
-            mode,
-            state,
-        };
-        let info = AppWindowInfo::new(id, root_id, mode, vars, loading);
+        // let window = Self {
+        //     ctrl: Mutex::new(ctrl),
+        //     id,
+        //     mode,
+        //     state,
+        // };
+        // let info = AppWindowInfo::new(id, root_id, mode, vars, loading);
 
-        (window, info)
+        // (window, info)
     }
 
-    fn ctrl_in_ctx(&mut self, ctx: &mut AppContext, action: impl FnOnce(&mut WindowContext, &mut WindowCtrl)) {
-        let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| action(ctx, self.ctrl.get_mut()));
-        if updates.is_any() {
-            let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| {
-                self.ctrl.get_mut().window_updates(ctx, updates)
-            });
-            debug_assert!(updates.is_none());
-        }
+    fn ctrl_in_ctx(&mut self, action: impl FnOnce(&mut WindowContext, &mut WindowCtrl)) {
+        // !!: TODO refactor to this
+        // WINDOW.with_context(&mut Some(), f)
+        //
+        // let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| action(ctx, self.ctrl.get_mut()));
+        // if updates.is_any() {
+        //     let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| {
+        //         self.ctrl.get_mut().window_updates(ctx, updates)
+        //     });
+        //     debug_assert!(updates.is_none());
+        // }
     }
 
-    pub fn pre_event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.pre_event(ctx, update))
+    pub fn pre_event(&mut self, update: &mut EventUpdate) {
+        self.ctrl_in_ctx(|ctx, ctrl| ctrl.pre_event(ctx, update))
     }
 
-    pub fn ui_event(&mut self, ctx: &mut AppContext, update: &mut EventUpdate) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.ui_event(ctx, update))
+    pub fn ui_event(&mut self, update: &mut EventUpdate) {
+        self.ctrl_in_ctx(|ctx, ctrl| ctrl.ui_event(ctx, update))
     }
 
-    pub fn update(&mut self, ctx: &mut AppContext, updates: &mut WidgetUpdates) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.update(ctx, updates));
+    pub fn update(&mut self, updates: &mut WidgetUpdates) {
+        self.ctrl_in_ctx(|ctx, ctrl| ctrl.update(ctx, updates));
     }
 
-    pub fn layout(&mut self, ctx: &mut AppContext) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.layout(ctx));
+    pub fn layout(&mut self) {
+        self.ctrl_in_ctx(|ctx, ctrl| ctrl.layout(ctx));
     }
 
-    pub fn render(&mut self, ctx: &mut AppContext) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.render(ctx));
+    pub fn render(&mut self) {
+        self.ctrl_in_ctx(|ctx, ctrl| ctrl.render(ctx));
     }
 
-    pub fn focus(&mut self, ctx: &mut AppContext) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.focus(ctx));
+    pub fn focus(&mut self) {
+        self.ctrl_in_ctx(|ctx, ctrl| ctrl.focus(ctx));
     }
 
-    pub fn bring_to_top(&mut self, ctx: &mut AppContext) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.bring_to_top(ctx));
+    pub fn bring_to_top(&mut self) {
+        self.ctrl_in_ctx(|ctx, ctrl| ctrl.bring_to_top(ctx));
     }
 
-    pub fn close(mut self, ctx: &mut AppContext) {
-        let _ = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| self.ctrl.get_mut().close(ctx));
+    pub fn close(mut self) {
+        // !!: TODO, refactor to `WINDOW.with_context`
+        // let _ = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| self.ctrl.get_mut().close(ctx));
     }
 }
 
@@ -1023,7 +1027,7 @@ impl WindowLoading {
             if self.timer.is_none() {
                 let t = TIMERS.on_deadline(
                     deadline,
-                    app_hn_once!(|_, _| {
+                    app_hn_once!(|_| {
                         UPDATES.update_ext();
                     }),
                 );

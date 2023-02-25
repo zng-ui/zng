@@ -44,13 +44,13 @@ pub use combinators::*;
 pub struct ConfigManager {}
 impl ConfigManager {}
 impl AppExtension for ConfigManager {
-    fn deinit(&mut self, _: &mut AppContext) {
+    fn deinit(&mut self) {
         if let Some((mut source, _)) = CONFIG_SV.write().source.take() {
             source.deinit();
         }
     }
 
-    fn update_preview(&mut self, _: &mut AppContext) {
+    fn update_preview(&mut self) {
         CONFIG_SV.write().update();
     }
 }
