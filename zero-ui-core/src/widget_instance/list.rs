@@ -912,7 +912,7 @@ impl EditableUiNodeList {
 
                 for (i, mut wgt) in r.insert {
                     wgt.init(ctx);
-                    WIDGET.rebuild_info();
+                    WIDGET.info();
                     if i < self.len() {
                         self.insert(i, wgt);
                     } else {
@@ -921,7 +921,7 @@ impl EditableUiNodeList {
                 }
                 for mut wgt in r.push {
                     wgt.init(ctx);
-                    WIDGET.rebuild_info();
+                    WIDGET.info();
                     self.push(wgt);
                 }
                 for (r, i) in r.move_index {
@@ -934,7 +934,7 @@ impl EditableUiNodeList {
                             self.vec.push(wgt);
                         }
 
-                        WIDGET.rebuild_info();
+                        WIDGET.info();
                     }
                 }
                 for (id, to) in r.move_id {
@@ -950,7 +950,7 @@ impl EditableUiNodeList {
                                 self.vec.push(wgt);
                             }
 
-                            WIDGET.rebuild_info();
+                            WIDGET.info();
                         }
                     }
                 }
@@ -959,7 +959,7 @@ impl EditableUiNodeList {
                     if let Some(i) = self.vec.iter().position(|w| w.with_context(|ctx| ctx.id == id).unwrap_or(false)) {
                         let mut wgt = self.vec.remove(i);
                         wgt.deinit(ctx);
-                        WIDGET.rebuild_info();
+                        WIDGET.info();
 
                         observer.removed(i);
                     }
@@ -967,7 +967,7 @@ impl EditableUiNodeList {
 
                 for (i, mut wgt) in r.insert {
                     wgt.init(ctx);
-                    WIDGET.rebuild_info();
+                    WIDGET.info();
 
                     if i < self.len() {
                         self.insert(i, wgt);
@@ -980,7 +980,7 @@ impl EditableUiNodeList {
 
                 for mut wgt in r.push {
                     wgt.init(ctx);
-                    WIDGET.rebuild_info();
+                    WIDGET.info();
 
                     observer.inserted(self.len());
                     self.push(wgt);
@@ -1002,7 +1002,7 @@ impl EditableUiNodeList {
                             observer.moved(r, i);
                         }
 
-                        WIDGET.rebuild_info();
+                        WIDGET.info();
                     }
                 }
 
@@ -1022,7 +1022,7 @@ impl EditableUiNodeList {
                                 observer.moved(r, i);
                             }
 
-                            WIDGET.rebuild_info();
+                            WIDGET.info();
                         }
                     }
                 }

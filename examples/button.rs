@@ -92,10 +92,10 @@ fn dyn_buttons() -> impl UiNode {
             button! {
                 child = text!("Add Button");
                 on_click = hn!(|ctx, _| {
-                    children_ref.push(ctx, button! {
+                    children_ref.push(button! {
                         child = text!("Remove {}", btn);
                         on_click = hn!(children_ref, |ctx, _| {
-                            children_ref.remove(ctx.updates, ctx.path.widget_id());
+                            children_ref.remove(ctx.path.widget_id());
                         })
                     });
 

@@ -131,7 +131,7 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
     impl UiNode for ClearColorNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.clear_color.is_new() {
-                ctx.updates.render_update();
+                WIDGET.render_update();
             }
             self.child.update(ctx, updates);
         }

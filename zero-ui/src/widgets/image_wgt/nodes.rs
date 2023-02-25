@@ -299,10 +299,10 @@ pub fn image_presenter() -> impl UiNode {
                 let img_size = img.size();
                 if self.img_size != img_size {
                     self.img_size = img_size;
-                    ctx.updates.layout();
+                    WIDGET.layout();
                     self.requested_layout = true;
                 } else if img.is_loaded() {
-                    ctx.updates.render();
+                    WIDGET.render();
                 }
             }
 
@@ -314,12 +314,12 @@ pub fn image_presenter() -> impl UiNode {
                 || IMAGE_ALIGN_VAR.is_new()
                 || IMAGE_OFFSET_VAR.is_new()
             {
-                ctx.updates.layout();
+                WIDGET.layout();
                 self.requested_layout = true;
             }
 
             if IMAGE_RENDERING_VAR.is_new() {
-                ctx.updates.render();
+                WIDGET.render();
             }
         }
 
@@ -460,7 +460,7 @@ pub fn image_presenter() -> impl UiNode {
                 self.render_clip = render_clip;
                 self.render_img_size = render_img_size;
                 self.render_offset = render_offset;
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             wgt_size

@@ -177,7 +177,7 @@ pub mod thumb {
 
                         THUMB_OFFSET_VAR.set_ne(offset.fct()).expect("ThumbOffsetVar is read-only");
 
-                        ctx.updates.layout();
+                        WIDGET.layout();
                     } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                         if args.is_primary() && args.is_mouse_up() {
                             self.mouse_down = None;
@@ -197,7 +197,7 @@ pub mod thumb {
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if THUMB_OFFSET_VAR.is_new() {
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
 
                 self.child.update(ctx, updates);

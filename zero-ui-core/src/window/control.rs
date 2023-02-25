@@ -1537,7 +1537,7 @@ impl ContentCtrl {
                     |ctx| {
                         self.root.init(ctx);
 
-                        WIDGET.rebuild_info();
+                        WIDGET.info();
                     },
                 );
                 self.init_state = InitState::Inited;

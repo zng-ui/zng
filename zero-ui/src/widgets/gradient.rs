@@ -35,7 +35,7 @@ pub fn linear_gradient_ext(
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if self.axis.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
                 self.final_size = PxSize::zero();
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -59,7 +59,7 @@ pub fn linear_gradient_ext(
                     },
                 );
 
-                ctx.updates.render();
+                WIDGET.render();
             }
             final_size
         }
@@ -117,7 +117,7 @@ pub fn linear_gradient_full(
                 || self.tile_spacing.is_new()
             {
                 self.final_size = PxSize::zero();
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -143,7 +143,7 @@ pub fn linear_gradient_full(
                     },
                 );
 
-                ctx.updates.render();
+                WIDGET.render();
             }
             self.final_size
         }
@@ -225,7 +225,7 @@ pub fn radial_gradient_ext(
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if self.center.is_new() || self.radius.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
                 self.final_size = PxSize::zero();
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -257,7 +257,7 @@ pub fn radial_gradient_ext(
                     },
                 );
 
-                ctx.updates.render();
+                WIDGET.render();
             }
             final_size
         }
@@ -320,7 +320,7 @@ pub fn radial_gradient_full(
                 || self.tile_spacing.is_new()
             {
                 self.final_size = PxSize::zero();
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -356,7 +356,7 @@ pub fn radial_gradient_full(
                     },
                 );
 
-                ctx.updates.render();
+                WIDGET.render();
             }
             final_size
         }
@@ -433,7 +433,7 @@ pub fn conic_gradient_ext(
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if self.center.is_new() || self.angle.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
                 self.final_size = PxSize::zero();
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -468,7 +468,7 @@ pub fn conic_gradient_ext(
                     },
                 );
 
-                ctx.updates.render();
+                WIDGET.render();
             }
             final_size
         }
@@ -523,7 +523,7 @@ pub fn conic_gradient_full(
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if self.center.is_new() || self.angle.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
                 self.final_size = PxSize::zero();
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -562,7 +562,7 @@ pub fn conic_gradient_full(
                     },
                 );
 
-                ctx.updates.render();
+                WIDGET.render();
             }
             final_size
         }

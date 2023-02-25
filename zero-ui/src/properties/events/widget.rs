@@ -129,7 +129,7 @@ pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>)
             self.child.init(ctx);
 
             self.pending = true;
-            ctx.updates.update(ctx.path.widget_id());
+            WIDGET.update();
         }
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {

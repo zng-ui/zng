@@ -665,7 +665,7 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
                 self.child.deinit(ctx);
                 self.generate_child(ctx);
                 self.child.init(ctx);
-                ctx.updates.info_layout_render();
+                WIDGET.info().layout().render();
             } else {
                 self.child.update(ctx, updates);
             }

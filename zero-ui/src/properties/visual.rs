@@ -299,9 +299,9 @@ pub fn foreground_highlight(
     impl UiNode for ForegroundHighlightNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.offsets.is_new() || self.widths.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             } else if self.sides.is_new() {
-                ctx.updates.render();
+                WIDGET.render();
             }
             self.child.update(ctx, updates);
         }
@@ -340,7 +340,7 @@ pub fn foreground_highlight(
                 self.render_bounds = bounds;
                 self.render_widths = widths;
                 self.render_radius = radius;
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             size
@@ -461,7 +461,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
     impl UiNode for ClipToBoundsNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.clip.is_new() {
-                ctx.updates.layout_render();
+                WIDGET.layout().render();
             }
 
             self.child.update(ctx, updates);
@@ -477,7 +477,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
                 let corners = ContextBorders::border_radius(ctx);
                 if corners != self.corners {
                     self.corners = corners;
-                    ctx.updates.render();
+                    WIDGET.render();
                 }
             }
 
@@ -530,7 +530,7 @@ pub fn inline(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             if self.enabled.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 

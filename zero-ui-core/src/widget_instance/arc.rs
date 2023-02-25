@@ -444,7 +444,7 @@ mod impls {
                     let mut node = self.rc.item.lock();
                     (self.delegate_deinit)(&mut node, ctx);
 
-                    WIDGET.rebuild_info().layout().render();
+                    WIDGET.info().layout().render();
 
                     if let Some(new) = replacement {
                         *node = new;
@@ -468,7 +468,7 @@ mod impls {
                     });
                     *node = new;
 
-                    WIDGET.rebuild_info().layout().render();
+                    WIDGET.info().layout().render();
                 }
             } else if self.take.take_on_update(ctx, updates) {
                 // request ownership.
@@ -506,18 +506,12 @@ mod impls {
                 ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
                     (self.delegate_init)(&mut *self.rc.item.lock(), ctx);
                 });
-                WIDGET.rebuild_info().layout().render();
+                WIDGET.info().layout().render();
             }
         }
 
         fn is_owner(&self) -> bool {
-            self.rc
-                .slots
-                .lock()
-                .owner
-                .as_ref()
-                .map(|(sl, _)| *sl == self.slot)
-                .unwrap_or(false)
+            self.rc.slots.lock().owner.as_ref().map(|(sl, _)| *sl == self.slot).unwrap_or(false)
         }
 
         fn delegate_owned<R>(&self, del: impl FnOnce(&U) -> R) -> Option<R> {

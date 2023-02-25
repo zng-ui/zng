@@ -35,10 +35,10 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
             self.filter.with_new(|f| {
                 if let Some(f) = f.try_render() {
                     self.render_filter = Some(f);
-                    ctx.updates.render();
+                    WIDGET.render();
                 } else {
                     self.render_filter = None;
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
             });
             self.child.update(ctx, updates)
@@ -50,7 +50,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if self.render_filter.is_none() {
                 self.render_filter = Some(self.filter.get().layout(ctx.metrics));
-                ctx.updates.render();
+                WIDGET.render();
             }
             self.child.layout(ctx, wl)
         }
@@ -95,10 +95,10 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
             self.filter.with_new(|f| {
                 if let Some(f) = f.try_render() {
                     self.render_filter = Some(f);
-                    ctx.updates.render();
+                    WIDGET.render();
                 } else {
                     self.render_filter = None;
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
             });
             self.child.update(ctx, updates)
@@ -110,7 +110,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if self.render_filter.is_none() {
                 self.render_filter = Some(self.filter.get().layout(ctx.metrics));
-                ctx.updates.render();
+                WIDGET.render();
             }
             self.child.layout(ctx, wl)
         }
@@ -269,7 +269,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     impl UiNode for OpacityNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.alpha.is_new() {
-                ctx.updates.render_update();
+                WIDGET.render_update();
             }
             self.child.update(ctx, updates);
         }
@@ -308,7 +308,7 @@ pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl Ui
     impl UiNode for ChildOpacityNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.alpha.is_new() {
-                ctx.updates.render_update();
+                WIDGET.render_update();
             }
             self.child.update(ctx, updates);
         }

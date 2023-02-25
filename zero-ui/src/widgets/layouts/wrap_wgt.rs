@@ -99,7 +99,7 @@ impl UiNode for WrapNode {
         self.children.update_all(ctx, updates, &mut any);
 
         if any || self.spacing.is_new() || self.children_align.is_new() {
-            ctx.updates.layout();
+            WIDGET.layout();
         }
     }
 

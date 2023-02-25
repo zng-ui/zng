@@ -70,10 +70,10 @@ pub mod rule_line {
     impl UiNode for LineNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if self.stroke_thickness.is_new() || self.length.is_new() || self.orientation.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
             if self.color.is_new() || self.style.is_new() {
-                ctx.updates.render();
+                WIDGET.render();
             }
         }
 
@@ -107,7 +107,7 @@ pub mod rule_line {
 
             if bounds != self.bounds {
                 self.bounds = bounds;
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             bounds

@@ -203,7 +203,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.enabled.is_new() {
-                ctx.updates.info();
+                WIDGET.info();
             }
 
             self.child.update(ctx, updates);

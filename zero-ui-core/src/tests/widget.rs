@@ -1263,9 +1263,10 @@ mod util {
 
     use crate::{
         context::{StaticStateId, TestWidgetContext, WidgetContext, WidgetUpdates},
+        new_context::UPDATES,
         property, ui_node,
         var::{IntoValue, IntoVar, Var},
-        widget_instance::UiNode, new_context::UPDATES,
+        widget_instance::UiNode,
     };
 
     /// Insert `trace` in the widget state. Can be probed using [`traced`].

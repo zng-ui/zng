@@ -103,7 +103,7 @@ impl WidgetCtx {
 
     /// Returns `true` once if a info rebuild was requested in a previous [`WIDGET.with_context`] call.
     ///
-    /// Child nodes can request updates using [`WIDGET.rebuild_info`].
+    /// Child nodes can request updates using [`WIDGET.info`].
     pub fn take_info(&mut self) -> bool {
         self.take_flag(UpdateFlags::INFO)
     }
@@ -316,7 +316,7 @@ impl WIDGET {
     /// Schedule an info rebuild for the current widget.
     ///
     /// After all requested updates apply the parent window and widgets will re-build the info tree.
-    pub fn rebuild_info(&self) -> &Self {
+    pub fn info(&self) -> &Self {
         let mut ctx = self.req_mut();
         if !ctx.flags.contains(UpdateFlags::LAYOUT) {
             ctx.flags.insert(UpdateFlags::LAYOUT);

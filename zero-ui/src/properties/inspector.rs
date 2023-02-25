@@ -124,7 +124,7 @@ fn show_widget_tree(
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.valid && self.enabled.is_new() {
-                ctx.updates.render();
+                WIDGET.render();
             }
             self.child.update(ctx, updates);
         }
@@ -224,7 +224,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                         self.fails = fails;
                         self.hits = hits;
 
-                        ctx.updates.render();
+                        WIDGET.render();
                     }
                 }
             } else if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
@@ -232,7 +232,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                     self.fails.clear();
                     self.hits.clear();
 
-                    ctx.updates.render();
+                    WIDGET.render();
                 }
             }
             self.child.event(ctx, update);
@@ -249,7 +249,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                 } else {
                     self.handles.clear();
                 }
-                ctx.updates.render();
+                WIDGET.render();
             }
             self.child.update(ctx, updates);
         }
@@ -334,7 +334,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
 
                                         if self.search_quads != search_quads {
                                             self.search_quads = search_quads;
-                                            ctx.updates.render();
+                                            WIDGET.render();
                                         }
 
                                         none = false;
@@ -346,7 +346,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
 
                         if none && !self.search_quads.is_empty() {
                             self.search_quads.clear();
-                            ctx.updates.render();
+                            WIDGET.render();
                         }
                     }
                 }
@@ -366,7 +366,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                         self.mouse_hovered_handle = None;
                     }
 
-                    ctx.updates.render();
+                    WIDGET.render();
                 }
             }
             self.child.update(ctx, updates);

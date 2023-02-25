@@ -250,11 +250,12 @@ mod util {
             WidgetUpdates,
         },
         event::{event, event_args, EventUpdate},
+        new_context::WIDGET,
         render::{FrameBuilder, FrameUpdate},
         units::*,
         widget_base,
         widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-        widget_instance::{UiNode, WidgetId}, new_context::WIDGET,
+        widget_instance::{UiNode, WidgetId},
     };
 
     pub(super) static TRACE_ID: StaticStateId<Vec<TraceRef>> = StaticStateId::new_unique();

@@ -207,7 +207,7 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if FONT_SIZE_VAR.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
             self.child.update(ctx, updates);
         }
@@ -597,7 +597,7 @@ pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -
             self.child.update(ctx, updates);
 
             if self.direction.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 

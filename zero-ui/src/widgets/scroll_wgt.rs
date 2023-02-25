@@ -175,7 +175,7 @@ pub mod scroll {
 
                 if viewport != self.viewport {
                     self.viewport = viewport;
-                    ctx.updates.render();
+                    WIDGET.render();
                 }
 
                 self.viewport + self.joiner

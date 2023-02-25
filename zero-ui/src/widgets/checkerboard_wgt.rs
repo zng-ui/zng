@@ -94,10 +94,10 @@ pub fn node() -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if let Some((c0, c1)) = COLORS_VAR.get_new() {
                 self.colors = [c0.into(), c1.into()];
-                ctx.updates.render();
+                WIDGET.render();
             }
             if SIZE_VAR.is_new() || OFFSET_VAR.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -124,7 +124,7 @@ pub fn node() -> impl UiNode {
                 self.tile_size = tile_size;
                 self.center = center;
 
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             self.final_size

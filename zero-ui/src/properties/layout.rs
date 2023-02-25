@@ -51,7 +51,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
     impl UiNode for MarginNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.margin.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
             self.child.update(ctx, updates);
         }
@@ -117,7 +117,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
     impl UiNode for AlignNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.alignment.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             self.child.update(ctx, updates);
@@ -183,7 +183,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
     impl UiNode for OffsetNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.offset.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
             self.child.update(ctx, updates);
         }
@@ -241,7 +241,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     impl UiNode for XNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.x.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
             self.child.update(ctx, updates);
         }
@@ -296,7 +296,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     impl UiNode for YNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.y.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
             self.child.update(ctx, updates);
         }
@@ -360,7 +360,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
     impl UiNode for MinSizeNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.min_size.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             self.child.update(ctx, updates);
@@ -432,7 +432,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
     impl UiNode for MinWidthNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.min_width.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             self.child.update(ctx, updates);
@@ -506,7 +506,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
     impl UiNode for MinHeightNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.min_height.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             self.child.update(ctx, updates);
@@ -581,7 +581,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
     impl UiNode for MaxSizeNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.max_size.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             self.child.update(ctx, updates);
@@ -653,7 +653,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
     impl UiNode for MaxWidthNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.max_width.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             self.child.update(ctx, updates);
@@ -729,7 +729,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
     impl UiNode for MaxHeightNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.max_height.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             self.child.update(ctx, updates);
@@ -818,7 +818,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             self.child.update(ctx, updates);
             self.size.with_new(|s| {
                 SizePropertyLength::set(ctx.widget_state.reborrow(), s);
-                ctx.updates.layout();
+                WIDGET.layout();
             });
         }
 
@@ -896,7 +896,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
             self.child.update(ctx, updates);
             self.width.with_new(|w| {
                 SizePropertyLength::set_width(ctx.widget_state.reborrow(), w);
-                ctx.updates.layout();
+                WIDGET.layout();
             });
         }
 
@@ -976,7 +976,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
             self.child.update(ctx, updates);
             self.height.with_new(|h| {
                 SizePropertyLength::set_height(ctx.widget_state.reborrow(), h);
-                ctx.updates.layout();
+                WIDGET.layout();
             });
         }
 
@@ -1027,7 +1027,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
     impl UiNode for BaselineNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.baseline.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
             self.child.update(ctx, updates);
         }
@@ -1247,7 +1247,7 @@ pub fn child_insert(
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.children.update_all(ctx, updates, &mut ());
             if self.place.is_new() || self.spacing.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -1360,7 +1360,7 @@ pub fn child_insert(
                     if self.offset != offset || self.offset_child != child {
                         self.offset_child = child;
                         self.offset = offset;
-                        ctx.updates.render_update();
+                        WIDGET.render_update();
                     }
 
                     PxSize::new(
@@ -1427,7 +1427,7 @@ pub fn child_insert(
                     if self.offset != offset || self.offset_child != child {
                         self.offset_child = child;
                         self.offset = offset;
-                        ctx.updates.render_update();
+                        WIDGET.render_update();
                     }
 
                     PxSize::new(

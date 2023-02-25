@@ -47,7 +47,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             self.child.update(ctx, updates);
 
             if self.mode.is_new() || SCROLL_VERTICAL_OFFSET_VAR.is_new() || SCROLL_HORIZONTAL_OFFSET_VAR.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -124,7 +124,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             if self.viewport_size != viewport_size {
                 self.viewport_size = viewport_size;
                 SCROLL_VIEWPORT_SIZE_VAR.set(viewport_size).unwrap();
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             self.info.set_viewport_size(viewport_size);
@@ -150,9 +150,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 // render again to load more widgets in the view-process.
                 let update_only_offset = (self.last_render_offset.get() - self.content_offset).abs();
                 if update_only_offset.y <= self.viewport_size.height / Px(2) && update_only_offset.x <= self.viewport_size.width / Px(2) {
-                    ctx.updates.render_update();
+                    WIDGET.render_update();
                 } else {
-                    ctx.updates.render();
+                    WIDGET.render();
                 }
             }
 
@@ -285,7 +285,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             self.right.set_enabled(ScrollContext::can_scroll_right());
 
             if VERTICAL_LINE_UNIT_VAR.is_new() || HORIZONTAL_LINE_UNIT_VAR.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -407,7 +407,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             self.right.set_enabled(ScrollContext::can_scroll_right());
 
             if VERTICAL_PAGE_UNIT_VAR.is_new() || HORIZONTAL_PAGE_UNIT_VAR.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -596,7 +596,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                     let mode = SCROLL_TO_FOCUSED_MODE_VAR.get();
 
                                     self.scroll_to = Some((bounds, mode));
-                                    ctx.updates.layout();
+                                    WIDGET.layout();
                                 }
                             }
                         }
@@ -618,7 +618,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                                 // will scroll on the next arrange.
                                 self.scroll_to = Some((bounds, mode));
-                                ctx.updates.layout();
+                                WIDGET.layout();
 
                                 args.propagation().stop();
                             }
@@ -756,7 +756,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                             }
                         }
 
-                        ctx.updates.layout();
+                        WIDGET.layout();
                     });
                 }
             }

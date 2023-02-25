@@ -1021,9 +1021,12 @@ impl WindowLoading {
                 }
             }
             if self.timer.is_none() {
-                let t = TIMERS.on_deadline(deadline, app_hn_once!(|_, _| {
-                    UPDATES.update_ext();
-                }));
+                let t = TIMERS.on_deadline(
+                    deadline,
+                    app_hn_once!(|_, _| {
+                        UPDATES.update_ext();
+                    }),
+                );
                 self.timer = Some(t);
             }
 

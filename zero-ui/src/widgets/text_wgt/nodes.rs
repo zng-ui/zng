@@ -282,7 +282,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     r.faces = faces;
 
                     r.reshape = true;
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
             }
             self.with_mut(|c| c.event(ctx, update))
@@ -301,7 +301,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     r.text = SegmentedText::new(text, direction);
 
                     r.reshape = true;
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
             }
 
@@ -322,7 +322,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     r.faces = faces;
 
                     r.reshape = true;
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
             }
 
@@ -331,7 +331,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 let synthesis = FONT_SYNTHESIS_VAR.get() & r.faces.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
                 if r.synthesis != synthesis {
                     r.synthesis = synthesis;
-                    ctx.updates.render();
+                    WIDGET.render();
                 }
             }
             if let Some(enabled) = TEXT_EDITABLE_VAR.get_new() {
@@ -711,7 +711,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if FONT_SIZE_VAR.is_new() || FONT_VARIATIONS_VAR.is_new() {
                 self.txt.get_mut().pending.insert(Layout::RESHAPE);
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             if LETTER_SPACING_VAR.is_new()
@@ -725,16 +725,16 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 txt.shaping_args.lang = LANG_VAR.get();
                 txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into(); // will be set in layout too.
                 txt.pending.insert(Layout::RESHAPE);
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             if UNDERLINE_POSITION_VAR.is_new() || UNDERLINE_SKIP_VAR.is_new() {
                 self.txt.get_mut().pending.insert(Layout::UNDERLINE);
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             if OVERLINE_THICKNESS_VAR.is_new() || STRIKETHROUGH_THICKNESS_VAR.is_new() || UNDERLINE_THICKNESS_VAR.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             if let Some(lb) = LINE_BREAK_VAR.get_new() {
@@ -742,7 +742,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if txt.shaping_args.line_break != lb {
                     txt.shaping_args.line_break = lb;
                     txt.pending.insert(Layout::RESHAPE);
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
             }
 
@@ -751,7 +751,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if txt.shaping_args.word_break != wb {
                     txt.shaping_args.word_break = wb;
                     txt.pending.insert(Layout::RESHAPE);
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
             }
 
@@ -760,7 +760,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if txt.shaping_args.hyphens != h {
                     txt.shaping_args.hyphens = h;
                     txt.pending.insert(Layout::RESHAPE);
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
             }
 
@@ -769,20 +769,20 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 txt.shaping_args.hyphen_char = c;
                 if Hyphens::None != txt.shaping_args.hyphens {
                     txt.pending.insert(Layout::RESHAPE);
-                    ctx.updates.layout();
+                    WIDGET.layout();
                 }
             }
 
             if TEXT_WRAP_VAR.is_new() {
                 self.txt.get_mut().pending.insert(Layout::RESHAPE);
-                ctx.updates.layout();
+                WIDGET.layout();
             }
 
             FONT_FEATURES_VAR.with_new(|f| {
                 let txt = self.txt.get_mut();
                 txt.shaping_args.font_features = f.finalize();
                 txt.pending.insert(Layout::RESHAPE);
-                ctx.updates.layout();
+                WIDGET.layout();
             });
 
             self.child.update(ctx, updates);
@@ -851,7 +851,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let size = txt.layout(ctx.path.widget_id(), ctx.metrics, t, false);
 
             if txt.pending != Layout::empty() {
-                ctx.updates.render();
+                WIDGET.render();
                 txt.pending = Layout::empty();
             }
 
@@ -934,7 +934,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if UNDERLINE_STYLE_VAR.is_new() || UNDERLINE_COLOR_VAR.is_new() {
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             self.child.update(ctx, updates);
@@ -980,7 +980,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if STRIKETHROUGH_STYLE_VAR.is_new() || STRIKETHROUGH_COLOR_VAR.is_new() {
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             self.child.update(ctx, updates);
@@ -1025,7 +1025,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if OVERLINE_STYLE_VAR.is_new() || OVERLINE_COLOR_VAR.is_new() {
-                ctx.updates.render();
+                WIDGET.render();
             }
 
             self.child.update(ctx, updates);
@@ -1093,7 +1093,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
 
             if self.color != color {
                 self.color = color;
-                ctx.updates.render_update();
+                WIDGET.render_update();
             }
 
             self.child.update(ctx, updates);
@@ -1162,9 +1162,9 @@ pub fn render_text() -> impl UiNode {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if FONT_AA_VAR.is_new() {
-                ctx.updates.render();
+                WIDGET.render();
             } else if TEXT_COLOR_VAR.is_new() {
-                ctx.updates.render_update();
+                WIDGET.render_update();
             }
         }
 

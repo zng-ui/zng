@@ -412,7 +412,7 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Text>) -> impl UiNode {
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             if self.anchor.is_new() {
-                ctx.updates.info();
+                WIDGET.info();
             }
         }
 

@@ -593,7 +593,7 @@ pub mod nodes {
 
             fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
                 if self.interactive.is_new() {
-                    WIDGET.rebuild_info();
+                    WIDGET.info();
                 }
                 self.child.update(ctx, updates);
             }
@@ -698,7 +698,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.enabled.is_new() {
-                WIDGET.rebuild_info();
+                WIDGET.info();
             }
             self.child.update(ctx, updates);
         }
@@ -747,7 +747,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             if self.interactive.is_new() {
-                WIDGET.rebuild_info();
+                WIDGET.info();
             }
             self.child.update(ctx, updates);
         }

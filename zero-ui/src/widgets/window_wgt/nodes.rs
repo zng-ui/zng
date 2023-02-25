@@ -78,13 +78,10 @@ impl WindowLayers {
             }
         }
 
-        ctx.window_state.req(&WINDOW_LAYERS_ID).items.push(
-            ctx.updates,
-            LayeredWidget {
-                layer: layer.into_var(),
-                widget: widget.cfg_boxed(),
-            },
-        );
+        ctx.window_state.req(&WINDOW_LAYERS_ID).items.push(LayeredWidget {
+            layer: layer.into_var(),
+            widget: widget.cfg_boxed(),
+        });
     }
 
     /// Insert the `widget` in the layer and *anchor* it to the offset/transform of another widget.
@@ -181,16 +178,16 @@ impl WindowLayers {
                 if let Some(anchor) = self.anchor.get_new() {
                     self.anchor_info = ctx.info_tree.get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                     if self.mode.with(|m| m.interaction) {
-                        ctx.updates.info();
+                        WIDGET.info();
                     }
-                    ctx.updates.layout_render();
+                    WIDGET.layout().render();
                 }
                 if let Some(mode) = self.mode.get_new() {
                     if mode.interaction != self.interaction {
                         self.interaction = mode.interaction;
-                        ctx.updates.info();
+                        WIDGET.info();
                     }
-                    ctx.updates.layout_render();
+                    WIDGET.layout().render();
                 }
                 self.widget.update(ctx, updates);
             }
@@ -431,7 +428,7 @@ impl WindowLayers {
     ///
     /// The `id` must the widget id of a previous inserted widget, nothing happens if the widget is not found.
     pub fn remove(ctx: &mut WidgetContext, id: impl Into<WidgetId>) {
-        ctx.window_state.req(&WINDOW_LAYERS_ID).items.remove(ctx.updates, id);
+        ctx.window_state.req(&WINDOW_LAYERS_ID).items.remove(id);
     }
 }
 
@@ -466,7 +463,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             self.children.update_all(ctx, updates, &mut changed);
 
             if changed {
-                ctx.updates.layout_render();
+                WIDGET.layout().render();
             }
         }
 

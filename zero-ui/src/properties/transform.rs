@@ -21,7 +21,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
             self.child.update(ctx, updates);
             if self.transform.is_new() {
-                ctx.updates.layout();
+                WIDGET.layout();
             }
         }
 
@@ -45,7 +45,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
             if transform != self.render_transform {
                 self.render_transform = transform;
-                ctx.updates.render_update();
+                WIDGET.render_update();
             }
 
             size

@@ -10,7 +10,7 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
     impl UiNode for FloodNode {
         fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
             if self.color.is_new() {
-                ctx.updates.render_update();
+                WIDGET.render_update();
             }
         }
         fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
@@ -20,7 +20,7 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
             let final_size = ctx.constrains().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
-                ctx.updates.render();
+                WIDGET.render();
             }
             final_size
         }

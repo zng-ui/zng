@@ -558,10 +558,10 @@ pub mod cell {
     /// This property sets the [`INFO_ID`].
     #[property(CONTEXT, default(usize::MAX))]
     pub fn column(child: impl UiNode, col: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, col, CellInfo::default, |u, i, &c| {
+        with_widget_state_modify(child, &INFO_ID, col, CellInfo::default, |i, &c| {
             if i.column != c {
                 i.column = c;
-                u.layout();
+                WIDGET.layout();
             }
         })
     }
@@ -573,10 +573,10 @@ pub mod cell {
     /// This property sets the [`INFO_ID`].
     #[property(CONTEXT, default(usize::MAX))]
     pub fn row(child: impl UiNode, row: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, row, CellInfo::default, |u, i, &r| {
+        with_widget_state_modify(child, &INFO_ID, row, CellInfo::default, |i, &r| {
             if i.row != r {
                 i.row = r;
-                u.layout();
+                WIDGET.layout();
             }
         })
     }
@@ -593,10 +593,10 @@ pub mod cell {
     /// This property sets the [`INFO_ID`].
     #[property(CONTEXT, default(1))]
     pub fn column_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |u, i, &s| {
+        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, &s| {
             if i.column_span != s {
                 i.column_span = s;
-                u.layout();
+                WIDGET.layout();
             }
         })
     }
@@ -613,10 +613,10 @@ pub mod cell {
     /// This property sets the [`INFO_ID`].
     #[property(CONTEXT, default(1))]
     pub fn row_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |u, i, &s| {
+        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, &s| {
             if i.row_span != s {
                 i.row_span = s;
-                u.layout();
+                WIDGET.layout();
             }
         })
     }
@@ -809,7 +809,7 @@ impl GridNode {
             c.with_context_mut(|c_ctx| {
                 let prev = c_ctx.widget_state.set(&column::INDEX_ID, (i, columns_len));
                 if prev != Some((i, columns_len)) {
-                    ctx.updates.update(c_ctx.id);
+                    UPDATES.update(c_ctx.id);
                 }
             });
             true
@@ -819,7 +819,7 @@ impl GridNode {
             r.with_context_mut(|r_ctx| {
                 let prev = r_ctx.widget_state.set(&row::INDEX_ID, (i, rows_len));
                 if prev != Some((i, rows_len)) {
-                    ctx.updates.update(r_ctx.id);
+                    UPDATES.update(r_ctx.id);
                 }
             });
             true
@@ -847,7 +847,7 @@ impl GridNode {
     #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
         if self.spacing.is_new() {
-            ctx.updates.layout();
+            WIDGET.layout();
         }
 
         let mut any = false;
@@ -864,7 +864,7 @@ impl GridNode {
         }
         if any {
             self.update_info(ctx);
-            ctx.updates.layout();
+            WIDGET.layout();
         }
     }
 
