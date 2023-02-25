@@ -22,7 +22,7 @@ use crate::{
     var::{AnyVar, VarHandle, VarHandles, VARS},
     widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfo, WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
-    window::WindowId,
+    window::{WindowId, WindowMode},
 };
 
 bitflags! {
@@ -41,14 +41,16 @@ bitflags! {
 /// Each window owns this data and calls [`WINDOW.with_context`] to delegate to it's child node.
 pub struct WindowCtx {
     id: WindowId,
+    mode: WindowMode,
     state: OwnedStateMap<state_map::Window>,
     widget_tree: Option<WidgetInfoTree>,
 }
 impl WindowCtx {
     /// New window context.
-    pub fn new(id: WindowId) -> Self {
+    pub fn new(id: WindowId, mode: WindowMode) -> Self {
         Self {
             id,
+            mode,
             state: OwnedStateMap::default(),
             widget_tree: None,
         }
@@ -200,6 +202,11 @@ impl WINDOW {
     /// Get the widget ID if called inside a widget, or panic.
     pub fn id(&self) -> WindowId {
         self.req().id
+    }
+
+    /// Get the window mode.
+    pub fn mode(&self) -> WindowMode {
+        self.req().mode
     }
 
     /// Gets the window info tree.
