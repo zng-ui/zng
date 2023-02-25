@@ -24,7 +24,7 @@ where
     })]
     impl UiNode for BindWindowVarNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            let window_var = (self.select)(WindowVars::req(ctx));
+            let window_var = (self.select)(&WindowVars::req());
             if !self.user_var.capabilities().is_always_static() {
                 let binding = self.user_var.bind_bidi(&window_var);
                 ctx.handles.push_vars(binding);
@@ -300,7 +300,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                         match &self.task {
                             Task::None => {
                                 // request write.
-                                let window_vars = WindowVars::req(&ctx.window_state);
+                                let window_vars = WindowVars::req();
                                 let cfg = WindowStateCfg {
                                     state: window_vars.state().get(),
                                     restore_rect: window_vars.restore_rect().get().cast(),
@@ -321,7 +321,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             if let Task::Read { rsp, .. } = &mut self.task {
                 if let Some(rsp) = rsp.rsp() {
                     if let Some(s) = rsp {
-                        let window_vars = WindowVars::req(&ctx.window_state);
+                        let window_vars = WindowVars::req();
                         window_vars.state().set_ne(s.state);
                         let restore_rect: DipRect = s.restore_rect.cast();
 

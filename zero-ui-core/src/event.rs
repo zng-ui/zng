@@ -15,9 +15,10 @@ use std::{
 
 use crate::{
     clone_move,
-    context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WidgetContext, WindowContext},
+    context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WidgetContext},
     crate_util::{IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
+    new_context::WINDOW,
     widget_info::WidgetInfoTree,
     widget_instance::WidgetId,
 };
@@ -494,9 +495,12 @@ impl EventUpdate {
     }
 
     /// Calls `handle` if the event targets the window.
-    pub fn with_window<H: FnOnce(&mut WindowContext, &mut Self) -> R, R>(&mut self, ctx: &mut WindowContext, handle: H) -> Option<R> {
-        if self.delivery_list.enter_window(*ctx.window_id) {
-            Some(handle(ctx, self))
+    pub fn with_window<H, R>(&mut self, handle: H) -> Option<R>
+    where
+        H: FnOnce(&mut Self) -> R,
+    {
+        if self.delivery_list.enter_window(WINDOW.id()) {
+            Some(handle(self))
         } else {
             None
         }

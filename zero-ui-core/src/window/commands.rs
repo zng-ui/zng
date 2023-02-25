@@ -1,6 +1,6 @@
 //! Commands that control the scoped window.
 
-use crate::{context::WindowContext, event::*, gesture::*, var::*};
+use crate::{event::*, gesture::*, new_context::WINDOW, var::*};
 
 use super::{WindowId, WindowState, WindowVars, WINDOWS};
 
@@ -85,8 +85,8 @@ impl WindowCommands {
         }
     }
 
-    pub fn event(&mut self, ctx: &mut WindowContext, window_vars: &WindowVars, update: &mut EventUpdate) {
-        let scope = *ctx.window_id;
+    pub fn event(&mut self, window_vars: &WindowVars, update: &mut EventUpdate) {
+        let scope = WINDOW.id();
         if let Some(args) = MAXIMIZE_CMD.scoped(scope).on(update) {
             args.handle_enabled(&self.maximize_handle, |_| {
                 window_vars.state().set_ne(WindowState::Maximized);

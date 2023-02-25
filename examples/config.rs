@@ -19,7 +19,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         CONFIG.load(ConfigFile::new("target/tmp/example.config.json"));
         // CONFIG.remove("old.key");
 
@@ -77,7 +77,7 @@ fn app_main() {
                         child = text!("Open Another Instance");
                         on_click = hn!(|ctx, _| {
                             let offset = Dip::new(30);
-                            let pos = WindowVars::req(ctx).actual_position().get() + DipVector::new(offset, offset);
+                            let pos = WindowVars::req().actual_position().get() + DipVector::new(offset, offset);
                             let pos = pos.to_i32();
                             let r: Result<(), Box<dyn std::error::Error>> = (|| {
                                 let exe = std::env::current_exe()?;
@@ -97,7 +97,7 @@ fn app_main() {
                     if let Some((x, y)) = pos.split_once(',') {
                         if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
                             let pos = DipPoint::new(Dip::new(x), Dip::new(y));
-                            WindowVars::req(&ctx.window_state).position().set(pos);
+                            WindowVars::req().position().set(pos);
                             WINDOWS.focus(ctx.path.window_id()).unwrap();
                         }
                     }

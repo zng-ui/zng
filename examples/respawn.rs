@@ -7,17 +7,17 @@ use zero_ui::prelude::*;
 fn main() {
     examples_util::print_info();
     zero_ui_view::init();
-    App::default().run_window(|ctx| {
+    App::default().run_window(|| {
         window! {
             title = "View-Process Respawn Example";
-            icon = WindowIcon::render(|_| icon());
+            icon = WindowIcon::render(icon);
             start_position = StartPosition::CenterMonitor;
             on_key_down = hn!(|_, args: &KeyInputArgs| {
                 if args.key == Some(Key::F5) {
                     VIEW_PROCESS.respawn();
                 }
             });
-            foreground = window_status(ctx);
+            foreground = window_status();
             child_align = Align::CENTER;
             child = stack! {
                 direction = StackDirection::top_to_bottom();
@@ -86,8 +86,8 @@ fn image() -> impl UiNode {
     }
 }
 
-fn window_status(ctx: &mut WindowContext) -> impl UiNode {
-    let vars = WindowVars::req(ctx);
+fn window_status() -> impl UiNode {
+    let vars = WindowVars::req();
 
     macro_rules! status {
         ($name:ident) => {

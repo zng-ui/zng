@@ -10,7 +10,6 @@ use crate::{
     app_local,
     context::{
         state_map, InlineConstrains, LayoutDirection, LayoutMetrics, OwnedStateMap, StateMapMut, StateMapRef, UpdatesTrace, WidgetContext,
-        WindowContext,
     },
     context_local,
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
@@ -979,12 +978,12 @@ impl WidgetUpdates {
     }
 
     /// Calls `handle` if the event targets the window.
-    pub fn with_window<H, R>(&mut self, ctx: &mut WindowContext, handle: H) -> Option<R>
+    pub fn with_window<H, R>(&mut self, handle: H) -> Option<R>
     where
-        H: FnOnce(&mut WindowContext, &mut Self) -> R,
+        H: FnOnce(&mut Self) -> R,
     {
-        if self.delivery_list.enter_window(*ctx.window_id) {
-            Some(handle(ctx, self))
+        if self.delivery_list.enter_window(WINDOW.id()) {
+            Some(handle(self))
         } else {
             None
         }

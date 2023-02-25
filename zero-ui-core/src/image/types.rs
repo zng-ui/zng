@@ -10,7 +10,7 @@ use zero_ui_view_api::{webrender_api::ImageKey, ViewProcessOffline};
 
 use crate::{
     app::view_process::{EncodeError, ViewImage, ViewRenderer},
-    context::{LayoutMetrics, WindowContext},
+    context::LayoutMetrics,
     impl_from_and_into_var,
     render::RenderMode,
     task::{self, SignalOnce},
@@ -441,7 +441,7 @@ impl std::hash::Hasher for ImageHasher {
 }
 
 // We don't use Arc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
-type RenderFn = Arc<Box<dyn Fn(&mut WindowContext, &ImageRenderArgs) -> Window + Send + Sync>>;
+type RenderFn = Arc<Box<dyn Fn(&ImageRenderArgs) -> Window + Send + Sync>>;
 
 /// Arguments for the [`ImageSource::Render`] closure.
 ///
@@ -516,15 +516,13 @@ impl ImageSource {
     /// [`Images::render`]: crate::image::Images::render
     pub fn render<F>(new_img: F) -> Self
     where
-        F: Fn(&mut WindowContext, &ImageRenderArgs) -> Window + Send + Sync + 'static,
+        F: Fn(&ImageRenderArgs) -> Window + Send + Sync + 'static,
     {
         Self::Render(
-            Arc::new(Box::new(move |ctx, args| {
-                WindowVars::req(&ctx.window_state).parent().set_ne(args.parent);
-                let r = new_img(ctx, args);
-                WindowVars::req(&ctx.window_state)
-                    .frame_capture_mode()
-                    .set_ne(FrameCaptureMode::All);
+            Arc::new(Box::new(move |args| {
+                WindowVars::req().parent().set_ne(args.parent);
+                let r = new_img(args);
+                WindowVars::req().frame_capture_mode().set_ne(FrameCaptureMode::All);
                 r
             })),
             None,
@@ -559,11 +557,11 @@ impl ImageSource {
     pub fn render_node<U, N>(render_mode: RenderMode, render: N) -> Self
     where
         U: UiNode,
-        N: Fn(&mut WindowContext, &ImageRenderArgs) -> U + Send + Sync + 'static,
+        N: Fn(&ImageRenderArgs) -> U + Send + Sync + 'static,
     {
-        Self::render(move |ctx, args| {
-            WindowVars::req(&ctx.window_state).parent().set_ne(args.parent);
-            let node = render(ctx, args);
+        Self::render(move |args| {
+            WindowVars::req().parent().set_ne(args.parent);
+            let node = render(args);
             Window::new_container(
                 crate::widget_instance::WidgetId::new_unique(),
                 crate::window::StartPosition::Default,

@@ -52,7 +52,7 @@ pub(super) fn inspect_node(
 
                 WINDOWS.focus_or_open(
                     inspector,
-                    clone_move!(inspector_text, |_| { inspector_window::new(inspected, inspector_text) }),
+                    clone_move!(inspector_text, || { inspector_window::new(inspected, inspector_text) }),
                 );
             }
         }),

@@ -16,7 +16,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         let shortcut_text = var(Text::empty());
         let keypress_text = var(Text::empty());
         let shortcut_error = var(false);

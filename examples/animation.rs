@@ -16,7 +16,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         window! {
             title = "Animation Example";
             padding = 10;
@@ -181,7 +181,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
     let size = (64, 64);
     ImageSource::render_node(
         RenderMode::Software,
-        clone_move!(size, |ctx, _| {
+        clone_move!(size, |_| {
             let mut children = ui_vec![];
             let color_t = animation::Transition::new(FROM_COLOR, TO_COLOR);
             let fps_f = FPS as f32;
@@ -204,8 +204,8 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 )
             }
 
-            zero_ui::core::image::ImageRenderVars::req(&ctx.window_state).retain().set(true);
-            let meta_color = WindowVars::req(ctx).actual_color_scheme().map(|t| match t {
+            zero_ui::core::image::ImageRenderVars::req().retain().set(true);
+            let meta_color = WindowVars::req().actual_color_scheme().map(|t| match t {
                 ColorScheme::Light => rgba(0, 0, 0, 0.4),
                 ColorScheme::Dark => rgba(255, 255, 255, 0.4),
             });

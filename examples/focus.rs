@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::core::focus::{FocusRequest, FocusTarget, FOCUS_CHANGED_EVENT};
+use zero_ui::prelude::new_widget::WINDOW;
 use zero_ui::prelude::*;
 use zero_ui::widgets::window::{LayerIndex, WindowLayers};
 
@@ -18,8 +19,8 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|ctx| {
-        ctx.window_id.set_name("main").unwrap();
+    App::default().run_window(|| {
+        WINDOW.id().set_name("main").unwrap();
 
         trace_focus();
         let window_enabled = var(true);
@@ -94,8 +95,8 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             button! {
                 child = text!("New Window");
                 on_click = hn!(|_, _| {
-                    WINDOWS.open(|ctx| {
-                        let _ = ctx.window_id.set_name("other");
+                    WINDOWS.open(|| {
+                        let _ = WINDOW.id().set_name("other");
                         window! {
                             title = "Other Window";
                             focus_shortcut = shortcut!(W);
@@ -124,7 +125,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
                         // focus_on_init = true;
                         on_click = hn!(|_, _| {
                             let wwk = wk.clone();
-                            WINDOWS.open(move |_| {
+                            WINDOWS.open(move || {
                                 window! {
                                     title = "Detached Button";
                                     child_align = Align::CENTER;
@@ -347,7 +348,7 @@ fn nested_focusables() -> impl UiNode {
 
         on_click = hn!(|_, args: &ClickArgs| {
             args.propagation().stop();
-            WINDOWS.focus_or_open("nested-focusables", |_| {
+            WINDOWS.focus_or_open("nested-focusables", || {
                 window! {
                     title = "Focus Example - Nested Focusables";
 

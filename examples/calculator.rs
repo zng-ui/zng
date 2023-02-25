@@ -18,7 +18,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         set_fallback_font();
 
         let calc = var(Calculator::default());

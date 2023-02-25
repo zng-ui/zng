@@ -18,10 +18,10 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().extend(icons::MaterialFonts).run_window(|_| {
+    App::default().extend(icons::MaterialFonts).run_window(|| {
         window! {
             title = "Icon Example";
-            icon = WindowIcon::render(|_| icon! {
+            icon = WindowIcon::render(|| icon! {
                 ico = icons::filled::LIGHTBULB;
                 ico_color = colors::YELLOW;
                 drop_shadow = (0, 0), 3, colors::WHITE;

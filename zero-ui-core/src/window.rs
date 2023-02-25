@@ -23,7 +23,7 @@ use crate::{
         raw_events::{RawWindowFocusArgs, RAW_WINDOW_FOCUS_EVENT},
         AppExtended, AppExtension, ControlFlow, HeadlessApp,
     },
-    context::{WidgetUpdates, WindowContext},
+    context::WidgetUpdates,
     event::EventUpdate,
     image::ImageVar,
 };
@@ -123,10 +123,10 @@ pub trait AppRunWindowExt {
     ///     });
     /// })   
     /// ```
-    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static);
+    fn run_window(self, new_window: impl FnOnce() -> Window + Send + 'static);
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
-    fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) {
+    fn run_window(self, new_window: impl FnOnce() -> Window + Send + 'static) {
         self.run(|| {
             WINDOWS.open(new_window);
         })
@@ -143,7 +143,7 @@ pub trait HeadlessAppWindowExt {
     /// The `new_window` argument is the [`WindowContext`] of the new window.
     ///
     /// Returns the [`WindowId`] of the new window.
-    fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> WindowId;
+    fn open_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static) -> WindowId;
 
     /// Cause the headless window to think it is focused in the screen.
     fn focus_window(&mut self, window_id: WindowId);
@@ -159,10 +159,10 @@ pub trait HeadlessAppWindowExt {
     fn close_window(&mut self, window_id: WindowId) -> bool;
 
     /// Open a new headless window and update the app until the window closes.
-    fn run_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static);
+    fn run_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static);
 }
 impl HeadlessAppWindowExt for HeadlessApp {
-    fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> WindowId {
+    fn open_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static) -> WindowId {
         let response = WINDOWS.open(new_window);
         self.run_task(move || async move {
             response.wait_rsp().await;
@@ -212,7 +212,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
         closed
     }
 
-    fn run_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) {
+    fn run_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static) {
         let window_id = self.open_window(new_window);
         while WINDOWS.is_open(window_id) {
             if let ControlFlow::Exit = self.update(true) {

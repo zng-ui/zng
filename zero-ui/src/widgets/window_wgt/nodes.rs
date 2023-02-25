@@ -853,7 +853,7 @@ impl_from_and_into_var! {
 
 /// Node that binds the [`COLOR_SCHEME_VAR`] to the [`WindowVars::actual_color_scheme`].
 pub fn color_scheme(child: impl UiNode) -> impl UiNode {
-    with_context_var_init(child, COLOR_SCHEME_VAR, |ctx| WindowVars::req(ctx).actual_color_scheme().boxed())
+    with_context_var_init(child, COLOR_SCHEME_VAR, |ctx| WindowVars::req().actual_color_scheme().boxed())
 }
 
 #[cfg(test)]

@@ -7,6 +7,7 @@ use crate::{
     color::ColorScheme,
     context::{state_map, BorrowStateMap, StaticStateId},
     image::Image,
+    new_context::WINDOW,
     render::RenderMode,
     text::{Text, ToText},
     units::*,
@@ -70,14 +71,13 @@ pub(super) struct WindowVarsData {
 ///
 /// You can get the controller for any window using [`WINDOWS.vars`].
 ///
-/// You can get the controller for the current context window using [`req`] or [`get`] and the `window_state`
+/// You can get the controller for the current context window using [`req`] and the `window_state`
 /// in [`WindowContext`] and [`WidgetContext`].
 ///
 /// [`WindowContext`]: crate::context::WindowContext::window_state
 /// [`WidgetContext`]: crate::context::WidgetContext::window_state
 /// [`WINDOWS.vars`]: crate::window::WINDOWS::vars
 /// [`req`]: WindowVars::req
-/// [`get`]: WindowVars::get
 #[derive(Clone)]
 pub struct WindowVars(pub(super) Arc<WindowVarsData>);
 impl WindowVars {
@@ -146,8 +146,8 @@ impl WindowVars {
     /// # Panics
     ///
     /// Panics if called in a custom window context that did not setup the variables.
-    pub fn req(window_state: &impl BorrowStateMap<state_map::Window>) -> &Self {
-        window_state.borrow().req(&WINDOW_VARS_ID)
+    pub fn req() -> Self {
+        WINDOW.with_state(|map| map.req(&WINDOW_VARS_ID).clone())
     }
 
     /// Tries to get the window vars from the window state.
@@ -192,8 +192,8 @@ impl WindowVars {
     /// See [`CursorIcon`] for details.
     ///
     /// The default is [`CursorIcon::Default`], if set to `None` no cursor icon is shown.
-    pub fn cursor(&self) -> &ArcVar<Option<CursorIcon>> {
-        &self.0.cursor
+    pub fn cursor(&self) -> ArcVar<Option<CursorIcon>> {
+        self.0.cursor.clone()
     }
 
     /// Window title text.

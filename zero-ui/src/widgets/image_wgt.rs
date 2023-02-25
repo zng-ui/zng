@@ -88,7 +88,7 @@ mod tests {
         let mut app = App::default().run_headless(false);
         IMAGES.load_in_headless().set(true);
         let ok = Arc::new(AtomicBool::new(false));
-        let window_id = app.open_window(clone_move!(ok, |_| {
+        let window_id = app.open_window(clone_move!(ok, || {
             window! {
                 child = image! {
                     source = img.clone();

@@ -21,7 +21,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
         // in here and overridden for each image with the "img_limits" property.
         IMAGES.limits().modify(|l| {
@@ -78,7 +78,7 @@ fn app_main() {
                             sub_title("Render"),
                             image! {
                                 img_scale_ppi = true;
-                                source = ImageSource::render_node(RenderMode::Software, |_, _| container! {
+                                source = ImageSource::render_node(RenderMode::Software, |_| container! {
                                     size = (180, 120);
                                     background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
                                     font_size = 24;
@@ -248,7 +248,7 @@ fn large_image() -> impl UiNode {
     button! {
         child = text!("Large Image (205MB download)");
         on_click = hn!(|_, _| {
-            WINDOWS.open(|_|img_window(
+            WINDOWS.open(||img_window(
                 "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
                 image! {
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
@@ -267,7 +267,7 @@ fn panorama_image() -> impl UiNode {
     button! {
         child = text!("Panorama Image (100MB download)");
         on_click = hn!(|_, _| {
-            WINDOWS.open(|_|img_window(
+            WINDOWS.open(||img_window(
                 "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
                 scroll! {
                     mode = ScrollMode::HORIZONTAL;
@@ -292,7 +292,7 @@ fn block_window_load_image() -> impl UiNode {
         enabled = enabled.clone();
         on_click = hn!(|_, _| {
             enabled.set(false);
-            WINDOWS.open(clone_move!(enabled, |_| img_window! {
+            WINDOWS.open(clone_move!(enabled, || img_window! {
                 title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
                 state = WindowState::Normal;
 

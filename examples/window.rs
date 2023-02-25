@@ -2,6 +2,7 @@
 use zero_ui::core::app::EXIT_CMD;
 use zero_ui::core::units::{DipPoint, DipSize};
 use zero_ui::core::window::WindowVars;
+use zero_ui::prelude::new_widget::WINDOW;
 use zero_ui::prelude::*;
 
 // use zero_ui_view_prebuilt as zero_ui_view;
@@ -22,9 +23,9 @@ fn app_main() {
     App::default().run_window(main_window);
 }
 
-fn main_window(ctx: &mut WindowContext) -> Window {
-    let window_vars = WindowVars::req(&ctx.window_state);
-    let window_id = *ctx.window_id;
+fn main_window() -> Window {
+    let window_vars = WindowVars::req();
+    let window_id = WINDOW.id();
 
     // WINDOWS.exit_on_last_close().set(false);
 
@@ -61,16 +62,16 @@ fn main_window(ctx: &mut WindowContext) -> Window {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
-                        state(window_vars),
-                        visibility(window_vars),
-                        chrome(window_vars),
+                        state(&window_vars),
+                        visibility(&window_vars),
+                        chrome(&window_vars),
                     ];
                 },
                 stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
-                        icon(window_vars),
+                        icon(&window_vars),
                         background_color(background),
                     ];
                 },
@@ -79,7 +80,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
                     spacing = 20;
                     children = ui_vec![
                         screenshot(),
-                        misc(window_id, window_vars),
+                        misc(window_id, &window_vars),
                     ];
                 },
             ];
@@ -185,7 +186,7 @@ fn screenshot() -> impl UiNode {
                 enabled.set(false);
 
                 println!("taking `screenshot.png` using a new headless window ..");
-                WINDOWS.open_headless(clone_move!(enabled, |_| window! {
+                WINDOWS.open_headless(clone_move!(enabled, || window! {
                         size = (500, 400);
                         background_color = colors::DARK_GREEN;
                         font_size = 72;
@@ -242,7 +243,7 @@ fn icon(window_vars: &WindowVars) -> impl UiNode {
             }),
             icon_btn(
                 "Render",
-                WindowIcon::render(|_| text! {
+                WindowIcon::render(|| text! {
                     size = (36, 36);
                     font_size = 28;
                     font_weight = FontWeight::BOLD;
@@ -319,7 +320,7 @@ fn focus_control() -> impl UiNode {
             task::deadline(5.secs()).await;
 
             ctx.with(|ctx| {
-                WindowVars::req(ctx).focus_indicator().set(Some(FocusIndicator::Critical));
+                WindowVars::req().focus_indicator().set(Some(FocusIndicator::Critical));
             });
             enabled.set(true);
         });
@@ -334,7 +335,7 @@ fn focus_control() -> impl UiNode {
             task::deadline(5.secs()).await;
 
             ctx.with(|ctx| {
-                WindowVars::req(ctx).focus_indicator().set(Some(FocusIndicator::Info));
+                WindowVars::req().focus_indicator().set(Some(FocusIndicator::Info));
             });
             enabled.set(true);
         });
@@ -409,7 +410,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
                         child_count += 1;
 
                         let parent = ctx.path.window_id();
-                        WINDOWS.open(move |_| window! {
+                        WINDOWS.open(move || window! {
                             title = formatx!("Window Example - Child {child_count}");
                             size = (400, 300);
                             parent;
@@ -431,7 +432,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
                     on_click = hn!(|_, _| {
                         other_count += 1;
 
-                        WINDOWS.open(move |_| window! {
+                        WINDOWS.open(move || window! {
                             title = formatx!("Window Example - Other {other_count}");
                             size = (400, 300);
                             child_align = Align::CENTER;

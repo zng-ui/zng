@@ -12,11 +12,11 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         window! {
             title = "Gradient Example";
             auto_size = true;
-            icon = WindowIcon::render(|_| icon());
+            icon = WindowIcon::render(icon);
             child = scroll! {
                 padding = 20;
                 child = stack! {

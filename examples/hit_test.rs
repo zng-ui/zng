@@ -5,7 +5,7 @@ fn main() {
 
     zero_ui_view::init();
 
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         window! {
             title = "Hit-Test Example";
 

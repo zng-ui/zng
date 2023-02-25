@@ -892,7 +892,7 @@ pub mod prelude {
         border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
         clone_move,
         color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
-        context::{LayoutDirection, WidgetContext, WindowContext},
+        context::{LayoutDirection, WidgetContext},
         event::{AnyEventArgs, Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, EVENTS},
         focus::{DirectionalNav, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav, FOCUS},
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},

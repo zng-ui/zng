@@ -12,7 +12,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         let count = TIMERS.interval(1.secs(), false).map(move |t| {
             let count = 10 - t.count();
             if count == 0 {
@@ -45,7 +45,7 @@ fn app_main() {
                 r
             }));
 
-            icon = WindowIcon::render(move |_,| container! {
+            icon = WindowIcon::render(move || container! {
                 zero_ui::core::image::render_retain = true;
 
                 size = (36, 36);

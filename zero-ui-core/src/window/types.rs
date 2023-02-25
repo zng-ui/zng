@@ -9,7 +9,6 @@ use linear_map::set::LinearSet;
 use parking_lot::Mutex;
 
 use crate::{
-    context::WindowContext,
     crate_util::{IdSet, NameIdMap},
     event::{event, event_args},
     image::{Image, ImageDataFormat, ImageSource, ImageVar},
@@ -488,11 +487,11 @@ impl WindowIcon {
     pub fn render<I, F>(new_icon: F) -> Self
     where
         I: UiNode,
-        F: Fn(&mut WindowContext) -> I + Send + Sync + 'static,
+        F: Fn() -> I + Send + Sync + 'static,
     {
-        Self::Image(ImageSource::render_node(RenderMode::Software, move |ctx, args| {
-            let node = new_icon(ctx);
-            super::WindowVars::req(&ctx.window_state).parent().set_ne(args.parent);
+        Self::Image(ImageSource::render_node(RenderMode::Software, move |args| {
+            let node = new_icon();
+            super::WindowVars::req().parent().set_ne(args.parent);
             node
         }))
     }

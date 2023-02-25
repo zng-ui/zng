@@ -16,7 +16,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         window! {
             title = "Transform Example";
             child_align = Align::CENTER;

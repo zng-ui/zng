@@ -28,118 +28,118 @@ pub use trace::*;
 mod value;
 pub use value::*;
 
-/// A window context.
-pub struct WindowContext<'a> {
-    /// Id of the context window.
-    pub window_id: &'a WindowId,
+// /// A window context.
+// pub struct WindowContext<'a> {
+//     /// Id of the context window.
+//     pub window_id: &'a WindowId,
 
-    /// Window mode, headed or not, renderer or not.
-    pub window_mode: &'a WindowMode,
+//     /// Window mode, headed or not, renderer or not.
+//     pub window_mode: &'a WindowMode,
 
-    /// State that lives for the duration of the window.
-    pub window_state: StateMapMut<'a, state_map::Window>,
+//     /// State that lives for the duration of the window.
+//     pub window_state: StateMapMut<'a, state_map::Window>,
 
-    /// State that lives for the duration of the node tree method call in the window.
-    ///
-    /// This state lives only for the duration of the function `f` call in [`AppContext::window_context`].
-    /// Usually `f` calls one of the [`UiNode`](crate::widget_instance::UiNode) methods and [`WidgetContext`] shares this
-    /// state so properties and event handlers can use this state to communicate to further nodes along the
-    /// update sequence.
-    pub update_state: StateMapMut<'a, state_map::Update>,
-}
-impl<'a> WindowContext<'a> {
-    /// Runs a function `f` in the context of a widget.
-    pub fn widget_context<R>(
-        &mut self,
-        info_tree: &WidgetInfoTree,
-        widget_info: &WidgetContextInfo,
-        root_widget_state: &mut OwnedStateMap<state_map::Widget>,
-        var_handles: &mut VarHandles,
-        event_handles: &mut EventHandles,
-        f: impl FnOnce(&mut WidgetContext) -> R,
-    ) -> R {
-        let widget_id = info_tree.root().widget_id();
+//     /// State that lives for the duration of the node tree method call in the window.
+//     ///
+//     /// This state lives only for the duration of the function `f` call in [`AppContext::window_context`].
+//     /// Usually `f` calls one of the [`UiNode`](crate::widget_instance::UiNode) methods and [`WidgetContext`] shares this
+//     /// state so properties and event handlers can use this state to communicate to further nodes along the
+//     /// update sequence.
+//     pub update_state: StateMapMut<'a, state_map::Update>,
+// }
+// impl<'a> WindowContext<'a> {
+//     /// Runs a function `f` in the context of a widget.
+//     pub fn widget_context<R>(
+//         &mut self,
+//         info_tree: &WidgetInfoTree,
+//         widget_info: &WidgetContextInfo,
+//         root_widget_state: &mut OwnedStateMap<state_map::Widget>,
+//         var_handles: &mut VarHandles,
+//         event_handles: &mut EventHandles,
+//         f: impl FnOnce(&mut WidgetContext) -> R,
+//     ) -> R {
+//         let widget_id = info_tree.root().widget_id();
 
-        f(&mut WidgetContext {
-            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
+//         f(&mut WidgetContext {
+//             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
-            info_tree,
-            widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: root_widget_state.borrow_mut(),
-            update_state: self.update_state.reborrow(),
+//             info_tree,
+//             widget_info,
+//             window_state: self.window_state.reborrow(),
+//             widget_state: root_widget_state.borrow_mut(),
+//             update_state: self.update_state.reborrow(),
 
-            handles: WidgetHandles {
-                var_handles,
-                event_handles,
-            },
-        })
-    }
+//             handles: WidgetHandles {
+//                 var_handles,
+//                 event_handles,
+//             },
+//         })
+//     }
 
-    /// Run a function `f` in the info context of a widget.
-    pub fn info_context<R>(
-        &mut self,
-        info_tree: &WidgetInfoTree,
-        widget_info: &WidgetContextInfo,
-        root_widget_state: &OwnedStateMap<state_map::Widget>,
-        f: impl FnOnce(&mut InfoContext) -> R,
-    ) -> R {
-        f(&mut InfoContext {
-            path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
-            info_tree,
-            widget_info,
-            window_state: self.window_state.as_ref(),
-            widget_state: root_widget_state.borrow(),
-            update_state: self.update_state.reborrow(),
-        })
-    }
+//     /// Run a function `f` in the info context of a widget.
+//     pub fn info_context<R>(
+//         &mut self,
+//         info_tree: &WidgetInfoTree,
+//         widget_info: &WidgetContextInfo,
+//         root_widget_state: &OwnedStateMap<state_map::Widget>,
+//         f: impl FnOnce(&mut InfoContext) -> R,
+//     ) -> R {
+//         f(&mut InfoContext {
+//             path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
+//             info_tree,
+//             widget_info,
+//             window_state: self.window_state.as_ref(),
+//             widget_state: root_widget_state.borrow(),
+//             update_state: self.update_state.reborrow(),
+//         })
+//     }
 
-    /// Runs a function `f` in the layout context of a widget.
-    #[allow(clippy::too_many_arguments)]
-    pub fn layout_context<R>(
-        &mut self,
-        font_size: Px,
-        scale_factor: Factor,
-        screen_ppi: f32,
-        viewport_size: PxSize,
-        info_tree: &WidgetInfoTree,
-        widget_info: &WidgetContextInfo,
-        root_widget_state: &mut OwnedStateMap<state_map::Widget>,
-        f: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> R {
-        let widget_id = info_tree.root().widget_id();
-        f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size).with_screen_ppi(screen_ppi),
+//     /// Runs a function `f` in the layout context of a widget.
+//     #[allow(clippy::too_many_arguments)]
+//     pub fn layout_context<R>(
+//         &mut self,
+//         font_size: Px,
+//         scale_factor: Factor,
+//         screen_ppi: f32,
+//         viewport_size: PxSize,
+//         info_tree: &WidgetInfoTree,
+//         widget_info: &WidgetContextInfo,
+//         root_widget_state: &mut OwnedStateMap<state_map::Widget>,
+//         f: impl FnOnce(&mut LayoutContext) -> R,
+//     ) -> R {
+//         let widget_id = info_tree.root().widget_id();
+//         f(&mut LayoutContext {
+//             metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size).with_screen_ppi(screen_ppi),
 
-            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
+//             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
-            info_tree,
-            widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: root_widget_state.borrow_mut(),
-            update_state: self.update_state.reborrow(),
-        })
-    }
+//             info_tree,
+//             widget_info,
+//             window_state: self.window_state.reborrow(),
+//             widget_state: root_widget_state.borrow_mut(),
+//             update_state: self.update_state.reborrow(),
+//         })
+//     }
 
-    /// Runs a function `f` in the render context of a widget.
-    pub fn render_context<R>(
-        &mut self,
-        root_widget_id: WidgetId,
-        root_widget_state: &OwnedStateMap<state_map::Widget>,
-        info_tree: &WidgetInfoTree,
-        widget_info: &WidgetContextInfo,
-        f: impl FnOnce(&mut RenderContext) -> R,
-    ) -> R {
-        f(&mut RenderContext {
-            path: &mut WidgetContextPath::new(*self.window_id, root_widget_id),
-            info_tree,
-            widget_info,
-            window_state: self.window_state.as_ref(),
-            widget_state: root_widget_state.borrow(),
-            update_state: self.update_state.reborrow(),
-        })
-    }
-}
+//     /// Runs a function `f` in the render context of a widget.
+//     pub fn render_context<R>(
+//         &mut self,
+//         root_widget_id: WidgetId,
+//         root_widget_state: &OwnedStateMap<state_map::Widget>,
+//         info_tree: &WidgetInfoTree,
+//         widget_info: &WidgetContextInfo,
+//         f: impl FnOnce(&mut RenderContext) -> R,
+//     ) -> R {
+//         f(&mut RenderContext {
+//             path: &mut WidgetContextPath::new(*self.window_id, root_widget_id),
+//             info_tree,
+//             widget_info,
+//             window_state: self.window_state.as_ref(),
+//             widget_state: root_widget_state.borrow(),
+//             update_state: self.update_state.reborrow(),
+//         })
+//     }
+// }
 
 /// A mock [`WidgetContext`] for testing widgets.
 ///

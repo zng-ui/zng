@@ -446,12 +446,6 @@ impl<'a> From<&'a WidgetContext<'a>> for CommandScope {
         CommandScope::Widget(ctx.path.widget_id())
     }
 }
-impl<'a> From<&'a WindowContext<'a>> for CommandScope {
-    /// Window scope from the `ctx.window_id`.
-    fn from(ctx: &'a WindowContext<'a>) -> CommandScope {
-        CommandScope::Window(*ctx.window_id)
-    }
-}
 impl<'a> From<&'a WidgetContextMut> for CommandScope {
     /// Widget scope from the `ctx.widget_id()`.
     fn from(ctx: &'a WidgetContextMut) -> Self {

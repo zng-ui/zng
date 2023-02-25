@@ -71,7 +71,7 @@ impl WindowsService {
     fn open_impl(
         &mut self,
         id: WindowId,
-        new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
+        new_window: impl FnOnce() -> Window + Send + 'static,
         force_headless: Option<WindowMode>,
     ) -> ResponseVar<WindowOpenArgs> {
         let (responder, response) = response_var();
@@ -205,7 +205,7 @@ impl WINDOWS {
     ///
     /// An update cycle is processed between the call to `new_window` and the window init, this means that you
     /// can use the input [`WindowContext`] to set variables that will be read on init with the new value.
-    pub fn open(&self, new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static) -> ResponseVar<WindowOpenArgs> {
+    pub fn open(&self, new_window: impl FnOnce() -> Window + Send + 'static) -> ResponseVar<WindowOpenArgs> {
         WINDOWS_SV.write().open_impl(WindowId::new_unique(), new_window, None)
     }
 
@@ -217,7 +217,7 @@ impl WINDOWS {
     pub fn open_id(
         &self,
         window_id: impl Into<WindowId>,
-        new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
+        new_window: impl FnOnce() -> Window + Send + 'static,
     ) -> ResponseVar<WindowOpenArgs> {
         let window_id = window_id.into();
         self.assert_id_unused(window_id);
@@ -232,11 +232,7 @@ impl WINDOWS {
     /// creates headless windows even in a headed app.
     ///
     /// [`open`]: WINDOWS::open
-    pub fn open_headless(
-        &self,
-        new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
-        with_renderer: bool,
-    ) -> ResponseVar<WindowOpenArgs> {
+    pub fn open_headless(&self, new_window: impl FnOnce() -> Window + Send + 'static, with_renderer: bool) -> ResponseVar<WindowOpenArgs> {
         WINDOWS_SV.write().open_impl(
             WindowId::new_unique(),
             new_window,
@@ -256,7 +252,7 @@ impl WINDOWS {
     pub fn open_headless_id(
         &self,
         window_id: impl Into<WindowId>,
-        new_window: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
+        new_window: impl FnOnce() -> Window + Send + 'static,
         with_renderer: bool,
     ) -> ResponseVar<WindowOpenArgs> {
         let window_id = window_id.into();
@@ -475,7 +471,7 @@ impl WINDOWS {
     pub fn focus_or_open(
         &self,
         window_id: impl Into<WindowId>,
-        open: impl FnOnce(&mut WindowContext) -> Window + Send + 'static,
+        open: impl FnOnce() -> Window + Send + 'static,
     ) -> Option<ResponseVar<WindowOpenArgs>> {
         let window_id = window_id.into();
         if self.focus(window_id).is_ok() {
@@ -881,7 +877,7 @@ impl AppWindowInfo {
 }
 struct OpenWindowRequest {
     id: WindowId,
-    new: Mutex<Box<dyn FnOnce(&mut WindowContext) -> Window + Send>>, // never locked, makes `OpenWindowRequest: Sync`
+    new: Mutex<Box<dyn FnOnce() -> Window + Send>>, // never locked, makes `OpenWindowRequest: Sync`
     force_headless: Option<WindowMode>,
     responder: ResponderVar<WindowOpenArgs>,
     loading_handle: WindowLoading,
@@ -904,7 +900,7 @@ impl AppWindow {
         id: WindowId,
         mode: WindowMode,
         color_scheme: ColorScheme,
-        new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
+        new: Box<dyn FnOnce() -> Window>,
         loading: WindowLoading,
     ) -> (Self, AppWindowInfo) {
         let primary_scale_factor = MONITORS
@@ -942,7 +938,7 @@ impl AppWindow {
         // (window, info)
     }
 
-    fn ctrl_in_ctx(&mut self, action: impl FnOnce(&mut WindowContext, &mut WindowCtrl)) {
+    fn ctrl_in_ctx(&mut self, action: impl FnOnce(&mut WindowCtrl)) {
         // !!: TODO refactor to this
         // WINDOW.with_context(&mut Some(), f)
         //
@@ -956,31 +952,31 @@ impl AppWindow {
     }
 
     pub fn pre_event(&mut self, update: &mut EventUpdate) {
-        self.ctrl_in_ctx(|ctx, ctrl| ctrl.pre_event(ctx, update))
+        self.ctrl_in_ctx(|ctrl| ctrl.pre_event(update))
     }
 
     pub fn ui_event(&mut self, update: &mut EventUpdate) {
-        self.ctrl_in_ctx(|ctx, ctrl| ctrl.ui_event(ctx, update))
+        self.ctrl_in_ctx(|ctrl| ctrl.ui_event(update))
     }
 
     pub fn update(&mut self, updates: &mut WidgetUpdates) {
-        self.ctrl_in_ctx(|ctx, ctrl| ctrl.update(ctx, updates));
+        self.ctrl_in_ctx(|ctrl| ctrl.update(updates));
     }
 
     pub fn layout(&mut self) {
-        self.ctrl_in_ctx(|ctx, ctrl| ctrl.layout(ctx));
+        self.ctrl_in_ctx(|ctrl| ctrl.layout());
     }
 
     pub fn render(&mut self) {
-        self.ctrl_in_ctx(|ctx, ctrl| ctrl.render(ctx));
+        self.ctrl_in_ctx(|ctrl| ctrl.render());
     }
 
     pub fn focus(&mut self) {
-        self.ctrl_in_ctx(|ctx, ctrl| ctrl.focus(ctx));
+        self.ctrl_in_ctx(|ctrl| ctrl.focus());
     }
 
     pub fn bring_to_top(&mut self) {
-        self.ctrl_in_ctx(|ctx, ctrl| ctrl.bring_to_top(ctx));
+        self.ctrl_in_ctx(|ctrl| ctrl.bring_to_top());
     }
 
     pub fn close(mut self) {

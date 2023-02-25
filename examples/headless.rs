@@ -20,7 +20,7 @@ fn headless_example() {
     // open headless with renderer flag, this causes the view-process to start.
     let mut app = App::default().run_headless(true);
 
-    app.run_window(|_| {
+    app.run_window(|| {
         window! {
             // the window content is the image.
             child = image();
@@ -106,7 +106,7 @@ fn images_render() {
 
     // request an image rendered from a node, the `Images` service will render the node and update the image
     // variable every time the node (re)renders.
-    let img = IMAGES.render_node(RenderMode::Software, 1.fct(), |_| image());
+    let img = IMAGES.render_node(RenderMode::Software, 1.fct(), || image());
 
     app.run_task(move || async move {
         while img.with(Image::is_loading) {

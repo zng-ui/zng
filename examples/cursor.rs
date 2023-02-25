@@ -13,7 +13,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         let mut demos = ui_vec![];
         for icon in CURSORS {
             demos.push(cursor_demo(Some(*icon)));

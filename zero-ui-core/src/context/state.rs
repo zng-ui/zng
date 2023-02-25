@@ -324,14 +324,12 @@ macro_rules! impl_borrow_mut_for_ctx {
     )+}
 }
 impl_borrow_mut_for_ctx! {
-    WindowContext.window_state: Window;
     WidgetContext.window_state: Window;
     LayoutContext.window_state: Window;
 
     WidgetContext.widget_state: Widget;
     LayoutContext.widget_state: Widget;
 
-    WindowContext.update_state: Update;
     WidgetContext.update_state: Update;
     LayoutContext.update_state: Update;
     MeasureContext.update_state: Update;

@@ -1,7 +1,7 @@
 use crate::{
-    context::{state_map, BorrowStateMap, StaticStateId, WindowContext},
+    context::{state_map, BorrowStateMap, StaticStateId},
     event::{AnyEventArgs, EventUpdate},
-    new_context::UPDATES,
+    new_context::{UPDATES, WINDOW},
     property,
     render::RenderMode,
     ui_node,
@@ -16,15 +16,13 @@ use super::{Image, ImageManager, ImageVar, ImagesService, IMAGES, IMAGES_SV};
 impl ImagesService {
     fn render<N>(&mut self, render: N) -> ImageVar
     where
-        N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
+        N: FnOnce() -> Window + Send + Sync + 'static,
     {
         let result = var(Image::new_none(None));
         self.render_img(
-            move |ctx| {
-                let r = render(ctx);
-                WindowVars::req(&ctx.window_state)
-                    .frame_capture_mode()
-                    .set_ne(FrameCaptureMode::All);
+            move || {
+                let r = render();
+                WindowVars::req().frame_capture_mode().set_ne(FrameCaptureMode::All);
                 r
             },
             &result,
@@ -35,11 +33,11 @@ impl ImagesService {
     fn render_node<U, N>(&mut self, render_mode: RenderMode, scale_factor: impl Into<Factor>, render: N) -> ImageVar
     where
         U: UiNode,
-        N: FnOnce(&mut WindowContext) -> U + Send + Sync + 'static,
+        N: FnOnce() -> U + Send + Sync + 'static,
     {
         let scale_factor = scale_factor.into();
-        self.render(move |ctx| {
-            let node = render(ctx);
+        self.render(move || {
+            let node = render();
             Window::new_container(
                 WidgetId::new_unique(),
                 StartPosition::Default,
@@ -55,7 +53,7 @@ impl ImagesService {
 
     pub(super) fn render_img<N>(&mut self, render: N, result: &ArcVar<Image>)
     where
-        N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
+        N: FnOnce() -> Window + Send + Sync + 'static,
     {
         self.render.requests.push(RenderRequest {
             render: Box::new(render),
@@ -76,7 +74,7 @@ impl IMAGES {
     /// Requires the [`WINDOWS`] service.
     pub fn render<N>(&self, render: N) -> ImageVar
     where
-        N: FnOnce(&mut WindowContext) -> Window + Send + Sync + 'static,
+        N: FnOnce() -> Window + Send + Sync + 'static,
     {
         IMAGES_SV.write().render(render)
     }
@@ -90,7 +88,7 @@ impl IMAGES {
     pub fn render_node<U, N>(&self, render_mode: RenderMode, scale_factor: impl Into<Factor>, render: N) -> ImageVar
     where
         U: UiNode,
-        N: FnOnce(&mut WindowContext) -> U + Send + Sync + 'static,
+        N: FnOnce() -> U + Send + Sync + 'static,
     {
         IMAGES_SV.write().render_node(render_mode, scale_factor, render)
     }
@@ -122,21 +120,21 @@ impl ImageManager {
         for req in images.render.requests.drain(..) {
             if let Some(img) = req.image.upgrade() {
                 WINDOWS.open_headless(
-                    move |ctx| {
+                    move || {
                         let vars = ImageRenderVars::new();
                         let retain = vars.retain.clone();
-                        ctx.window_state.set(&IMAGE_RENDER_VARS_ID, vars);
-                        let vars = WindowVars::req(&ctx.window_state);
+                        WINDOW.with_state_mut(|mut map| map.set(&IMAGE_RENDER_VARS_ID, vars));
+                        let vars = WindowVars::req();
                         vars.auto_size().set(true);
                         vars.min_size().set((1.px(), 1.px()));
 
-                        let w = (req.render)(ctx);
+                        let w = (req.render)();
 
-                        let vars = WindowVars::req(&ctx.window_state);
+                        let vars = WindowVars::req();
                         vars.frame_capture_mode().set(FrameCaptureMode::All);
 
                         let a = ActiveRenderer {
-                            window_id: *ctx.window_id,
+                            window_id: WINDOW.id(),
                             image: img.downgrade(),
                             retain,
                         };
@@ -180,7 +178,7 @@ struct ActiveRenderer {
 }
 
 struct RenderRequest {
-    render: Box<dyn FnOnce(&mut WindowContext) -> Window + Send + Sync>,
+    render: Box<dyn FnOnce() -> Window + Send + Sync>,
     image: WeakArcVar<Image>,
 }
 
@@ -194,6 +192,7 @@ struct RenderRequest {
 /// [`Windows::vars`]: crate::window::Windows::vars
 /// [`req`]: ImageRenderVars::req
 /// [`get`]: ImageRenderVars::get
+#[derive(Clone)]
 pub struct ImageRenderVars {
     retain: ArcVar<bool>,
 }
@@ -207,8 +206,8 @@ impl ImageRenderVars {
     /// # Panics
     ///
     /// Panics if not called inside a render closure or widget.
-    pub fn req(window_state: &impl BorrowStateMap<state_map::Window>) -> &Self {
-        window_state.borrow().req(&IMAGE_RENDER_VARS_ID)
+    pub fn req() -> Self {
+        WINDOW.with_state(|map| map.req(&IMAGE_RENDER_VARS_ID).clone())
     }
 
     /// Tries to get the window vars from the window state.
