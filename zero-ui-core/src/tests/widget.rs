@@ -4,7 +4,6 @@
 
 use self::util::Position;
 use crate::{
-    context::TestWidgetContext,
     var::Var,
     widget,
     widget_instance::{UiNode, WidgetId},
@@ -1262,8 +1261,7 @@ mod util {
     };
 
     use crate::{
-        context::{StaticStateId, TestWidgetContext, WidgetContext, WidgetUpdates},
-        new_context::UPDATES,
+        context::{StaticStateId, WidgetUpdates, UPDATES, WIDGET},
         property, ui_node,
         var::{IntoValue, IntoVar, Var},
         widget_instance::UiNode,
@@ -1280,7 +1278,7 @@ mod util {
 
     /// Probe for a [`trace`] in the widget state.
     pub fn traced(wgt: &impl UiNode, trace: &'static str) -> bool {
-        wgt.with_context(|ctx| ctx.widget_state.get(&TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default())
+        wgt.with_context(|| WIDGET.with_state(|s| s.get(&TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default()))
             .expect("expected widget")
     }
 
@@ -1291,9 +1289,11 @@ mod util {
         trace: &'static str,
     })]
     impl UiNode for TraceNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
-            ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.trace);
+        fn init(&mut self) {
+            self.child.init();
+            WIDGET.with_state_mut(|s| {
+                s.entry(&TRACE_ID).or_default().insert(self.trace);
+            });
         }
     }
 
@@ -1401,8 +1401,8 @@ mod util {
     /// Gets the [`Position`] tags sorted by call to [`Position::next`].
     pub fn sorted_value_init(wgt: &impl UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
-        wgt.with_context(|n| {
-            if let Some(m) = n.widget_state.get(&VALUE_POSITION_ID) {
+        wgt.with_context(|| {
+            if let Some(m) = WIDGET.with_state(|s| s.get(&VALUE_POSITION_ID)) {
                 for (key, value) in m {
                     vec.push((*key, *value));
                 }
@@ -1415,8 +1415,8 @@ mod util {
     /// Gets the [`Position`] tags sorted by the [`UiNode::init` call.
     pub fn sorted_node_init(wgt: &impl UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
-        wgt.with_context(|n| {
-            if let Some(m) = n.widget_state.get(&NODE_POSITION_ID) {
+        wgt.with_context(|| {
+            if let Some(m) = WIDGET.with_state(|s| s.get(&NODE_POSITION_ID)) {
                 for (key, value) in m {
                     vec.push((*key, *value));
                 }
@@ -1434,18 +1434,18 @@ mod util {
         value_pos: Position,
     })]
     impl UiNode for CountNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.widget_state
-                .entry(&VALUE_POSITION_ID)
-                .or_default()
-                .insert(self.value_pos.tag, self.value_pos.pos);
+        fn init(&mut self) {
+            WIDGET.with_state_mut(|s| {
+                s.entry(&VALUE_POSITION_ID)
+                    .or_default()
+                    .insert(self.value_pos.tag, self.value_pos.pos);
 
-            ctx.widget_state
-                .entry(&NODE_POSITION_ID)
-                .or_default()
-                .insert(self.value_pos.tag, Position::next_init());
+                s.entry(&NODE_POSITION_ID)
+                    .or_default()
+                    .insert(self.value_pos.tag, Position::next_init());
+            });
 
-            self.child.init(ctx);
+            self.child.init();
         }
     }
 
@@ -1460,10 +1460,13 @@ mod util {
     /// Sets the [`is_state`] of a widget.
     ///
     /// Note only applies after update.
-    pub fn set_state(ctx: &mut TestWidgetContext, wgt: &mut impl UiNode, state: bool) {
-        wgt.with_context_mut(|w_ctx| {
+    pub fn set_state(wgt: &mut impl UiNode, state: bool) {
+        wgt.with_context_mut(|| {
+            WIDGET.with_state_mut(|s| {
+                *s.entry(&IS_STATE_ID).or_default() = state;
+            });
+            WIDGET.update();
             UPDATES.update(w_ctx.id);
-            *w_ctx.widget_state.entry(&IS_STATE_ID).or_default() = state;
         })
         .expect("expected widget");
     }
@@ -1473,23 +1476,23 @@ mod util {
         state: impl Var<bool>,
     })]
     impl IsStateNode {
-        fn update_state(&mut self, ctx: &mut WidgetContext) {
-            let wgt_state = ctx.widget_state.get(&IS_STATE_ID).copied().unwrap_or_default();
+        fn update_state(&mut self) {
+            let wgt_state = WIDGET.with_state(|s| ctx.widget_state.get(&IS_STATE_ID).copied().unwrap_or_default());
             if wgt_state != self.state.get() {
                 let _ = self.state.set(wgt_state);
             }
         }
 
         #[UiNode]
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
-            self.update_state(ctx);
+        fn init(&mut self) {
+            self.child.init();
+            self.update_state();
         }
 
         #[UiNode]
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
-            self.update_state(ctx);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
+            self.update_state();
         }
     }
 
@@ -1517,16 +1520,20 @@ mod util {
         #[var] trace: impl Var<&'static str>,
     })]
     impl UiNode for LiveTraceNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
-            ctx.widget_state.entry(&TRACE_ID).or_default().insert(self.trace.get());
-            self.auto_subs(ctx);
+        fn init(&mut self) {
+            self.child.init();
+            WIDGET.with_state_mut(|s| {
+                s.entry(&TRACE_ID).or_default().insert(self.trace.get());
+            });
+            self.auto_subs();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
             if let Some(trace) = self.trace.get_new() {
-                ctx.widget_state.entry(&TRACE_ID).or_default().insert(trace);
+                WIDGET.with_state_mut(|s| {
+                    s.entry(&TRACE_ID).or_default().insert(trace);
+                })
             }
         }
     }

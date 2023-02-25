@@ -13,7 +13,7 @@
     - Now more methods are not generic.
 
 * Implement a `WINDOW` context local with window stuff?
-* Review `ScrollContext` and any other "contextual widget service"
+* Review `ScrollContext` and any other "contextual widget service" like `ContextBorders` and `ZIndex`.
 * Review `ThreadContext` in disconnected parallel tasks like `task::spawn`.
 
 * Continue "#Parallel UI" in `./Performance.md`.

@@ -16,10 +16,10 @@ use crate::app::{
 };
 use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
 use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
+use crate::context::{UPDATES, WINDOW};
 use crate::crate_util::IdSet;
 use crate::event::{AnyEventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
-use crate::new_context::{UPDATES, WINDOW};
 use crate::render::RenderMode;
 use crate::timer::{DeadlineHandle, TIMERS};
 use crate::widget_info::WidgetInfoTree;

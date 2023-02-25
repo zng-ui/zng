@@ -15,8 +15,6 @@ use crate::{
     window::WindowId,
 };
 
-use super::InfoContext;
-
 /// Extension methods for infinite loop diagnostics.
 ///
 /// You can also use [`updates_trace_span`] to define a custom scope inside a node, and [`updates_trace_event`]
@@ -26,27 +24,21 @@ use super::InfoContext;
 pub trait UpdatesTraceUiNodeExt {
     /// Defines a custom span.
     #[allow(clippy::type_complexity)]
-    fn instrument<S: Into<String>>(
-        self,
-        tag: S,
-    ) -> TraceNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan + Send>>
+    fn instrument<S: Into<String>>(self, tag: S) -> TraceNode<Self, Box<dyn Fn(&'static str) -> tracing::span::EnteredSpan + Send>>
     where
         Self: Sized;
 }
 impl<U: UiNode> UpdatesTraceUiNodeExt for U {
-    fn instrument<S: Into<String>>(
-        self,
-        tag: S,
-    ) -> TraceNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan + Send>> {
+    fn instrument<S: Into<String>>(self, tag: S) -> TraceNode<Self, Box<dyn Fn(&'static str) -> tracing::span::EnteredSpan + Send>> {
         #[cfg(inspector)]
         {
             let tag = tag.into();
-            TraceNode::new(self, Box::new(move |_ctx, node_mtd| UpdatesTrace::custom_span(&tag, node_mtd)))
+            TraceNode::new(self, Box::new(move |node_mtd| UpdatesTrace::custom_span(&tag, node_mtd)))
         }
         #[cfg(not(inspector))]
         {
             let _ = tag;
-            TraceNode::new(self, Box::new(|_, _| tracing::Span::none().entered()))
+            TraceNode::new(self, Box::new(|_| tracing::Span::none().entered()))
         }
     }
 }

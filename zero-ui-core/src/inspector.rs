@@ -10,7 +10,6 @@ mod inspector_only {
     use std::sync::Arc;
 
     use crate::{
-        context::InfoContext,
         ui_node,
         widget_info::WidgetInfoBuilder,
         widget_instance::{BoxedUiNode, UiNode},
@@ -22,9 +21,9 @@ mod inspector_only {
             info: Arc<super::InspectorInfo>,
         })]
         impl UiNode for InsertInfoNode {
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            fn info(&self, info: &mut WidgetInfoBuilder) {
                 info.meta().set(&super::INSPECTOR_INFO_ID, self.info.clone());
-                self.child.info(ctx, info);
+                self.child.info(info);
             }
         }
         InsertInfoNode {
@@ -39,7 +38,7 @@ pub(crate) use inspector_only::*;
 use std::sync::Arc;
 
 use crate::{
-    context::StaticStateId,
+    context::{StaticStateId, WIDGET},
     widget_builder::{InputKind, NestGroup, PropertyArgs, PropertyId, PropertyImplId, WidgetBuilder, WidgetImplId, WidgetMod},
     widget_info::WidgetInfo,
 };
@@ -199,15 +198,15 @@ impl<'a> WidgetInfoInspectorExt<'a> for WidgetInfo<'a> {
                 match input.kind {
                     InputKind::UiNode => {
                         let node = args.ui_node(i);
-                        if let Some(true) = node.try_context(|ctx| ctx.id == id) {
+                        if let Some(true) = node.try_context(|| WIDGET.id() == id) {
                             return Some((args.id(), i));
                         }
                     }
                     InputKind::UiNodeList => {
                         let list = args.ui_node_list(i);
                         let mut found = false;
-                        list.for_each_ctx(|_, ctx| {
-                            found = ctx.id == id;
+                        list.for_each_ctx(|_| {
+                            found = WIDGET.id() == id;
                             !found
                         });
                         if found {

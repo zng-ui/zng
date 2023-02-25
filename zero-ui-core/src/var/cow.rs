@@ -5,7 +5,7 @@ use std::{
 
 use parking_lot::RwLock;
 
-use crate::new_context::UPDATES;
+use crate::context::UPDATES;
 
 use super::{animation::ModifyInfo, *};
 

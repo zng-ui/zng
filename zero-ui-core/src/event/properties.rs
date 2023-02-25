@@ -170,33 +170,33 @@ pub fn on_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) ->
 where
     C: UiNode,
     A: EventArgs,
-    F: FnMut(&mut WidgetContext, &A) -> bool + Send + 'static,
+    F: FnMut(&A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
 {
     #[ui_node(struct OnEventNode<A: EventArgs> {
         child: impl UiNode,
         #[event] event: Event<A>,
-        filter: impl FnMut(&mut WidgetContext, &A) -> bool + Send + 'static,
+        filter: impl FnMut(&A) -> bool + Send + 'static,
         handler: impl WidgetHandler<A>,
     })]
     impl UiNode for OnEventNode {
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            self.child.event(ctx, update);
+        fn event(&mut self, update: &mut EventUpdate) {
+            self.child.event(update);
             if let Some(args) = self.event.on(update) {
-                if !args.propagation().is_stopped() && (self.filter)(ctx, args) {
-                    self.handler.event(ctx, args);
+                if !args.propagation().is_stopped() && (self.filter)(args) {
+                    self.handler.event(args);
                 }
             }
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
-            self.handler.update(ctx);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
+            self.handler.update();
         }
     }
 
     #[cfg(dyn_closure)]
-    let filter: Box<dyn FnMut(&mut WidgetContext, &A) -> bool + Send> = Box::new(filter);
+    let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
 
     OnEventNode {
         child: child.cfg_boxed(),
@@ -236,33 +236,33 @@ pub fn on_pre_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H
 where
     C: UiNode,
     A: EventArgs,
-    F: FnMut(&mut WidgetContext, &A) -> bool + Send + 'static,
+    F: FnMut(&A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
 {
     #[ui_node(struct OnPreviewEventNode<A: EventArgs> {
         child: impl UiNode,
         #[event] event: Event<A>,
-        filter: impl FnMut(&mut WidgetContext, &A) -> bool + Send + 'static,
+        filter: impl FnMut(&A) -> bool + Send + 'static,
         handler: impl WidgetHandler<A>,
     })]
     impl UiNode for OnPreviewEventNode {
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             if let Some(args) = self.event.on(update) {
-                if !args.propagation().is_stopped() && (self.filter)(ctx, args) {
-                    self.handler.event(ctx, args);
+                if !args.propagation().is_stopped() && (self.filter)(args) {
+                    self.handler.event(args);
                 }
             }
-            self.child.event(ctx, update);
+            self.child.event(update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.handler.update(ctx);
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.handler.update();
+            self.child.update(updates);
         }
     }
 
     #[cfg(dyn_closure)]
-    let filter: Box<dyn FnMut(&mut WidgetContext, &A) -> bool + Send> = Box::new(filter);
+    let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
 
     OnPreviewEventNode {
         child: child.cfg_boxed(),

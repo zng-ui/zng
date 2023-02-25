@@ -4,7 +4,7 @@ use crate::{
     app::view_process::ViewRenderer,
     border::BorderSides,
     color::{self, filters::RenderFilter, RenderColor},
-    context::RenderContext,
+    context::{WIDGET, WINDOW},
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
     units::*,
@@ -382,46 +382,46 @@ impl FrameBuilder {
     /// [`push_inner`]: Self::push_inner
     /// [`can_reuse`]: Self::can_reuse
     /// [`WidgetLayout::collapse`]: crate::widget_info::WidgetLayout::collapse
-    pub fn push_widget(
-        &mut self,
-        ctx: &mut RenderContext,
-        reuse: &mut Option<ReuseRange>,
-        render: impl FnOnce(&mut RenderContext, &mut Self),
-    ) {
+    pub fn push_widget(&mut self, reuse: &mut Option<ReuseRange>, render: impl FnOnce(&mut Self)) {
+        let id = WIDGET.id();
+
         if self.widget_data.is_some() {
             tracing::error!(
                 "called `push_widget` for `{}` without calling `push_inner` for the parent `{}`",
-                ctx.path.widget_id(),
+                id,
                 self.widget_id
             );
         }
 
-        if ctx.widget_info.bounds.is_collapsed() {
+        let bounds = WIDGET.bounds();
+        let tree = WINDOW.widget_tree().unwrap();
+
+        if bounds.is_collapsed() {
             // collapse
-            for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
-                info.bounds_info().set_rendered(None, ctx.info_tree);
+            for info in tree.get(id).unwrap().self_and_descendants() {
+                info.bounds_info().set_rendered(None, &tree);
             }
             return;
         }
 
-        let prev_outer = ctx.widget_info.bounds.outer_transform();
+        let prev_outer = bounds.outer_transform();
         let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
         if prev_outer != outer_transform {
             *reuse = None;
         }
-        ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
-        let outer_bounds = ctx.widget_info.bounds.outer_bounds();
+        bounds.set_outer_transform(outer_transform, &tree);
+        let outer_bounds = bounds.outer_bounds();
 
         let parent_visible = self.visible;
 
-        if ctx.widget_info.bounds.can_auto_hide() {
+        if bounds.can_auto_hide() {
             match self.auto_hide_rect.intersection(&outer_bounds) {
                 Some(cull) => {
                     let partial = cull != outer_bounds;
-                    if partial || ctx.widget_info.bounds.is_partially_culled() {
+                    if partial || bounds.is_partially_culled() {
                         // partial cull, cannot reuse because descendant vis may have changed.
                         *reuse = None;
-                        ctx.widget_info.bounds.set_is_partially_culled(partial);
+                        bounds.set_is_partially_culled(partial);
                     }
                 }
                 None => {
@@ -430,10 +430,10 @@ impl FrameBuilder {
                 }
             }
         } else {
-            ctx.widget_info.bounds.set_is_partially_culled(false);
+            bounds.set_is_partially_culled(false);
         }
 
-        let can_reuse = match ctx.widget_info.bounds.rendered() {
+        let can_reuse = match bounds.rendered() {
             Some(i) => i.visible == self.visible,
             // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
             None => false,
@@ -458,8 +458,8 @@ impl FrameBuilder {
             }
         }
 
-        let index = self.hit_clips.push_child(ctx.path.widget_id());
-        ctx.widget_info.bounds.set_hit_index(index);
+        let index = self.hit_clips.push_child(id);
+        bounds.set_hit_index(index);
 
         let mut reused = true;
         let display_count = self.display_list.len();
@@ -479,9 +479,9 @@ impl FrameBuilder {
                 inner_is_set: false,
                 inner_transform: PxTransform::identity(),
             });
-            let parent_widget = mem::replace(&mut frame.widget_id, ctx.path.widget_id());
+            let parent_widget = mem::replace(&mut frame.widget_id, id);
 
-            render(ctx, frame);
+            render(frame);
 
             frame.widget_id = parent_widget;
             frame.widget_data = None;
@@ -490,7 +490,7 @@ impl FrameBuilder {
         if reused {
             // if did reuse, patch transforms and z-indexes.
 
-            let _span = tracing::trace_span!("reuse-descendants", id=?ctx.path.widget_id()).entered();
+            let _span = tracing::trace_span!("reuse-descendants", ?id).entered();
 
             let transform_patch = undo_prev_outer_transform.and_then(|t| {
                 let t = t.then(&outer_transform);
@@ -500,12 +500,7 @@ impl FrameBuilder {
                     None
                 }
             });
-            let z_patch = ctx
-                .widget_info
-                .bounds
-                .rendered()
-                .map(|i| widget_z.0 as i64 - i.back.0 as i64)
-                .unwrap_or(0);
+            let z_patch = bounds.rendered().map(|i| widget_z.0 as i64 - i.back.0 as i64).unwrap_or(0);
 
             let update_transforms = transform_patch.is_some();
             let update_z = z_patch != 0;
@@ -515,22 +510,16 @@ impl FrameBuilder {
                 let transform_patch = transform_patch.unwrap();
 
                 // patch current widget's inner.
-                let bounds = &ctx.widget_info.bounds;
-                bounds.set_inner_transform(
-                    bounds.inner_transform().then(&transform_patch),
-                    ctx.info_tree,
-                    ctx.path.widget_id(),
-                    self.parent_inner_bounds,
-                );
+                bounds.set_inner_transform(bounds.inner_transform().then(&transform_patch), &tree, id, self.parent_inner_bounds);
 
                 // patch descendants outer and inner.
-                for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().descendants() {
+                for info in tree.get(id).unwrap().descendants() {
                     let bounds = info.bounds_info();
 
-                    bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), ctx.info_tree);
+                    bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), &tree);
                     bounds.set_inner_transform(
                         bounds.inner_transform().then(&transform_patch),
-                        ctx.info_tree,
+                        &tree,
                         info.widget_id(),
                         info.parent().map(|p| p.inner_bounds()),
                     );
@@ -544,34 +533,28 @@ impl FrameBuilder {
                                 back: ZIndex(back as u32),
                                 front: ZIndex(front as u32),
                             }),
-                            ctx.info_tree,
+                            &tree,
                         );
                     }
                 }
             } else if update_transforms {
                 let transform_patch = transform_patch.unwrap();
 
-                let bounds = &ctx.widget_info.bounds;
-                bounds.set_inner_transform(
-                    bounds.inner_transform().then(&transform_patch),
-                    ctx.info_tree,
-                    ctx.path.widget_id(),
-                    self.parent_inner_bounds,
-                );
+                bounds.set_inner_transform(bounds.inner_transform().then(&transform_patch), &tree, id, self.parent_inner_bounds);
 
-                for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().descendants() {
+                for info in tree.get(id).unwrap().descendants() {
                     let bounds = info.bounds_info();
 
-                    bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), ctx.info_tree);
+                    bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), &tree);
                     bounds.set_inner_transform(
                         bounds.inner_transform().then(&transform_patch),
-                        ctx.info_tree,
+                        &tree,
                         info.widget_id(),
                         info.parent().map(|p| p.inner_bounds()),
                     );
                 }
             } else if update_z {
-                for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                for info in tree.get(id).unwrap().self_and_descendants() {
                     let bounds = info.bounds_info();
 
                     if let Some(info) = bounds.rendered() {
@@ -583,23 +566,23 @@ impl FrameBuilder {
                                 back: ZIndex(back as u32),
                                 front: ZIndex(front as u32),
                             }),
-                            ctx.info_tree,
+                            &tree,
                         );
                     }
                 }
             }
 
             // increment by reused
-            self.render_index = ctx.widget_info.bounds.rendered().map(|i| i.front).unwrap_or(self.render_index);
+            self.render_index = bounds.rendered().map(|i| i.front).unwrap_or(self.render_index);
         } else {
             // if did not reuse and rendered
-            ctx.widget_info.bounds.set_rendered(
+            bounds.set_rendered(
                 Some(WidgetRenderInfo {
                     visible: self.display_list.len() > display_count,
                     back: widget_z,
                     front: self.render_index,
                 }),
-                ctx.info_tree,
+                &tree,
             );
         }
 
@@ -779,23 +762,24 @@ impl FrameBuilder {
     /// a webrender frame update is faster than a full frame, and the transform related optimizations don't gain much.
     pub fn push_inner(
         &mut self,
-        ctx: &mut RenderContext,
         layout_translation_key: FrameValueKey<PxTransform>,
         layout_translation_animating: bool,
-        render: impl FnOnce(&mut RenderContext, &mut Self),
+        render: impl FnOnce(&mut Self),
     ) {
         if let Some(mut data) = self.widget_data.take() {
             let parent_transform = self.transform;
             let parent_hit_clips = mem::take(&mut self.hit_clips);
 
-            let inner_offset = ctx.widget_info.bounds.inner_offset();
+            let id = WIDGET.id();
+            let bounds = WIDGET.bounds();
+            let tree = WINDOW.widget_tree().unwrap();
+
+            let inner_offset = bounds.inner_offset();
             let inner_transform = data.inner_transform.then_translate((data.outer_offset + inner_offset).cast());
             self.transform = inner_transform.then(&parent_transform);
-            ctx.widget_info
-                .bounds
-                .set_inner_transform(self.transform, ctx.info_tree, ctx.path.widget_id(), self.parent_inner_bounds);
+            bounds.set_inner_transform(self.transform, &tree, id, self.parent_inner_bounds);
 
-            let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(ctx.widget_info.bounds.inner_bounds()));
+            let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
 
             if self.visible {
                 self.display_list.push_reference_frame(
@@ -818,24 +802,24 @@ impl FrameBuilder {
                         .push_stacking_context(MixBlendMode::Normal, &data.filter, &[], &[]);
                 }
 
-                render(ctx, self);
+                render(self);
 
                 if has_stacking_ctx {
                     self.display_list.pop_stacking_context();
                 }
                 self.display_list.pop_reference_frame();
             } else {
-                render(ctx, self);
+                render(self);
             }
 
             self.transform = parent_transform;
             self.parent_inner_bounds = parent_parent_inner_bounds;
 
             let hit_clips = mem::replace(&mut self.hit_clips, parent_hit_clips);
-            ctx.widget_info.bounds.set_hit_clips(hit_clips);
+            bounds.set_hit_clips(hit_clips);
         } else {
             tracing::error!("called `push_inner` more then once for `{}`", self.widget_id);
-            render(ctx, self)
+            render(self)
         }
     }
 
@@ -1870,34 +1854,39 @@ impl FrameUpdate {
     /// it or if the previous transform is not invertible.
     ///
     /// [`can_reuse_widget`]: Self::can_reuse_widget
-    pub fn update_widget(&mut self, ctx: &mut RenderContext, reuse: bool, render_update: impl FnOnce(&mut RenderContext, &mut Self)) {
+    pub fn update_widget(&mut self, reuse: bool, render_update: impl FnOnce(&mut Self)) {
+        let id = WIDGET.id();
+
         if self.inner_transform.is_some() {
             tracing::error!(
                 "called `update_widget` for `{}` without calling `update_inner` for the parent `{}`",
-                ctx.path.widget_id(),
+                id,
                 self.widget_id
             );
         }
 
+        let bounds = WIDGET.bounds();
+        let tree = WINDOW.widget_tree().unwrap();
+
         let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
 
         let parent_can_reuse = self.can_reuse_widget;
-        let parent_bounds = mem::replace(&mut self.widget_bounds, ctx.widget_info.bounds.clone());
+        let parent_bounds = mem::replace(&mut self.widget_bounds, bounds.clone());
 
         if self.can_reuse_widget && reuse {
             let _span = tracing::trace_span!("reuse-descendants", id=?self.widget_id).entered();
 
-            let prev_outer = ctx.widget_info.bounds.outer_transform();
+            let prev_outer = bounds.outer_transform();
             if prev_outer != outer_transform {
                 if let Some(undo_prev) = prev_outer.inverse() {
                     let patch = undo_prev.then(&outer_transform);
 
-                    for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                    for info in tree.get(id).unwrap().self_and_descendants() {
                         let bounds = info.bounds_info();
-                        bounds.set_outer_transform(bounds.outer_transform().then(&patch), ctx.info_tree);
+                        bounds.set_outer_transform(bounds.outer_transform().then(&patch), &tree);
                         bounds.set_inner_transform(
                             bounds.inner_transform().then(&patch),
-                            ctx.info_tree,
+                            &tree,
                             info.widget_id(),
                             info.parent().map(|p| p.inner_bounds()),
                         );
@@ -1913,13 +1902,13 @@ impl FrameUpdate {
             self.can_reuse_widget = false;
         }
 
-        ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
+        bounds.set_outer_transform(outer_transform, &tree);
         self.outer_offset = mem::take(&mut self.child_offset);
         self.inner_transform = Some(PxTransform::identity());
         let parent_id = self.widget_id;
-        self.widget_id = ctx.path.widget_id();
+        self.widget_id = id;
 
-        render_update(ctx, self);
+        render_update(self);
 
         self.outer_offset = PxVector::zero();
         self.inner_transform = None;
@@ -1932,11 +1921,11 @@ impl FrameUpdate {
     ///
     /// Widgets that did not request render-update can use this method to update only the outer and inner transforms
     /// of itself and descendants as those values are global and the parent widget may have changed.
-    pub fn reuse_widget(&mut self, ctx: &mut RenderContext) {
+    pub fn reuse_widget(&mut self) {
         if self.inner_transform.is_some() {
             tracing::error!(
                 "called `reuse_widget` for `{}` without calling `update_inner` for the parent `{}`",
-                ctx.path.widget_id(),
+                WIDGET.id(),
                 self.widget_id
             );
         }
@@ -1947,30 +1936,32 @@ impl FrameUpdate {
     /// The `layout_translation_animating` affects some webrender caches, see [`FrameBuilder::push_inner`] for details.
     pub fn update_inner(
         &mut self,
-        ctx: &mut RenderContext,
         layout_translation_key: FrameValueKey<PxTransform>,
         layout_translation_animating: bool,
-        render_update: impl FnOnce(&mut RenderContext, &mut Self),
+        render_update: impl FnOnce(&mut Self),
     ) {
+        let id = WIDGET.id();
         if let Some(inner_transform) = self.inner_transform.take() {
-            let inner_offset = ctx.widget_info.bounds.inner_offset();
+            let bounds = WIDGET.bounds();
+            let tree = WINDOW.widget_tree().unwrap();
+
+            let inner_offset = bounds.inner_offset();
             let inner_transform = inner_transform.then_translate((self.outer_offset + inner_offset).cast());
             self.update_transform(layout_translation_key.update(inner_transform, layout_translation_animating), false);
             let parent_transform = self.transform;
 
             self.transform = inner_transform.then(&parent_transform);
-            ctx.widget_info
-                .bounds
-                .set_inner_transform(self.transform, ctx.info_tree, ctx.path.widget_id(), self.parent_inner_bounds);
-            let parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(ctx.widget_info.bounds.inner_bounds()));
 
-            render_update(ctx, self);
+            bounds.set_inner_transform(self.transform, &tree, id, self.parent_inner_bounds);
+            let parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
+
+            render_update(self);
 
             self.transform = parent_transform;
             self.parent_inner_bounds = parent_inner_bounds;
         } else {
-            tracing::error!("called `update_inner` more then once for `{}`", self.widget_id);
-            render_update(ctx, self)
+            tracing::error!("called `update_inner` more then once for `{}`", id);
+            render_update(self)
         }
     }
 

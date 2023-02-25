@@ -67,13 +67,13 @@ impl<U: UiNode> AdoptiveNode<U> {
     delegate_mut = &mut self.node,
 )]
 impl<U: UiNode> UiNode for AdoptiveNode<U> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
+    fn init(&mut self) {
         self.is_inited = true;
-        self.node.init(ctx);
+        self.node.init();
     }
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
+    fn deinit(&mut self) {
         self.is_inited = false;
-        self.node.deinit(ctx);
+        self.node.deinit();
     }
 }
 

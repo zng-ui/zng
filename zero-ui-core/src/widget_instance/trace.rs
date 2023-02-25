@@ -1,5 +1,5 @@
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
+    context::WidgetUpdates,
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
     units::*,
@@ -22,7 +22,7 @@ pub struct TraceNode<N, E> {
 impl<N, E, S> TraceNode<N, E>
 where
     N: UiNode,
-    E: Fn(&mut InfoContext, &'static str) -> S + Send + 'static,
+    E: Fn(&'static str) -> S + Send + 'static,
 {
     /// Wrap the `node`.
     ///
@@ -34,50 +34,50 @@ where
 impl<N, E, S> UiNode for TraceNode<N, E>
 where
     N: UiNode,
-    E: Fn(&mut InfoContext, &'static str) -> S + Send + 'static,
+    E: Fn(&'static str) -> S + Send + 'static,
 {
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let _span = (self.enter_mtd)(ctx, "info");
-        self.node.info(ctx, info);
+    fn info(&self, info: &mut WidgetInfoBuilder) {
+        let _span = (self.enter_mtd)("info");
+        self.node.info(info);
     }
 
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        let _span = (self.enter_mtd)(&mut ctx.as_info(), "init");
-        self.node.init(ctx);
+    fn init(&mut self) {
+        let _span = (self.enter_mtd)("init");
+        self.node.init();
     }
 
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        let _span = (self.enter_mtd)(&mut ctx.as_info(), "deinit");
-        self.node.deinit(ctx);
+    fn deinit(&mut self) {
+        let _span = (self.enter_mtd)("deinit");
+        self.node.deinit();
     }
 
-    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        let _span = (self.enter_mtd)(&mut ctx.as_info(), "event");
-        self.node.event(ctx, update);
+    fn event(&mut self, update: &mut EventUpdate) {
+        let _span = (self.enter_mtd)("event");
+        self.node.event(update);
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-        let _span = (self.enter_mtd)(&mut ctx.as_info(), "update");
-        self.node.update(ctx, updates);
+    fn update(&mut self, updates: &mut WidgetUpdates) {
+        let _span = (self.enter_mtd)("update");
+        self.node.update(updates);
     }
 
-    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        let _span = (self.enter_mtd)(&mut ctx.as_info(), "measure");
-        self.node.measure(ctx, wm)
+    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        let _span = (self.enter_mtd)("measure");
+        self.node.measure(wm)
     }
 
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let _span = (self.enter_mtd)(&mut ctx.as_info(), "layout");
-        self.node.layout(ctx, wl)
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        let _span = (self.enter_mtd)("layout");
+        self.node.layout(wl)
     }
 
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        let _span = (self.enter_mtd)(&mut ctx.as_info(), "render");
-        self.node.render(ctx, frame);
+    fn render(&self, frame: &mut FrameBuilder) {
+        let _span = (self.enter_mtd)("render");
+        self.node.render(frame);
     }
 
-    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        let _span = (self.enter_mtd)(&mut ctx.as_info(), "render_update");
-        self.node.render_update(ctx, update);
+    fn render_update(&self, update: &mut FrameUpdate) {
+        let _span = (self.enter_mtd)("render_update");
+        self.node.render_update(update);
     }
 }

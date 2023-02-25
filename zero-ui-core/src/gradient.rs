@@ -1251,6 +1251,8 @@ use crate::var::animation::Transitionable;
 
 #[cfg(test)]
 mod tests {
+    use crate::app::App;
+
     use super::*;
 
     #[test]
@@ -1267,11 +1269,13 @@ mod tests {
     }
 
     fn test_layout_stops(stops: GradientStops) -> Vec<RenderGradientStop> {
+        let _app = App::minimal().run_headless(false);
+
         let mut render_stops = vec![];
-        let mut ctx = TestWidgetContext::new();
-        ctx.layout_context(Px(0), Px(0), PxSize::new(Px(100), Px(100)), 1.0.fct(), 96.0, |ctx| {
+
+        LAYOUT.with_context(Px(0), 1.fct(), 96.0, PxSize::new(Px(100), Px(100)), || {
             stops.layout_linear(
-                ctx.for_x(),
+                LAYOUT.metrics().for_x(),
                 ExtendMode::Clamp,
                 &mut PxLine::new(PxPoint::zero(), PxPoint::new(Px(100), Px(100))),
                 &mut render_stops,

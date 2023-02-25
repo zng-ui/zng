@@ -1,7 +1,7 @@
 use std::{any::Any, fmt, marker::PhantomData};
 
 use crate::{
-    context::{WidgetContext, WidgetUpdates},
+    context::{WidgetUpdates, WIDGET},
     ui_node,
     var::{IntoVar, Var, VarValue},
     widget_instance::UiNode,
@@ -306,83 +306,6 @@ impl<U> BorrowMutStateMap<U> for OwnedStateMap<U> {
     }
 }
 
-macro_rules! impl_borrow_mut_for_ctx {
-    ($($Ctx:ident.$field:ident : $Tag:ident;)+) => {$(
-
-        impl<'a> BorrowStateMap<state_map::$Tag> for crate::context::$Ctx<'a> {
-            fn borrow(&self) -> StateMapRef<state_map::$Tag> {
-                self.$field.as_ref()
-            }
-        }
-
-        impl<'a> BorrowMutStateMap<state_map::$Tag> for crate::context::$Ctx<'a> {
-            fn borrow_mut(&mut self) -> StateMapMut<state_map::$Tag> {
-                self.$field.reborrow()
-            }
-        }
-
-    )+}
-}
-impl_borrow_mut_for_ctx! {
-    WidgetContext.window_state: Window;
-    LayoutContext.window_state: Window;
-
-    WidgetContext.widget_state: Widget;
-    LayoutContext.widget_state: Widget;
-
-    WidgetContext.update_state: Update;
-    LayoutContext.update_state: Update;
-    MeasureContext.update_state: Update;
-    InfoContext.update_state: Update;
-    RenderContext.update_state: Update;
-}
-
-macro_rules! impl_borrow_for_ctx {
-    ($($Ctx:ident.$field:ident : $Tag:ident;)+) => {$(
-
-        impl<'a> BorrowStateMap<state_map::$Tag> for crate::context::$Ctx<'a> {
-            fn borrow(&self) -> StateMapRef<state_map::$Tag> {
-                self.$field
-            }
-        }
-
-    )+}
-}
-impl_borrow_for_ctx! {
-    MeasureContext.window_state: Window;
-    MeasureContext.widget_state: Widget;
-
-    InfoContext.window_state: Window;
-    InfoContext.widget_state: Widget;
-
-    RenderContext.window_state: Window;
-    RenderContext.widget_state: Widget;
-}
-
-macro_rules! impl_borrow_mut_for_test_ctx {
-    ($($field:ident : $Tag:ident;)+) => {$(
-
-        #[cfg(any(test, doc, feature = "test_util"))]
-        impl BorrowStateMap<state_map::$Tag> for crate::context::TestWidgetContext {
-            fn borrow(&self) -> StateMapRef<state_map::$Tag> {
-                self.$field.borrow()
-            }
-        }
-        #[cfg(any(test, doc, feature = "test_util"))]
-        impl BorrowMutStateMap<state_map::$Tag> for crate::context::TestWidgetContext {
-            fn borrow_mut(&mut self) -> StateMapMut<state_map::$Tag> {
-                self.$field.borrow_mut()
-            }
-        }
-
-    )+}
-}
-impl_borrow_mut_for_test_ctx! {
-    window_state: Window;
-    widget_state: Widget;
-    update_state: Update;
-}
-
 /// State map helper types.
 pub mod state_map {
     use std::any::Any;
@@ -641,22 +564,23 @@ where
         default: impl Fn() -> T + Send + 'static,
     })]
     impl UiNode for WithWidgetStateNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.auto_subs(ctx);
-            self.child.init(ctx);
+        fn init(&mut self) {
+            self.auto_subs();
+            self.child.init();
 
-            ctx.widget_state.set(self.id, self.value.get());
+            WIDGET.with_state_mut(|s| s.set(self.id, self.value.get()));
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
-            ctx.widget_state.set(self.id, (self.default)());
+        fn deinit(&mut self) {
+            self.child.deinit();
+
+            WIDGET.with_state_mut(|s| s.set(self.id, (self.default)()));
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
             if let Some(v) = self.value.get_new() {
-                ctx.widget_state.set(self.id, v);
+                WIDGET.with_state_mut(|s| s.set(self.id, v));
             }
         }
     }
@@ -700,23 +624,30 @@ where
         _phantom: PhantomData<V>,
     })]
     impl UiNode for WithWidgetStateModifyNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.auto_subs(ctx);
-            self.child.init(ctx);
+        fn init(&mut self) {
+            self.auto_subs();
+            self.child.init();
 
             self.value.with(|v| {
-                (self.modify)(ctx.widget_state.entry(self.id).or_insert_with(&self.default), v);
+                WIDGET.with_state_mut(|s| {
+                    (self.modify)(s.entry(self.id).or_insert_with(&self.default), v);
+                })
             })
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
-            ctx.widget_state.set(self.id, (self.default)());
+        fn deinit(&mut self) {
+            self.child.deinit();
+
+            WIDGET.with_state_mut(|s| s.set(self.id, (self.default)()));
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
-            self.value.with_new(|v| (self.modify)(ctx.widget_state.req_mut(self.id), v));
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
+            self.value.with_new(|v| {
+                WIDGET.with_state_mut(|s| {
+                    (self.modify)(s.req_mut(self.id), v);
+                })
+            });
         }
     }
     WithWidgetStateModifyNode {

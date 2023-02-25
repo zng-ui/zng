@@ -67,7 +67,7 @@ macro_rules! when_var {
     }
 }
 
-use crate::new_context::UPDATES;
+use crate::context::UPDATES;
 #[doc(inline)]
 pub use crate::when_var;
 

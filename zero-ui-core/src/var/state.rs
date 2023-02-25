@@ -75,10 +75,10 @@ pub fn getter_var<T: VarValue + Default>() -> ArcVar<T> {
     var(T::default())
 }
 
-fn validate_getter_var<T: VarValue>(_ctx: &mut WidgetContext, _var: &impl Var<T>) {
+fn validate_getter_var<T: VarValue>(_var: &impl Var<T>) {
     #[cfg(debug_assertions)]
     if _var.capabilities().is_always_read_only() {
-        tracing::error!("`is_`, `has_` or `get_` property inited with read-only var in {:?}", _ctx.path);
+        tracing::error!("`is_`, `has_` or `get_` property inited with read-only var in {:?}", WIDGET.id());
     }
 }
 
@@ -88,33 +88,33 @@ pub fn event_is_state<A: EventArgs>(
     state: impl IntoVar<bool>,
     default: bool,
     event: Event<A>,
-    on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + Send + 'static,
+    on_event: impl FnMut(&A) -> Option<bool> + Send + 'static,
 ) -> impl UiNode {
     #[ui_node(struct EventIsStateNode<A: EventArgs> {
         child: impl UiNode,
         #[event] event: Event<A>,
         default: bool,
         state: impl Var<bool>,
-        on_event: impl FnMut(&mut WidgetContext, &A) -> Option<bool> + Send + 'static,
+        on_event: impl FnMut(&A) -> Option<bool> + Send + 'static,
     })]
     impl UiNode for EventIsStateNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            validate_getter_var(ctx, &self.state);
-            self.auto_subs(ctx);
+        fn init(&mut self) {
+            validate_getter_var(&self.state);
+            self.auto_subs();
             let _ = self.state.set_ne(self.default);
-            self.child.init(ctx);
+            self.child.init();
         }
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             let _ = self.state.set_ne(self.default);
-            self.child.deinit(ctx);
+            self.child.deinit();
         }
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             if let Some(args) = self.event.on(update) {
-                if let Some(state) = (self.on_event)(ctx, args) {
+                if let Some(state) = (self.on_event)(args) {
                     let _ = self.state.set_ne(state);
                 }
             }
-            self.child.event(ctx, update);
+            self.child.event(update);
         }
     }
     EventIsStateNode {
@@ -135,11 +135,11 @@ pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
     default: bool,
     event0: Event<A0>,
     default0: bool,
-    on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + Send + 'static,
+    on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
     event1: Event<A1>,
     default1: bool,
-    on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + Send + 'static,
-    merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + Send + 'static,
+    on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+    merge: impl FnMut(bool, bool) -> Option<bool> + Send + 'static,
 ) -> impl UiNode {
     #[ui_node(struct EventIsState2Node<A0: EventArgs, A1: EventArgs,> {
         child: impl UiNode,
@@ -147,46 +147,46 @@ pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
         #[event] event1: Event<A1>,
         default: bool,
         state: impl Var<bool>,
-        on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + Send + 'static,
-        on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + Send + 'static,
-        merge: impl FnMut(&mut WidgetContext, bool, bool) -> Option<bool> + Send + 'static,
+        on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+        on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+        merge: impl FnMut(bool, bool) -> Option<bool> + Send + 'static,
         partial: (bool, bool),
         partial_default: (bool, bool),
     })]
     impl UiNode for EventIsState2Node {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            validate_getter_var(ctx, &self.state);
-            self.auto_subs(ctx);
+        fn init(&mut self) {
+            validate_getter_var(&self.state);
+            self.auto_subs();
 
             self.partial = self.partial_default;
             let _ = self.state.set_ne(self.default);
-            self.child.init(ctx);
+            self.child.init();
         }
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             let _ = self.state.set_ne(self.default);
-            self.child.deinit(ctx);
+            self.child.deinit();
         }
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             let mut updated = false;
             if let Some(args) = self.event0.on(update) {
-                if let Some(state) = (self.on_event0)(ctx, args) {
+                if let Some(state) = (self.on_event0)(args) {
                     if self.partial.0 != state {
                         self.partial.0 = state;
                         updated = true;
                     }
                 }
             } else if let Some(args) = self.event1.on(update) {
-                if let Some(state) = (self.on_event1)(ctx, args) {
+                if let Some(state) = (self.on_event1)(args) {
                     if self.partial.1 != state {
                         self.partial.1 = state;
                         updated = true;
                     }
                 }
             }
-            self.child.event(ctx, update);
+            self.child.event(update);
 
             if updated {
-                if let Some(value) = (self.merge)(ctx, self.partial.0, self.partial.1) {
+                if let Some(value) = (self.merge)(self.partial.0, self.partial.1) {
                     let _ = self.state.set_ne(value);
                 }
             }
@@ -215,14 +215,14 @@ pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     default: bool,
     event0: Event<A0>,
     default0: bool,
-    on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + Send + 'static,
+    on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
     event1: Event<A1>,
     default1: bool,
-    on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + Send + 'static,
+    on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
     event2: Event<A2>,
     default2: bool,
-    on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + Send + 'static,
-    merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + Send + 'static,
+    on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
+    merge: impl FnMut(bool, bool, bool) -> Option<bool> + Send + 'static,
 ) -> impl UiNode {
     #[ui_node(struct EventIsState3Node<A0: EventArgs, A1: EventArgs, A2: EventArgs> {
         child: impl UiNode,
@@ -231,54 +231,54 @@ pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
         #[event] event2: Event<A2>,
         default: bool,
         state: impl Var<bool>,
-        on_event0: impl FnMut(&mut WidgetContext, &A0) -> Option<bool> + Send + 'static,
-        on_event1: impl FnMut(&mut WidgetContext, &A1) -> Option<bool> + Send + 'static,
-        on_event2: impl FnMut(&mut WidgetContext, &A2) -> Option<bool> + Send + 'static,
+        on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+        on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+        on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
         partial_default: (bool, bool, bool),
         partial: (bool, bool, bool),
-        merge: impl FnMut(&mut WidgetContext, bool, bool, bool) -> Option<bool> + Send + 'static,
+        merge: impl FnMut(bool, bool, bool) -> Option<bool> + Send + 'static,
     })]
     impl UiNode for EventIsState3Node {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            validate_getter_var(ctx, &self.state);
-            self.auto_subs(ctx);
+        fn init(&mut self) {
+            validate_getter_var(&self.state);
+            self.auto_subs();
 
             self.partial = self.partial_default;
             let _ = self.state.set_ne(self.default);
-            self.child.init(ctx);
+            self.child.init();
         }
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             let _ = self.state.set_ne(self.default);
-            self.child.deinit(ctx);
+            self.child.deinit();
         }
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             let mut updated = false;
             if let Some(args) = self.event0.on(update) {
-                if let Some(state) = (self.on_event0)(ctx, args) {
+                if let Some(state) = (self.on_event0)(args) {
                     if self.partial.0 != state {
                         self.partial.0 = state;
                         updated = true;
                     }
                 }
             } else if let Some(args) = self.event1.on(update) {
-                if let Some(state) = (self.on_event1)(ctx, args) {
+                if let Some(state) = (self.on_event1)(args) {
                     if self.partial.1 != state {
                         self.partial.1 = state;
                         updated = true;
                     }
                 }
             } else if let Some(args) = self.event2.on(update) {
-                if let Some(state) = (self.on_event2)(ctx, args) {
+                if let Some(state) = (self.on_event2)(args) {
                     if self.partial.2 != state {
                         self.partial.2 = state;
                         updated = true;
                     }
                 }
             }
-            self.child.event(ctx, update);
+            self.child.event(update);
 
             if updated {
-                if let Some(value) = (self.merge)(ctx, self.partial.0, self.partial.1, self.partial.2) {
+                if let Some(value) = (self.merge)(self.partial.0, self.partial.1, self.partial.2) {
                     let _ = self.state.set_ne(value);
                 }
             }
@@ -313,16 +313,16 @@ pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl
         binding: VarHandle,
     })]
     impl UiNode for BindIsStateNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            validate_getter_var(ctx, &self.state);
+        fn init(&mut self) {
+            validate_getter_var(&self.state);
             let _ = self.state.set_ne(self.source.get());
             self.binding = self.source.bind(&self.state);
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             self.binding = VarHandle::dummy();
-            self.child.deinit(ctx);
+            self.child.deinit();
         }
     }
     BindIsStateNode {
@@ -351,24 +351,24 @@ pub fn widget_state_is_state(
         deinit: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
     })]
     impl UiNode for WidgetStateIsStateNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            validate_getter_var(ctx, &self.state);
-            self.child.init(ctx);
-            let state = (self.predicate)(ctx.widget_state.as_ref());
+        fn init(&mut self) {
+            validate_getter_var(&self.state);
+            self.child.init();
+            let state = WIDGET.with_state(|s| (self.predicate)(s));
             if state != self.state.get() {
                 let _ = self.state.set(state);
             }
         }
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
-            let state = (self.deinit)(ctx.widget_state.as_ref());
+        fn deinit(&mut self) {
+            self.child.deinit();
+            let state = WIDGET.with_state(|s| (self.deinit)(s));
             if state != self.state.get() {
                 let _ = self.state.set(state);
             }
         }
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
-            let state = (self.predicate)(ctx.widget_state.as_ref());
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
+            let state = WIDGET.with_state(|s| (self.predicate)(s));
             if state != self.state.get() {
                 let _ = self.state.set(state);
             }
@@ -400,27 +400,27 @@ pub fn widget_state_get_state<T: VarValue>(
         get_deinit: impl Fn(StateMapRef<state_map::Widget>, &T) -> Option<T> + Send + 'static,
     })]
     impl UiNode for WidgetStateGetStateNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            validate_getter_var(ctx, &self.state);
-            self.child.init(ctx);
-            let new = self.state.with(|s| (self.get_new)(ctx.widget_state.as_ref(), s));
+        fn init(&mut self) {
+            validate_getter_var(&self.state);
+            self.child.init();
+            let new = self.state.with(|s| WIDGET.with_state(|w| (self.get_new)(w, s)));
             if let Some(new) = new {
                 let _ = self.state.set(new);
             }
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
+        fn deinit(&mut self) {
+            self.child.deinit();
 
-            let new = self.state.with(|s| (self.get_deinit)(ctx.widget_state.as_ref(), s));
+            let new = self.state.with(|s| WIDGET.with_state(|w| (self.get_deinit)(w, s)));
             if let Some(new) = new {
                 let _ = self.state.set(new);
             }
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
-            let new = self.state.with(|s| (self.get_new)(ctx.widget_state.as_ref(), s));
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
+            let new = self.state.with(|s| WIDGET.with_state(|w| (self.get_new)(w, s)));
             if let Some(new) = new {
                 let _ = self.state.set(new);
             }

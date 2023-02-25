@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     border::ContextBorders,
-    context::{InfoContext, LayoutContext, LayoutMetricsSnapshot, OwnedStateMap, StateMapRef},
+    context::{LayoutMetricsSnapshot, OwnedStateMap, StateMapRef},
     crate_util::IdMap,
     impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate},

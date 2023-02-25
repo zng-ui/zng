@@ -313,34 +313,34 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         self.1.drain_into(vec);
     }
 
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.init_all(ctx);
-        self.1.init_all(ctx);
+    fn init_all(&mut self) {
+        self.0.init_all();
+        self.1.init_all();
     }
 
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.deinit_all(ctx);
-        self.1.deinit_all(ctx);
+    fn deinit_all(&mut self) {
+        self.0.deinit_all();
+        self.1.deinit_all();
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.0.event_all(ctx, update);
-        self.1.event_all(ctx, update);
+    fn event_all(&mut self, update: &mut EventUpdate) {
+        self.0.event_all(update);
+        self.1.event_all(update);
     }
 
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        self.0.update_all(ctx, updates, observer);
-        self.1.update_all(ctx, updates, &mut OffsetUiListObserver(self.0.len(), observer));
+    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.0.update_all(updates, observer);
+        self.1.update_all(updates, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
-    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.0.render_all(ctx, frame);
-        self.1.render_all(ctx, frame);
+    fn render_all(&self, frame: &mut FrameBuilder) {
+        self.0.render_all(frame);
+        self.1.render_all(frame);
     }
 
-    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.0.render_update_all(ctx, update);
-        self.1.render_update_all(ctx, update);
+    fn render_update_all(&self, update: &mut FrameUpdate) {
+        self.0.render_update_all(update);
+        self.1.render_update_all(update);
     }
 }
 
@@ -523,23 +523,23 @@ where
         self.map.get_mut().clear();
     }
 
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
-        let _ = SortingListParent::with(|| self.list.init_all(ctx));
+    fn init_all(&mut self) {
+        let _ = SortingListParent::with(|| self.list.init_all());
         self.invalidate_sort();
     }
 
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        let _ = SortingListParent::with(|| self.list.deinit_all(ctx));
+    fn deinit_all(&mut self) {
+        let _ = SortingListParent::with(|| self.list.deinit_all());
         self.invalidate_sort();
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.list.event_all(ctx, update);
+    fn event_all(&mut self, update: &mut EventUpdate) {
+        self.list.event_all(update);
     }
 
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut changed = false;
-        let (_, resort) = SortingListParent::with(|| self.list.update_all(ctx, updates, &mut (observer, &mut changed as _)));
+        let (_, resort) = SortingListParent::with(|| self.list.update_all(updates, &mut (observer, &mut changed as _)));
         if changed || resort {
             self.invalidate_sort();
         }
@@ -631,7 +631,7 @@ impl ZIndex {
     /// Returns `DEFAULT` if the node is not an widget.
     pub fn get(widget: &impl UiNode) -> ZIndex {
         widget
-            .with_context(|ctx| ctx.widget_state.copy(&Z_INDEX_ID).unwrap_or_default())
+            .with_context(|| WIDGET.with_state(|s| s.copy(&Z_INDEX_ID)).unwrap_or_default())
             .unwrap_or_default()
     }
 }
@@ -735,38 +735,38 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
         valid: bool,
     })]
     impl UiNode for ZIndexNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
+        fn init(&mut self) {
             let mut z_ctx = Z_INDEX.write();
-            if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
+            if z_ctx.panel_id != WIDGET.parent_id() || z_ctx.panel_id.is_none() {
                 tracing::error!(
                     "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
-                    ctx.path.widget_id()
+                    WIDGET.id()
                 );
                 self.valid = false;
             } else {
                 self.valid = true;
-                self.auto_subs(ctx);
+                self.auto_subs();
 
                 let index = self.index.get();
                 if index != ZIndex::DEFAULT {
                     z_ctx.resort = true;
-                    ctx.widget_state.set(&Z_INDEX_ID, self.index.get());
+                    WIDGET.with_state_mut(|s| s.set(&Z_INDEX_ID, self.index.get()));
                 }
             }
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.valid {
                 if let Some(i) = self.index.get_new() {
                     let mut z_ctx = Z_INDEX.write();
-                    debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
+                    debug_assert_eq!(z_ctx.panel_id, WIDGET.parent_id());
                     z_ctx.resort = true;
-                    ctx.widget_state.set(&Z_INDEX_ID, i);
+                    WIDGET.with_state_mut(|s| s.set(&Z_INDEX_ID, i));
                 }
             }
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
     }
     ZIndexNode {
@@ -903,7 +903,7 @@ impl EditableUiNodeList {
         self.ctrl.clone()
     }
 
-    fn fullfill_requests(&mut self, ctx: &mut WidgetContext, observer: &mut dyn UiNodeListObserver) {
+    fn fullfill_requests(&mut self, observer: &mut dyn UiNodeListObserver) {
         if let Some(r) = self.ctrl.take_requests() {
             if r.clear {
                 // if reset
@@ -911,7 +911,7 @@ impl EditableUiNodeList {
                 observer.reseted();
 
                 for (i, mut wgt) in r.insert {
-                    wgt.init(ctx);
+                    wgt.init();
                     WIDGET.info();
                     if i < self.len() {
                         self.insert(i, wgt);
@@ -920,7 +920,7 @@ impl EditableUiNodeList {
                     }
                 }
                 for mut wgt in r.push {
-                    wgt.init(ctx);
+                    wgt.init();
                     WIDGET.info();
                     self.push(wgt);
                 }
@@ -938,7 +938,7 @@ impl EditableUiNodeList {
                     }
                 }
                 for (id, to) in r.move_id {
-                    if let Some(r) = self.vec.iter().position(|w| w.with_context(|ctx| ctx.id == id).unwrap_or(false)) {
+                    if let Some(r) = self.vec.iter().position(|w| w.with_context(|| WIDGET.id() == id).unwrap_or(false)) {
                         let i = to(r, self.len());
 
                         if r != i {
@@ -956,9 +956,9 @@ impl EditableUiNodeList {
                 }
             } else {
                 for id in r.remove {
-                    if let Some(i) = self.vec.iter().position(|w| w.with_context(|ctx| ctx.id == id).unwrap_or(false)) {
+                    if let Some(i) = self.vec.iter().position(|w| w.with_context(|| WIDGET.id() == id).unwrap_or(false)) {
                         let mut wgt = self.vec.remove(i);
-                        wgt.deinit(ctx);
+                        wgt.deinit();
                         WIDGET.info();
 
                         observer.removed(i);
@@ -966,7 +966,7 @@ impl EditableUiNodeList {
                 }
 
                 for (i, mut wgt) in r.insert {
-                    wgt.init(ctx);
+                    wgt.init();
                     WIDGET.info();
 
                     if i < self.len() {
@@ -979,7 +979,7 @@ impl EditableUiNodeList {
                 }
 
                 for mut wgt in r.push {
-                    wgt.init(ctx);
+                    wgt.init();
                     WIDGET.info();
 
                     observer.inserted(self.len());
@@ -1007,7 +1007,7 @@ impl EditableUiNodeList {
                 }
 
                 for (id, to) in r.move_id {
-                    if let Some(r) = self.vec.iter().position(|w| w.with_context(|ctx| ctx.id == id).unwrap_or(false)) {
+                    if let Some(r) = self.vec.iter().position(|w| w.with_context(|| WIDGET.id() == id).unwrap_or(false)) {
                         let i = to(r, self.len());
 
                         if r != i {
@@ -1083,19 +1083,19 @@ impl UiNodeList for EditableUiNodeList {
         vec.append(&mut self.vec)
     }
 
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.ctrl.0.lock().target = Some(ctx.path.widget_id());
-        self.vec.init_all(ctx);
+    fn init_all(&mut self) {
+        self.ctrl.0.lock().target = Some(WIDGET.id());
+        self.vec.init_all();
     }
 
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+    fn deinit_all(&mut self) {
         self.ctrl.0.lock().target = None;
-        self.vec.deinit_all(ctx);
+        self.vec.deinit_all();
     }
 
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        self.fullfill_requests(ctx, observer);
-        self.vec.update_all(ctx, updates, observer);
+    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.fullfill_requests(observer);
+        self.vec.update_all(updates, observer);
     }
 }
 
@@ -1345,41 +1345,41 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
         self.iter().all(|l| l.is_empty())
     }
 
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
+    fn init_all(&mut self) {
         for list in self {
-            list.init_all(ctx);
+            list.init_all();
         }
     }
 
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+    fn deinit_all(&mut self) {
         for list in self {
-            list.deinit_all(ctx);
+            list.deinit_all();
         }
     }
 
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut offset = 0;
         for list in self {
-            list.update_all(ctx, updates, &mut OffsetUiListObserver(offset, observer));
+            list.update_all(updates, &mut OffsetUiListObserver(offset, observer));
             offset += list.len();
         }
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &mut EventUpdate) {
         for list in self {
-            list.event_all(ctx, update);
+            list.event_all(update);
         }
     }
 
-    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render_all(&self, frame: &mut FrameBuilder) {
         for list in self {
-            list.render_all(ctx, frame);
+            list.render_all(frame);
         }
     }
 
-    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+    fn render_update_all(&self, update: &mut FrameUpdate) {
         for list in self {
-            list.render_update_all(ctx, update);
+            list.render_update_all(update);
         }
     }
 }
@@ -1650,28 +1650,28 @@ where
         self.z_naturally_sorted.set(true);
     }
 
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
+    fn init_all(&mut self) {
         self.z_map.get_mut().clear();
-        let resort = ZIndexContext::with(ctx.path.widget_id(), || self.list.init_all(ctx));
+        let resort = ZIndexContext::with(WIDGET.id(), || self.list.init_all());
         self.z_naturally_sorted.set(!resort);
         self.data.resize_with(self.list.len(), Default::default);
     }
 
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        self.list.deinit_all(ctx);
+    fn deinit_all(&mut self) {
+        self.list.deinit_all();
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.list.event_all(ctx, update);
+    fn event_all(&mut self, update: &mut EventUpdate) {
+        self.list.event_all(update);
     }
 
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut observer = PanelObserver {
             changed: false,
             data: &mut self.data,
             observer,
         };
-        let resort = ZIndexContext::with(ctx.path.widget_id(), || self.list.update_all(ctx, updates, &mut observer));
+        let resort = ZIndexContext::with(WIDGET.id(), || self.list.update_all(updates, &mut observer));
         if resort || (observer.changed && self.z_naturally_sorted.get()) {
             self.z_map.get_mut().clear();
             self.z_naturally_sorted.set(false);
@@ -1680,7 +1680,7 @@ where
         self.data.resize_with(self.list.len(), Default::default);
     }
 
-    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render_all(&self, frame: &mut FrameBuilder) {
         self.for_each_z_sorted(|i, child, data| {
             let offset = data.child_offset();
             if data.define_reference_frame() {
@@ -1690,12 +1690,12 @@ where
                     true,
                     true,
                     |frame| {
-                        child.render(ctx, frame);
+                        child.render(frame);
                     },
                 );
             } else {
                 frame.push_child(offset, |frame| {
-                    child.render(ctx, frame);
+                    child.render(frame);
                 });
             }
 
@@ -1703,16 +1703,16 @@ where
         });
     }
 
-    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+    fn render_update_all(&self, update: &mut FrameUpdate) {
         self.for_each(|i, child, data| {
             let offset = data.child_offset();
             if data.define_reference_frame() {
                 update.with_transform(self.offset_key.update_child(i as u32, offset.into(), false), true, |update| {
-                    child.render_update(ctx, update);
+                    child.render_update(update);
                 });
             } else {
                 update.with_child(offset, |update| {
-                    child.render_update(ctx, update);
+                    child.render_update(update);
                 });
             }
             true

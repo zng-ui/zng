@@ -82,9 +82,9 @@ use std::{borrow::Cow, cell::UnsafeCell, mem};
 
 use parking_lot::{Mutex, RwLock};
 
+use crate::context::UPDATES;
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
-use crate::new_context::UPDATES;
 
 use super::{animation::ModifyInfo, AnyVarValue, VarHandle, VarHook, VarUpdateId, VarValue, VARS};
 

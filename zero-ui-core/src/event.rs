@@ -15,10 +15,9 @@ use std::{
 
 use crate::{
     clone_move,
-    context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WidgetContext},
+    context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WINDOW, WIDGET},
     crate_util::{IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
-    new_context::WINDOW,
     widget_info::WidgetInfoTree,
     widget_instance::WidgetId,
 };
@@ -507,11 +506,11 @@ impl EventUpdate {
     }
 
     /// Calls `handle` if the event targets the widget and propagation is not stopped.
-    pub fn with_widget<H: FnOnce(&mut WidgetContext, &mut Self) -> R, R>(&mut self, ctx: &mut WidgetContext, handle: H) -> Option<R> {
-        if self.delivery_list.enter_widget(ctx.path.widget_id()) {
+    pub fn with_widget<H: FnOnce(&mut Self) -> R, R>(&mut self, handle: H) -> Option<R> {
+        if self.delivery_list.enter_widget(WIDGET.id()) {
             let stop = self.args.propagation().is_stopped();
 
-            let r = if stop { None } else { Some(handle(ctx, self)) };
+            let r = if stop { None } else { Some(handle(self)) };
 
             if stop || self.args.propagation().is_stopped() {
                 self.pre_actions.clear();

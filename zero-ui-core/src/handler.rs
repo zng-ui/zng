@@ -16,10 +16,9 @@ use std::time::{Duration, Instant};
 use std::{mem, thread};
 
 use crate::app::HeadlessApp;
-use crate::context::{WidgetContext, WidgetContextMut};
+use crate::context::{UPDATES, WIDGET};
 use crate::crate_util::{Handle, WeakHandle};
-use crate::new_context::UPDATES;
-use crate::task::ui::{UiTask, WidgetTask};
+use crate::task::ui::UiTask;
 
 /// Represents a handler in a widget context.
 ///
@@ -34,7 +33,7 @@ pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     /// [`update`]: WidgetHandler::update
     /// [`info`]: crate::widget_instance::UiNode::info
     /// [`subscribe`]: WidgetHandler::subscribe
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool;
+    fn event(&mut self, args: &A) -> bool;
 
     /// Called every widget update.
     ///
@@ -44,8 +43,7 @@ pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     ///
     /// [`update`]: WidgetHandler::update
     /// [`block_on`]: crate::context::TestWidgetContext::block_on
-    fn update(&mut self, ctx: &mut WidgetContext) -> bool {
-        let _ = ctx;
+    fn update(&mut self) -> bool {
         false
     }
 
@@ -77,12 +75,12 @@ pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     }
 }
 impl<A: Clone + 'static> WidgetHandler<A> for Box<dyn WidgetHandler<A>> {
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
-        self.as_mut().event(ctx, args)
+    fn event(&mut self, args: &A) -> bool {
+        self.as_mut().event(args)
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) -> bool {
-        self.as_mut().update(ctx)
+    fn update(&mut self) -> bool {
+        self.as_mut().update()
     }
 
     fn boxed(self) -> Box<dyn WidgetHandler<A>>
@@ -100,10 +98,10 @@ pub struct FnMutWidgetHandler<H> {
 impl<A, H> WidgetHandler<A> for FnMutWidgetHandler<H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut WidgetContext, &A) + Send + 'static,
+    H: FnMut(&A) + Send + 'static,
 {
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
-        (self.handler)(ctx, args);
+    fn event(&mut self, args: &A) -> bool {
+        (self.handler)(args);
         false
     }
 }
@@ -113,16 +111,16 @@ where
 pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<H>
 where
     A: Clone + 'static,
-    H: FnMut(&mut WidgetContext, &A) + Send + 'static,
+    H: FnMut(&A) + Send + 'static,
 {
     FnMutWidgetHandler { handler }
 }
 #[doc(hidden)]
 #[cfg(dyn_closure)]
-pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<Box<dyn FnMut(&mut WidgetContext, &A) + Send>>
+pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<Box<dyn FnMut(&A) + Send>>
 where
     A: Clone + 'static,
-    H: FnMut(&mut WidgetContext, &A) + Send + 'static,
+    H: FnMut(&A) + Send + 'static,
 {
     FnMutWidgetHandler {
         handler: Box::new(handler),
@@ -207,11 +205,11 @@ pub struct FnOnceWidgetHandler<H> {
 impl<A, H> WidgetHandler<A> for FnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut WidgetContext, &A) + Send + 'static,
+    H: FnOnce(&A) + Send + 'static,
 {
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
+    fn event(&mut self, args: &A) -> bool {
         if let Some(handler) = self.handler.take() {
-            handler(ctx, args);
+            handler(args);
         }
         false
     }
@@ -221,16 +219,16 @@ where
 pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut WidgetContext, &A) + Send + 'static,
+    H: FnOnce(&A) + Send + 'static,
 {
     FnOnceWidgetHandler { handler: Some(handler) }
 }
 #[doc(hidden)]
 #[cfg(dyn_closure)]
-pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<Box<dyn FnOnce(&mut WidgetContext, &A) + Send>>
+pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<Box<dyn FnOnce(&A) + Send>>
 where
     A: Clone + 'static,
-    H: FnOnce(&mut WidgetContext, &A) + Send + 'static,
+    H: FnOnce(&A) + Send + 'static,
 {
     FnOnceWidgetHandler {
         handler: Some(Box::new(handler)),
@@ -293,26 +291,26 @@ pub use crate::hn_once;
 #[doc(hidden)]
 pub struct AsyncFnMutWidgetHandler<H> {
     handler: H,
-    tasks: Vec<WidgetTask<()>>,
+    tasks: Vec<UiTask<()>>,
 }
 impl<A, F, H> WidgetHandler<A> for AsyncFnMutWidgetHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnMut(WidgetContextMut, A) -> F + Send + 'static,
+    H: FnMut(A) -> F + Send + 'static,
 {
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
+    fn event(&mut self, args: &A) -> bool {
         let handler = &mut self.handler;
-        let mut task = WidgetTask::new(ctx, |ctx| handler(ctx, args.clone()));
-        let need_update = task.update(ctx).is_none();
+        let mut task = UiTask::new(Some(WIDGET.id()), handler(args.clone()));
+        let need_update = task.update().is_none();
         if need_update {
             self.tasks.push(task);
         }
         need_update
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) -> bool {
-        self.tasks.retain_mut(|t| t.update(ctx).is_none());
+    fn update(&mut self) -> bool {
+        self.tasks.retain_mut(|t| t.update().is_none());
         !self.tasks.is_empty()
     }
 }
@@ -322,13 +320,13 @@ pub fn async_hn<A, F, H>(handler: H) -> AsyncFnMutWidgetHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnMut(WidgetContextMut, A) -> F + Send + 'static,
+    H: FnMut(A) -> F + Send + 'static,
 {
     AsyncFnMutWidgetHandler { handler, tasks: vec![] }
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsyncHn<A> = Box<dyn FnMut(WidgetContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
+type BoxedAsyncHn<A> = Box<dyn FnMut(A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
@@ -336,10 +334,10 @@ pub fn async_hn<A, F, H>(mut handler: H) -> AsyncFnMutWidgetHandler<BoxedAsyncHn
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnMut(WidgetContextMut, A) -> F + Send + 'static,
+    H: FnMut(A) -> F + Send + 'static,
 {
     AsyncFnMutWidgetHandler {
-        handler: Box::new(move |ctx, args| Box::pin(handler(ctx, args))),
+        handler: Box::new(move |args| Box::pin(handler(args))),
         tasks: vec![],
     }
 }
@@ -445,7 +443,7 @@ pub use crate::async_hn;
 
 enum AsyncFnOnceWhState<H> {
     NotCalled(H),
-    Pending(WidgetTask<()>),
+    Pending(UiTask<()>),
     Done,
 }
 #[doc(hidden)]
@@ -456,12 +454,12 @@ impl<A, F, H> WidgetHandler<A> for AsyncFnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnOnce(WidgetContextMut, A) -> F + Send + 'static,
+    H: FnOnce(A) -> F + Send + 'static,
 {
-    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
+    fn event(&mut self, args: &A) -> bool {
         if let AsyncFnOnceWhState::NotCalled(handler) = mem::replace(&mut self.state, AsyncFnOnceWhState::Done) {
-            let mut task = WidgetTask::new(ctx, |ctx| handler(ctx, args.clone()));
-            let is_pending = task.update(ctx).is_none();
+            let mut task = UiTask::new(Some(WIDGET.id()), handler(args.clone()));
+            let is_pending = task.update().is_none();
             if is_pending {
                 self.state = AsyncFnOnceWhState::Pending(task);
             }
@@ -471,10 +469,10 @@ where
         }
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) -> bool {
+    fn update(&mut self) -> bool {
         let mut is_pending = false;
         if let AsyncFnOnceWhState::Pending(t) = &mut self.state {
-            is_pending = t.update(ctx).is_none();
+            is_pending = t.update().is_none();
             if !is_pending {
                 self.state = AsyncFnOnceWhState::Done;
             }
@@ -488,7 +486,7 @@ pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnOnce(WidgetContextMut, A) -> F + Send + 'static,
+    H: FnOnce(A) -> F + Send + 'static,
 {
     AsyncFnOnceWidgetHandler {
         state: AsyncFnOnceWhState::NotCalled(handler),
@@ -496,7 +494,7 @@ where
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsyncHnOnce<A> = Box<dyn FnOnce(WidgetContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
+type BoxedAsyncHnOnce<A> = Box<dyn FnOnce(A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
@@ -504,10 +502,10 @@ pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceWidgetHandler<BoxedAsync
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
-    H: FnOnce(WidgetContextMut, A) -> F + Send + 'static,
+    H: FnOnce(A) -> F + Send + 'static,
 {
     AsyncFnOnceWidgetHandler {
-        state: AsyncFnOnceWhState::NotCalled(Box::new(move |ctx, args| Box::pin(handler(ctx, args)))),
+        state: AsyncFnOnceWhState::NotCalled(Box::new(move |args| Box::pin(handler(args)))),
     }
 }
 
@@ -1683,78 +1681,6 @@ macro_rules! __async_clone_move_fn_once {
             $($rest)+
         }
     };
-}
-
-#[cfg(any(test, doc, feature = "test_util"))]
-impl crate::context::TestWidgetContext {
-    /// Calls a [`WidgetHandler<A>`] once and blocks until the handler task is complete.
-    ///
-    /// This function *spins* until the handler returns `false` from [`WidgetHandler::update`]. The updates
-    /// are *applied* after each try or until the `timeout` is reached. Returns an error if the `timeout` is reached.
-    pub fn block_on<A>(&mut self, handler: &mut dyn WidgetHandler<A>, args: &A, timeout: Duration) -> Result<(), String>
-    where
-        A: Clone + 'static,
-    {
-        self.block_on_multi(vec![handler], args, timeout)
-    }
-
-    /// Calls multiple [`WidgetHandler<A>`] once each and blocks until all handler tasks are complete.
-    ///
-    /// This function *spins* until the handler returns `false` from [`WidgetHandler::update`] in all handlers. The updates
-    /// are *applied* after each try or until the `timeout` is reached. Returns an error if the `timeout` is reached.
-    pub fn block_on_multi<A>(&mut self, mut handlers: Vec<&mut dyn WidgetHandler<A>>, args: &A, timeout: Duration) -> Result<(), String>
-    where
-        A: Clone + 'static,
-    {
-        self.widget_context(|ctx| handlers.retain_mut(|h| h.event(ctx, args)));
-        if !handlers.is_empty() {
-            if !self.apply_updates().1.has_updates() {
-                thread::yield_now();
-            }
-            let start_time = Instant::now();
-            #[allow(clippy::blocks_in_if_conditions)] // false positive, see https://github.com/rust-lang/rust-clippy/issues/7580
-            while {
-                self.widget_context(|ctx| handlers.retain_mut(|h| h.update(ctx)));
-                !handlers.is_empty()
-            } {
-                if Instant::now().duration_since(start_time) >= timeout {
-                    return Err(format!(
-                        "TestWidgetContext::block_on reached timeout of {timeout:?} before the handler task could finish",
-                    ));
-                }
-
-                if !self.apply_updates().1.has_updates() {
-                    thread::yield_now();
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Calls the `handler` once and [`block_on`] it with a 1 second timeout.
-    ///
-    /// [`block_on`]: Self::block_on.
-    #[track_caller]
-    pub fn doc_test<A, H>(args: A, mut handler: H)
-    where
-        A: Clone + 'static,
-        H: WidgetHandler<A>,
-    {
-        Self::new().block_on(&mut handler, &args, DOC_TEST_BLOCK_ON_TIMEOUT).unwrap()
-    }
-
-    /// Calls the `handlers` once each and [`block_on_multi`] with a 1 second timeout.
-    ///
-    /// [`block_on_multi`]: Self::block_on_multi.
-    #[track_caller]
-    pub fn doc_test_multi<A>(args: A, mut handlers: Vec<Box<dyn WidgetHandler<A>>>)
-    where
-        A: Clone + 'static,
-    {
-        Self::new()
-            .block_on_multi(handlers.iter_mut().map(|h| h.as_mut()).collect(), &args, DOC_TEST_BLOCK_ON_TIMEOUT)
-            .unwrap()
-    }
 }
 
 impl HeadlessApp {

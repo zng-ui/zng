@@ -1,8 +1,7 @@
 use std::hash::Hash;
 
 use crate::{
-    context::{MeasureContext, StateMapMut},
-    new_context::WIDGET,
+    context::{StateMapMut, LAYOUT, WIDGET, WINDOW},
     text::TextSegmentKind,
 };
 
@@ -160,18 +159,18 @@ impl WidgetInfoBuilder {
     /// If the `ctx.path.widget_id()` was already pushed or reused in this builder.
     ///
     /// [interactivity filters]: Self::push_interactivity_filter
-    pub fn push_widget_reuse(&mut self, ctx: &mut InfoContext) {
-        let widget_id = ctx.path.widget_id();
+    pub fn push_widget_reuse(&mut self) {
+        let id = WIDGET.id();
 
         debug_assert_ne!(
-            self.widget_id, widget_id,
+            self.widget_id, id,
             "can only call `push_widget` or `push_widget_reuse` for each widget"
         );
 
-        let wgt = ctx
-            .info_tree
-            .get(widget_id)
-            .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", ctx.path));
+        let tree = WINDOW.widget_tree().unwrap();
+        let wgt = tree
+            .get(id)
+            .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", id));
 
         self.tree.index_mut(self.node).push_reuse(
             wgt.node(),
@@ -622,51 +621,43 @@ impl WidgetMeasure {
     ///
     /// The `reuse` flag indicates if the cached measure or layout size can be returned instead of calling `measure`. It should
     /// only be `false` if the widget has a pending layout request.
-    pub fn with_widget(
-        &mut self,
-        ctx: &mut MeasureContext,
-        reuse: bool,
-        measure: impl FnOnce(&mut MeasureContext, &mut Self) -> PxSize,
-    ) -> PxSize {
-        let snap = ctx.metrics.snapshot();
+    pub fn with_widget(&mut self, reuse: bool, measure: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
+        let metrics = LAYOUT.metrics();
+        let bounds = WIDGET.bounds();
+
+        let snap = metrics.snapshot();
         if reuse {
-            let measure_uses = ctx.widget_info.bounds.measure_metrics_used();
-            if ctx
-                .widget_info
-                .bounds
-                .measure_metrics()
-                .map(|m| m.masked_eq(&snap, measure_uses))
-                .unwrap_or(false)
-            {
+            let measure_uses = bounds.measure_metrics_used();
+            if bounds.measure_metrics().map(|m| m.masked_eq(&snap, measure_uses)).unwrap_or(false) {
                 let mut reused = false;
                 if let Some(inline) = self.inline() {
-                    if let Some(prev) = ctx.widget_info.bounds.measure_inline() {
+                    if let Some(prev) = bounds.measure_inline() {
                         *inline = prev;
                         reused = true;
                     }
                 } else {
-                    reused = ctx.widget_info.bounds.measure_inline().is_none();
+                    reused = bounds.measure_inline().is_none();
                 }
 
                 if reused {
-                    return ctx.widget_info.bounds.measure_outer_size();
+                    return bounds.measure_outer_size();
                 }
             }
         }
 
-        let parent_uses = ctx.metrics.enter_widget_ctx();
-        if ctx.inline_constrains().is_some() && self.inline.is_none() {
+        let parent_uses = metrics.enter_widget_ctx();
+        if LAYOUT.inline_constrains().is_some() && self.inline.is_none() {
             self.inline = Some(Default::default());
         } else {
             self.inline = None;
         }
 
-        let size = measure(ctx, self);
+        let size = measure(self);
 
-        let measure_uses = ctx.metrics.exit_widget_ctx(parent_uses);
-        ctx.widget_info.bounds.set_measure_metrics(Some(snap), measure_uses);
-        ctx.widget_info.bounds.set_measure_outer_size(size);
-        ctx.widget_info.bounds.set_measure_inline(self.inline.take());
+        let measure_uses = metrics.exit_widget_ctx(parent_uses);
+        bounds.set_measure_metrics(Some(snap), measure_uses);
+        bounds.set_measure_outer_size(size);
+        bounds.set_measure_inline(self.inline.take());
 
         size
     }
@@ -684,19 +675,15 @@ impl WidgetLayout {
     /// Defines the root widget outer-bounds scope.
     ///
     /// The default window implementation calls this.
-    pub fn with_root_widget(
-        ctx: &mut LayoutContext,
-        pass_id: LayoutPassId,
-        layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
-    ) -> PxSize {
+    pub fn with_root_widget(pass_id: LayoutPassId, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         Self {
             pass_id,
-            bounds: ctx.widget_info.bounds.clone(),
+            bounds: WIDGET.bounds(),
             nest_group: LayoutNestGroup::Inner,
             inline: None,
             child_count: None,
         }
-        .with_widget(ctx, false, layout)
+        .with_widget(false, layout)
     }
 
     /// Defines a widget scope, translations inside `layout` target the widget's inner offset.
@@ -707,29 +694,27 @@ impl WidgetLayout {
     /// The default widget constructor calls this, see [`widget_base::nodes::widget`].
     ///
     /// [`widget_base::nodes::widget`]: crate::widget_base::nodes::widget
-    pub fn with_widget(
-        &mut self,
-        ctx: &mut LayoutContext,
-        reuse: bool,
-        layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
-    ) -> PxSize {
-        let snap = ctx.metrics.snapshot();
+    pub fn with_widget(&mut self, reuse: bool, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
+        let metrics = LAYOUT.metrics();
+        let bounds = WIDGET.bounds();
+
+        let snap = metrics.snapshot();
         if let Some(child_count) = &mut self.child_count {
             *child_count += 1;
         }
         if reuse && {
-            let uses = ctx.widget_info.bounds.metrics_used();
-            ctx.widget_info.bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false)
+            let uses = bounds.metrics_used();
+            bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false)
         } {
             // reuse
-            return ctx.widget_info.bounds.outer_size();
+            return bounds.outer_size();
         }
 
         let parent_child_count = self.child_count.take();
         let parent_inline = self.inline.take();
-        if ctx.inline_constrains().is_some() && ctx.widget_info.bounds.measure_inline().is_some() {
+        if LAYOUT.inline_constrains().is_some() && bounds.measure_inline().is_some() {
             // inline enabled by parent and widget
-            self.inline = ctx.widget_info.bounds.take_inline();
+            self.inline = bounds.take_inline();
             if let Some(inline) = self.inline.as_mut() {
                 inline.rows.clear();
                 inline.invalidate_negative_space();
@@ -737,7 +722,7 @@ impl WidgetLayout {
                 self.inline = Some(Default::default());
             }
         }
-        let parent_bounds = mem::replace(&mut self.bounds, ctx.widget_info.bounds.clone());
+        let parent_bounds = mem::replace(&mut self.bounds, bounds.clone());
         self.nest_group = LayoutNestGroup::Inner;
         let prev_inner_offset = self.bounds.inner_offset();
         let prev_child_offset = self.bounds.child_offset();
@@ -750,12 +735,12 @@ impl WidgetLayout {
         self.bounds.set_inner_offset_baseline(false);
         self.bounds.set_can_auto_hide(true);
 
-        let parent_uses = ctx.metrics.enter_widget_ctx();
+        let parent_uses = metrics.enter_widget_ctx();
 
         // layout
-        let size = layout(ctx, self);
+        let size = layout(self);
 
-        let uses = ctx.metrics.exit_widget_ctx(parent_uses);
+        let uses = metrics.exit_widget_ctx(parent_uses);
 
         self.bounds.set_outer_size(size);
         self.bounds.set_metrics(Some(snap), uses);
@@ -790,10 +775,10 @@ impl WidgetLayout {
     /// The default widget borders constructor calls this, see [`widget_base::nodes::widget_inner`].
     ///
     /// [`widget_base::nodes::widget_inner`]: crate::widget_base::nodes::widget_inner
-    pub fn with_inner(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
+    pub fn with_inner(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         self.nest_group = LayoutNestGroup::Child;
-        let size = ContextBorders::with_inner(ctx, |ctx| layout(ctx, self));
-        ctx.widget_info.bounds.set_inner_size(size);
+        let size = ContextBorders::with_inner(|| layout(self));
+        WIDGET.bounds().set_inner_size(size);
         self.nest_group = LayoutNestGroup::Inner;
         size
     }
@@ -806,11 +791,11 @@ impl WidgetLayout {
     ///
     /// [`widget_base::nodes::widget_child`]: crate::widget_base::nodes::widget_child
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
-    pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> (PxSize, bool) {
+    pub fn with_child(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> (PxSize, bool) {
         let parent_child_count = mem::replace(&mut self.child_count, Some(0));
 
         self.nest_group = LayoutNestGroup::Child;
-        let child_size = layout(ctx, self);
+        let child_size = layout(self);
         self.nest_group = LayoutNestGroup::Child;
 
         let need_ref_frame = self.child_count != Some(1);
@@ -873,9 +858,10 @@ impl WidgetLayout {
     /// Note that the widget will automatically not be rendered when collapsed.
     ///
     /// [`Collapsed`]: Visibility::Collapsed
-    pub fn collapse(&mut self, ctx: &mut LayoutContext) {
-        let widget_id = ctx.path.widget_id();
-        if let Some(w) = ctx.info_tree.get(widget_id) {
+    pub fn collapse(&mut self) {
+        let tree = WINDOW.widget_tree().unwrap();
+        let id = WIDGET.id();
+        if let Some(w) = tree.get(id) {
             for w in w.self_and_descendants() {
                 let info = w.info();
                 info.bounds_info.set_outer_size(PxSize::zero());
@@ -888,10 +874,10 @@ impl WidgetLayout {
                 info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
                 info.bounds_info.set_metrics(None, LayoutMask::NONE);
                 info.bounds_info.set_is_collapsed(true);
-                info.bounds_info.set_rendered(None, ctx.info_tree);
+                info.bounds_info.set_rendered(None, &tree);
             }
         } else {
-            tracing::error!("collapse did not find `{}` in the info tree", widget_id)
+            tracing::error!("collapse did not find `{}` in the info tree", id)
         }
     }
 
@@ -903,9 +889,10 @@ impl WidgetLayout {
     /// Note that the widgets will automatically not be rendered when collapsed.
     ///
     /// [`Collapsed`]: Visibility::Collapsed
-    pub fn collapse_descendants(&mut self, ctx: &mut LayoutContext) {
-        let widget_id = ctx.path.widget_id();
-        if let Some(w) = ctx.info_tree.get(widget_id) {
+    pub fn collapse_descendants(&mut self) {
+        let tree = WINDOW.widget_tree().unwrap();
+        let id = WIDGET.id();
+        if let Some(w) = tree.get(id) {
             for w in w.descendants() {
                 let info = w.info();
                 info.bounds_info.set_outer_size(PxSize::zero());
@@ -920,7 +907,7 @@ impl WidgetLayout {
                 info.bounds_info.set_is_collapsed(true);
             }
         } else {
-            tracing::error!("collapse_descendants did not find `{}` in the info tree", widget_id)
+            tracing::error!("collapse_descendants did not find `{}` in the info tree", id)
         }
     }
 
@@ -932,9 +919,10 @@ impl WidgetLayout {
     /// Note that the widgets will automatically not be rendered when collapsed.
     ///
     /// [`Collapsed`]: Visibility::Collapsed
-    pub fn collapse_child(&mut self, ctx: &mut LayoutContext, index: usize) {
-        let widget_id = ctx.path.widget_id();
-        if let Some(w) = ctx.info_tree.get(widget_id) {
+    pub fn collapse_child(&mut self, index: usize) {
+        let tree = WINDOW.widget_tree().unwrap();
+        let id = WIDGET.id();
+        if let Some(w) = tree.get(id) {
             if let Some(w) = w.children().nth(index) {
                 for w in w.self_and_descendants() {
                     let info = w.info();
@@ -953,11 +941,11 @@ impl WidgetLayout {
                 tracing::error!(
                     "collapse_child out-of-bounds for `{}` in the children of `{}` in the info tree",
                     index,
-                    widget_id
+                    id
                 )
             }
         } else {
-            tracing::error!("collapse_child did not find `{}` in the info tree", widget_id)
+            tracing::error!("collapse_child did not find `{}` in the info tree", id)
         }
     }
 

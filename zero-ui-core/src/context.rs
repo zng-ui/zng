@@ -1,23 +1,9 @@
-//! Context information for app extensions, windows and widgets.
+//! New static contexts.
 
-use crate::{
-    app::{AppEventSender, LoopTimer},
-    event::{EventHandle, EventHandles, EVENTS_SV},
-    timer::TIMERS_SV,
-    units::*,
-    var::{VarHandle, VarHandles, VARS, VARS_SV},
-    widget_info::{InlineSegmentPos, WidgetContextInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath},
-    widget_instance::{UiNode, WidgetId},
-    window::{WindowId, WindowMode},
-};
-use std::{fmt, mem, ops::Deref, sync::Arc};
+use std::{fmt, future::Future, mem, ops, sync::Arc, task::Waker};
 
-mod contextual;
-pub use contextual::*;
-
-pub use crate::new_context::*;
-
-use parking_lot::Mutex;
+use linear_map::set::LinearSet;
+use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex};
 
 mod state;
 pub use state::*;
@@ -28,736 +14,524 @@ pub use trace::*;
 mod value;
 pub use value::*;
 
-// /// A window context.
-// pub struct WindowContext<'a> {
-//     /// Id of the context window.
-//     pub window_id: &'a WindowId,
+use crate::{
+    app::{AppEventSender, LoopTimer},
+    crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
+    event::{Event, EventArgs, EventHandle, EventHandles, EventUpdate, EVENTS, EVENTS_SV},
+    handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
+    timer::TIMERS_SV,
+    units::*,
+    var::{AnyVar, VarHandle, VarHandles, VARS},
+    widget_info::{
+        InlineSegmentPos, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfo, WidgetInfoTree, WidgetInlineMeasure,
+        WidgetMeasure, WidgetPath,
+    },
+    widget_instance::{UiNode, WidgetId},
+    window::{WindowId, WindowMode},
+};
 
-//     /// Window mode, headed or not, renderer or not.
-//     pub window_mode: &'a WindowMode,
-
-//     /// State that lives for the duration of the window.
-//     pub window_state: StateMapMut<'a, state_map::Window>,
-
-//     /// State that lives for the duration of the node tree method call in the window.
-//     ///
-//     /// This state lives only for the duration of the function `f` call in [`AppContext::window_context`].
-//     /// Usually `f` calls one of the [`UiNode`](crate::widget_instance::UiNode) methods and [`WidgetContext`] shares this
-//     /// state so properties and event handlers can use this state to communicate to further nodes along the
-//     /// update sequence.
-//     pub update_state: StateMapMut<'a, state_map::Update>,
-// }
-// impl<'a> WindowContext<'a> {
-//     /// Runs a function `f` in the context of a widget.
-//     pub fn widget_context<R>(
-//         &mut self,
-//         info_tree: &WidgetInfoTree,
-//         widget_info: &WidgetContextInfo,
-//         root_widget_state: &mut OwnedStateMap<state_map::Widget>,
-//         var_handles: &mut VarHandles,
-//         event_handles: &mut EventHandles,
-//         f: impl FnOnce(&mut WidgetContext) -> R,
-//     ) -> R {
-//         let widget_id = info_tree.root().widget_id();
-
-//         f(&mut WidgetContext {
-//             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
-
-//             info_tree,
-//             widget_info,
-//             window_state: self.window_state.reborrow(),
-//             widget_state: root_widget_state.borrow_mut(),
-//             update_state: self.update_state.reborrow(),
-
-//             handles: WidgetHandles {
-//                 var_handles,
-//                 event_handles,
-//             },
-//         })
-//     }
-
-//     /// Run a function `f` in the info context of a widget.
-//     pub fn info_context<R>(
-//         &mut self,
-//         info_tree: &WidgetInfoTree,
-//         widget_info: &WidgetContextInfo,
-//         root_widget_state: &OwnedStateMap<state_map::Widget>,
-//         f: impl FnOnce(&mut InfoContext) -> R,
-//     ) -> R {
-//         f(&mut InfoContext {
-//             path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
-//             info_tree,
-//             widget_info,
-//             window_state: self.window_state.as_ref(),
-//             widget_state: root_widget_state.borrow(),
-//             update_state: self.update_state.reborrow(),
-//         })
-//     }
-
-//     /// Runs a function `f` in the layout context of a widget.
-//     #[allow(clippy::too_many_arguments)]
-//     pub fn layout_context<R>(
-//         &mut self,
-//         font_size: Px,
-//         scale_factor: Factor,
-//         screen_ppi: f32,
-//         viewport_size: PxSize,
-//         info_tree: &WidgetInfoTree,
-//         widget_info: &WidgetContextInfo,
-//         root_widget_state: &mut OwnedStateMap<state_map::Widget>,
-//         f: impl FnOnce(&mut LayoutContext) -> R,
-//     ) -> R {
-//         let widget_id = info_tree.root().widget_id();
-//         f(&mut LayoutContext {
-//             metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size).with_screen_ppi(screen_ppi),
-
-//             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
-
-//             info_tree,
-//             widget_info,
-//             window_state: self.window_state.reborrow(),
-//             widget_state: root_widget_state.borrow_mut(),
-//             update_state: self.update_state.reborrow(),
-//         })
-//     }
-
-//     /// Runs a function `f` in the render context of a widget.
-//     pub fn render_context<R>(
-//         &mut self,
-//         root_widget_id: WidgetId,
-//         root_widget_state: &OwnedStateMap<state_map::Widget>,
-//         info_tree: &WidgetInfoTree,
-//         widget_info: &WidgetContextInfo,
-//         f: impl FnOnce(&mut RenderContext) -> R,
-//     ) -> R {
-//         f(&mut RenderContext {
-//             path: &mut WidgetContextPath::new(*self.window_id, root_widget_id),
-//             info_tree,
-//             widget_info,
-//             window_state: self.window_state.as_ref(),
-//             widget_state: root_widget_state.borrow(),
-//             update_state: self.update_state.reborrow(),
-//         })
-//     }
-// }
-
-/// A mock [`WidgetContext`] for testing widgets.
-///
-/// Only a single instance of this type can exist per-thread at a time, see [`new`] for details.
-///
-/// This is less cumbersome to use then a full headless app, but also more limited. Use a [`HeadlessApp`]
-/// for more complex integration tests.
-///
-/// [`new`]: TestWidgetContext::new
-/// [`HeadlessApp`]: crate::app::HeadlessApp
-#[cfg(any(test, doc, feature = "test_util"))]
-pub struct TestWidgetContext {
-    /// Id of the pretend window that owns the pretend root widget.
-    ///
-    /// This is a new unique id.
-    pub window_id: WindowId,
-    /// Id of the pretend root widget that is the context widget.
-    pub root_id: WidgetId,
-
-    /// The [`info_tree`] value. Blank by default.
-    ///
-    /// [`info_tree`]: WidgetContext::info_tree
-    pub info_tree: WidgetInfoTree,
-
-    /// The [`widget_info`] value.
-    ///
-    /// [`widget_info`]: WidgetContext::widget_info
-    pub widget_info: WidgetContextInfo,
-
-    /// The [`window_state`] value. Empty by default.
-    ///
-    /// [`window_state`]: WidgetContext::window_state
-    pub window_state: OwnedStateMap<state_map::Window>,
-
-    /// The [`widget_state`] value. Empty by default.
-    ///
-    /// [`widget_state`]: WidgetContext::widget_state
-    pub widget_state: OwnedStateMap<state_map::Widget>,
-
-    /// The [`update_state`] value. Empty by default.
-    ///
-    /// WARNING: In a real context this is reset after each update, in this test context the same map is reused
-    /// unless you call [`clear`].
-    ///
-    /// [`update_state`]: WidgetContext::update_state
-    /// [`clear`]: OwnedStateMap::clear
-    pub update_state: OwnedStateMap<state_map::Update>,
-
-    /// Var subscriptions storage used in [`WidgetHandles`].
-    pub var_handles: VarHandles,
-    /// Event subscriptions storage used in [`WidgetHandles`].
-    pub event_handles: EventHandles,
-
-    pub(crate) root_translation_key: crate::render::FrameValueKey<PxTransform>,
-    receiver: flume::Receiver<crate::app::AppEvent>,
-    loop_timer: crate::app::LoopTimer,
-
-    _no_send: std::marker::PhantomData<std::rc::Rc<()>>,
-    _scope: crate::context::AppScope,
-}
-#[cfg(any(test, doc, feature = "test_util"))]
-impl Default for TestWidgetContext {
-    /// [`TestWidgetContext::new`]
-    fn default() -> Self {
-        Self::new()
+bitflags! {
+    pub(crate) struct UpdateFlags: u8 {
+        const REINIT = 0b1000_0000;
+        const INFO =   0b0001_0000;
+        const UPDATE = 0b0000_0001;
+        const LAYOUT = 0b0000_0010;
+        const RENDER = 0b0000_0100;
+        const RENDER_UPDATE = 0b0000_1000;
     }
 }
-#[cfg(any(test, doc, feature = "test_util"))]
-use crate::widget_info::{WidgetBoundsInfo, WidgetInfoBuilder};
-#[cfg(any(test, doc, feature = "test_util"))]
-impl TestWidgetContext {
-    /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
-    /// or if an app is running in the current thread.
-    pub fn new() -> Self {
-        if crate::app::App::is_running() {
-            panic!("only one `TestWidgetContext` or app is allowed per thread")
-        }
-        let scope = ThreadContext::start_app(AppId::new_unique());
 
-        let (sender, receiver) = AppEventSender::new();
-        let window_id = WindowId::new_unique();
-        let root_id = WidgetId::new_unique();
-        EVENTS_SV.write().init(sender.clone());
-        VARS_SV.write().init(sender.clone());
+/// Defines the backing data of [`WINDOW`].
+///
+/// Each window owns this data and calls [`WINDOW.with_context`] to delegate to it's child node.
+pub struct WindowCtx {
+    id: WindowId,
+    mode: WindowMode,
+    state: OwnedStateMap<state_map::Window>,
+    widget_tree: Option<WidgetInfoTree>,
+}
+impl WindowCtx {
+    /// New window context.
+    pub fn new(id: WindowId, mode: WindowMode) -> Self {
         Self {
-            window_id,
-            root_id,
-            info_tree: WidgetInfoTree::wgt(window_id, root_id),
-            widget_info: WidgetContextInfo::default(),
-            window_state: OwnedStateMap::new(),
-            widget_state: OwnedStateMap::new(),
-            update_state: OwnedStateMap::new(),
-            var_handles: Default::default(),
-            event_handles: Default::default(),
-            root_translation_key: crate::render::FrameValueKey::new_unique(),
-
-            receiver,
-            loop_timer: LoopTimer::default(),
-
-            _no_send: std::marker::PhantomData,
-            _scope: scope,
+            id,
+            mode,
+            state: OwnedStateMap::default(),
+            widget_tree: None,
         }
     }
 
-    /// Calls `action` in a fake widget context.
-    pub fn widget_context<R>(&mut self, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
-        action(&mut WidgetContext {
-            path: &mut WidgetContextPath::new(self.window_id, self.root_id),
-            info_tree: &self.info_tree,
-            widget_info: &self.widget_info,
-            window_state: self.window_state.borrow_mut(),
-            widget_state: self.widget_state.borrow_mut(),
-            update_state: self.update_state.borrow_mut(),
-            handles: WidgetHandles {
-                var_handles: &mut self.var_handles,
-                event_handles: &mut self.event_handles,
-            },
-        })
-    }
-
-    /// Calls `action` in a fake info context.
-    pub fn info_context<R>(&mut self, action: impl FnOnce(&mut InfoContext) -> R) -> R {
-        action(&mut InfoContext {
-            path: &mut WidgetContextPath::new(self.window_id, self.root_id),
-            info_tree: &self.info_tree,
-            widget_info: &self.widget_info,
-            window_state: self.window_state.borrow(),
-            widget_state: self.widget_state.borrow(),
-            update_state: self.update_state.borrow_mut(),
-        })
-    }
-
-    /// Builds a info tree.
-    pub fn info_tree<R>(
-        &mut self,
-        root_bounds_info: WidgetBoundsInfo,
-        root_border_info: crate::widget_info::WidgetBorderInfo,
-        scale_factor: Factor,
-        action: impl FnOnce(&mut InfoContext, &mut WidgetInfoBuilder) -> R,
-    ) -> (WidgetInfoTree, R) {
-        let mut builder = WidgetInfoBuilder::new(self.window_id, self.root_id, root_bounds_info, root_border_info, scale_factor, None);
-        let r = self.info_context(|ctx| action(ctx, &mut builder));
-        let (t, _) = builder.finalize();
-        (t, r)
-    }
-
-    /// Calls `action` in a fake layout context.
-    #[allow(clippy::too_many_arguments)]
-    pub fn layout_context<R>(
-        &mut self,
-        root_font_size: Px,
-        font_size: Px,
-        viewport_size: PxSize,
-        scale_factor: Factor,
-        screen_ppi: f32,
-        action: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> R {
-        action(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(scale_factor, viewport_size, root_font_size)
-                .with_font_size(font_size)
-                .with_screen_ppi(screen_ppi),
-
-            path: &mut WidgetContextPath::new(self.window_id, self.root_id),
-            info_tree: &self.info_tree,
-            widget_info: &self.widget_info,
-            window_state: self.window_state.borrow_mut(),
-            widget_state: self.widget_state.borrow_mut(),
-            update_state: self.update_state.borrow_mut(),
-        })
-    }
-
-    /// Calls `action` in a fake render context.
-    pub fn render_context<R>(&mut self, action: impl FnOnce(&mut RenderContext) -> R) -> R {
-        action(&mut RenderContext {
-            path: &mut WidgetContextPath::new(self.window_id, self.root_id),
-            info_tree: &self.info_tree,
-            widget_info: &self.widget_info,
-            window_state: self.window_state.borrow(),
-            widget_state: self.widget_state.borrow(),
-            update_state: self.update_state.borrow_mut(),
-        })
-    }
-
-    /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
+    /// Initializes the context.
     ///
-    /// Returns the [`InfoLayoutRenderUpdates`] and [`ContextUpdates`] a full app and window would
-    /// use to update the application.
-    pub fn apply_updates(&mut self) -> ((), ContextUpdates) {
+    /// Window contexts are partially available in the window new closure, but values like the `widget_tree` are
+    /// only available after init.
+    pub fn init(&mut self, widget_tree: WidgetInfoTree) {
+        self.widget_tree = Some(widget_tree);
+    }
+}
+
+/// Defines the backing data of [`WIDGET`].
+///
+/// Each widget owns this data and calls [`WIDGET.with_context`] to delegate to it's child node.
+pub struct WidgetCtx {
+    id: WidgetId,
+    flags: UpdateFlags,
+    state: OwnedStateMap<state_map::Widget>,
+    var_handles: VarHandles,
+    event_handles: EventHandles,
+    info: WidgetContextInfo,
+}
+impl WidgetCtx {
+    /// New widget context.
+    pub fn new(id: WidgetId) -> Self {
+        Self {
+            id,
+            flags: UpdateFlags::empty(),
+            state: OwnedStateMap::default(),
+            var_handles: VarHandles::dummy(),
+            event_handles: EventHandles::dummy(),
+            info: WidgetContextInfo::default(),
+        }
+    }
+
+    /// Clears all state and handles.
+    pub fn deinit(&mut self) {
+        self.state.clear();
+        self.var_handles.clear();
+        self.event_handles.clear();
+        self.flags = UpdateFlags::empty();
+    }
+
+    fn take_flag(&mut self, flag: UpdateFlags) -> bool {
+        let c = self.flags.contains(flag);
+        self.flags.remove(flag);
+        c
+    }
+
+    /// Returns `true` once if a info rebuild was requested in a previous [`WIDGET.with_context`] call.
+    ///
+    /// Child nodes can request updates using [`WIDGET.info`].
+    pub fn take_info(&mut self) -> bool {
+        self.take_flag(UpdateFlags::INFO)
+    }
+
+    /// Returns `true` once if a re-layout was requested in a previous [`WIDGET.with_context`] call.
+    ///
+    /// Child nodes can request updates using [`WIDGET.layout`].
+    pub fn take_layout(&mut self) -> bool {
+        self.take_flag(UpdateFlags::LAYOUT)
+    }
+
+    /// Returns `true` once if a re-render was requested in a previous [`WIDGET.with_context`] call.
+    ///
+    /// Child nodes can request updates using [`WIDGET.render`].
+    ///
+    /// Removes render-update requests and must be called before [`take_render_update`].
+    ///
+    /// [`take_render_update`]: Self::take_render_update
+    pub fn take_render(&mut self) -> bool {
+        let c = self.flags.contains(UpdateFlags::RENDER);
+        if c {
+            self.flags.remove(UpdateFlags::RENDER);
+            self.flags.remove(UpdateFlags::RENDER_UPDATE);
+        }
+        c
+    }
+
+    /// Returns `true` once if a re-render was requested in a previous [`WIDGET.with_context`] call.
+    ///
+    /// Child nodes can request updates using [`WIDGET.render_update`].
+    ///
+    /// Logs an error if a full render is requested, must be called after [`take_render`].
+    ///
+    /// [`take_render`]: Self::take_render
+    pub fn take_render_update(&mut self) -> bool {
+        if self.flags.contains(UpdateFlags::RENDER) {
+            tracing::error!("widget `{:?}` called `take_render_update` before `take_render`", self.id);
+        }
+        self.take_flag(UpdateFlags::RENDER_UPDATE)
+    }
+
+    /// Returns `true` if an [`WIDGET.reinit`] request was made.
+    ///
+    /// Unlike other requests, the widget re-init immediately.
+    pub fn take_reinit(&mut self) -> bool {
+        self.take_flag(UpdateFlags::REINIT)
+    }
+}
+
+context_local! {
+    static WINDOW_CTX: Option<WindowCtx> = None;
+    static WIDGET_CTX: Option<WidgetCtx> = None;
+}
+
+/// Current context window.
+pub struct WINDOW;
+impl WINDOW {
+    /// Calls `f` while the window is set to `ctx`.
+    ///
+    /// The `ctx` must be `Some(_)`, it will be moved to the [`WINDOW`] storage and back to `ctx` after `f` returns.
+    pub fn with_context<R>(&self, ctx: &mut Option<WindowCtx>, f: impl FnOnce() -> R) -> R {
+        let _span = match &ctx {
+            Some(c) => UpdatesTrace::window_span(c.id),
+            None => panic!("window is required"),
+        };
+        WINDOW_CTX.with_context_opt(ctx, f)
+    }
+
+    /// Calls `f` while no window is available in the context.
+    pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
+        WINDOW_CTX.with_context_opt(&mut None, f)
+    }
+
+    /// Returns `true` if called inside a window.
+    pub fn is_in_window(&self) -> bool {
+        WINDOW_CTX.read().is_some()
+    }
+
+    #[track_caller]
+    fn req(&self) -> MappedRwLockReadGuard<'static, WindowCtx> {
+        MappedRwLockReadGuard::map(WINDOW_CTX.read(), |c| c.as_ref().expect("no window in context"))
+    }
+
+    #[track_caller]
+    fn req_mut(&self) -> MappedRwLockWriteGuard<'static, WindowCtx> {
+        MappedRwLockWriteGuard::map(WINDOW_CTX.write(), |c| c.as_mut().expect("no window in context"))
+    }
+
+    /// Get the widget ID, if called inside a window.
+    pub fn try_id(&self) -> Option<WindowId> {
+        WINDOW_CTX.read().as_ref().map(|c| c.id)
+    }
+
+    /// Get the widget ID if called inside a widget, or panic.
+    pub fn id(&self) -> WindowId {
+        self.req().id
+    }
+
+    /// Get the window mode.
+    pub fn mode(&self) -> WindowMode {
+        self.req().mode
+    }
+
+    /// Gets the window info tree.
+    ///
+    /// Returns `None` if the window is not inited, panics if called outside of a window or window init closure.
+    pub fn widget_tree(&self) -> Option<WidgetInfoTree> {
+        self.req().widget_tree.clone()
+    }
+
+    /// Calls `f` with a read lock on the current window state map.
+    ///
+    /// Note that this locks the entire [`WINDOW`], this is an entry point for widget extensions and must
+    /// return as soon as possible. A common pattern is cloning the stored value.
+    pub fn with_state<R>(&self, f: impl FnOnce(StateMapRef<state_map::Window>) -> R) -> R {
+        f(self.req().state.borrow())
+    }
+
+    /// Calls `f` with a write lock on the current window state map.
+    ///
+    /// Note that this locks the entire [`WINDOW`], this is an entry point for widget extensions and must
+    /// return as soon as possible. A common pattern is cloning the stored value.
+    pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<state_map::Window>) -> R) -> R {
+        f(self.req_mut().state.borrow_mut())
+    }
+}
+
+/// Current context widget.
+pub struct WIDGET;
+impl WIDGET {
+    /// Calls `f` while the widget is set to `ctx`.
+    ///
+    /// The `ctx` must be `Some(_)`, it will be moved to the [`WIDGET`] storage and back to `ctx` after `f` returns.
+    pub fn with_context<R>(&self, ctx: &mut Option<WidgetCtx>, f: impl FnOnce() -> R) -> R {
+        assert!(ctx.is_some());
+
+        let r = WIDGET_CTX.with_context_opt(ctx, f);
+
+        let ctx = ctx.as_mut().unwrap();
+
+        if let Some(parent) = &mut *WIDGET_CTX.write() {
+            if ctx.take_flag(UpdateFlags::UPDATE) {
+                parent.flags.insert(UpdateFlags::UPDATE);
+            }
+            if ctx.flags.contains(UpdateFlags::INFO) {
+                parent.flags.insert(UpdateFlags::INFO);
+            }
+            if ctx.flags.contains(UpdateFlags::LAYOUT) {
+                parent.flags.insert(UpdateFlags::LAYOUT);
+            }
+            if ctx.flags.contains(UpdateFlags::RENDER) {
+                parent.flags.insert(UpdateFlags::RENDER);
+            } else if ctx.flags.contains(UpdateFlags::RENDER_UPDATE) {
+                parent.flags.insert(UpdateFlags::RENDER_UPDATE);
+            }
+        }
+        r
+    }
+
+    /// Calls `f` while no widget is available in the context.
+    pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
+        WIDGET_CTX.with_context_opt(&mut None, f)
+    }
+
+    /// Calls `f` with an override target for var and event subscription handles.
+    pub fn with_handles<R>(&self, var_handles: &mut VarHandles, event_handles: &mut EventHandles, f: impl FnOnce() -> R) -> R {
+        {
+            let mut w = self.req_mut();
+            mem::swap(&mut w.var_handles, var_handles);
+            mem::swap(&mut w.event_handles, event_handles);
+        }
+        let r = f();
+        {
+            let mut w = self.req_mut();
+            mem::swap(&mut w.var_handles, var_handles);
+            mem::swap(&mut w.event_handles, event_handles);
+        }
+        r
+    }
+
+    /// Returns `true` if called inside a widget.
+    pub fn is_in_widget(&self) -> bool {
+        WIDGET_CTX.read().is_some()
+    }
+
+    #[track_caller]
+    fn req(&self) -> MappedRwLockReadGuard<'static, WidgetCtx> {
+        MappedRwLockReadGuard::map(WIDGET_CTX.read(), |c| c.as_ref().expect("no widget in context"))
+    }
+
+    #[track_caller]
+    fn req_mut(&self) -> MappedRwLockWriteGuard<'static, WidgetCtx> {
+        MappedRwLockWriteGuard::map(WIDGET_CTX.write(), |c| c.as_mut().expect("no widget in context"))
+    }
+
+    /// Get the widget ID, if called inside a widget.
+    pub fn try_id(&self) -> Option<WidgetId> {
+        WIDGET_CTX.read().as_ref().map(|c| c.id)
+    }
+
+    /// Get the widget ID if called inside a widget, or panic.
+    pub fn id(&self) -> WidgetId {
+        self.req().id
+    }
+
+    /// Schedule an update for the current widget.
+    ///
+    /// After the current update cycle the app-extensions, parent window and widgets will update again.
+    pub fn update(&self) -> &Self {
+        let mut ctx = self.req_mut();
+        if !ctx.flags.contains(UpdateFlags::UPDATE) {
+            ctx.flags.insert(UpdateFlags::UPDATE);
+            UPDATES.update(ctx.id);
+        }
+        self
+    }
+
+    /// Schedule an info rebuild for the current widget.
+    ///
+    /// After all requested updates apply the parent window and widgets will re-build the info tree.
+    pub fn info(&self) -> &Self {
+        let mut ctx = self.req_mut();
+        if !ctx.flags.contains(UpdateFlags::LAYOUT) {
+            ctx.flags.insert(UpdateFlags::LAYOUT);
+            UPDATES.update_ext_internal();
+        }
+        self
+    }
+
+    /// Schedule a re-layout for the current widget.
+    ///
+    /// After all requested updates apply the parent window and widgets will re-layout.
+    pub fn layout(&self) -> &Self {
+        let mut ctx = self.req_mut();
+        if !ctx.flags.contains(UpdateFlags::LAYOUT) {
+            ctx.flags.insert(UpdateFlags::LAYOUT);
+            UPDATES.layout();
+        }
+        self
+    }
+
+    /// Schedule a re-render for the current widget.
+    ///
+    /// After all requested updates and layouts apply the parent window and widgets will re-render.
+    ///
+    /// This also overrides any pending [`render_update`] request.
+    ///
+    /// [`render_update`]: Self::render_update
+    pub fn render(&self) -> &Self {
+        let mut ctx = self.req_mut();
+        if !ctx.flags.contains(UpdateFlags::RENDER) {
+            ctx.flags.insert(UpdateFlags::RENDER);
+            UPDATES.render();
+        }
+        self
+    }
+
+    /// Schedule a frame update for the current widget.
+    ///
+    /// After all requested updates and layouts apply the parent window and widgets will update the frame.
+    ///
+    /// This request is supplanted by any [`render`] request.
+    ///
+    /// [`render`]: Self::render
+    pub fn render_update(&self) -> &Self {
+        let mut ctx = self.req_mut();
+        if !ctx.flags.contains(UpdateFlags::RENDER_UPDATE) {
+            ctx.flags.insert(UpdateFlags::RENDER_UPDATE);
+            UPDATES.render();
+        }
+        self
+    }
+
+    /// Flags the widget to re-init after the current update returns.
+    ///
+    /// The widget will de-init and init as soon as it sees this request.
+    pub fn reinit(&self) {
+        self.req_mut().flags.insert(UpdateFlags::REINIT);
+    }
+
+    /// Calls `f` with a read lock on the current widget state map.
+    ///
+    /// Note that this locks the entire [`WIDGET`], this is an entry point for widget extensions and must
+    /// return as soon as possible. A common pattern is cloning the stored value.
+    pub fn with_state<R>(&self, f: impl FnOnce(StateMapRef<state_map::Widget>) -> R) -> R {
+        f(self.req().state.borrow())
+    }
+
+    /// Calls `f` with a write lock on the current widget state map.
+    ///
+    /// Note that this locks the entire [`WIDGET`], this is an entry point for widget extensions and must
+    /// return as soon as possible. A common pattern is cloning the stored value.
+    pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<state_map::Widget>) -> R) -> R {
+        f(self.req_mut().state.borrow_mut())
+    }
+
+    /// Subscribe to receive updates when the `var` changes.
+    pub fn sub_var(&self, var: &impl AnyVar) -> &Self {
+        let mut w = self.req_mut();
+        let s = var.subscribe(w.id);
+        w.var_handles.push(s);
+        self
+    }
+
+    /// Subscribe to receive events from `event`.
+    pub fn sub_event<A: EventArgs>(&self, event: &Event<A>) -> &Self {
+        let mut w = self.req_mut();
+        let s = event.subscribe(w.id);
+        w.event_handles.push(s);
+        self
+    }
+
+    /// Hold the `handle`.
+    pub fn push_event_handle(&self, handle: EventHandle) {
+        self.req_mut().event_handles.push(handle);
+    }
+
+    /// Hold the `handle`.
+    pub fn push_var_handle(&self, handle: VarHandle) {
+        self.req_mut().var_handles.push(handle);
+    }
+
+    /// Widget bounds, updated every layout.
+    pub fn bounds(&self) -> WidgetBoundsInfo {
+        self.req().info.bounds.clone()
+    }
+
+    /// Widget border, updated every layout.
+    pub fn border(&self) -> WidgetBorderInfo {
+        self.req().info.border.clone()
+    }
+
+    /// Gets the parent widget or `None` if is root.
+    ///
+    /// Panics if not called inside an widget.
+    pub fn parent_id(&self) -> Option<WidgetId> {
         todo!()
     }
-
-    /// Update timers and animations, returns next wake time.
-    pub fn update_timers(&mut self) -> Option<Deadline> {
-        self.loop_timer.awake();
-
-        TIMERS_SV.write().apply_updates(&mut self.loop_timer);
-        VARS.update_animations(&mut self.loop_timer);
-
-        self.loop_timer.poll()
-    }
-
-    /// Call [`UiNode::init`].
-    pub fn init(&mut self, node: &mut impl UiNode) {
-        self.widget_context(|ctx| node.init(ctx));
-    }
-
-    /// Call [`UiNode::deinit`].
-    pub fn deinit(&mut self, node: &mut impl UiNode) {
-        self.widget_context(|ctx| node.deinit(ctx));
-    }
-
-    /// Call [`UiNode::event`].
-    pub fn event(&mut self, node: &mut impl UiNode, update: &mut crate::event::EventUpdate) {
-        self.widget_context(|ctx| {
-            if update.delivery_list().has_pending_search() {
-                update.fulfill_search(Some(ctx.info_tree).into_iter());
-            }
-
-            node.event(ctx, update);
-        });
-    }
-
-    /// Call [`UiNode::update`], provides [`WidgetUpdates`] if needed.
-    pub fn update(&mut self, node: &mut impl UiNode, updates: Option<&mut WidgetUpdates>) {
-        if let Some(updates) = updates {
-            updates.fulfill_search([&self.info_tree].into_iter());
-            self.widget_context(|ctx| node.update(ctx, updates));
-        } else {
-            let id = node.with_context(|ctx| ctx.id).unwrap_or(self.root_id);
-            let mut list = UpdateDeliveryList::new_any();
-            list.insert_path(&crate::widget_info::WidgetPath::new(self.window_id, Arc::new(vec![id])));
-            list.enter_window(self.window_id);
-            self.widget_context(|ctx| node.update(ctx, &mut WidgetUpdates::new(list)));
-        }
-    }
-
-    /// Call [`UiNode::info`].
-    pub fn info(&mut self, node: &impl UiNode, info: &mut WidgetInfoBuilder) {
-        self.info_context(|ctx| node.info(ctx, info))
-    }
-
-    /// Call [`UiNode::layout`].
-    pub fn layout(&mut self, node: &mut impl UiNode, constrains: Option<PxConstrains2d>) -> PxSize {
-        let font_size = Length::pt_to_px(14.0, 1.0.fct());
-
-        let viewport = node
-            .with_context(|w| w.widget_info.bounds.outer_size())
-            .unwrap_or_else(|| PxSize::new(Px(800), Px(600)));
-
-        self.layout_context(font_size, font_size, viewport, 1.0.fct(), 96.0, |ctx| {
-            ctx.with_constrains(
-                |c| constrains.unwrap_or(c),
-                |ctx| crate::widget_info::WidgetLayout::with_root_widget(ctx, 0, |ctx, wl| node.layout(ctx, wl)),
-            )
-        })
-    }
-
-    /// Call [`UiNode::render`].
-    pub fn render(&mut self, node: &impl UiNode, frame: &mut crate::render::FrameBuilder) {
-        let key = self.root_translation_key;
-        self.render_context(|ctx| {
-            frame.push_inner(ctx, key, false, |ctx, frame| node.render(ctx, frame));
-        });
-    }
-
-    /// Call [`UiNode::render_update`].
-    pub fn render_update(&mut self, node: &impl UiNode, update: &mut crate::render::FrameUpdate) {
-        let key = self.root_translation_key;
-        self.render_context(|ctx| {
-            update.update_inner(ctx, key, false, |ctx, update| {
-                node.render_update(ctx, update);
-            });
-        });
-    }
 }
 
-/// Var and event subscription handles managed by the widget.
+context_local! {
+    static LAYOUT_CTX: Option<LayoutCtx> = None;
+}
+
+struct LayoutCtx {
+    metrics: LayoutMetrics,
+}
+
+/// Current layout context.
 ///
-/// These handles are kept in the widget instance and are dropped on deinit.
-///
-/// You can access the widget handles for a widget in [`WidgetContext::handles`].
-pub struct WidgetHandles<'a> {
-    /// Var handlers collection.
-    pub var_handles: &'a mut VarHandles,
-    /// Event handles collection.
-    pub event_handles: &'a mut EventHandles,
-}
-impl<'a> WidgetHandles<'a> {
-    /// Keep var subscription handle.
-    pub fn push_var(&mut self, other: VarHandle) {
-        self.var_handles.push(other);
+/// Only available in measure and layout methods.
+pub struct LAYOUT;
+impl LAYOUT {
+    #[track_caller]
+    fn req(&self) -> MappedRwLockReadGuard<'static, LayoutCtx> {
+        MappedRwLockReadGuard::map(LAYOUT_CTX.read(), |c| c.as_ref().expect("not in layout context"))
     }
 
-    /// Keep var subscription handles.
-    pub fn push_vars(&mut self, others: VarHandles) {
-        self.var_handles.extend(others);
+    #[track_caller]
+    fn req_mut(&self) -> MappedRwLockWriteGuard<'static, LayoutCtx> {
+        MappedRwLockWriteGuard::map(LAYOUT_CTX.write(), |c| c.as_mut().expect("not in layout context"))
     }
 
-    /// Keep event subscription handle.
-    pub fn push_event(&mut self, other: EventHandle) {
-        self.event_handles.push(other);
-    }
-
-    /// Keep event subscription handles.
-    pub fn push_events(&mut self, others: EventHandles) {
-        self.event_handles.extend(others);
-    }
-}
-
-/// Represents an widget context without parent info.
-///
-/// Can be accessed using [`UiNode::with_context`].
-pub struct WidgetNodeContext<'a> {
-    /// The widget ID.
-    pub id: WidgetId,
-
-    /// The widget's outer, inner, border and render info.
-    pub widget_info: &'a WidgetContextInfo,
-
-    /// State that lives for the duration of the widget.
-    pub widget_state: StateMapRef<'a, state_map::Widget>,
-}
-
-/// Represents an widget context without parent info.
-///
-/// Can be accessed using [`UiNode::with_context_mut`].
-pub struct WidgetNodeMutContext<'a> {
-    /// The widget ID.
-    pub id: WidgetId,
-
-    /// The widget's outer, inner, border and render info.
-    pub widget_info: &'a WidgetContextInfo,
-
-    /// State that lives for the duration of the widget.
-    pub widget_state: StateMapMut<'a, state_map::Widget>,
-
-    /// Var and event subscription handles managed by the widget.
-    ///
-    /// These handles are kept in the widget instance and are dropped on deinit.
-    pub handles: WidgetHandles<'a>,
-}
-
-/// A widget context.
-pub struct WidgetContext<'a> {
-    /// Current widget path.
-    pub path: &'a mut WidgetContextPath,
-
-    /// Last build widget info tree of the parent window.
-    pub info_tree: &'a WidgetInfoTree,
-
-    /// Current widget's outer, inner, border and render info.
-    pub widget_info: &'a WidgetContextInfo,
-
-    /// State that lives for the duration of the window.
-    pub window_state: StateMapMut<'a, state_map::Window>,
-
-    /// State that lives for the duration of the widget.
-    pub widget_state: StateMapMut<'a, state_map::Widget>,
-
-    /// State that lives for the duration of the node tree method call in the window.
-    ///
-    /// This state lives only for the current [`UiNode`] method call in all nodes
-    /// of the window. You can use this to signal properties and event handlers from nodes that
-    /// will be updated further then the current one.
-    ///
-    /// [`UiNode`]: crate::widget_instance::UiNode
-    pub update_state: StateMapMut<'a, state_map::Update>,
-
-    /// Var and event subscription handles managed by the widget.
-    ///
-    /// These handles are kept in the widget instance and are dropped on deinit.
-    pub handles: WidgetHandles<'a>,
-}
-impl<'a> WidgetContext<'a> {
-    /// Runs `f` in the context of a widget, returns the function result,
-    /// info+layout+render update requests and reinit request.
-    pub fn widget_context<R>(
-        &mut self,
-        widget_id: WidgetId,
-        widget_info: &WidgetContextInfo,
-        widget_state: &mut OwnedStateMap<state_map::Widget>,
-        var_handles: &mut VarHandles,
-        event_handles: &mut EventHandles,
-        f: impl FnOnce(&mut WidgetContext) -> R,
-    ) -> (R, (InfoLayoutRenderUpdates, bool)) {
-        self.path.push(widget_id);
-
-        // let prev_updates = self.updates.enter_widget_ctx();
-
-        let r = f(&mut WidgetContext {
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: widget_state.borrow_mut(),
-            update_state: self.update_state.reborrow(),
-
-            handles: WidgetHandles {
-                var_handles,
-                event_handles,
-            },
+    /// Calls `f` in a new layout context.
+    pub fn with_context<R>(&self, font_size: Px, scale_factor: Factor, screen_ppi: f32, viewport: PxSize, f: impl FnOnce() -> R) -> R {
+        let mut ctx = Some(LayoutCtx {
+            metrics: LayoutMetrics::new(scale_factor, viewport, font_size).with_screen_ppi(screen_ppi),
         });
-
-        self.path.pop();
-
-        (r, todo!("remove"))
+        LAYOUT_CTX.with_context_opt(&mut ctx, f)
     }
 
-    /// Runs `f` with handles registered in custom collections.
-    ///
-    /// Calls to [`WidgetContext::sub_var`] and [`WidgetContext::sub_event`] inside `f` are added to `var_handles` and `event_handles`.
-    /// Nodes that reinit children nodes should use this to avoid *leaking* handles in the actual widget instance that does not reinit.
-    pub fn with_handles<R>(
-        &mut self,
-        var_handles: &mut VarHandles,
-        event_handles: &mut EventHandles,
-        f: impl FnOnce(&mut WidgetContext) -> R,
-    ) -> R {
-        f(&mut WidgetContext {
-            path: self.path,
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: self.widget_state.reborrow(),
-            update_state: self.update_state.reborrow(),
-            handles: WidgetHandles {
-                var_handles,
-                event_handles,
-            },
-        })
+    /// Calls `f` without a layout context.
+    pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
+        LAYOUT_CTX.with_context_opt(&mut None, f)
     }
 
-    /// Returns an [`InfoContext`] generated from `self`.
-    pub fn as_info(&mut self) -> InfoContext {
-        InfoContext {
-            path: self.path,
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.as_ref(),
-            widget_state: self.widget_state.as_ref(),
-            update_state: self.update_state.reborrow(),
-        }
+    /// Gets the context metrics.
+    pub fn metrics(&self) -> LayoutMetrics {
+        self.req().metrics.clone()
     }
 
-    /// Subscribe the widget to receive `var` updates, register the handle in [`handles`].
-    ///
-    /// [`handles`]: Self::handles
-    pub fn sub_var(&mut self, var: &impl crate::var::AnyVar) -> &mut Self {
-        let handle = var.subscribe(self.path.widget_id());
-        self.handles.push_var(handle);
-        self
+    /// Calls `metrics` to generate new metrics that are used during the call to `f`.
+    pub fn with_metrics<R>(&self, metrics: impl FnOnce(LayoutMetrics) -> LayoutMetrics, f: impl FnOnce() -> R) -> R {
+        let new = metrics(self.metrics());
+        let prev = mem::replace(&mut self.req_mut().metrics, new);
+
+        let r = f();
+
+        self.req_mut().metrics = prev;
+
+        r
     }
 
-    /// Subscribe the widget to receive `event` updates, register the handle in [`handles`].
-    ///
-    /// [`handles`]: Self::handles
-    pub fn sub_event<A: crate::event::EventArgs>(&mut self, event: &crate::event::Event<A>) -> &mut Self {
-        let handle = event.subscribe(self.path.widget_id());
-        self.handles.push_event(handle);
-        self
-    }
-}
-
-/// Current widget context path.
-pub struct WidgetContextPath {
-    window_id: WindowId,
-    widget_ids: Vec<WidgetId>,
-}
-impl WidgetContextPath {
-    fn new(window_id: WindowId, root_id: WidgetId) -> Self {
-        let mut widget_ids = Vec::with_capacity(50);
-        widget_ids.push(root_id);
-        WidgetContextPath { window_id, widget_ids }
+    /// Current size constrains.
+    pub fn constrains(&self) -> PxConstrains2d {
+        self.req().metrics.constrains()
     }
 
-    fn push(&mut self, widget_id: WidgetId) {
-        self.widget_ids.push(widget_id);
+    /// Calls `constrains` to generate new constrains that are used during the call to  `f`.
+    pub fn with_constrains<R>(&self, constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d, f: impl FnOnce() -> R) -> R {
+        self.with_metrics(|m| m.with_constrains(constrains), f)
     }
 
-    fn pop(&mut self) {
-        debug_assert!(self.widget_ids.len() > 1, "cannot pop root");
-        self.widget_ids.pop();
+    /// Runs a function `f` in a context that has its max size subtracted by `removed` and its final size added by `removed`.
+    pub fn with_sub_size(&self, removed: PxSize, f: impl FnOnce() -> PxSize) -> PxSize {
+        self.with_constrains(|c| c.with_less_size(removed), f) + removed
     }
 
-    /// Parent window id.
-    pub fn window_id(&self) -> WindowId {
-        self.window_id
+    /// Runs a function `f` in a layout context that has its max size added by `added` and its final size subtracted by `added`.
+    pub fn with_add_size(&self, added: PxSize, f: impl FnOnce() -> PxSize) -> PxSize {
+        self.with_constrains(|c| c.with_more_size(added), f) - added
     }
 
-    /// Window root widget id.
-    pub fn root_id(&self) -> WidgetId {
-        self.widget_ids[0]
+    /// Current inline constrains.
+    pub fn inline_constrains(&self) -> Option<InlineConstrains> {
+        self.req().metrics.inline_constrains()
     }
 
-    /// Current widget id.
-    pub fn widget_id(&self) -> WidgetId {
-        self.widget_ids[self.widget_ids.len() - 1]
-    }
-
-    /// Ancestor widgets, parent first.
-    #[allow(clippy::needless_lifetimes)] // clippy bug
-    pub fn ancestors<'s>(&'s self) -> impl Iterator<Item = WidgetId> + 's {
-        let max = self.widget_ids.len() - 1;
-        self.widget_ids[0..max].iter().copied().rev()
-    }
-
-    /// Parent widget id.
-    pub fn parent(&self) -> Option<WidgetId> {
-        self.ancestors().next()
-    }
-
-    /// If the `widget_id` is part of the path.
-    pub fn contains(&self, widget_id: WidgetId) -> bool {
-        self.widget_ids.iter().any(move |&w| w == widget_id)
-    }
-
-    /// Returns `true` if the current widget is the window.
-    pub fn is_root(&self) -> bool {
-        self.widget_ids.len() == 1
-    }
-
-    /// If the `path` starts with the current path.
-    pub fn is_start_of(&self, path: &WidgetPath) -> bool {
-        let len = self.widget_ids.len();
-        if path.widgets_path().len() >= len {
-            for (cw, pw) in self.widget_ids.iter().rev().zip(path.widgets_path()[..len].iter().rev()) {
-                if cw != pw {
-                    return false;
-                }
-            }
-            self.window_id() == path.window_id()
-        } else {
-            false
-        }
-    }
-
-    /// Length of the current path.
-    pub fn depth(&self) -> usize {
-        self.widget_ids.len()
-    }
-}
-impl fmt::Debug for WidgetContextPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            f.debug_struct("WidgetContextPath")
-                .field("window_id", &self.window_id)
-                .field("widget_ids", &self.widget_ids)
-                .finish()
-        } else {
-            write!(f, "{self}")
-        }
-    }
-}
-impl fmt::Display for WidgetContextPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // "WinId(1)//Wgt(1)/Wgt(23)"
-        write!(f, "{}/", self.window_id)?;
-        for w in &self.widget_ids {
-            write!(f, "/{w}")?;
-        }
-        Ok(())
-    }
-}
-
-/// A widget measure context.
-pub struct MeasureContext<'a> {
-    /// Contextual layout metrics.
-    pub metrics: &'a LayoutMetrics,
-
-    /// Current widget path.
-    pub path: &'a mut WidgetContextPath,
-
-    /// Last build widget info tree of the parent window.
-    pub info_tree: &'a WidgetInfoTree,
-
-    /// Current widget's outer, inner, border and render info.
-    pub widget_info: &'a WidgetContextInfo,
-
-    /// Read-only access to the state that lives for the duration of the window.
-    pub window_state: StateMapRef<'a, state_map::Window>,
-
-    /// Read-only access to the state that lives for the duration of the widget.
-    pub widget_state: StateMapRef<'a, state_map::Widget>,
-
-    /// State that lives for the duration of the node tree measure in the window.
-    ///
-    /// This state lives only for the call to [`UiNode::measure`](crate::widget_instance::UiNode::measure) in all nodes of the window.
-    /// You can use this to signal nodes that have not measured yet.
-    pub update_state: StateMapMut<'a, state_map::Update>,
-}
-impl<'a> Deref for MeasureContext<'a> {
-    type Target = LayoutMetrics;
-
-    fn deref(&self) -> &Self::Target {
-        self.metrics
-    }
-}
-impl<'a> MeasureContext<'a> {
-    /// Runs a function `f` in a measure context that has the new or modified constrains.
-    ///
-    /// The `constrains` closure is called to produce the new constrains, the input is the current constrains.
-    pub fn with_constrains<R>(
-        &mut self,
-        constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d,
-        f: impl FnOnce(&mut MeasureContext) -> R,
-    ) -> R {
-        f(&mut MeasureContext {
-            metrics: &self.metrics.clone().with_constrains(constrains),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state.reborrow(),
-        })
+    /// Calls `f` with `inline_constrains` in the context.
+    pub fn with_inline_constrains<R>(&self, inline_constrains: Option<InlineConstrains>, f: impl FnOnce() -> R) -> R {
+        self.with_metrics(|m| m.with_inline_constrains(inline_constrains), f)
     }
 
     /// Runs a function `f` in a measure context that has a new or modified inline constrain.
@@ -768,71 +542,37 @@ impl<'a> MeasureContext<'a> {
     /// Note that panels implementing inline layout should prefer using [`measure_inline`] instead of this method.
     ///
     /// [`measure_inline`]: Self::measure_inline
-    pub fn with_inline_constrains<R>(
-        &mut self,
+
+    pub fn with_inline_measure<R>(
+        &self,
         wm: &mut WidgetMeasure,
         inline_constrains: impl FnOnce(Option<InlineConstrainsMeasure>) -> Option<InlineConstrainsMeasure>,
-        f: impl FnOnce(&mut MeasureContext, &mut WidgetMeasure) -> R,
+        f: impl FnOnce(&mut WidgetMeasure) -> R,
     ) -> R {
-        let ic = self.metrics.inline_constrains().map(|c| c.measure());
-        let ic = inline_constrains(ic).map(InlineConstrains::Measure);
-        if ic.is_none() {
+        let inline_constrains = inline_constrains(self.inline_constrains().map(InlineConstrains::measure)).map(InlineConstrains::Measure);
+        if inline_constrains.is_none() {
             wm.disable_inline();
         }
-        f(
-            &mut MeasureContext {
-                metrics: &self.metrics.clone().with_inline_constrains(ic),
 
-                path: self.path,
-
-                info_tree: self.info_tree,
-                widget_info: self.widget_info,
-                window_state: self.window_state,
-                widget_state: self.widget_state,
-                update_state: self.update_state.reborrow(),
-            },
-            wm,
-        )
+        self.with_inline_constrains(inline_constrains, || f(wm))
     }
 
-    /// Runs a function `f` in a measure context that has its max size subtracted by `removed` and its final size added by `removed`.
-    pub fn with_sub_size(&mut self, removed: PxSize, f: impl FnOnce(&mut MeasureContext) -> PxSize) -> PxSize {
-        self.with_constrains(|c| c.with_less_size(removed), f) + removed
-    }
+    /// Runs a function `f` in a measure context that has a new or modified inline constrain.
+    ///
+    /// The `inline_constrains` closure is called to produce the new constrains, the input is the current constrains.
+    /// If it returns `None` inline is disabled for the widget.
+    ///
+    /// Note that panels implementing inline layout should prefer using [`layout_inline`] instead of this method.
+    ///
+    /// [`layout_inline`]: Self::layout_inline
 
-    /// Runs a function `f` in a layout context that has its max size added by `added` and its final size subtracted by `added`.
-    pub fn with_add_size(&mut self, added: PxSize, f: impl FnOnce(&mut MeasureContext) -> PxSize) -> PxSize {
-        self.with_constrains(|c| c.with_more_size(added), f) - added
-    }
-
-    /// Runs a function `f` in a measure context that has the new computed font size.
-    pub fn with_font_size<R>(&mut self, font_size: Px, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
-        f(&mut MeasureContext {
-            metrics: &self.metrics.clone().with_font_size(font_size),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state.reborrow(),
-        })
-    }
-
-    /// Runs a function `f` in a measure context that has the new computed viewport.
-    pub fn with_viewport<R>(&mut self, viewport: PxSize, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
-        f(&mut MeasureContext {
-            metrics: &self.metrics.clone().with_viewport(viewport),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state.reborrow(),
-        })
+    pub fn with_inline_layout<R>(
+        &self,
+        inline_constrains: impl FnOnce(Option<InlineConstrainsLayout>) -> Option<InlineConstrainsLayout>,
+        f: impl FnOnce() -> R,
+    ) -> R {
+        let inline_constrains = inline_constrains(self.inline_constrains().map(InlineConstrains::layout)).map(InlineConstrains::Layout);
+        self.with_inline_constrains(inline_constrains, || f())
     }
 
     /// Measure the child in a new inline context.
@@ -841,490 +581,913 @@ impl<'a> MeasureContext<'a> {
     ///
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
     /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::measure_inline`].
-    pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
-        let size = child.measure(
-            &mut MeasureContext {
-                metrics: &self
-                    .metrics
-                    .clone()
-                    .with_inline_constrains(Some(InlineConstrains::Measure(InlineConstrainsMeasure {
-                        first_max,
-                        mid_clear_min,
-                    }))),
-
-                path: self.path,
-
-                info_tree: self.info_tree,
-                widget_info: self.widget_info,
-                window_state: self.window_state,
-                widget_state: self.widget_state,
-                update_state: self.update_state.reborrow(),
-            },
-            &mut WidgetMeasure::new(),
-        );
-        let inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
+    pub fn measure_inline(&self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+        let constrains = InlineConstrains::Measure(InlineConstrainsMeasure { first_max, mid_clear_min });
+        let size = self.with_inline_constrains(Some(constrains), || child.measure(&mut WidgetMeasure::new()));
+        let inline = child.with_context(|| WIDGET.bounds().measure_inline()).flatten();
         (inline, size)
-    }
-
-    /// Runs a function `f` in a measure context that has the new direction.
-    pub fn with_direction<R>(&mut self, direction: LayoutDirection, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
-        f(&mut MeasureContext {
-            metrics: &self.metrics.clone().with_direction(direction),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state.reborrow(),
-        })
-    }
-
-    /// Runs a function `f` in a measure context  that defines the computed leftover lengths.
-    pub fn with_leftover<R>(&mut self, width: Option<Px>, height: Option<Px>, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
-        f(&mut MeasureContext {
-            metrics: &self.metrics.clone().with_leftover(width, height),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state.reborrow(),
-        })
-    }
-
-    /// Runs a function `f` in the measure context of a widget.
-    ///
-    /// Returns the closure `f` result and the updates requested by it.
-    ///
-    /// [`render_update`]: Updates::render_update
-    pub fn with_widget(
-        &mut self,
-        widget_id: WidgetId,
-        widget_info: &WidgetContextInfo,
-        widget_state: &OwnedStateMap<state_map::Widget>,
-        f: impl FnOnce(&mut MeasureContext) -> PxSize,
-    ) -> PxSize {
-        self.path.push(widget_id);
-
-        let size = f(&mut MeasureContext {
-            metrics: self.metrics,
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info,
-            window_state: self.window_state,
-            widget_state: widget_state.borrow(),
-            update_state: self.update_state.reborrow(),
-        });
-
-        self.path.pop();
-
-        size
-    }
-
-    /// Returns an [`InfoContext`] generated from `self`.
-    pub fn as_info(&mut self) -> InfoContext {
-        InfoContext {
-            path: self.path,
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state.reborrow(),
-        }
-    }
-}
-
-/// A widget layout context.
-///
-/// This type dereferences to [`LayoutMetrics`].
-pub struct LayoutContext<'a> {
-    /// Contextual layout metrics.
-    pub metrics: &'a LayoutMetrics,
-
-    /// Current widget path.
-    pub path: &'a mut WidgetContextPath,
-
-    /// Last build widget info tree of the parent window.
-    pub info_tree: &'a WidgetInfoTree,
-
-    /// Current widget's outer, inner, border and render info.
-    pub widget_info: &'a WidgetContextInfo,
-
-    /// State that lives for the duration of the window.
-    pub window_state: StateMapMut<'a, state_map::Window>,
-
-    /// State that lives for the duration of the widget.
-    pub widget_state: StateMapMut<'a, state_map::Widget>,
-
-    /// State that lives for the duration of the node tree layout update call in the window.
-    pub update_state: StateMapMut<'a, state_map::Update>,
-}
-impl<'a> Deref for LayoutContext<'a> {
-    type Target = LayoutMetrics;
-
-    fn deref(&self) -> &Self::Target {
-        self.metrics
-    }
-}
-impl<'a> LayoutContext<'a> {
-    /// Runs a function `f` in a layout context that has the new or modified constrains.
-    ///
-    /// The `constrains` closure is called to produce the new constrains, the input is the current constrains.
-    pub fn with_constrains<R>(
-        &mut self,
-        constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d,
-        f: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> R {
-        f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_constrains(constrains),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: self.widget_state.reborrow(),
-            update_state: self.update_state.reborrow(),
-        })
-    }
-
-    /// Runs a function `f` in a layout context that has a new or modified inline constrain.
-    ///
-    /// The `inline_constrains` closure is called to produce the new constrains, the input is the current constrains.
-    ///
-    /// Note that panels implementing inline layout should prefer using [`measure_inline`] instead of this method.
-    ///
-    /// [`measure_inline`]: Self::measure_inline
-    pub fn with_inline_constrains<R>(
-        &mut self,
-        inline_constrains: impl FnOnce(Option<InlineConstrainsLayout>) -> Option<InlineConstrainsLayout>,
-        f: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> R {
-        let ic = self.metrics.inline_constrains().map(|c| c.layout());
-        let ic = inline_constrains(ic).map(InlineConstrains::Layout);
-        f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_inline_constrains(ic),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: self.widget_state.reborrow(),
-            update_state: self.update_state.reborrow(),
-        })
-    }
-
-    /// Measure the child in a new inline context.
-    ///
-    /// The `first_max` is the space available for the first row. The `mid_clear_min` is the current height of the row.
-    ///
-    /// Returns the measured inline data and the desired size, or `None` and the desired size if the
-    /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::measure_inline`].
-    pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
-        let size = child.measure(
-            &mut MeasureContext {
-                metrics: &self
-                    .metrics
-                    .clone()
-                    .with_inline_constrains(Some(InlineConstrains::Measure(InlineConstrainsMeasure {
-                        first_max,
-                        mid_clear_min,
-                    }))),
-
-                path: self.path,
-
-                info_tree: self.info_tree,
-                widget_info: self.widget_info,
-                window_state: self.window_state.as_ref(),
-                widget_state: self.widget_state.as_ref(),
-                update_state: self.update_state.reborrow(),
-            },
-            &mut WidgetMeasure::new(),
-        );
-        let inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
-        (inline, size)
-    }
-
-    /// Runs a function `f` in a layout context that has its max size subtracted by `removed` and its final size added by `removed`.
-    ///
-    /// The constrains are only [peeked], this method does not register a layout dependency on the constrains.
-    ///
-    /// [peeked]: LayoutMetrics::peek
-    pub fn with_sub_size(&mut self, removed: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
-        self.with_constrains(|c| c.with_less_size(removed), f) + removed
-    }
-
-    /// Runs a function `f` in a layout context that has its max size added by `added` and its final size subtracted by `added`.
-    ///
-    /// The constrains are only [peeked], this method does not register a layout dependency on the constrains.
-    ///
-    /// [peeked]: LayoutMetrics::peek
-    pub fn with_add_size(&mut self, added: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
-        self.with_constrains(|c| c.with_more_size(added), f) - added
-    }
-
-    /// Runs a function `f` in a layout context that has the new computed font size.
-    pub fn with_font_size<R>(&mut self, font_size: Px, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_font_size(font_size),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: self.widget_state.reborrow(),
-            update_state: self.update_state.reborrow(),
-        })
-    }
-
-    /// Runs a function `f` in a layout context that has the new computed viewport.
-    pub fn with_viewport<R>(&mut self, viewport: PxSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_viewport(viewport),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: self.widget_state.reborrow(),
-            update_state: self.update_state.reborrow(),
-        })
     }
 
     /// Runs a function `f` in a layout context that has enabled inline.
-    pub fn with_inline<R>(
+    pub fn layout_inline<R>(
         &mut self,
         first: PxRect,
         mid_clear: Px,
         last: PxRect,
         first_segs: Arc<Vec<InlineSegmentPos>>,
         last_segs: Arc<Vec<InlineSegmentPos>>,
-        f: impl FnOnce(&mut LayoutContext) -> R,
+        f: impl FnOnce() -> R,
     ) -> R {
-        f(&mut LayoutContext {
-            metrics: &self
-                .metrics
-                .clone()
-                .with_inline_constrains(Some(InlineConstrains::Layout(InlineConstrainsLayout {
-                    first,
-                    mid_clear,
-                    last,
-                    first_segs,
-                    last_segs,
-                }))),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: self.widget_state.reborrow(),
-            update_state: self.update_state.reborrow(),
-        })
-    }
-
-    /// Runs a function `f` in a layout context that has the new direction.
-    pub fn with_direction<R>(&mut self, direction: LayoutDirection, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_direction(direction),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: self.widget_state.reborrow(),
-            update_state: self.update_state.reborrow(),
-        })
-    }
-
-    /// Runs a function `f` in a layout context that defines the computed leftover lengths.
-    pub fn with_leftover<R>(&mut self, width: Option<Px>, height: Option<Px>, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_leftover(width, height),
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: self.widget_state.reborrow(),
-            update_state: self.update_state.reborrow(),
-        })
-    }
-
-    /// Runs a function `f` in the layout context of a widget.
-    ///
-    /// Returns the closure `f` result and the updates requested by it.
-    ///
-    /// [`render_update`]: Updates::render_update
-    pub fn with_widget<R>(
-        &mut self,
-        widget_id: WidgetId,
-        widget_info: &WidgetContextInfo,
-        widget_state: &mut OwnedStateMap<state_map::Widget>,
-        f: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> (R, InfoLayoutRenderUpdates) {
-        self.path.push(widget_id);
-
-        // let prev_updates = self.updates.enter_widget_ctx();
-
-        let r = f(&mut LayoutContext {
-            metrics: self.metrics,
-
-            path: self.path,
-
-            info_tree: self.info_tree,
-            widget_info,
-            window_state: self.window_state.reborrow(),
-            widget_state: widget_state.borrow_mut(),
-            update_state: self.update_state.reborrow(),
+        let constrains = InlineConstrains::Layout(InlineConstrainsLayout {
+            first,
+            mid_clear,
+            last,
+            first_segs,
+            last_segs,
         });
-
-        self.path.pop();
-
-        (r, todo!("remove"))
+        self.with_inline_constrains(Some(constrains), f)
     }
 
-    /// Returns an [`InfoContext`] generated from `self`.
-    pub fn as_info(&mut self) -> InfoContext {
-        InfoContext {
-            path: self.path,
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.as_ref(),
-            widget_state: self.widget_state.as_ref(),
-            update_state: self.update_state.reborrow(),
-        }
+    /// Current font size.
+    pub fn font_size(&self) -> Px {
+        self.req().metrics.font_size()
     }
 
-    /// Returns a [`MeasureContext`] generated from `self`.
-    pub fn as_measure(&mut self) -> MeasureContext {
-        MeasureContext {
-            metrics: self.metrics,
-            path: self.path,
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state.as_ref(),
-            widget_state: self.widget_state.as_ref(),
-            update_state: self.update_state.reborrow(),
+    /// Calls `f` with `font_size` in the context.
+    pub fn with_font_size<R>(&self, font_size: Px, f: impl FnOnce() -> R) -> R {
+        self.with_metrics(|m| m.with_font_size(font_size), f)
+    }
+
+    /// Current viewport size.
+    pub fn viewport(&self) -> PxSize {
+        self.req().metrics.viewport()
+    }
+
+    /// Calls `f` with `viewport` in the context.
+    pub fn with_viewport<R>(&self, viewport: PxSize, f: impl FnOnce() -> R) -> R {
+        self.with_metrics(|m| m.with_viewport(viewport), f)
+    }
+
+    /// Current scale factor.
+    pub fn scale_factor(&self) -> Factor {
+        self.req().metrics.scale_factor()
+    }
+
+    /// Calls `f` with `scale_factor` in the context.
+    pub fn with_scale_factor<R>(&self, scale_factor: Factor, f: impl FnOnce() -> R) -> R {
+        self.with_metrics(|m| m.with_scale_factor(scale_factor), f)
+    }
+
+    /// Current screen PPI.
+    pub fn screen_ppi(&self) -> f32 {
+        self.req().metrics.screen_ppi()
+    }
+
+    /// Calls `f` with `screen_ppi` in the context.
+    pub fn with_screen_ppi<R>(&self, screen_ppi: f32, f: impl FnOnce() -> R) -> R {
+        self.with_metrics(|m| m.with_screen_ppi(screen_ppi), f)
+    }
+
+    /// Current layout direction.
+    pub fn direction(&self) -> LayoutDirection {
+        self.req().metrics.direction()
+    }
+
+    /// Calls `f` with `direction` in the context.
+    pub fn with_direction<R>(&self, direction: LayoutDirection, f: impl FnOnce() -> R) -> R {
+        self.with_metrics(|m| m.with_direction(direction), f)
+    }
+
+    /// Context leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
+    ///
+    /// [`leftover_count`]: Self::leftover_count
+    pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
+        self.req().metrics.leftover()
+    }
+
+    /// Calls `f` with [`leftover`] set to `with` and `height`.
+    ///
+    /// [`leftover`]: Self::leftover
+    pub fn with_leftover<R>(&self, width: Option<Px>, height: Option<Px>, f: impl FnOnce() -> R) -> R {
+        self.with_metrics(|m| m.with_leftover(width, height), f)
+    }
+}
+
+app_local! {
+    static UPDATES_SV: UpdatesService = UpdatesService::new();
+}
+struct UpdatesService {
+    event_sender: Option<AppEventSender>,
+
+    flags: UpdateFlags,
+    update_widgets: UpdateDeliveryList,
+
+    pre_handlers: Mutex<Vec<UpdateHandler>>,
+    pos_handlers: Mutex<Vec<UpdateHandler>>,
+}
+impl UpdatesService {
+    fn new() -> Self {
+        Self {
+            event_sender: None,
+            flags: UpdateFlags::empty(),
+            update_widgets: UpdateDeliveryList::new_any(),
+
+            pre_handlers: Mutex::new(vec![]),
+            pos_handlers: Mutex::new(vec![]),
         }
     }
 }
 
-/// A widget render context.
-pub struct RenderContext<'a> {
-    /// Current widget path.
-    pub path: &'a mut WidgetContextPath,
+/// Update pump and schedule service.
+pub struct UPDATES;
+impl UPDATES {
+    pub(crate) fn init(&self, event_sender: AppEventSender) {
+        UPDATES_SV.write().event_sender = Some(event_sender.clone());
+    }
 
-    /// Last build widget info tree of the parent window.
-    pub info_tree: &'a WidgetInfoTree,
+    /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update
+    /// requests and a time for the loop to awake and update.
+    #[must_use]
+    pub(crate) fn apply(&self) -> ContextUpdates {
+        let events = EVENTS.apply_updates();
+        VARS.apply_updates();
 
-    /// Current widget's outer, inner, border and render info.
-    pub widget_info: &'a WidgetContextInfo,
+        let (update, update_widgets, layout, render) = UPDATES.take_updates();
 
-    /// Read-only access to the state that lives for the duration of the window.
-    pub window_state: StateMapRef<'a, state_map::Window>,
+        ContextUpdates {
+            events,
+            update,
+            update_widgets,
+            layout,
+            render,
+        }
+    }
 
-    /// Read-only access to the state that lives for the duration of the widget.
-    pub widget_state: StateMapRef<'a, state_map::Widget>,
+    /// Returns next timer or animation tick time.
+    pub(crate) fn next_deadline(&self, timer: &mut LoopTimer) {
+        TIMERS_SV.write().next_deadline(timer);
+        VARS.next_deadline(timer);
+    }
 
-    /// State that lives for the duration of the node tree render or render update call in the window.
+    /// Update timers and animations, returns next wake time.
+    pub(crate) fn update_timers(&self, timer: &mut LoopTimer) {
+        TIMERS_SV.write().apply_updates(timer);
+        VARS.update_animations(timer);
+    }
+
+    /// If a call to `apply_updates` will generate updates (ignoring timers).
+    #[must_use]
+    pub fn has_pending_updates(&self) -> bool {
+        let us = !UPDATES_SV.read().flags.is_empty();
+        us || VARS.has_pending_updates() || EVENTS_SV.write().has_pending_updates() || TIMERS_SV.read().has_pending_updates()
+    }
+
+    /// Create an [`AppEventSender`] that can be used to awake the app and send app events from threads outside of the app.
+    pub fn sender(&self) -> AppEventSender {
+        UPDATES_SV.read().event_sender.as_ref().unwrap().clone()
+    }
+
+    /// Create an std task waker that wakes the event loop and updates all `targets`.
+    pub fn waker(&self, targets: Vec<WidgetId>) -> Waker {
+        UPDATES_SV.read().event_sender.as_ref().unwrap().waker(targets)
+    }
+
+    /// Schedules an update that affects the `target`.
     ///
-    /// This state lives only for the call to [`UiNode::render`](crate::widget_instance::UiNode::render) or
-    /// [`UiNode::render_update`](crate::widget_instance::UiNode::render_update) method call in all nodes of the window.
-    /// You can use this to signal nodes that have not rendered yet.
-    pub update_state: StateMapMut<'a, state_map::Update>,
-}
-impl<'a> RenderContext<'a> {
-    /// Runs a function `f` in the render context of a widget.
-    pub fn with_widget<R>(
-        &mut self,
-        widget_id: WidgetId,
-        widget_info: &WidgetContextInfo,
-        widget_state: &OwnedStateMap<state_map::Widget>,
-        f: impl FnOnce(&mut RenderContext) -> R,
-    ) -> R {
-        self.path.push(widget_id);
-        let r = f(&mut RenderContext {
-            path: self.path,
-            info_tree: self.info_tree,
-            widget_info,
-            window_state: self.window_state,
-            widget_state: widget_state.borrow(),
-            update_state: self.update_state.reborrow(),
-        });
-        self.path.pop();
+    /// After the current update cycle ends a new update will happen that includes the `target` widget.
+    pub fn update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+        UpdatesTrace::log_update();
+        self.update_internal(target.into());
+        self
+    }
+    pub(crate) fn update_internal(&self, target: Option<WidgetId>) {
+        let mut u = UPDATES_SV.write();
+        u.flags.insert(UpdateFlags::UPDATE);
+        if let Some(id) = target {
+            u.update_widgets.search_widget(id);
+        }
+        u.event_sender.as_ref().unwrap().send_ext_update();
+    }
+
+    pub(crate) fn recv_update_internal(&mut self, targets: Vec<WidgetId>) {
+        let mut u = UPDATES_SV.write();
+
+        if !u.flags.contains(UpdateFlags::UPDATE) {
+            u.flags.insert(UpdateFlags::UPDATE);
+            u.event_sender.as_ref().unwrap().send_ext_update();
+        }
+
+        for id in targets {
+            u.update_widgets.search_widget(id);
+        }
+    }
+
+    /// Schedules an update that only affects the app extensions.
+    ///
+    /// This is the equivalent of calling [`update`] with a `None`.
+    ///
+    /// [`update`]: Self::update
+    pub fn update_ext(&self) -> &Self {
+        UpdatesTrace::log_update();
+        self.update_ext_internal();
+        self
+    }
+    pub(crate) fn update_ext_internal(&self) {
+        let mut u = UPDATES_SV.write();
+
+        if !u.flags.contains(UpdateFlags::UPDATE) {
+            u.flags.insert(UpdateFlags::UPDATE);
+            u.event_sender.as_ref().unwrap().send_ext_update();
+        }
+    }
+
+    /// Schedules a layout update that will affect all app extensions and widgets with invalidated layout.
+    pub fn layout(&self) -> &Self {
+        UpdatesTrace::log_layout();
+        self.layout_internal();
+        self
+    }
+    pub(crate) fn layout_internal(&self) {
+        UPDATES_SV.write().flags.insert(UpdateFlags::LAYOUT);
+    }
+
+    /// Schedules a render update that will affect all app extensions and widgets with invalidated layout.
+    pub fn render(&self) -> &Self {
+        self.render_internal();
+        self
+    }
+    pub(crate) fn render_internal(&self) {
+        UPDATES_SV.write().flags.insert(UpdateFlags::RENDER);
+    }
+
+    /// Schedule an *once* handler to run when these updates are applied.
+    ///
+    /// The callback is any of the *once* [`AppHandler`], including async handlers. If the handler is async and does not finish in
+    /// one call it is scheduled to update in *preview* updates.
+    pub fn run<H: AppHandler<UpdateArgs>>(&self, handler: H) -> OnUpdateHandle {
+        let mut u = UPDATES_SV.write();
+        u.flags.insert(UpdateFlags::UPDATE); // in case this was called outside of an update.
+        Self::push_handler(u.pos_handlers.get_mut(), true, handler, true)
+    }
+
+    /// Create a preview update handler.
+    ///
+    /// The `handler` is called every time the app updates, just before the UI updates. It can be any of the non-async [`AppHandler`],
+    /// use the [`app_hn!`] or [`app_hn_once!`] macros to declare the closure. You must avoid using async handlers because UI bound async
+    /// tasks cause app updates to awake, so it is very easy to lock the app in a constant sequence of updates. You can use [`run`](Self::run)
+    /// to start an async app context task.
+    ///
+    /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    ///
+    /// [`app_hn_once!`]: macro@crate::handler::app_hn_once
+    /// [`app_hn!`]: macro@crate::handler::app_hn
+    /// [`async_app_hn!`]: macro@crate::handler::async_app_hn
+    pub fn on_pre_update<H>(&self, handler: H) -> OnUpdateHandle
+    where
+        H: AppHandler<UpdateArgs>,
+    {
+        let u = UPDATES_SV.read();
+        let r = Self::push_handler(&mut *u.pre_handlers.lock(), true, handler, false);
         r
     }
 
-    /// Returns an [`InfoContext`] generated from `self`.
-    pub fn as_info(&mut self) -> InfoContext {
-        InfoContext {
-            path: self.path,
-            info_tree: self.info_tree,
-            widget_info: self.widget_info,
-            window_state: self.window_state,
-            widget_state: self.widget_state,
-            update_state: self.update_state.reborrow(),
-        }
-    }
-}
-
-/// A widget info context.
-pub struct InfoContext<'a> {
-    /// Current widget path.
-    pub path: &'a mut WidgetContextPath,
-
-    /// Last build widget info tree of the parent window.
-    pub info_tree: &'a WidgetInfoTree,
-
-    /// Current widget's outer, inner, border and render info.
-    pub widget_info: &'a WidgetContextInfo,
-
-    /// Read-only access to the state that lives for the duration of the window.
-    pub window_state: StateMapRef<'a, state_map::Window>,
-
-    /// Read-only access to the state that lives for the duration of the widget.
-    pub widget_state: StateMapRef<'a, state_map::Widget>,
-
-    /// State that lives for the duration of the node tree rebuild or subscriptions aggregation call in the window.
+    /// Create an update handler.
     ///
-    /// This state lives only for the call to the [`UiNode::info`](crate::widget_instance::UiNode::info) method in all nodes of the window.
-    /// You can use this to signal nodes that have not added info yet.
-    pub update_state: StateMapMut<'a, state_map::Update>,
-}
-impl<'a> InfoContext<'a> {
-    /// Runs a function `f` in the info context of a widget.
-    pub fn with_widget<R>(
-        &mut self,
-        widget_id: WidgetId,
-        widget_info: &WidgetContextInfo,
-        widget_state: &OwnedStateMap<state_map::Widget>,
-        f: impl FnOnce(&mut InfoContext) -> R,
-    ) -> R {
-        self.path.push(widget_id);
-        let r = f(&mut InfoContext {
-            path: self.path,
-            info_tree: self.info_tree,
-            widget_info,
-            window_state: self.window_state,
-            widget_state: widget_state.borrow(),
-            update_state: self.update_state.reborrow(),
+    /// The `handler` is called every time the app updates, just after the UI updates. It can be any of the non-async [`AppHandler`],
+    /// use the [`app_hn!`] or [`app_hn_once!`] macros to declare the closure. You must avoid using async handlers because UI bound async
+    /// tasks cause app updates to awake, so it is very easy to lock the app in a constant sequence of updates. You can use [`run`](Self::run)
+    /// to start an async app context task.
+    ///
+    /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
+    /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    ///
+    /// [`app_hn!`]: macro@crate::handler::app_hn
+    /// [`async_app_hn!`]: macro@crate::handler::async_app_hn
+    pub fn on_update<H>(&self, handler: H) -> OnUpdateHandle
+    where
+        H: AppHandler<UpdateArgs>,
+    {
+        let u = UPDATES_SV.read();
+        let r = Self::push_handler(&mut *u.pos_handlers.lock(), false, handler, false);
+        r
+    }
+
+    fn push_handler<H>(entries: &mut Vec<UpdateHandler>, is_preview: bool, mut handler: H, force_once: bool) -> OnUpdateHandle
+    where
+        H: AppHandler<UpdateArgs>,
+    {
+        let (handle_owner, handle) = OnUpdateHandle::new();
+        entries.push(UpdateHandler {
+            handle: handle_owner,
+            count: 0,
+            handler: Box::new(move |args, handle| {
+                let handler_args = AppHandlerArgs { handle, is_preview };
+                handler.event(args, &handler_args);
+                if force_once {
+                    handler_args.handle.unsubscribe();
+                }
+            }),
         });
-        self.path.pop();
+        handle
+    }
+
+    pub(crate) fn on_pre_updates(&self) {
+        let mut handlers = mem::take(UPDATES_SV.write().pre_handlers.get_mut());
+        Self::retain_updates(&mut handlers);
+
+        let mut u = UPDATES_SV.write();
+        handlers.append(u.pre_handlers.get_mut());
+        *u.pre_handlers.get_mut() = handlers;
+    }
+
+    pub(crate) fn on_updates(&self) {
+        let mut handlers = mem::take(UPDATES_SV.write().pos_handlers.get_mut());
+        Self::retain_updates(&mut handlers);
+
+        let mut u = UPDATES_SV.write();
+        handlers.append(u.pos_handlers.get_mut());
+        *u.pos_handlers.get_mut() = handlers;
+    }
+
+    fn retain_updates(handlers: &mut Vec<UpdateHandler>) {
+        handlers.retain_mut(|e| {
+            !e.handle.is_dropped() && {
+                e.count = e.count.wrapping_add(1);
+                (e.handler)(&UpdateArgs { count: e.count }, &e.handle.weak_handle());
+                !e.handle.is_dropped()
+            }
+        });
+    }
+
+    pub(super) fn take_updates(&self) -> (bool, WidgetUpdates, bool, bool) {
+        let mut u = UPDATES_SV.write();
+        let update = u.flags.contains(UpdateFlags::UPDATE);
+        let layout = u.flags.contains(UpdateFlags::LAYOUT);
+        let render = u.flags.contains(UpdateFlags::RENDER);
+        u.flags = UpdateFlags::empty();
+        (
+            update,
+            WidgetUpdates {
+                delivery_list: mem::take(&mut u.update_widgets),
+            },
+            layout,
+            render,
+        )
+    }
+
+    pub(crate) fn handler_lens(&self) -> (usize, usize) {
+        let u = UPDATES_SV.read();
+        let r = (u.pre_handlers.lock().len(), u.pos_handlers.lock().len());
+        r
+    }
+    pub(crate) fn new_update_handlers(&self, pre_from: usize, pos_from: usize) -> Vec<Box<dyn Fn() -> bool>> {
+        let u = UPDATES_SV.read();
+        let r = u
+            .pre_handlers
+            .lock()
+            .iter()
+            .skip(pre_from)
+            .chain(u.pos_handlers.lock().iter().skip(pos_from))
+            .map(|h| h.handle.weak_handle())
+            .map(|h| {
+                let r: Box<dyn Fn() -> bool> = Box::new(move || h.upgrade().is_some());
+                r
+            })
+            .collect();
         r
     }
 }
+
+/// Represents an [`on_pre_update`](UPDATES::on_pre_update) or [`on_update`](UPDATES::on_update) handler.
+///
+/// Drop all clones of this handle to drop the binding, or call [`perm`](Self::perm) to drop the handle
+/// but keep the handler alive for the duration of the app.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[repr(transparent)]
+#[must_use = "dropping the handle unsubscribes update handler"]
+pub struct OnUpdateHandle(Handle<()>);
+impl OnUpdateHandle {
+    fn new() -> (HandleOwner<()>, OnUpdateHandle) {
+        let (owner, handle) = Handle::new(());
+        (owner, OnUpdateHandle(handle))
+    }
+
+    /// Create a handle to nothing, the handle always in the *unsubscribed* state.
+    ///
+    /// Note that `Option<OnUpdateHandle>` takes up the same space as `OnUpdateHandle` and avoids an allocation.
+    pub fn dummy() -> Self {
+        assert_non_null!(OnUpdateHandle);
+        OnUpdateHandle(Handle::dummy(()))
+    }
+
+    /// Drop the handle but does **not** unsubscribe.
+    ///
+    /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
+    pub fn perm(self) {
+        self.0.perm();
+    }
+
+    /// If another handle has called [`perm`](Self::perm).
+    /// If `true` the var binding will stay active until the app exits, unless [`unsubscribe`](Self::unsubscribe) is called.
+    pub fn is_permanent(&self) -> bool {
+        self.0.is_permanent()
+    }
+
+    /// Drops the handle and forces the handler to drop.
+    pub fn unsubscribe(self) {
+        self.0.force_drop()
+    }
+
+    /// If another handle has called [`unsubscribe`](Self::unsubscribe).
+    ///
+    /// The handler is already dropped or will be dropped in the next app update, this is irreversible.
+    pub fn is_unsubscribed(&self) -> bool {
+        self.0.is_dropped()
+    }
+
+    /// Create a weak handle.
+    pub fn downgrade(&self) -> WeakOnUpdateHandle {
+        WeakOnUpdateHandle(self.0.downgrade())
+    }
+}
+
+/// Weak [`OnUpdateHandle`].
+#[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
+pub struct WeakOnUpdateHandle(WeakHandle<()>);
+impl WeakOnUpdateHandle {
+    /// New weak handle that does not upgrade.
+    pub fn new() -> Self {
+        Self(WeakHandle::new())
+    }
+
+    /// Gets the strong handle if it is still subscribed.
+    pub fn upgrade(&self) -> Option<OnUpdateHandle> {
+        self.0.upgrade().map(OnUpdateHandle)
+    }
+}
+
+struct UpdateHandler {
+    handle: HandleOwner<()>,
+    count: usize,
+    handler: Box<dyn FnMut(&UpdateArgs, &dyn AppWeakHandle) + Send>,
+}
+
+/// Arguments for an [`on_pre_update`](UPDATES::on_pre_update), [`on_update`](UPDATES::on_update) or [`run`](UPDATES::run) handler.
+#[derive(Debug, Clone, Copy)]
+pub struct UpdateArgs {
+    /// Number of times the handler was called.
+    pub count: usize,
+}
+
+/// Widget updates of the current cycle.
+#[derive(Debug, Default)]
+pub struct WidgetUpdates {
+    delivery_list: UpdateDeliveryList,
+}
+impl WidgetUpdates {
+    /// New with list.
+    pub fn new(delivery_list: UpdateDeliveryList) -> Self {
+        Self { delivery_list }
+    }
+
+    /// Updates delivery list.
+    pub fn delivery_list(&self) -> &UpdateDeliveryList {
+        &self.delivery_list
+    }
+
+    /// Find all targets.
+    ///
+    /// This must be called before the first window visit, see [`UpdateDeliveryList::fulfill_search`] for details.
+    pub fn fulfill_search<'a, 'b>(&'a mut self, windows: impl Iterator<Item = &'b WidgetInfoTree>) {
+        self.delivery_list.fulfill_search(windows)
+    }
+
+    /// Calls `handle` if the event targets the current [`WINDOW`].
+    pub fn with_window<H, R>(&mut self, handle: H) -> Option<R>
+    where
+        H: FnOnce(&mut Self) -> R,
+    {
+        if self.delivery_list.enter_window(WINDOW.id()) {
+            Some(handle(self))
+        } else {
+            None
+        }
+    }
+
+    /// Calls `handle` if the event targets the current [`WIDGET`].
+    pub fn with_widget<H, R>(&mut self, handle: H) -> Option<R>
+    where
+        H: FnOnce(&mut Self) -> R,
+    {
+        if self.delivery_list.enter_widget(WIDGET.id()) {
+            Some(handle(self))
+        } else {
+            None
+        }
+    }
+
+    /// Copy all delivery from `other` onto `self`.
+    pub fn extend(&mut self, other: WidgetUpdates) {
+        self.delivery_list.extend_unchecked(other.delivery_list)
+    }
+}
+
+/// Represents all the widgets and windows on route to an update target.
+pub struct UpdateDeliveryList {
+    subscribers: Box<dyn UpdateSubscribers>,
+
+    windows: LinearSet<WindowId>,
+    widgets: IdSet<WidgetId>,
+    search: IdSet<WidgetId>,
+}
+impl fmt::Debug for UpdateDeliveryList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UpdateDeliveryList")
+            .field("windows", &self.windows)
+            .field("widgets", &self.widgets)
+            .field("search", &self.search)
+            .finish_non_exhaustive()
+    }
+}
+impl Default for UpdateDeliveryList {
+    fn default() -> Self {
+        Self::new_any()
+    }
+}
+impl UpdateDeliveryList {
+    /// New list that only allows `subscribers`.
+    pub fn new(subscribers: Box<dyn UpdateSubscribers>) -> Self {
+        Self {
+            subscribers,
+            windows: LinearSet::default(),
+            widgets: IdSet::default(),
+            search: IdSet::default(),
+        }
+    }
+
+    /// New list that does not allow any entry.
+    pub fn new_none() -> Self {
+        struct UpdateDeliveryListNone;
+        impl UpdateSubscribers for UpdateDeliveryListNone {
+            fn contains(&self, _: WidgetId) -> bool {
+                false
+            }
+            fn to_set(&self) -> IdSet<WidgetId> {
+                IdSet::default()
+            }
+        }
+        Self::new(Box::new(UpdateDeliveryListNone))
+    }
+
+    /// New list that allows all entries.
+    ///
+    /// This is the default value.
+    pub fn new_any() -> Self {
+        struct UpdateDeliveryListAny;
+        impl UpdateSubscribers for UpdateDeliveryListAny {
+            fn contains(&self, _: WidgetId) -> bool {
+                true
+            }
+            fn to_set(&self) -> IdSet<WidgetId> {
+                IdSet::default()
+            }
+        }
+        Self::new(Box::new(UpdateDeliveryListAny))
+    }
+
+    /// Insert the widgets in the `path` up-to the inner most that is included in the subscribers.
+    pub fn insert_path(&mut self, path: &WidgetPath) {
+        if let Some(i) = path.widgets_path().iter().rposition(|w| self.subscribers.contains(*w)) {
+            self.windows.insert(path.window_id());
+            for w in &path.widgets_path()[..=i] {
+                self.widgets.insert(*w);
+            }
+        }
+    }
+
+    /// Insert the ancestors of `wgt` and `wgt` up-to the inner most that is included in the subscribers.
+    pub fn insert_wgt(&mut self, wgt: WidgetInfo) {
+        let mut any = false;
+        for w in wgt.self_and_ancestors() {
+            if any || self.subscribers.contains(w.widget_id()) {
+                any = true;
+                self.widgets.insert(w.widget_id());
+            }
+        }
+        if any {
+            self.windows.insert(wgt.tree().window_id());
+        }
+    }
+
+    /// Register all subscribers for search and delivery.
+    pub fn search_all(&mut self) {
+        self.search = self.subscribers.to_set();
+    }
+
+    /// Register the widget of unknown location for search before delivery routing starts.
+    pub fn search_widget(&mut self, widget_id: WidgetId) {
+        if self.subscribers.contains(widget_id) {
+            self.search.insert(widget_id);
+        }
+    }
+
+    /// If the the list has pending widgets that must be found before delivery can start.
+    pub fn has_pending_search(&self) -> bool {
+        !self.search.is_empty()
+    }
+
+    /// Search all pending widgets in all `windows`, all search items are cleared, even if not found.
+    pub fn fulfill_search<'a, 'b>(&'a mut self, windows: impl Iterator<Item = &'b WidgetInfoTree>) {
+        for window in windows {
+            self.search.retain(|w| {
+                if let Some(w) = window.get(*w) {
+                    for w in w.self_and_ancestors() {
+                        self.widgets.insert(w.widget_id());
+                    }
+                    self.windows.insert(window.window_id());
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+        self.search.clear();
+    }
+
+    /// Returns `true` if the window is on the list.
+    ///
+    /// The window is removed from the list.
+    pub fn enter_window(&mut self, window_id: WindowId) -> bool {
+        self.windows.remove(&window_id)
+    }
+
+    /// Returns `true` if the widget is on the list.
+    ///
+    /// The widget is removed from the list.
+    pub fn enter_widget(&mut self, widget_id: WidgetId) -> bool {
+        self.widgets.remove(&widget_id)
+    }
+
+    /// Returns `true` if has entered all widgets on the list.
+    pub fn is_done(&self) -> bool {
+        self.widgets.is_empty()
+    }
+
+    /// Copy windows, widgets and search from `other`, trusting that all values are allowed.
+    fn extend_unchecked(&mut self, other: UpdateDeliveryList) {
+        self.windows.extend(other.windows);
+        self.widgets.extend(other.widgets);
+        self.search.extend(other.search)
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.widgets.clear();
+        self.windows.clear();
+        self.search.clear();
+    }
+
+    /// Windows in the delivery list.
+    ///
+    /// Note that each window that is visited is removed from the list.
+    pub fn windows(&self) -> &LinearSet<WindowId> {
+        &self.windows
+    }
+
+    /// Found widgets in the delivery list, can be targets of ancestors of targets.
+    ///
+    /// Note that each widget that is visited is removed from the list.
+    pub fn widgets(&self) -> &IdSet<WidgetId> {
+        &self.widgets
+    }
+
+    /// Not found target widgets.
+    ///
+    /// Each window searches for these widgets and adds then to the [`widgets`] list.
+    ///
+    /// [`widgets`]: Self::widgets
+    pub fn search_widgets(&self) -> &IdSet<WidgetId> {
+        &self.search
+    }
+}
+
+/// Represents a set of widgets that subscribe to an event source.
+pub trait UpdateSubscribers: Send + Sync + 'static {
+    /// Returns `true` if the widget is one of the subscribers.
+    fn contains(&self, widget_id: WidgetId) -> bool;
+
+    /// Gets all subscribers as a set.
+    fn to_set(&self) -> IdSet<WidgetId>;
+}
+
+/// Updates that must be reacted by an app owner.
+#[derive(Debug, Default)]
+pub struct ContextUpdates {
+    /// Events to notify.
+    ///
+    /// When this is not empty [`update`](Self::update) is `true`.
+    pub events: Vec<EventUpdate>,
+
+    /// Update requested.
+    ///
+    /// When this is `true`, [`update`](Self::update) may contain widgets, if not then only
+    /// app extensions must update.
+    pub update: bool,
+
+    /// Update targets.
+    ///
+    /// When this is not empty [`update`](Self::update) is `true`.
+    pub update_widgets: WidgetUpdates,
+
+    /// Layout requested.
+    pub layout: bool,
+
+    /// Full frame or frame update requested.
+    pub render: bool,
+}
+impl ContextUpdates {
+    /// If has events, update, layout or render was requested.
+    pub fn has_updates(&self) -> bool {
+        self.update || self.layout || self.render
+    }
+}
+impl std::ops::BitOrAssign for ContextUpdates {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.events.extend(rhs.events);
+        self.update |= rhs.update;
+        self.update_widgets.extend(rhs.update_widgets);
+        self.layout |= rhs.layout;
+        self.render |= rhs.render;
+    }
+}
+impl std::ops::BitOr for ContextUpdates {
+    type Output = Self;
+
+    fn bitor(mut self, rhs: Self) -> Self {
+        self |= rhs;
+        self
+    }
+}
+
+/// Types to remove.
+pub mod temp {
+    use super::*;
+
+    /// Info, Layout or render updates that where requested by the content of a window.
+    ///
+    /// Unlike the general updates, layout and render can be optimized to only apply if
+    /// the window content requested it.
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+    pub struct InfoLayoutRenderUpdates {
+        /// Info tree rebuild requested.
+        ///
+        /// Windows should call [`UiNode::info`] to rebuild the info tree as soon as they receive this flag.
+        ///
+        /// [`UiNode::info`]: crate::widget_instance::UiNode::info
+        pub info: bool,
+
+        /// Layout requested.
+        pub layout: bool,
+        /// Full frame or frame update requested.
+        pub render: WindowRenderUpdate,
+    }
+    impl InfoLayoutRenderUpdates {
+        /// No updates, this the default value.
+        pub fn none() -> Self {
+            Self::default()
+        }
+
+        /// Update layout and render frame.
+        pub fn all() -> Self {
+            InfoLayoutRenderUpdates {
+                info: true,
+                layout: true,
+                render: WindowRenderUpdate::Render,
+            }
+        }
+
+        /// Info tree rebuild and subscriptions only.
+        pub fn info() -> Self {
+            InfoLayoutRenderUpdates {
+                info: true,
+                layout: false,
+                render: WindowRenderUpdate::None,
+            }
+        }
+
+        /// Update layout only.
+        pub fn layout() -> Self {
+            InfoLayoutRenderUpdates {
+                info: false,
+                layout: true,
+                render: WindowRenderUpdate::None,
+            }
+        }
+
+        /// Update render only.
+        pub fn render() -> Self {
+            InfoLayoutRenderUpdates {
+                info: false,
+                layout: false,
+                render: WindowRenderUpdate::Render,
+            }
+        }
+
+        /// Update render-update only.
+        pub fn render_update() -> Self {
+            InfoLayoutRenderUpdates {
+                info: false,
+                layout: false,
+                render: WindowRenderUpdate::RenderUpdate,
+            }
+        }
+
+        /// Returns if `self` is not equal to [`none`].
+        ///
+        /// [`none`]: Self::none
+        pub fn is_any(self) -> bool {
+            self != Self::none()
+        }
+
+        /// Returns if `self` is equal to [`none`].
+        ///
+        /// [`none`]: Self::none
+        pub fn is_none(self) -> bool {
+            self == Self::none()
+        }
+    }
+    impl std::ops::BitOrAssign for InfoLayoutRenderUpdates {
+        fn bitor_assign(&mut self, rhs: Self) {
+            self.info |= rhs.info;
+            self.layout |= rhs.layout;
+            self.render |= rhs.render;
+        }
+    }
+    impl std::ops::BitOr for InfoLayoutRenderUpdates {
+        type Output = Self;
+
+        fn bitor(mut self, rhs: Self) -> Self {
+            self |= rhs;
+            self
+        }
+    }
+
+    /// Kind of render updated requested by the content of a window.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum WindowRenderUpdate {
+        /// No render update requested.
+        None,
+        /// Full frame requested.
+        Render,
+        /// Only frame update requested.
+        RenderUpdate,
+    }
+    impl WindowRenderUpdate {
+        /// If full frame was requested.
+        pub fn is_render(self) -> bool {
+            matches!(self, Self::Render)
+        }
+
+        /// If only frame update was requested.
+        pub fn is_render_update(self) -> bool {
+            matches!(self, Self::RenderUpdate)
+        }
+
+        /// If no render was requested.
+        pub fn is_none(self) -> bool {
+            matches!(self, Self::None)
+        }
+
+        /// Returns a copy of `self` and replaces `self` with `None`
+        pub fn take(&mut self) -> Self {
+            mem::take(self)
+        }
+    }
+    impl Default for WindowRenderUpdate {
+        fn default() -> Self {
+            WindowRenderUpdate::None
+        }
+    }
+    impl std::ops::BitOrAssign for WindowRenderUpdate {
+        fn bitor_assign(&mut self, rhs: Self) {
+            use WindowRenderUpdate::*;
+            *self = match (*self, rhs) {
+                (Render, _) | (_, Render) => Render,
+                (RenderUpdate, _) | (_, RenderUpdate) => RenderUpdate,
+                _ => None,
+            };
+        }
+    }
+    impl std::ops::BitOr for WindowRenderUpdate {
+        type Output = Self;
+
+        fn bitor(mut self, rhs: Self) -> Self {
+            self |= rhs;
+            self
+        }
+    }
+}
+pub use temp::*;
 
 /// Constrains for inline measure.
 ///
@@ -1747,7 +1910,7 @@ impl<'m> Layout1dMetrics<'m> {
         }
     }
 }
-impl<'m> Deref for Layout1dMetrics<'m> {
+impl<'m> ops::Deref for Layout1dMetrics<'m> {
     type Target = LayoutMetrics;
 
     fn deref(&self) -> &Self::Target {

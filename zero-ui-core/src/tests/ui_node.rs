@@ -6,7 +6,7 @@ use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
 
 use crate::{
     color::RenderColor,
-    context::{TestWidgetContext, WidgetContext, WidgetUpdates},
+    context::{WidgetUpdates, WIDGET},
     render::{FrameBuilder, FrameId, FrameUpdate},
     ui_node,
     units::*,
@@ -58,8 +58,10 @@ pub fn default_delegate_list() {
     });
 }
 fn test_trace(node: impl UiNode) {
+    let mut app = App::minimal().run_headless(false);
     let mut wgt = util::test_wgt(node);
-    let mut ctx = TestWidgetContext::new();
+
+    // !!: TODO widget test helpers in `App` now that we removed `TestContext`.
 
     ctx.init(&mut wgt);
     assert_only_traced!(wgt, "init");
@@ -97,13 +99,13 @@ fn test_trace(node: impl UiNode) {
     ctx.render(&wgt, &mut frame);
     assert_only_traced!(wgt, "render");
 
-    TestTraceNode::notify_render_update(&mut wgt, &mut ctx);
+    TestTraceNode::notify_render_update(&mut wgt);
     assert_only_traced!(wgt, "event");
 
     let mut update = FrameUpdate::new(
         FrameId::INVALID,
         ctx.root_id,
-        wgt.with_context(|w| w.widget_info.bounds.clone()).expect("expected widget"),
+        wgt.with_context(|w| WIDGET.bounds()).expect("expected widget"),
         None,
         RenderColor::BLACK,
         None,
@@ -245,12 +247,8 @@ mod util {
     use std::sync::Arc;
 
     use crate::{
-        context::{
-            InfoContext, LayoutContext, MeasureContext, RenderContext, StaticStateId, TestWidgetContext, UpdateDeliveryList, WidgetContext,
-            WidgetUpdates,
-        },
+        context::{StaticStateId, UpdateDeliveryList, WidgetUpdates, WIDGET},
         event::{event, event_args, EventUpdate},
-        new_context::WIDGET,
         render::{FrameBuilder, FrameUpdate},
         units::*,
         widget_base,
@@ -317,34 +315,33 @@ mod util {
             self.trace.lock().push(method);
         }
 
-        pub fn notify_render_update(wgt: &mut impl UiNode, ctx: &mut TestWidgetContext) {
-            let id = wgt.with_context(|ctx| ctx.id).expect("expected widget");
-            let mut update = RENDER_UPDATE_EVENT.new_update_custom(RenderUpdateArgs::now(id), UpdateDeliveryList::new_any());
-            ctx.event(wgt, &mut update);
+        pub fn notify_render_update(wgt: &mut impl UiNode) {
+            let id = wgt.with_context(|| WIDGET.id()).expect("expected widget");
+            RENDER_UPDATE_EVENT.notify(RenderUpdateArgs::now(id));
         }
     }
     impl UiNode for TestTraceNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            let db = ctx.widget_state.entry(&TRACE_ID).or_default();
+        fn init(&mut self) {
+            let db = WIDGET.with_state(|s| s.entry(&TRACE_ID).or_default());
             assert!(db.iter().all(|t| !Arc::ptr_eq(t, &self.trace)), "TraceNode::init called twice");
             db.push(Arc::clone(&self.trace));
 
             self.test_trace("init");
         }
 
-        fn info(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
+        fn info(&self, _: &mut WidgetInfoBuilder) {
             self.test_trace("info");
         }
 
-        fn deinit(&mut self, _: &mut WidgetContext) {
+        fn deinit(&mut self) {
             self.test_trace("deinit");
         }
 
-        fn update(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &mut WidgetUpdates) {
             self.test_trace("update");
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             self.test_trace("event");
 
             if RENDER_UPDATE_EVENT.has(update) {
@@ -352,21 +349,21 @@ mod util {
             }
         }
 
-        fn measure(&self, _: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
             self.test_trace("measure");
             PxSize::zero()
         }
 
-        fn layout(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
             self.test_trace("layout");
             PxSize::zero()
         }
 
-        fn render(&self, _: &mut RenderContext, _: &mut FrameBuilder) {
+        fn render(&self, _: &mut FrameBuilder) {
             self.test_trace("render");
         }
 
-        fn render_update(&self, _: &mut RenderContext, _: &mut FrameUpdate) {
+        fn render_update(&self, _: &mut FrameUpdate) {
             self.test_trace("render_update");
         }
     }
@@ -402,11 +399,11 @@ mod util {
     }
     #[crate::ui_node(child)]
     impl<C: UiNode> UiNode for MinSizeNode<C> {
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(ctx, wm).max(self.min_size)
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(wm).max(self.min_size)
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            self.child.layout(ctx, wl).max(self.min_size)
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            self.child.layout(wl).max(self.min_size)
         }
     }
 }

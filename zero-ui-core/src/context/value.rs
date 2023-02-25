@@ -3,7 +3,7 @@ use std::{any::Any, cell::RefCell, fmt, marker::PhantomData, mem, sync::Arc, thr
 use parking_lot::*;
 
 use crate::{
-    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext, WidgetUpdates},
+    context::WidgetUpdates,
     crate_util::{IdNameError, NameIdMap, RunOnDrop},
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
@@ -878,48 +878,48 @@ pub fn with_context_local<T: Any + Send + Sync + 'static>(
         }
 
         #[UiNode]
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.with_mut(|c| c.init(ctx))
+        fn init(&mut self) {
+            self.with_mut(|c| c.init())
         }
 
         #[UiNode]
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.with_mut(|c| c.deinit(ctx))
+        fn deinit(&mut self) {
+            self.with_mut(|c| c.deinit())
         }
 
         #[UiNode]
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            self.with(|c| c.info(ctx, info))
+        fn info(&self, info: &mut WidgetInfoBuilder) {
+            self.with(|c| c.info(info))
         }
 
         #[UiNode]
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            self.with_mut(|c| c.event(ctx, update))
+        fn event(&mut self, update: &mut EventUpdate) {
+            self.with_mut(|c| c.event(update))
         }
 
         #[UiNode]
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.with_mut(|c| c.update(ctx, updates))
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.with_mut(|c| c.update(updates))
         }
 
         #[UiNode]
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> units::PxSize {
-            self.with(|c| c.measure(ctx, wm))
+        fn measure(&self, wm: &mut WidgetMeasure) -> units::PxSize {
+            self.with(|c| c.measure(wm))
         }
 
         #[UiNode]
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> units::PxSize {
-            self.with_mut(|c| c.layout(ctx, wl))
+        fn layout(&mut self, wl: &mut WidgetLayout) -> units::PxSize {
+            self.with_mut(|c| c.layout(wl))
         }
 
         #[UiNode]
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.with(|c| c.render(ctx, frame))
+        fn render(&self, frame: &mut FrameBuilder) {
+            self.with(|c| c.render(frame))
         }
 
         #[UiNode]
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.with(|c| c.render_update(ctx, update))
+        fn render_update(&self, update: &mut FrameUpdate) {
+            self.with(|c| c.render_update(update))
         }
     }
     WithContextLocalNode {

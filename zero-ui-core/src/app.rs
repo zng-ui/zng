@@ -2389,20 +2389,6 @@ mod headless_tests {
     }
 
     #[test]
-    #[should_panic(expected = "only one `TestWidgetContext` or app is allowed per thread")]
-    pub fn app_and_test_ctx() {
-        let _a = App::default().run_headless(false);
-        let _b = TestWidgetContext::new();
-    }
-
-    #[test]
-    #[should_panic(expected = "only one app or `TestWidgetContext` is allowed per thread")]
-    pub fn test_ctx_and_app() {
-        let _a = TestWidgetContext::new();
-        let _b = App::default().run_headless(false);
-    }
-
-    #[test]
     pub fn cleanup_deadlock() {
         app_local! {
             static LOCAL: bool = true;

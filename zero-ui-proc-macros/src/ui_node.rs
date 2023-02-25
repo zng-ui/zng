@@ -124,7 +124,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
     };
 
     let auto_subs = if new_node.as_ref().map(|n| !n.auto_subs.is_empty()).unwrap_or(false) {
-        quote!(self.auto_subs(ctx);)
+        quote!(self.auto_subs();)
     } else {
         quote!()
     };
@@ -203,7 +203,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
             if !validator.ok {
                 errors.push(
                     "auto impl generates `auto_subs`, but custom init does not call it\n\
-                add `self.auto_subs(ctx);` to custom init or remove `#[var]` and `#[event]` attributes",
+                add `self.auto_subs();` to custom init or remove `#[var]` and `#[event]` attributes",
                     init_mtd.block.span(),
                 );
             }
@@ -271,8 +271,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
             decl.extend(quote! {
                 impl #impl_generics #self_ty #where_clause {
                     /// Init auto-generated event and var subscriptions.
-                    fn auto_subs(&mut self, ctx: &mut #crate_::context::WidgetContext) {
-                        let widget_id = ctx.path.widget_id();
+                    fn auto_subs(&mut self) {
                         #init
                     }
                 }
@@ -342,26 +341,26 @@ macro_rules! make_absents {
 
 fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init: TokenStream) -> Vec<ImplItem> {
     make_absents! { user_mtds
-        [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) { }]
+        [fn info(&self, info: &mut #crate_::widget_info::WidgetInfoBuilder) { }]
 
-        [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) { #auto_init }]
+        [fn init(&mut self) { #auto_init }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
+        [fn deinit(&mut self) { }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) { }]
+        [fn update(&mut self, updates: &mut #crate_::context::WidgetUpdates) { }]
 
-        [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) { }]
+        [fn event(&mut self, update: &mut #crate_::event::EventUpdate) { }]
 
-        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
-            ctx.metrics.constrains().fill_size()
+        [fn measure(&self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
+            #crate_::context::LAYOUT.constrains().fill_size()
         }]
 
-        [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
-            ctx.metrics.constrains().fill_size()
+        [fn layout(&mut self, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
+            #crate_::context::LAYOUT.constrains().fill_size()
         }]
-        [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) { }]
+        [fn render(&self, frame: &mut #crate_::render::FrameBuilder) { }]
 
-        [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) { }]
+        [fn render_update(&self, update: &mut #crate_::render::FrameUpdate) { }]
     }
 }
 
@@ -383,50 +382,50 @@ fn delegate_absents(
     };
 
     make_absents! { user_mtds
-        [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
+        [fn info(&self, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
             let #child = {#borrow};
-            #crate_::widget_instance::UiNode::info(#deref, ctx, info);
+            #crate_::widget_instance::UiNode::info(#deref, info);
         }]
 
-        [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+        [fn init(&mut self) {
             #auto_init
             let mut #child_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNode::init(#deref_mut, ctx);
+            #crate_::widget_instance::UiNode::init(#deref_mut);
         }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+        [fn deinit(&mut self) {
             let mut #child_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNode::deinit(#deref_mut, ctx);
+            #crate_::widget_instance::UiNode::deinit(#deref_mut);
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
+        [fn update(&mut self, updates: &mut #crate_::context::WidgetUpdates) {
             let mut #child_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNode::update(#deref_mut, ctx, updates);
+            #crate_::widget_instance::UiNode::update(#deref_mut, updates);
         }]
 
-        [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {
+        [fn event(&mut self, update: &mut #crate_::event::EventUpdate) {
             let mut #child_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNode::event(#deref_mut, ctx, update);
+            #crate_::widget_instance::UiNode::event(#deref_mut, update);
         }]
 
-        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
+        [fn measure(&self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
             let mut #child = {#borrow};
-            #crate_::widget_instance::UiNode::measure(#deref, ctx, wm)
+            #crate_::widget_instance::UiNode::measure(#deref, wm)
         }]
 
-        [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
+        [fn layout(&mut self, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
             let mut #child_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNode::layout(#deref_mut, ctx, wl)
+            #crate_::widget_instance::UiNode::layout(#deref_mut, wl)
         }]
 
-        [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
+        [fn render(&self, frame: &mut #crate_::render::FrameBuilder) {
             let #child = {#borrow};
-            #crate_::widget_instance::UiNode::render(#deref, ctx, frame);
+            #crate_::widget_instance::UiNode::render(#deref, frame);
         }]
 
-        [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
+        [fn render_update(&self, update: &mut #crate_::render::FrameUpdate) {
             let #child = {#borrow};
-            #crate_::widget_instance::UiNode::render_update(#deref, ctx, update);
+            #crate_::widget_instance::UiNode::render_update(#deref, update);
         }]
     }
 }
@@ -447,50 +446,50 @@ fn delegate_list_absents(
         &mut *#children_mut
     };
     make_absents! { user_mtds
-        [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
+        [fn info(&self, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
             let #children = {#borrow};
-            #crate_::widget_instance::ui_node_list_default::info_all(#deref, ctx, info);
+            #crate_::widget_instance::ui_node_list_default::info_all(#deref, info);
         }]
 
-        [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+        [fn init(&mut self) {
             #auto_init
             let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::init_all(#deref_mut, ctx);
+            #crate_::widget_instance::ui_node_list_default::init_all(#deref_mut);
         }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::context::WidgetContext) {
+        [fn deinit(&mut self) {
             let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::deinit_all(#deref_mut, ctx);
+            #crate_::widget_instance::ui_node_list_default::deinit_all(#deref_mut);
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext, updates: &mut #crate_::context::WidgetUpdates) {
+        [fn update(&mut self, updates: &mut #crate_::context::WidgetUpdates) {
             let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::update_all(#deref_mut, ctx, updates);
+            #crate_::widget_instance::ui_node_list_default::update_all(#deref_mut, updates);
         }]
 
-        [fn event(&mut self, ctx: &mut #crate_::context::WidgetContext, update: &mut #crate_::event::EventUpdate) {
+        [fn event(&mut self, update: &mut #crate_::event::EventUpdate) {
             let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::event_all(#deref_mut, ctx, update);
+            #crate_::widget_instance::ui_node_list_default::event_all(#deref_mut, update);
         }]
 
-        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
+        [fn measure(&self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
             let #children = {#borrow};
-            #crate_::widget_instance::ui_node_list_default::measure_all(#deref, ctx, wm)
+            #crate_::widget_instance::ui_node_list_default::measure_all(#deref, wm)
         }]
 
-        [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
+        [fn layout(&mut self, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
             let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::layout_all(#deref_mut, ctx, wl)
+            #crate_::widget_instance::ui_node_list_default::layout_all(#deref_mut, wl)
         }]
 
-        [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
+        [fn render(&self, frame: &mut #crate_::render::FrameBuilder) {
             let #children = {#borrow};
-            #crate_::widget_instance::ui_node_list_default::render_all(#deref, ctx, frame);
+            #crate_::widget_instance::ui_node_list_default::render_all(#deref, frame);
         }]
 
-        [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
+        [fn render_update(&self, update: &mut #crate_::render::FrameUpdate) {
             let #children = {#borrow};
-            #crate_::widget_instance::ui_node_list_default::render_update_all(#deref, ctx, update);
+            #crate_::widget_instance::ui_node_list_default::render_update_all(#deref, update);
         }]
     }
 }
@@ -677,7 +676,7 @@ impl AutoSubsValidator {
 }
 impl<'ast> Visit<'ast> for AutoSubsValidator {
     fn visit_expr_method_call(&mut self, i: &'ast ExprMethodCall) {
-        if i.method == self.ident && i.args.len() == 1 {
+        if i.method == self.ident && i.args.is_empty() {
             self.ok = true;
         }
         visit::visit_expr_method_call(self, i)
@@ -776,6 +775,8 @@ fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewN
     let mut node_fields = TokenStream::new();
     let mut auto_subs = TokenStream::new();
 
+    let crate_ = crate::util::crate_core();
+
     if let Some(g) = args.explicit_generics {
         for p in g.params.into_iter() {
             if let GenericParam::Type(t) = p {
@@ -840,13 +841,13 @@ fn expand_new_node(args: ArgsNewNode, errors: &mut util::Errors) -> ExpandedNewN
             ArgsNewNodeFieldKind::Var => {
                 auto_subs.extend(quote! {
                     #cfg
-                    ctx.sub_var(&self.#ident);
+                    #crate_::context::WIDGET.sub_var(&self.#ident);
                 });
             }
             ArgsNewNodeFieldKind::Event => {
                 auto_subs.extend(quote! {
                     #cfg
-                    ctx.sub_event(&self.#ident);
+                    #crate_::context::WIDGET.sub_event(&self.#ident);
                 });
             }
             ArgsNewNodeFieldKind::Custom => {}

@@ -1,6 +1,6 @@
 //! Commands that control the scoped window.
 
-use crate::{event::*, gesture::*, new_context::WINDOW, var::*};
+use crate::{context::WINDOW, event::*, gesture::*, var::*};
 
 use super::{WindowId, WindowState, WindowVars, WINDOWS};
 

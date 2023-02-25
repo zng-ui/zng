@@ -412,49 +412,49 @@ mod helpers {
             }
 
             #[UiNode]
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                self.with_mut(|c| c.init(ctx))
+            fn init(&mut self) {
+                self.with_mut(|c| c.init())
             }
 
             #[UiNode]
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.with_mut(|c| c.deinit(ctx));
+            fn deinit(&mut self) {
+                self.with_mut(|c| c.deinit());
                 self.id = None;
             }
 
             #[UiNode]
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                self.with(|c| c.info(ctx, info))
+            fn info(&self, info: &mut WidgetInfoBuilder) {
+                self.with(|c| c.info(info))
             }
 
             #[UiNode]
-            fn event(&mut self, ctx: &mut WidgetContext, update: &mut crate::event::EventUpdate) {
-                self.with_mut(|c| c.event(ctx, update))
+            fn event(&mut self, update: &mut crate::event::EventUpdate) {
+                self.with_mut(|c| c.event(update))
             }
 
             #[UiNode]
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                self.with_mut(|c| c.update(ctx, updates))
+            fn update(&mut self, updates: &mut WidgetUpdates) {
+                self.with_mut(|c| c.update(updates))
             }
 
             #[UiNode]
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> units::PxSize {
-                self.with(|c| c.measure(ctx, wm))
+            fn measure(&self, wm: &mut WidgetMeasure) -> units::PxSize {
+                self.with(|c| c.measure(wm))
             }
 
             #[UiNode]
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> units::PxSize {
-                self.with_mut(|c| c.layout(ctx, wl))
+            fn layout(&mut self, wl: &mut WidgetLayout) -> units::PxSize {
+                self.with_mut(|c| c.layout(wl))
             }
 
             #[UiNode]
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                self.with(|c| c.render(ctx, frame))
+            fn render(&self, frame: &mut FrameBuilder) {
+                self.with(|c| c.render(frame))
             }
 
             #[UiNode]
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                self.with(|c| c.render_update(ctx, update))
+            fn render_update(&self, update: &mut FrameUpdate) {
+                self.with(|c| c.render_update(update))
             }
         }
         WithContextVarNode {
@@ -474,13 +474,13 @@ mod helpers {
     pub fn with_context_var_init<T: VarValue>(
         child: impl UiNode,
         var: ContextVar<T>,
-        init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + Send + 'static,
+        init_value: impl FnMut() -> BoxedVar<T> + Send + 'static,
     ) -> impl UiNode {
         #[ui_node(struct WithContextVarInitNode<T: VarValue> {
             child: impl UiNode,
             context_var: ContextVar<T>,
             id: Option<ContextInitHandle>,
-            init_value: impl FnMut(&mut WidgetContext) -> BoxedVar<T> + Send + 'static,
+            init_value: impl FnMut() -> BoxedVar<T> + Send + 'static,
             value: RefCell<Option<BoxedVar<T>>>,
         })]
         impl WithContextVarInitNode {
@@ -506,50 +506,50 @@ mod helpers {
             }
 
             #[UiNode]
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                self.with(|c| c.info(ctx, info));
+            fn info(&self, info: &mut WidgetInfoBuilder) {
+                self.with(|c| c.info(info));
             }
 
             #[UiNode]
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                *self.value.get_mut() = Some((self.init_value)(ctx));
-                self.with_mut(|c| c.init(ctx));
+            fn init(&mut self) {
+                *self.value.get_mut() = Some((self.init_value)());
+                self.with_mut(|c| c.init());
             }
 
             #[UiNode]
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.with_mut(|c| c.deinit(ctx));
+            fn deinit(&mut self) {
+                self.with_mut(|c| c.deinit());
                 *self.value.get_mut() = None;
             }
 
             #[UiNode]
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                self.with_mut(|c| c.update(ctx, updates));
+            fn update(&mut self, updates: &mut WidgetUpdates) {
+                self.with_mut(|c| c.update(updates));
             }
 
             #[UiNode]
-            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-                self.with_mut(|c| c.event(ctx, update));
+            fn event(&mut self, update: &mut EventUpdate) {
+                self.with_mut(|c| c.event(update));
             }
 
             #[UiNode]
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-                self.with(|c| c.measure(ctx, wm))
+            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+                self.with(|c| c.measure(wm))
             }
 
             #[UiNode]
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                self.with_mut(|c| c.layout(ctx, wl))
+            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+                self.with_mut(|c| c.layout(wl))
             }
 
             #[UiNode]
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                self.with(|c| c.render(ctx, frame));
+            fn render(&self, frame: &mut FrameBuilder) {
+                self.with(|c| c.render(frame));
             }
 
             #[UiNode]
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                self.with(|c| c.render_update(ctx, update));
+            fn render_update(&self, update: &mut FrameUpdate) {
+                self.with(|c| c.render_update(update));
             }
         }
         WithContextVarInitNode {
@@ -582,49 +582,49 @@ mod helpers {
             }
 
             #[UiNode]
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                self.with(|c| c.info(ctx, info));
+            fn info(&self, info: &mut WidgetInfoBuilder) {
+                self.with(|c| c.info(info));
             }
 
             #[UiNode]
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                self.with_mut(|c| c.init(ctx));
+            fn init(&mut self) {
+                self.with_mut(|c| c.init());
             }
 
             #[UiNode]
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.with_mut(|c| c.deinit(ctx));
+            fn deinit(&mut self) {
+                self.with_mut(|c| c.deinit());
                 self.id = None;
             }
 
             #[UiNode]
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                self.with_mut(|c| c.update(ctx, updates));
+            fn update(&mut self, updates: &mut WidgetUpdates) {
+                self.with_mut(|c| c.update(updates));
             }
 
             #[UiNode]
-            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-                self.with_mut(|c| c.event(ctx, update));
+            fn event(&mut self, update: &mut EventUpdate) {
+                self.with_mut(|c| c.event(update));
             }
 
             #[UiNode]
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-                self.with(|c| c.measure(ctx, wm))
+            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+                self.with(|c| c.measure(wm))
             }
 
             #[UiNode]
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                self.with_mut(|c| c.layout(ctx, wl))
+            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+                self.with_mut(|c| c.layout(wl))
             }
 
             #[UiNode]
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                self.with(|c| c.render(ctx, frame));
+            fn render(&self, frame: &mut FrameBuilder) {
+                self.with(|c| c.render(frame));
             }
 
             #[UiNode]
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                self.with(|c| c.render_update(ctx, update));
+            fn render_update(&self, update: &mut FrameUpdate) {
+                self.with(|c| c.render_update(update));
             }
         }
         WithNewContextInitHandleNode {

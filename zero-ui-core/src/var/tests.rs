@@ -427,9 +427,9 @@ mod context {
             var: impl Var<Text>,
         })]
         impl UiNode for ProbeNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
+            fn init(&mut self) {
                 *PROBE_ID.write() = self.var.get();
-                self.child.init(ctx);
+                self.child.init();
             }
         }
         ProbeNode {
@@ -445,14 +445,14 @@ mod context {
             handler: impl handler::WidgetHandler<()>,
         })]
         impl UiNode for OnInitNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                self.child.init(ctx);
-                self.handler.event(ctx, &());
+            fn init(&mut self) {
+                self.child.init();
+                self.handler.event(&());
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-                self.child.update(ctx, updates);
-                self.handler.update(ctx);
+            fn update(&mut self, updates: &mut WidgetUpdates) {
+                self.child.update(updates);
+                self.handler.update();
             }
         }
         OnInitNode { child, handler }
@@ -742,7 +742,7 @@ mod context {
 }
 
 mod flat_map {
-    use crate::{context::TestWidgetContext, var::*};
+    use crate::{var::*, app::App};
     use std::fmt;
 
     #[derive(Clone)]
@@ -758,38 +758,35 @@ mod flat_map {
 
     #[test]
     pub fn flat_map() {
+        let mut app = App::minimal().run_headless(false);
+
         let source = var(Foo { bar: true, var: var(32) });
 
         let test = source.flat_map(|f| f.var.clone());
-
-        let mut ctx = TestWidgetContext::new();
 
         assert_eq!(32, test.get());
 
         source.get().var.set(42usize);
 
-        let (_, ctx_updates) = ctx.apply_updates();
+        let _ = app.update(false);
 
-        assert!(ctx_updates.update);
         assert!(test.is_new());
         assert_eq!(42, test.get());
 
-        let (_, ctx_updates) = ctx.apply_updates();
-        assert!(!ctx_updates.update);
+        let _ = app.update(false);
 
         let old_var = source.get().var;
         source.set(Foo { bar: false, var: var(192) });
-        let (_, ctx_updates) = ctx.apply_updates();
+        let _ = app.update(false);
 
-        assert!(ctx_updates.update);
         assert!(test.is_new());
         assert_eq!(192, test.get());
 
-        let (_, ctx_updates) = ctx.apply_updates();
+        let (_, ctx_updates) = app.apply_updates();
         assert!(!ctx_updates.update);
 
         old_var.set(220usize);
-        let (_, ctx_updates) = ctx.apply_updates();
+        let (_, ctx_updates) = app.apply_updates();
         assert!(ctx_updates.update);
         assert!(!test.is_new());
         assert_eq!(192, test.get());

@@ -180,21 +180,16 @@ pub trait UiNode: Any + Send {
     ///
     /// The parent node that calls this method must make an info, subscriptions, layout and render update request, the initializing node it self
     /// does not need to request these updates, it needs only to initialize self and descendants.
-    fn init(&mut self, ctx: &mut WidgetContext);
+    fn init(&mut self);
 
     /// Called every time the node is unplugged from the UI tree.
     ///
     /// The parent node that calls this method must make an info, subscriptions, layout and render update request, the de-initializing node it self
     /// does not need to request these updates, it needs only to de-initialize self and descendants.
-    fn deinit(&mut self, ctx: &mut WidgetContext);
+    fn deinit(&mut self);
 
     /// Called every time there are structural changes in the UI tree such as a node added or removed.
-    ///
-    /// # Arguments
-    ///
-    /// * `ctx`: Limited context access.
-    /// * `info`: Widget info tree builder.
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
+    fn info(&self, info: &mut WidgetInfoBuilder);
 
     /// Called every time an event updates.
     ///
@@ -203,13 +198,13 @@ pub trait UiNode: Any + Send {
     ///
     /// [`Event::on`]: crate::event::Event::on
     /// [`Event`]: crate::event::Event
-    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate);
+    fn event(&mut self, update: &mut EventUpdate);
 
     /// Called every time an update is requested.
     ///
     /// An update can be requested using the context [`Updates`], after each request, they also happen
     /// when variables update and any other context or service structure that can be observed updates.
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates);
+    fn update(&mut self, updates: &mut WidgetUpdates);
 
     /// Compute the widget size given the contextual layout metrics.
     ///
@@ -227,7 +222,7 @@ pub trait UiNode: Any + Send {
     /// on a subsequent [`layout`] call.
     ///
     /// [`layout`]: Self::layout
-    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize;
+    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize;
 
     /// Called every time a layout update is requested or the constrains used have changed.
     ///
@@ -245,21 +240,21 @@ pub trait UiNode: Any + Send {
     /// Returns the computed node size, this will end-up influencing the size of the widget inner or outer bounds.
     ///
     /// [`constrains`]: LayoutMetrics::constrains
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize;
 
     /// Called every time a new frame must be rendered.
     ///
     /// # Arguments
     ///
     /// * `frame`: Contains the next frame draw instructions.
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
+    fn render(&self, frame: &mut FrameBuilder);
 
     /// Called every time a frame can be updated without fully rebuilding.
     ///
     /// # Arguments
     ///
     /// * `update`: Contains the frame value updates.
-    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
+    fn render_update(&self, update: &mut FrameUpdate);
 
     /// Box this node, unless it is already `BoxedUiNode`.
     fn boxed(self) -> BoxedUiNode
@@ -307,27 +302,27 @@ pub trait UiNode: Any + Send {
         false
     }
 
-    /// Calls `f` with the widget context of the node if it [`is_widget`].
+    /// Calls `f` with the [`WIDGET`] context of the node if it [`is_widget`].
     ///
     /// Returns `None` if the node does not represent an widget.
     ///
     /// [`is_widget`]: UiNode::is_widget
     fn with_context<R, F>(&self, f: F) -> Option<R>
     where
-        F: FnOnce(&mut WidgetNodeContext) -> R,
+        F: FnOnce() -> R,
     {
         let _ = f;
         None
     }
 
-    /// Calls `f` with the widget context of the node if it [`is_widget`].
+    /// Calls `f` with the [`WIDGET`] context of the node if it [`is_widget`].
     ///
     /// Returns `None` if the node does not represent an widget.
     ///
     /// [`is_widget`]: UiNode::is_widget
     fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
     where
-        F: FnOnce(&mut WidgetNodeMutContext) -> R,
+        F: FnOnce() -> R,
     {
         let _ = f;
         None
@@ -393,7 +388,7 @@ pub trait UiNode: Any + Send {
     fn trace<E, S>(self, enter_mtd: E) -> TraceNode<Self, E>
     where
         Self: Sized,
-        E: Fn(&mut InfoContext, &'static str) -> S + Send + 'static,
+        E: Fn(&'static str) -> S + Send + 'static,
     {
         TraceNode::new(self, enter_mtd)
     }
@@ -457,9 +452,9 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to init nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
+    fn init_all(&mut self) {
         self.for_each_mut(|_, c| {
-            c.init(ctx);
+            c.init();
             true
         });
     }
@@ -469,9 +464,9 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to deinit nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+    fn deinit_all(&mut self) {
         self.for_each_mut(|_, c| {
-            c.deinit(ctx);
+            c.deinit();
             true
         });
     }
@@ -481,10 +476,10 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to update nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let _ = observer;
         self.for_each_mut(|_, c| {
-            c.update(ctx, updates);
+            c.update(updates);
             true
         });
     }
@@ -494,9 +489,9 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to notify nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &mut EventUpdate) {
         self.for_each_mut(|_, c| {
-            c.event(ctx, update);
+            c.event(update);
             true
         })
     }
@@ -507,9 +502,9 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// break it, for example, the [`PanelList`] render nodes in a different order.
     ///
     /// [`for_each`]: UiNodeList::for_each
-    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render_all(&self, frame: &mut FrameBuilder) {
         self.for_each(|_, c| {
-            c.render(ctx, frame);
+            c.render(frame);
             true
         })
     }
@@ -520,9 +515,9 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// break it, for example, the [`PanelList`] render nodes in a different order.
     ///
     /// [`for_each`]: UiNodeList::for_each
-    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+    fn render_update_all(&self, update: &mut FrameUpdate) {
         self.for_each(|_, c| {
-            c.render_update(ctx, update);
+            c.render_update(update);
             true
         })
     }
@@ -569,73 +564,73 @@ pub trait UiNodeList: UiNodeListBoxed {
 pub mod ui_node_list_default {
     use super::*;
 
-    pub fn init_all(list: &mut impl UiNodeList, ctx: &mut WidgetContext) {
-        list.init_all(ctx);
+    pub fn init_all(list: &mut impl UiNodeList) {
+        list.init_all();
     }
 
-    pub fn deinit_all(list: &mut impl UiNodeList, ctx: &mut WidgetContext) {
-        list.deinit_all(ctx);
+    pub fn deinit_all(list: &mut impl UiNodeList) {
+        list.deinit_all();
     }
 
-    pub fn info_all(list: &impl UiNodeList, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+    pub fn info_all(list: &impl UiNodeList, info: &mut WidgetInfoBuilder) {
         list.for_each(|_, c| {
-            c.info(ctx, info);
+            c.info(info);
             true
         });
     }
 
-    pub fn event_all(list: &mut impl UiNodeList, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        list.event_all(ctx, update);
+    pub fn event_all(list: &mut impl UiNodeList, update: &mut EventUpdate) {
+        list.event_all(update);
     }
 
-    pub fn update_all(list: &mut impl UiNodeList, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+    pub fn update_all(list: &mut impl UiNodeList, updates: &mut WidgetUpdates) {
         let mut changed = false;
 
-        list.update_all(ctx, updates, &mut changed);
+        list.update_all(updates, &mut changed);
 
         if changed {
             WIDGET.layout().render();
         }
     }
 
-    pub fn measure_all(list: &impl UiNodeList, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+    pub fn measure_all(list: &impl UiNodeList, wm: &mut WidgetMeasure) -> PxSize {
         let mut r = PxSize::zero();
         list.for_each(|_, n| {
-            r = r.max(n.measure(ctx, wm));
+            r = r.max(n.measure(wm));
             true
         });
         r
     }
 
-    pub fn layout_all(list: &mut impl UiNodeList, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    pub fn layout_all(list: &mut impl UiNodeList, wl: &mut WidgetLayout) -> PxSize {
         let mut r = PxSize::zero();
         list.for_each_mut(|_, n| {
-            r = r.max(n.layout(ctx, wl));
+            r = r.max(n.layout(wl));
             true
         });
         r
     }
 
-    pub fn render_all(list: &impl UiNodeList, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        list.render_all(ctx, frame);
+    pub fn render_all(list: &impl UiNodeList, frame: &mut FrameBuilder) {
+        list.render_all(frame);
     }
 
-    pub fn render_update_all(list: &impl UiNodeList, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        list.render_update_all(ctx, update)
+    pub fn render_update_all(list: &impl UiNodeList, update: &mut FrameUpdate) {
+        list.render_update_all(update)
     }
 }
 
 #[doc(hidden)]
 pub trait UiNodeBoxed: Any + Send {
-    fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
-    fn init_boxed(&mut self, ctx: &mut WidgetContext);
-    fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
-    fn update_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates);
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate);
-    fn measure_boxed(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize;
-    fn layout_boxed(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
-    fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
-    fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
+    fn info_boxed(&self, info: &mut WidgetInfoBuilder);
+    fn init_boxed(&mut self);
+    fn deinit_boxed(&mut self);
+    fn update_boxed(&mut self, updates: &mut WidgetUpdates);
+    fn event_boxed(&mut self, update: &mut EventUpdate);
+    fn measure_boxed(&self, wm: &mut WidgetMeasure) -> PxSize;
+    fn layout_boxed(&mut self, wl: &mut WidgetLayout) -> PxSize;
+    fn render_boxed(&self, frame: &mut FrameBuilder);
+    fn render_update_boxed(&self, update: &mut FrameUpdate);
 
     fn is_widget_boxed(&self) -> bool;
     fn with_context_boxed(&self, f: &mut dyn FnMut(&mut WidgetNodeContext));
@@ -649,40 +644,40 @@ pub trait UiNodeBoxed: Any + Send {
 }
 
 impl<U: UiNode> UiNodeBoxed for U {
-    fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        self.info(ctx, info);
+    fn info_boxed(&self, info: &mut WidgetInfoBuilder) {
+        self.info(info);
     }
 
-    fn init_boxed(&mut self, ctx: &mut WidgetContext) {
-        self.init(ctx);
+    fn init_boxed(&mut self) {
+        self.init();
     }
 
-    fn deinit_boxed(&mut self, ctx: &mut WidgetContext) {
-        self.deinit(ctx);
+    fn deinit_boxed(&mut self) {
+        self.deinit();
     }
 
-    fn update_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-        self.update(ctx, updates);
+    fn update_boxed(&mut self, updates: &mut WidgetUpdates) {
+        self.update(updates);
     }
 
-    fn event_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.event(ctx, update);
+    fn event_boxed(&mut self, update: &mut EventUpdate) {
+        self.event(update);
     }
 
-    fn measure_boxed(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        self.measure(ctx, wm)
+    fn measure_boxed(&self, wm: &mut WidgetMeasure) -> PxSize {
+        self.measure(wm)
     }
 
-    fn layout_boxed(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        self.layout(ctx, wl)
+    fn layout_boxed(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        self.layout(wl)
     }
 
-    fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.render(ctx, frame);
+    fn render_boxed(&self, frame: &mut FrameBuilder) {
+        self.render(frame);
     }
 
-    fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.render_update(ctx, update);
+    fn render_update_boxed(&self, update: &mut FrameUpdate) {
+        self.render_update(update);
     }
 
     fn is_widget_boxed(&self) -> bool {
@@ -726,12 +721,12 @@ pub trait UiNodeListBoxed: Any + Send {
     fn for_each_mut_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode) -> bool);
     fn len_boxed(&self) -> usize;
     fn drain_into_boxed(&mut self, vec: &mut Vec<BoxedUiNode>);
-    fn init_all_boxed(&mut self, ctx: &mut WidgetContext);
-    fn deinit_all_boxed(&mut self, ctx: &mut WidgetContext);
-    fn event_all_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate);
-    fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver);
-    fn render_all_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
-    fn render_update_all_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
+    fn init_all_boxed(&mut self);
+    fn deinit_all_boxed(&mut self);
+    fn event_all_boxed(&mut self, update: &mut EventUpdate);
+    fn update_all_boxed(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver);
+    fn render_all_boxed(&self, frame: &mut FrameBuilder);
+    fn render_update_all_boxed(&self, update: &mut FrameUpdate);
     fn actual_type_id_boxed(&self) -> TypeId;
     fn into_any_boxed(self: Box<Self>) -> Box<dyn Any>;
     fn as_any_boxed(&self) -> &dyn Any;
@@ -762,28 +757,28 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
         self.drain_into(vec)
     }
 
-    fn init_all_boxed(&mut self, ctx: &mut WidgetContext) {
-        self.init_all(ctx);
+    fn init_all_boxed(&mut self) {
+        self.init_all();
     }
 
-    fn deinit_all_boxed(&mut self, ctx: &mut WidgetContext) {
-        self.deinit_all(ctx);
+    fn deinit_all_boxed(&mut self) {
+        self.deinit_all();
     }
 
-    fn event_all_boxed(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.event_all(ctx, update);
+    fn event_all_boxed(&mut self, update: &mut EventUpdate) {
+        self.event_all(update);
     }
 
-    fn update_all_boxed(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        self.update_all(ctx, updates, observer);
+    fn update_all_boxed(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.update_all(updates, observer);
     }
 
-    fn render_all_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.render_all(ctx, frame);
+    fn render_all_boxed(&self, frame: &mut FrameBuilder) {
+        self.render_all(frame);
     }
 
-    fn render_update_all_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.render_update_all(ctx, update);
+    fn render_update_all_boxed(&self, update: &mut FrameUpdate) {
+        self.render_update_all(update);
     }
 
     fn actual_type_id_boxed(&self) -> TypeId {
@@ -810,40 +805,40 @@ pub type BoxedUiNode = Box<dyn UiNodeBoxed>;
 pub type BoxedUiNodeList = Box<dyn UiNodeListBoxed>;
 
 impl UiNode for BoxedUiNode {
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        self.as_ref().info_boxed(ctx, info);
+    fn info(&self, info: &mut WidgetInfoBuilder) {
+        self.as_ref().info_boxed(info);
     }
 
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.as_mut().init_boxed(ctx);
+    fn init(&mut self) {
+        self.as_mut().init_boxed();
     }
 
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        self.as_mut().deinit_boxed(ctx);
+    fn deinit(&mut self) {
+        self.as_mut().deinit_boxed();
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-        self.as_mut().update_boxed(ctx, updates);
+    fn update(&mut self, updates: &mut WidgetUpdates) {
+        self.as_mut().update_boxed(updates);
     }
 
-    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.as_mut().event_boxed(ctx, update);
+    fn event(&mut self, update: &mut EventUpdate) {
+        self.as_mut().event_boxed(update);
     }
 
-    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        self.as_ref().measure_boxed(ctx, wm)
+    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        self.as_ref().measure_boxed(wm)
     }
 
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        self.as_mut().layout_boxed(ctx, wl)
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        self.as_mut().layout_boxed(wl)
     }
 
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.as_ref().render_boxed(ctx, frame);
+    fn render(&self, frame: &mut FrameBuilder) {
+        self.as_ref().render_boxed(frame);
     }
 
-    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.as_ref().render_update_boxed(ctx, update);
+    fn render_update(&self, update: &mut FrameUpdate) {
+        self.as_ref().render_update_boxed(update);
     }
 
     fn boxed(self) -> BoxedUiNode
@@ -954,28 +949,28 @@ impl UiNodeList for BoxedUiNodeList {
         self.as_mut().drain_into_boxed(vec)
     }
 
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
-        self.as_mut().init_all_boxed(ctx);
+    fn init_all(&mut self) {
+        self.as_mut().init_all_boxed();
     }
 
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-        self.as_mut().deinit_all_boxed(ctx);
+    fn deinit_all(&mut self) {
+        self.as_mut().deinit_all_boxed();
     }
 
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        self.as_mut().update_all_boxed(ctx, updates, observer);
+    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.as_mut().update_all_boxed(updates, observer);
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-        self.as_mut().event_all_boxed(ctx, update);
+    fn event_all(&mut self, update: &mut EventUpdate) {
+        self.as_mut().event_all_boxed(update);
     }
 
-    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.as_ref().render_all_boxed(ctx, frame);
+    fn render_all(&self, frame: &mut FrameBuilder) {
+        self.as_ref().render_all_boxed(frame);
     }
 
-    fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.as_ref().render_update_all_boxed(ctx, update);
+    fn render_update_all(&self, update: &mut FrameUpdate) {
+        self.as_ref().render_update_all_boxed(update);
     }
 
     fn as_any(&self) -> &dyn Any
@@ -994,61 +989,61 @@ impl UiNodeList for BoxedUiNodeList {
 }
 
 impl<U: UiNode> UiNode for Option<U> {
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+    fn info(&self, info: &mut WidgetInfoBuilder) {
         if let Some(node) = self {
-            node.info(ctx, info);
+            node.info(info);
         }
     }
 
-    fn init(&mut self, ctx: &mut WidgetContext) {
+    fn init(&mut self) {
         if let Some(node) = self {
-            node.init(ctx);
+            node.init();
         }
     }
 
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
+    fn deinit(&mut self) {
         if let Some(node) = self {
-            node.deinit(ctx);
+            node.deinit();
         }
     }
 
-    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+    fn event(&mut self, update: &mut EventUpdate) {
         if let Some(node) = self {
-            node.event(ctx, update);
+            node.event(update);
         }
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &mut WidgetUpdates) {
         if let Some(node) = self {
-            node.update(ctx, updates);
+            node.update(updates);
         }
     }
 
-    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
         if let Some(node) = self {
-            node.measure(ctx, wm)
+            node.measure(wm)
         } else {
             PxSize::zero()
         }
     }
 
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
         if let Some(node) = self {
-            node.layout(ctx, wl)
+            node.layout(wl)
         } else {
             PxSize::zero()
         }
     }
 
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render(&self, frame: &mut FrameBuilder) {
         if let Some(node) = self {
-            node.render(ctx, frame);
+            node.render(frame);
         }
     }
 
-    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+    fn render_update(&self, update: &mut FrameUpdate) {
         if let Some(node) = self {
-            node.render_update(ctx, update);
+            node.render_update(update);
         }
     }
 

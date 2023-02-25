@@ -1,7 +1,6 @@
 use crate::{
-    context::{state_map, BorrowStateMap, StaticStateId},
+    context::{StaticStateId, UPDATES, WIDGET, WINDOW},
     event::{AnyEventArgs, EventUpdate},
-    new_context::{UPDATES, WINDOW},
     property,
     render::RenderMode,
     ui_node,
@@ -211,8 +210,8 @@ impl ImageRenderVars {
     }
 
     /// Tries to get the window vars from the window state.
-    pub fn get(window_state: &impl BorrowStateMap<state_map::Window>) -> Option<&Self> {
-        window_state.borrow().get(&IMAGE_RENDER_VARS_ID)
+    pub fn get() -> Option<Self> {
+        WINDOW.with_state(|map| map.get(&IMAGE_RENDER_VARS_ID).cloned())
     }
 
     /// If the render task is kept alive after a frame is produced, this is `false` by default
@@ -237,16 +236,16 @@ pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiN
         retain: impl Var<bool>,
     })]
     impl UiNode for RenderRetainNode {
-        fn init(&mut self, ctx: &mut crate::context::WidgetContext) {
-            if let Some(vars) = ImageRenderVars::get(ctx) {
+        fn init(&mut self) {
+            if let Some(vars) = ImageRenderVars::get() {
                 vars.retain.set_ne(self.retain.get());
                 let handle = self.retain.bind(vars.retain());
-                ctx.handles.push_var(handle);
+                WIDGET.push_var_handle(handle);
             } else {
                 tracing::error!("can only set `render_retain` in render widgets");
             }
 
-            self.child.init(ctx);
+            self.child.init();
         }
     }
     RenderRetainNode {

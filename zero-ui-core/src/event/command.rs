@@ -440,18 +440,6 @@ impl From<WindowId> for CommandScope {
         CommandScope::Window(id)
     }
 }
-impl<'a> From<&'a WidgetContext<'a>> for CommandScope {
-    /// Widget scope from the `ctx.path.widget_id()`.
-    fn from(ctx: &'a WidgetContext<'a>) -> Self {
-        CommandScope::Widget(ctx.path.widget_id())
-    }
-}
-impl<'a> From<&'a WidgetContextMut> for CommandScope {
-    /// Widget scope from the `ctx.widget_id()`.
-    fn from(ctx: &'a WidgetContextMut) -> Self {
-        CommandScope::Widget(ctx.widget_id())
-    }
-}
 
 event_args! {
     /// Event args for command events.
@@ -1077,53 +1065,53 @@ impl Default for ScopedValue {
 pub fn on_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
-    CB: FnMut(&mut WidgetContext) -> Command + Send + 'static,
+    CB: FnMut() -> Command + Send + 'static,
     E: Var<bool>,
-    EB: FnMut(&mut WidgetContext) -> E + Send + 'static,
+    EB: FnMut() -> E + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
     #[ui_node(struct OnCommandNode<E: Var<bool>> {
         child: impl UiNode,
         command: Option<Command>,
-        command_builder: impl FnMut(&mut WidgetContext) -> Command + Send + 'static,
+        command_builder: impl FnMut() -> Command + Send + 'static,
         enabled: Option<E>,
-        enabled_builder: impl FnMut(&mut WidgetContext) -> E + Send + 'static,
+        enabled_builder: impl FnMut() -> E + Send + 'static,
         handler: impl WidgetHandler<CommandArgs>,
         handle: Option<CommandHandle>,
     })]
     impl UiNode for OnCommandNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
+        fn init(&mut self) {
+            self.child.init();
 
-            let enabled = (self.enabled_builder)(ctx);
-            ctx.sub_var(&enabled);
+            let enabled = (self.enabled_builder)();
+            WIDGET.sub_var(&enabled);
             let is_enabled = enabled.get();
             self.enabled = Some(enabled);
 
-            let command = (self.command_builder)(ctx);
-            self.handle = Some(command.subscribe_wgt(is_enabled, ctx.path.widget_id()));
+            let command = (self.command_builder)();
+            self.handle = Some(command.subscribe_wgt(is_enabled, WIDGET.id()));
             self.command = Some(command);
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
+        fn deinit(&mut self) {
+            self.child.deinit();
             self.command = None;
             self.enabled = None;
             self.handle = None;
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            self.child.event(ctx, update);
+        fn event(&mut self, update: &mut EventUpdate) {
+            self.child.event(update);
 
             if let Some(args) = self.command.expect("OnCommandNode not initialized").on_unhandled(update) {
-                self.handler.event(ctx, args);
+                self.handler.event(args);
             }
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
 
-            self.handler.update(ctx);
+            self.handler.update();
 
             if let Some(enabled) = self.enabled.as_ref().expect("OnCommandNode not initialized").get_new() {
                 self.handle.as_ref().unwrap().set_enabled(enabled);
@@ -1146,53 +1134,53 @@ where
 pub fn on_pre_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
-    CB: FnMut(&mut WidgetContext) -> Command + Send + 'static,
+    CB: FnMut() -> Command + Send + 'static,
     E: Var<bool>,
-    EB: FnMut(&mut WidgetContext) -> E + Send + 'static,
+    EB: FnMut() -> E + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
     #[ui_node(struct OnPreCommandNode<E: Var<bool>> {
         child: impl UiNode,
         command: Option<Command>,
-        command_builder: impl FnMut(&mut WidgetContext) -> Command + Send + 'static,
+        command_builder: impl FnMut() -> Command + Send + 'static,
         enabled: Option<E>,
-        enabled_builder: impl FnMut(&mut WidgetContext) -> E + Send + 'static,
+        enabled_builder: impl FnMut() -> E + Send + 'static,
         handler: impl WidgetHandler<CommandArgs>,
         handle: Option<CommandHandle>,
     })]
     impl UiNode for OnPreCommandNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
+        fn init(&mut self) {
+            self.child.init();
 
-            let enabled = (self.enabled_builder)(ctx);
-            ctx.sub_var(&enabled);
+            let enabled = (self.enabled_builder)();
+            WIDGET.sub_var(&enabled);
             let is_enabled = enabled.get();
             self.enabled = Some(enabled);
 
-            let command = (self.command_builder)(ctx);
-            self.handle = Some(command.subscribe_wgt(is_enabled, ctx.path.widget_id()));
+            let command = (self.command_builder)();
+            self.handle = Some(command.subscribe_wgt(is_enabled, WIDGET.id()));
             self.command = Some(command);
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             if let Some(args) = self.command.expect("OnPreCommandNode not initialized").on_unhandled(update) {
-                self.handler.event(ctx, args);
+                self.handler.event(args);
             }
-            self.child.event(ctx, update);
+            self.child.event(update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.handler.update(ctx);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.handler.update();
 
             if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").get_new() {
                 self.handle.as_ref().unwrap().set_enabled(enabled);
             }
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
+        fn deinit(&mut self) {
+            self.child.deinit();
             self.handle = None;
             self.command = None;
             self.enabled = None;
@@ -1212,8 +1200,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::context::TestWidgetContext;
-
     use super::*;
 
     command! {
@@ -1227,7 +1213,8 @@ mod tests {
 
     #[test]
     fn enabled() {
-        let _ctx = TestWidgetContext::new();
+        let _app = App::minimal().run_headless(false);
+
         assert!(!FOO_CMD.has_handlers_value());
 
         let handle = FOO_CMD.subscribe(true);
@@ -1246,10 +1233,10 @@ mod tests {
 
     #[test]
     fn enabled_scoped() {
-        let ctx = TestWidgetContext::new();
+        let _app = App::minimal().run_headless(false);
 
         let cmd = FOO_CMD;
-        let cmd_scoped = FOO_CMD.scoped(ctx.window_id);
+        let cmd_scoped = FOO_CMD.scoped(WindowId::named("enabled_scoped"));
         assert!(!cmd.has_handlers_value());
         assert!(!cmd_scoped.has_handlers_value());
 
@@ -1273,7 +1260,8 @@ mod tests {
 
     #[test]
     fn has_handlers() {
-        let _ctx = TestWidgetContext::new();
+        let _app = App::minimal().run_headless(false);
+
         assert!(!FOO_CMD.has_handlers_value());
 
         let handle = FOO_CMD.subscribe(false);
@@ -1285,10 +1273,10 @@ mod tests {
 
     #[test]
     fn has_handlers_scoped() {
-        let ctx = TestWidgetContext::new();
+        let _app = App::minimal().run_headless(false);
 
         let cmd = FOO_CMD;
-        let cmd_scoped = FOO_CMD.scoped(ctx.window_id);
+        let cmd_scoped = FOO_CMD.scoped(WindowId::named("has_handlers_scoped"));
 
         assert!(!cmd.has_handlers_value());
         assert!(!cmd_scoped.has_handlers_value());

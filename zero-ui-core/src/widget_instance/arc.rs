@@ -111,8 +111,8 @@ impl<U: UiNode> ArcNode<U> {
             slot: self.0.slots.lock().next_slot(),
             rc: self.0.clone(),
             take: impls::TakeWhenVar { var: var.into_var() },
-            delegate_init: |n, ctx| n.init(ctx),
-            delegate_deinit: |n, ctx| n.deinit(ctx),
+            delegate_init: |n| n.init(),
+            delegate_deinit: |n| n.deinit(),
             var_handles: VarHandles::default(),
             event_handles: EventHandles::default(),
         }
@@ -137,8 +137,8 @@ impl<U: UiNode> ArcNode<U> {
                 filter,
                 take_on_init,
             },
-            delegate_init: |n, ctx| n.init(ctx),
-            delegate_deinit: |n, ctx| n.deinit(ctx),
+            delegate_init: |n| n.init(),
+            delegate_deinit: |n| n.deinit(),
             var_handles: VarHandles::default(),
             event_handles: EventHandles::default(),
         }
@@ -152,12 +152,12 @@ impl<U: UiNode> ArcNode<U> {
     }
 
     /// Calls `f` in the context of the node, it it can be locked and is a full widget.
-    pub fn try_context<R>(&self, f: impl FnOnce(&mut WidgetNodeContext) -> R) -> Option<R> {
+    pub fn try_context<R>(&self, f: impl FnOnce() -> R) -> Option<R> {
         self.0.item.try_lock()?.with_context(f)
     }
 
     /// Calls `f` in the context of the node, it it can be locked and is a full widget.
-    pub fn try_context_mut<R>(&self, f: impl FnOnce(&mut WidgetNodeMutContext) -> R) -> Option<R> {
+    pub fn try_context_mut<R>(&self, f: impl FnOnce() -> R) -> Option<R> {
         self.0.item.try_lock()?.with_context_mut(f)
     }
 }
@@ -244,8 +244,8 @@ impl<L: UiNodeList> ArcNodeList<L> {
             slot: self.0.slots.lock().next_slot(),
             rc: self.0.clone(),
             take: impls::TakeWhenVar { var: var.into_var() },
-            delegate_init: |n, ctx| n.init_all(ctx),
-            delegate_deinit: |n, ctx| n.deinit_all(ctx),
+            delegate_init: |n| n.init_all(),
+            delegate_deinit: |n| n.deinit_all(),
             var_handles: VarHandles::default(),
             event_handles: EventHandles::default(),
         }
@@ -270,8 +270,8 @@ impl<L: UiNodeList> ArcNodeList<L> {
                 filter,
                 take_on_init,
             },
-            delegate_init: |n, ctx| n.init_all(ctx),
-            delegate_deinit: |n, ctx| n.deinit_all(ctx),
+            delegate_init: |n| n.init_all(),
+            delegate_deinit: |n| n.deinit_all(),
             var_handles: VarHandles::default(),
             event_handles: EventHandles::default(),
         }
@@ -285,16 +285,16 @@ impl<L: UiNodeList> ArcNodeList<L> {
     }
 
     /// Iterate over node contexts, if the list can be locked and the node is a full widget.
-    pub fn for_each_ctx(&self, mut f: impl FnMut(usize, &mut WidgetNodeContext) -> bool) {
+    pub fn for_each_ctx(&self, mut f: impl FnMut(usize) -> bool) {
         if let Some(list) = self.0.item.try_lock() {
-            list.for_each(|i, n| n.with_context(|ctx| f(i, ctx)).unwrap_or(true))
+            list.for_each(|i, n| n.with_context(|| f(i)).unwrap_or(true))
         }
     }
 
     /// Iterate over node contexts, if the list can be locked and the node is a full widget.
-    pub fn for_each_ctx_mut(&self, mut f: impl FnMut(usize, &mut WidgetNodeMutContext) -> bool) {
+    pub fn for_each_ctx_mut(&self, mut f: impl FnMut(usize) -> bool) {
         if let Some(mut list) = self.0.item.try_lock() {
-            list.for_each_mut(|i, n| n.with_context_mut(|ctx| f(i, ctx)).unwrap_or(true))
+            list.for_each_mut(|i, n| n.with_context_mut(|| f(i)).unwrap_or(true))
         }
     }
 }
@@ -332,18 +332,17 @@ mod impls {
 
     #[doc(hidden)]
     pub trait TakeOn: Send + 'static {
-        fn take_on_init(&mut self, ctx: &mut WidgetContext) -> bool {
-            let _ = ctx;
+        fn take_on_init(&mut self) -> bool {
             false
         }
 
-        fn take_on_event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) -> bool {
-            let _ = (ctx, update);
+        fn take_on_event(&mut self, update: &mut EventUpdate) -> bool {
+            let _ = update;
             false
         }
 
-        fn take_on_update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) -> bool {
-            let _ = (ctx, updates);
+        fn take_on_update(&mut self, updates: &mut WidgetUpdates) -> bool {
+            let _ = updates;
             false
         }
     }
@@ -352,12 +351,12 @@ mod impls {
         pub(super) var: V,
     }
     impl<V: Var<bool>> TakeOn for TakeWhenVar<V> {
-        fn take_on_init(&mut self, ctx: &mut WidgetContext) -> bool {
-            ctx.sub_var(&self.var);
+        fn take_on_init(&mut self) -> bool {
+            WIDGET.sub_var(&self.var);
             self.var.get()
         }
 
-        fn take_on_update(&mut self, _: &mut WidgetContext, _: &mut WidgetUpdates) -> bool {
+        fn take_on_update(&mut self, _: &mut WidgetUpdates) -> bool {
             self.var.get_new().unwrap_or(false)
         }
     }
@@ -368,12 +367,12 @@ mod impls {
         pub(super) take_on_init: bool,
     }
     impl<A: EventArgs, F: FnMut(&A) -> bool + Send + Send + 'static> TakeOn for TakeOnEvent<A, F> {
-        fn take_on_init(&mut self, ctx: &mut WidgetContext) -> bool {
-            ctx.sub_event(&self.event);
+        fn take_on_init(&mut self) -> bool {
+            WIDGET.sub_event(&self.event);
             self.take_on_init
         }
 
-        fn take_on_event(&mut self, _: &mut WidgetContext, update: &mut EventUpdate) -> bool {
+        fn take_on_event(&mut self, update: &mut EventUpdate) -> bool {
             if let Some(args) = self.event.on(update) {
                 (self.filter)(args)
             } else {
@@ -388,19 +387,19 @@ mod impls {
         pub(super) rc: Arc<SlotData<U>>,
         pub(super) take: T,
 
-        pub(super) delegate_init: fn(&mut U, &mut WidgetContext),
-        pub(super) delegate_deinit: fn(&mut U, &mut WidgetContext),
+        pub(super) delegate_init: fn(&mut U),
+        pub(super) delegate_deinit: fn(&mut U),
         pub(super) var_handles: VarHandles,
         pub(super) event_handles: EventHandles,
     }
     impl<U, T: TakeOn> TakeSlot<U, T> {
-        fn on_init(&mut self, ctx: &mut WidgetContext) {
-            if self.take.take_on_init(ctx) {
-                self.take(ctx);
+        fn on_init(&mut self) {
+            if self.take.take_on_init() {
+                self.take();
             }
         }
 
-        fn on_deinit(&mut self, ctx: &mut WidgetContext) {
+        fn on_deinit(&mut self) {
             let mut was_owner = false;
             {
                 let mut slots = self.rc.slots.lock();
@@ -414,8 +413,8 @@ mod impls {
             }
 
             if was_owner {
-                ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
-                    (self.delegate_deinit)(&mut *self.rc.item.lock(), ctx)
+                WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
+                    (self.delegate_deinit)(&mut *self.rc.item.lock())
                 });
             }
 
@@ -423,14 +422,14 @@ mod impls {
             self.event_handles.clear();
         }
 
-        fn on_event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            if !self.is_owner() && self.take.take_on_event(ctx, update) {
+        fn on_event(&mut self, update: &mut EventUpdate) {
+            if !self.is_owner() && self.take.take_on_event(update) {
                 // request ownership.
-                self.take(ctx);
+                self.take();
             }
         }
 
-        fn on_update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn on_update(&mut self, updates: &mut WidgetUpdates) {
             if self.is_owner() {
                 let mut slots = self.rc.slots.lock();
                 if let Some((_, id)) = slots.move_request {
@@ -442,7 +441,7 @@ mod impls {
                     drop(slots);
 
                     let mut node = self.rc.item.lock();
-                    (self.delegate_deinit)(&mut node, ctx);
+                    (self.delegate_deinit)(&mut node);
 
                     WIDGET.info().layout().render();
 
@@ -457,22 +456,22 @@ mod impls {
                     drop(slots);
 
                     let mut node = self.rc.item.lock();
-                    ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
-                        (self.delegate_deinit)(&mut node, ctx);
+                    WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
+                        (self.delegate_deinit)(&mut node);
                     });
                     self.var_handles.clear();
                     self.event_handles.clear();
 
-                    ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
-                        (self.delegate_init)(&mut new, ctx);
+                    WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
+                        (self.delegate_init)(&mut new);
                     });
                     *node = new;
 
                     WIDGET.info().layout().render();
                 }
-            } else if self.take.take_on_update(ctx, updates) {
+            } else if self.take.take_on_update(updates) {
                 // request ownership.
-                self.take(ctx);
+                self.take();
             } else {
                 let mut slots = self.rc.slots.lock();
                 if let Some((slot, _)) = &slots.move_request {
@@ -480,31 +479,31 @@ mod impls {
                         slots.move_request = None;
                         // requested move in prev update, now can take ownership.
                         drop(slots);
-                        self.take(ctx);
+                        self.take();
                     }
                 }
             }
         }
 
-        fn take(&mut self, ctx: &mut WidgetContext) {
+        fn take(&mut self) {
             {
                 let mut slots = self.rc.slots.lock();
                 let slots = &mut *slots;
                 if let Some((sl, id)) = &slots.owner {
                     if *sl != self.slot {
                         // currently inited in another slot, signal it to deinit.
-                        slots.move_request = Some((self.slot, ctx.path.widget_id()));
+                        slots.move_request = Some((self.slot, WIDGET.id()));
                         UPDATES.update(*id);
                     }
                 } else {
                     // no current owner, take ownership immediately.
-                    slots.owner = Some((self.slot, ctx.path.widget_id()));
+                    slots.owner = Some((self.slot, WIDGET.id()));
                 }
             }
 
             if self.is_owner() {
-                ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
-                    (self.delegate_init)(&mut *self.rc.item.lock(), ctx);
+                WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
+                    (self.delegate_init)(&mut *self.rc.item.lock());
                 });
                 WIDGET.info().layout().render();
             }
@@ -529,14 +528,10 @@ mod impls {
             }
         }
 
-        fn delegate_owned_mut_with_handles<R>(
-            &mut self,
-            ctx: &mut WidgetContext,
-            del: impl FnOnce(&mut WidgetContext, &mut U) -> R,
-        ) -> Option<R> {
+        fn delegate_owned_mut_with_handles<R>(&mut self, del: impl FnOnce(&mut U) -> R) -> Option<R> {
             if self.is_owner() {
-                ctx.with_handles(&mut self.var_handles, &mut self.event_handles, |ctx| {
-                    Some(del(ctx, &mut *self.rc.item.lock()))
+                WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
+                    Some(del(&mut *self.rc.item.lock()))
                 })
             } else {
                 None
@@ -545,42 +540,42 @@ mod impls {
     }
 
     impl<U: UiNode, T: TakeOn> UiNode for TakeSlot<U, T> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.on_init(ctx);
+        fn init(&mut self) {
+            self.on_init();
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.on_deinit(ctx);
+        fn deinit(&mut self) {
+            self.on_deinit();
         }
 
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            self.delegate_owned(|n| n.info(ctx, info));
+        fn info(&self, info: &mut WidgetInfoBuilder) {
+            self.delegate_owned(|n| n.info(info));
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            self.on_event(ctx, update);
-            self.delegate_owned_mut_with_handles(ctx, |ctx, n| n.event(ctx, update));
+        fn event(&mut self, update: &mut EventUpdate) {
+            self.on_event(update);
+            self.delegate_owned_mut_with_handles(|n| n.event(update));
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.on_update(ctx, updates);
-            self.delegate_owned_mut_with_handles(ctx, |ctx, n| n.update(ctx, updates));
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.on_update(updates);
+            self.delegate_owned_mut_with_handles(|n| n.update(updates));
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            self.delegate_owned(|n| n.measure(ctx, wm)).unwrap_or_default()
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            self.delegate_owned(|n| n.measure(wm)).unwrap_or_default()
         }
 
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            self.delegate_owned_mut(|n| n.layout(ctx, wl)).unwrap_or_default()
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            self.delegate_owned_mut(|n| n.layout(wl)).unwrap_or_default()
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.delegate_owned(|n| n.render(ctx, frame));
+        fn render(&self, frame: &mut FrameBuilder) {
+            self.delegate_owned(|n| n.render(frame));
         }
 
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.delegate_owned(|n| n.render_update(ctx, update));
+        fn render_update(&self, update: &mut FrameUpdate) {
+            self.delegate_owned(|n| n.render_update(update));
         }
 
         fn is_widget(&self) -> bool {
@@ -589,14 +584,14 @@ mod impls {
 
         fn with_context<R, F>(&self, f: F) -> Option<R>
         where
-            F: FnOnce(&mut WidgetNodeContext) -> R,
+            F: FnOnce() -> R,
         {
             self.delegate_owned(|n| n.with_context(f)).flatten()
         }
 
         fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
         where
-            F: FnOnce(&mut WidgetNodeMutContext) -> R,
+            F: FnOnce() -> R,
         {
             self.delegate_owned_mut(|n| n.with_context_mut(f)).flatten()
         }
@@ -645,33 +640,33 @@ mod impls {
             self.delegate_owned_mut(|l| l.drain_into(vec));
         }
 
-        fn init_all(&mut self, ctx: &mut WidgetContext) {
-            self.on_init(ctx);
+        fn init_all(&mut self) {
+            self.on_init();
             // delegation done in the handler
         }
 
-        fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-            self.on_deinit(ctx);
+        fn deinit_all(&mut self) {
+            self.on_deinit();
             // delegation done in the handler
         }
 
-        fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            self.on_event(ctx, update);
-            self.delegate_owned_mut_with_handles(ctx, |ctx, l| l.event_all(ctx, update));
+        fn event_all(&mut self, update: &mut EventUpdate) {
+            self.on_event(update);
+            self.delegate_owned_mut_with_handles(|l| l.event_all(update));
         }
 
-        fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-            self.on_update(ctx, updates);
+        fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+            self.on_update(updates);
             let _ = observer;
-            self.delegate_owned_mut_with_handles(ctx, |ctx, l| l.update_all(ctx, updates, observer));
+            self.delegate_owned_mut_with_handles(|l| l.update_all(updates, observer));
         }
 
-        fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.delegate_owned(|l| l.render_all(ctx, frame));
+        fn render_all(&self, frame: &mut FrameBuilder) {
+            self.delegate_owned(|l| l.render_all(frame));
         }
 
-        fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.delegate_owned(|l| l.render_update_all(ctx, update));
+        fn render_update_all(&self, update: &mut FrameUpdate) {
+            self.delegate_owned(|l| l.render_update_all(update));
         }
     }
 }

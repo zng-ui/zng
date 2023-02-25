@@ -9,22 +9,6 @@ use std::{
 
 use crate::{context::*, widget_instance::WidgetId};
 
-impl<'a> WidgetContext<'a> {
-    /// Create an app thread bound future executor that executes in the context of a widget.
-    ///
-    /// The `task` closure is called immediately with the [`WidgetContextMut`] that is paired with the task, it
-    /// should return the task future `F` in an inert state. Calls to [`WidgetTask::update`] exclusive borrow a
-    /// [`WidgetContext`] that is made available inside `F` using the [`WidgetContextMut::with`] method.
-    pub fn async_task<R, F, T>(&mut self, task: T) -> WidgetTask<R>
-    where
-        R: 'static,
-        F: Future<Output = R> + Send + 'static,
-        T: FnOnce(WidgetContextMut) -> F,
-    {
-        WidgetTask::new(self, task)
-    }
-}
-
 enum UiTaskState<R> {
     Pending {
         future: Pin<Box<dyn Future<Output = R> + Send>>,
@@ -110,72 +94,5 @@ impl<R> UiTask<R> {
             UiTaskState::Ready(r) => Ok(r),
             p @ UiTaskState::Pending { .. } => Err(Self(p)),
         }
-    }
-}
-
-/// Represents a [`Future`] running in the UI thread in a widget context.
-///
-/// The future [`Waker`], wakes the app event loop and causes an update, the widget that is running this task
-/// calls [`update`] and if this task waked the app the future is polled once.
-///
-/// [`Waker`]: std::task::Waker
-/// [`update`]: Self::update
-/// [`UiNode::info`]: crate::widget_instance::UiNode::info
-/// [`subscribe`]: Self::subscribe
-pub struct WidgetTask<R> {
-    task: UiTask<R>,
-    scope: WidgetContextScope,
-}
-impl<R> WidgetTask<R> {
-    /// Create an app thread bound future executor that executes in the context of a widget.
-    ///
-    /// The `task` closure is called immediately with the [`WidgetContextMut`] that is paired with the task, it
-    /// should return the task future `F` in an inert state. Calls to [`WidgetTask::update`] exclusive borrow a
-    /// [`WidgetContext`] that is made available inside `F` using the [`WidgetContextMut::with`] method.
-    pub fn new<F, T>(ctx: &mut WidgetContext, task: T) -> WidgetTask<R>
-    where
-        R: 'static,
-        F: Future<Output = R> + Send + 'static,
-        T: FnOnce(WidgetContextMut) -> F,
-    {
-        let (scope, mut_) = WidgetContextScope::new();
-
-        let task = scope.with(ctx, move || task(mut_));
-
-        WidgetTask {
-            task: UiTask::new(Some(ctx.path.widget_id()), task),
-            scope,
-        }
-    }
-
-    /// Polls the future if needed, returns a reference to the result if the task is done.
-    ///
-    /// This does not poll the future if the task is done, it also only polls the future if it requested poll.
-    pub fn update(&mut self, ctx: &mut WidgetContext) -> Option<&R> {
-        let task = &mut self.task;
-        self.scope.with(ctx, move || task.update())
-    }
-
-    /// Returns `true` if the task is done.
-    ///
-    /// This does not poll the future.
-    pub fn is_ready(&self) -> bool {
-        self.task.is_ready()
-    }
-
-    /// Returns the result if the task is completed.
-    ///
-    /// This does not poll the future, you must call [`update`](Self::update) to poll until a result is available,
-    /// then call this method to take ownership of the result.
-    pub fn into_result(self) -> Result<R, Self> {
-        match self.task.into_result() {
-            Ok(r) => Ok(r),
-            Err(task) => Err(Self { task, scope: self.scope }),
-        }
-    }
-}
-impl<T: fmt::Debug> fmt::Debug for WidgetTask<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("WidgetTask").field(&self.task.0).finish()
     }
 }

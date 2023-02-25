@@ -1,7 +1,7 @@
 use crate::{
-    context::{WidgetContext, WidgetUpdates},
+    context::WidgetUpdates,
+    context::WIDGET,
     event::{EventHandles, EventUpdate},
-    new_context::WIDGET,
     ui_node,
     var::{BoxedVar, Var, VarHandles},
 };
@@ -103,10 +103,10 @@ impl WhenUiNode {
         (child, &mut self.var_handles, &mut self.event_handles)
     }
 
-    fn change_child(&mut self, ctx: &mut WidgetContext, new: usize) {
+    fn change_child(&mut self, new: usize) {
         {
             let (child, var_handles, event_handles) = self.child_mut_with_handles();
-            ctx.with_handles(var_handles, event_handles, |ctx| child.deinit(ctx));
+            WIDGET.with_handles(var_handles, event_handles, || child.deinit());
             var_handles.clear();
             event_handles.clear();
         }
@@ -115,7 +115,7 @@ impl WhenUiNode {
 
         {
             let (child, var_handles, event_handles) = self.child_mut_with_handles();
-            ctx.with_handles(var_handles, event_handles, |ctx| child.init(ctx));
+            WIDGET.with_handles(var_handles, event_handles, || child.init());
         }
 
         WIDGET.info().layout().render();
@@ -126,39 +126,39 @@ impl WhenUiNode {
     delegate_mut = self.child_mut_with_handles().0,
 )]
 impl UiNode for WhenUiNode {
-    fn init(&mut self, ctx: &mut WidgetContext) {
+    fn init(&mut self) {
         self.current = usize::MAX;
         for (i, (c, _)) in self.conditions.iter().enumerate() {
             if self.current == usize::MAX && c.get() {
                 self.current = i;
             }
-            ctx.sub_var(c);
+            WIDGET.sub_var(c);
         }
 
         let (child, var_handles, event_handles) = self.child_mut_with_handles();
-        ctx.with_handles(var_handles, event_handles, |ctx| child.init(ctx));
+        WIDGET.with_handles(var_handles, event_handles, || child.init());
     }
 
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
+    fn deinit(&mut self) {
         let (child, var_handles, event_handles) = self.child_mut_with_handles();
-        ctx.with_handles(var_handles, event_handles, |ctx| child.deinit(ctx));
+        WIDGET.with_handles(var_handles, event_handles, || child.deinit());
         var_handles.clear();
         event_handles.clear();
     }
 
-    fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+    fn event(&mut self, update: &mut EventUpdate) {
         let (child, var_handles, event_handles) = self.child_mut_with_handles();
-        ctx.with_handles(var_handles, event_handles, |ctx| child.event(ctx, update));
+        WIDGET.with_handles(var_handles, event_handles, || child.event(update));
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &mut WidgetUpdates) {
         let mut any = false;
         for (i, (c, _)) in self.conditions.iter().enumerate() {
             if i < self.current {
                 // if activated < current
                 if c.get() {
                     any = true;
-                    self.change_child(ctx, i);
+                    self.change_child(i);
 
                     break;
                 }
@@ -171,7 +171,7 @@ impl UiNode for WhenUiNode {
             } else if c.get() {
                 // if deactivated current and had another active after
                 any = true;
-                self.change_child(ctx, i);
+                self.change_child(i);
 
                 break;
             }
@@ -179,11 +179,11 @@ impl UiNode for WhenUiNode {
 
         if !any && self.current != usize::MAX {
             // if no longer has not active condition.
-            self.change_child(ctx, usize::MAX);
+            self.change_child(usize::MAX);
         }
 
         let (child, var_handles, event_handles) = self.child_mut_with_handles();
-        ctx.with_handles(var_handles, event_handles, |ctx| child.update(ctx, updates));
+        WIDGET.with_handles(var_handles, event_handles, || child.update(updates));
     }
 }
 
@@ -212,10 +212,10 @@ impl WhenUiNodeList {
         (child, &mut self.var_handles, &mut self.event_handles)
     }
 
-    fn change_children(&mut self, ctx: &mut WidgetContext, observer: &mut dyn UiNodeListObserver, new: usize) {
+    fn change_children(&mut self, observer: &mut dyn UiNodeListObserver, new: usize) {
         {
             let (child, var_handles, event_handles) = self.children_mut_with_handles();
-            ctx.with_handles(var_handles, event_handles, |ctx| child.deinit_all(ctx));
+            WIDGET.with_handles(var_handles, event_handles, || child.deinit_all());
             var_handles.clear();
             event_handles.clear();
         }
@@ -224,7 +224,7 @@ impl WhenUiNodeList {
 
         {
             let (child, var_handles, event_handles) = self.children_mut_with_handles();
-            ctx.with_handles(var_handles, event_handles, |ctx| child.init_all(ctx));
+            WIDGET.with_handles(var_handles, event_handles, || child.init_all());
         }
 
         observer.reseted();
@@ -273,34 +273,34 @@ impl UiNodeList for WhenUiNodeList {
         self.children_mut_with_handles().0.drain_into(vec)
     }
 
-    fn init_all(&mut self, ctx: &mut WidgetContext) {
+    fn init_all(&mut self) {
         self.current = usize::MAX;
         for (i, (c, _)) in self.conditions.iter().enumerate() {
             if self.current == usize::MAX && c.get() {
                 self.current = i;
             }
-            ctx.sub_var(c);
+            WIDGET.sub_var(c);
         }
 
         let (children, var_handles, event_handles) = self.children_mut_with_handles();
-        ctx.with_handles(var_handles, event_handles, |ctx| children.init_all(ctx));
+        WIDGET.with_handles(var_handles, event_handles, || children.init_all());
     }
 
-    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+    fn deinit_all(&mut self) {
         let (children, var_handles, event_handles) = self.children_mut_with_handles();
-        ctx.with_handles(var_handles, event_handles, |ctx| children.deinit_all(ctx));
+        WIDGET.with_handles(var_handles, event_handles, || children.deinit_all());
         var_handles.clear();
         event_handles.clear();
     }
 
-    fn update_all(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut any = false;
         for (i, (c, _)) in self.conditions.iter().enumerate() {
             if i < self.current {
                 // if activated < current
                 if c.get() {
                     any = true;
-                    self.change_children(ctx, observer, i);
+                    self.change_children(observer, i);
 
                     break;
                 }
@@ -313,7 +313,7 @@ impl UiNodeList for WhenUiNodeList {
             } else if c.get() {
                 // if deactivated current and had another active after
                 any = true;
-                self.change_children(ctx, observer, i);
+                self.change_children(observer, i);
 
                 break;
             }
@@ -321,17 +321,17 @@ impl UiNodeList for WhenUiNodeList {
 
         if !any && self.current != usize::MAX {
             // if no longer has not active condition.
-            self.change_children(ctx, observer, usize::MAX);
+            self.change_children(observer, usize::MAX);
         }
 
         let (children, var_handles, event_handles) = self.children_mut_with_handles();
-        ctx.with_handles(var_handles, event_handles, |ctx| children.update_all(ctx, updates, observer));
+        WIDGET.with_handles(var_handles, event_handles, || children.update_all(updates, observer));
     }
 
-    fn event_all(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &mut EventUpdate) {
         let (children, var_handles, event_handles) = self.children_mut_with_handles();
-        ctx.with_handles(var_handles, event_handles, |ctx| {
-            children.event_all(ctx, update);
+        WIDGET.with_handles(var_handles, event_handles, || {
+            children.event_all(update);
         })
     }
 }
