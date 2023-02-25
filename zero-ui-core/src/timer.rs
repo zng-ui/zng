@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     app::LoopTimer,
-    context::{app_local},
+    context::app_local,
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     units::Deadline,
@@ -28,7 +28,7 @@ struct DeadlineHandlerEntry {
 struct TimerHandlerEntry {
     handle: HandleOwner<TimerState>,
     handler: Mutex<Box<dyn FnMut(&TimerArgs, &dyn AppWeakHandle) + Send>>, // not actually locked, just makes this Sync
-    pending: Option<Deadline>,                                                              // the last expected deadline
+    pending: Option<Deadline>,                                             // the last expected deadline
 }
 
 struct TimerVarEntry {

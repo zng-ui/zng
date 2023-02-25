@@ -108,8 +108,8 @@ fn images_render() {
     // variable every time the node (re)renders.
     let img = IMAGES.render_node(RenderMode::Software, 1.fct(), |_| image());
 
-    app.run_task(move |ctx| async move {
-        while ctx.with(|ctx| img.with(Image::is_loading)) {
+    app.run_task(move || async move {
+        while img.with(Image::is_loading) {
             img.wait_new().await;
         }
         let img = img.get();

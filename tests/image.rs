@@ -22,7 +22,7 @@ pub fn get_before_view_init(app: &mut HeadlessApp) {
     let mut inited = false;
     while !inited {
         app.update_observe_event(
-            |_, update| {
+            |update| {
                 if VIEW_PROCESS_INITED_EVENT.has(update) {
                     inited = true;
 
@@ -34,7 +34,7 @@ pub fn get_before_view_init(app: &mut HeadlessApp) {
         .assert_wait();
     }
 
-    app.run_task(async_clone_move_fn!(img, |_| {
+    app.run_task(async_clone_move_fn!(img, || {
         task::with_deadline(img.get().wait_done(), 5.secs()).await.unwrap();
     }));
 

@@ -19,7 +19,7 @@ use crate::app::HeadlessApp;
 use crate::context::{WidgetContext, WidgetContextMut};
 use crate::crate_util::{Handle, WeakHandle};
 use crate::new_context::UPDATES;
-use crate::task::ui::{WidgetTask, UiTask};
+use crate::task::ui::{UiTask, WidgetTask};
 
 /// Represents a handler in a widget context.
 ///

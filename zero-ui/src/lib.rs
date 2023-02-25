@@ -892,7 +892,7 @@ pub mod prelude {
         border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
         clone_move,
         color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
-        context::{AppContext, LayoutDirection, WidgetContext, WindowContext},
+        context::{LayoutDirection, WidgetContext, WindowContext},
         event::{AnyEventArgs, Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, EVENTS},
         focus::{DirectionalNav, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav, FOCUS},
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
@@ -1015,7 +1015,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
-        pub use crate::core::task::{self, rayon::prelude::*, ui::AppTask, ui::WidgetTask};
+        pub use crate::core::task::{self, rayon::prelude::*, ui::UiTask, ui::WidgetTask};
         #[doc(no_inline)]
         pub use crate::core::text::Text;
         #[doc(no_inline)]
@@ -1078,7 +1078,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
-        pub use crate::core::task::{self, rayon::prelude::*, ui::AppTask, ui::WidgetTask};
+        pub use crate::core::task::{self, rayon::prelude::*, ui::UiTask, ui::WidgetTask};
         #[doc(no_inline)]
         pub use crate::core::text::*;
         #[doc(no_inline)]

@@ -47,7 +47,7 @@ impl MaterialFonts {
 }
 #[cfg(feature = "embedded")]
 impl AppExtension for MaterialFonts {
-    fn init(&mut self, _: &mut zero_ui::prelude::AppContext) {
+    fn init(&mut self) {
         Self::register()
     }
 }

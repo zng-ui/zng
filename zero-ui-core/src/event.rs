@@ -532,7 +532,7 @@ impl EventUpdate {
     pub(crate) fn call_pre_actions(&mut self) {
         let actions = mem::take(&mut self.pre_actions);
         for action in actions {
-            action( self)
+            action(self)
         }
     }
 

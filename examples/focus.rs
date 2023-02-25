@@ -327,7 +327,7 @@ fn commands() -> impl UiNode {
 
 fn trace_focus() {
     FOCUS_CHANGED_EVENT
-        .on_pre_event(app_hn!(|_, args: &FocusChangedArgs, _| {
+        .on_pre_event(app_hn!(|args: &FocusChangedArgs, _| {
             if args.is_hightlight_changed() {
                 println!("highlight: {}", args.highlight);
             } else if args.is_widget_move() {

@@ -29,7 +29,7 @@ fn app_main() {
             .on_pre_event(app_hn!(
                 shortcut_text,
                 shortcut_error,
-                |_, args: &zero_ui::core::gesture::ShortcutArgs, _| {
+                |args: &zero_ui::core::gesture::ShortcutArgs, _| {
                     if args.is_repeat {
                         return;
                     }
@@ -39,28 +39,23 @@ fn app_main() {
             ))
             .perm();
         zero_ui::core::keyboard::KEY_INPUT_EVENT
-            .on_pre_event(app_hn!(
-                shortcut_text,
-                keypress_text,
-                shortcut_error,
-                |_, args: &KeyInputArgs, _| {
-                    if args.is_repeat || args.state != KeyState::Pressed {
-                        return;
-                    }
-                    let mut new_shortcut_text = "not supported";
-                    if let Some(key) = args.key {
-                        if key.is_modifier() {
-                            new_shortcut_text = "";
-                        }
-                        keypress_text.set(formatx! {"{key:?}"})
-                    } else {
-                        keypress_text.set(formatx! {"Scan Code: {:?}", args.scan_code})
-                    }
-
-                    shortcut_text.set(new_shortcut_text);
-                    shortcut_error.set(true);
+            .on_pre_event(app_hn!(shortcut_text, keypress_text, shortcut_error, |args: &KeyInputArgs, _| {
+                if args.is_repeat || args.state != KeyState::Pressed {
+                    return;
                 }
-            ))
+                let mut new_shortcut_text = "not supported";
+                if let Some(key) = args.key {
+                    if key.is_modifier() {
+                        new_shortcut_text = "";
+                    }
+                    keypress_text.set(formatx! {"{key:?}"})
+                } else {
+                    keypress_text.set(formatx! {"Scan Code: {:?}", args.scan_code})
+                }
+
+                shortcut_text.set(new_shortcut_text);
+                shortcut_error.set(true);
+            }))
             .perm();
 
         window! {
