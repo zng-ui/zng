@@ -79,7 +79,7 @@ fn icons() -> impl UiNode {
                     select_font("two_tone"),
                 ]
             },
-            view(selected_font, show_font(icons::outlined::all()), |_, font| {
+            view(selected_font, show_font(icons::outlined::all()), |font| {
                 match font.get_new() {
                     Some("filled") => View::Update(show_font(icons::filled::all())),
                     Some("outlined") => View::Update(show_font(icons::outlined::all())),
@@ -113,12 +113,8 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
                 },
             ]
         };
-        on_click = hn!(|ctx, _| {
-            WindowLayers::insert(
-                ctx,
-                LayerIndex::TOP_MOST,
-                expanded_icon(ico.clone())
-            );
+        on_click = hn!(|_| {
+            WindowLayers::insert(LayerIndex::TOP_MOST, expanded_icon(ico.clone()));
         })
     }
 }
@@ -133,9 +129,9 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
         modal = true;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
-        on_click = hn!(|ctx, args: &ClickArgs| {
-            if ctx.path.widget_id() == args.target.widget_id() {
-                WindowLayers::remove(ctx, "expanded-icon");
+        on_click = hn!(|args: &ClickArgs| {
+            if WIDGET.id() == args.target.widget_id() {
+                WindowLayers::remove("expanded-icon");
                 args.propagation().stop();
             }
         });
@@ -222,14 +218,14 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                     align = Align::TOP_RIGHT;
                     padding = 2;
                     margin = 4;
-                    on_click = async_hn!(opacity, |ctx, args: ClickArgs| {
+                    on_click = async_hn!(opacity, |args: ClickArgs| {
                         args.propagation().stop();
 
                         opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
-                        ctx.yield_one().await;
+                        task::yield_one().await;
                         opacity.wait_animation().await;
 
-                       ctx.with(|ctx|  WindowLayers::remove(ctx, "expanded-icon"));
+                        WindowLayers::remove("expanded-icon");
                     });
                 }
             ])

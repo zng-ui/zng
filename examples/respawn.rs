@@ -12,7 +12,7 @@ fn main() {
             title = "View-Process Respawn Example";
             icon = WindowIcon::render(icon);
             start_position = StartPosition::CenterMonitor;
-            on_key_down = hn!(|_, args: &KeyInputArgs| {
+            on_key_down = hn!(|args: &KeyInputArgs| {
                 if args.key == Some(Key::F5) {
                     VIEW_PROCESS.respawn();
                 }
@@ -45,7 +45,7 @@ fn main() {
 fn respawn() -> impl UiNode {
     button! {
         child = text!("Respawn (F5)");
-        on_click = hn!(|_, _| {
+        on_click = hn!(|_| {
             VIEW_PROCESS.respawn();
         });
     }
@@ -55,7 +55,7 @@ fn respawn() -> impl UiNode {
 fn crash_respawn() -> impl UiNode {
     button! {
         child = text!("Crash View-Process");
-        on_click = hn!(|_, _| {
+        on_click = hn!(|_| {
             VIEW_PROCESS.crash_view_process();
         });
     }
@@ -66,7 +66,7 @@ fn click_counter() -> impl UiNode {
     let mut count = 0;
 
     button! {
-        on_click = hn!(t, |_, _| {
+        on_click = hn!(t, |_| {
             count += 1;
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
             t.set(new_txt);

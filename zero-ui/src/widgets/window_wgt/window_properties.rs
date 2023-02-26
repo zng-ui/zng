@@ -23,14 +23,14 @@ where
         select: impl Fn(&WindowVars) -> SV + Send + 'static,
     })]
     impl UiNode for BindWindowVarNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
+        fn init(&mut self) {
             let window_var = (self.select)(&WindowVars::req());
             if !self.user_var.capabilities().is_always_static() {
                 let binding = self.user_var.bind_bidi(&window_var);
-                ctx.handles.push_vars(binding);
+                WIDGET.push_var_handles(binding);
             }
             window_var.set_ne(self.user_var.get()).unwrap();
-            self.child.init(ctx);
+            self.child.init();
         }
     }
     BindWindowVarNode {
@@ -129,19 +129,19 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
         #[var] clear_color: impl Var<Rgba>,
     })]
     impl UiNode for ClearColorNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.clear_color.is_new() {
                 WIDGET.render_update();
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             frame.set_clear_color(self.clear_color.get().into());
-            self.child.render(ctx, frame);
+            self.child.render(frame);
         }
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        fn render_update(&self, update: &mut FrameUpdate) {
             update.set_clear_color(self.clear_color.get().into());
-            self.child.render_update(ctx, update);
+            self.child.render_update(update);
         }
     }
     ClearColorNode {
@@ -264,39 +264,34 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
         task: Task,
     })]
     impl UiNode for SaveStateNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            if let Some(key) = self.enabled.window_key(ctx.path.window_id()) {
+        fn init(&mut self) {
+            if let Some(key) = self.enabled.window_key(WINDOW.id()) {
                 let rsp = CONFIG.read(key);
-                let loading = self
-                    .enabled
-                    .loading_timeout()
-                    .and_then(|t| WINDOWS.loading_handle(ctx.path.window_id(), t));
-                rsp.subscribe(ctx.path.widget_id()).perm();
+                let loading = self.enabled.loading_timeout().and_then(|t| WINDOWS.loading_handle(WINDOW.id(), t));
+                rsp.subscribe(WIDGET.id()).perm();
                 self.task = Task::Read { rsp, loading };
             }
 
             if self.enabled.is_enabled() {
-                self.handles = Some([
-                    WINDOW_CLOSE_REQUESTED_EVENT.subscribe(ctx.path.widget_id()),
-                    WINDOW_LOAD_EVENT.subscribe(ctx.path.widget_id()),
-                ]);
+                let id = WIDGET.id();
+                self.handles = Some([WINDOW_CLOSE_REQUESTED_EVENT.subscribe(id), WINDOW_LOAD_EVENT.subscribe(id)]);
             }
 
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             self.handles = None;
-            self.child.deinit(ctx);
+            self.child.deinit();
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            self.child.event(ctx, update);
+        fn event(&mut self, update: &mut EventUpdate) {
+            self.child.event(update);
             if WINDOW_LOAD_EVENT.has(update) {
                 self.task = Task::None;
             } else if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
                 if !args.propagation().is_stopped() {
-                    if let Some(key) = self.enabled.window_key(ctx.path.window_id()) {
+                    if let Some(key) = self.enabled.window_key(WINDOW.id()) {
                         match &self.task {
                             Task::None => {
                                 // request write.
@@ -317,7 +312,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             }
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if let Task::Read { rsp, .. } = &mut self.task {
                 if let Some(rsp) = rsp.rsp() {
                     if let Some(s) = rsp {
@@ -335,7 +330,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                     self.task = Task::None;
                 }
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
     }
     SaveStateNode {

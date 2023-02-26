@@ -5,7 +5,7 @@
 //! the [`click_shortcut`](fn@super::gesture::click_shortcut) property.
 
 use super::event_property;
-use crate::core::keyboard::*;
+use crate::core::{context::WIDGET, keyboard::*};
 
 event_property! {
     /// Event fired when a keyboard key is pressed or released and the widget is enabled.
@@ -30,7 +30,7 @@ event_property! {
     pub fn key_input {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_enabled(WIDGET.id()),
     }
 
     /// Event fired when a keyboard key is pressed or released and the widget is disabled.
@@ -55,7 +55,7 @@ event_property! {
     pub fn disabled_key_input {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
-        filter: |ctx, args| args.is_disabled(ctx.path.widget_id()),
+        filter: |args| args.is_disabled(WIDGET.id()),
     }
 
     /// Event fired when a keyboard key is pressed and the widget is enabled.
@@ -80,7 +80,7 @@ event_property! {
     pub fn key_down {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
-        filter: |ctx, args| args.state == KeyState::Pressed && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.state == KeyState::Pressed && args.is_enabled(WIDGET.id()),
     }
 
     /// Event fired when a keyboard key is released and the widget is enabled.
@@ -105,7 +105,7 @@ event_property! {
     pub fn key_up {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
-        filter: |ctx, args| args.state == KeyState::Released && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.state == KeyState::Released && args.is_enabled(WIDGET.id()),
     }
 
     /// Event fired when a text character is typed and the widget is enabled.
@@ -124,7 +124,7 @@ event_property! {
     pub fn char_input {
         event: CHAR_INPUT_EVENT,
         args: CharInputArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path.widget_id())
+        filter: |args| args.is_enabled(WIDGET.id())
     }
 
     /// Event fired when a text character is typed and the widget is disabled.
@@ -143,6 +143,6 @@ event_property! {
     pub fn disabled_char_input {
         event: CHAR_INPUT_EVENT,
         args: CharInputArgs,
-        filter: |ctx, args| args.is_disabled(ctx.path.widget_id())
+        filter: |args| args.is_disabled(WIDGET.id())
     }
 }

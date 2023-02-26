@@ -197,7 +197,7 @@ impl<D> fmt::Debug for WidgetGenerator<D> {
 impl<D> WidgetGenerator<D> {
     /// New from a closure that generates a [`View`] update from data.
     pub fn new<U: UiNode>(generator: impl Fn(D) -> U + Send + Sync + 'static) -> Self {
-        WidgetGenerator(Some(Arc::new(Box::new(move |ctx, data| generator(ctx, data).boxed()))))
+        WidgetGenerator(Some(Arc::new(Box::new(move |data| generator(data).boxed()))))
     }
 
     /// Generator that always produces the [`NilUiNode`].

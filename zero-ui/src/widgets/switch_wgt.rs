@@ -30,12 +30,12 @@ pub mod switch {
         delegate_list_mut = &mut self.options,
     )]
     impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.index.is_new() {
                 WIDGET.layout().render();
                 self.collapse = true;
 
-                self.options.update_all(ctx, updates, &mut ());
+                self.options.update_all(updates, &mut ());
             } else {
                 struct TouchedIndex {
                     index: usize,
@@ -59,7 +59,7 @@ pub mod switch {
                     index: self.index.get(),
                     touched: false,
                 };
-                self.options.update_all(ctx, updates, &mut check);
+                self.options.update_all(updates, &mut check);
 
                 if check.touched {
                     WIDGET.layout().render();
@@ -68,37 +68,37 @@ pub mod switch {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
             let index = self.index.get();
             if index < self.options.len() {
-                self.options.with_node(index, |n| n.measure(ctx, wm))
+                self.options.with_node(index, |n| n.measure(wm))
             } else {
                 PxSize::zero()
             }
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             if mem::take(&mut self.collapse) {
-                wl.collapse_descendants(ctx);
+                wl.collapse_descendants();
             }
 
             let index = self.index.get();
             if index < self.options.len() {
-                self.options.with_node_mut(index, |n| n.layout(ctx, wl))
+                self.options.with_node_mut(index, |n| n.layout(wl))
             } else {
                 PxSize::zero()
             }
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             let index = self.index.get();
             if index < self.options.len() {
-                self.options.with_node(index, |n| n.render(ctx, frame))
+                self.options.with_node(index, |n| n.render(frame))
             }
         }
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        fn render_update(&self, update: &mut FrameUpdate) {
             let index = self.index.get();
             if index < self.options.len() {
-                self.options.with_node(index, |n| n.render_update(ctx, update));
+                self.options.with_node(index, |n| n.render_update(update));
             }
         }
     }

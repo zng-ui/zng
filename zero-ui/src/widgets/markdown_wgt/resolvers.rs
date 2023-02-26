@@ -188,8 +188,8 @@ event_args! {
 /// Default markdown link action.
 ///
 /// Does [`try_scroll_link`] or [`try_open_link`].
-pub fn try_default_link_action(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
-    try_scroll_link(ctx, args) || try_open_link(ctx, args)
+pub fn try_default_link_action(args: &LinkArgs) -> bool {
+    try_scroll_link(args) || try_open_link(args)
 }
 
 /// Handle `url` in the format `#anchor`, by scrolling and focusing the anchor.
@@ -201,17 +201,14 @@ pub fn try_default_link_action(ctx: &mut WidgetContext, args: &LinkArgs) -> bool
 ///
 /// [`markdown!`]: mod@crate::widgets::markdown
 /// [`scroll!`]: mod@crate::widgets::scroll
-pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
+pub fn try_scroll_link(args: &LinkArgs) -> bool {
     if args.propagation().is_stopped() {
         return false;
     }
     // Note: file names can start with #, but we are choosing to always interpret URLs with this prefix as an anchor.
     if let Some(anchor) = args.url.strip_prefix('#') {
-        if let Some(md) = ctx
-            .info_tree
-            .get(ctx.path.widget_id())
-            .and_then(|w| w.self_and_ancestors().find(|w| w.is_markdown()))
-        {
+        let tree = WINDOW.widget_tree();
+        if let Some(md) = tree.get(WIDGET.id()).and_then(|w| w.self_and_ancestors().find(|w| w.is_markdown())) {
             if let Some(target) = md.find_anchor(anchor) {
                 // scroll-to
                 for scroll in target.ancestors().filter(|&a| a.is_scroll()) {
@@ -237,7 +234,7 @@ pub fn try_scroll_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
 }
 
 /// Try open link, only works if the `url` is valid or a file path, returns if the confirm tool-tip is visible.
-pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
+pub fn try_open_link(args: &LinkArgs) -> bool {
     use crate::prelude::*;
 
     if args.propagation().is_stopped() {
@@ -304,7 +301,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                     child = text!(url);
                     underline_skip = UnderlineSkip::SPACES;
 
-                    on_blur = async_hn_once!(status, |ctx, _| {
+                    on_blur = async_hn_once!(status, |_| {
                         if status.get() != Status::Pending {
                             return;
                         }
@@ -312,11 +309,9 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                         status.set(Status::Cancel);
                         task::deadline(200.ms()).await;
 
-                        ctx.with(|ctx| {
-                            WindowLayers::remove(ctx, popup_id);
-                        });
+                        WindowLayers::remove(popup_id);
                     });
-                    on_move = async_hn!(status, |ctx, args: TransformChangedArgs| {
+                    on_move = async_hn!(status, |args: TransformChangedArgs| {
                         if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
                             return;
                         }
@@ -324,12 +319,10 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                         status.set(Status::Cancel);
                         task::deadline(200.ms()).await;
 
-                        ctx.with(|ctx| {
-                            WindowLayers::remove(ctx, popup_id);
-                        });
+                        WindowLayers::remove(popup_id);
                     });
 
-                    on_click = async_hn_once!(status, |ctx, args: ClickArgs| {
+                    on_click = async_hn_once!(status, |args: ClickArgs| {
                         if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
                             return;
                         }
@@ -373,9 +366,7 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
                         status.set(if ok { Status::Ok } else { Status::Err });
                         task::deadline(200.ms()).await;
 
-                        ctx.with(|ctx| {
-                            WindowLayers::remove(ctx, popup_id);
-                        });
+                        WindowLayers::remove(popup_id);
                     });
                 },
                 text!(" 🡵"),
@@ -384,7 +375,6 @@ pub fn try_open_link(ctx: &mut WidgetContext, args: &LinkArgs) -> bool {
     };
 
     WindowLayers::insert_anchored(
-        ctx,
         LayerIndex::ADORNER,
         args.link.widget_id(),
         AnchorMode::none().with_transform(Point::bottom()),
@@ -409,16 +399,16 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Text>) -> impl UiNode {
         #[var] anchor: impl Var<Text>,
     })]
     impl UiNode for AnchorNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
             if self.anchor.is_new() {
                 WIDGET.info();
             }
         }
 
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        fn info(&self, info: &mut WidgetInfoBuilder) {
             info.meta().set(&ANCHOR_ID, self.anchor.get());
-            self.child.info(ctx, info);
+            self.child.info(info);
         }
     }
     AnchorNode {

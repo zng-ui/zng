@@ -55,7 +55,7 @@ fn app_main() {
                     },
                     button! {
                         child = text!(count.map(|c| formatx!("Count: {c:?}")));
-                        on_click = hn!(count, |_, _| {
+                        on_click = hn!(count, |_| {
                             count.modify(|c| *c.to_mut() += 1).unwrap();
                         })
                     },
@@ -67,7 +67,7 @@ fn app_main() {
                     separator(),
                     button! {
                         child = text!("Reset");
-                        on_click = hn!(|_, _| {
+                        on_click = hn!(|_| {
                             checked.set_ne(false).unwrap();
                             count.set_ne(0).unwrap();
                             txt.set_ne("Save this").unwrap();
@@ -75,7 +75,7 @@ fn app_main() {
                     },
                     button! {
                         child = text!("Open Another Instance");
-                        on_click = hn!(|ctx, _| {
+                        on_click = hn!(|_| {
                             let offset = Dip::new(30);
                             let pos = WindowVars::req().actual_position().get() + DipVector::new(offset, offset);
                             let pos = pos.to_i32();
@@ -92,13 +92,13 @@ fn app_main() {
                     }
                 ];
             };
-            on_load = hn_once!(|ctx, _| {
+            on_load = hn_once!(|_| {
                 if let Ok(pos) = std::env::var("MOVE-TO") {
                     if let Some((x, y)) = pos.split_once(',') {
                         if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
                             let pos = DipPoint::new(Dip::new(x), Dip::new(y));
                             WindowVars::req().position().set(pos);
-                            WINDOWS.focus(ctx.path.window_id()).unwrap();
+                            WINDOWS.focus(WINDOW.id()).unwrap();
                         }
                     }
                 }

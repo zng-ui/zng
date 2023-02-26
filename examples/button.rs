@@ -43,21 +43,21 @@ fn example() -> impl UiNode {
     let mut count = 0;
 
     button! {
-        on_click = hn!(t, |_, _| {
+        on_click = hn!(t, |_| {
             count += 1;
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
             t.set(new_txt);
         });
-        on_double_click = hn!(|_, _| println!("double click!"));
-        on_triple_click = hn!(|_, _| println!("triple click!"));
-        on_context_click = hn!(|_, _| println!("context click!"));
+        on_double_click = hn!(|_| println!("double click!"));
+        on_triple_click = hn!(|_| println!("triple click!"));
+        on_context_click = hn!(|_| println!("context click!"));
         child = text!(t);
     }
 }
 
 fn disabled() -> impl UiNode {
     button! {
-        on_click = hn!(|_, _| panic!("disabled button"));
+        on_click = hn!(|_| panic!("disabled button"));
         enabled = false;
         child = text!("Disabled");
         id = "disabled-btn"
@@ -67,7 +67,7 @@ fn disabled() -> impl UiNode {
 fn image_button() -> impl UiNode {
     button! {
         id = "img-btn";
-        on_click = hn!(|_, _| println!("Clicked image button"));
+        on_click = hn!(|_| println!("Clicked image button"));
         child = stack! {
             direction = StackDirection::left_to_right();
             children_align = Align::CENTER;
@@ -91,11 +91,11 @@ fn dyn_buttons() -> impl UiNode {
         children = dyn_children.chain(ui_vec![
             button! {
                 child = text!("Add Button");
-                on_click = hn!(|ctx, _| {
+                on_click = hn!(|_| {
                     children_ref.push(button! {
                         child = text!("Remove {}", btn);
-                        on_click = hn!(children_ref, |ctx, _| {
-                            children_ref.remove(ctx.path.widget_id());
+                        on_click = hn!(children_ref, |_| {
+                            children_ref.remove(WIDGET.id());
                         })
                     });
 
@@ -139,18 +139,18 @@ fn toggle_buttons() -> impl UiNode {
             toggle! {
                 child = text!("Switch");
                 checked = var(false);
-                style_gen = style_gen!(|_, _| toggle::vis::switch_style!());
+                style_gen = style_gen!(|_| toggle::vis::switch_style!());
             },
             toggle! {
                 child = text!("Checkbox");
                 checked = var(false);
-                style_gen = style_gen!(|_, _| toggle::vis::check_style!());
+                style_gen = style_gen!(|_| toggle::vis::check_style!());
             },
             toggle! {
                 child = text!("Checkbox Tristate");
                 checked_opt = var(Some(false));
                 tristate = true;
-                style_gen = style_gen!(|_, _| toggle::vis::check_style!());
+                style_gen = style_gen!(|_| toggle::vis::check_style!());
             },
             stack! {
                 direction = StackDirection::top_to_bottom();
@@ -160,17 +160,17 @@ fn toggle_buttons() -> impl UiNode {
                     toggle! {
                         child = text!("Radio button (Tokyo)");
                         value::<&'static str> = "Tokyo";
-                        style_gen = style_gen!(|_, _| toggle::vis::radio_style!());
+                        style_gen = style_gen!(|_| toggle::vis::radio_style!());
                     },
                     toggle! {
                         child = text!("Radio button (Paris)");
                         value::<&'static str> = "Paris";
-                        style_gen = style_gen!(|_, _| toggle::vis::radio_style!());
+                        style_gen = style_gen!(|_| toggle::vis::radio_style!());
                     },
                     toggle! {
                         child = text!("Radio button (London)");
                         value::<&'static str> = "London";
-                        style_gen = style_gen!(|_, _| toggle::vis::radio_style!());
+                        style_gen = style_gen!(|_| toggle::vis::radio_style!());
                     },
                 ];
             }

@@ -94,31 +94,31 @@ fn listener_window(focused_wgt: bool) -> Window {
         handle_scoped_wgt: Option<CommandHandle>,
     })]
     impl UiNode for FooHandlerNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
+        fn init(&mut self) {
             self.handle = Some(FOO_CMD.subscribe(true));
-            self.handle_scoped = Some(FOO_CMD.scoped(ctx.path.window_id()).subscribe(true));
-            self.handle_scoped_wgt = Some(FOO_CMD.scoped(ctx.path.widget_id()).subscribe(true));
+            self.handle_scoped = Some(FOO_CMD.scoped(WINDOW.id()).subscribe(true));
+            self.handle_scoped_wgt = Some(FOO_CMD.scoped(WIDGET.id()).subscribe(true));
         }
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             if let Some(args) = FOO_CMD.on(update) {
                 args.handle(|args| {
                     TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
                 });
             }
 
-            if let Some(args) = FOO_CMD.scoped(ctx.path.window_id()).on(update) {
+            if let Some(args) = FOO_CMD.scoped(WINDOW.id()).on(update) {
                 args.handle(|args| {
                     TEST_TRACE.write().push(format!("scoped-win / {:?}", args.scope));
                 });
             }
 
-            if let Some(args) = FOO_CMD.scoped(ctx.path.widget_id()).on(update) {
+            if let Some(args) = FOO_CMD.scoped(WIDGET.id()).on(update) {
                 args.handle(|args| {
                     TEST_TRACE.write().push(format!("scoped-wgt / {:?}", args.scope));
                 });
             }
         }
-        fn deinit(&mut self, _: &mut WidgetContext) {
+        fn deinit(&mut self) {
             self.handle = None;
             self.handle_scoped = None;
             self.handle_scoped_wgt = None;

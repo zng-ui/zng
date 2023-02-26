@@ -77,8 +77,8 @@ pub mod foo {
         b_property = 1 + #a_property + 3;
 
         /// This property is set only when `a_property` is and it is a mapping of the a_property.
-        on_prop = hn!(#a_property, |ctx, _| {
-            println!(a_property.get(ctx));
+        on_prop = hn!(#a_property, |_| {
+            println!(a_property.get());
         });
     }
 }

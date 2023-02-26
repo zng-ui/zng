@@ -38,7 +38,7 @@ pub mod vis {
         /// Is the [`default_style!`] by default.
         ///
         /// [`default_style!`]: mod@default_style
-        pub static STYLE_VAR: StyleGenerator = StyleGenerator::new(|_, _| default_style!());
+        pub static STYLE_VAR: StyleGenerator = StyleGenerator::new(|_| default_style!());
     }
 
     /// Sets the link style in a context, the parent style is fully replaced.

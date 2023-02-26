@@ -60,20 +60,3 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
         hovered_binding: None,
     }
 }
-
-#[derive(Clone, Copy)]
-enum CursorState {
-    /// Restore to default.
-    Default,
-
-    /// Cursor already set by child.
-    Set,
-}
-
-impl Default for CursorState {
-    fn default() -> Self {
-        CursorState::Default
-    }
-}
-
-static CURSOR_STATE_ID: StaticStateId<CursorState> = StaticStateId::new_unique();

@@ -94,28 +94,26 @@ pub mod wrap {
     layout: Mutex<InlineLayout>
 })]
 impl UiNode for WrapNode {
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &mut WidgetUpdates) {
         let mut any = false;
-        self.children.update_all(ctx, updates, &mut any);
+        self.children.update_all(updates, &mut any);
 
         if any || self.spacing.is_new() || self.children_align.is_new() {
             WIDGET.layout();
         }
     }
 
-    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        let spacing = self.spacing.get().layout(ctx, |_| PxGridSpacing::zero());
-        self.layout
-            .lock()
-            .measure(ctx, wm, &self.children, self.children_align.get(), spacing)
+    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        let spacing = self.spacing.get().layout(&LAYOUT.metrics(), |_| PxGridSpacing::zero());
+        self.layout.lock().measure(wm, &self.children, self.children_align.get(), spacing)
     }
 
     #[allow_(zero_ui::missing_delegate)] // false positive
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let spacing = self.spacing.get().layout(ctx, |_| PxGridSpacing::zero());
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        let spacing = self.spacing.get().layout(&LAYOUT.metrics(), |_| PxGridSpacing::zero());
         self.layout
             .get_mut()
-            .layout(ctx, wl, &mut self.children, self.children_align.get(), spacing)
+            .layout(wl, &mut self.children, self.children_align.get(), spacing)
     }
 }
 
@@ -266,21 +264,15 @@ pub struct InlineLayout {
     bidi_default_segs: Arc<Vec<InlineSegmentPos>>,
 }
 impl InlineLayout {
-    pub fn measure(
-        &mut self,
-        ctx: &mut MeasureContext,
-        wm: &mut WidgetMeasure,
-        children: &PanelList,
-        child_align: Align,
-        spacing: PxGridSpacing,
-    ) -> PxSize {
-        let constrains = ctx.constrains();
+    pub fn measure(&mut self, wm: &mut WidgetMeasure, children: &PanelList, child_align: Align, spacing: PxGridSpacing) -> PxSize {
+        let metrics = LAYOUT.metrics();
+        let constrains = metrics.constrains();
 
-        if let (None, Some(known)) = (ctx.inline_constrains(), constrains.fill_or_exact()) {
+        if let (None, Some(known)) = (metrics.inline_constrains(), constrains.fill_or_exact()) {
             return known;
         }
 
-        self.measure_rows(ctx, children, child_align, spacing);
+        self.measure_rows(&metrics, children, child_align, spacing);
 
         if let Some(inline) = wm.inline() {
             inline.first_wrapped = self.first_wrapped;
@@ -311,26 +303,20 @@ impl InlineLayout {
         constrains.clamp_size(self.desired_size)
     }
 
-    pub fn layout(
-        &mut self,
-        ctx: &mut LayoutContext,
-        wl: &mut WidgetLayout,
-        children: &mut PanelList,
-        child_align: Align,
-        spacing: PxGridSpacing,
-    ) -> PxSize {
-        let inline_constrains = ctx.inline_constrains();
-        let direction = ctx.direction();
+    pub fn layout(&mut self, wl: &mut WidgetLayout, children: &mut PanelList, child_align: Align, spacing: PxGridSpacing) -> PxSize {
+        let metrics = LAYOUT.metrics();
+        let inline_constrains = metrics.inline_constrains();
+        let direction = metrics.direction();
 
         if inline_constrains.is_none() {
             // if not already measured by parent inline
-            self.measure_rows(&mut ctx.as_measure(), children, child_align, spacing);
+            self.measure_rows(&metrics, children, child_align, spacing);
         }
         if self.has_bidi_inline && !self.bidi_layout_fresh {
             self.layout_bidi(inline_constrains.clone(), direction, spacing.column);
         }
 
-        let constrains = ctx.constrains();
+        let constrains = metrics.constrains();
         let child_align_x = child_align.x(direction);
         let child_align_y = child_align.y();
 
@@ -380,9 +366,9 @@ impl InlineLayout {
             inline.rows.clear();
         }
 
-        ctx.with_constrains(
+        LAYOUT.with_constrains(
             |_| child_constrains,
-            |ctx| {
+            || {
                 let mut row = first;
                 let mut row_segs = &self.rows[0].item_segs;
                 let mut row_advance = Px(0);
@@ -419,14 +405,12 @@ impl InlineLayout {
                         (Px(0), Px(0), self.bidi_default_segs.clone())
                     };
 
-                    let child_inline = child.with_context(|ctx| ctx.widget_info.bounds.measure_inline()).flatten();
+                    let child_inline = child.with_context(|| WIDGET.bounds().measure_inline()).flatten();
                     if let Some(child_inline) = child_inline {
-                        let child_desired_size = child
-                            .with_context(|c| c.widget_info.bounds.measure_outer_size())
-                            .unwrap_or_default();
+                        let child_desired_size = child.with_context(|| WIDGET.bounds().measure_outer_size()).unwrap_or_default();
                         if child_desired_size.is_empty() {
                             // collapsed, continue.
-                            wl.collapse_child(ctx, i);
+                            wl.collapse_child(i);
                             return true;
                         }
 
@@ -479,8 +463,8 @@ impl InlineLayout {
                             }
 
                             let (_, define_ref_frame) =
-                                ctx.with_inline(child_first, child_mid, child_last, bidi_segs, last_bidi_segs, |ctx| {
-                                    wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))
+                                LAYOUT.layout_inline(child_first, child_mid, child_last, bidi_segs, last_bidi_segs, || {
+                                    wl.with_child(|wl| child.layout(wl))
                                 });
                             o.child_offset = PxVector::new(Px(0), row.origin.y);
                             o.define_reference_frame = define_ref_frame;
@@ -488,8 +472,8 @@ impl InlineLayout {
                             // new row
                             if let Some(inline) = wl.inline() {
                                 inline.rows.push(row);
-                                child.with_context(|ctx| {
-                                    if let Some(inner) = ctx.widget_info.bounds.inline() {
+                                child.with_context(|| {
+                                    if let Some(inner) = WIDGET.bounds().inline() {
                                         if inner.rows.len() >= 3 {
                                             inline.rows.extend(inner.rows[1..inner.rows.len() - 1].iter().map(|r| {
                                                 let mut r = *r;
@@ -525,11 +509,11 @@ impl InlineLayout {
                                 child_last.size.width = bidi_width;
                             }
 
-                            let (_, define_ref_frame) = ctx.with_constrains(
+                            let (_, define_ref_frame) = LAYOUT.with_constrains(
                                 |_| child_constrains.with_fill(false, false).with_max_size(max_size),
-                                |ctx| {
-                                    ctx.with_inline(child_first, child_mid, child_last, bidi_segs.clone(), bidi_segs, |ctx| {
-                                        wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))
+                                || {
+                                    LAYOUT.layout_inline(child_first, child_mid, child_last, bidi_segs.clone(), bidi_segs, || {
+                                        wl.with_child(|wl| child.layout(wl))
                                     })
                                 },
                             );
@@ -548,9 +532,9 @@ impl InlineLayout {
                         } else {
                             row.size.width - row_advance
                         };
-                        let (size, define_ref_frame) = ctx.with_constrains(
+                        let (size, define_ref_frame) = LAYOUT.with_constrains(
                             |_| child_constrains.with_fill(false, false).with_max(max_width, row.size.height),
-                            |ctx| ctx.with_inline_constrains(|_| None, |ctx| wl.with_child(ctx, |ctx, wl| child.layout(ctx, wl))),
+                            || LAYOUT.with_inline_layout(|_| None, || wl.with_child(|wl| child.layout(wl))),
                         );
                         if size.is_empty() {
                             // collapsed, continue.
@@ -585,7 +569,7 @@ impl InlineLayout {
         constrains.clamp_size(PxSize::new(panel_width, panel_height))
     }
 
-    fn measure_rows(&mut self, ctx: &mut MeasureContext, children: &PanelList, child_align: Align, spacing: PxGridSpacing) {
+    fn measure_rows(&mut self, metrics: &LayoutMetrics, children: &PanelList, child_align: Align, spacing: PxGridSpacing) {
         self.rows.begin_reuse();
         self.bidi_layout_fresh = false;
 
@@ -593,17 +577,17 @@ impl InlineLayout {
         self.desired_size = PxSize::zero();
         self.has_bidi_inline = false;
 
-        let direction = ctx.direction();
-        let constrains = ctx.constrains();
-        let inline_constrains = ctx.inline_constrains();
+        let direction = metrics.direction();
+        let constrains = metrics.constrains();
+        let inline_constrains = metrics.inline_constrains();
         let child_inline_constrain = constrains.x.max_or(Px::MAX);
         let child_constrains = PxConstrains2d::new_unbounded()
             .with_fill_x(child_align.is_fill_x())
             .with_max_x(child_inline_constrain);
         let mut row = self.rows.new_item();
-        ctx.with_constrains(
+        LAYOUT.with_constrains(
             |_| child_constrains,
-            |ctx| {
+            || {
                 children.for_each(|i, child, _| {
                     let mut inline_constrain = child_inline_constrain;
                     let mut wrap_clear_min = Px(0);
@@ -620,7 +604,7 @@ impl InlineLayout {
                         inline_constrain -= row.size.width;
                     }
 
-                    let (inline, size) = ctx.measure_inline(inline_constrain, row.size.height - spacing.row, child);
+                    let (inline, size) = LAYOUT.measure_inline(inline_constrain, row.size.height - spacing.row, child);
 
                     if size.is_empty() {
                         row.item_segs.push(ItemSegsInfo::new_collapsed());
@@ -726,7 +710,7 @@ impl InlineLayout {
             let sum_width = row.item_segs.iter().map(|s| Px(s.measure_width() as i32)).sum::<Px>();
 
             if (sum_width - width) > Px(1) {
-                if ctx.inline_constrains().is_some() && (i == 0 || i == self.rows.len() - 1) {
+                if metrics.inline_constrains().is_some() && (i == 0 || i == self.rows.len() - 1) {
                     tracing::error!("wrap! panel row {i} inline width is {width}, but sum of segs is {sum_width}");
                     continue;
                 }

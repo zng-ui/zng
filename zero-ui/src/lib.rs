@@ -60,7 +60,7 @@
 //! # use zero_ui::prelude::*;
 //! # let _scope = App::minimal();
 //! button! {
-//!     on_click = hn!(|_, _| println!("Clicked!"));
+//!     on_click = hn!(|_| println!("Clicked!"));
 //!     child = text!("Click Me!");
 //!     font_size = 28;
 //! }
@@ -134,7 +134,7 @@
 //! # let _scope = App::minimal();
 //! let btn = red_button! {
 //!     child = text!("!");
-//!     on_click = hn!(|_, _| println!("Alert!"));
+//!     on_click = hn!(|_| println!("Alert!"));
 //! };
 //! # }
 //! ```
@@ -270,7 +270,7 @@
 //! let offset = var(SideOffsets::from(10));
 //! let moving_btn = button! {
 //!     margin = offset.clone();
-//!     on_click = hn!(|_, _| {
+//!     on_click = hn!(|_| {
 //!         offset.modify(|m|m.to_mut().left += 50.0);
 //!     });
 //!     child = text!("Click to Move!")
@@ -293,7 +293,7 @@
 //! let flag = var(false);
 //! let btn = button! {
 //!     child = text!(flag.map_to_text());
-//!     on_click = hn!(|_, _| {
+//!     on_click = hn!(|_| {
 //!         flag.set(!flag.get());
 //!     });
 //! };
@@ -314,7 +314,7 @@
 //! let flag = var(false);
 //! let btn = button! {
 //!     child = text!(flag.map_to_text());
-//!     on_click = hn!(|_, _| {
+//!     on_click = hn!(|_| {
 //!         let new_value = !flag.get();
 //!         // 3 methods doing the same thing.
 //!         flag.set(new_value);
@@ -343,7 +343,7 @@
 //!             n => formatx!("Clicked {n} Times!")
 //!         }
 //!     }));
-//!     on_click = hn!(|_, _| {
+//!     on_click = hn!(|_| {
 //!         let next = count.get() + 1;
 //!         count.set(next);
 //!     });
@@ -374,7 +374,7 @@
 //!     window! {
 //!         child = button! {
 //!             child = text!(count_text);
-//!             on_click = hn!(|_, _| {
+//!             on_click = hn!(|_| {
 //!                 count.modify(|c| *c.to_mut() += 1);
 //!             });
 //!         }
@@ -415,7 +415,7 @@
 //!     // `on_click` only works when the button is enabled.
 //!     enabled = task_status.map(|s| matches!(s, Status::Idle));
 //!
-//!     on_click = hn!(|_, _| {
+//!     on_click = hn!(|_| {
 //!         // the status sender.
 //!         let status = task_status.sender();
 //!         task::spawn(async move {
@@ -461,7 +461,7 @@
 //! let mut count = 0;
 //!
 //! button! {
-//!     on_click = hn!(|_, _| {
+//!     on_click = hn!(|_| {
 //!         count += 1;
 //!         println!("Clicked {count} time{}", if count > 1 { "s" } else { "" });
 //!     });
@@ -516,7 +516,7 @@
 //! let count = var(0u32);
 //!
 //! button! {
-//!     on_click = hn!(count, |_, _| {
+//!     on_click = hn!(count, |_| {
 //!         count.modify(|c| *c.to_mut() += 1);
 //!     });
 //!     child = text!(count.map_to_text());
@@ -535,7 +535,7 @@
 //! # let _scope = App::minimal();
 //! # let status = var("Waiting Click..".to_text());
 //! button! {
-//!     on_click = async_hn!(status, |_, _| {
+//!     on_click = async_hn!(status, |_| {
 //!         status.set("Loading..");
 //!         match task::wait(|| std::fs::read("some/data")).await {
 //!             Ok(data) => {
@@ -560,7 +560,7 @@
 //! # let status = var("Waiting Double Click..".to_text());
 //! # async fn some_task(status: ArcVar<Text>) { }
 //! button! {
-//!     on_click = async_hn!(status, |_, args: ClickArgs| {
+//!     on_click = async_hn!(status, |args: ClickArgs| {
 //!         if args.is_double() {
 //!             some_task(status.clone()).await;
 //!             status.set("Done.");
@@ -585,7 +585,7 @@
 //! # let status = var("Waiting Click..".to_text());
 //! let data = vec![0, 1];
 //! button! {
-//!     on_click = async_hn_once!(|ctx, _| {
+//!     on_click = async_hn_once!(|_| {
 //!         task::wait(move || std::fs::write("data.bin", data)).await;
 //!     });
 //!#    child = text!("Save");
@@ -603,12 +603,12 @@
 //! # use zero_ui::prelude::*;
 //! # let _scope = App::minimal();
 //! button! {
-//!     on_pre_click = hn!(|_, a: &ClickArgs|{
+//!     on_pre_click = hn!(|a: &ClickArgs|{
 //!         if a.is_double() {
 //!             a.propagation().stop();
 //!         }
 //!     });
-//!     on_click = hn!(|_, a: &ClickArgs|{
+//!     on_click = hn!(|a: &ClickArgs|{
 //!         assert!(!a.is_double());
 //!         println!("Clicked!");
 //!     });
@@ -627,16 +627,16 @@
 //! # use zero_ui::prelude::*;
 //! # let _scope = App::minimal();
 //! window! {
-//!     on_pre_click = hn!(|_, _| println!("window.on_pre_click"));
-//!     on_click = hn!(|_, _| println!("window.on_click"));
+//!     on_pre_click = hn!(|_| println!("window.on_pre_click"));
+//!     on_click = hn!(|_| println!("window.on_click"));
 //!
 //!     child = container! {
-//!         on_pre_click = hn!(|_, _| println!("container.on_pre_click"));
-//!         on_click = hn!(|_, _| println!("container.on_click"));
+//!         on_pre_click = hn!(|_| println!("container.on_pre_click"));
+//!         on_click = hn!(|_| println!("container.on_click"));
 //!
 //!         child = button! {
-//!             on_pre_click = hn!(|_, _| println!("button.on_pre_click"));
-//!             on_click = hn!(|_, _| println!("button.on_click"));
+//!             on_pre_click = hn!(|_| println!("button.on_pre_click"));
+//!             on_click = hn!(|_| println!("button.on_click"));
 //!
 //!             child = text!("Click Me!");
 //!         };
@@ -675,7 +675,7 @@
 //! # let _scope = App::minimal();
 //! #
 //! button! {
-//!     on_click = hn!(|_, _| COPY_CMD.notify());
+//!     on_click = hn!(|_| COPY_CMD.notify());
 //!     child = text!(COPY_CMD.name());
 //!     enabled = COPY_CMD.is_enabled();
 //!     visibility = COPY_CMD.has_handlers().map_into();
@@ -705,9 +705,9 @@
 //! # fn test() -> impl WidgetHandler<()> {
 //! # let foo_var = var(true);
 //! # static FOO_ID: zero_ui::core::context::StaticStateId<bool> = zero_ui::core::context::StaticStateId::new_unique();
-//! hn!(|ctx, _| {
-//!     let value_ref = foo_var.get();
-//!     let state_ref = ctx.widget_state.get(&FOO_ID);
+//! hn!(|_| {
+//!     let value = foo_var.get();
+//!     let state = WIDGET.get_state(&FOO_ID);
 //! })
 //! # }
 //! ```
@@ -731,7 +731,7 @@
 //! # let _ =
 //! button! {
 //!     child = text!("Open Window");
-//!     on_click = hn!(|ctx, _| {
+//!     on_click = hn!(|_| {
 //!         WINDOWS.open(|_| window! {
 //!             child = text!("Hello!");
 //!         });
@@ -892,7 +892,7 @@ pub mod prelude {
         border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
         clone_move,
         color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
-        context::LayoutDirection,
+        context::{LayoutDirection, WIDGET, WINDOW},
         event::{AnyEventArgs, Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, EVENTS},
         focus::{DirectionalNav, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav, FOCUS},
         gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},

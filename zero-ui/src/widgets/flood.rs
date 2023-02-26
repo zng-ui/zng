@@ -13,7 +13,7 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
                 WIDGET.render_update();
             }
         }
-        fn measure(&self) -> PxSize {
+        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
             LAYOUT.constrains().fill_size()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {

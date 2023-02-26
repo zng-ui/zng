@@ -210,7 +210,7 @@ pub mod text_input_vis {
         /// Is the [`default_style!`] by default.
         ///
         /// [`default_style!`]: mod@default_style
-        pub static STYLE_VAR: StyleGenerator = StyleGenerator::new(|_, _| default_style!());
+        pub static STYLE_VAR: StyleGenerator = StyleGenerator::new(|_| default_style!());
 
         /// Idle background dark and light color.
         pub static BASE_COLORS_VAR: ColorPair = (rgb(0.12, 0.12, 0.12), rgb(0.88, 0.88, 0.88));

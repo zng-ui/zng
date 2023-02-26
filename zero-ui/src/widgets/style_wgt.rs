@@ -323,7 +323,7 @@ impl StyleGenerator {
     /// [`is_nil`]: Self::is_nil
     pub fn generate(&self, args: &StyleArgs) -> Option<Style> {
         if let Some(g) = &self.0 {
-            let style = g(ctx, args);
+            let style = g(args);
             if !style.is_empty() {
                 return Some(style);
             }

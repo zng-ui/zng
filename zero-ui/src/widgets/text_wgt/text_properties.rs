@@ -200,25 +200,25 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
         child: impl UiNode,
     })]
     impl UiNode for FontSizeNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_var(&FONT_SIZE_VAR);
-            self.child.init(ctx);
+        fn init(&mut self) {
+            WIDGET.sub_var(&FONT_SIZE_VAR);
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if FONT_SIZE_VAR.is_new() {
                 WIDGET.layout();
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            let font_size = FONT_SIZE_VAR.get().layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
-            ctx.with_font_size(font_size, |ctx| self.child.measure(ctx, wm))
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            let font_size = FONT_SIZE_VAR.get().layout(LAYOUT.metrics().for_y(), |m| m.metrics.root_font_size());
+            LAYOUT.with_font_size(font_size, || self.child.measure(wm))
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let font_size = FONT_SIZE_VAR.get().layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
-            ctx.with_font_size(font_size, |ctx| self.child.layout(ctx, wl))
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            let font_size = FONT_SIZE_VAR.get().layout(LAYOUT.metrics().for_y(), |m| m.metrics.root_font_size());
+            LAYOUT.with_font_size(font_size, || self.child.layout(wl))
         }
     }
     let child = FontSizeNode { child };
@@ -593,20 +593,20 @@ pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -
         #[var] direction: impl Var<LayoutDirection>,
     })]
     impl UiNode for DirectionNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
 
             if self.direction.is_new() {
                 WIDGET.layout();
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            ctx.with_direction(self.direction.get(), |ctx| self.child.measure(ctx, wm))
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            LAYOUT.with_direction(self.direction.get(), || self.child.measure(wm))
         }
 
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            ctx.with_direction(self.direction.get(), |ctx| self.child.layout(ctx, wl))
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            LAYOUT.with_direction(self.direction.get(), || self.child.layout(wl))
         }
     }
     let direction = direction.into_var();

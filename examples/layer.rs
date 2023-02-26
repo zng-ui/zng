@@ -32,8 +32,8 @@ fn app_main() {
 
             // you can use the pre-init to insert layered widgets
             // before the first render.
-            on_pre_init = hn!(|ctx, _| {
-                WindowLayers::insert(ctx, LayerIndex::TOP_MOST - 100, text! {
+            on_pre_init = hn!(|_| {
+                WindowLayers::insert(LayerIndex::TOP_MOST - 100, text! {
                     hit_test_mode = HitTestMode::Disabled;
                     txt = "on_pre_init";
                     font_size = 72;
@@ -62,8 +62,8 @@ fn app_main() {
 fn overlay_example() -> impl UiNode {
     button! {
         child = text!("TOP_MOST");
-        on_click = hn!(|ctx, _| {
-            WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay("overlay", 0));
+        on_click = hn!(|_| {
+            WindowLayers::insert(LayerIndex::TOP_MOST, overlay("overlay", 0));
         });
     }
 }
@@ -83,7 +83,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                 colors::GREEN.darken(80.pct()),
                 colors::WHITE.with_alpha(80.pct()).mix_normal(colors::GREEN)
             );
-            button::vis::extend_style = style_gen!(|_, _| style! {
+            button::vis::extend_style = style_gen!(|_| style! {
                 corner_radius = unset!;
             });
             padding = 2;
@@ -102,14 +102,14 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                             button! {
                                 visibility = offset < 50;
                                 child = text!("Open Another");
-                                on_click = hn!(|ctx, _| {
-                                    WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay(WidgetId::new_unique(), offset + 10));
+                                on_click = hn!(|_| {
+                                    WindowLayers::insert(LayerIndex::TOP_MOST, overlay(WidgetId::new_unique(), offset + 10));
                                 })
                             },
                             button! {
                                 child = text!("Remove");
-                                on_click = hn!(|ctx, _| {
-                                    WindowLayers::remove(ctx, id);
+                                on_click = hn!(|_| {
+                                    WindowLayers::remove(id);
                                 })
                             },
                         ]
@@ -136,9 +136,9 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
     let label = formatx!("Layer {n}");
     button! {
         child = text!(label.clone());
-        on_click = async_hn!(label, |ctx, _| {
+        on_click = async_hn!(label, |_| {
             let id = WidgetId::new_unique();
-            ctx.with(|ctx| WindowLayers::insert(ctx, n, container! {
+            WindowLayers::insert(n, container! {
                 id;
                 child = text! {
                     txt = label.clone();
@@ -154,11 +154,11 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
                 };
                 align = Align::TOP;
                 hit_test_mode = HitTestMode::Disabled;
-            }));
+            });
 
-            task::deadline(2.secs()).await;
+            task::deadline(2.secs()).await; // wait fade-out
 
-            ctx.with(|ctx| WindowLayers::remove(ctx, id));
+            WindowLayers::remove(id);
         });
     }
 }
@@ -186,7 +186,7 @@ fn anchor_example() -> impl UiNode {
         corner_radius: false,
     });
 
-    let next_point = hn!(|_, _| {
+    let next_point = hn!(|_| {
         point_index.modify(move |i| {
             let next = **i + 1;
             *i.to_mut() = if next == points_len { 0 } else { next };
@@ -200,8 +200,8 @@ fn anchor_example() -> impl UiNode {
         margin = (60, 0);
         align = Align::CENTER;
 
-        on_mouse_enter = hn!(|ctx, _| {
-            WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "anchor", anchor_mode.clone(), text! {
+        on_mouse_enter = hn!(|_| {
+            WindowLayers::insert_anchored(LayerIndex::ADORNER, "anchor", anchor_mode.clone(), text! {
                 id = "anchored";
                 txt = "Example";
                 txt_color = rgb(0.92, 0.92, 0.92);
@@ -214,8 +214,8 @@ fn anchor_example() -> impl UiNode {
                 hit_test_mode = HitTestMode::Disabled;
             })
         });
-        on_mouse_leave = hn!(|ctx, _| {
-            WindowLayers::remove(ctx, "anchored");
+        on_mouse_leave = hn!(|_| {
+            WindowLayers::remove("anchored");
         });
 
         on_click = next_point;
@@ -231,9 +231,9 @@ fn transform_anchor_example() -> impl UiNode {
         rotate = 20.deg();
         scale = 110.pct();
 
-        on_click = hn!(|ctx, _| {
+        on_click = hn!(|_| {
             if insert {
-                WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), container! {
+                WindowLayers::insert_anchored(LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), container! {
                     id = "t-anchored";
                     child_align = Align::TOP_LEFT;
                     border = 1, colors::GREEN.lighten(30.pct());
@@ -245,7 +245,7 @@ fn transform_anchor_example() -> impl UiNode {
                     }
                 })
             } else {
-                WindowLayers::remove(ctx, "t-anchored");
+                WindowLayers::remove("t-anchored");
             }
             insert = !insert;
         })

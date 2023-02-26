@@ -96,7 +96,7 @@ fn commands() -> impl UiNode {
             button! {
                 child = text!(show.map(|s| if !s { "Commands" } else { "Close" }.to_text()));
                 margin = show.map(|s| if !s { 0.into() } else { (3, 0, 0, 0).into() });
-                on_click = hn!(|_, _| {
+                on_click = hn!(|_| {
                     show.modify(|s| *s.to_mut() = !**s);
                 });
 
@@ -112,7 +112,7 @@ fn cmd_btn(cmd: Command) -> impl UiNode {
         child = text!(cmd.name_with_shortcut());
         enabled = cmd.is_enabled();
         // visibility = cmd.has_handlers().map_into();
-        on_click = hn!(|_, _| {
+        on_click = hn!(|_| {
             cmd.notify();
         });
 
@@ -128,7 +128,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     button! {
         child = text!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" });
         enabled = cmd.is_enabled();
-        on_click = hn!(|_, _| {
+        on_click = hn!(|_| {
             commands::scroll_to(scroll, target, mode.clone());
         });
 

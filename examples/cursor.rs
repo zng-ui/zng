@@ -27,7 +27,7 @@ fn app_main() {
             child = v_stack(ui_vec![
                 grid! {
                     columns = ui_vec![grid::column!(1.lft()); 5];
-                    auto_grow_gen = wgt_gen!(|_, _| grid::row!(1.lft()));
+                    auto_grow_gen = wgt_gen!(|_| grid::row!(1.lft()));
                     cells = demos;
                 },
                 center(cursor_demo(None)),

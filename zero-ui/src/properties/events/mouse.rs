@@ -6,7 +6,7 @@
 //! [`on_click`](fn@super::gesture::on_click) event.
 
 use super::event_property;
-use crate::core::mouse::*;
+use crate::core::{context::WIDGET, mouse::*};
 
 event_property! {
     /// Mouse cursor moved over the widget.
@@ -19,112 +19,112 @@ event_property! {
     pub fn mouse_input {
         event: MOUSE_INPUT_EVENT,
         args: MouseInputArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse button pressed or release while the cursor is over the widget and the widget is disabled.
     pub fn disabled_mouse_input {
         event: MOUSE_INPUT_EVENT,
         args: MouseInputArgs,
-        filter: |ctx, args| args.is_disabled(ctx.path.widget_id()),
+        filter: |args| args.is_disabled(WIDGET.id()),
     }
 
     /// Mouse button pressed while the cursor is over the widget and the widget is enabled.
     pub fn mouse_down {
         event: MOUSE_INPUT_EVENT,
         args: MouseInputArgs,
-        filter: |ctx, args| args.is_mouse_down() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_mouse_down() && args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse button released while the cursor if over the widget and the widget is enabled.
     pub fn mouse_up {
         event: MOUSE_INPUT_EVENT,
         args: MouseInputArgs,
-        filter: |ctx, args| args.is_mouse_up() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_mouse_up() && args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse clicked on the widget with any button and including double+ clicks and the widget is enabled.
     pub fn mouse_any_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse clicked on the widget with any button and including double+ clicks and the widget is disabled.
     pub fn disabled_mouse_any_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
-        filter: |ctx, args| args.is_disabled(ctx.path.widget_id()),
+        filter: |args| args.is_disabled(WIDGET.id()),
     }
 
     /// Mouse clicked on the widget with any button but excluding double+ clicks and the widget is enabled.
     pub fn mouse_any_single_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
-        filter: |ctx, args| args.is_single() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_single() && args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse double clicked on the widget with any button and the widget is enabled.
     pub fn mouse_any_double_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
-        filter: |ctx, args| args.is_double() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_double() && args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse triple clicked on the widget with any button and the widget is enabled.
     pub fn mouse_any_triple_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
-        filter: |ctx, args| args.is_triple() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_triple() && args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse clicked on the widget with the primary button including double+ clicks and the widget is enabled.
     pub fn mouse_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_primary() && args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse clicked on the widget with the primary button including double+ clicks and the widget is disabled.
     pub fn disabled_mouse_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_disabled(ctx.path.widget_id()),
+        filter: |args| args.is_primary() && args.is_disabled(WIDGET.id()),
     }
 
     /// Mouse clicked on the widget with the primary button excluding double+ clicks and the widget is enabled.
     pub fn mouse_single_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_single() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_primary() && args.is_single() && args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse double clicked on the widget with the primary button and the widget is enabled.
     pub fn mouse_double_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_double() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_primary() && args.is_double() && args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse triple clicked on the widget with the primary button and the widget is enabled.
     pub fn mouse_triple_click {
         event: MOUSE_CLICK_EVENT,
         args: MouseClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_triple() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_primary() && args.is_triple() && args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse is now over the widget or a descendant widget and the widget is enabled.
     pub fn mouse_enter {
         event: MOUSE_HOVERED_EVENT,
         args: MouseHoverArgs,
-        filter: |ctx, args| args.is_mouse_enter_enabled(ctx.path),
+        filter: |args| args.is_mouse_enter_enabled(),
     }
 
     /// Mouse is no longer over the widget or any descendant widget and the widget is enabled.
     pub fn mouse_leave {
         event: MOUSE_HOVERED_EVENT,
         args: MouseHoverArgs,
-        filter: |ctx, args| args.is_mouse_leave_enabled(ctx.path),
+        filter: |args| args.is_mouse_leave_enabled(),
     }
 
     /// Mouse entered or left the widget and descendant widgets area and the widget is enabled.
@@ -136,28 +136,28 @@ event_property! {
     pub fn mouse_hovered {
         event: MOUSE_HOVERED_EVENT,
         args: MouseHoverArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse entered or left the widget and descendant widgets area and the widget is disabled.
     pub fn disabled_mouse_hovered {
         event: MOUSE_HOVERED_EVENT,
         args: MouseHoverArgs,
-        filter: |ctx, args| args.is_disabled(ctx.path.widget_id()),
+        filter: |args| args.is_disabled(WIDGET.id()),
     }
 
     /// Widget acquired mouse capture.
     pub fn got_mouse_capture {
         event: MOUSE_CAPTURE_EVENT,
         args: MouseCaptureArgs,
-        filter: |ctx, args| args.is_got(ctx.path.widget_id()),
+        filter: |args| args.is_got(WIDGET.id()),
     }
 
     /// Widget lost mouse capture.
     pub fn lost_mouse_capture {
         event: MOUSE_CAPTURE_EVENT,
         args: MouseCaptureArgs,
-        filter: |ctx, args| args.is_lost(ctx.path.widget_id()),
+        filter: |args| args.is_lost(WIDGET.id()),
     }
 
     /// Widget acquired or lost mouse capture.
@@ -170,14 +170,14 @@ event_property! {
     pub fn mouse_wheel {
         event: MOUSE_WHEEL_EVENT,
         args: MouseWheelArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse wheel scrolled while pointer is hovering widget and the widget is disabled.
     pub fn disabled_mouse_wheel {
         event: MOUSE_WHEEL_EVENT,
         args: MouseWheelArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse wheel scrolled while pointer is hovering the widget and the pressed keyboard modifiers allow a scroll operation and
@@ -185,7 +185,7 @@ event_property! {
     pub fn mouse_scroll {
         event: MOUSE_WHEEL_EVENT,
         args: MouseWheelArgs,
-        filter: |ctx, args| args.is_scroll() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_scroll() && args.is_enabled(WIDGET.id()),
     }
 
     /// Mouse wheel scrolled while pointer is hovering the widget and the pressed keyboard modifiers allow a zoom operation and
@@ -193,6 +193,6 @@ event_property! {
     pub fn mouse_zoom {
         event: MOUSE_WHEEL_EVENT,
         args: MouseWheelArgs,
-        filter: |ctx, args| args.is_zoom() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_zoom() && args.is_enabled(WIDGET.id()),
     }
 }

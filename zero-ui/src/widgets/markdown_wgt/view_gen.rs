@@ -205,55 +205,55 @@ pub struct PanelGenArgs {
 
 context_var! {
     /// Widget generator for a markdown text segment.
-    pub static TEXT_GEN_VAR: WidgetGenerator<TextGenArgs> = WidgetGenerator::new(|_, args| default_text_gen(args));
+    pub static TEXT_GEN_VAR: WidgetGenerator<TextGenArgs> = WidgetGenerator::new(|args| default_text_gen(args));
 
     /// Widget generator for a markdown link segment.
-    pub static LINK_GEN_VAR: WidgetGenerator<LinkGenArgs> = WidgetGenerator::new(|_, args| default_link_gen(args));
+    pub static LINK_GEN_VAR: WidgetGenerator<LinkGenArgs> = WidgetGenerator::new(|args| default_link_gen(args));
 
     /// Widget generator for a markdown inline code segment.
-    pub static CODE_INLINE_GEN_VAR: WidgetGenerator<CodeInlineGenArgs> = WidgetGenerator::new(|_, args| default_code_inline_gen(args));
+    pub static CODE_INLINE_GEN_VAR: WidgetGenerator<CodeInlineGenArgs> = WidgetGenerator::new(|args| default_code_inline_gen(args));
 
     /// Widget generator for a markdown code block segment.
-    pub static CODE_BLOCK_GEN_VAR: WidgetGenerator<CodeBlockGenArgs> = WidgetGenerator::new(|_, args| default_code_block_gen(args));
+    pub static CODE_BLOCK_GEN_VAR: WidgetGenerator<CodeBlockGenArgs> = WidgetGenerator::new(|args| default_code_block_gen(args));
 
     /// Widget generator for a markdown paragraph.
-    pub static PARAGRAPH_GEN_VAR: WidgetGenerator<ParagraphGenArgs> = WidgetGenerator::new(|_, args| default_paragraph_gen(args));
+    pub static PARAGRAPH_GEN_VAR: WidgetGenerator<ParagraphGenArgs> = WidgetGenerator::new(|args| default_paragraph_gen(args));
 
     /// Widget generator for a markdown heading.
-    pub static HEADING_GEN_VAR: WidgetGenerator<HeadingGenArgs> = WidgetGenerator::new(|_, args| default_heading_gen(args));
+    pub static HEADING_GEN_VAR: WidgetGenerator<HeadingGenArgs> = WidgetGenerator::new(|args| default_heading_gen(args));
 
     /// Widget generator for a markdown list.
-    pub static LIST_GEN_VAR: WidgetGenerator<ListGenArgs> = WidgetGenerator::new(|_, args| default_list_gen(args));
+    pub static LIST_GEN_VAR: WidgetGenerator<ListGenArgs> = WidgetGenerator::new(|args| default_list_gen(args));
 
     /// Widget generator for a markdown list item bullet, checkmark or number.
-    pub static LIST_ITEM_BULLET_GEN_VAR: WidgetGenerator<ListItemBulletGenArgs> = WidgetGenerator::new(|_, args| default_list_item_bullet_gen(args));
+    pub static LIST_ITEM_BULLET_GEN_VAR: WidgetGenerator<ListItemBulletGenArgs> = WidgetGenerator::new(|args| default_list_item_bullet_gen(args));
 
     /// Widget generator for a markdown list item content.
-    pub static LIST_ITEM_GEN_VAR: WidgetGenerator<ListItemGenArgs> = WidgetGenerator::new(|_, args| default_list_item_gen(args));
+    pub static LIST_ITEM_GEN_VAR: WidgetGenerator<ListItemGenArgs> = WidgetGenerator::new(|args| default_list_item_gen(args));
 
     /// Widget generator for a markdown image.
-    pub static IMAGE_GEN_VAR: WidgetGenerator<ImageGenArgs> = WidgetGenerator::new(|_, args| default_image_gen(args));
+    pub static IMAGE_GEN_VAR: WidgetGenerator<ImageGenArgs> = WidgetGenerator::new(|args| default_image_gen(args));
 
     /// Widget generator for a markdown rule line.
-    pub static RULE_GEN_VAR: WidgetGenerator<RuleGenArgs> = WidgetGenerator::new(|_, args| default_rule_gen(args));
+    pub static RULE_GEN_VAR: WidgetGenerator<RuleGenArgs> = WidgetGenerator::new(|args| default_rule_gen(args));
 
     /// Widget generator for a markdown block quote.
-    pub static BLOCK_QUOTE_GEN_VAR: WidgetGenerator<BlockQuoteGenArgs> = WidgetGenerator::new(|_, args| default_block_quote_gen(args));
+    pub static BLOCK_QUOTE_GEN_VAR: WidgetGenerator<BlockQuoteGenArgs> = WidgetGenerator::new(|args| default_block_quote_gen(args));
 
     /// Widget generator for an inline reference to a footnote.
-    pub static FOOTNOTE_REF_GEN_VAR: WidgetGenerator<FootnoteRefGenArgs> = WidgetGenerator::new(|_, args| default_footnote_ref_gen(args));
+    pub static FOOTNOTE_REF_GEN_VAR: WidgetGenerator<FootnoteRefGenArgs> = WidgetGenerator::new(|args| default_footnote_ref_gen(args));
 
     /// Widget generator for a footnote definition block.
-    pub static FOOTNOTE_DEF_GEN_VAR: WidgetGenerator<FootnoteDefGenArgs> = WidgetGenerator::new(|_, args| default_footnote_def_gen(args));
+    pub static FOOTNOTE_DEF_GEN_VAR: WidgetGenerator<FootnoteDefGenArgs> = WidgetGenerator::new(|args| default_footnote_def_gen(args));
 
     /// Widget generator for a markdown table.
-    pub static TABLE_GEN_VAR: WidgetGenerator<TableGenArgs> = WidgetGenerator::new(|_, args| default_table_gen(args));
+    pub static TABLE_GEN_VAR: WidgetGenerator<TableGenArgs> = WidgetGenerator::new(|args| default_table_gen(args));
 
     /// Widget generator for a markdown table body cell.
-    pub static TABLE_CELL_GEN_VAR: WidgetGenerator<TableCellGenArgs> = WidgetGenerator::new(|_, args| default_table_cell_gen(args));
+    pub static TABLE_CELL_GEN_VAR: WidgetGenerator<TableCellGenArgs> = WidgetGenerator::new(|args| default_table_cell_gen(args));
 
     /// Widget generator for a markdown panel.
-    pub static PANEL_GEN_VAR: WidgetGenerator<PanelGenArgs> = WidgetGenerator::new(|_, args| default_panel_gen(args));
+    pub static PANEL_GEN_VAR: WidgetGenerator<PanelGenArgs> = WidgetGenerator::new(|args| default_panel_gen(args));
 }
 
 /// Widget generator that converts [`TextGenArgs`] to widgets.
@@ -483,10 +483,10 @@ pub fn default_link_gen(args: LinkGenArgs) -> impl UiNode {
         crate::widgets::link! {
             child = items;
 
-            on_click = hn!(|ctx, args: &ClickArgs| {
+            on_click = hn!(|args: &ClickArgs| {
                 args.propagation().stop();
 
-                let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
+                let link = WINDOW.widget_tree().get(WIDGET.id()).unwrap().interaction_path();
                 markdown::LINK_EVENT.notify(markdown::LinkArgs::now(url.clone(), link));
             });
         }
@@ -699,7 +699,7 @@ pub fn default_image_gen(args: ImageGenArgs) -> impl UiNode {
         image! {
             align = Align::TOP_LEFT;
             source = args.source;
-            img_error_gen = wgt_gen!(|_, _| {
+            img_error_gen = wgt_gen!(|_| {
                 alt_items.take_on_init()
             });
         }
@@ -754,7 +754,7 @@ pub fn default_table_gen(args: TableGenArgs) -> impl UiNode {
         background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
         border = 1, TEXT_COLOR_VAR.map(|c| c.with_alpha(30.pct()).into());
         align = Align::LEFT;
-        auto_grow_gen = wgt_gen!(|_, args: grid::AutoGrowGenArgs| {
+        auto_grow_gen = wgt_gen!(|args: grid::AutoGrowGenArgs| {
             grid::row! {
                 border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
                 background_color = {
@@ -832,10 +832,10 @@ pub fn default_footnote_ref_gen(args: FootnoteRefGenArgs) -> impl UiNode {
         offset = (0, (-0.5).em());
         markdown::anchor = formatx!("footnote-ref-{}", args.label);
         child = text!("[{}]", args.label);
-        on_click = hn!(|ctx, args: &ClickArgs| {
+        on_click = hn!(|args: &ClickArgs| {
             args.propagation().stop();
 
-            let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
+            let link = WINDOW.widget_tree().get(WIDGET.id()).unwrap().interaction_path();
             markdown::LINK_EVENT.notify(markdown::LinkArgs::now(url.clone(), link));
         });
     }
@@ -868,10 +868,10 @@ pub fn default_footnote_def_gen(args: FootnoteDefGenArgs) -> impl UiNode {
         children = ui_vec![
             link! {
                 child = text!("[^{}]", args.label);
-                on_click = hn!(|ctx, args: &ClickArgs| {
+                on_click = hn!(|args: &ClickArgs| {
                     args.propagation().stop();
 
-                    let link = ctx.info_tree.get(ctx.path.widget_id()).unwrap().interaction_path();
+                    let link = WINDOW.widget_tree().get(WIDGET.id()).unwrap().interaction_path();
                     markdown::LINK_EVENT.notify(markdown::LinkArgs::now(url_back.clone(), link));
                 });
             },

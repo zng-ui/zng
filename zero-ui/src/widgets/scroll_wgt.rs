@@ -102,46 +102,45 @@ pub mod scroll {
             // | 2 - h_scrollbar | 3 | - scrollbar_joiner
             // +-----------------+---+
 
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-                let constrains = ctx.constrains();
+            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+                let constrains = LAYOUT.constrains();
                 if constrains.is_fill_max().all() {
                     return constrains.fill_size();
                 }
-                let size = self.children.with_node(0, |n| n.measure(ctx, wm));
+                let size = self.children.with_node(0, |n| n.measure(wm));
                 constrains.clamp_size(size)
             }
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
                 // scrollbars
                 {
-                    let mut ctx = ctx.as_measure();
-                    self.joiner.width = ctx.with_constrains(
+                    self.joiner.width = LAYOUT.with_constrains(
                         |c| c.with_min_x(Px(0)).with_fill(false, true),
-                        |ctx| self.children.with_node(1, |n| n.measure(ctx, &mut WidgetMeasure::new())).width,
+                        || self.children.with_node(1, |n| n.measure(&mut WidgetMeasure::new())).width,
                     );
-                    self.joiner.height = ctx.with_constrains(
+                    self.joiner.height = LAYOUT.with_constrains(
                         |c| c.with_min_y(Px(0)).with_fill(true, false),
-                        |ctx| self.children.with_node(2, |n| n.measure(ctx, &mut WidgetMeasure::new())).height,
+                        || self.children.with_node(2, |n| n.measure(&mut WidgetMeasure::new())).height,
                     );
                 }
-                self.joiner.width = ctx.with_constrains(
+                self.joiner.width = LAYOUT.with_constrains(
                     |c| c.with_min_x(Px(0)).with_fill(false, true).with_less_y(self.joiner.height),
-                    |ctx| self.children.with_node_mut(1, |n| n.layout(ctx, wl)).width,
+                    || self.children.with_node_mut(1, |n| n.layout(wl)).width,
                 );
-                self.joiner.height = ctx.with_constrains(
+                self.joiner.height = LAYOUT.with_constrains(
                     |c| c.with_min_y(Px(0)).with_fill(true, false).with_less_x(self.joiner.width),
-                    |ctx| self.children.with_node_mut(2, |n| n.layout(ctx, wl)).height,
+                    || self.children.with_node_mut(2, |n| n.layout(wl)).height,
                 );
 
                 // joiner
-                let _ = ctx.with_constrains(
+                let _ = LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.joiner),
-                    |ctx| self.children.with_node_mut(3, |n| n.layout(ctx, wl)),
+                    || self.children.with_node_mut(3, |n| n.layout(wl)),
                 );
 
                 // viewport
-                let mut viewport = ctx.with_constrains(
+                let mut viewport = LAYOUT.with_constrains(
                     |c| c.with_less_size(self.joiner),
-                    |ctx| self.children.with_node_mut(0, |n| n.layout(ctx, wl)),
+                    || self.children.with_node_mut(0, |n| n.layout(wl)),
                 );
 
                 // arrange
@@ -181,52 +180,52 @@ pub mod scroll {
                 self.viewport + self.joiner
             }
 
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                self.children.with_node(0, |n| n.render(ctx, frame));
+            fn render(&self, frame: &mut FrameBuilder) {
+                self.children.with_node(0, |n| n.render(frame));
 
                 if self.joiner.width > Px(0) {
                     let transform = PxTransform::from(PxVector::new(self.viewport.width, Px(0)));
                     frame.push_reference_frame((self.spatial_id, 1).into(), FrameValue::Value(transform), true, false, |frame| {
-                        self.children.with_node(1, |n| n.render(ctx, frame));
+                        self.children.with_node(1, |n| n.render(frame));
                     });
                 }
 
                 if self.joiner.height > Px(0) {
                     let transform = PxTransform::from(PxVector::new(Px(0), self.viewport.height));
                     frame.push_reference_frame((self.spatial_id, 2).into(), FrameValue::Value(transform), true, false, |frame| {
-                        self.children.with_node(2, |n| n.render(ctx, frame));
+                        self.children.with_node(2, |n| n.render(frame));
                     });
                 }
 
                 if self.joiner.width > Px(0) && self.joiner.height > Px(0) {
                     let transform = PxTransform::from(self.viewport.to_vector());
                     frame.push_reference_frame((self.spatial_id, 3).into(), FrameValue::Value(transform), true, false, |frame| {
-                        self.children.with_node(3, |n| n.render(ctx, frame));
+                        self.children.with_node(3, |n| n.render(frame));
                     });
                 }
             }
 
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                self.children.with_node(0, |n| n.render_update(ctx, update));
+            fn render_update(&self, update: &mut FrameUpdate) {
+                self.children.with_node(0, |n| n.render_update(update));
 
                 if self.joiner.width > Px(0) {
                     let transform = PxTransform::from(PxVector::new(self.viewport.width, Px(0)));
                     update.with_transform_value(&transform, |update| {
-                        self.children.with_node(1, |n| n.render_update(ctx, update));
+                        self.children.with_node(1, |n| n.render_update(update));
                     });
                 }
 
                 if self.joiner.height > Px(0) {
                     let transform = PxTransform::from(PxVector::new(Px(0), self.viewport.height));
                     update.with_transform_value(&transform, |update| {
-                        self.children.with_node(2, |n| n.render_update(ctx, update));
+                        self.children.with_node(2, |n| n.render_update(update));
                     });
                 }
 
                 if self.joiner.width > Px(0) && self.joiner.height > Px(0) {
                     let transform = PxTransform::from(self.viewport.to_vector());
                     update.with_transform_value(&transform, |update| {
-                        self.children.with_node(3, |n| n.render_update(ctx, update));
+                        self.children.with_node(3, |n| n.render_update(update));
                     });
                 }
             }

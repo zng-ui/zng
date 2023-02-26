@@ -142,7 +142,7 @@ where
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// # let
-/// on_click = hn!(|_, _| {
+/// on_click = hn!(|_| {
 ///     println!("Clicked!");
 /// });
 /// # on_click }
@@ -177,7 +177,7 @@ where
 /// // ..
 ///
 /// # let
-/// on_click = hn!(foo, |_, args: &ClickArgs| {
+/// on_click = hn!(foo, |args: &ClickArgs| {
 ///     foo.set(args.click_count);
 /// });
 ///
@@ -358,7 +358,7 @@ where
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// # let
-/// on_click = async_hn!(|_, _| {
+/// on_click = async_hn!(|_| {
 ///     println!("Clicked!");
 ///
 ///     task::run(async {
@@ -401,7 +401,7 @@ where
 /// // ..
 ///
 /// # let
-/// on_click = async_hn!(enabled, |_, args: ClickArgs| {
+/// on_click = async_hn!(enabled, |args: ClickArgs| {
 ///     enabled.set(false);
 ///
 ///     task::run(async move {
@@ -551,7 +551,7 @@ where
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
-/// on_open = async_hn_once!(data, |_, _| {
+/// on_open = async_hn_once!(data, |_| {
 ///     task::run(async move {
 ///          for i in data {
 ///              print!("{i}, ");
@@ -708,7 +708,7 @@ where
 /// # use zero_ui_core::context::AppContext;
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
-/// CLICK_EVENT.on_event(app_hn!(|_, _| {
+/// CLICK_EVENT.on_event(app_hn!(|_| {
 ///     println!("Clicked Somewhere!");
 /// })).perm();
 /// # }
@@ -944,7 +944,7 @@ where
 /// # use zero_ui_core::task;
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type(ctx: &mut AppContext) {
-/// CLICK_EVENT.on_event(async_app_hn!(|_, _| {
+/// CLICK_EVENT.on_event(async_app_hn!(|_| {
 ///     println!("Clicked Somewhere!");
 ///
 ///     task::run(async {
@@ -1135,7 +1135,7 @@ where
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
-/// on_open = async_hn_once!(data, |_, _| {
+/// on_open = async_hn_once!(data, |_| {
 ///     task::run(async move {
 ///          for i in data {
 ///              print!("{i}, ");

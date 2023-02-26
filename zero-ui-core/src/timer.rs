@@ -385,7 +385,7 @@ impl TIMERS {
     /// # use zero_ui_core::context::AppContext;
     /// # use std::time::Instant;
     /// # fn foo(ctx: &mut AppContext) {
-    /// let handle = TIMERS.on_deadline(20.secs(), app_hn_once!(|ctx, _| {
+    /// let handle = TIMERS.on_deadline(20.secs(), app_hn_once!(|_| {
     ///     println!("20 seconds have passed");
     /// }));
     /// # }

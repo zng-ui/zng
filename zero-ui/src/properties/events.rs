@@ -29,7 +29,7 @@
 //! let txt = var_from("Click Me!");
 //! let btn = button! {
 //!     child = text!(txt.clone());
-//!     on_click = hn!(|_, _| {
+//!     on_click = hn!(|_| {
 //!         txt.set("Clicked!");
 //!     });
 //! };
@@ -45,7 +45,7 @@
 //! let enabled = var(true);
 //! let btn = button! {
 //!     child = text!(enabled.map(|&e| if e { "Click Me!".to_text() } else { "Busy..".to_text() }));
-//!     on_click = async_hn!(enabled, |_, _| {
+//!     on_click = async_hn!(enabled, |_| {
 //!         enabled.set(false);
 //!         let data = task::wait(|| std::fs::read_to_string("data.txt")).await;
 //!         if let Ok(data) = data {

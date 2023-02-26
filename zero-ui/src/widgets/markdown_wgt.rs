@@ -38,8 +38,8 @@ pub mod markdown {
         /// Markdown text.
         pub md(impl IntoVar<Text>);
 
-        on_link = hn!(|ctx, args: &LinkArgs| {
-            try_default_link_action(ctx, args);
+        on_link = hn!(|args: &LinkArgs| {
+            try_default_link_action(args);
         })
     }
 

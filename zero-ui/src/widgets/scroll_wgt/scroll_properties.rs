@@ -10,7 +10,7 @@ context_var! {
     pub static HORIZONTAL_SCROLLBAR_GEN_VAR: WidgetGenerator<ScrollBarArgs> = default_scrollbar();
 
     /// Widget generator for the little square that joins the two scrollbars when both are visible.
-    pub static SCROLLBAR_JOINER_GEN_VAR: WidgetGenerator<()> = wgt_gen!(|_, _| flood(scrollbar::vis::BACKGROUND_VAR));
+    pub static SCROLLBAR_JOINER_GEN_VAR: WidgetGenerator<()> = wgt_gen!(|_| flood(scrollbar::vis::BACKGROUND_VAR));
 
     /// Vertical offset added when the [`SCROLL_DOWN_CMD`] runs and removed when the [`SCROLL_UP_CMD`] runs.
     ///
@@ -74,7 +74,7 @@ context_var! {
 }
 
 fn default_scrollbar() -> WidgetGenerator<ScrollBarArgs> {
-    wgt_gen!(|_, args: ScrollBarArgs| {
+    wgt_gen!(|args: ScrollBarArgs| {
         scrollbar! {
             thumb_node = scrollbar::thumb! {
                 orientation = args.orientation;

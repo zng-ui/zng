@@ -333,7 +333,7 @@ pub fn foreground_highlight(
 
             let widths = LAYOUT.with_constrains(
                 |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
-                |ct| self.widths.get().layout(&LAYOUT.metrics(), |_| PxSideOffsets::zero()),
+                || self.widths.get().layout(&LAYOUT.metrics(), |_| PxSideOffsets::zero()),
             );
 
             if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {
@@ -501,7 +501,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
                             for r in inline.negative_space().iter() {
                                 c.push_clip_rect(*r, true, true);
                             }
-                        }
+                        };
                     },
                     |f| self.child.render(f),
                 );
@@ -541,7 +541,7 @@ pub fn inline(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                     first_max: LAYOUT.constrains().x.max_or(Px::MAX),
                     mid_clear_min: Px(0),
                 };
-                LAYOUT.with_inline_constrains(wm, move |_| Some(c), |wm| self.child.measure(wm))
+                LAYOUT.with_inline_measure(wm, move |_| Some(c), |wm| self.child.measure(wm))
             } else {
                 self.child.measure(wm)
             }
@@ -557,7 +557,7 @@ pub fn inline(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                         first_segs: Default::default(),
                         last_segs: Default::default(),
                     };
-                    return LAYOUT.with_inline_constrains(move |_| Some(c), || self.child.layout(wl));
+                    return LAYOUT.with_inline_layout(move |_| Some(c), || self.child.layout(wl));
                 }
             }
             self.child.layout(wl)

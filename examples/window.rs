@@ -41,7 +41,7 @@ fn main_window() -> Window {
         background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
         title;
-        on_state_changed = hn!(|_, args: &WindowChangedArgs| {
+        on_state_changed = hn!(|args: &WindowChangedArgs| {
             println!("state: {:?}", args.new_state().unwrap());
         });
         on_close_requested = confirm_close();
@@ -138,16 +138,14 @@ fn screenshot() -> impl UiNode {
                     "saving..".to_text()
                 }
             }));
-            on_click = async_hn!(enabled, |ctx, _| {
+            on_click = async_hn!(enabled, |_| {
                 // disable button until screenshot is saved.
                 enabled.set(false);
 
                 println!("taking `screenshot.png`..");
 
                 let t = Instant::now();
-                let img = ctx.with(|ctx|{
-                    WINDOWS.frame_image(ctx.path.window_id()).get()
-                });
+                let img = WINDOWS.frame_image(WINDOW.id()).get();
                 img.wait_done().await;
                 println!("taken in {:?}, saving..", t.elapsed());
 
@@ -182,7 +180,7 @@ fn screenshot() -> impl UiNode {
                 }
             }));
             enabled = enabled.clone();
-            on_click = hn!(|_, _| {
+            on_click = hn!(|_| {
                 enabled.set(false);
 
                 println!("taking `screenshot.png` using a new headless window ..");
@@ -194,7 +192,7 @@ fn screenshot() -> impl UiNode {
                         child = text!("No Head!");
 
                         frame_capture_mode = FrameCaptureMode::Next;
-                        on_frame_image_ready = async_hn_once!(|_, args: FrameImageReadyArgs| {
+                        on_frame_image_ready = async_hn_once!(|args: FrameImageReadyArgs| {
                             println!("saving screenshot..");
                             match args.frame_image.unwrap().save("screenshot.png").await {
                                 Ok(_) => println!("saved"),
@@ -302,11 +300,11 @@ fn focus_control() -> impl UiNode {
     let focus_btn = button! {
         enabled = enabled.clone();
         child = text!("Focus in 5s");
-        on_click = async_hn!(enabled, |ctx, _| {
+        on_click = async_hn!(enabled, |_| {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            WINDOWS.focus(ctx.with(|ctx| ctx.path.window_id())).unwrap();
+            WINDOWS.focus(WINDOW.id()).unwrap();
             enabled.set(true);
         });
     };
@@ -315,13 +313,11 @@ fn focus_control() -> impl UiNode {
     let critical_btn = button! {
         enabled = enabled.clone();
         child = text!("Critical Alert in 5s");
-        on_click = async_hn!(enabled, |ctx, _| {
+        on_click = async_hn!(enabled, |_| {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            ctx.with(|ctx| {
-                WindowVars::req().focus_indicator().set(Some(FocusIndicator::Critical));
-            });
+            WindowVars::req().focus_indicator().set(Some(FocusIndicator::Critical));
             enabled.set(true);
         });
     };
@@ -330,13 +326,11 @@ fn focus_control() -> impl UiNode {
     let info_btn = button! {
         enabled = enabled.clone();
         child = text!("Info Alert in 5s");
-        on_click = async_hn!(enabled, |ctx, _| {
+        on_click = async_hn!(enabled, |_| {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            ctx.with(|ctx| {
-                WindowVars::req().focus_indicator().set(Some(FocusIndicator::Info));
-            });
+            WindowVars::req().focus_indicator().set(Some(FocusIndicator::Info));
             enabled.set(true);
         });
     };
@@ -373,7 +367,7 @@ fn visibility(window_vars: &WindowVars) -> impl UiNode {
     let btn = button! {
         enabled = visible.clone();
         child = text!("Hide for 1s");
-        on_click = async_hn!(visible, |_, _| {
+        on_click = async_hn!(visible, |_| {
             visible.set(false);
             println!("visible=false");
             task::deadline(1.secs()).await;
@@ -406,10 +400,10 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
                 button! {
                     child = text!("Open Child Window");
                     enabled = can_open_windows.clone();
-                    on_click = hn!(|ctx, _| {
+                    on_click = hn!(|_| {
                         child_count += 1;
 
-                        let parent = ctx.path.window_id();
+                        let parent = WINDOW.id();
                         WINDOWS.open(move || window! {
                             title = formatx!("Window Example - Child {child_count}");
                             size = (400, 300);
@@ -429,7 +423,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
                 button! {
                     child = text!("Open Other Window");
                     enabled = can_open_windows;
-                    on_click = hn!(|_, _| {
+                    on_click = hn!(|_| {
                         other_count += 1;
 
                         WINDOWS.open(move || window! {
@@ -458,14 +452,14 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
     use zero_ui::widgets::window::*;
 
     let state = var(CloseState::Ask);
-    hn!(|ctx, args: &WindowCloseRequestedArgs| {
+    hn!(|args: &WindowCloseRequestedArgs| {
         match state.get() {
             CloseState::Ask => {
                 args.propagation().stop();
                 state.set(CloseState::Asking);
 
                 let dlg = close_dialog(args.windows.clone().into(), state.clone());
-                WindowLayers::insert(ctx, LayerIndex::TOP_MOST, dlg)
+                WindowLayers::insert(LayerIndex::TOP_MOST, dlg)
             }
             CloseState::Asking => args.propagation().stop(),
             CloseState::Close => {}
@@ -491,7 +485,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 4;
 
-            button::vis::extend_style = style_gen!(|_, _| {
+            button::vis::extend_style = style_gen!(|_| {
                 style! {
                     padding = 4;
                     corner_radius = unset!;
@@ -515,22 +509,20 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                         children = ui_vec![
                             button! {
                                 child = strong!("Close");
-                                on_click = hn_once!(state, |_, _| {
+                                on_click = hn_once!(state, |_| {
                                     state.set(CloseState::Close);
                                     WINDOWS.close_together(windows).unwrap();
                                 })
                             },
                             button! {
                                 child = text!("Cancel");
-                                on_click = async_hn!(opacity, state, |ctx, _| {
+                                on_click = async_hn!(opacity, state, |_| {
                                     opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
-                                    ctx.yield_one().await;
+                                    task::yield_one().await;
                                     opacity.wait_animation().await;
 
                                     state.set(CloseState::Ask);
-                                    ctx.with(|ctx| {
-                                        WindowLayers::remove(ctx, "close-dialog");
-                                    })
+                                    WindowLayers::remove("close-dialog");
                                 });
                             },
                         ]
@@ -546,7 +538,7 @@ fn cmd_btn(cmd: Command) -> impl UiNode {
         child = text!(cmd.name_with_shortcut());
         enabled = cmd.is_enabled();
         visibility = cmd.has_handlers().map_into();
-        on_click = hn!(|_, _| {
+        on_click = hn!(|_| {
             cmd.notify();
         })
     }

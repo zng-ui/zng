@@ -1,6 +1,6 @@
 //! Commands that control the scoped window.
 
-use crate::core::{event::*, gesture::*};
+use crate::core::{context::*, event::*, gesture::*};
 
 pub use crate::core::window::commands::*;
 
@@ -34,21 +34,21 @@ pub(super) fn inspect_node(
 
     on_command(
         child,
-        |ctx| INSPECT_CMD.scoped(ctx.path.window_id()),
-        move |_| can_inspect.clone(),
-        hn!(|ctx, args: &CommandArgs| {
+        || INSPECT_CMD.scoped(WIDGET.id()),
+        move || can_inspect.clone(),
+        hn!(|args: &CommandArgs| {
             if !args.enabled {
                 return;
             }
             args.propagation().stop();
 
-            if let Some(inspected) = inspector_window::inspected(ctx) {
+            if let Some(inspected) = inspector_window::inspected() {
                 // can't inspect inspector window, redirect command to inspected
                 INSPECT_CMD.scoped(inspected).notify();
             } else {
-                let txt = inspector_state.ansi_string_update(ctx.info_tree);
+                let txt = inspector_state.ansi_string_update(&WINDOW.widget_tree());
                 inspector_text.set_ne(txt);
-                let inspected = ctx.path.window_id();
+                let inspected = WINDOW.id();
 
                 WINDOWS.focus_or_open(
                     inspector,
@@ -103,10 +103,10 @@ mod inspector_window {
             inspected: WindowId,
         })]
         impl UiNode for InspectedNode {
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                assert!(ctx.path.is_root());
+            fn info(&self, info: &mut WidgetInfoBuilder) {
+                assert!(WIDGET.parent_id().is_none());
                 info.meta().set(&INSPECTED_ID, self.inspected);
-                self.child.info(ctx, info);
+                self.child.info(info);
             }
         }
         InspectedNode {
@@ -116,8 +116,8 @@ mod inspector_window {
     }
 
     /// Gets the window that is inspected by the current inspector window.
-    pub fn inspected(ctx: &mut WidgetContext) -> Option<WindowId> {
-        ctx.info_tree.root().meta().get(&INSPECTED_ID).copied()
+    pub fn inspected() -> Option<WindowId> {
+        WINDOW.widget_tree().root().meta().get(&INSPECTED_ID).copied()
     }
 
     pub(super) static INSPECTED_ID: StaticStateId<WindowId> = StaticStateId::new_unique();

@@ -381,21 +381,21 @@ mod ansi_gen {
         /// Widget generator for [`TextGenArgs`].
         ///
         /// The returned widgets are layout by the [`LINE_GEN_VAR`]. The default view is [`default_text_gen`].
-        pub static TEXT_GEN_VAR: WidgetGenerator<TextGenArgs> = wgt_gen!(|_, args: TextGenArgs|  {
+        pub static TEXT_GEN_VAR: WidgetGenerator<TextGenArgs> = wgt_gen!(|args: TextGenArgs|  {
             default_text_gen(args)
         });
 
         /// Widget generator for [`LineGenArgs`].
         ///
         /// The returned widgets are layout by the [`PAGE_GEN_VAR`]. The default view is [`default_line_gen`].
-        pub static LINE_GEN_VAR: WidgetGenerator<LineGenArgs> = wgt_gen!(|_, args: LineGenArgs| {
+        pub static LINE_GEN_VAR: WidgetGenerator<LineGenArgs> = wgt_gen!(|args: LineGenArgs| {
             default_line_gen(args)
         });
 
         /// Widget generator for [`PageGenArgs`].
         ///
         /// The returned widgets are layout by the [`PANEL_GEN_VAR`] widget. The default view is [`default_page_gen`].
-        pub static PAGE_GEN_VAR: WidgetGenerator<PageGenArgs> = wgt_gen!(|_, args: PageGenArgs| {
+        pub static PAGE_GEN_VAR: WidgetGenerator<PageGenArgs> = wgt_gen!(|args: PageGenArgs| {
             default_page_gen(args)
         });
 
@@ -404,7 +404,7 @@ mod ansi_gen {
         /// The returned view is the [`ansi_text!`] child. The default is [`default_panel_gen`].
         ///
         /// [`ansi_text!`]: mod@super::ansi_text
-        pub static PANEL_GEN_VAR: WidgetGenerator<PanelGenArgs> = wgt_gen!(|_, args: PanelGenArgs| {
+        pub static PANEL_GEN_VAR: WidgetGenerator<PanelGenArgs> = wgt_gen!(|args: PanelGenArgs| {
             default_panel_gen(args)
         });
 
@@ -689,53 +689,41 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
                     let text = ansi_parse::AnsiTextParser::new(line)
                         .map(|txt| {
                             text_gen
-                                .generate(
-                                    ctx,
-                                    TextGenArgs {
-                                        txt: txt.txt.to_text(),
-                                        style: txt.style,
-                                    },
-                                )
+                                .generate(TextGenArgs {
+                                    txt: txt.txt.to_text(),
+                                    style: txt.style,
+                                })
                                 .boxed()
                         })
                         .collect();
 
                     lines.push(
                         line_gen
-                            .generate(
-                                ctx,
-                                LineGenArgs {
-                                    index: i as u32,
-                                    page_index: lines.len() as u32,
-                                    text,
-                                },
-                            )
+                            .generate(LineGenArgs {
+                                index: i as u32,
+                                page_index: lines.len() as u32,
+                                text,
+                            })
                             .boxed(),
                     );
 
                     if lines.len() == lines_per_page {
                         let lines = mem::replace(&mut lines, Vec::with_capacity(50));
-                        pages.push(page_gen.generate(
-                            ctx,
-                            PageGenArgs {
-                                index: pages.len() as u32,
-                                lines: lines.into(),
-                            },
-                        ));
+                        pages.push(page_gen.generate(PageGenArgs {
+                            index: pages.len() as u32,
+                            lines: lines.into(),
+                        }));
                     }
                 }
 
                 if !lines.is_empty() {
-                    pages.push(page_gen.generate(
-                        ctx,
-                        PageGenArgs {
-                            index: pages.len() as u32,
-                            lines: lines.into(),
-                        },
-                    ));
+                    pages.push(page_gen.generate(PageGenArgs {
+                        index: pages.len() as u32,
+                        lines: lines.into(),
+                    }));
                 }
 
-                panel_gen.generate(ctx, PanelGenArgs { pages: pages.into() })
+                panel_gen.generate(PanelGenArgs { pages: pages.into() })
             });
         }
     }

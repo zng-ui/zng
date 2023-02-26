@@ -595,14 +595,24 @@ impl WIDGET {
         self
     }
 
-    /// Hold the `handle`.
+    /// Hold the `handle` until the widget is deinited.
     pub fn push_event_handle(&self, handle: EventHandle) {
         self.req_mut().event_handles.push(handle);
     }
 
-    /// Hold the `handle`.
+    /// Hold the `handles` until the widget is deinited.
+    pub fn push_event_handles(&self, handles: EventHandles) {
+        self.req_mut().event_handles.extend(handles);
+    }
+
+    /// Hold the `handle` until the widget is deinited.
     pub fn push_var_handle(&self, handle: VarHandle) {
         self.req_mut().var_handles.push(handle);
+    }
+
+    /// Hold the `handles` until the widget is deinited.
+    pub fn push_var_handles(&self, handles: VarHandles) {
+        self.req_mut().var_handles.extend(handles);
     }
 
     /// Widget bounds, updated every layout.
@@ -744,7 +754,7 @@ impl LAYOUT {
         f: impl FnOnce() -> R,
     ) -> R {
         let inline_constrains = inline_constrains(self.inline_constrains().map(InlineConstrains::layout)).map(InlineConstrains::Layout);
-        self.with_inline_constrains(inline_constrains, || f())
+        self.with_inline_constrains(inline_constrains, f)
     }
 
     /// Measure the child in a new inline context.
@@ -874,7 +884,7 @@ impl UpdatesService {
 pub struct UPDATES;
 impl UPDATES {
     pub(crate) fn init(&self, event_sender: AppEventSender) {
-        UPDATES_SV.write().event_sender = Some(event_sender.clone());
+        UPDATES_SV.write().event_sender = Some(event_sender);
     }
 
     /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update
@@ -938,7 +948,11 @@ impl UPDATES {
         if let Some(id) = target {
             u.update_widgets.search_widget(id);
         }
-        u.event_sender.as_ref().unwrap().send_ext_update();
+        u.event_sender
+            .as_ref()
+            .unwrap()
+            .send_ext_update()
+            .expect("no app to receive update");
     }
 
     pub(crate) fn recv_update_internal(&mut self, targets: Vec<WidgetId>) {
@@ -946,7 +960,7 @@ impl UPDATES {
 
         if !u.flags.contains(UpdateFlags::UPDATE) {
             u.flags.insert(UpdateFlags::UPDATE);
-            u.event_sender.as_ref().unwrap().send_ext_update();
+            u.event_sender.as_ref().unwrap().send_ext_update().expect("no app to receive update");
         }
 
         for id in targets {
@@ -969,7 +983,7 @@ impl UPDATES {
 
         if !u.flags.contains(UpdateFlags::UPDATE) {
             u.flags.insert(UpdateFlags::UPDATE);
-            u.event_sender.as_ref().unwrap().send_ext_update();
+            u.event_sender.as_ref().unwrap().send_ext_update().expect("no app to receive update");
         }
     }
 
@@ -1020,7 +1034,7 @@ impl UPDATES {
         H: AppHandler<UpdateArgs>,
     {
         let u = UPDATES_SV.read();
-        let r = Self::push_handler(&mut *u.pre_handlers.lock(), true, handler, false);
+        let r = Self::push_handler(&mut u.pre_handlers.lock(), true, handler, false);
         r
     }
 
@@ -1041,7 +1055,7 @@ impl UPDATES {
         H: AppHandler<UpdateArgs>,
     {
         let u = UPDATES_SV.read();
-        let r = Self::push_handler(&mut *u.pos_handlers.lock(), false, handler, false);
+        let r = Self::push_handler(&mut u.pos_handlers.lock(), false, handler, false);
         r
     }
 

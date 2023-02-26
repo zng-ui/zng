@@ -34,7 +34,7 @@ fn headless_example() {
             frame_capture_mode = FrameCaptureMode::Next;
 
             // this event will fire every time a frame is rendered (just once in this case).
-            on_frame_image_ready = async_hn!(|ctx, args: FrameImageReadyArgs| {
+            on_frame_image_ready = async_hn!(|args: FrameImageReadyArgs| {
                 // in this case a `frame_image` was already captured.
                 let img = args.frame_image.unwrap();
 
@@ -47,7 +47,7 @@ fn headless_example() {
                 println!("done");
 
                 // and close the window, causing the app to exit.
-                WINDOWS.close(ctx.with(|ctx| ctx.path.window_id())).unwrap();
+                WINDOWS.close(WINDOW.id()).unwrap();
             });
         }
     });
@@ -106,7 +106,7 @@ fn images_render() {
 
     // request an image rendered from a node, the `Images` service will render the node and update the image
     // variable every time the node (re)renders.
-    let img = IMAGES.render_node(RenderMode::Software, 1.fct(), || image());
+    let img = IMAGES.render_node(RenderMode::Software, 1.fct(), image);
 
     app.run_task(move || async move {
         while img.with(Image::is_loading) {

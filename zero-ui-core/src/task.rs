@@ -19,7 +19,7 @@
 //! # fn main() {
 //! let enabled = var(false);
 //! button! {
-//!     on_click = async_hn!(enabled, |_, _| {
+//!     on_click = async_hn!(enabled, |_| {
 //!         enabled.set(false);
 //!
 //!         let sum_task = task::run(async {
@@ -96,7 +96,7 @@
 //! let enabled = var(false);
 //! let msg = var("loading..".to_text());
 //! button! {
-//!     on_click = async_hn!(enabled, msg, |_, _| {
+//!     on_click = async_hn!(enabled, msg, |_| {
 //!         enabled.set(false);
 //!
 //!         match task::http::get_text("https://httpbin.org/get").await {

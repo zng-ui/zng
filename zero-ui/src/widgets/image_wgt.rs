@@ -92,7 +92,7 @@ mod tests {
             window! {
                 child = image! {
                     source = img.clone();
-                    img_error_gen = wgt_gen!(ok, |_, _| {
+                    img_error_gen = wgt_gen!(ok, |_| {
                         ok.store(true, Ordering::Relaxed);
                         image! {
                             source = img.clone();

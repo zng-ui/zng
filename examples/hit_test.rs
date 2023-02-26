@@ -27,7 +27,7 @@ fn example(mode: HitTestMode) -> impl UiNode {
     container! {
         hit_test_mode = mode;
 
-        on_click = hn!(mode, |_, _| {
+        on_click = hn!(mode, |_| {
             println!("Clicked {mode:?}");
         });
 

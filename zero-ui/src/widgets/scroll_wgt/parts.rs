@@ -149,14 +149,15 @@ pub mod thumb {
             mouse_down: Option<(Px, Factor)>,
         })]
         impl UiNode for DragNode {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.sub_event(&MOUSE_MOVE_EVENT)
+            fn init(&mut self) {
+                WIDGET
+                    .sub_event(&MOUSE_MOVE_EVENT)
                     .sub_event(&MOUSE_INPUT_EVENT)
                     .sub_var(&THUMB_OFFSET_VAR);
-                self.child.init(ctx);
+                self.child.init();
             }
 
-            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+            fn event(&mut self, update: &mut EventUpdate) {
                 if let Some((mouse_down, start_offset)) = self.mouse_down {
                     if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                         let offset = match THUMB_ORIENTATION_VAR.get() {
@@ -192,22 +193,22 @@ pub mod thumb {
                         self.mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
                     }
                 }
-                self.child.event(ctx, update);
+                self.child.event(update);
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &mut WidgetUpdates) {
                 if THUMB_OFFSET_VAR.is_new() {
                     WIDGET.layout();
                 }
 
-                self.child.update(ctx, updates);
+                self.child.update(updates);
             }
 
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-                self.child.measure(ctx, wm)
+            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+                self.child.measure(wm)
             }
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                let final_size = ctx.constrains().fill_size();
+            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+                let final_size = LAYOUT.constrains().fill_size();
 
                 let mut final_offset = PxVector::zero();
                 let (px_vp_length, final_offset_d) = match THUMB_ORIENTATION_VAR.get() {
@@ -219,14 +220,14 @@ pub mod thumb {
                 let px_tb_length = px_vp_length * ratio;
                 *final_offset_d = (px_vp_length - px_tb_length) * THUMB_OFFSET_VAR.get();
 
-                self.scale_factor = ctx.metrics.scale_factor();
+                self.scale_factor = LAYOUT.scale_factor();
                 self.content_length = px_vp_length / ratio;
                 self.viewport_length = px_vp_length;
                 self.thumb_length = px_tb_length;
 
                 wl.translate(final_offset);
 
-                self.child.layout(ctx, wl)
+                self.child.layout(wl)
             }
         }
         DragNode {

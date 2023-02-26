@@ -57,7 +57,7 @@ fn alt_scope() -> impl UiNode {
     stack! {
         direction = StackDirection::left_to_right();
         alt_focus_scope = true;
-        button::vis::extend_style = style_gen!(|_, _| style! {
+        button::vis::extend_style = style_gen!(|_| style! {
             border = unset!;
             corner_radius = unset!;
         });
@@ -94,7 +94,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             // New Window
             button! {
                 child = text!("New Window");
-                on_click = hn!(|_, _| {
+                on_click = hn!(|_| {
                     WINDOWS.open(|| {
                         let _ = WINDOW.id().set_name("other");
                         window! {
@@ -123,7 +123,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
                     let btn = button! {
                         child = text!("Detach Button");
                         // focus_on_init = true;
-                        on_click = hn!(|_, _| {
+                        on_click = hn!(|_| {
                             let wwk = wk.clone();
                             WINDOWS.open(move || {
                                 window! {
@@ -143,8 +143,8 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             // Overlay Scope
             button! {
                 child = text!("Overlay Scope");
-                on_click = hn!(|ctx, _| {
-                    WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
+                on_click = hn!(|_| {
+                    WindowLayers::insert(LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
                 });
             },
             nested_focusables(),
@@ -155,7 +155,7 @@ fn disable_window(window_enabled: ArcVar<bool>) -> impl UiNode {
     button! {
         child = text!(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
         min_width = 140;
-        on_click = async_hn!(window_enabled, |_, _| {
+        on_click = async_hn!(window_enabled, |_| {
             window_enabled.set(false);
             task::deadline(1.secs()).await;
             window_enabled.set(true);
@@ -189,8 +189,8 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
                         disable_window(window_enabled),
                         button! {
                                 child = text!("Close");
-                                on_click = hn!(|ctx, _| {
-                                    WindowLayers::remove(ctx, "overlay");
+                                on_click = hn!(|_| {
+                                    WindowLayers::remove("overlay");
                                 })
                             }
                         ]
@@ -209,7 +209,7 @@ fn delayed_focus() -> impl UiNode {
         children = ui_vec![
             title("Delayed 4s (D)"),
 
-            delayed_btn("Force Focus", |_| {
+            delayed_btn("Force Focus", || {
                 FOCUS.focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
@@ -217,7 +217,7 @@ fn delayed_focus() -> impl UiNode {
                     window_indicator: None,
                 });
             }),
-            delayed_btn("Info Indicator", |_| {
+            delayed_btn("Info Indicator", || {
                 FOCUS.focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
@@ -225,7 +225,7 @@ fn delayed_focus() -> impl UiNode {
                     window_indicator: Some(FocusIndicator::Info),
                 });
             }),
-            delayed_btn("Critical Indicator", |_| {
+            delayed_btn("Critical Indicator", || {
                 FOCUS.focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
@@ -252,7 +252,7 @@ fn delayed_focus() -> impl UiNode {
         ]
     }
 }
-fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetContext) + Send + 'static) -> impl UiNode {
+fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut() + Send + 'static) -> impl UiNode {
     use std::sync::Arc;
     use zero_ui::core::task::parking_lot::Mutex;
 
@@ -260,13 +260,11 @@ fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetConte
     let enabled = var(true);
     button! {
         child = text!(content.into());
-        on_click = async_hn!(enabled, on_timeout, |ctx, _| {
+        on_click = async_hn!(enabled, on_timeout, |_| {
             enabled.set(false);
             task::deadline(4.secs()).await;
-            ctx.with(|ctx| {
-                let mut on_timeout = on_timeout.lock();
-                on_timeout(ctx);
-            });
+            let mut on_timeout = on_timeout.lock();
+            on_timeout();
             enabled.set(true);
         });
         enabled;
@@ -283,7 +281,7 @@ fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl UiNo
     button! {
         child = text!(content.clone());
         tab_index;
-        on_click = hn!(|_, _| {
+        on_click = hn!(|_| {
             println!("Clicked {content} {tab_index:?}")
         });
     }
@@ -346,7 +344,7 @@ fn nested_focusables() -> impl UiNode {
     button! {
         child = text!("Nested Focusables");
 
-        on_click = hn!(|_, args: &ClickArgs| {
+        on_click = hn!(|args: &ClickArgs| {
             args.propagation().stop();
             WINDOWS.focus_or_open("nested-focusables", || {
                 window! {

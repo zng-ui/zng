@@ -1088,7 +1088,7 @@ pub fn focused_removed_by_deleting() {
 
     let buttons = ui_vec! {
         button! { child = text!("Button 0") },
-        view(exist.clone(), NilUiNode.boxed(), move |_, exist| {
+        view(exist.clone(), NilUiNode.boxed(), move |exist| {
             if exist.get() {
                 View::Update(button! { id = button1_id; child = text!("Button 1") }.boxed())
             } else {
@@ -1186,7 +1186,7 @@ pub fn focus_continued_after_widget_id_move() {
     let mut app = app.run(view(
         do_move_id.clone(),
         wgt! { focusable = true; id; }.boxed(),
-        move |_, do_move_id| {
+        move |do_move_id| {
             if do_move_id.get() {
                 View::Update({
                     container! {
@@ -1776,6 +1776,6 @@ trait TestList {
 }
 impl<L: UiNodeList> TestList for L {
     fn item_id(&self, i: usize) -> WidgetId {
-        self.with_node(i, |n| n.with_context(|ctx| ctx.id).unwrap())
+        self.with_node(i, |n| n.with_context(|| WIDGET.id()).unwrap())
     }
 }

@@ -47,16 +47,16 @@ impl WindowLayers {
             )]
         impl<L: Var<LayerIndex>, W: UiNode> UiNode for LayeredWidget<L, W> {
             fn init(&mut self) {
-                self.widget.with_context(|ctx| {
-                    ctx.widget_state.set(&LAYER_INDEX_ID, self.layer.get());
+                self.widget.with_context(|| {
+                    WIDGET.set_state(&LAYER_INDEX_ID, self.layer.get());
                 });
                 self.widget.init();
             }
 
             fn update(&mut self, updates: &mut WidgetUpdates) {
                 if let Some(index) = self.layer.get_new() {
-                    self.widget.with_context_mut(|ctx| {
-                        ctx.widget_state.set(&LAYER_INDEX_ID, index);
+                    self.widget.with_context(|| {
+                        WIDGET.set_state(&LAYER_INDEX_ID, index);
                     });
                     SortingListParent::invalidate_sort();
                 }
@@ -71,7 +71,7 @@ impl WindowLayers {
             }
         }
 
-        WINDOW.with_state_mut(|mut s| {
+        WINDOW.with_state(|s| {
             s.req(&WINDOW_LAYERS_ID).items.push(LayeredWidget {
                 layer: layer.into_var(),
                 widget: widget.cfg_boxed(),
@@ -118,7 +118,7 @@ impl WindowLayers {
         {
             fn info(&self, info: &mut WidgetInfoBuilder) {
                 if self.interaction {
-                    if let Some(widget) = self.widget.with_context(|ctx| ctx.id) {
+                    if let Some(widget) = self.widget.with_context(|| WIDGET.id()) {
                         let anchor = self.anchor.get();
                         let querying = AtomicBool::new(false);
                         info.push_interactivity_filter(move |args| {
@@ -142,12 +142,13 @@ impl WindowLayers {
             }
 
             fn init(&mut self) {
-                if let Some(w) = ctx.info_tree.get(self.anchor.get()) {
+                let tree = WINDOW.widget_tree();
+                if let Some(w) = tree.get(self.anchor.get()) {
                     self.anchor_info = Some((w.bounds_info(), w.border_info()));
                 }
 
                 self.interaction = self.mode.with(|m| m.interaction);
-                self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
+                self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
 
                 self.widget.init();
             }
@@ -161,8 +162,11 @@ impl WindowLayers {
 
             fn event(&mut self, update: &mut EventUpdate) {
                 if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
-                    if args.window_id == ctx.path.window_id() {
-                        self.anchor_info = ctx.info_tree.get(self.anchor.get()).map(|w| (w.bounds_info(), w.border_info()));
+                    if args.window_id == WINDOW.id() {
+                        self.anchor_info = WINDOW
+                            .widget_tree()
+                            .get(self.anchor.get())
+                            .map(|w| (w.bounds_info(), w.border_info()));
                     }
                 }
                 self.widget.event(update);
@@ -170,7 +174,7 @@ impl WindowLayers {
 
             fn update(&mut self, updates: &mut WidgetUpdates) {
                 if let Some(anchor) = self.anchor.get_new() {
-                    self.anchor_info = ctx.info_tree.get(anchor).map(|w| (w.bounds_info(), w.border_info()));
+                    self.anchor_info = WINDOW.widget_tree().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                     if self.mode.with(|m| m.interaction) {
                         WIDGET.info();
                     }
@@ -191,7 +195,7 @@ impl WindowLayers {
                     let mode = self.mode.get();
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
-                        return ctx.with_constrains(
+                        return LAYOUT.with_constrains(
                             |c| match mode.size {
                                 AnchorSize::Unbounded => PxConstrains2d::new_unbounded(),
                                 AnchorSize::Window => c,
@@ -199,7 +203,7 @@ impl WindowLayers {
                                 AnchorSize::InnerBorder => PxConstrains2d::new_exact_size(border.inner_size(bounds)),
                                 AnchorSize::OuterSize => PxConstrains2d::new_exact_size(bounds.outer_size()),
                             },
-                            |ctx| self.widget.measure(ctx, wm),
+                            || self.widget.measure(wm),
                         );
                     }
                 }
@@ -214,22 +218,22 @@ impl WindowLayers {
                         // if we don't link visibility or anchor is not collapsed.
 
                         self.offset_point = match &mode.transform {
-                            AnchorTransform::InnerOffset(p) => ctx.with_constrains(
+                            AnchorTransform::InnerOffset(p) => LAYOUT.with_constrains(
                                 |_| PxConstrains2d::new_exact_size(bounds.inner_size()),
-                                |ctx| p.layout(ctx, |_| PxPoint::zero()),
+                                || p.layout(&LAYOUT.metrics(), |_| PxPoint::zero()),
                             ),
-                            AnchorTransform::InnerBorderOffset(p) => ctx.with_constrains(
+                            AnchorTransform::InnerBorderOffset(p) => LAYOUT.with_constrains(
                                 |_| PxConstrains2d::new_exact_size(border.inner_size(bounds)),
-                                |ctx| p.layout(ctx, |_| PxPoint::zero()),
+                                || p.layout(&LAYOUT.metrics(), |_| PxPoint::zero()),
                             ),
-                            AnchorTransform::OuterOffset(p) => ctx.with_constrains(
+                            AnchorTransform::OuterOffset(p) => LAYOUT.with_constrains(
                                 |_| PxConstrains2d::new_exact_size(bounds.outer_size()),
-                                |ctx| p.layout(ctx, |_| PxPoint::zero()),
+                                || p.layout(&LAYOUT.metrics(), |_| PxPoint::zero()),
                             ),
                             _ => PxPoint::zero(),
                         };
 
-                        return ctx.with_constrains(
+                        return LAYOUT.with_constrains(
                             |c| match mode.size {
                                 AnchorSize::Unbounded => PxConstrains2d::new_unbounded(),
                                 AnchorSize::Window => c,
@@ -237,7 +241,7 @@ impl WindowLayers {
                                 AnchorSize::InnerBorder => PxConstrains2d::new_exact_size(border.inner_size(bounds)),
                                 AnchorSize::OuterSize => PxConstrains2d::new_exact_size(bounds.outer_size()),
                             },
-                            |ctx| {
+                            || {
                                 if mode.corner_radius {
                                     let mut cr = border.corner_radius();
                                     if let AnchorSize::InnerBorder = mode.size {
@@ -247,7 +251,7 @@ impl WindowLayers {
                                         .with_context(
                                             self.corner_radius_ctx_handle.get_or_insert_with(ContextInitHandle::new).clone(),
                                             cr,
-                                            || ContextBorders::with_corner_radius(ctx, |ctx| self.widget.layout(ctx, wl)),
+                                            || ContextBorders::with_corner_radius(|| self.widget.layout(wl)),
                                         )
                                         .1
                                 } else {
@@ -259,7 +263,7 @@ impl WindowLayers {
                 }
 
                 // no visible mode match
-                wl.collapse(ctx);
+                wl.collapse();
                 PxSize::zero()
             }
 
@@ -276,7 +280,7 @@ impl WindowLayers {
                                     self.transform_key.bind(PxTransform::from(point_in_window.to_vector()), true),
                                     true,
                                     false,
-                                    |frame| self.widget.render(ctx, frame),
+                                    |frame| self.widget.render(frame),
                                 )
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
@@ -299,7 +303,7 @@ impl WindowLayers {
                                     self.transform_key.bind(PxTransform::from(point_in_window.to_vector()), true),
                                     true,
                                     false,
-                                    |frame| self.widget.render(ctx, frame),
+                                    |frame| self.widget.render(frame),
                                 )
                             }
                             AnchorTransform::InnerTransform => frame.push_reference_frame(
@@ -307,23 +311,23 @@ impl WindowLayers {
                                 self.transform_key.bind(bounds_info.inner_transform(), true),
                                 false,
                                 false,
-                                |frame| self.widget.render(ctx, frame),
+                                |frame| self.widget.render(frame),
                             ),
                             AnchorTransform::InnerBorderTransform => frame.push_reference_frame(
                                 self.transform_key.into(),
                                 self.transform_key.bind(border_info.inner_transform(bounds_info), true),
                                 false,
                                 false,
-                                |frame| self.widget.render(ctx, frame),
+                                |frame| self.widget.render(frame),
                             ),
                             AnchorTransform::OuterTransform => frame.push_reference_frame(
                                 self.transform_key.into(),
                                 self.transform_key.bind(bounds_info.outer_transform(), true),
                                 false,
                                 false,
-                                |frame| self.widget.render(ctx, frame),
+                                |frame| self.widget.render(frame),
                             ),
-                            _ => self.widget.render(ctx, frame),
+                            _ => self.widget.render(frame),
                         }
                     }
                 }
@@ -413,8 +417,10 @@ impl WindowLayers {
     /// Remove the widget from the layers overlay in the next update.
     ///
     /// The `id` must the widget id of a previous inserted widget, nothing happens if the widget is not found.
-    pub fn remove(ctx: &mut WidgetContext, id: impl Into<WidgetId>) {
-        ctx.window_state.req(&WINDOW_LAYERS_ID).items.remove(id);
+    pub fn remove(id: impl Into<WidgetId>) {
+        WINDOW.with_state(|s| {
+            s.req(&WINDOW_LAYERS_ID).items.remove(id);
+        });
     }
 }
 
@@ -433,7 +439,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
     })]
     impl UiNode for LayersNode {
         fn init(&mut self) {
-            ctx.window_state.set(
+            WINDOW.set_state(
                 &WINDOW_LAYERS_ID,
                 WindowLayers {
                     items: self.layered.clone(),
@@ -473,12 +479,8 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
     let layered = layers.reference();
 
     let sorting_layers = SortingList::new(layers, |a, b| {
-        let a = a
-            .with_context(|ctx| *ctx.widget_state.req(&LAYER_INDEX_ID))
-            .unwrap_or(LayerIndex::DEFAULT);
-        let b = b
-            .with_context(|ctx| *ctx.widget_state.req(&LAYER_INDEX_ID))
-            .unwrap_or(LayerIndex::DEFAULT);
+        let a = a.with_context(|| WIDGET.req_state(&LAYER_INDEX_ID)).unwrap_or(LayerIndex::DEFAULT);
+        let b = b.with_context(|| WIDGET.req_state(&LAYER_INDEX_ID)).unwrap_or(LayerIndex::DEFAULT);
 
         a.cmp(&b)
     });
@@ -839,7 +841,7 @@ impl_from_and_into_var! {
 
 /// Node that binds the [`COLOR_SCHEME_VAR`] to the [`WindowVars::actual_color_scheme`].
 pub fn color_scheme(child: impl UiNode) -> impl UiNode {
-    with_context_var_init(child, COLOR_SCHEME_VAR, |ctx| WindowVars::req().actual_color_scheme().boxed())
+    with_context_var_init(child, COLOR_SCHEME_VAR, || WindowVars::req().actual_color_scheme().boxed())
 }
 
 #[cfg(test)]

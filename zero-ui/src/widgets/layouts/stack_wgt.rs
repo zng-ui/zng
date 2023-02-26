@@ -133,7 +133,8 @@ impl StackNode {
 
     #[UiNode]
     fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-        let constrains = LAYOUT.constrains();
+        let metrics = LAYOUT.metrics();
+        let constrains = metrics.constrains();
         if let Some(known) = constrains.fill_or_exact() {
             return known;
         }
@@ -142,7 +143,7 @@ impl StackNode {
         let children_align = self.children_align.get();
         let child_align = direction.filter_align(children_align);
 
-        let spacing = self.layout_spacing();
+        let spacing = self.layout_spacing(&metrics);
         let max_size = self.child_max_size(child_align);
 
         // layout children, size, raw position + spacing only.
@@ -183,12 +184,13 @@ impl StackNode {
 
     #[UiNode]
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        let constrains = LAYOUT.constrains();
+        let metrics = LAYOUT.metrics();
+        let constrains = metrics.constrains();
         let direction = self.direction.get();
         let children_align = self.children_align.get();
         let child_align = direction.filter_align(children_align);
 
-        let spacing = self.layout_spacing();
+        let spacing = self.layout_spacing(&metrics);
         let max_size = self.child_max_size(child_align);
 
         // layout children, size, raw position + spacing only.
@@ -212,7 +214,7 @@ impl StackNode {
                         return true; // continue, skip collapsed
                     }
 
-                    let offset = direction.layout(item_rect, size) + child_spacing;
+                    let offset = direction.layout(&LAYOUT.metrics(), item_rect, size) + child_spacing;
                     o.child_offset = offset;
                     o.define_reference_frame = define_ref_frame;
 
@@ -239,7 +241,7 @@ impl StackNode {
         self.children.for_each_mut(|_, c, o| {
             let (size, baseline) = c
                 .with_context(|| {
-                    let bounds = &LAYOUT.bounds();
+                    let bounds = WIDGET.bounds();
                     (bounds.outer_size(), bounds.final_baseline())
                 })
                 .unwrap_or_default();

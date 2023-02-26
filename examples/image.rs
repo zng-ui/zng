@@ -49,7 +49,7 @@ fn app_main() {
                             sub_title("File"),
                             grid! {
                                 columns = ui_vec![grid::column!(1.lft()); 4];
-                                auto_grow_gen = wgt_gen!(|_, _| grid::row!(1.lft()));
+                                auto_grow_gen = wgt_gen!(|_| grid::row!(1.lft()));
                                 spacing = 2;
                                 align = Align::CENTER;
                                 cells= ui_vec![
@@ -214,7 +214,7 @@ fn sprite() -> impl UiNode {
                 child = text!(label.clone());
                 align = Align::CENTER;
                 padding = (2, 3);
-                on_click = hn!(timer, |_, _| {
+                on_click = hn!(timer, |_| {
                     let t = timer.get();
                     if t.is_paused() {
                         t.play(false);
@@ -247,14 +247,14 @@ fn sprite() -> impl UiNode {
 fn large_image() -> impl UiNode {
     button! {
         child = text!("Large Image (205MB download)");
-        on_click = hn!(|_, _| {
+        on_click = hn!(|_| {
             WINDOWS.open(||img_window(
                 "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
                 image! {
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
                     img_limits = Some(ImageLimits::none().with_max_encoded_size(300.megabytes()).with_max_decoded_size(3.gigabytes()));
 
-                    on_error = hn!(|_, args: &ImageErrorArgs| {
+                    on_error = hn!(|args: &ImageErrorArgs| {
                         tracing::error!(target: "unexpected", "{}", args.error);
                     })
                 }
@@ -266,7 +266,7 @@ fn large_image() -> impl UiNode {
 fn panorama_image() -> impl UiNode {
     button! {
         child = text!("Panorama Image (100MB download)");
-        on_click = hn!(|_, _| {
+        on_click = hn!(|_| {
             WINDOWS.open(||img_window(
                 "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
                 scroll! {
@@ -275,7 +275,7 @@ fn panorama_image() -> impl UiNode {
                         img_fit = ImageFit::Fill;
                         source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
                         img_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
-                        on_error = hn!(|_, args: &ImageErrorArgs| {
+                        on_error = hn!(|args: &ImageErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
                         });
                     };
@@ -290,7 +290,7 @@ fn block_window_load_image() -> impl UiNode {
     button! {
         child = text!(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
         enabled = enabled.clone();
-        on_click = hn!(|_, _| {
+        on_click = hn!(|_| {
             enabled.set(false);
             WINDOWS.open(clone_move!(enabled, || img_window! {
                 title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
@@ -307,13 +307,13 @@ fn block_window_load_image() -> impl UiNode {
                         source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
                         img_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
 
-                        on_error = hn!(|_, args: &ImageErrorArgs| {
+                        on_error = hn!(|args: &ImageErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
                         });
                     }
                 };
 
-                on_load = hn!(enabled, |_, _| {
+                on_load = hn!(enabled, |_| {
                     enabled.set(true);
                 });
             }));
@@ -367,7 +367,7 @@ pub mod img_window {
         color_scheme = ColorScheme::Dark;
 
         // content shown by all images when loading.
-        img_loading_gen = wgt_gen!(|_, _| {
+        img_loading_gen = wgt_gen!(|_| {
             let mut dots_count = 3;
             let msg = TIMERS.interval(300.ms(), false).map(move |_| {
                 dots_count += 1;
@@ -392,7 +392,7 @@ pub mod img_window {
         });
 
         // content shown by all images that failed to load.
-        img_error_gen = wgt_gen!(|_, args: ImageErrorArgs| {
+        img_error_gen = wgt_gen!(|args: ImageErrorArgs| {
             center_viewport(text! {
                 txt = args.error;
                 margin = 8;

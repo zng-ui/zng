@@ -68,7 +68,7 @@ pub mod rule_line {
         bounds: PxSize,
     })]
     impl UiNode for LineNode {
-        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &mut WidgetUpdates) {
             if self.stroke_thickness.is_new() || self.length.is_new() || self.orientation.is_new() {
                 WIDGET.layout();
             }
@@ -77,31 +77,33 @@ pub mod rule_line {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
-            let default_stroke = Dip::new(1).to_px(ctx.scale_factor().0);
+        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+            let metrics = LAYOUT.metrics();
+            let default_stroke = Dip::new(1).to_px(metrics.scale_factor().0);
 
             match self.orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get().layout(ctx.for_x(), |c| c.constrains().fill()),
-                    self.stroke_thickness.get().layout(ctx.for_y(), |_| default_stroke),
+                    self.length.get().layout(metrics.for_x(), |c| c.constrains().fill()),
+                    self.stroke_thickness.get().layout(metrics.for_y(), |_| default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness.get().layout(ctx.for_x(), |_| default_stroke),
-                    self.length.get().layout(ctx.for_y(), |c| c.constrains().fill()),
+                    self.stroke_thickness.get().layout(metrics.for_x(), |_| default_stroke),
+                    self.length.get().layout(metrics.for_y(), |c| c.constrains().fill()),
                 ),
             }
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-            let default_stroke = Dip::new(1).to_px(ctx.scale_factor().0);
+        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
+            let metrics = LAYOUT.metrics();
+            let default_stroke = Dip::new(1).to_px(metrics.scale_factor().0);
 
             let bounds = match self.orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get().layout(ctx.for_x(), |c| c.constrains().fill()),
-                    self.stroke_thickness.get().layout(ctx.for_y(), |_| default_stroke),
+                    self.length.get().layout(metrics.for_x(), |c| c.constrains().fill()),
+                    self.stroke_thickness.get().layout(metrics.for_y(), |_| default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness.get().layout(ctx.for_x(), |_| default_stroke),
-                    self.length.get().layout(ctx.for_y(), |c| c.constrains().fill()),
+                    self.stroke_thickness.get().layout(metrics.for_x(), |_| default_stroke),
+                    self.length.get().layout(metrics.for_y(), |c| c.constrains().fill()),
                 ),
             };
 
@@ -113,7 +115,7 @@ pub mod rule_line {
             bounds
         }
 
-        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             let bounds = PxRect::from_size(self.bounds);
             let orientation = self.orientation.get();
             let color = self.color.get();

@@ -146,8 +146,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         }
     }
     impl<C: UiNode, T: Var<Text>> UiNode for ResolveTextNode<C, T> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_var(&self.text)
+        fn init(&mut self) {
+            WIDGET
+                .sub_var(&self.text)
                 .sub_var(&LANG_VAR)
                 .sub_var(&DIRECTION_VAR)
                 .sub_var(&FONT_FAMILY_VAR)
@@ -192,9 +193,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
 
             let editable = TEXT_EDITABLE_VAR.get();
-            let caret_opacity = if editable && FOCUS.focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
+            let caret_opacity = if editable && FOCUS.focused().get().map(|p| p.widget_id()) == Some(WIDGET.id()) {
                 let v = KEYBOARD.caret_animation();
-                self.caret_opacity_handle = Some(v.subscribe(ctx.path.widget_id()));
+                self.caret_opacity_handle = Some(v.subscribe(WIDGET.id()));
                 v
             } else {
                 var(0.fct()).read_only()
@@ -210,37 +211,37 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             });
 
             if editable {
-                self.event_handles.push(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
-                self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
+                self.event_handles.push(CHAR_INPUT_EVENT.subscribe(WIDGET.id()));
+                self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(WIDGET.id()));
             }
 
-            self.with_mut(|c| c.init(ctx))
+            self.with_mut(|c| c.init())
         }
 
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        fn info(&self, info: &mut WidgetInfoBuilder) {
             if TEXT_EDITABLE_VAR.get() {
                 FocusInfoBuilder::get(info).focusable(true);
             }
-            self.with(|c| c.info(ctx, info))
+            self.with(|c| c.info(info))
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             self.event_handles.clear();
             self.caret_opacity_handle = None;
-            self.with_mut(|c| c.deinit(ctx));
+            self.with_mut(|c| c.deinit());
             *self.resolved.get_mut() = None;
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             if let Some(args) = CHAR_INPUT_EVENT.on(update) {
                 if !args.propagation().is_stopped()
                     && self.text.capabilities().contains(VarCapabilities::MODIFY)
-                    && args.is_enabled(ctx.path.widget_id())
+                    && args.is_enabled(WIDGET.id())
                 {
                     args.propagation().stop();
 
                     let new_animation = KEYBOARD.caret_animation();
-                    self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
+                    self.caret_opacity_handle = Some(new_animation.subscribe(WIDGET.id()));
                     self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
 
                     if args.is_backspace() {
@@ -258,9 +259,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 }
             } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if TEXT_EDITABLE_VAR.get() {
-                    if args.is_focused(ctx.path.widget_id()) {
+                    if args.is_focused(WIDGET.id()) {
                         let new_animation = KEYBOARD.caret_animation();
-                        self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
+                        self.caret_opacity_handle = Some(new_animation.subscribe(WIDGET.id()));
                         self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
                     } else {
                         self.caret_opacity_handle = None;
@@ -285,10 +286,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     WIDGET.layout();
                 }
             }
-            self.with_mut(|c| c.event(ctx, update))
+            self.with_mut(|c| c.event(update))
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             let r = self.resolved.get_mut().as_mut().unwrap();
 
             // update `r.text`, affects layout.
@@ -338,12 +339,13 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 if enabled && self.event_handles.0.is_empty() {
                     // actually enabled.
 
-                    self.event_handles.push(CHAR_INPUT_EVENT.subscribe(ctx.path.widget_id()));
-                    self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
+                    let id = WIDGET.id();
+                    self.event_handles.push(CHAR_INPUT_EVENT.subscribe(id));
+                    self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(id));
 
-                    if FOCUS.focused().get().map(|p| p.widget_id()) == Some(ctx.path.widget_id()) {
+                    if FOCUS.focused().get().map(|p| p.widget_id()) == Some(id) {
                         let new_animation = KEYBOARD.caret_animation();
-                        self.caret_opacity_handle = Some(new_animation.subscribe(ctx.path.widget_id()));
+                        self.caret_opacity_handle = Some(new_animation.subscribe(id));
                         self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
                     }
                 } else {
@@ -353,24 +355,24 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 }
             }
 
-            self.with_mut(|c| c.update(ctx, updates))
+            self.with_mut(|c| c.update(updates))
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            self.with(|c| c.measure(ctx, wm))
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            self.with(|c| c.measure(wm))
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.with_mut(|c| c.layout(ctx, wl));
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.with_mut(|c| c.layout(wl));
             self.resolved.get_mut().as_mut().unwrap().reshape = false;
             size
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.with(|c| c.render(ctx, frame))
+        fn render(&self, frame: &mut FrameBuilder) {
+            self.with(|c| c.render(frame))
         }
 
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.with(|c| c.render_update(ctx, update))
+        fn render_update(&self, update: &mut FrameUpdate) {
+            self.with(|c| c.render_update(update))
         }
     }
     ResolveTextNode {
@@ -407,15 +409,15 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         last_layout: (LayoutMetrics, Option<InlineConstrainsMeasure>),
     }
     impl FinalText {
-        fn measure(&mut self, ctx: &mut MeasureContext) -> Option<PxSize> {
-            if ctx.inline_constrains().is_some() {
+        fn measure(&mut self, metrics: &LayoutMetrics) -> Option<PxSize> {
+            if metrics.inline_constrains().is_some() {
                 return None;
             }
 
-            ctx.constrains().fill_or_exact()
+            metrics.constrains().fill_or_exact()
         }
 
-        fn layout(&mut self, _id: WidgetId, metrics: &LayoutMetrics, t: &mut ResolvedText, is_measure: bool) -> PxSize {
+        fn layout(&mut self, metrics: &LayoutMetrics, t: &mut ResolvedText, is_measure: bool) -> PxSize {
             if t.reshape {
                 self.pending.insert(Layout::RESHAPE);
             }
@@ -662,13 +664,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             metrics.constrains().fill_size_or(r.shaped_text.size())
         }
 
-        fn ensure_layout_for_render(&mut self, ctx: &mut RenderContext) {
+        fn ensure_layout_for_render(&mut self) {
             if self.txt_is_measured {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `render` or `render_update`");
                 let metrics = self.last_layout.0.clone();
                 self.shaping_args.inline_constrains = self.last_layout.1;
-                self.layout(ctx.path.widget_id(), &metrics, t, false);
+                self.layout(&metrics, t, false);
                 debug_assert!(!self.txt_is_measured);
             }
         }
@@ -687,7 +689,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         #[UiNode]
-        fn init(&mut self, ctx: &mut WidgetContext) {
+        fn init(&mut self) {
             // other subscriptions are handled by the `resolve_text` node.
             let txt = self.txt.get_mut();
             txt.shaping_args.lang = LANG_VAR.get();
@@ -698,17 +700,17 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             txt.shaping_args.hyphen_char = HYPHEN_CHAR_VAR.get();
             txt.shaping_args.font_features = FONT_FEATURES_VAR.with(|f| f.finalize());
 
-            self.child.init(ctx);
+            self.child.init();
         }
 
         #[UiNode]
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
+        fn deinit(&mut self) {
+            self.child.deinit();
             self.txt.get_mut().txt = None;
         }
 
         #[UiNode]
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if FONT_SIZE_VAR.is_new() || FONT_VARIATIONS_VAR.is_new() {
                 self.txt.get_mut().pending.insert(Layout::RESHAPE);
                 WIDGET.layout();
@@ -785,20 +787,21 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 WIDGET.layout();
             });
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
         #[UiNode]
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
             let mut txt = self.txt.lock();
+            let metrics = LAYOUT.metrics();
 
-            if let Some(size) = txt.measure(ctx) {
+            if let Some(size) = txt.measure(&metrics) {
                 size
             } else {
                 let mut write = RESOLVED_TEXT.write();
                 let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
 
-                let size = txt.layout(ctx.path.widget_id(), ctx.metrics, t, true);
+                let size = txt.layout(&metrics, t, true);
                 if let (Some(inline), Some(l)) = (wm.inline(), txt.txt.as_ref()) {
                     if let Some(first_line) = l.shaped_text.first_line() {
                         inline.first = first_line.original_size();
@@ -842,13 +845,15 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
         }
         #[UiNode]
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let txt = self.txt.get_mut();
 
             let mut write = RESOLVED_TEXT.write();
             let t = write.as_mut().expect("expected `ResolvedText` in `layout`");
 
-            let size = txt.layout(ctx.path.widget_id(), ctx.metrics, t, false);
+            let metrics = LAYOUT.metrics();
+
+            let size = txt.layout(&metrics, t, false);
 
             if txt.pending != Layout::empty() {
                 WIDGET.render();
@@ -864,7 +869,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 for (i, line) in l.shaped_text.lines().enumerate() {
                     if i == 0 {
                         let info = l.shaped_text.first_line().unwrap().segs().map(|s| s.inline_info());
-                        if ctx.direction().is_rtl() {
+                        if LAYOUT.direction().is_rtl() {
                             // help sort
                             inline.set_first_segs(info.rev());
                         } else {
@@ -872,7 +877,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                     } else if i == last_line {
                         let info = l.shaped_text.last_line().unwrap().segs().map(|s| s.inline_info());
-                        if ctx.direction().is_rtl() {
+                        if LAYOUT.direction().is_rtl() {
                             // help sort
                             inline.set_last_segs(info.rev());
                         } else {
@@ -886,10 +891,10 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             wl.set_baseline(t.baseline);
 
-            ctx.with_constrains(
+            LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(size),
-                |ctx| {
-                    self.with_mut(|c| c.layout(ctx, wl));
+                || {
+                    self.with_mut(|c| c.layout(wl));
                 },
             );
 
@@ -897,14 +902,14 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         #[UiNode]
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.txt.lock().ensure_layout_for_render(ctx);
-            self.with(|c| c.render(ctx, frame))
+        fn render(&self, frame: &mut FrameBuilder) {
+            self.txt.lock().ensure_layout_for_render();
+            self.with(|c| c.render(frame))
         }
         #[UiNode]
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.txt.lock().ensure_layout_for_render(ctx);
-            self.with(|c| c.render_update(ctx, update))
+        fn render_update(&self, update: &mut FrameUpdate) {
+            self.txt.lock().ensure_layout_for_render();
+            self.with(|c| c.render_update(update))
         }
     }
     LayoutTextNode {
@@ -932,15 +937,15 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
     impl UiNode for RenderUnderlineNode {
         // subscriptions are handled by the `resolve_text` node.
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if UNDERLINE_STYLE_VAR.is_new() || UNDERLINE_COLOR_VAR.is_new() {
                 WIDGET.render();
             }
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             {
                 let read = LayoutText::read();
                 let t = read.as_ref().expect("expected `LayoutText` in `render_underlines`");
@@ -961,7 +966,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            self.child.render(ctx, frame);
+            self.child.render(frame);
         }
     }
     RenderUnderlineNode { child: child.cfg_boxed() }.cfg_boxed()
@@ -978,15 +983,15 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
     })]
     impl UiNode for RenderStrikethroughsNode {
         // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if STRIKETHROUGH_STYLE_VAR.is_new() || STRIKETHROUGH_COLOR_VAR.is_new() {
                 WIDGET.render();
             }
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             {
                 let read = LayoutText::read();
                 let t = read.as_ref().expect("expected `LayoutText` in `render_strikethroughs`");
@@ -1006,7 +1011,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            self.child.render(ctx, frame);
+            self.child.render(frame);
         }
     }
     RenderStrikethroughsNode { child: child.cfg_boxed() }.cfg_boxed()
@@ -1023,15 +1028,15 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
     })]
     impl UiNode for RenderOverlineNode {
         // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if OVERLINE_STYLE_VAR.is_new() || OVERLINE_COLOR_VAR.is_new() {
                 WIDGET.render();
             }
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             {
                 let read = LayoutText::read();
                 let t = read.as_ref().expect("expected `LayoutText` in `render_overlines`");
@@ -1051,7 +1056,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            self.child.render(ctx, frame);
+            self.child.render(frame);
         }
     }
     RenderOverlineNode { child: child.cfg_boxed() }.cfg_boxed()
@@ -1070,7 +1075,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
     })]
     impl UiNode for RenderCaretNode {
         // subscriptions are handled by the text resolver node.
-        fn init(&mut self, ctx: &mut WidgetContext) {
+        fn init(&mut self) {
             self.color = if TEXT_EDITABLE_VAR.get() {
                 let mut c = CARET_COLOR_VAR.get();
                 c.alpha *= ResolvedText::read().as_ref().map(|t| t.caret_opacity.get().0).unwrap_or(0.0);
@@ -1079,10 +1084,10 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                 rgba(0, 0, 0, 0)
             };
 
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             let color = if TEXT_EDITABLE_VAR.get() {
                 let mut c = CARET_COLOR_VAR.get();
                 c.alpha *= ResolvedText::read().as_ref().map(|t| t.caret_opacity.get().0).unwrap_or(0.0);
@@ -1096,11 +1101,11 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                 WIDGET.render_update();
             }
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.child.render(ctx, frame);
+        fn render(&self, frame: &mut FrameBuilder) {
+            self.child.render(frame);
 
             if TEXT_EDITABLE_VAR.get() {
                 let read = LayoutText::read();
@@ -1114,8 +1119,8 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.child.render_update(ctx, update);
+        fn render_update(&self, update: &mut FrameUpdate) {
+            self.child.render_update(update);
 
             if TEXT_EDITABLE_VAR.get() {
                 update.update_color(self.color_key.update(self.color.into(), true))
@@ -1148,19 +1153,19 @@ pub fn render_text() -> impl UiNode {
         color_key: Option<FrameValueKey<RenderColor>>,
     })]
     impl UiNode for RenderTextNode {
-        fn init(&mut self, _: &mut WidgetContext) {
+        fn init(&mut self) {
             if TEXT_COLOR_VAR.capabilities().contains(VarCapabilities::NEW) {
                 self.color_key = Some(FrameValueKey::new_unique());
             }
         }
 
-        fn deinit(&mut self, _: &mut WidgetContext) {
+        fn deinit(&mut self) {
             *self.reuse.get_mut() = None;
             self.color_key = None;
         }
 
         // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &mut WidgetUpdates) {
             if FONT_AA_VAR.is_new() {
                 WIDGET.render();
             } else if TEXT_COLOR_VAR.is_new() {
@@ -1168,7 +1173,7 @@ pub fn render_text() -> impl UiNode {
             }
         }
 
-        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             let read = ResolvedText::read();
             let r = read.as_ref().expect("expected `ResolvedText` in `render_text`");
             let read = LayoutText::read();
@@ -1205,7 +1210,7 @@ pub fn render_text() -> impl UiNode {
             });
         }
 
-        fn render_update(&self, _: &mut RenderContext, update: &mut FrameUpdate) {
+        fn render_update(&self, update: &mut FrameUpdate) {
             if let Some(key) = self.color_key {
                 let color = TEXT_COLOR_VAR.get();
 

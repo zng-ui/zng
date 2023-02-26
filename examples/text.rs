@@ -73,7 +73,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
         });
     }
     stack! {
-        button::vis::extend_style = style_gen!(|_, _| style! {
+        button::vis::extend_style = style_gen!(|_| style! {
             padding = (0, 5);
         });
         direction = StackDirection::left_to_right();
@@ -87,7 +87,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Minus), shortcut!(NumpadSubtract)];
-                on_click = hn!(font_size, |_, _| {
+                on_click = hn!(font_size, |_| {
                     change_size(&font_size, -1.0)
                 });
             },
@@ -99,7 +99,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Plus), shortcut!(NumpadAdd)];
-                on_click = hn!(font_size, |_, _| {
+                on_click = hn!(font_size, |_| {
                     change_size(&font_size, 1.0)
                 });
             },

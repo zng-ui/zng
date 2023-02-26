@@ -22,7 +22,7 @@ macro_rules! __event_property {
         /// # Async
         ///
         /// You can use async event handlers with this property.
-        #[$crate::property(EVENT, default( $crate::handler::hn!(|_, _|{}) ))]
+        #[$crate::property(EVENT, default( $crate::handler::hn!(|_|{}) ))]
         $vis fn [<on_ $event>](
             child: impl $crate::widget_instance::UiNode,
             handler: impl $crate::handler::WidgetHandler<$Args>,
@@ -41,7 +41,7 @@ macro_rules! __event_property {
         ///
         /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
         /// subsequent code runs in widget updates.
-        #[$crate::property(EVENT, default( $crate::handler::hn!(|_, _|{}) ))]
+        #[$crate::property(EVENT, default( $crate::handler::hn!(|_|{}) ))]
         $vis fn [<on_pre_ $event>](
             child: impl $crate::widget_instance::UiNode,
             handler: impl $crate::handler::WidgetHandler<$Args>,
@@ -62,7 +62,7 @@ macro_rules! __event_property {
             $vis fn $event {
                 event: $EVENT,
                 args: $Args,
-                filter: |ctx, args| true,
+                filter: |args| true,
             }
         }
     };

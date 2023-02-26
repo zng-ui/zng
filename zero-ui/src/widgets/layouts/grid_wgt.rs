@@ -816,7 +816,7 @@ impl GridNode {
         });
         let rows_len = self.children[1].len() + imaginary_rows;
         self.children[1].for_each_mut(|i, r| {
-            r.with_context_mut(|| {
+            r.with_context(|| {
                 let prev = WIDGET.set_state(&row::INDEX_ID, (i, rows_len));
                 if prev != Some((i, rows_len)) {
                     WIDGET.update();

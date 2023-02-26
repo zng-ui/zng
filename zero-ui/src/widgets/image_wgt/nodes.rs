@@ -75,9 +75,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 // source update:
 
                 if let ImageSource::Render(_, args) = &mut source {
-                    *args = Some(ImageRenderArgs {
-                        parent: Some(WINDOW.id()),
-                    });
+                    *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
                 }
 
                 let mode = if IMAGE_CACHE_VAR.get() {
@@ -278,7 +276,8 @@ pub fn image_presenter() -> impl UiNode {
     })]
     impl UiNode for ImagePresenterNode {
         fn init(&mut self) {
-            WIDGET.sub_var(&CONTEXT_IMAGE_VAR)
+            WIDGET
+                .sub_var(&CONTEXT_IMAGE_VAR)
                 .sub_var(&IMAGE_CROP_VAR)
                 .sub_var(&IMAGE_SCALE_PPI_VAR)
                 .sub_var(&IMAGE_SCALE_FACTOR_VAR)

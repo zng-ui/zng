@@ -93,8 +93,8 @@ fn example() -> impl UiNode {
                 id = "easing-menu";
                 spacing = 2;
                 columns = ui_vec![grid::column!(1.lft()); 7];
-                auto_grow_gen = wgt_gen!(|_, _| grid::row!(1.lft()));
-                button::vis::extend_style = style_gen!(|_, _| style! {
+                auto_grow_gen = wgt_gen!(|_| grid::row!(1.lft()));
+                button::vis::extend_style = style_gen!(|_| style! {
                     padding = 3;
                 });
                 cells = ui_vec![
@@ -122,7 +122,7 @@ fn example() -> impl UiNode {
                     sides: colors::DARK_RED,
                 };
                 click_shortcut = shortcut![Escape];
-                on_click = hn!(x, color, |_, _| {
+                on_click = hn!(x, color, |_| {
                     x.set(0);
                     color.set(FROM_COLOR);
                 });
@@ -156,7 +156,7 @@ fn ease_btn(
                 text!(name.into()),
                 image! {
                     img_scale_ppi = true;
-                    img_loading_gen = wgt_gen!(|_, _| wgt! {
+                    img_loading_gen = wgt_gen!(|_| wgt! {
                         size = (64, 64);
                         margin = 10;
                     });
@@ -171,7 +171,7 @@ fn ease_btn(
                 },
             ]
         };
-        on_click = hn!(l, color, easing_mod, |_, _| {
+        on_click = hn!(l, color, easing_mod, |_| {
             l.set_ease(0, 300, 1.secs(), easing_mod.get().modify_fn(easing)).perm();
             color.set_ease(FROM_COLOR, TO_COLOR, 1.secs(), easing_mod.get().modify_fn(easing)).perm();
         });
