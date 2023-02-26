@@ -15,7 +15,7 @@ use crate::app::{
     AppEventSender,
 };
 use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
-use crate::context::{state_map, OwnedStateMap, WidgetUpdates};
+use crate::context::{state_map, OwnedStateMap, WidgetUpdates, WindowCtx};
 use crate::context::{UPDATES, WINDOW};
 use crate::crate_util::IdSet;
 use crate::event::{AnyEventArgs, EventUpdate};
@@ -662,7 +662,7 @@ impl WINDOWS {
             for w in &args.windows {
                 let mut wns = WINDOWS_SV.write();
                 if let Some(w) = wns.windows.remove(w) {
-                    let id = w.id;
+                    let id = w.ctx.id();
                     w.close();
 
                     let info = wns.windows_info.remove(&id).unwrap();
@@ -683,7 +683,7 @@ impl WINDOWS {
             // AND there is no more open headed window OR request for opening a headed window.
             if wns.exit_on_last_close.get()
                 && !is_headless_app
-                && !wns.windows.values().any(|w| matches!(w.mode, WindowMode::Headed))
+                && !wns.windows.values().any(|w| matches!(w.ctx.mode(), WindowMode::Headed))
                 && !wns
                     .open_requests
                     .iter()
@@ -748,10 +748,10 @@ impl WINDOWS {
 
             let (window, info) = AppWindow::new(r.id, window_mode, color_scheme, r.new.into_inner(), r.loading_handle);
 
-            let args = WindowOpenArgs::now(window.id);
+            let args = WindowOpenArgs::now(window.ctx.id());
             {
                 let mut wns = WINDOWS_SV.write();
-                if wns.windows.insert(window.id, window).is_some() {
+                if wns.windows.insert(window.ctx.id(), window).is_some() {
                     // id conflict resolved on request.
                     unreachable!();
                 }
@@ -890,10 +890,7 @@ struct CloseWindowRequest {
 /// Window context owner.
 struct AppWindow {
     ctrl: Mutex<WindowCtrl>, // never locked, makes `AppWindow: Sync`.
-
-    id: WindowId,
-    pub(super) mode: WindowMode,
-    state: OwnedStateMap<state_map::Window>,
+    pub(super) ctx: WindowCtx,
 }
 impl AppWindow {
     pub fn new(
@@ -907,40 +904,41 @@ impl AppWindow {
             .primary_monitor()
             .map(|m| m.scale_factor().get())
             .unwrap_or_else(|| 1.fct());
-        todo!("!!:");
 
-        // let vars = WindowVars::new(WINDOWS_SV.read().default_render_mode.get(), primary_scale_factor, color_scheme);
-        // let mut state = OwnedStateMap::new();
-        // state.borrow_mut().set(&WINDOW_VARS_ID, vars.clone());
-        // let (window, _) = ctx.window_context(id, mode, &mut state, new); // !!: TODO WINDOW.with_context
+        let mut ctx = WindowCtx::new(id, mode);
 
-        // if window.kiosk {
-        //     vars.chrome().set_ne(WindowChrome::None);
-        //     vars.visible().set_ne(true);
-        //     if !vars.state().get().is_fullscreen() {
-        //         vars.state().set(WindowState::Exclusive);
-        //     }
-        // }
+        let vars = WindowVars::new(WINDOWS_SV.read().default_render_mode.get(), primary_scale_factor, color_scheme);
+        ctx.state().borrow_mut().set(&WINDOW_VARS_ID, vars.clone());
 
-        // let commands = WindowCommands::new(id);
+        let window = WINDOW.with_context(&ctx, new);
 
-        // let root_id = window.id;
-        // let ctrl = WindowCtrl::new(id, &vars, commands, mode, window);
+        if window.kiosk {
+            vars.chrome().set_ne(WindowChrome::None);
+            vars.visible().set_ne(true);
+            if !vars.state().get().is_fullscreen() {
+                vars.state().set(WindowState::Exclusive);
+            }
+        }
 
-        // let window = Self {
-        //     ctrl: Mutex::new(ctrl),
-        //     id,
-        //     mode,
-        //     state,
-        // };
-        // let info = AppWindowInfo::new(id, root_id, mode, vars, loading);
+        let commands = WindowCommands::new(id);
 
-        // (window, info)
+        let root_id = window.id;
+        let ctrl = WindowCtrl::new(id, &vars, commands, mode, window);
+
+        let window = Self {
+            ctrl: Mutex::new(ctrl),
+            ctx,
+        };
+        let info = AppWindowInfo::new(id, root_id, mode, vars, loading);
+
+        (window, info)
     }
 
     fn ctrl_in_ctx(&mut self, action: impl FnOnce(&mut WindowCtrl)) {
         // !!: TODO refactor to this
-        // WINDOW.with_context(&mut Some(), f)
+        WINDOW.with_context(&self.ctx, || {
+            action(self.ctrl.get_mut());
+        });
         //
         // let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| action(ctx, self.ctrl.get_mut()));
         // if updates.is_any() {
@@ -980,8 +978,9 @@ impl AppWindow {
     }
 
     pub fn close(mut self) {
-        // !!: TODO, refactor to `WINDOW.with_context`
-        // let _ = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| self.ctrl.get_mut().close(ctx));
+        WINDOW.with_context(&self.ctx, || {
+            self.ctrl.get_mut().close();
+        });
     }
 }
 

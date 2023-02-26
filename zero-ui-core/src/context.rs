@@ -77,6 +77,26 @@ impl WindowCtx {
     pub fn init(&mut self, widget_tree: WidgetInfoTree) {
         self.0.get_mut().as_mut().unwrap().widget_tree = Some(widget_tree);
     }
+
+    /// Gets the window ID.
+    pub fn id(&self) -> WindowId {
+        self.0.lock().as_ref().unwrap().id
+    }
+
+    /// Gets the window mode.
+    pub fn mode(&self) -> WindowMode {
+        self.0.lock().as_ref().unwrap().mode
+    }
+
+    /// Gets the window tree.
+    pub fn widget_tree(&self) -> WidgetInfoTree {
+        self.0.lock().as_ref().unwrap().widget_tree.as_ref().unwrap().clone()
+    }
+
+    /// Gets the window state.
+    pub fn state(&mut self) -> &mut OwnedStateMap<state_map::Window> {
+        &mut self.0.get_mut().as_mut().unwrap().state
+    }
 }
 
 struct WidgetCtxData {
@@ -231,6 +251,36 @@ impl WidgetCtx {
     /// Unlike other requests, the widget re-init immediately.
     pub fn take_reinit(&mut self) -> bool {
         self.take_flag(UpdateFlags::REINIT)
+    }
+
+    /// Gets the widget id.
+    pub fn id(&self) -> WidgetId {
+        self.0.lock().as_ref().unwrap().id
+    }
+
+    /// Gets the widget state.
+    pub fn state(&mut self) -> &mut OwnedStateMap<state_map::Widget> {
+        &mut self.0.get_mut().as_mut().unwrap().state
+    }
+
+    /// Gets the widget var handles.
+    pub fn var_handles(&mut self) -> &mut VarHandles {
+        &mut self.0.get_mut().as_mut().unwrap().var_handles
+    }
+
+    /// Gets the widget event handles.
+    pub fn event_handles(&mut self) -> &mut EventHandles {
+        &mut self.0.get_mut().as_mut().unwrap().event_handles
+    }
+
+    /// Gets the widget bounds.
+    pub fn bounds(&self) -> WidgetBoundsInfo {
+        self.0.lock().as_ref().unwrap().info.bounds.clone()
+    }
+
+    /// Gets the widget borders.
+    pub fn border(&self) -> WidgetBorderInfo {
+        self.0.lock().as_ref().unwrap().info.border.clone()
     }
 }
 
