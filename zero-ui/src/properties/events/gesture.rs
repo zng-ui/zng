@@ -16,14 +16,14 @@ event_property! {
     pub fn any_click {
         event: CLICK_EVENT,
         args: ClickArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_enabled(WIDGET.id()),
     }
 
     /// On widget click from any source and of any click count and the widget is disabled.
     pub fn disabled_click {
         event: CLICK_EVENT,
         args: ClickArgs,
-        filter: |ctx, args| args.is_disabled(ctx.path.widget_id()),
+        filter: |args| args.is_disabled(WIDGET.id()),
     }
 
     /// On widget click from any source but excluding double/triple clicks and the widget is enabled.
@@ -33,7 +33,7 @@ event_property! {
     pub fn any_single_click {
         event: CLICK_EVENT,
         args: ClickArgs,
-        filter: |ctx, args| args.is_single() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_single() && args.is_enabled(WIDGET.id()),
     }
 
     /// On widget click from any source but exclusive double-clicks and the widget is enabled.
@@ -43,7 +43,7 @@ event_property! {
     pub fn any_double_click {
         event: CLICK_EVENT,
         args: ClickArgs,
-        filter: |ctx, args| args.is_double() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_double() && args.is_enabled(WIDGET.id()),
     }
 
     /// On widget click from any source but exclusive triple-clicks and the widget is enabled.
@@ -53,7 +53,7 @@ event_property! {
     pub fn any_triple_click {
         event: CLICK_EVENT,
         args: ClickArgs,
-        filter: |ctx, args| args.is_triple() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_triple() && args.is_enabled(WIDGET.id()),
     }
 
     /// On widget click with the primary button and any click count and the widget is enabled.
@@ -64,7 +64,7 @@ event_property! {
     pub fn click {
         event: CLICK_EVENT,
         args: ClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_primary() && args.is_enabled(WIDGET.id()),
     }
 
     /// On widget click with the primary button, excluding double/triple clicks and the widget is enabled.
@@ -74,7 +74,7 @@ event_property! {
     pub fn single_click {
         event: CLICK_EVENT,
         args: ClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_single() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_primary() && args.is_single() && args.is_enabled(WIDGET.id()),
     }
 
     /// On widget click with the primary button and exclusive double-clicks and the widget is enabled.
@@ -84,7 +84,7 @@ event_property! {
     pub fn double_click {
         event: CLICK_EVENT,
         args: ClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_double() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_primary() && args.is_double() && args.is_enabled(WIDGET.id()),
     }
 
     /// On widget click with the primary button and exclusive triple-clicks and the widget is enabled.
@@ -94,7 +94,7 @@ event_property! {
     pub fn triple_click {
         event: CLICK_EVENT,
         args: ClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_triple() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_primary() && args.is_triple() && args.is_enabled(WIDGET.id()),
     }
 
     /// On widget click with the secondary/context button and the widget is enabled.
@@ -103,7 +103,7 @@ event_property! {
     pub fn context_click {
         event: CLICK_EVENT,
         args: ClickArgs,
-        filter: |ctx, args| args.is_context() && args.is_enabled(ctx.path.widget_id()),
+        filter: |args| args.is_context() && args.is_enabled(WIDGET.id()),
     }
 }
 
@@ -138,18 +138,18 @@ pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortc
     handle: Option<ShortcutsHandle>,
 })]
 impl UiNode for ClickShortcutNode {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.auto_subs(ctx);
-        self.child.init(ctx);
+    fn init(&mut self) {
+        self.auto_subs();
+        self.child.init();
         let s = self.shortcuts.get();
-        self.handle = Some(GESTURES.click_shortcut(s, self.kind, ctx.path.widget_id()));
+        self.handle = Some(GESTURES.click_shortcut(s, self.kind, WIDGET.id()));
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-        self.child.update(ctx, updates);
+    fn update(&mut self, updates: &mut WidgetUpdates) {
+        self.child.update(updates);
 
         if let Some(s) = self.shortcuts.get_new() {
-            self.handle = Some(GESTURES.click_shortcut(s, self.kind, ctx.path.widget_id()));
+            self.handle = Some(GESTURES.click_shortcut(s, self.kind, WIDGET.id()));
         }
     }
 }

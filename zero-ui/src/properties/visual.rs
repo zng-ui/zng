@@ -38,15 +38,15 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
         children: impl UiNodeList,
     })]
     impl UiNode for BackgroundNode {
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node(1, |n| n.measure(ctx, wm))
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            self.children.with_node(1, |n| n.measure(wm))
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.children.with_node_mut(1, |n| n.layout(ctx, wl));
-            ctx.with_constrains(
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.children.with_node_mut(1, |n| n.layout(wl));
+            LAYOUT.with_constrains(
                 |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
-                |ctx| {
-                    self.children.with_node_mut(0, |n| n.layout(ctx, wl));
+                || {
+                    self.children.with_node_mut(0, |n| n.layout(wl));
                 },
             );
             size
@@ -233,15 +233,15 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
         children: impl UiNodeList,
     })]
     impl UiNode for ForegroundNode {
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node(0, |n| n.measure(ctx, wm))
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            self.children.with_node(0, |n| n.measure(wm))
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.children.with_node_mut(0, |n| n.layout(ctx, wl));
-            ctx.with_constrains(
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.children.with_node_mut(0, |n| n.layout(wl));
+            LAYOUT.with_constrains(
                 |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
-                |ctx| {
-                    self.children.with_node_mut(1, |n| n.layout(ctx, wl));
+                || {
+                    self.children.with_node_mut(1, |n| n.layout(wl));
                 },
             );
             size
@@ -297,23 +297,23 @@ pub fn foreground_highlight(
         render_radius: PxCornerRadius,
     })]
     impl UiNode for ForegroundHighlightNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.offsets.is_new() || self.widths.is_new() {
                 WIDGET.layout();
             } else if self.sides.is_new() {
                 WIDGET.render();
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(ctx, wm)
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(wm)
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.child.layout(ctx, wl);
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.child.layout(wl);
 
-            let radius = ContextBorders::inner_radius(ctx);
-            let offsets = self.offsets.get().layout(ctx.metrics, |_| PxSideOffsets::zero());
+            let radius = ContextBorders::inner_radius();
+            let offsets = self.offsets.get().layout(&LAYOUT.metrics(), |_| PxSideOffsets::zero());
             let radius = radius.deflate(offsets);
 
             let mut bounds = PxRect::zero();
@@ -323,7 +323,7 @@ pub fn foreground_highlight(
                 }
             }
             if bounds.size.is_empty() {
-                let border_offsets = ContextBorders::inner_offsets(ctx.path.widget_id());
+                let border_offsets = ContextBorders::inner_offsets();
 
                 bounds = PxRect::new(
                     PxPoint::new(offsets.left + border_offsets.left, offsets.top + border_offsets.top),
@@ -331,9 +331,9 @@ pub fn foreground_highlight(
                 );
             }
 
-            let widths = ctx.with_constrains(
+            let widths = LAYOUT.with_constrains(
                 |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
-                |ctx| self.widths.get().layout(ctx.metrics, |_| PxSideOffsets::zero()),
+                |ct| self.widths.get().layout(&LAYOUT.metrics(), |_| PxSideOffsets::zero()),
             );
 
             if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {
@@ -346,8 +346,8 @@ pub fn foreground_highlight(
             size
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.child.render(ctx, frame);
+        fn render(&self, frame: &mut FrameBuilder) {
+            self.child.render(frame);
             frame.push_border(self.render_bounds, self.render_widths, self.sides.get(), self.render_radius);
         }
     }
@@ -459,22 +459,22 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         corners: PxCornerRadius,
     })]
     impl UiNode for ClipToBoundsNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.clip.is_new() {
                 WIDGET.layout().render();
             }
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(ctx, wm)
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(wm)
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let bounds = self.child.layout(ctx, wl);
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            let bounds = self.child.layout(wl);
 
             if self.clip.get() {
-                let corners = ContextBorders::border_radius(ctx);
+                let corners = ContextBorders::border_radius();
                 if corners != self.corners {
                     self.corners = corners;
                     WIDGET.render();
@@ -484,11 +484,12 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             bounds
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             if self.clip.get() {
                 frame.push_clips(
                     |c| {
-                        let bounds = PxRect::from_size(ctx.widget_info.bounds.inner_size());
+                        let wgt_bounds = WIDGET.bounds();
+                        let bounds = PxRect::from_size(wgt_bounds.inner_size());
 
                         if self.corners != PxCornerRadius::zero() {
                             c.push_clip_rounded_rect(bounds, self.corners, false, true);
@@ -496,16 +497,16 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
                             c.push_clip_rect(bounds, false, true);
                         }
 
-                        if let Some(inline) = ctx.widget_info.bounds.inline() {
+                        if let Some(inline) = wgt_bounds.inline() {
                             for r in inline.negative_space().iter() {
                                 c.push_clip_rect(*r, true, true);
                             }
                         }
                     },
-                    |f| self.child.render(ctx, f),
+                    |f| self.child.render(f),
                 );
             } else {
-                self.child.render(ctx, frame);
+                self.child.render(frame);
             }
         }
     }
@@ -527,28 +528,28 @@ pub fn inline(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         enabled: impl Var<bool>,
     })]
     impl UiNode for InlineNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
             if self.enabled.is_new() {
                 WIDGET.layout();
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            if self.enabled.get() && ctx.inline_constrains().is_none() {
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            if self.enabled.get() && LAYOUT.inline_constrains().is_none() {
                 let c = InlineConstrainsMeasure {
-                    first_max: ctx.constrains().x.max_or(Px::MAX),
+                    first_max: LAYOUT.constrains().x.max_or(Px::MAX),
                     mid_clear_min: Px(0),
                 };
-                ctx.with_inline_constrains(wm, move |_| Some(c), |ctx, wm| self.child.measure(ctx, wm))
+                LAYOUT.with_inline_constrains(wm, move |_| Some(c), |wm| self.child.measure(wm))
             } else {
-                self.child.measure(ctx, wm)
+                self.child.measure(wm)
             }
         }
 
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            if self.enabled.get() && ctx.inline_constrains().is_none() {
-                if let Some(c) = ctx.widget_info.bounds.measure_inline() {
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            if self.enabled.get() && LAYOUT.inline_constrains().is_none() {
+                if let Some(c) = WIDGET.bounds().measure_inline() {
                     let c = InlineConstrainsLayout {
                         first: PxRect::from_size(c.first),
                         mid_clear: Px(0),
@@ -556,10 +557,10 @@ pub fn inline(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                         first_segs: Default::default(),
                         last_segs: Default::default(),
                     };
-                    return ctx.with_inline_constrains(move |_| Some(c), |ctx| self.child.layout(ctx, wl));
+                    return LAYOUT.with_inline_constrains(move |_| Some(c), || self.child.layout(wl));
                 }
             }
-            self.child.layout(ctx, wl)
+            self.child.layout(wl)
         }
     }
     InlineNode {

@@ -535,14 +535,14 @@ pub mod cell {
             self
         }
 
-        /// Get the cell info stored in the widget state.
-        pub fn get(state: StateMapRef<state_map::Widget>) -> Self {
-            state.get(&INFO_ID).copied().unwrap_or_default()
+        /// Get the cell info stored in the [`WIDGET`] state.
+        pub fn get() -> Self {
+            WIDGET.get_state(&INFO_ID).unwrap_or_default()
         }
 
-        /// Get the cell info stored in the widget.
+        /// Get the cell info stored in the `wgt` state.
         pub fn get_wgt(wgt: &impl UiNode) -> Self {
-            wgt.with_context(|ctx| Self::get(ctx.widget_state)).unwrap_or_default()
+            wgt.with_context(|| Self::get()).unwrap_or_default()
         }
     }
 
@@ -713,14 +713,14 @@ fn downcast_auto(cols_or_rows: &mut BoxedUiNodeList) -> &mut Vec<BoxedUiNode> {
 })]
 impl GridNode {
     // add/remove info entries, auto-grow/shrink
-    fn update_info(&mut self, ctx: &mut WidgetContext) {
+    fn update_info(&mut self) {
         let auto_mode = self.auto_grow_mode.get();
 
         // max need column or row in the auto_mode axis.
         let mut max_custom = 0;
         let mut max_auto_placed_i = 0;
         self.children[2].for_each(|i, c| {
-            let info = c.with_context(|ctx| cell::CellInfo::get(ctx.widget_state)).unwrap_or_default();
+            let info = c.with_context(|| cell::CellInfo::get()).unwrap_or_default();
 
             let n = match auto_mode {
                 AutoGrowMode::Rows(_) => info.row,
@@ -756,8 +756,8 @@ impl GridNode {
                         imaginary_rows = max_needed - rows_len;
                     } else {
                         while index < max_needed {
-                            let mut row = view.generate(ctx, AutoGrowGenArgs { mode: auto_mode, index });
-                            row.init(ctx);
+                            let mut row = view.generate(AutoGrowGenArgs { mode: auto_mode, index });
+                            row.init();
                             auto.push(row);
                             index += 1;
                         }
@@ -766,7 +766,7 @@ impl GridNode {
                     let remove = rows_len - max_needed;
                     let auto = downcast_auto(&mut self.children[1]);
                     for mut auto in auto.drain(auto.len().saturating_sub(remove)..) {
-                        auto.deinit(ctx);
+                        auto.deinit();
                     }
                 }
             }
@@ -787,8 +787,8 @@ impl GridNode {
                         imaginary_cols = max_needed - cols_len;
                     } else {
                         while index < max_needed {
-                            let mut column = view.generate(ctx, AutoGrowGenArgs { mode: auto_mode, index });
-                            column.init(ctx);
+                            let mut column = view.generate(AutoGrowGenArgs { mode: auto_mode, index });
+                            column.init();
                             auto.push(column);
                             index += 1;
                         }
@@ -797,7 +797,7 @@ impl GridNode {
                     let remove = cols_len - max_needed;
                     let auto = downcast_auto(&mut self.children[0]);
                     for mut auto in auto.drain(auto.len().saturating_sub(remove)..) {
-                        auto.deinit(ctx);
+                        auto.deinit();
                     }
                 }
             }
@@ -806,20 +806,20 @@ impl GridNode {
         // Set index for column and row.
         let columns_len = self.children[0].len() + imaginary_cols;
         self.children[0].for_each_mut(|i, c| {
-            c.with_context_mut(|c_ctx| {
-                let prev = c_ctx.widget_state.set(&column::INDEX_ID, (i, columns_len));
+            c.with_context(|| {
+                let prev = WIDGET.set_state(&column::INDEX_ID, (i, columns_len));
                 if prev != Some((i, columns_len)) {
-                    UPDATES.update(c_ctx.id);
+                    WIDGET.update();
                 }
             });
             true
         });
         let rows_len = self.children[1].len() + imaginary_rows;
         self.children[1].for_each_mut(|i, r| {
-            r.with_context_mut(|r_ctx| {
-                let prev = r_ctx.widget_state.set(&row::INDEX_ID, (i, rows_len));
+            r.with_context_mut(|| {
+                let prev = WIDGET.set_state(&row::INDEX_ID, (i, rows_len));
                 if prev != Some((i, rows_len)) {
-                    UPDATES.update(r_ctx.id);
+                    WIDGET.update();
                 }
             });
             true
@@ -831,49 +831,49 @@ impl GridNode {
     }
 
     #[UiNode]
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.auto_subs(ctx);
-        self.children.init_all(ctx);
-        self.update_info(ctx);
+    fn init(&mut self) {
+        self.auto_subs();
+        self.children.init_all();
+        self.update_info();
     }
 
     #[UiNode]
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        self.children.deinit_all(ctx);
+    fn deinit(&mut self) {
+        self.children.deinit_all();
         downcast_auto(&mut self.children[0]).clear();
         downcast_auto(&mut self.children[1]).clear();
     }
 
     #[UiNode]
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &mut WidgetUpdates) {
         if self.spacing.is_new() {
             WIDGET.layout();
         }
 
         let mut any = false;
-        self.children.update_all(ctx, updates, &mut any);
+        self.children.update_all(updates, &mut any);
 
         if self.auto_grow_gen.is_new() || self.auto_grow_mode.is_new() {
             for mut auto in downcast_auto(&mut self.children[0]).drain(..) {
-                auto.deinit(ctx);
+                auto.deinit();
             }
             for mut auto in downcast_auto(&mut self.children[1]).drain(..) {
-                auto.deinit(ctx);
+                auto.deinit();
             }
             any = true;
         }
         if any {
-            self.update_info(ctx);
+            self.update_info();
             WIDGET.layout();
         }
     }
 
-    fn layout_info(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> (PxGridSpacing, PxSize) {
+    fn layout_info(&self, wm: &mut WidgetMeasure) -> (PxGridSpacing, PxSize) {
         let mut info = self.info.lock();
         let info = &mut *info;
 
-        let spacing = self.spacing.get().layout(ctx.metrics, |_| PxGridSpacing::zero());
-        let constrains = ctx.constrains();
+        let spacing = self.spacing.get().layout(&LAYOUT.metrics(), |_| PxGridSpacing::zero());
+        let constrains = LAYOUT.constrains();
 
         let fill_x = constrains.x.fill_or_exact();
         let fill_y = constrains.y.fill_or_exact();
@@ -907,7 +907,7 @@ impl GridNode {
                     has_leftover_cols = true;
                 }
                 SizePropertyLength::Exact => {
-                    col_info.width = col.measure(ctx, wm).width;
+                    col_info.width = col.measure(wm).width;
                     col_info.meta = ColRowMeta::exact();
                 }
             }
@@ -932,7 +932,7 @@ impl GridNode {
                     has_leftover_rows = true;
                 }
                 SizePropertyLength::Exact => {
-                    row_info.height = row.measure(ctx, wm).height;
+                    row_info.height = row.measure(wm).height;
                     row_info.meta = ColRowMeta::exact();
                 }
             }
@@ -966,33 +966,33 @@ impl GridNode {
                 if col_is_default {
                     if row_is_default {
                         // (default, default)
-                        let size = ctx.with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, wm));
+                        let size = LAYOUT.with_constrains(|c| c.with_fill(false, false), || cell.measure(wm));
 
                         col.width = col.width.max(size.width);
                         row.height = row.height.max(size.height);
                     } else if row_is_exact {
                         // (default, exact)
-                        let size = ctx.with_constrains(|c| c.with_exact_y(row.height).with_fill(false, false), |ctx| cell.measure(ctx, wm));
+                        let size = LAYOUT.with_constrains(|c| c.with_exact_y(row.height).with_fill(false, false), || cell.measure(wm));
 
                         col.width = col.width.max(size.width);
                     } else {
                         debug_assert!(row_is_leftover);
                         // (default, leftover)
-                        let size = ctx.with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, wm));
+                        let size = LAYOUT.with_constrains(|c| c.with_fill(false, false), || cell.measure(wm));
 
                         col.width = col.width.max(size.width);
                     }
                 } else if col_is_exact {
                     if row_is_default {
                         // (exact, default)
-                        let size = ctx.with_constrains(|c| c.with_exact_x(col.width).with_fill(false, false), |ctx| cell.measure(ctx, wm));
+                        let size = LAYOUT.with_constrains(|c| c.with_exact_x(col.width).with_fill(false, false), || cell.measure(wm));
 
                         row.height = row.height.max(size.height);
                     }
                 } else if row_is_default {
                     debug_assert!(col_is_leftover);
                     // (leftover, default)
-                    let size = ctx.with_constrains(|c| c.with_fill(false, false), |ctx| cell.measure(ctx, wm));
+                    let size = LAYOUT.with_constrains(|c| c.with_fill(false, false), || cell.measure(wm));
 
                     row.height = row.height.max(size.height);
                 }
@@ -1090,9 +1090,9 @@ impl GridNode {
                     col.width = Px(width as i32);
 
                     if i < view_columns_len {
-                        let size = ctx.with_constrains(
+                        let size = LAYOUT.with_constrains(
                             |c| c.with_fill_x(true).with_max_x(col.width),
-                            |ctx| columns.with_node(i, |col| col.measure(ctx, wm)),
+                            || columns.with_node(i, |col| col.measure(wm)),
                         );
 
                         if col.width != size.width {
@@ -1220,9 +1220,9 @@ impl GridNode {
                     row.height = Px(height as i32);
 
                     if i < view_rows_len {
-                        let size = ctx.with_constrains(
+                        let size = LAYOUT.with_constrains(
                             |c| c.with_fill_y(true).with_max_y(row.height),
-                            |ctx| rows.with_node(i, |row| row.measure(ctx, wm)),
+                            || rows.with_node(i, |row| row.measure(wm)),
                         );
 
                         if row.height != size.height {
@@ -1281,18 +1281,18 @@ impl GridNode {
     }
 
     #[UiNode]
-    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        if let Some(size) = ctx.constrains().fill_or_exact() {
+    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        if let Some(size) = LAYOUT.constrains().fill_or_exact() {
             size
         } else {
-            self.layout_info(ctx, wm).1
+            self.layout_info(wm).1
         }
     }
 
     #[UiNode]
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let (spacing, grid_size) = self.layout_info(&mut ctx.as_measure(), &mut WidgetMeasure::new());
-        let constrains = ctx.constrains();
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        let (spacing, grid_size) = self.layout_info(&mut WidgetMeasure::new());
+        let constrains = LAYOUT.constrains();
 
         let info = self.info.get_mut();
 
@@ -1305,13 +1305,13 @@ impl GridNode {
         // layout columns
         columns.for_each_mut(|ci, col| {
             let info = info.columns[ci];
-            ctx.with_constrains(|c| c.with_exact(info.width, grid_size.height), |ctx| col.layout(ctx, wl));
+            LAYOUT.with_constrains(|c| c.with_exact(info.width, grid_size.height), || col.layout(wl));
             true
         });
         // layout rows
         rows.for_each_mut(|ri, row| {
             let info = info.rows[ri];
-            ctx.with_constrains(|c| c.with_exact(grid_size.width, info.height), |ctx| row.layout(ctx, wl));
+            LAYOUT.with_constrains(|c| c.with_exact(grid_size.width, info.height), || row.layout(wl));
             true
         });
         // layout and translate cells
@@ -1320,7 +1320,7 @@ impl GridNode {
             let cell_info = cell::CellInfo::get_wgt(cell).actual(i, info.columns.len());
 
             if cell_info.column >= info.columns.len() || cell_info.row >= info.rows.len() {
-                wl.collapse_child(ctx, cells_offset + i);
+                wl.collapse_child(cells_offset + i);
                 return true;
             }
 
@@ -1342,14 +1342,11 @@ impl GridNode {
             cell_size.height -= spacing.row;
 
             if cell_size.is_empty() {
-                wl.collapse_child(ctx, cells_offset + i);
+                wl.collapse_child(cells_offset + i);
                 return true;
             }
 
-            let (_, define_ref_frame) = ctx.with_constrains(
-                |c| c.with_exact_size(cell_size),
-                |ctx| wl.with_child(ctx, |ctx, wl| cell.layout(ctx, wl)),
-            );
+            let (_, define_ref_frame) = LAYOUT.with_constrains(|c| c.with_exact_size(cell_size), || wl.with_child(|wl| cell.layout(wl)));
             o.child_offset = cell_offset;
             o.define_reference_frame = define_ref_frame;
 
@@ -1360,7 +1357,7 @@ impl GridNode {
     }
 
     #[UiNode]
-    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn render(&self, frame: &mut FrameBuilder) {
         let info = self.info.lock();
         let cells: &PanelList = self.children[2].as_any().downcast_ref().unwrap();
         let offset_key = cells.offset_key();
@@ -1373,7 +1370,7 @@ impl GridNode {
                 true,
                 true,
                 |frame| {
-                    child.render(ctx, frame);
+                    child.render(frame);
                 },
             );
             true
@@ -1387,7 +1384,7 @@ impl GridNode {
                 true,
                 true,
                 |frame| {
-                    child.render(ctx, frame);
+                    child.render(frame);
                 },
             );
             true
@@ -1401,43 +1398,43 @@ impl GridNode {
                     true,
                     true,
                     |frame| {
-                        child.render(ctx, frame);
+                        child.render(frame);
                     },
                 );
             } else {
-                frame.push_child(data.child_offset, |frame| child.render(ctx, frame));
+                frame.push_child(data.child_offset, |frame| child.render(frame));
             }
             true
         });
     }
 
     #[UiNode]
-    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+    fn render_update(&self, update: &mut FrameUpdate) {
         let info = self.info.lock();
         let cells: &PanelList = self.children[2].as_any().downcast_ref().unwrap();
 
         self.children[0].for_each(|i, child| {
             let offset = PxVector::new(info.columns[i].x, Px(0));
             update.with_transform_value(&offset.into(), |update| {
-                child.render_update(ctx, update);
+                child.render_update(update);
             });
             true
         });
         self.children[1].for_each(|i, child| {
             let offset = PxVector::new(Px(0), info.rows[i].y);
             update.with_transform_value(&offset.into(), |update| {
-                child.render_update(ctx, update);
+                child.render_update(update);
             });
             true
         });
         cells.for_each(|_, child, data| {
             if data.define_reference_frame {
                 update.with_transform_value(&data.child_offset.into(), |update| {
-                    child.render_update(ctx, update);
+                    child.render_update(update);
                 });
             } else {
                 update.with_child(data.child_offset, |update| {
-                    child.render_update(ctx, update);
+                    child.render_update(update);
                 })
             }
 

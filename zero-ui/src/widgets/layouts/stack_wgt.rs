@@ -122,9 +122,9 @@ pub mod stack {
 })]
 impl StackNode {
     #[UiNode]
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &mut WidgetUpdates) {
         let mut changed = false;
-        self.children.update_all(ctx, updates, &mut changed);
+        self.children.update_all(updates, &mut changed);
 
         if changed || self.direction.is_new() || self.spacing.is_new() || self.children_align.is_new() {
             WIDGET.layout().render();
@@ -132,8 +132,8 @@ impl StackNode {
     }
 
     #[UiNode]
-    fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-        let constrains = ctx.constrains();
+    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        let constrains = LAYOUT.constrains();
         if let Some(known) = constrains.fill_or_exact() {
             return known;
         }
@@ -142,28 +142,28 @@ impl StackNode {
         let children_align = self.children_align.get();
         let child_align = direction.filter_align(children_align);
 
-        let spacing = self.layout_spacing(ctx);
-        let max_size = self.child_max_size(ctx, child_align);
+        let spacing = self.layout_spacing();
+        let max_size = self.child_max_size(child_align);
 
         // layout children, size, raw position + spacing only.
         let mut item_bounds = euclid::Box2D::zero();
-        ctx.with_constrains(
+        LAYOUT.with_constrains(
             move |_| {
                 constrains
                     .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
                     .with_max_size(max_size)
                     .with_new_min(Px(0), Px(0))
             },
-            |ctx| {
+            || {
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
                 self.children.for_each(|_, c, _| {
-                    let size = c.measure(ctx, wm);
+                    let size = c.measure(wm);
                     if size.is_empty() {
                         return true; // continue, skip collapsed
                     }
 
-                    let offset = direction.layout(ctx, item_rect, size) + child_spacing;
+                    let offset = direction.layout(&LAYOUT.metrics(), item_rect, size) + child_spacing;
 
                     item_rect.origin = offset.to_point();
                     item_rect.size = size;
@@ -182,29 +182,29 @@ impl StackNode {
     }
 
     #[UiNode]
-    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let constrains = ctx.constrains();
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        let constrains = LAYOUT.constrains();
         let direction = self.direction.get();
         let children_align = self.children_align.get();
         let child_align = direction.filter_align(children_align);
 
-        let spacing = self.layout_spacing(ctx);
-        let max_size = self.child_max_size(&mut ctx.as_measure(), child_align);
+        let spacing = self.layout_spacing();
+        let max_size = self.child_max_size(child_align);
 
         // layout children, size, raw position + spacing only.
         let mut item_bounds = euclid::Box2D::zero();
-        ctx.with_constrains(
+        LAYOUT.with_constrains(
             move |_| {
                 constrains
                     .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
                     .with_max_size(max_size)
                     .with_new_min(Px(0), Px(0))
             },
-            |ctx| {
+            || {
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
                 self.children.for_each_mut(|_, c, o| {
-                    let (size, define_ref_frame) = wl.with_child(ctx, |ctx, wl| c.layout(ctx, wl));
+                    let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
 
                     if size.is_empty() {
                         o.child_offset = PxVector::zero();
@@ -212,7 +212,7 @@ impl StackNode {
                         return true; // continue, skip collapsed
                     }
 
-                    let offset = direction.layout(ctx, item_rect, size) + child_spacing;
+                    let offset = direction.layout(item_rect, size) + child_spacing;
                     o.child_offset = offset;
                     o.define_reference_frame = define_ref_frame;
 
@@ -230,16 +230,16 @@ impl StackNode {
         );
 
         // final position, align child inside item_bounds and item_bounds in the panel area.
-        let child_align = child_align.xy(ctx.direction());
+        let child_align = child_align.xy(LAYOUT.direction());
         let items_size = item_bounds.size();
         let panel_size = constrains.fill_size_or(items_size);
-        let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(ctx.direction());
+        let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(LAYOUT.direction());
         let align_baseline = children_align.is_baseline();
 
         self.children.for_each_mut(|_, c, o| {
             let (size, baseline) = c
-                .with_context(|ctx| {
-                    let bounds = &ctx.widget_info.bounds;
+                .with_context(|| {
+                    let bounds = &LAYOUT.bounds();
                     (bounds.outer_size(), bounds.final_baseline())
                 })
                 .unwrap_or_default();
@@ -279,8 +279,8 @@ impl StackNode {
     }
 
     /// Max size to layout each child with.
-    fn child_max_size(&self, ctx: &mut MeasureContext, child_align: Align) -> PxSize {
-        let constrains = ctx.constrains();
+    fn child_max_size(&self, child_align: Align) -> PxSize {
+        let constrains = LAYOUT.constrains();
 
         // need measure when children fill, but the panel does not.
         let mut need_measure = false;
@@ -318,11 +318,11 @@ impl StackNode {
 
         // find largest child, the others will fill to its size.
         if need_measure {
-            ctx.with_constrains(
+            LAYOUT.with_constrains(
                 move |_| measure_constrains.with_new_min(Px(0), Px(0)),
-                |ctx| {
+                || {
                     self.children.for_each(|_, c, _| {
-                        let size = c.measure(ctx, &mut WidgetMeasure::new());
+                        let size = c.measure(&mut WidgetMeasure::new());
                         max_size = max_size.max(size);
                         true
                     });
@@ -439,14 +439,14 @@ pub fn stack_nodes_layout_by(
         constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + Send + 'static,
     })]
     impl UiNode for StackNodesFillNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.index.is_new() {
                 WIDGET.layout();
             }
-            self.children.update_all(ctx, updates, &mut ());
+            self.children.update_all(updates, &mut ());
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
             let index = self.index.get();
             let len = self.children.len();
             if index >= len {
@@ -454,24 +454,24 @@ pub fn stack_nodes_layout_by(
                     "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
                     index,
                     len,
-                    ctx.path
+                    WIDGET.id()
                 );
                 let mut size = PxSize::zero();
                 self.children.for_each(|_, n| {
-                    let s = n.measure(ctx, wm);
+                    let s = n.measure(wm);
                     size = size.max(s);
                     true
                 });
                 size
             } else {
-                let mut size = self.children.with_node(index, |n| n.measure(ctx, wm));
-                let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
-                ctx.with_constrains(
+                let mut size = self.children.with_node(index, |n| n.measure(wm));
+                let constrains = (self.constrains)(LAYOUT.metrics().peek(|m| m.constrains()), index, size);
+                LAYOUT.with_constrains(
                     |_| constrains,
-                    |ctx| {
+                    || {
                         self.children.for_each(|i, n| {
                             if i != index {
-                                size = size.max(n.measure(ctx, wm));
+                                size = size.max(n.measure(wm));
                             }
                             true
                         });
@@ -480,7 +480,7 @@ pub fn stack_nodes_layout_by(
                 size
             }
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let index = self.index.get();
             let len = self.children.len();
             if index >= len {
@@ -488,24 +488,24 @@ pub fn stack_nodes_layout_by(
                     "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
                     index,
                     len,
-                    ctx.path
+                    WIDGET.id()
                 );
                 let mut size = PxSize::zero();
                 self.children.for_each_mut(|_, n| {
-                    let s = n.layout(ctx, wl);
+                    let s = n.layout(wl);
                     size = size.max(s);
                     true
                 });
                 size
             } else {
-                let mut size = self.children.with_node_mut(index, |n| n.layout(ctx, wl));
-                let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
-                ctx.with_constrains(
+                let mut size = self.children.with_node_mut(index, |n| n.layout(wl));
+                let constrains = (self.constrains)(LAYOUT.metrics().peek(|m| m.constrains()), index, size);
+                LAYOUT.with_constrains(
                     |_| constrains,
-                    |ctx| {
+                    || {
                         self.children.for_each_mut(|i, n| {
                             if i != index {
-                                let s = n.layout(ctx, wl);
+                                let s = n.layout(wl);
                                 size = size.max(s);
                             }
                             true

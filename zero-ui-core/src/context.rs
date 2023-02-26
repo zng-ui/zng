@@ -184,7 +184,7 @@ impl WidgetCtx {
     ///
     /// [`take_render`]: Self::take_render
     pub fn render_reuse(&self) -> Option<ReuseRange> {
-        let mut ctx = self.0.lock();
+        let ctx = self.0.lock();
         ctx.as_ref().unwrap().render_reuse.clone()
     }
 
@@ -206,7 +206,7 @@ impl WidgetCtx {
     /// Logs an error if a full render is requested, must be called after [`take_render`].
     ///
     /// [`take_render`]: Self::take_render
-    pub fn take_render_update(&mut self) -> bool {
+    pub fn take_render_update(&self) -> bool {
         let mut ctx = self.0.lock();
         let ctx = ctx.as_mut().unwrap();
 
@@ -284,8 +284,8 @@ impl WINDOW {
     /// Gets the window info tree.
     ///
     /// Returns `None` if the window is not inited, panics if called outside of a window or window init closure.
-    pub fn widget_tree(&self) -> Option<WidgetInfoTree> {
-        self.req().widget_tree.clone()
+    pub fn widget_tree(&self) -> WidgetInfoTree {
+        self.req().widget_tree.clone().expect("window not init")
     }
 
     /// Calls `f` with a read lock on the current window state map.
@@ -302,6 +302,58 @@ impl WINDOW {
     /// return as soon as possible. A common pattern is cloning the stored value.
     pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<state_map::Window>) -> R) -> R {
         f(self.req_mut().state.borrow_mut())
+    }
+
+    /// Get the window state `id`, if it is set.
+    ///
+    /// Panics if not called inside a window.
+    pub fn get_state<T: StateValue + Clone>(&self, id: impl Into<StateId<T>>) -> Option<T> {
+        let id = id.into();
+        self.with_state(|s| s.get_clone(id))
+    }
+
+    /// Require the window state `id`.
+    ///
+    /// Panics if the `id` is not set or is not called inside a window.
+    pub fn req_state<T: StateValue + Clone>(&self, id: impl Into<StateId<T>>) -> T {
+        let id = id.into();
+        self.with_state(|s| s.req(id).clone())
+    }
+
+    /// Set the window state `id` to `value`.
+    ///
+    /// Returns the previous set value.
+    pub fn set_state<T: StateValue>(&self, id: impl Into<StateId<T>>, value: impl Into<T>) -> Option<T> {
+        let id = id.into();
+        let value = value.into();
+        self.with_state_mut(|mut s| s.set(id, value))
+    }
+
+    /// Sets the window state `id` without value.
+    ///
+    /// Returns if the state `id` was already flagged.
+    pub fn flag_state(&self, id: impl Into<StateId<()>>) -> bool {
+        let id = id.into();
+        self.with_state_mut(|mut s| s.flag(id))
+    }
+
+    /// Calls `init` and sets `id` if the `id` is not already set in the widget.
+    pub fn init_state<T: StateValue>(&self, id: impl Into<StateId<T>>, init: impl FnOnce() -> T) {
+        let id = id.into();
+        self.with_state_mut(|mut s| {
+            s.entry(id).or_insert_with(init);
+        });
+    }
+
+    /// Sets the `id` to the default value if it is not already set.
+    pub fn init_state_default<T: StateValue + Default>(&self, id: impl Into<StateId<T>>) {
+        self.init_state(id.into(), Default::default)
+    }
+
+    /// Returns `true` if the `id` is set or flagged in the window.
+    pub fn contains_state<T: StateValue>(&self, id: impl Into<StateId<T>>) -> bool {
+        let id = id.into();
+        self.with_state(|s| s.contains(id))
     }
 }
 
@@ -475,6 +527,58 @@ impl WIDGET {
         f(self.req_mut().state.borrow_mut())
     }
 
+    /// Get the widget state `id`, if it is set.
+    ///
+    /// Panics if not called inside a widget.
+    pub fn get_state<T: StateValue + Clone>(&self, id: impl Into<StateId<T>>) -> Option<T> {
+        let id = id.into();
+        self.with_state(|s| s.get_clone(id))
+    }
+
+    /// Require the widget state `id`.
+    ///
+    /// Panics if the `id` is not set or is not called inside a widget.
+    pub fn req_state<T: StateValue + Clone>(&self, id: impl Into<StateId<T>>) -> T {
+        let id = id.into();
+        self.with_state(|s| s.req(id).clone())
+    }
+
+    /// Set the widget state `id` to `value`.
+    ///
+    /// Returns the previous set value.
+    pub fn set_state<T: StateValue>(&self, id: impl Into<StateId<T>>, value: impl Into<T>) -> Option<T> {
+        let id = id.into();
+        let value = value.into();
+        self.with_state_mut(|mut s| s.set(id, value))
+    }
+
+    /// Sets the widget state `id` without value.
+    ///
+    /// Returns if the state `id` was already flagged.
+    pub fn flag_state(&self, id: impl Into<StateId<()>>) -> bool {
+        let id = id.into();
+        self.with_state_mut(|mut s| s.flag(id))
+    }
+
+    /// Calls `init` and sets `id` if the `id` is not already set in the widget.
+    pub fn init_state<T: StateValue>(&self, id: impl Into<StateId<T>>, init: impl FnOnce() -> T) {
+        let id = id.into();
+        self.with_state_mut(|mut s| {
+            s.entry(id).or_insert_with(init);
+        });
+    }
+
+    /// Sets the `id` to the default value if it is not already set.
+    pub fn init_state_default<T: StateValue + Default>(&self, id: impl Into<StateId<T>>) {
+        self.init_state(id.into(), Default::default)
+    }
+
+    /// Returns `true` if the `id` is set or flagged in the widget.
+    pub fn contains_state<T: StateValue>(&self, id: impl Into<StateId<T>>) -> bool {
+        let id = id.into();
+        self.with_state(|s| s.contains(id))
+    }
+
     /// Subscribe to receive updates when the `var` changes.
     pub fn sub_var(&self, var: &impl AnyVar) -> &Self {
         let mut w = self.req_mut();
@@ -515,7 +619,7 @@ impl WIDGET {
     ///
     /// Panics if not called inside an widget.
     pub fn parent_id(&self) -> Option<WidgetId> {
-        todo!()
+        todo!("!!:")
     }
 }
 

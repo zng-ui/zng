@@ -13,10 +13,10 @@ use crate::prelude::new_property::*;
 /// [`DISABLED`]: Interactivity::DISABLED
 #[property(CONTEXT)]
 pub fn is_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
-        if args.is_mouse_enter_disabled(ctx.path) {
+    event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
+        if args.is_mouse_enter_disabled() {
             Some(true)
-        } else if args.is_mouse_leave_disabled(ctx.path) {
+        } else if args.is_mouse_leave_disabled() {
             Some(false)
         } else {
             None
@@ -36,10 +36,10 @@ pub fn is_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 /// [`is_hovered_disabled`]: fn@is_hovered_disabled
 #[property(CONTEXT)]
 pub fn is_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |ctx, args| {
-        if args.is_mouse_enter_enabled(ctx.path) {
+    event_is_state(child, state, false, MOUSE_HOVERED_EVENT, |args| {
+        if args.is_mouse_enter_enabled() {
             Some(true)
-        } else if args.is_mouse_leave_enabled(ctx.path) {
+        } else if args.is_mouse_leave_enabled() {
             Some(false)
         } else {
             None
@@ -60,10 +60,10 @@ pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
         false,
         MOUSE_HOVERED_EVENT,
         false,
-        |ctx, hovered_args| {
-            if hovered_args.is_mouse_enter_enabled(ctx.path) {
+        |hovered_args| {
+            if hovered_args.is_mouse_enter_enabled() {
                 Some(true)
-            } else if hovered_args.is_mouse_leave_enabled(ctx.path) {
+            } else if hovered_args.is_mouse_leave_enabled() {
                 Some(false)
             } else {
                 None
@@ -71,16 +71,16 @@ pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
         },
         MOUSE_CAPTURE_EVENT,
         false,
-        |ctx, cap_args| {
-            if cap_args.is_got(ctx.path.widget_id()) {
+        |cap_args| {
+            if cap_args.is_got(WIDGET.id()) {
                 Some(true)
-            } else if cap_args.is_lost(ctx.path.widget_id()) {
+            } else if cap_args.is_lost(WIDGET.id()) {
                 Some(false)
             } else {
                 None
             }
         },
-        |_, hovered, captured| Some(hovered || captured),
+        |hovered, captured| Some(hovered || captured),
     )
 }
 
@@ -104,10 +104,10 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
         false,
         MOUSE_HOVERED_EVENT,
         false,
-        |ctx, hovered_args| {
-            if hovered_args.is_mouse_enter_enabled(ctx.path) {
+        |hovered_args| {
+            if hovered_args.is_mouse_enter_enabled() {
                 Some(true)
-            } else if hovered_args.is_mouse_leave_enabled(ctx.path) {
+            } else if hovered_args.is_mouse_leave_enabled() {
                 Some(false)
             } else {
                 None
@@ -115,12 +115,12 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
         },
         MOUSE_INPUT_EVENT,
         false,
-        |ctx, input_args| {
+        |input_args| {
             if input_args.is_primary() {
                 match input_args.state {
                     ButtonState::Pressed => {
-                        if input_args.capture_allows(ctx.path) {
-                            return Some(input_args.is_enabled(ctx.path.widget_id()));
+                        if input_args.capture_allows() {
+                            return Some(input_args.is_enabled(WIDGET.id()));
                         }
                     }
                     ButtonState::Released => return Some(false),
@@ -129,7 +129,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
             }
             None
         },
-        |_, hovered, is_down| Some(hovered && is_down),
+        |hovered, is_down| Some(hovered && is_down),
     )
 }
 
@@ -144,12 +144,12 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> 
         false,
         MOUSE_INPUT_EVENT,
         false,
-        |ctx, input_args| {
+        |input_args| {
             if input_args.is_primary() {
                 match input_args.state {
                     ButtonState::Pressed => {
-                        if input_args.capture_allows(ctx.path) {
-                            return Some(input_args.is_enabled(ctx.path.widget_id()));
+                        if input_args.capture_allows() {
+                            return Some(input_args.is_enabled(WIDGET.id()));
                         }
                     }
                     ButtonState::Released => return Some(false),
@@ -159,16 +159,16 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> 
         },
         MOUSE_CAPTURE_EVENT,
         false,
-        |ctx, cap_args| {
-            if cap_args.is_got(ctx.path.widget_id()) {
+        |cap_args| {
+            if cap_args.is_got(WIDGET.id()) {
                 Some(true)
-            } else if cap_args.is_lost(ctx.path.widget_id()) {
+            } else if cap_args.is_lost(WIDGET.id()) {
                 Some(false)
             } else {
                 None
             }
         },
-        |_, is_down, is_captured| Some(is_down || is_captured),
+        |is_down, is_captured| Some(is_down || is_captured),
     )
 }
 
@@ -183,16 +183,16 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
         shortcut_press: Option<DeadlineVar>,
     })]
     impl UiNode for IsShortcutPressedNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
+        fn init(&mut self) {
             let _ = self.state.set_ne(false);
-            ctx.sub_event(&CLICK_EVENT);
-            self.child.init(ctx);
+            WIDGET.sub_event(&CLICK_EVENT);
+            self.child.init();
         }
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             let _ = self.state.set_ne(false);
-            self.child.deinit(ctx);
+            self.child.deinit();
         }
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             if let Some(args) = CLICK_EVENT.on(update) {
                 if args.shortcut().is_some() {
                     // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
@@ -202,7 +202,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
                         let duration = GESTURES.shortcut_pressed_duration().get();
                         if duration != Duration::default() {
                             let dl = TIMERS.deadline(duration);
-                            dl.subscribe(ctx.path.widget_id()).perm();
+                            dl.subscribe(WIDGET.id()).perm();
                             self.shortcut_press = Some(dl);
                             let _ = self.state.set_ne(true);
                         }
@@ -211,10 +211,10 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
                     }
                 }
             }
-            self.child.event(ctx, update);
+            self.child.event(update);
         }
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
 
             if let Some(timer) = &self.shortcut_press {
                 if timer.is_new() {

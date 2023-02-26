@@ -18,25 +18,25 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         binding_key: FrameValueKey<PxTransform>,
     })]
     impl UiNode for TransformNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
             if self.transform.is_new() {
                 WIDGET.layout();
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(ctx, wm)
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.measure(wm)
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.child.layout(ctx, wl);
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.child.layout(wl);
 
-            let transform = self.transform.get().layout(ctx.metrics);
-            let av_size = ctx.widget_info.bounds.inner_size();
+            let transform = self.transform.get().layout(&LAYOUT.metrics());
+            let av_size = WIDGET.bounds().inner_size();
             let default_origin = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
-            let origin = ctx.with_constrains(
+            let origin = LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(av_size),
-                |ctx| TRANSFORM_ORIGIN_VAR.get().layout(ctx.metrics, |_| default_origin),
+                || TRANSFORM_ORIGIN_VAR.get().layout(&LAYOUT.metrics(), |_| default_origin),
             );
 
             let x = origin.x.0 as f32;
@@ -51,28 +51,28 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             size
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             if frame.is_outer() {
-                frame.push_inner_transform(&self.render_transform, |frame| self.child.render(ctx, frame));
+                frame.push_inner_transform(&self.render_transform, |frame| self.child.render(frame));
             } else {
                 frame.push_reference_frame(
                     self.binding_key.into(),
                     self.binding_key.bind_var_mapped(&self.transform, self.render_transform),
                     false,
                     false,
-                    |frame| self.child.render(ctx, frame),
+                    |frame| self.child.render(frame),
                 );
             }
         }
 
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        fn render_update(&self, update: &mut FrameUpdate) {
             if update.is_outer() {
-                update.with_inner_transform(&self.render_transform, |update| self.child.render_update(ctx, update));
+                update.with_inner_transform(&self.render_transform, |update| self.child.render_update(update));
             } else {
                 update.with_transform_opt(
                     self.binding_key.update_var_mapped(&self.transform, self.render_transform),
                     false,
-                    |update| self.child.render_update(ctx, update),
+                    |update| self.child.render_update(update),
                 )
             }
         }

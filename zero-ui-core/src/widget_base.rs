@@ -1,12 +1,12 @@
 //! The [`base`](mod@base) and properties used in most widgets.
 
-use std::{fmt, mem};
+use std::fmt;
 
 use crate::{
     context::*,
-    event::{EventHandles, EventUpdate},
+    event::EventUpdate,
     property,
-    render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange},
+    render::{FrameBuilder, FrameUpdate, FrameValueKey},
     ui_node,
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
@@ -16,8 +16,6 @@ use crate::{
     widget_instance::*,
     window::INTERACTIVITY_CHANGED_EVENT,
 };
-
-use parking_lot::Mutex;
 
 /// Base widget that implements the necessary core API.
 ///
@@ -823,7 +821,7 @@ fn visibility_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected: 
         expected == Visibility::Visible,
         crate::window::FRAME_IMAGE_READY_EVENT,
         move |_| {
-            let tree = WINDOW.widget_tree().unwrap();
+            let tree = WINDOW.widget_tree();
             let vis = tree.get(WIDGET.id()).map(|w| w.visibility()).unwrap_or(Visibility::Visible);
 
             Some(vis == expected)

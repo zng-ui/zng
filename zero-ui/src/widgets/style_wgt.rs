@@ -187,29 +187,29 @@ pub mod style_mixin {
         #[var] style: BoxedVar<StyleGenerator>,
     })]
     impl UiNode for StyleNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.auto_subs(ctx);
-            if let Some(style) = self.style.get().generate(ctx, &StyleArgs {}) {
+        fn init(&mut self) {
+            self.auto_subs();
+            if let Some(style) = self.style.get().generate(&StyleArgs {}) {
                 let mut builder = self.builder.clone();
                 builder.extend(style.into_builder());
                 self.child = Some(builder.default_build());
             } else {
                 self.child = Some(self.builder.clone().default_build());
             }
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
+        fn deinit(&mut self) {
+            self.child.deinit();
             self.child = None;
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.style.is_new() {
                 WIDGET.reinit();
                 WIDGET.info().layout().render();
             } else {
-                self.child.update(ctx, updates);
+                self.child.update(updates);
             }
         }
     }
@@ -294,7 +294,7 @@ pub struct StyleArgs {}
 ///
 /// You can also use the [`style_gen!`] macro, it has the advantage of being clone move.
 #[derive(Clone)]
-pub struct StyleGenerator(Option<Arc<dyn Fn(&mut WidgetContext, &StyleArgs) -> Style + Send + Sync>>);
+pub struct StyleGenerator(Option<Arc<dyn Fn(&StyleArgs) -> Style + Send + Sync>>);
 impl Default for StyleGenerator {
     fn default() -> Self {
         Self::nil()
@@ -312,7 +312,7 @@ impl StyleGenerator {
     }
 
     /// New style generator, the `generate` closure is called for each styleable widget, before the widget is inited.
-    pub fn new(generate: impl Fn(&mut WidgetContext, &StyleArgs) -> Style + Send + Sync + 'static) -> Self {
+    pub fn new(generate: impl Fn(&StyleArgs) -> Style + Send + Sync + 'static) -> Self {
         Self(Some(Arc::new(generate)))
     }
 
@@ -321,7 +321,7 @@ impl StyleGenerator {
     /// Returns `None` if [`is_nil`] or empty, otherwise returns the style.
     ///
     /// [`is_nil`]: Self::is_nil
-    pub fn generate(&self, ctx: &mut WidgetContext, args: &StyleArgs) -> Option<Style> {
+    pub fn generate(&self, args: &StyleArgs) -> Option<Style> {
         if let Some(g) = &self.0 {
             let style = g(ctx, args);
             if !style.is_empty() {
@@ -340,9 +340,9 @@ impl StyleGenerator {
         } else if other.is_nil() {
             self
         } else {
-            StyleGenerator::new(move |ctx, args| {
-                let mut r = self.generate(ctx, args).unwrap();
-                r.extend(other.generate(ctx, args).unwrap());
+            StyleGenerator::new(move |args| {
+                let mut r = self.generate(args).unwrap();
+                r.extend(other.generate(args).unwrap());
                 r
             })
         }

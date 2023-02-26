@@ -147,12 +147,12 @@ impl WindowVars {
     ///
     /// Panics if called in a custom window context that did not setup the variables.
     pub fn req() -> Self {
-        WINDOW.with_state(|map| map.req(&WINDOW_VARS_ID).clone())
+        WINDOW.req_state(&WINDOW_VARS_ID)
     }
 
     /// Tries to get the window vars from the window state.
-    pub fn get(window_state: &impl BorrowStateMap<state_map::Window>) -> Option<&Self> {
-        window_state.borrow().get(&WINDOW_VARS_ID)
+    pub fn get() -> Option<Self> {
+        WINDOW.get_state(&WINDOW_VARS_ID)
     }
 
     /// Window chrome, the non-client area of the window.

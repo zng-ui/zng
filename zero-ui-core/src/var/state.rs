@@ -354,21 +354,21 @@ pub fn widget_state_is_state(
         fn init(&mut self) {
             validate_getter_var(&self.state);
             self.child.init();
-            let state = WIDGET.with_state(|s| (self.predicate)(s));
+            let state = WIDGET.with_state(&mut self.predicate);
             if state != self.state.get() {
                 let _ = self.state.set(state);
             }
         }
         fn deinit(&mut self) {
             self.child.deinit();
-            let state = WIDGET.with_state(|s| (self.deinit)(s));
+            let state = WIDGET.with_state(&mut self.deinit);
             if state != self.state.get() {
                 let _ = self.state.set(state);
             }
         }
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
-            let state = WIDGET.with_state(|s| (self.predicate)(s));
+            let state = WIDGET.with_state(&mut self.predicate);
             if state != self.state.get() {
                 let _ = self.state.set(state);
             }

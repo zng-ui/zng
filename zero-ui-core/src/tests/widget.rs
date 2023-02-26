@@ -5,6 +5,7 @@
 use self::util::Position;
 use crate::{
     app::App,
+    context::WIDGET,
     var::Var,
     widget,
     widget_instance::{UiNode, WidgetId},
@@ -26,7 +27,7 @@ pub fn implicit_inherited() {
     let wgt = empty_wgt! {
         id = expected;
     };
-    let actual = wgt.with_context(|w| w.id).expect("expected widget");
+    let actual = wgt.with_context(|| WIDGET.id()).expect("expected widget");
     assert_eq!(expected, actual);
 }
 
@@ -56,33 +57,35 @@ pub mod bar_wgt {
 }
 #[test]
 pub fn wgt_with_mixin_default_values() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut default = bar_wgt!();
-    ctx.init(&mut default);
+    // let mut default = bar_wgt!();
+    // ctx.init(&mut default);
 
-    // test default values used.
-    assert!(util::traced(&default, "foo_mixin"));
-    assert!(util::traced(&default, "bar_wgt"));
+    // // test default values used.
+    // assert!(util::traced(&default, "foo_mixin"));
+    // assert!(util::traced(&default, "bar_wgt"));
 }
 #[test]
 pub fn wgt_with_mixin_assign_values() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let foo_trace = "foo!";
-    let mut default = bar_wgt! {
-        foo_trace; // shorthand assign test.
-        bar_trace = "bar!";
-    };
-    ctx.init(&mut default);
+    // let foo_trace = "foo!";
+    // let mut default = bar_wgt! {
+    //     foo_trace; // shorthand assign test.
+    //     bar_trace = "bar!";
+    // };
+    // ctx.init(&mut default);
 
-    // test new values used.
-    assert!(util::traced(&default, "foo!"));
-    assert!(util::traced(&default, "bar!"));
+    // // test new values used.
+    // assert!(util::traced(&default, "foo!"));
+    // assert!(util::traced(&default, "bar!"));
 
-    // test default values not used.
-    assert!(!util::traced(&default, "foo_mixin"));
-    assert!(!util::traced(&default, "bar_wgt"));
+    // // test default values not used.
+    // assert!(!util::traced(&default, "foo_mixin"));
+    // assert!(!util::traced(&default, "bar_wgt"));
 }
 
 /*
@@ -99,13 +102,15 @@ pub mod reset_wgt {
 }
 #[test]
 pub fn wgt_with_new_value_for_inherited() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
 
-    let mut default = reset_wgt!();
-    ctx.init(&mut default);
+    // let mut ctx = TestWidgetContext::new();
 
-    assert!(util::traced(&default, "reset_wgt"));
-    assert!(!util::traced(&default, "foo_mixin"));
+    // let mut default = reset_wgt!();
+    // ctx.init(&mut default);
+
+    // assert!(util::traced(&default, "reset_wgt"));
+    // assert!(!util::traced(&default, "foo_mixin"));
 }
 
 /*
@@ -122,22 +127,24 @@ pub mod alias_inherit_wgt {
 }
 #[test]
 pub fn wgt_alias_inherit() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
 
-    let mut default = alias_inherit_wgt!();
-    ctx.init(&mut default);
+    // let mut ctx = TestWidgetContext::new();
 
-    assert!(util::traced(&default, "foo_mixin"));
-    assert!(util::traced(&default, "alias_inherit_wgt"));
+    // let mut default = alias_inherit_wgt!();
+    // ctx.init(&mut default);
 
-    let mut assigned = alias_inherit_wgt!(
-        foo_trace = "foo!";
-        alias_trace = "alias!";
-    );
-    ctx.init(&mut assigned);
+    // assert!(util::traced(&default, "foo_mixin"));
+    // assert!(util::traced(&default, "alias_inherit_wgt"));
 
-    assert!(util::traced(&assigned, "foo!"));
-    assert!(util::traced(&assigned, "alias!"));
+    // let mut assigned = alias_inherit_wgt!(
+    //     foo_trace = "foo!";
+    //     alias_trace = "alias!";
+    // );
+    // ctx.init(&mut assigned);
+
+    // assert!(util::traced(&assigned, "foo!"));
+    // assert!(util::traced(&assigned, "alias!"));
 }
 
 /*
@@ -153,14 +160,16 @@ pub mod property_from_path_wgt {
 }
 #[test]
 pub fn wgt_property_from_path() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
 
-    let mut assigned = property_from_path_wgt!(
-        trace = "trace!";
-    );
-    ctx.init(&mut assigned);
+    // let mut ctx = TestWidgetContext::new();
 
-    assert!(util::traced(&assigned, "trace!"));
+    // let mut assigned = property_from_path_wgt!(
+    //     trace = "trace!";
+    // );
+    // ctx.init(&mut assigned);
+
+    // assert!(util::traced(&assigned, "trace!"));
 }
 
 /*
@@ -176,19 +185,21 @@ pub mod default_value_wgt {
 }
 #[test]
 pub fn unset_default_value() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
 
-    let mut default = default_value_wgt!();
-    ctx.init(&mut default);
+    // let mut ctx = TestWidgetContext::new();
 
-    assert!(util::traced(&default, "default_value_wgt"));
+    // let mut default = default_value_wgt!();
+    // ctx.init(&mut default);
 
-    let mut no_default = default_value_wgt! {
-        trace = unset!;
-    };
-    ctx.init(&mut no_default);
+    // assert!(util::traced(&default, "default_value_wgt"));
 
-    assert!(!util::traced(&no_default, "default_value_wgt"));
+    // let mut no_default = default_value_wgt! {
+    //     trace = unset!;
+    // };
+    // ctx.init(&mut no_default);
+
+    // assert!(!util::traced(&no_default, "default_value_wgt"));
 }
 
 /*
@@ -196,45 +207,48 @@ pub fn unset_default_value() {
  */
 #[test]
 pub fn value_init_order() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    Position::reset();
-    let mut wgt = empty_wgt! {
-        util::count_border = Position::next("count_border");
-        util::count_context = Position::next("count_context");
-    };
-    ctx.init(&mut wgt);
+    // Position::reset();
+    // let mut wgt = empty_wgt! {
+    //     util::count_border = Position::next("count_border");
+    //     util::count_context = Position::next("count_context");
+    // };
+    // ctx.init(&mut wgt);
 
-    // values evaluated in typed order.
-    assert_eq!(util::sorted_value_init(&wgt), ["count_border", "count_context"]);
+    // // values evaluated in typed order.
+    // assert_eq!(util::sorted_value_init(&wgt), ["count_border", "count_context"]);
 
-    // but properties init in the nest group order.
-    assert_eq!(util::sorted_node_init(&wgt), ["count_context", "count_border"]);
+    // // but properties init in the nest group order.
+    // assert_eq!(util::sorted_node_init(&wgt), ["count_context", "count_border"]);
 }
 
 #[test]
 pub fn wgt_child_property_init_order() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
 
-    Position::reset();
-    let mut wgt = empty_wgt! {
-        util::count_border = Position::next("count_border");
-        util::count_child_layout = Position::next("count_child_layout");
-        util::count_context = Position::next("count_context");
-    };
-    ctx.init(&mut wgt);
+    // let mut ctx = TestWidgetContext::new();
 
-    // values evaluated in typed order.
-    assert_eq!(
-        util::sorted_value_init(&wgt),
-        ["count_border", "count_child_layout", "count_context"]
-    );
+    // Position::reset();
+    // let mut wgt = empty_wgt! {
+    //     util::count_border = Position::next("count_border");
+    //     util::count_child_layout = Position::next("count_child_layout");
+    //     util::count_context = Position::next("count_context");
+    // };
+    // ctx.init(&mut wgt);
 
-    // but properties init in the nest group order (child first).
-    assert_eq!(
-        util::sorted_node_init(&wgt),
-        ["count_context", "count_border", "count_child_layout"]
-    );
+    // // values evaluated in typed order.
+    // assert_eq!(
+    //     util::sorted_value_init(&wgt),
+    //     ["count_border", "count_child_layout", "count_context"]
+    // );
+
+    // // but properties init in the nest group order (child first).
+    // assert_eq!(
+    //     util::sorted_node_init(&wgt),
+    //     ["count_context", "count_border", "count_child_layout"]
+    // );
 }
 
 /*
@@ -251,35 +265,37 @@ pub mod same_nest_group_order_wgt {
 }
 #[test]
 pub fn wgt_same_nest_group_order() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
 
-    Position::reset();
-    let mut wgt = same_nest_group_order_wgt! {
-        border_a = Position::next("border_a");
-        border_b = Position::next("border_b");
-    };
-    ctx.init(&mut wgt);
+    // let mut ctx = TestWidgetContext::new();
 
-    // values evaluated in typed order.
-    assert_eq!(util::sorted_value_init(&wgt), ["border_a", "border_b"]);
+    // Position::reset();
+    // let mut wgt = same_nest_group_order_wgt! {
+    //     border_a = Position::next("border_a");
+    //     border_b = Position::next("border_b");
+    // };
+    // ctx.init(&mut wgt);
 
-    // properties with the same nest group are set in reversed typed order.
-    // inner_a is set after inner_b so it will contain inner_b:
-    // let node = border_b(child, ..);
-    // let node = border_a(node, ..);
-    assert_eq!(util::sorted_node_init(&wgt), ["border_a", "border_b"]);
+    // // values evaluated in typed order.
+    // assert_eq!(util::sorted_value_init(&wgt), ["border_a", "border_b"]);
 
-    Position::reset();
-    // order of declaration(in the widget) doesn't impact the order of evaluation,
-    // only the order of use does (in here).
-    let mut wgt = same_nest_group_order_wgt! {
-        border_b = Position::next("border_b");
-        border_a = Position::next("border_a");
-    };
-    ctx.init(&mut wgt);
+    // // properties with the same nest group are set in reversed typed order.
+    // // inner_a is set after inner_b so it will contain inner_b:
+    // // let node = border_b(child, ..);
+    // // let node = border_a(node, ..);
+    // assert_eq!(util::sorted_node_init(&wgt), ["border_a", "border_b"]);
 
-    assert_eq!(util::sorted_value_init(&wgt), ["border_b", "border_a"]);
-    assert_eq!(util::sorted_node_init(&wgt), ["border_b", "border_a"]);
+    // Position::reset();
+    // // order of declaration(in the widget) doesn't impact the order of evaluation,
+    // // only the order of use does (in here).
+    // let mut wgt = same_nest_group_order_wgt! {
+    //     border_b = Position::next("border_b");
+    //     border_a = Position::next("border_a");
+    // };
+    // ctx.init(&mut wgt);
+
+    // assert_eq!(util::sorted_value_init(&wgt), ["border_b", "border_a"]);
+    // assert_eq!(util::sorted_node_init(&wgt), ["border_b", "border_a"]);
 }
 
 /*
@@ -428,40 +444,43 @@ pub mod cfg_property_wgt {
 }
 #[test]
 pub fn wgt_cfg_property() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut wgt = cfg_property_wgt!();
-    ctx.init(&mut wgt);
+    // let mut wgt = cfg_property_wgt!();
+    // ctx.init(&mut wgt);
 
-    assert!(util::traced(&wgt, "always-trace"));
-    assert!(!util::traced(&wgt, "never-trace"));
+    // assert!(util::traced(&wgt, "always-trace"));
+    // assert!(!util::traced(&wgt, "never-trace"));
 }
 #[test]
 pub fn user_cfg_property() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
 
-    #[allow(unused_imports)]
-    use util::trace as never_trace;
-    use util::trace as always_trace;
-    let mut wgt = empty_wgt! {
-        // property not set.
-        #[cfg(never)]
-        never_trace = "never-trace";
+    // let mut ctx = TestWidgetContext::new();
 
-        // suppress warning.
-        #[allow(non_snake_case)]
-        always_trace = {
-            #[allow(clippy::needless_late_init)]
-            let weird___name;
-            weird___name = "always-trace";
-            weird___name
-        };
-    };
+    // #[allow(unused_imports)]
+    // use util::trace as never_trace;
+    // use util::trace as always_trace;
+    // let mut wgt = empty_wgt! {
+    //     // property not set.
+    //     #[cfg(never)]
+    //     never_trace = "never-trace";
 
-    ctx.init(&mut wgt);
+    //     // suppress warning.
+    //     #[allow(non_snake_case)]
+    //     always_trace = {
+    //         #[allow(clippy::needless_late_init)]
+    //         let weird___name;
+    //         weird___name = "always-trace";
+    //         weird___name
+    //     };
+    // };
 
-    assert!(util::traced(&wgt, "always-trace"));
-    assert!(!util::traced(&wgt, "never-trace"));
+    // ctx.init(&mut wgt);
+
+    // assert!(util::traced(&wgt, "always-trace"));
+    // assert!(!util::traced(&wgt, "never-trace"));
 }
 
 /*
@@ -597,30 +616,32 @@ pub mod capture_properties_wgt {
 }
 #[test]
 pub fn wgt_capture_properties() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut wgt = capture_properties_wgt!();
-    ctx.init(&mut wgt);
+    // let mut wgt = capture_properties_wgt!();
+    // ctx.init(&mut wgt);
 
-    assert!(util::traced(&wgt, "property"));
-    assert!(util::traced(&wgt, "custom new"));
-    assert!(!util::traced(&wgt, "new"));
+    // assert!(util::traced(&wgt, "property"));
+    // assert!(util::traced(&wgt, "custom new"));
+    // assert!(!util::traced(&wgt, "new"));
 }
 #[test]
 pub fn wgt_capture_properties_reassign() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut wgt = capture_properties_wgt! {
-        property_trace = "user-property";
-        new_trace = "user-new";
-    };
-    ctx.init(&mut wgt);
+    // let mut wgt = capture_properties_wgt! {
+    //     property_trace = "user-property";
+    //     new_trace = "user-new";
+    // };
+    // ctx.init(&mut wgt);
 
-    assert!(util::traced(&wgt, "user-property"));
-    assert!(util::traced(&wgt, "custom new (user)"));
+    // assert!(util::traced(&wgt, "user-property"));
+    // assert!(util::traced(&wgt, "custom new (user)"));
 
-    assert!(!util::traced(&wgt, "new"));
-    assert!(!util::traced(&wgt, "user-new"));
+    // assert!(!util::traced(&wgt, "new"));
+    // assert!(!util::traced(&wgt, "user-new"));
 }
 
 /*
@@ -669,33 +690,34 @@ fn property_nest_group_sorting_init1() -> impl UiNode {
 }
 #[test]
 pub fn property_nest_group_sorting_value_init1() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    Position::reset();
+    // Position::reset();
 
-    let mut wgt = property_nest_group_sorting_init1();
-    ctx.init(&mut wgt);
+    // let mut wgt = property_nest_group_sorting_init1();
+    // ctx.init(&mut wgt);
 
-    // assert that value init is the same as typed.
-    pretty_assertions::assert_eq!(
-        util::sorted_value_init(&wgt),
-        [
-            "count_border1",
-            "count_border2",
-            "count_size1",
-            "count_size2",
-            "count_layout1",
-            "count_layout2",
-            "count_event1",
-            "count_event2",
-            "count_context1",
-            "count_context2",
-            "count_child_layout1",
-            "count_child_layout2",
-            "count_child_context1",
-            "count_child_context2",
-        ]
-    );
+    // // assert that value init is the same as typed.
+    // pretty_assertions::assert_eq!(
+    //     util::sorted_value_init(&wgt),
+    //     [
+    //         "count_border1",
+    //         "count_border2",
+    //         "count_size1",
+    //         "count_size2",
+    //         "count_layout1",
+    //         "count_layout2",
+    //         "count_event1",
+    //         "count_event2",
+    //         "count_context1",
+    //         "count_context2",
+    //         "count_child_layout1",
+    //         "count_child_layout2",
+    //         "count_child_context1",
+    //         "count_child_context2",
+    //     ]
+    // );
 }
 fn property_nest_group_sorting_init2() -> impl UiNode {
     property_nest_group_sorting_wgt! {
@@ -718,33 +740,34 @@ fn property_nest_group_sorting_init2() -> impl UiNode {
 }
 #[test]
 pub fn property_nest_group_sorting_value_init2() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    Position::reset();
+    // Position::reset();
 
-    let mut wgt = property_nest_group_sorting_init2();
-    ctx.init(&mut wgt);
+    // let mut wgt = property_nest_group_sorting_init2();
+    // ctx.init(&mut wgt);
 
-    // assert that value init is the same as typed.
-    pretty_assertions::assert_eq!(
-        util::sorted_value_init(&wgt),
-        [
-            "count_child_context1",
-            "count_child_context2",
-            "count_child_layout1",
-            "count_child_layout2",
-            "count_context1",
-            "count_context2",
-            "count_event1",
-            "count_event2",
-            "count_layout1",
-            "count_layout2",
-            "count_size1",
-            "count_size2",
-            "count_border1",
-            "count_border2",
-        ]
-    );
+    // // assert that value init is the same as typed.
+    // pretty_assertions::assert_eq!(
+    //     util::sorted_value_init(&wgt),
+    //     [
+    //         "count_child_context1",
+    //         "count_child_context2",
+    //         "count_child_layout1",
+    //         "count_child_layout2",
+    //         "count_context1",
+    //         "count_context2",
+    //         "count_event1",
+    //         "count_event2",
+    //         "count_layout1",
+    //         "count_layout2",
+    //         "count_size1",
+    //         "count_size2",
+    //         "count_border1",
+    //         "count_border2",
+    //     ]
+    // );
 }
 fn assert_node_order(wgt: &impl UiNode) {
     // assert that `UiNode::init` position is sorted by `child` and
@@ -773,25 +796,27 @@ fn assert_node_order(wgt: &impl UiNode) {
 }
 #[test]
 pub fn property_nest_group_sorting_node_init1() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    Position::reset();
+    // Position::reset();
 
-    let mut wgt = property_nest_group_sorting_init1();
-    ctx.init(&mut wgt);
+    // let mut wgt = property_nest_group_sorting_init1();
+    // ctx.init(&mut wgt);
 
-    assert_node_order(&wgt);
+    // assert_node_order(&wgt);
 }
 #[test]
 pub fn property_nest_group_sorting_node_init2() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    Position::reset();
+    // Position::reset();
 
-    let mut wgt = property_nest_group_sorting_init2();
-    ctx.init(&mut wgt);
+    // let mut wgt = property_nest_group_sorting_init2();
+    // ctx.init(&mut wgt);
 
-    assert_node_order(&wgt);
+    // assert_node_order(&wgt);
 }
 #[widget($crate::tests::widget::property_nest_group_sorting_inherited_wgt)]
 pub mod property_nest_group_sorting_inherited_wgt {
@@ -799,30 +824,31 @@ pub mod property_nest_group_sorting_inherited_wgt {
 }
 #[test]
 pub fn property_nest_group_sorting_node_inherited_init() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    Position::reset();
+    // Position::reset();
 
-    let mut wgt = property_nest_group_sorting_inherited_wgt! {
-        count_child_context1 = Position::next("count_child_context1");
-        count_child_context2 = Position::next("count_child_context2");
-        count_child_layout1 = Position::next("count_child_layout1");
-        count_child_layout2 = Position::next("count_child_layout2");
+    // let mut wgt = property_nest_group_sorting_inherited_wgt! {
+    //     count_child_context1 = Position::next("count_child_context1");
+    //     count_child_context2 = Position::next("count_child_context2");
+    //     count_child_layout1 = Position::next("count_child_layout1");
+    //     count_child_layout2 = Position::next("count_child_layout2");
 
-        count_context1 = Position::next("count_context1");
-        count_context2 = Position::next("count_context2");
-        count_event1 = Position::next("count_event1");
-        count_event2 = Position::next("count_event2");
-        count_layout1 = Position::next("count_layout1");
-        count_layout2 = Position::next("count_layout2");
-        count_size1 = Position::next("count_size1");
-        count_size2 = Position::next("count_size2");
-        count_border1 = Position::next("count_border1");
-        count_border2 = Position::next("count_border2");
-    };
-    ctx.init(&mut wgt);
+    //     count_context1 = Position::next("count_context1");
+    //     count_context2 = Position::next("count_context2");
+    //     count_event1 = Position::next("count_event1");
+    //     count_event2 = Position::next("count_event2");
+    //     count_layout1 = Position::next("count_layout1");
+    //     count_layout2 = Position::next("count_layout2");
+    //     count_size1 = Position::next("count_size1");
+    //     count_size2 = Position::next("count_size2");
+    //     count_border1 = Position::next("count_border1");
+    //     count_border2 = Position::next("count_border2");
+    // };
+    // ctx.init(&mut wgt);
 
-    assert_node_order(&wgt);
+    // assert_node_order(&wgt);
 }
 
 #[widget($crate::tests::widget::property_nest_group_sorting_defaults_wgt)]
@@ -851,13 +877,14 @@ pub mod property_nest_group_sorting_defaults_wgt {
 }
 #[test]
 pub fn property_nest_group_sorting_defaults() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    Position::reset();
+    // Position::reset();
 
-    let mut wgt = property_nest_group_sorting_defaults_wgt!();
-    ctx.init(&mut wgt);
-    assert_node_order(&wgt);
+    // let mut wgt = property_nest_group_sorting_defaults_wgt!();
+    // ctx.init(&mut wgt);
+    // assert_node_order(&wgt);
 }
 
 /*
@@ -866,99 +893,104 @@ pub fn property_nest_group_sorting_defaults() {
 
 #[test]
 pub fn when_property_member_default() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut wgt = empty_wgt! {
-       util::duo_members = "a", "b";
-       util::live_trace = "";
-       when {
-           assert_eq!(*#util::duo_members, "a");
-           true
-       } {
-           util::live_trace = "true";
-       }
-    };
+    // let mut wgt = empty_wgt! {
+    //    util::duo_members = "a", "b";
+    //    util::live_trace = "";
+    //    when {
+    //        assert_eq!(*#util::duo_members, "a");
+    //        true
+    //    } {
+    //        util::live_trace = "true";
+    //    }
+    // };
 
-    ctx.init(&mut wgt);
-    assert!(util::traced(&wgt, "true"));
+    // ctx.init(&mut wgt);
+    // assert!(util::traced(&wgt, "true"));
 }
 
 #[test]
 pub fn when_property_member_index() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut wgt = empty_wgt! {
-       util::duo_members = "a", "b";
-       util::live_trace = "";
-       when {
-           assert_eq!(*#util::duo_members.0, "a");
-           assert_eq!(*#util::duo_members.1, "b");
-           true
-       } {
-           util::live_trace = "true";
-       }
-    };
+    // let mut wgt = empty_wgt! {
+    //    util::duo_members = "a", "b";
+    //    util::live_trace = "";
+    //    when {
+    //        assert_eq!(*#util::duo_members.0, "a");
+    //        assert_eq!(*#util::duo_members.1, "b");
+    //        true
+    //    } {
+    //        util::live_trace = "true";
+    //    }
+    // };
 
-    ctx.init(&mut wgt);
-    assert!(util::traced(&wgt, "true"));
+    // ctx.init(&mut wgt);
+    // assert!(util::traced(&wgt, "true"));
 }
 
 #[test]
 pub fn when_property_member_named() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut wgt = empty_wgt! {
-       util::duo_members = "a", "b";
-       util::live_trace = "";
-       when {
-           assert_eq!(*#util::duo_members.member_a, "a");
-           assert_eq!(*#util::duo_members.member_b, "b");
-           true
-       } {
-           util::live_trace = "true";
-       }
-    };
+    // let mut wgt = empty_wgt! {
+    //    util::duo_members = "a", "b";
+    //    util::live_trace = "";
+    //    when {
+    //        assert_eq!(*#util::duo_members.member_a, "a");
+    //        assert_eq!(*#util::duo_members.member_b, "b");
+    //        true
+    //    } {
+    //        util::live_trace = "true";
+    //    }
+    // };
 
-    ctx.init(&mut wgt);
-    assert!(util::traced(&wgt, "true"));
+    // ctx.init(&mut wgt);
+    // assert!(util::traced(&wgt, "true"));
 }
 
 #[test]
 pub fn when_property_member_default_method() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut wgt = empty_wgt! {
-       util::duo_members = "a", "b";
-       util::live_trace = "";
-       when {
-           assert_eq!(#util::duo_members.len(), 1);
-           true
-       } {
-           util::live_trace = "true";
-       }
-    };
+    // let mut wgt = empty_wgt! {
+    //    util::duo_members = "a", "b";
+    //    util::live_trace = "";
+    //    when {
+    //        assert_eq!(#util::duo_members.len(), 1);
+    //        true
+    //    } {
+    //        util::live_trace = "true";
+    //    }
+    // };
 
-    ctx.init(&mut wgt);
-    assert!(util::traced(&wgt, "true"));
+    // ctx.init(&mut wgt);
+    // assert!(util::traced(&wgt, "true"));
 }
 
 #[test]
 pub fn when_property_member_indexed_method() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut wgt = empty_wgt! {
-       util::duo_members = "a", "b";
-       util::live_trace = "";
-       when {
-           assert_eq!(#util::duo_members.0.len(), 1);
-           true
-       } {
-           util::live_trace = "true";
-       }
-    };
+    // let mut wgt = empty_wgt! {
+    //    util::duo_members = "a", "b";
+    //    util::live_trace = "";
+    //    when {
+    //        assert_eq!(#util::duo_members.0.len(), 1);
+    //        true
+    //    } {
+    //        util::live_trace = "true";
+    //    }
+    // };
 
-    ctx.init(&mut wgt);
-    assert!(util::traced(&wgt, "true"));
+    // ctx.init(&mut wgt);
+    // assert!(util::traced(&wgt, "true"));
 }
 
 #[widget($crate::tests::widget::get_builder)]
@@ -1040,19 +1072,20 @@ pub mod inherit_override_wgt2 {
 }
 #[test]
 pub fn inherit_override() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut wgt = inherit_override_wgt1!();
+    // let mut wgt = inherit_override_wgt1!();
 
-    ctx.init(&mut wgt);
-    assert!(util::traced(&wgt, "base_b::property"));
-    assert!(!util::traced(&wgt, "base_a::property"));
+    // ctx.init(&mut wgt);
+    // assert!(util::traced(&wgt, "base_b::property"));
+    // assert!(!util::traced(&wgt, "base_a::property"));
 
-    let mut wgt = inherit_override_wgt2!();
+    // let mut wgt = inherit_override_wgt2!();
 
-    ctx.init(&mut wgt);
-    assert!(!util::traced(&wgt, "base_b::property"));
-    assert!(util::traced(&wgt, "base_a::property"));
+    // ctx.init(&mut wgt);
+    // assert!(!util::traced(&wgt, "base_b::property"));
+    // assert!(util::traced(&wgt, "base_a::property"));
 }
 
 /*
@@ -1130,17 +1163,18 @@ pub fn util_live_trace(
 
 #[test]
 pub fn generated_name_collision() {
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    let mut wgt = empty_wgt! {
-        util::live_trace = "!";
-        util_live_trace = false;
-    };
+    // let mut wgt = empty_wgt! {
+    //     util::live_trace = "!";
+    //     util_live_trace = false;
+    // };
 
-    ctx.init(&mut wgt);
+    // ctx.init(&mut wgt);
 
-    assert!(util::traced(&wgt, "!"));
-    assert!(util::traced(&wgt, "false"));
+    // assert!(util::traced(&wgt, "!"));
+    // assert!(util::traced(&wgt, "false"));
 }
 
 #[test]
@@ -1213,20 +1247,21 @@ pub mod name_collision_wgt_when {
 }
 #[test]
 pub fn name_collision_wgt_when() {
-    let mut app = App::minimal().run_headless(false);
-
     todo!("test widget");
+    // let mut app = App::minimal().run_headless(false);
 
-    // let mut wgt = name_collision_wgt_when!();
+    // todo!("test widget");
 
-    // ctx.init(&mut wgt);
-    // util::set_state(&mut ctx, &mut wgt, true);
-    // ctx.update(&mut wgt, None);
-    // ctx.apply_updates();
-    // ctx.update(&mut wgt, None);
+    // // let mut wgt = name_collision_wgt_when!();
 
-    // assert!(util::traced(&wgt, "3"));
-    // assert!(!util::traced(&wgt, "2"));
+    // // ctx.init(&mut wgt);
+    // // util::set_state(&mut ctx, &mut wgt, true);
+    // // ctx.update(&mut wgt, None);
+    // // ctx.apply_updates();
+    // // ctx.update(&mut wgt, None);
+
+    // // assert!(util::traced(&wgt, "3"));
+    // // assert!(!util::traced(&wgt, "2"));
 }
 
 /*
@@ -1312,7 +1347,7 @@ mod util {
     impl UiNode for TraceNode {
         fn init(&mut self) {
             self.child.init();
-            WIDGET.with_state_mut(|s| {
+            WIDGET.with_state_mut(|mut s| {
                 s.entry(&TRACE_ID).or_default().insert(self.trace);
             });
         }
@@ -1423,9 +1458,9 @@ mod util {
     pub fn sorted_value_init(wgt: &impl UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
         wgt.with_context(|| {
-            if let Some(m) = WIDGET.with_state(|s| s.get(&VALUE_POSITION_ID)) {
+            if let Some(m) = WIDGET.get_state(&VALUE_POSITION_ID) {
                 for (key, value) in m {
-                    vec.push((*key, *value));
+                    vec.push((key, value));
                 }
             }
         });
@@ -1437,9 +1472,9 @@ mod util {
     pub fn sorted_node_init(wgt: &impl UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
         wgt.with_context(|| {
-            if let Some(m) = WIDGET.with_state(|s| s.get(&NODE_POSITION_ID)) {
+            if let Some(m) = WIDGET.get_state(&NODE_POSITION_ID) {
                 for (key, value) in m {
-                    vec.push((*key, *value));
+                    vec.push((key, value));
                 }
             }
         });
@@ -1456,7 +1491,7 @@ mod util {
     })]
     impl UiNode for CountNode {
         fn init(&mut self) {
-            WIDGET.with_state_mut(|s| {
+            WIDGET.with_state_mut(|mut s| {
                 s.entry(&VALUE_POSITION_ID)
                     .or_default()
                     .insert(self.value_pos.tag, self.value_pos.pos);
@@ -1482,8 +1517,8 @@ mod util {
     ///
     /// Note only applies after update.
     pub fn set_state(wgt: &mut impl UiNode, state: bool) {
-        wgt.with_context_mut(|| {
-            WIDGET.with_state_mut(|s| {
+        wgt.with_context(|| {
+            WIDGET.with_state_mut(|mut s| {
                 *s.entry(&IS_STATE_ID).or_default() = state;
             });
             WIDGET.update();
@@ -1497,7 +1532,7 @@ mod util {
     })]
     impl IsStateNode {
         fn update_state(&mut self) {
-            let wgt_state = WIDGET.with_state(|s| s.get(&IS_STATE_ID).copied().unwrap_or_default());
+            let wgt_state = WIDGET.get_state(&IS_STATE_ID).unwrap_or_default();
             if wgt_state != self.state.get() {
                 let _ = self.state.set(wgt_state);
             }
@@ -1542,7 +1577,7 @@ mod util {
     impl UiNode for LiveTraceNode {
         fn init(&mut self) {
             self.child.init();
-            WIDGET.with_state_mut(|s| {
+            WIDGET.with_state_mut(|mut s| {
                 s.entry(&TRACE_ID).or_default().insert(self.trace.get());
             });
             self.auto_subs();
@@ -1551,7 +1586,7 @@ mod util {
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
             if let Some(trace) = self.trace.get_new() {
-                WIDGET.with_state_mut(|s| {
+                WIDGET.with_state_mut(|mut s| {
                     s.entry(&TRACE_ID).or_default().insert(trace);
                 })
             }

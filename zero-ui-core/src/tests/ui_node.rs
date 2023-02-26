@@ -136,14 +136,16 @@ pub fn allow_missing_delegate() {
     }
 
     fn test(node: impl UiNode) {
+        let mut app = App::minimal().run_headless(false);
         let mut wgt = util::test_wgt(node);
-        let mut ctx = TestWidgetContext::new();
 
-        ctx.init(&mut wgt);
-        assert_only_traced!(wgt, "init");
+        todo!("test widget")
 
-        ctx.update(&mut wgt, None);
-        assert_did_not_trace!(wgt);
+        // ctx.init(&mut wgt);
+        // assert_only_traced!(wgt, "init");
+
+        // ctx.update(&mut wgt, None);
+        // assert_did_not_trace!(wgt);
     }
 
     test(Node1 {
@@ -162,85 +164,86 @@ pub fn default_no_child() {
     impl UiNode for Node {}
 
     let mut wgt = util::test_wgt(Node {});
-    let mut ctx = TestWidgetContext::new();
+    todo!("test widget");
+    // let mut ctx = TestWidgetContext::new();
 
-    ctx.init(&mut wgt);
-    ctx.update(&mut wgt, None);
-    ctx.deinit(&mut wgt);
-    let (wu, u) = ctx.apply_updates();
+    // ctx.init(&mut wgt);
+    // ctx.update(&mut wgt, None);
+    // ctx.deinit(&mut wgt);
+    // let (wu, u) = ctx.apply_updates();
 
-    // we expect `test_init` to just be an init call, no extra flagging.
-    // assert!(!wu.info);
+    // // we expect `test_init` to just be an init call, no extra flagging.
+    // // assert!(!wu.info);
 
-    // we expect defaults to make no requests.
-    // assert!(!wu.layout);
-    // assert!(wu.render.is_none());
-    assert!(u.events.is_empty());
-    assert!(!u.update);
-    assert!(!u.layout);
-    assert!(!u.render);
+    // // we expect defaults to make no requests.
+    // // assert!(!wu.layout);
+    // // assert!(wu.render.is_none());
+    // assert!(u.events.is_empty());
+    // assert!(!u.update);
+    // assert!(!u.layout);
+    // assert!(!u.render);
 
-    ctx.init(&mut wgt);
+    // ctx.init(&mut wgt);
 
-    // we expect default to fill or collapsed depending on the
-    let constrains = PxConstrains2d::new_unbounded()
-        .with_min(Px(1), Px(8))
-        .with_max(Px(100), Px(800))
-        .with_fill(true, true);
+    // // we expect default to fill or collapsed depending on the
+    // let constrains = PxConstrains2d::new_unbounded()
+    //     .with_min(Px(1), Px(8))
+    //     .with_max(Px(100), Px(800))
+    //     .with_fill(true, true);
 
-    let desired_size = ctx.layout(&mut wgt, constrains.into());
-    assert_eq!(desired_size, constrains.max_size().unwrap());
+    // let desired_size = ctx.layout(&mut wgt, constrains.into());
+    // assert_eq!(desired_size, constrains.max_size().unwrap());
 
-    let constrains = constrains.with_fill(false, false);
-    let desired_size = ctx.layout(&mut wgt, constrains.into());
-    assert_eq!(desired_size, constrains.min_size());
+    // let constrains = constrains.with_fill(false, false);
+    // let desired_size = ctx.layout(&mut wgt, constrains.into());
+    // assert_eq!(desired_size, constrains.min_size());
 
-    // we expect default to not render anything (except a hit-rect for the window).
-    let window_id = WindowId::new_unique();
+    // // we expect default to not render anything (except a hit-rect for the window).
+    // let window_id = WindowId::new_unique();
 
-    let mut info = WidgetInfoBuilder::new(
-        window_id,
-        ctx.root_id,
-        WidgetBoundsInfo::new_size(desired_size, desired_size),
-        WidgetBorderInfo::new(),
-        1.fct(),
-        None,
-    );
-    ctx.info(&wgt, &mut info);
-    let (build_info, _) = info.finalize();
-    let wgt_info = build_info.get(wgt.with_context(|w| w.id).unwrap()).unwrap();
-    assert!(wgt_info.descendants().next().is_none());
-    assert!(wgt_info.meta().is_empty());
-    ctx.info_tree = build_info;
+    // let mut info = WidgetInfoBuilder::new(
+    //     window_id,
+    //     ctx.root_id,
+    //     WidgetBoundsInfo::new_size(desired_size, desired_size),
+    //     WidgetBorderInfo::new(),
+    //     1.fct(),
+    //     None,
+    // );
+    // ctx.info(&wgt, &mut info);
+    // let (build_info, _) = info.finalize();
+    // let wgt_info = build_info.get(wgt.with_context(|w| w.id).unwrap()).unwrap();
+    // assert!(wgt_info.descendants().next().is_none());
+    // assert!(wgt_info.meta().is_empty());
+    // ctx.info_tree = build_info;
 
-    let mut frame = FrameBuilder::new_renderless(
-        FrameId::INVALID,
-        ctx.root_id,
-        &ctx.widget_info.bounds,
-        &ctx.info_tree,
-        1.0.fct(),
-        Default::default(),
-        None,
-    );
+    // let mut frame = FrameBuilder::new_renderless(
+    //     FrameId::INVALID,
+    //     ctx.root_id,
+    //     &ctx.widget_info.bounds,
+    //     &ctx.info_tree,
+    //     1.0.fct(),
+    //     Default::default(),
+    //     None,
+    // );
 
-    ctx.render(&wgt, &mut frame);
-    let (_, _) = frame.finalize(&ctx.info_tree);
+    // ctx.render(&wgt, &mut frame);
+    // let (_, _) = frame.finalize(&ctx.info_tree);
 
-    // and not update render.
-    let mut update = FrameUpdate::new(
-        FrameId::INVALID,
-        ctx.root_id,
-        wgt.with_context(|w| w.widget_info.bounds.clone()).expect("expected widget"),
-        None,
-        RenderColor::BLACK,
-        None,
-    );
-    ctx.render_update(&wgt, &mut update);
-    let (update, _) = update.finalize(&ctx.info_tree);
-    assert!(!update.transforms.is_empty());
-    assert!(update.floats.is_empty());
-    assert!(update.colors.is_empty());
-    assert!(update.clear_color.is_none());
+    // // and not update render.
+    // let mut update = FrameUpdate::new(
+    //     FrameId::INVALID,
+    //     ctx.root_id,
+    //     wgt.with_context(|w| w.widget_info.bounds.clone()).expect("expected widget"),
+    //     None,
+    //     RenderColor::BLACK,
+    //     None,
+    // );
+    // ctx.render_update(&wgt, &mut update);
+    // let (update, _) = update.finalize(&ctx.info_tree);
+    // assert!(!update.transforms.is_empty());
+    // assert!(update.floats.is_empty());
+    // assert!(update.colors.is_empty());
+    // assert!(update.clear_color.is_none());
 }
 
 mod util {
@@ -323,9 +326,11 @@ mod util {
     }
     impl UiNode for TestTraceNode {
         fn init(&mut self) {
-            let db = WIDGET.with_state(|s| s.entry(&TRACE_ID).or_default());
-            assert!(db.iter().all(|t| !Arc::ptr_eq(t, &self.trace)), "TraceNode::init called twice");
-            db.push(Arc::clone(&self.trace));
+            WIDGET.with_state_mut(|mut s| {
+                let db = s.entry(&TRACE_ID).or_default();
+                assert!(db.iter().all(|t| !Arc::ptr_eq(t, &self.trace)), "TraceNode::init called twice");
+                db.push(Arc::clone(&self.trace));
+            });
 
             self.test_trace("init");
         }

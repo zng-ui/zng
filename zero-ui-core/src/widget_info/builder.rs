@@ -167,7 +167,7 @@ impl WidgetInfoBuilder {
             "can only call `push_widget` or `push_widget_reuse` for each widget"
         );
 
-        let tree = WINDOW.widget_tree().unwrap();
+        let tree = WINDOW.widget_tree();
         let wgt = tree
             .get(id)
             .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", id));
@@ -859,7 +859,7 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse(&mut self) {
-        let tree = WINDOW.widget_tree().unwrap();
+        let tree = WINDOW.widget_tree();
         let id = WIDGET.id();
         if let Some(w) = tree.get(id) {
             for w in w.self_and_descendants() {
@@ -890,7 +890,7 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse_descendants(&mut self) {
-        let tree = WINDOW.widget_tree().unwrap();
+        let tree = WINDOW.widget_tree();
         let id = WIDGET.id();
         if let Some(w) = tree.get(id) {
             for w in w.descendants() {
@@ -920,7 +920,7 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse_child(&mut self, index: usize) {
-        let tree = WINDOW.widget_tree().unwrap();
+        let tree = WINDOW.widget_tree();
         let id = WIDGET.id();
         if let Some(w) = tree.get(id) {
             if let Some(w) = w.children().nth(index) {

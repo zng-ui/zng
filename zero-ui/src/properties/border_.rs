@@ -19,21 +19,21 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
         corners: PxCornerRadius,
     })]
     impl UiNode for BorderNode {
-        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &mut WidgetUpdates) {
             if self.sides.is_new() {
                 WIDGET.render();
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
-            ctx.constrains().fill_size()
+        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+            LAYOUT.constrains().fill_size()
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-            self.corners = ContextBorders::border_radius(ctx);
-            ctx.constrains().fill_size()
+        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
+            self.corners = ContextBorders::border_radius();
+            LAYOUT.constrains().fill_size()
         }
 
-        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             let (rect, offsets) = ContextBorders::border_layout();
             frame.push_border(rect, offsets, self.sides.get(), self.corners);
         }

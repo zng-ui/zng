@@ -26,50 +26,30 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
         hovered_binding: Option<VarHandle>,
     })]
     impl UiNode for CursorNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.auto_subs(ctx);
-            ctx.sub_event(&MOUSE_HOVERED_EVENT);
-            self.child.init(ctx);
+        fn init(&mut self) {
+            self.auto_subs();
+            WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
+            self.child.init();
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             self.hovered_binding = None;
-            self.child.deinit(ctx);
+            self.child.deinit();
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
-            self.child.event(ctx, update);
+        fn event(&mut self, update: &mut EventUpdate) {
+            self.child.event(update);
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                let state = *ctx.update_state.entry(&CURSOR_STATE_ID).or_default();
-                match state {
-                    CursorState::Default => {
-                        // child did not set
+                if args.is_mouse_enter() {
+                    if self.hovered_binding.is_none() {
+                        // we are not already set, setup binding.
 
-                        if args.target.as_ref().map(|t| t.contains(ctx.path.widget_id())).unwrap_or(false) {
-                            // we can set
-
-                            if self.hovered_binding.is_none() {
-                                // we are not already set, setup binding.
-
-                                let cursor = WindowVars::req().cursor();
-                                cursor.set_ne(self.cursor.get());
-                                self.hovered_binding = Some(self.cursor.bind(&cursor));
-                            }
-
-                            // flag parent
-                            ctx.update_state.set(&CURSOR_STATE_ID, CursorState::Set);
-                        } else if self.hovered_binding.is_some() {
-                            // we are set, unbind.
-
-                            self.hovered_binding = None;
-                            WindowVars::req().cursor().set_ne(Some(CursorIcon::Default));
-                        }
+                        let cursor = WindowVars::req().cursor();
+                        cursor.set_ne(self.cursor.get());
+                        self.hovered_binding = Some(self.cursor.bind(&cursor));
                     }
-                    CursorState::Set => {
-                        // child did set, unbind if we were bound.
-
-                        self.hovered_binding = None;
-                    }
+                } else if args.is_mouse_leave() {
+                    self.hovered_binding = None;
                 }
             }
         }

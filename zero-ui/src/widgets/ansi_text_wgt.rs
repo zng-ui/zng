@@ -638,20 +638,20 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
     })]
     impl AnsiNode {
         #[UiNode]
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.auto_subs(ctx);
-            self.generate_child(ctx);
-            self.child.init(ctx);
+        fn init(&mut self) {
+            self.auto_subs();
+            self.generate_child();
+            self.child.init();
         }
 
         #[UiNode]
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
+        fn deinit(&mut self) {
+            self.child.deinit();
             self.child = NilUiNode.boxed();
         }
 
         #[UiNode]
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             use ansi_gen::*;
 
             if self.txt.is_new()
@@ -662,16 +662,16 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
                 || LINES_PER_PAGE_VAR.is_new()
                 || BLINK_INTERVAL_VAR.is_new()
             {
-                self.child.deinit(ctx);
-                self.generate_child(ctx);
-                self.child.init(ctx);
+                self.child.deinit();
+                self.generate_child();
+                self.child.init();
                 WIDGET.info().layout().render();
             } else {
-                self.child.update(ctx, updates);
+                self.child.update(updates);
             }
         }
 
-        fn generate_child(&mut self, ctx: &mut WidgetContext) {
+        fn generate_child(&mut self) {
             use ansi_gen::*;
             use std::mem;
 

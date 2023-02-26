@@ -103,7 +103,7 @@ where
     D: VarValue,
     U: UiNode,
     V: Var<D>,
-    P: FnMut(&mut WidgetContext, &V) -> View<U> + Send + 'static,
+    P: FnMut(&V) -> View<U> + Send + 'static,
 {
     use crate::core::widget_base::nodes;
 
@@ -120,35 +120,35 @@ where
     D: VarValue,
     U: UiNode,
     V: Var<D>,
-    P: FnMut(&mut WidgetContext, &V) -> View<U> + Send + 'static,
+    P: FnMut(&V) -> View<U> + Send + 'static,
 {
     #[ui_node(struct ViewNode<D: VarValue> {
         #[var] data: impl Var<D>,
         child: impl UiNode,
-        presenter: impl FnMut(&mut WidgetContext, &T_data) -> View<T_child> + Send + 'static,
+        presenter: impl FnMut(&T_data) -> View<T_child> + Send + 'static,
         _d: std::marker::PhantomData<D>,
     })]
     impl UiNode for ViewNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.auto_subs(ctx);
+        fn init(&mut self) {
+            self.auto_subs();
 
-            if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
+            if let View::Update(new_child) = (self.presenter)(&self.data) {
                 self.child = new_child;
             }
 
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.data.is_new() {
-                if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
-                    self.child.deinit(ctx);
+                if let View::Update(new_child) = (self.presenter)(&self.data) {
+                    self.child.deinit();
                     self.child = new_child;
-                    self.child.init(ctx);
+                    self.child.init();
                     WIDGET.info().layout().render();
                 }
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
     }
 
@@ -161,7 +161,7 @@ where
     .cfg_boxed()
 }
 
-type BoxedGenerator<D> = Box<dyn Fn(&mut WidgetContext, D) -> BoxedUiNode + Send + Sync>;
+type BoxedGenerator<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 
 /// Boxed shared closure that generates an widget for a given data.
 ///
@@ -196,7 +196,7 @@ impl<D> fmt::Debug for WidgetGenerator<D> {
 }
 impl<D> WidgetGenerator<D> {
     /// New from a closure that generates a [`View`] update from data.
-    pub fn new<U: UiNode>(generator: impl Fn(&mut WidgetContext, D) -> U + Send + Sync + 'static) -> Self {
+    pub fn new<U: UiNode>(generator: impl Fn(D) -> U + Send + Sync + 'static) -> Self {
         WidgetGenerator(Some(Arc::new(Box::new(move |ctx, data| generator(ctx, data).boxed()))))
     }
 
@@ -227,9 +227,9 @@ impl<D> WidgetGenerator<D> {
     }
 
     /// Executes the generator for the given `data`.
-    pub fn generate(&self, ctx: &mut WidgetContext, data: D) -> BoxedUiNode {
+    pub fn generate(&self, data: D) -> BoxedUiNode {
         if let Some(g) = &self.0 {
-            g(ctx, data)
+            g(data)
         } else {
             NilUiNode.boxed()
         }
@@ -243,10 +243,7 @@ impl<D> WidgetGenerator<D> {
     /// is init.
     ///
     /// [`generate`]: WidgetGenerator::generate
-    pub fn presenter(
-        generator: impl IntoVar<WidgetGenerator<D>>,
-        update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + Send + 'static,
-    ) -> impl UiNode
+    pub fn presenter(generator: impl IntoVar<WidgetGenerator<D>>, update: impl FnMut(bool) -> DataUpdate<D> + Send + 'static) -> impl UiNode
     where
         D: 'static,
     {
@@ -260,7 +257,7 @@ impl<D> WidgetGenerator<D> {
     {
         Self::presenter(
             generator,
-            |_, new| if new { DataUpdate::Update(D::default()) } else { DataUpdate::Same },
+            |new| if new { DataUpdate::Update(D::default()) } else { DataUpdate::Same },
         )
     }
 
@@ -269,7 +266,7 @@ impl<D> WidgetGenerator<D> {
     /// [`presenter`]: WidgetGenerator::presenter
     pub fn presenter_map<V>(
         generator: impl IntoVar<WidgetGenerator<D>>,
-        update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + Send + 'static,
+        update: impl FnMut(bool) -> DataUpdate<D> + Send + 'static,
         map: impl FnMut(BoxedUiNode) -> V + Send + 'static,
     ) -> impl UiNode
     where
@@ -278,13 +275,13 @@ impl<D> WidgetGenerator<D> {
     {
         #[ui_node(struct ViewGenVarPresenter<D: 'static, V: UiNode> {
             #[var] gen: impl Var<WidgetGenerator<D>>,
-            update: impl FnMut(&mut WidgetContext, bool) -> DataUpdate<D> + Send + 'static,
+            update: impl FnMut(bool) -> DataUpdate<D> + Send + 'static,
             map: impl FnMut(BoxedUiNode) -> V + Send + 'static,
             child: Option<V>,
         })]
         impl UiNode for ViewGenVarPresenter {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                self.auto_subs(ctx);
+            fn init(&mut self) {
+                self.auto_subs();
 
                 let gen = self.gen.get();
 
@@ -293,45 +290,45 @@ impl<D> WidgetGenerator<D> {
                     return;
                 }
 
-                match (self.update)(ctx, true) {
+                match (self.update)(true) {
                     DataUpdate::Update(data) => {
-                        let mut child = (self.map)(gen.generate(ctx, data));
-                        child.init(ctx);
+                        let mut child = (self.map)(gen.generate(data));
+                        child.init();
                         self.child = Some(child);
                     }
-                    DataUpdate::Same => self.child.init(ctx),
+                    DataUpdate::Same => self.child.init(),
                     DataUpdate::None => self.child = None,
                 }
             }
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                self.child.deinit(ctx);
+            fn deinit(&mut self) {
+                self.child.deinit();
             }
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &mut WidgetUpdates) {
                 let gen = self.gen.get();
 
                 if gen.is_nil() {
                     if let Some(mut old) = self.child.take() {
-                        old.deinit(ctx);
+                        old.deinit();
                         WIDGET.info().layout().render();
                     }
 
                     return;
                 }
 
-                match (self.update)(ctx, self.gen.is_new()) {
+                match (self.update)(self.gen.is_new()) {
                     DataUpdate::Update(data) => {
                         if let Some(mut old) = self.child.take() {
-                            old.deinit(ctx);
+                            old.deinit();
                         }
-                        let mut child = (self.map)(gen.generate(ctx, data));
-                        child.init(ctx);
+                        let mut child = (self.map)(gen.generate(data));
+                        child.init();
                         self.child = Some(child);
                         WIDGET.info().layout().render();
                     }
-                    DataUpdate::Same => self.child.update(ctx, updates),
+                    DataUpdate::Same => self.child.update(updates),
                     DataUpdate::None => {
                         if let Some(mut old) = self.child.take() {
-                            old.deinit(ctx);
+                            old.deinit();
                             WIDGET.info().layout().render();
                         }
                     }

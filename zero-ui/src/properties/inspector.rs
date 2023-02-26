@@ -111,30 +111,30 @@ fn show_widget_tree(
         valid: bool,
     })]
     impl UiNode for RenderWidgetTreeNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.valid = ctx.path.is_root();
+        fn init(&mut self) {
+            self.valid = WIDGET.parent_id().is_none();
             if self.valid {
-                self.auto_subs(ctx);
+                self.auto_subs();
             } else {
                 tracing::error!("properties that render widget info are only valid in a window");
             }
 
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.valid && self.enabled.is_new() {
                 WIDGET.render();
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.child.render(ctx, frame);
+        fn render(&self, frame: &mut FrameBuilder) {
+            self.child.render(frame);
 
             if self.valid && self.enabled.get() {
                 frame.with_hit_tests_disabled(|frame| {
-                    (self.render)(ctx.info_tree, frame);
+                    (self.render)(&WINDOW.widget_tree(), frame);
                 });
             }
         }
@@ -167,17 +167,14 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         handles: EventHandles,
     })]
     impl UiNode for ShowHitTestNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.valid = ctx.path.is_root();
+        fn init(&mut self) {
+            self.valid = WIDGET.parent_id().is_none();
             if self.valid {
-                self.auto_subs(ctx);
+                self.auto_subs();
 
                 if self.enabled.get() {
-                    self.handles = [
-                        MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
-                        MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()),
-                    ]
-                    .into();
+                    let id = WIDGET.id();
+                    self.handles = [MOUSE_MOVE_EVENT.subscribe(id), MOUSE_HOVERED_EVENT.subscribe(id)].into();
                 } else {
                     self.handles.clear();
                 }
@@ -185,15 +182,15 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                 tracing::error!("properties that render widget info are only valid in a window");
             }
 
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             self.handles.clear();
-            self.child.deinit(ctx);
+            self.child.deinit();
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                 if self.valid && self.enabled.get() {
                     let factor = WindowVars::req().scale_factor().get();
@@ -202,8 +199,8 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                     let fails = Rc::new(RefCell::new(vec![]));
                     let hits = Rc::new(RefCell::new(vec![]));
 
-                    let _ = ctx
-                        .info_tree
+                    let tree = WINDOW.widget_tree();
+                    let _ = tree
                         .root()
                         .spatial_iter(clone_move!(fails, hits, |w| {
                             let bounds = w.inner_bounds();
@@ -235,27 +232,24 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                     WIDGET.render();
                 }
             }
-            self.child.event(ctx, update);
+            self.child.event(update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if let Some(enabled) = self.enabled.get_new() {
                 if enabled && self.valid {
-                    self.handles = [
-                        MOUSE_MOVE_EVENT.subscribe(ctx.path.widget_id()),
-                        MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()),
-                    ]
-                    .into();
+                    let id = WIDGET.id();
+                    self.handles = [MOUSE_MOVE_EVENT.subscribe(id), MOUSE_HOVERED_EVENT.subscribe(id)].into();
                 } else {
                     self.handles.clear();
                 }
                 WIDGET.render();
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.child.render(ctx, frame);
+        fn render(&self, frame: &mut FrameBuilder) {
+            self.child.render(frame);
 
             if self.valid && self.enabled.get() {
                 let widths = PxSideOffsets::new_all_same(Px(1));
@@ -299,36 +293,37 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         mouse_hovered_handle: Option<EventHandle>,
     })]
     impl UiNode for ShowDirectionalQueryNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.valid = ctx.path.is_root();
+        fn init(&mut self) {
+            self.valid = WIDGET.parent_id().is_none();
             if self.valid {
-                self.auto_subs(ctx);
+                self.auto_subs();
                 if self.orientation.get().is_some() {
-                    self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
+                    self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(WIDGET.id()));
                 }
             } else {
                 tracing::error!("properties that render widget info are only valid in a window");
             }
 
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             self.mouse_hovered_handle = None;
-            self.child.deinit(ctx);
+            self.child.deinit();
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             if self.valid {
                 if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                     if let Some(orientation) = self.orientation.get() {
                         let mut none = true;
                         if let Some(target) = &args.target {
+                            let tree = WINDOW.widget_tree();
                             for w_id in target.widgets_path().iter().rev() {
-                                if let Some(w) = ctx.info_tree.get(*w_id) {
+                                if let Some(w) = tree.get(*w_id) {
                                     if let Some(w) = w.as_focusable(true, true) {
                                         let search_quads: Vec<_> = orientation
-                                            .search_bounds(w.info.center(), Px::MAX, ctx.info_tree.spatial_bounds().to_box2d())
+                                            .search_bounds(w.info.center(), Px::MAX, tree.spatial_bounds().to_box2d())
                                             .map(|q| q.to_rect())
                                             .collect();
 
@@ -352,16 +347,16 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                 }
             }
 
-            self.child.event(ctx, update);
+            self.child.event(update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.valid {
                 if let Some(ori) = self.orientation.get_new() {
                     self.search_quads.clear();
 
                     if ori.is_some() {
-                        self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(ctx.path.widget_id()));
+                        self.mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(WIDGET.id()));
                     } else {
                         self.mouse_hovered_handle = None;
                     }
@@ -369,11 +364,11 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                     WIDGET.render();
                 }
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.child.render(ctx, frame);
+        fn render(&self, frame: &mut FrameBuilder) {
+            self.child.render(frame);
 
             if self.valid && self.orientation.get().is_some() {
                 let widths = PxSideOffsets::new_all_same(Px(1));

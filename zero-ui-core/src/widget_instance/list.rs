@@ -631,7 +631,7 @@ impl ZIndex {
     /// Returns `DEFAULT` if the node is not an widget.
     pub fn get(widget: &impl UiNode) -> ZIndex {
         widget
-            .with_context(|| WIDGET.with_state(|s| s.copy(&Z_INDEX_ID)).unwrap_or_default())
+            .with_context(|| WIDGET.get_state(&Z_INDEX_ID).unwrap_or_default())
             .unwrap_or_default()
     }
 }
@@ -750,7 +750,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
                 let index = self.index.get();
                 if index != ZIndex::DEFAULT {
                     z_ctx.resort = true;
-                    WIDGET.with_state_mut(|s| s.set(&Z_INDEX_ID, self.index.get()));
+                    WIDGET.set_state(&Z_INDEX_ID, self.index.get());
                 }
             }
             self.child.init();
@@ -762,7 +762,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
                     let mut z_ctx = Z_INDEX.write();
                     debug_assert_eq!(z_ctx.panel_id, WIDGET.parent_id());
                     z_ctx.resort = true;
-                    WIDGET.with_state_mut(|s| s.set(&Z_INDEX_ID, i));
+                    WIDGET.set_state(&Z_INDEX_ID, i);
                 }
             }
 

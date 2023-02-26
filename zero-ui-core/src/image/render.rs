@@ -122,7 +122,7 @@ impl ImageManager {
                     move || {
                         let vars = ImageRenderVars::new();
                         let retain = vars.retain.clone();
-                        WINDOW.with_state_mut(|mut map| map.set(&IMAGE_RENDER_VARS_ID, vars));
+                        WINDOW.set_state(&IMAGE_RENDER_VARS_ID, vars);
                         let vars = WindowVars::req();
                         vars.auto_size().set(true);
                         vars.min_size().set((1.px(), 1.px()));
@@ -206,12 +206,12 @@ impl ImageRenderVars {
     ///
     /// Panics if not called inside a render closure or widget.
     pub fn req() -> Self {
-        WINDOW.with_state(|map| map.req(&IMAGE_RENDER_VARS_ID).clone())
+        WINDOW.req_state(&IMAGE_RENDER_VARS_ID)
     }
 
     /// Tries to get the window vars from the window state.
     pub fn get() -> Option<Self> {
-        WINDOW.with_state(|map| map.get(&IMAGE_RENDER_VARS_ID).cloned())
+        WINDOW.get_state(&IMAGE_RENDER_VARS_ID)
     }
 
     /// If the render task is kept alive after a frame is produced, this is `false` by default

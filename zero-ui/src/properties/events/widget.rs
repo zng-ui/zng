@@ -46,16 +46,16 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
         count: usize,
     })]
     impl UiNode for OnInitNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
+        fn init(&mut self) {
+            self.child.init();
 
             self.count = self.count.wrapping_add(1);
-            self.handler.event(ctx, &OnInitArgs { count: self.count });
+            self.handler.event(&OnInitArgs { count: self.count });
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
-            self.handler.update(ctx);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
+            self.handler.update();
         }
     }
     OnInitNode { child, handler, count: 0 }
@@ -85,16 +85,16 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
         count: usize,
     })]
     impl UiNode for OnPreviewInitNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
+        fn init(&mut self) {
             self.count = self.count.wrapping_add(1);
-            self.handler.event(ctx, &OnInitArgs { count: self.count });
+            self.handler.event(&OnInitArgs { count: self.count });
 
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.handler.update(ctx);
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.handler.update();
+            self.child.update(updates);
         }
     }
     OnPreviewInitNode { child, handler, count: 0 }
@@ -125,22 +125,22 @@ pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>)
         pending: bool,
     })]
     impl UiNode for OnInfoInitNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
+        fn init(&mut self) {
+            self.child.init();
 
             self.pending = true;
             WIDGET.update();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
 
             if mem::take(&mut self.pending) {
                 self.count = self.count.wrapping_add(1);
-                self.handler.event(ctx, &OnInitArgs { count: self.count });
+                self.handler.event(&OnInitArgs { count: self.count });
             }
 
-            self.handler.update(ctx);
+            self.handler.update();
         }
     }
     OnInfoInitNode {
@@ -177,12 +177,12 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs>) 
         count: usize,
     })]
     impl UiNode for OnUpdateNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
 
             self.count = self.count.wrapping_add(1);
-            self.handler.event(ctx, &OnUpdateArgs { count: self.count });
-            self.handler.update(ctx);
+            self.handler.event(&OnUpdateArgs { count: self.count });
+            self.handler.update();
         }
     }
     OnUpdateNode { child, handler, count: 0 }
@@ -208,12 +208,12 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArg
         count: usize,
     })]
     impl UiNode for OnPreviewUpdateNode {
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             self.count = self.count.wrapping_add(1);
-            self.handler.update(ctx);
-            self.handler.event(ctx, &OnUpdateArgs { count: self.count });
+            self.handler.update();
+            self.handler.event(&OnUpdateArgs { count: self.count });
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
     }
     OnPreviewUpdateNode { child, handler, count: 0 }
@@ -254,16 +254,16 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs>) 
         count: usize,
     })]
     impl UiNode for OnDeinitNode {
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
+        fn deinit(&mut self) {
+            self.child.deinit();
 
             self.count = self.count.wrapping_add(1);
-            self.handler.event(ctx, &OnDeinitArgs { count: self.count });
+            self.handler.event(&OnDeinitArgs { count: self.count });
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.child.update(ctx, updates);
-            self.handler.update(ctx);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
+            self.handler.update();
         }
     }
     OnDeinitNode { child, handler, count: 0 }
@@ -296,16 +296,16 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
         count: usize,
     })]
     impl UiNode for OnPreviewDeinitNode {
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             self.count = self.count.wrapping_add(1);
-            self.handler.event(ctx, &OnDeinitArgs { count: self.count });
+            self.handler.event(&OnDeinitArgs { count: self.count });
 
-            self.child.deinit(ctx);
+            self.child.deinit();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-            self.handler.update(ctx);
-            self.child.update(ctx, updates);
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.handler.update();
+            self.child.update(updates);
         }
     }
     OnPreviewDeinitNode { child, handler, count: 0 }
@@ -322,7 +322,7 @@ event_property! {
     pub fn move {
         event: window::TRANSFORM_CHANGED_EVENT,
         args: window::TransformChangedArgs,
-        filter: |_, a| a.offset() != PxVector::zero(),
+        filter: |a| a.offset() != PxVector::zero(),
     }
 
     /// Widget interactivity changed.
@@ -358,7 +358,7 @@ event_property! {
     pub fn enabled_changed {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |ctx, a| a.enabled_change(ctx.path.widget_id()).is_some(),
+        filter: |a| a.enabled_change(WIDGET.id()).is_some(),
     }
 
     /// Widget changed to enabled or disabled visuals.
@@ -377,7 +377,7 @@ event_property! {
     pub fn vis_enabled_changed {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |ctx, a| a.vis_enabled_change(ctx.path.widget_id()).is_some(),
+        filter: |a| a.vis_enabled_change(WIDGET.id()).is_some(),
     }
 
     /// Widget interactions where blocked or unblocked.
@@ -395,7 +395,7 @@ event_property! {
     pub fn blocked_changed {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |ctx, a| a.blocked_change(ctx.path.widget_id()).is_some(),
+        filter: |a| a.blocked_change(WIDGET.id()).is_some(),
     }
 
     /// Widget normal interactions now enabled.
@@ -414,7 +414,7 @@ event_property! {
     pub fn enable {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |ctx, a| a.is_enable(ctx.path.widget_id()),
+        filter: |a| a.is_enable(WIDGET.id()),
     }
 
     /// Widget normal interactions now disabled.
@@ -433,7 +433,7 @@ event_property! {
     pub fn disable {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |ctx, a| a.is_disable(ctx.path.widget_id()),
+        filter: |a| a.is_disable(WIDGET.id()),
     }
 
     /// Widget now using the enabled visuals.
@@ -452,7 +452,7 @@ event_property! {
     pub fn vis_enable {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |ctx, a| a.is_vis_enable(ctx.path.widget_id()),
+        filter: |a| a.is_vis_enable(WIDGET.id()),
     }
 
     /// Widget now using the disabled visuals.
@@ -471,7 +471,7 @@ event_property! {
     pub fn vis_disable {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |ctx, a| a.is_vis_disable(ctx.path.widget_id()),
+        filter: |a| a.is_vis_disable(WIDGET.id()),
     }
 
     /// Widget interactions now blocked.
@@ -489,7 +489,7 @@ event_property! {
     pub fn block {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |ctx, a| a.is_block(ctx.path.widget_id()),
+        filter: |a| a.is_block(WIDGET.id()),
     }
 
     /// Widget interactions now unblocked.
@@ -507,6 +507,6 @@ event_property! {
     pub fn unblock {
         event: window::INTERACTIVITY_CHANGED_EVENT,
         args: window::InteractivityChangedArgs,
-        filter: |ctx, a| a.is_unblock(ctx.path.widget_id()),
+        filter: |a| a.is_unblock(WIDGET.id()),
     }
 }

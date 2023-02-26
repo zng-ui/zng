@@ -326,32 +326,32 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
         error: Text,
     })]
     impl UiNode for OnErrorNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_var(&CONTEXT_IMAGE_VAR);
+        fn init(&mut self) {
+            WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
             CONTEXT_IMAGE_VAR.with(|i| {
                 if let Some(error) = i.error() {
                     self.error = error;
-                    self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
+                    self.handler.event(&ImageErrorArgs { error: self.error.clone() });
                 }
             });
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
                 if let Some(error) = new_img.error() {
                     if self.error != error {
                         self.error = error;
-                        self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
+                        self.handler.event(&ImageErrorArgs { error: self.error.clone() });
                     }
                 } else {
                     self.error = "".into();
                 }
             }
 
-            self.handler.update(ctx);
-            self.child.update(ctx, updates);
+            self.handler.update();
+            self.child.update(updates);
         }
     }
     OnErrorNode {
@@ -380,24 +380,24 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
         handler: impl WidgetHandler<ImageLoadArgs>,
     })]
     impl UiNode for OnLoadNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_var(&CONTEXT_IMAGE_VAR);
+        fn init(&mut self) {
+            WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
             if CONTEXT_IMAGE_VAR.with(Image::is_loaded) {
-                self.handler.event(ctx, &ImageLoadArgs {});
+                self.handler.event(&ImageLoadArgs {});
             }
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
                 if new_img.is_loaded() {
-                    self.handler.event(ctx, &ImageLoadArgs {});
+                    self.handler.event(&ImageLoadArgs {});
                 }
             }
 
-            self.handler.update(ctx);
-            self.child.update(ctx, updates);
+            self.handler.update();
+            self.child.update(updates);
         }
     }
     OnLoadNode { child, handler }
@@ -415,20 +415,20 @@ pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWi
         block: Option<WindowLoadingHandle>,
     })]
     impl UiNode for ImageBlockWindowLoadNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_var(&CONTEXT_IMAGE_VAR);
+        fn init(&mut self) {
+            WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
             if let Some(delay) = self.enabled.deadline() {
-                self.block = WINDOWS.loading_handle(ctx.path.window_id(), delay);
+                self.block = WINDOWS.loading_handle(WINDOW.id(), delay);
             }
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.block.is_some() && !CONTEXT_IMAGE_VAR.with(Image::is_loading) {
                 self.block = None;
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
     }
     ImageBlockWindowLoadNode {

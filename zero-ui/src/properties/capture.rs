@@ -37,16 +37,16 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
         #[var] mode: impl Var<CaptureMode>,
     })]
     impl UiNode for CaptureMouseNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_event(&MOUSE_INPUT_EVENT);
-            self.auto_subs(ctx);
-            self.child.init(ctx);
+        fn init(&mut self) {
+            WIDGET.sub_event(&MOUSE_INPUT_EVENT);
+            self.auto_subs();
+            self.child.init();
         }
 
-        fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+        fn event(&mut self, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                 if args.is_mouse_down() {
-                    let widget_id = ctx.path.widget_id();
+                    let widget_id = WIDGET.id();
 
                     match self.mode.get() {
                         CaptureMode::Widget => {
@@ -59,18 +59,14 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                     }
                 }
             }
-            self.child.event(ctx, update);
+            self.child.event(update);
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if let Some(new_mode) = self.mode.get_new() {
-                if ctx
-                    .info_tree
-                    .get(ctx.path.widget_id())
-                    .map(|w| w.interactivity().is_enabled())
-                    .unwrap_or(false)
-                {
-                    let widget_id = ctx.path.widget_id();
+                let tree = WINDOW.widget_tree();
+                let widget_id = WIDGET.id();
+                if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false) {
                     if let Some((current, _)) = MOUSE.current_capture() {
                         if current.widget_id() == widget_id {
                             // If mode updated and we are capturing the mouse:
@@ -83,7 +79,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                     }
                 }
             }
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
     }
     CaptureMouseNode {
@@ -115,13 +111,13 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for ModalNode {
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            let mws = ctx.window_state.get(&MODAL_WIDGETS).unwrap();
+        fn info(&self, info: &mut WidgetInfoBuilder) {
+            let mws = WINDOW.req_state(&MODAL_WIDGETS);
 
             if self.enabled.get() {
                 let insert_filter = {
                     let mut mws = mws.lock();
-                    if mws.widgets.insert(ctx.path.widget_id()) {
+                    if mws.widgets.insert(WIDGET.id()) {
                         mws.last_in_tree = None;
                         mws.widgets.len() == 1
                     } else {
@@ -172,41 +168,41 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             } else {
                 // maybe unregister.
                 let mut mws = mws.lock();
-                let widget_id = ctx.path.widget_id();
+                let widget_id = WIDGET.id();
                 if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
                     mws.last_in_tree = None;
                 }
             }
 
-            self.child.info(ctx, info);
+            self.child.info(info);
         }
 
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.auto_subs(ctx);
-            ctx.window_state.entry(&MODAL_WIDGETS).or_default(); // insert window state
-            self.child.init(ctx);
+        fn init(&mut self) {
+            self.auto_subs();
+            WINDOW.init_state_default(&MODAL_WIDGETS); // insert window state
+            self.child.init();
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
+        fn deinit(&mut self) {
             {
-                let mws = ctx.window_state.get(&MODAL_WIDGETS).unwrap();
+                let mws = WINDOW.req_state(&MODAL_WIDGETS);
 
                 // maybe unregister.
                 let mut mws = mws.lock();
-                let widget_id = ctx.path.widget_id();
+                let widget_id = WIDGET.id();
                 if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
                     mws.last_in_tree = None;
                 }
             }
-            self.child.deinit(ctx)
+            self.child.deinit()
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.enabled.is_new() {
                 WIDGET.info();
             }
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
     }
     ModalNode {

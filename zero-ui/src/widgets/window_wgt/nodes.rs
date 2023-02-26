@@ -36,7 +36,7 @@ impl WindowLayers {
     ///
     /// If the `layer` variable updates the widget is moved to the new layer, if multiple widgets
     /// are inserted in the same layer the later inserts are on top of the previous.
-    pub fn insert(ctx: &mut WidgetContext, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
+    pub fn insert(layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
         struct LayeredWidget<L, W> {
             layer: L,
             widget: W,
@@ -46,41 +46,36 @@ impl WindowLayers {
                 delegate_mut = &mut self.widget,
             )]
         impl<L: Var<LayerIndex>, W: UiNode> UiNode for LayeredWidget<L, W> {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                self.widget.with_context_mut(|ctx| {
+            fn init(&mut self) {
+                self.widget.with_context(|ctx| {
                     ctx.widget_state.set(&LAYER_INDEX_ID, self.layer.get());
                 });
-                self.widget.init(ctx);
+                self.widget.init();
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &mut WidgetUpdates) {
                 if let Some(index) = self.layer.get_new() {
                     self.widget.with_context_mut(|ctx| {
                         ctx.widget_state.set(&LAYER_INDEX_ID, index);
                     });
                     SortingListParent::invalidate_sort();
                 }
-                self.widget.update(ctx, updates);
+                self.widget.update(updates);
             }
 
             fn with_context<R, F>(&self, f: F) -> Option<R>
             where
-                F: FnOnce(&mut WidgetNodeContext) -> R,
+                F: FnOnce() -> R,
             {
                 self.widget.with_context(f)
             }
-
-            fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
-            where
-                F: FnOnce(&mut WidgetNodeMutContext) -> R,
-            {
-                self.widget.with_context_mut(f)
-            }
         }
 
-        ctx.window_state.req(&WINDOW_LAYERS_ID).items.push(LayeredWidget {
-            layer: layer.into_var(),
-            widget: widget.cfg_boxed(),
+        WINDOW.with_state_mut(|mut s| {
+            s.req(&WINDOW_LAYERS_ID).items.push(LayeredWidget {
+                layer: layer.into_var(),
+                widget: widget.cfg_boxed(),
+            });
         });
     }
 
@@ -92,7 +87,6 @@ impl WindowLayers {
     ///
     /// If the `anchor` widget is not found the `widget` is not rendered (visibility `Collapsed`).
     pub fn insert_anchored(
-        ctx: &mut WidgetContext,
         layer: impl IntoVar<LayerIndex>,
         anchor: impl IntoVar<WidgetId>,
         mode: impl IntoVar<AnchorMode>,
@@ -122,7 +116,7 @@ impl WindowLayers {
             M: Var<AnchorMode>,
             W: UiNode,
         {
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            fn info(&self, info: &mut WidgetInfoBuilder) {
                 if self.interaction {
                     if let Some(widget) = self.widget.with_context(|ctx| ctx.id) {
                         let anchor = self.anchor.get();
@@ -144,10 +138,10 @@ impl WindowLayers {
                         });
                     }
                 }
-                self.widget.info(ctx, info)
+                self.widget.info(info)
             }
 
-            fn init(&mut self, ctx: &mut WidgetContext) {
+            fn init(&mut self) {
                 if let Some(w) = ctx.info_tree.get(self.anchor.get()) {
                     self.anchor_info = Some((w.bounds_info(), w.border_info()));
                 }
@@ -155,26 +149,26 @@ impl WindowLayers {
                 self.interaction = self.mode.with(|m| m.interaction);
                 self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(ctx.path.widget_id()));
 
-                self.widget.init(ctx);
+                self.widget.init();
             }
 
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
+            fn deinit(&mut self) {
                 self.anchor_info = None;
                 self.info_changed_handle = None;
-                self.widget.deinit(ctx);
+                self.widget.deinit();
                 self.corner_radius_ctx_handle = None;
             }
 
-            fn event(&mut self, ctx: &mut WidgetContext, update: &mut EventUpdate) {
+            fn event(&mut self, update: &mut EventUpdate) {
                 if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
                     if args.window_id == ctx.path.window_id() {
                         self.anchor_info = ctx.info_tree.get(self.anchor.get()).map(|w| (w.bounds_info(), w.border_info()));
                     }
                 }
-                self.widget.event(ctx, update);
+                self.widget.event(update);
             }
 
-            fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &mut WidgetUpdates) {
                 if let Some(anchor) = self.anchor.get_new() {
                     self.anchor_info = ctx.info_tree.get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                     if self.mode.with(|m| m.interaction) {
@@ -189,10 +183,10 @@ impl WindowLayers {
                     }
                     WIDGET.layout().render();
                 }
-                self.widget.update(ctx, updates);
+                self.widget.update(updates);
             }
 
-            fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
+            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
                 if let Some((bounds, border)) = &self.anchor_info {
                     let mode = self.mode.get();
 
@@ -212,7 +206,7 @@ impl WindowLayers {
 
                 PxSize::zero()
             }
-            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
                 if let Some((bounds, border)) = &self.anchor_info {
                     let mode = self.mode.get();
 
@@ -257,7 +251,7 @@ impl WindowLayers {
                                         )
                                         .1
                                 } else {
-                                    self.widget.layout(ctx, wl)
+                                    self.widget.layout(wl)
                                 }
                             },
                         );
@@ -269,7 +263,7 @@ impl WindowLayers {
                 PxSize::zero()
             }
 
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            fn render(&self, frame: &mut FrameBuilder) {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
                     let mode = self.mode.get();
                     if !mode.visibility || bounds_info.rendered().is_some() {
@@ -295,7 +289,7 @@ impl WindowLayers {
                                     self.transform_key.bind(PxTransform::from(point_in_window.to_vector()), true),
                                     true,
                                     false,
-                                    |frame| self.widget.render(ctx, frame),
+                                    |frame| self.widget.render(frame),
                                 )
                             }
                             AnchorTransform::OuterOffset(_) => {
@@ -335,7 +329,7 @@ impl WindowLayers {
                 }
             }
 
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            fn render_update(&self, update: &mut FrameUpdate) {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
                     let mode = self.mode.get();
                     if !mode.visibility || bounds_info.rendered().is_some() {
@@ -345,7 +339,7 @@ impl WindowLayers {
                                 update.with_transform(
                                     self.transform_key.update(PxTransform::from(point_in_window.to_vector()), true),
                                     false,
-                                    |update| self.widget.render_update(ctx, update),
+                                    |update| self.widget.render_update(update),
                                 )
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
@@ -356,7 +350,7 @@ impl WindowLayers {
                                 update.with_transform(
                                     self.transform_key.update(PxTransform::from(point_in_window.to_vector()), true),
                                     false,
-                                    |update| self.widget.render_update(ctx, update),
+                                    |update| self.widget.render_update(update),
                                 )
                             }
                             AnchorTransform::OuterOffset(_) => {
@@ -364,27 +358,27 @@ impl WindowLayers {
                                 update.with_transform(
                                     self.transform_key.update(PxTransform::from(point_in_window.to_vector()), true),
                                     false,
-                                    |update| self.widget.render_update(ctx, update),
+                                    |update| self.widget.render_update(update),
                                 )
                             }
                             AnchorTransform::InnerTransform => {
                                 update.with_transform(self.transform_key.update(bounds_info.inner_transform(), true), false, |update| {
-                                    self.widget.render_update(ctx, update)
+                                    self.widget.render_update(update)
                                 });
                             }
                             AnchorTransform::InnerBorderTransform => {
                                 update.with_transform(
                                     self.transform_key.update(border_info.inner_transform(bounds_info), true),
                                     false,
-                                    |update| self.widget.render_update(ctx, update),
+                                    |update| self.widget.render_update(update),
                                 );
                             }
                             AnchorTransform::OuterTransform => {
                                 update.with_transform(self.transform_key.update(bounds_info.outer_transform(), true), false, |update| {
-                                    self.widget.render_update(ctx, update)
+                                    self.widget.render_update(update)
                                 });
                             }
-                            _ => self.widget.render_update(ctx, update),
+                            _ => self.widget.render_update(update),
                         }
                     }
                 }
@@ -392,21 +386,13 @@ impl WindowLayers {
 
             fn with_context<R, F>(&self, f: F) -> Option<R>
             where
-                F: FnOnce(&mut WidgetNodeContext) -> R,
+                F: FnOnce() -> R,
             {
                 self.widget.with_context(f)
-            }
-
-            fn with_context_mut<R, F>(&mut self, f: F) -> Option<R>
-            where
-                F: FnOnce(&mut WidgetNodeMutContext) -> R,
-            {
-                self.widget.with_context_mut(f)
             }
         }
 
         Self::insert(
-            ctx,
             layer,
             AnchoredWidget {
                 anchor: anchor.into_var(),
@@ -446,7 +432,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
         layered: EditableUiNodeListRef,
     })]
     impl UiNode for LayersNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
+        fn init(&mut self) {
             ctx.window_state.set(
                 &WINDOW_LAYERS_ID,
                 WindowLayers {
@@ -454,26 +440,26 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
                 },
             );
 
-            self.children.init_all(ctx);
+            self.children.init_all();
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             let mut changed = false;
 
-            self.children.update_all(ctx, updates, &mut changed);
+            self.children.update_all(updates, &mut changed);
 
             if changed {
                 WIDGET.layout().render();
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node(0, |n| n.measure(ctx, wm))
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            self.children.with_node(0, |n| n.measure(wm))
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();
             self.children.for_each_mut(|i, n| {
-                let s = n.layout(ctx, wl);
+                let s = n.layout(wl);
                 if i == 0 {
                     size = s;
                 }

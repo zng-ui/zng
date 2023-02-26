@@ -84,14 +84,14 @@ pub fn node() -> impl UiNode {
         colors: [RenderColor; 2],
     })]
     impl UiNode for CheckerboardNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_var(&COLORS_VAR).sub_var(&SIZE_VAR).sub_var(&OFFSET_VAR);
+        fn init(&mut self) {
+            WIDGET.sub_var(&COLORS_VAR).sub_var(&SIZE_VAR).sub_var(&OFFSET_VAR);
 
             let (c0, c1) = COLORS_VAR.get();
             self.colors = [c0.into(), c1.into()];
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &mut WidgetUpdates) {
             if let Some((c0, c1)) = COLORS_VAR.get_new() {
                 self.colors = [c0.into(), c1.into()];
                 WIDGET.render();
@@ -101,15 +101,15 @@ pub fn node() -> impl UiNode {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
-            ctx.constrains().fill_size()
+        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+            LAYOUT.constrains().fill_size()
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-            self.final_size = ctx.constrains().fill_size();
+        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
+            self.final_size = LAYOUT.constrains().fill_size();
 
-            let tile_size = SIZE_VAR.get().layout(ctx, |_| PxSize::splat(Px(4)));
+            let tile_size = SIZE_VAR.get().layout(|_| PxSize::splat(Px(4)));
 
-            let mut offset = OFFSET_VAR.get().layout(ctx, |_| PxVector::zero());
+            let mut offset = OFFSET_VAR.get().layout(|_| PxVector::zero());
             if offset.x > self.tile_size.width {
                 offset.x /= self.tile_size.width;
             }
@@ -130,7 +130,7 @@ pub fn node() -> impl UiNode {
             self.final_size
         }
 
-        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             frame.push_conic_gradient(
                 PxRect::from_size(self.final_size),
                 self.center,

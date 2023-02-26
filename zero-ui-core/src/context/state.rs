@@ -568,19 +568,19 @@ where
             self.auto_subs();
             self.child.init();
 
-            WIDGET.with_state_mut(|s| s.set(self.id, self.value.get()));
+            WIDGET.set_state(self.id, self.value.get());
         }
 
         fn deinit(&mut self) {
             self.child.deinit();
 
-            WIDGET.with_state_mut(|s| s.set(self.id, (self.default)()));
+            WIDGET.set_state(self.id, (self.default)());
         }
 
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
             if let Some(v) = self.value.get_new() {
-                WIDGET.with_state_mut(|s| s.set(self.id, v));
+                WIDGET.set_state(self.id, v);
             }
         }
     }
@@ -629,7 +629,7 @@ where
             self.child.init();
 
             self.value.with(|v| {
-                WIDGET.with_state_mut(|s| {
+                WIDGET.with_state_mut(|mut s| {
                     (self.modify)(s.entry(self.id).or_insert_with(&self.default), v);
                 })
             })
@@ -638,13 +638,13 @@ where
         fn deinit(&mut self) {
             self.child.deinit();
 
-            WIDGET.with_state_mut(|s| s.set(self.id, (self.default)()));
+            WIDGET.set_state(self.id, (self.default)());
         }
 
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
             self.value.with_new(|v| {
-                WIDGET.with_state_mut(|s| {
+                WIDGET.with_state_mut(|mut s| {
                     (self.modify)(s.req_mut(self.id), v);
                 })
             });

@@ -60,26 +60,26 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
     })]
     impl MarkdownNode {
         #[UiNode]
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.auto_subs(ctx);
-            self.generate_child(ctx);
-            self.child.init(ctx);
+        fn init(&mut self) {
+            self.auto_subs();
+            self.generate_child();
+            self.child.init();
         }
 
         #[UiNode]
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
+        fn deinit(&mut self) {
+            self.child.deinit();
             self.child = NilUiNode.boxed();
         }
 
         #[UiNode]
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        fn info(&self, info: &mut WidgetInfoBuilder) {
             info.meta().set(&markdown::MARKDOWN_INFO_ID, ());
-            self.child.info(ctx, info);
+            self.child.info(info);
         }
 
         #[UiNode]
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             use resolvers::*;
             use view_gen::*;
 
@@ -102,17 +102,17 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
                 || IMAGE_RESOLVER_VAR.is_new()
                 || LINK_RESOLVER_VAR.is_new()
             {
-                self.child.deinit(ctx);
-                self.generate_child(ctx);
-                self.child.init(ctx);
+                self.child.deinit();
+                self.generate_child();
+                self.child.init();
                 WIDGET.info().layout().render();
             } else {
-                self.child.update(ctx, updates);
+                self.child.update(updates);
             }
         }
 
-        fn generate_child(&mut self, ctx: &mut WidgetContext) {
-            self.child = self.md.with(|md| markdown_view_gen(ctx, md.as_str())).boxed();
+        fn generate_child(&mut self) {
+            self.child = self.md.with(|md| markdown_view_gen(md.as_str())).boxed();
         }
     }
     MarkdownNode {
@@ -121,7 +121,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
     }
 }
 
-fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
+fn markdown_view_gen(md: &str) -> impl UiNode {
     use pulldown_cmark::*;
     use resolvers::*;
     use view_gen::*;
@@ -231,38 +231,29 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
             Event::End(tag) => match tag {
                 Tag::Paragraph => {
                     if !inlines.is_empty() {
-                        blocks.push(paragraph_view.generate(
-                            ctx,
-                            ParagraphGenArgs {
-                                index: blocks.len() as u32,
-                                items: mem::take(&mut inlines).into(),
-                            },
-                        ));
+                        blocks.push(paragraph_view.generate(ParagraphGenArgs {
+                            index: blocks.len() as u32,
+                            items: mem::take(&mut inlines).into(),
+                        }));
                     }
                 }
                 Tag::Heading(level, _, _) => {
                     if !inlines.is_empty() {
-                        blocks.push(heading_view.generate(
-                            ctx,
-                            HeadingGenArgs {
-                                level,
-                                anchor: heading_anchor(heading_text.take().unwrap_or_default().as_str()),
-                                items: mem::take(&mut inlines).into(),
-                            },
-                        ));
+                        blocks.push(heading_view.generate(HeadingGenArgs {
+                            level,
+                            anchor: heading_anchor(heading_text.take().unwrap_or_default().as_str()),
+                            items: mem::take(&mut inlines).into(),
+                        }));
                     }
                 }
                 Tag::BlockQuote => {
                     if let Some(start) = block_quote_start.pop() {
                         let items: UiNodeVec = blocks.drain(start..).collect();
                         if !items.is_empty() {
-                            blocks.push(block_quote_view.generate(
-                                ctx,
-                                BlockQuoteGenArgs {
-                                    level: block_quote_start.len() as u32,
-                                    items,
-                                },
-                            ));
+                            blocks.push(block_quote_view.generate(BlockQuoteGenArgs {
+                                level: block_quote_start.len() as u32,
+                                items,
+                            }));
                         }
                     }
                 }
@@ -271,28 +262,22 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         if txt.chars().rev().next() == Some('\n') {
                             txt.pop();
                         }
-                        blocks.push(code_block_view.generate(
-                            ctx,
-                            CodeBlockGenArgs {
-                                lang: match kind {
-                                    CodeBlockKind::Indented => Text::empty(),
-                                    CodeBlockKind::Fenced(l) => l.to_text(),
-                                },
-                                txt: txt.into(),
+                        blocks.push(code_block_view.generate(CodeBlockGenArgs {
+                            lang: match kind {
+                                CodeBlockKind::Indented => Text::empty(),
+                                CodeBlockKind::Fenced(l) => l.to_text(),
                             },
-                        ))
+                            txt: txt.into(),
+                        }))
                     }
                 }
                 Tag::List(n) => {
                     if let Some(_list) = list_info.pop() {
-                        blocks.push(list_view.generate(
-                            ctx,
-                            ListGenArgs {
-                                depth: list_info.len() as u32,
-                                first_num: n,
-                                items: mem::take(&mut list_items).into(),
-                            },
-                        ));
+                        blocks.push(list_view.generate(ListGenArgs {
+                            depth: list_info.len() as u32,
+                            first_num: n,
+                            items: mem::take(&mut list_items).into(),
+                        }));
                     }
                 }
                 Tag::Item => {
@@ -319,39 +304,30 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                             num,
                             checked: list.item_checked.take(),
                         };
-                        list_items.push(list_item_bullet_view.generate(ctx, bullet_args));
-                        list_items.push(list_item_view.generate(
-                            ctx,
-                            ListItemGenArgs {
-                                bullet: bullet_args,
-                                items: inlines.drain(list.inline_start..).collect(),
-                                nested_list,
-                            },
-                        ));
+                        list_items.push(list_item_bullet_view.generate(bullet_args));
+                        list_items.push(list_item_view.generate(ListItemGenArgs {
+                            bullet: bullet_args,
+                            items: inlines.drain(list.inline_start..).collect(),
+                            nested_list,
+                        }));
                     }
                 }
                 Tag::FootnoteDefinition(label) => {
                     if let Some(i) = footnote_def_start.take() {
                         let label = html_escape::decode_html_entities(label.as_ref());
                         let items = blocks.drain(i..).collect();
-                        blocks.push(footnote_def_view.generate(
-                            ctx,
-                            FootnoteDefGenArgs {
-                                label: label.to_text(),
-                                items,
-                            },
-                        ));
+                        blocks.push(footnote_def_view.generate(FootnoteDefGenArgs {
+                            label: label.to_text(),
+                            items,
+                        }));
                     }
                 }
                 Tag::Table(_) => {
                     if !table_cells.is_empty() {
-                        blocks.push(table_view.generate(
-                            ctx,
-                            TableGenArgs {
-                                columns: mem::take(&mut table_cols),
-                                cells: mem::take(&mut table_cells).into(),
-                            },
-                        ));
+                        blocks.push(table_view.generate(TableGenArgs {
+                            columns: mem::take(&mut table_cols),
+                            cells: mem::take(&mut table_cells).into(),
+                        }));
                     }
                 }
                 Tag::TableHead => {
@@ -359,14 +335,11 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 }
                 Tag::TableRow => {}
                 Tag::TableCell => {
-                    table_cells.push(table_cell_view.generate(
-                        ctx,
-                        TableCellGenArgs {
-                            is_heading: table_head,
-                            col_align: table_cols[table_col],
-                            items: mem::take(&mut inlines).into(),
-                        },
-                    ));
+                    table_cells.push(table_cell_view.generate(TableCellGenArgs {
+                        is_heading: table_head,
+                        col_align: table_cols[table_col],
+                        items: mem::take(&mut inlines).into(),
+                    }));
                     table_col += 1;
                 }
                 Tag::Emphasis => {
@@ -391,43 +364,34 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                         LinkType::ShortcutUnknown => {}
                         LinkType::Autolink | LinkType::Email => {
                             let url = html_escape::decode_html_entities(url.as_ref());
-                            inlines.push(text_view.generate(
-                                ctx,
-                                TextGenArgs {
-                                    txt: url.to_text(),
-                                    style: MarkdownStyle {
-                                        strong: strong > 0,
-                                        emphasis: emphasis > 0,
-                                        strikethrough: strikethrough > 0,
-                                    },
+                            inlines.push(text_view.generate(TextGenArgs {
+                                txt: url.to_text(),
+                                style: MarkdownStyle {
+                                    strong: strong > 0,
+                                    emphasis: emphasis > 0,
+                                    strikethrough: strikethrough > 0,
                                 },
-                            ));
+                            }));
                         }
                     }
                     if !inlines.is_empty() {
                         if let Some(s) = link_start.take() {
                             let items = inlines.drain(s..).collect();
-                            inlines.push(link_view.generate(
-                                ctx,
-                                LinkGenArgs {
-                                    url,
-                                    title: title.to_text(),
-                                    items,
-                                },
-                            ));
+                            inlines.push(link_view.generate(LinkGenArgs {
+                                url,
+                                title: title.to_text(),
+                                items,
+                            }));
                         }
                     }
                 }
                 Tag::Image(_, url, title) => {
                     let title = html_escape::decode_html_entities(title.as_ref());
-                    blocks.push(image_view.generate(
-                        ctx,
-                        ImageGenArgs {
-                            source: image_resolver.resolve(&url),
-                            title: title.to_text(),
-                            alt_items: mem::take(&mut inlines).into(),
-                        },
-                    ));
+                    blocks.push(image_view.generate(ImageGenArgs {
+                        source: image_resolver.resolve(&url),
+                        title: title.to_text(),
+                        alt_items: mem::take(&mut inlines).into(),
+                    }));
                 }
             },
             Event::Text(txt) => {
@@ -440,17 +404,14 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                     }
                     inlines.push(
                         text_view
-                            .generate(
-                                ctx,
-                                TextGenArgs {
-                                    txt: txt.to_text(),
-                                    style: MarkdownStyle {
-                                        strong: strong > 0,
-                                        emphasis: emphasis > 0,
-                                        strikethrough: strikethrough > 0,
-                                    },
+                            .generate(TextGenArgs {
+                                txt: txt.to_text(),
+                                style: MarkdownStyle {
+                                    strong: strong > 0,
+                                    emphasis: emphasis > 0,
+                                    strikethrough: strikethrough > 0,
                                 },
-                            )
+                            })
                             .boxed(),
                     );
                 }
@@ -459,17 +420,14 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
                 let txt = html_escape::decode_html_entities(txt.as_ref());
                 inlines.push(
                     code_inline_view
-                        .generate(
-                            ctx,
-                            CodeInlineGenArgs {
-                                txt: txt.to_text(),
-                                style: MarkdownStyle {
-                                    strong: strong > 0,
-                                    emphasis: emphasis > 0,
-                                    strikethrough: strikethrough > 0,
-                                },
+                        .generate(CodeInlineGenArgs {
+                            txt: txt.to_text(),
+                            style: MarkdownStyle {
+                                strong: strong > 0,
+                                emphasis: emphasis > 0,
+                                strikethrough: strikethrough > 0,
                             },
-                        )
+                        })
                         .boxed(),
                 );
             }
@@ -484,12 +442,12 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
             },
             Event::FootnoteReference(label) => {
                 let label = html_escape::decode_html_entities(label.as_ref());
-                inlines.push(footnote_ref_view.generate(ctx, FootnoteRefGenArgs { label: label.to_text() }));
+                inlines.push(footnote_ref_view.generate(FootnoteRefGenArgs { label: label.to_text() }));
             }
             Event::SoftBreak => {}
             Event::HardBreak => {}
             Event::Rule => {
-                blocks.push(rule_view.generate(ctx, RuleGenArgs {}));
+                blocks.push(rule_view.generate(RuleGenArgs {}));
             }
             Event::TaskListMarker(c) => {
                 if let Some(l) = &mut list_info.last_mut() {
@@ -499,5 +457,5 @@ fn markdown_view_gen(ctx: &mut WidgetContext, md: &str) -> impl UiNode {
         }
     }
 
-    PANEL_GEN_VAR.get().generate(ctx, PanelGenArgs { items: blocks.into() })
+    PANEL_GEN_VAR.get().generate(PanelGenArgs { items: blocks.into() })
 }

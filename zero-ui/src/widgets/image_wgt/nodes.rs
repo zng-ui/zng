@@ -41,8 +41,8 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         ctx_binding: Option<VarHandle>,
     })]
     impl UiNode for ImageSourceNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.auto_subs(ctx);
+        fn init(&mut self) {
+            self.auto_subs();
 
             let mode = if IMAGE_CACHE_VAR.get() {
                 ImageCacheMode::Cache
@@ -53,32 +53,30 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
             let mut source = self.source.get();
             if let ImageSource::Render(_, args) = &mut source {
-                *args = Some(ImageRenderArgs {
-                    parent: Some(ctx.path.window_id()),
-                });
+                *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
             }
             self.img = IMAGES.image(source, mode, limits);
 
             self.ctx_img.set(self.img.get());
             self.ctx_binding = Some(self.img.bind(&self.ctx_img));
 
-            self.child.init(ctx);
+            self.child.init();
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
+        fn deinit(&mut self) {
+            self.child.deinit();
             self.ctx_img.set(no_context_image());
             self.img = var(no_context_image()).read_only();
             self.ctx_binding = None;
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
             if let Some(mut source) = self.source.get_new() {
                 // source update:
 
                 if let ImageSource::Render(_, args) = &mut source {
                     *args = Some(ImageRenderArgs {
-                        parent: Some(ctx.path.window_id()),
+                        parent: Some(WINDOW.id()),
                     });
                 }
 
@@ -115,7 +113,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 }
             }
 
-            self.child.update(ctx, updates);
+            self.child.update(updates);
         }
     }
 
@@ -148,16 +146,16 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
 
     let view = WidgetGenerator::presenter_map(
         IMAGE_ERROR_GEN_VAR,
-        move |ctx, is_new| {
+        move |is_new| {
             if is_new {
                 if let Some((handle, id)) = &mut image_handle {
-                    let current_id = ctx.path.widget_id();
+                    let current_id = WIDGET.id();
                     if *id != current_id {
-                        *id = ctx.path.widget_id();
+                        *id = current_id;
                         *handle = CONTEXT_IMAGE_VAR.subscribe(current_id);
                     }
                 } else {
-                    let id = ctx.path.widget_id();
+                    let id = WIDGET.id();
                     image_handle = Some((CONTEXT_IMAGE_VAR.subscribe(id), id));
                 }
             }
@@ -205,16 +203,16 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
 
     let view = WidgetGenerator::presenter_map(
         IMAGE_LOADING_GEN_VAR,
-        move |ctx, is_new| {
+        move |is_new| {
             if is_new {
                 if let Some((handle, id)) = &mut image_handle {
-                    let current_id = ctx.path.widget_id();
+                    let current_id = WIDGET.id();
                     if *id != current_id {
-                        *id = ctx.path.widget_id();
+                        *id = current_id;
                         *handle = CONTEXT_IMAGE_VAR.subscribe(current_id);
                     }
                 } else {
-                    let id = ctx.path.widget_id();
+                    let id = WIDGET.id();
                     image_handle = Some((CONTEXT_IMAGE_VAR.subscribe(id), id));
                 }
             }
@@ -279,8 +277,8 @@ pub fn image_presenter() -> impl UiNode {
         spatial_id: SpatialFrameId,
     })]
     impl UiNode for ImagePresenterNode {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.sub_var(&CONTEXT_IMAGE_VAR)
+        fn init(&mut self) {
+            WIDGET.sub_var(&CONTEXT_IMAGE_VAR)
                 .sub_var(&IMAGE_CROP_VAR)
                 .sub_var(&IMAGE_SCALE_PPI_VAR)
                 .sub_var(&IMAGE_SCALE_FACTOR_VAR)
@@ -294,7 +292,7 @@ pub fn image_presenter() -> impl UiNode {
             self.requested_layout = true;
         }
 
-        fn update(&mut self, ctx: &mut WidgetContext, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &mut WidgetUpdates) {
             if let Some(img) = CONTEXT_IMAGE_VAR.get_new() {
                 let img_size = img.size();
                 if self.img_size != img_size {
@@ -323,41 +321,45 @@ pub fn image_presenter() -> impl UiNode {
             }
         }
 
-        fn measure(&self, ctx: &mut MeasureContext, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
             // Similar to `layout` Part 1.
+
+            let metrics = LAYOUT.metrics();
 
             let mut scale = IMAGE_SCALE_VAR.get();
             if IMAGE_SCALE_PPI_VAR.get() {
-                let sppi = ctx.metrics.screen_ppi();
+                let sppi = metrics.screen_ppi();
                 let (ippi_x, ippi_y) = CONTEXT_IMAGE_VAR.with(Image::ppi).unwrap_or((sppi, sppi));
                 scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
             }
             if IMAGE_SCALE_FACTOR_VAR.get() {
-                scale *= ctx.scale_factor();
+                scale *= metrics.scale_factor();
             }
 
             let img_rect = PxRect::from_size(self.img_size);
-            let crop = ctx.with_constrains(
+            let crop = LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(self.img_size),
-                |ctx| IMAGE_CROP_VAR.get().layout(ctx.metrics, |_| img_rect),
+                || IMAGE_CROP_VAR.get().layout(&LAYOUT.metrics(), |_| img_rect),
             );
             let render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
 
-            let min_size = ctx.constrains().clamp_size(render_clip.size);
-            ctx.constrains().with_min_size(min_size).fill_ratio(render_clip.size)
+            let min_size = metrics.constrains().clamp_size(render_clip.size);
+            metrics.constrains().with_min_size(min_size).fill_ratio(render_clip.size)
         }
-        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
             // Part 1 - Scale & Crop
             // - Starting from the image pixel size, apply scaling then crop.
 
+            let metrics = LAYOUT.metrics();
+
             let mut scale = IMAGE_SCALE_VAR.get();
             if IMAGE_SCALE_PPI_VAR.get() {
-                let sppi = ctx.metrics.screen_ppi();
+                let sppi = metrics.screen_ppi();
                 let (ippi_x, ippi_y) = CONTEXT_IMAGE_VAR.with(Image::ppi).unwrap_or((sppi, sppi));
                 scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
             }
             if IMAGE_SCALE_FACTOR_VAR.get() {
-                scale *= ctx.scale_factor();
+                scale *= metrics.scale_factor();
             }
 
             // webrender needs the full image size, we offset and clip it to render the final image.
@@ -365,9 +367,9 @@ pub fn image_presenter() -> impl UiNode {
 
             // crop is relative to the unscaled pixel size, then applied scaled as the clip.
             let img_rect = PxRect::from_size(self.img_size);
-            let crop = ctx.with_constrains(
+            let crop = LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(self.img_size),
-                |ctx| IMAGE_CROP_VAR.get().layout(ctx.metrics, |_| img_rect),
+                || IMAGE_CROP_VAR.get().layout(&LAYOUT.metrics(), |_| img_rect),
             );
             let mut render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
             let mut render_offset = -render_clip.origin.to_vector();
@@ -377,8 +379,8 @@ pub fn image_presenter() -> impl UiNode {
 
             let mut align = IMAGE_ALIGN_VAR.get();
 
-            let min_size = ctx.constrains().clamp_size(render_clip.size);
-            let wgt_size = ctx.constrains().with_min_size(min_size).fill_ratio(render_clip.size);
+            let min_size = metrics.constrains().clamp_size(render_clip.size);
+            let wgt_size = metrics.constrains().with_min_size(min_size).fill_ratio(render_clip.size);
 
             let mut fit = IMAGE_FIT_VAR.get();
             if let ImageFit::ScaleDown = fit {
@@ -420,7 +422,7 @@ pub fn image_presenter() -> impl UiNode {
                 render_offset.x = -render_clip.origin.x;
             } else {
                 let diff = wgt_size.width - render_clip.size.width;
-                let offset = diff * align.x(ctx.direction());
+                let offset = diff * align.x(metrics.direction());
                 render_offset.x += offset;
                 if diff < Px(0) {
                     render_clip.origin.x -= offset;
@@ -444,9 +446,9 @@ pub fn image_presenter() -> impl UiNode {
             }
 
             // Part 3 - Custom Offset and Update
-            let offset = ctx.with_constrains(
+            let offset = LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(wgt_size),
-                |ctx| IMAGE_OFFSET_VAR.get().layout(ctx.metrics, |_| PxVector::zero()),
+                || IMAGE_OFFSET_VAR.get().layout(&LAYOUT.metrics(), |_| PxVector::zero()),
             );
             if offset != PxVector::zero() {
                 render_offset += offset;
@@ -466,7 +468,7 @@ pub fn image_presenter() -> impl UiNode {
             wgt_size
         }
 
-        fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, frame: &mut FrameBuilder) {
             CONTEXT_IMAGE_VAR.with(|img| {
                 if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip.is_empty() {
                     if self.render_offset != PxVector::zero() {
