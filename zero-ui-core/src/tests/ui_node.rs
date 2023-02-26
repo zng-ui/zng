@@ -6,14 +6,10 @@ use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
 
 use crate::{
     app::App,
-    color::RenderColor,
-    context::{WidgetUpdates, WIDGET},
-    render::{FrameBuilder, FrameId, FrameUpdate},
+    context::{WidgetUpdates, LAYOUT, WIDGET, WINDOW},
     ui_node,
     units::*,
-    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder},
     widget_instance::{ui_vec, UiNode, UiNodeList},
-    window::WindowId,
 };
 
 #[test]
@@ -59,63 +55,46 @@ pub fn default_delegate_list() {
     });
 }
 fn test_trace(node: impl UiNode) {
-    let mut app = App::minimal().run_headless(false);
+    let _app = App::minimal().run_headless(false);
     let mut wgt = util::test_wgt(node);
 
-    todo!("TODO widget test helpers in `App` now that we removed `TestContext`.");
+    WINDOW.with_test_context(|| {
+        WINDOW.test_update(|_| {
+            wgt.init();
+        });
+        assert_only_traced!(wgt, "init");
 
-    // ctx.init(&mut wgt);
-    // assert_only_traced!(wgt, "init");
+        WINDOW.test_info(|b| {
+            wgt.info(b);
+        });
+        assert_only_traced!(wgt, "info");
 
-    // let l_size = PxSize::new(1000.into(), 800.into());
-    // let window_id = WindowId::new_unique();
-    // let mut info = WidgetInfoBuilder::new(
-    //     window_id,
-    //     ctx.root_id,
-    //     WidgetBoundsInfo::new_size(l_size, l_size),
-    //     WidgetBorderInfo::new(),
-    //     1.fct(),
-    //     None,
-    // );
+        WINDOW.test_update(|u| {
+            wgt.update(u);
+        });
+        assert_only_traced!(wgt, "update");
 
-    // ctx.info(&wgt, &mut info);
-    // ctx.info_tree = info.finalize().0;
-    // assert_only_traced!(wgt, "info");
+        WINDOW.test_layout(|_, wl| wgt.layout(wl));
+        assert_only_traced!(wgt, "layout");
 
-    // ctx.update(&mut wgt, None);
-    // assert_only_traced!(wgt, "update");
+        WINDOW.test_render(|frame| {
+            wgt.render(frame);
+        });
+        assert_only_traced!(wgt, "render");
 
-    // ctx.layout(&mut wgt, PxConstrains2d::new_bounded_size(l_size).into());
-    // assert_only_traced!(wgt, "layout");
+        TestTraceNode::notify_render_update(&mut wgt);
+        assert_only_traced!(wgt, "event");
 
-    // let mut frame = FrameBuilder::new_renderless(
-    //     FrameId::INVALID,
-    //     ctx.root_id,
-    //     &ctx.widget_info.bounds,
-    //     &ctx.info_tree,
-    //     1.0.fct(),
-    //     Default::default(),
-    //     None,
-    // );
-    // ctx.render(&wgt, &mut frame);
-    // assert_only_traced!(wgt, "render");
+        WINDOW.test_render_update(|update| {
+            wgt.render_update(update);
+        });
+        assert_only_traced!(wgt, "render_update");
 
-    // TestTraceNode::notify_render_update(&mut wgt);
-    // assert_only_traced!(wgt, "event");
-
-    // let mut update = FrameUpdate::new(
-    //     FrameId::INVALID,
-    //     ctx.root_id,
-    //     wgt.with_context(|w| WIDGET.bounds()).expect("expected widget"),
-    //     None,
-    //     RenderColor::BLACK,
-    //     None,
-    // );
-    // ctx.render_update(&wgt, &mut update);
-    // assert_only_traced!(wgt, "render_update");
-
-    // ctx.deinit(&mut wgt);
-    // assert_only_traced!(wgt, "deinit");
+        WINDOW.test_update(|_| {
+            wgt.deinit();
+        });
+        assert_only_traced!(wgt, "deinit");
+    });
 }
 
 #[test]
@@ -136,16 +115,20 @@ pub fn allow_missing_delegate() {
     }
 
     fn test(node: impl UiNode) {
-        let mut app = App::minimal().run_headless(false);
+        let _app = App::minimal().run_headless(false);
         let mut wgt = util::test_wgt(node);
 
-        todo!("test widget")
+        WINDOW.with_test_context(|| {
+            WINDOW.test_update(|_| {
+                wgt.init();
+            });
+            assert_only_traced!(wgt, "init");
 
-        // ctx.init(&mut wgt);
-        // assert_only_traced!(wgt, "init");
-
-        // ctx.update(&mut wgt, None);
-        // assert_did_not_trace!(wgt);
+            WINDOW.test_update(|u| {
+                wgt.update(u);
+            });
+            assert_did_not_trace!(wgt);
+        });
     }
 
     test(Node1 {
@@ -164,86 +147,57 @@ pub fn default_no_child() {
     impl UiNode for Node {}
 
     let mut wgt = util::test_wgt(Node {});
-    todo!("test widget");
-    // let mut ctx = TestWidgetContext::new();
 
-    // ctx.init(&mut wgt);
-    // ctx.update(&mut wgt, None);
-    // ctx.deinit(&mut wgt);
-    // let (wu, u) = ctx.apply_updates();
+    let _app = App::minimal().run_headless(false);
 
-    // // we expect `test_init` to just be an init call, no extra flagging.
-    // // assert!(!wu.info);
+    WINDOW.with_test_context(|| {
+        let (_, wu) = WINDOW.test_update(|u| {
+            wgt.init();
+            wgt.update(u);
+            wgt.deinit();
+        });
 
-    // // we expect defaults to make no requests.
-    // // assert!(!wu.layout);
-    // // assert!(wu.render.is_none());
-    // assert!(u.events.is_empty());
-    // assert!(!u.update);
-    // assert!(!u.layout);
-    // assert!(!u.render);
+        // we expect defaults to make no requests.
+        assert!(!wu.update);
+        assert!(!wu.layout);
+        assert!(!wu.render);
 
-    // ctx.init(&mut wgt);
+        wgt.init();
 
-    // // we expect default to fill or collapsed depending on the
-    // let constrains = PxConstrains2d::new_unbounded()
-    //     .with_min(Px(1), Px(8))
-    //     .with_max(Px(100), Px(800))
-    //     .with_fill(true, true);
+        WINDOW.test_info(|u| {
+            wgt.info(u);
+        });
+        let tree = WINDOW.widget_tree();
+        let wgt_info = tree.get(WIDGET.id()).unwrap();
+        assert!(wgt_info.descendants().next().is_none());
+        assert!(wgt_info.meta().is_empty());
 
-    // let desired_size = ctx.layout(&mut wgt, constrains.into());
-    // assert_eq!(desired_size, constrains.max_size().unwrap());
+        let constrains = PxConstrains2d::new_unbounded()
+            .with_min(Px(1), Px(8))
+            .with_max(Px(100), Px(800))
+            .with_fill(true, true);
+        let (desired_size, _) = WINDOW.test_layout(|_, wl| {
+            // we expect default to fill or collapsed depending on the
+            LAYOUT.with_constrains(|_| constrains, || wgt.layout(wl))
+        });
+        assert_eq!(desired_size, constrains.max_size().unwrap());
 
-    // let constrains = constrains.with_fill(false, false);
-    // let desired_size = ctx.layout(&mut wgt, constrains.into());
-    // assert_eq!(desired_size, constrains.min_size());
+        let constrains = constrains.with_fill(false, false);
+        let (desired_size, _) = WINDOW.test_layout(|_, wl| LAYOUT.with_constrains(|_| constrains, || wgt.layout(wl)));
+        assert_eq!(desired_size, constrains.min_size());
 
-    // // we expect default to not render anything (except a hit-rect for the window).
-    // let window_id = WindowId::new_unique();
+        WINDOW.test_render(|f| {
+            wgt.render(f);
+        });
 
-    // let mut info = WidgetInfoBuilder::new(
-    //     window_id,
-    //     ctx.root_id,
-    //     WidgetBoundsInfo::new_size(desired_size, desired_size),
-    //     WidgetBorderInfo::new(),
-    //     1.fct(),
-    //     None,
-    // );
-    // ctx.info(&wgt, &mut info);
-    // let (build_info, _) = info.finalize();
-    // let wgt_info = build_info.get(wgt.with_context(|w| w.id).unwrap()).unwrap();
-    // assert!(wgt_info.descendants().next().is_none());
-    // assert!(wgt_info.meta().is_empty());
-    // ctx.info_tree = build_info;
-
-    // let mut frame = FrameBuilder::new_renderless(
-    //     FrameId::INVALID,
-    //     ctx.root_id,
-    //     &ctx.widget_info.bounds,
-    //     &ctx.info_tree,
-    //     1.0.fct(),
-    //     Default::default(),
-    //     None,
-    // );
-
-    // ctx.render(&wgt, &mut frame);
-    // let (_, _) = frame.finalize(&ctx.info_tree);
-
-    // // and not update render.
-    // let mut update = FrameUpdate::new(
-    //     FrameId::INVALID,
-    //     ctx.root_id,
-    //     wgt.with_context(|w| w.widget_info.bounds.clone()).expect("expected widget"),
-    //     None,
-    //     RenderColor::BLACK,
-    //     None,
-    // );
-    // ctx.render_update(&wgt, &mut update);
-    // let (update, _) = update.finalize(&ctx.info_tree);
-    // assert!(!update.transforms.is_empty());
-    // assert!(update.floats.is_empty());
-    // assert!(update.colors.is_empty());
-    // assert!(update.clear_color.is_none());
+        let (_, update) = WINDOW.test_render_update(|u| {
+            wgt.render_update(u);
+        });
+        assert!(!update.transforms.is_empty());
+        assert!(update.floats.is_empty());
+        assert!(update.colors.is_empty());
+        assert!(update.clear_color.is_none());
+    });
 }
 
 mod util {
@@ -251,7 +205,7 @@ mod util {
     use std::sync::Arc;
 
     use crate::{
-        context::{StaticStateId, UpdateDeliveryList, WidgetUpdates, WIDGET},
+        context::{StaticStateId, WidgetUpdates, WIDGET},
         event::{event, event_args, EventUpdate},
         render::{FrameBuilder, FrameUpdate},
         units::*,
@@ -269,19 +223,21 @@ mod util {
     macro_rules! __ui_node_util_assert_only_traced {
         ($wgt:ident, $method:expr) => {{
             let method = $method;
-            $wgt.with_context(|ctx| {
-                if let Some(db) = ctx.widget_state.get(&util::TRACE_ID) {
-                    for (i, trace_ref) in db.iter().enumerate() {
-                        let mut any = false;
-                        for trace_entry in trace_ref.lock().drain(..) {
-                            assert_eq!(trace_entry, method, "tracer_0 traced `{trace_entry}`, expected only `{method}`");
-                            any = true;
+            $wgt.with_context(|| {
+                WIDGET.with_state(|s| {
+                    if let Some(db) = s.get(&util::TRACE_ID) {
+                        for (i, trace_ref) in db.iter().enumerate() {
+                            let mut any = false;
+                            for trace_entry in trace_ref.lock().drain(..) {
+                                assert_eq!(trace_entry, method, "tracer_0 traced `{trace_entry}`, expected only `{method}`");
+                                any = true;
+                            }
+                            assert!(any, "tracer_{i} did not trace anything, expected `{method}`");
                         }
-                        assert!(any, "tracer_{i} did not trace anything, expected `{method}`");
+                    } else {
+                        panic!("no trace initialized, expected `{method}`");
                     }
-                } else {
-                    panic!("no trace initialized, expected `{method}`");
-                }
+                })
             })
             .expect("expected widget");
         }};
@@ -292,18 +248,20 @@ mod util {
     #[macro_export]
     macro_rules! __ui_node_util_assert_did_not_trace {
         ($wgt:ident) => {{
-            $wgt.with_context(|ctx| {
-                if let Some(db) = ctx.widget_state.get(&util::TRACE_ID) {
-                    for (i, trace_ref) in db.iter().enumerate() {
-                        let mut any = false;
-                        for trace_entry in trace_ref.lock().iter() {
-                            assert!(any, "tracer_{i} traced `{trace_entry}`, expected nothing");
-                            any = true;
+            $wgt.with_context(|| {
+                WIDGET.with_state(|s| {
+                    if let Some(db) = s.get(&util::TRACE_ID) {
+                        for (i, trace_ref) in db.iter().enumerate() {
+                            let mut any = false;
+                            for trace_entry in trace_ref.lock().iter() {
+                                assert!(any, "tracer_{i} traced `{trace_entry}`, expected nothing");
+                                any = true;
+                            }
                         }
+                    } else {
+                        panic!("no trace initialized");
                     }
-                } else {
-                    panic!("no trace initialized");
-                }
+                })
             })
             .expect("expected widget");
         }};

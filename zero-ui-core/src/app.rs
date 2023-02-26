@@ -825,7 +825,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
     /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
     pub fn run(mut self, start: impl FnOnce()) {
-        let mut app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
+        let app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
 
         start();
 

@@ -806,7 +806,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
         }
 
         fn render(&self, frame: &mut FrameBuilder) {
-            let mut render_clipped = |frame: &mut FrameBuilder| {
+            let render_clipped = |frame: &mut FrameBuilder| {
                 let bounds = PxRect::from_size(self.clip_bounds);
                 frame.push_clips(
                     |c| {
@@ -1038,7 +1038,6 @@ impl ContextBorders {
             let corner_radius = ContextBorders::border_radius();
             border.set_corner_radius(corner_radius);
             border.set_offsets(PxSideOffsets::zero());
-
             f()
         })
     }
@@ -1046,13 +1045,13 @@ impl ContextBorders {
     fn with_border(offsets: PxSideOffsets, f: impl FnOnce()) {
         let mut data = BORDER_DATA.get();
         data.add_offset(Some(&WIDGET.border()), offsets);
-        BORDER_DATA.with_context(&mut Some(data), || f());
+        BORDER_DATA.with_context(&mut Some(data), f);
     }
 
     fn measure_with_border(offsets: PxSideOffsets, f: impl FnOnce() -> PxSize) -> PxSize {
         let mut data = BORDER_DATA.get();
         data.add_offset(None, offsets);
-        BORDER_DATA.with_context(&mut Some(data), || f())
+        BORDER_DATA.with_context(&mut Some(data), f)
     }
 
     /// Indicates a boundary point where the [`CORNER_RADIUS_VAR`] backing context changes during layout.
@@ -1066,8 +1065,7 @@ impl ContextBorders {
     pub fn with_corner_radius<R>(f: impl FnOnce() -> R) -> R {
         let mut data = BORDER_DATA.get();
         data.set_corner_radius();
-
-        BORDER_DATA.with_context(&mut Some(data), || f())
+        BORDER_DATA.with_context(&mut Some(data), f)
     }
 
     /// Gets the computed border rect and side offsets for the border visual.

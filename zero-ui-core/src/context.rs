@@ -47,6 +47,9 @@ struct WindowCtxData {
     mode: WindowMode,
     state: OwnedStateMap<state_map::Window>,
     widget_tree: Option<WidgetInfoTree>,
+
+    #[cfg(any(test, doc, feature = "test_util"))]
+    frame_id: crate::render::FrameId,
 }
 
 /// Defines the backing data of [`WINDOW`].
@@ -61,6 +64,9 @@ impl WindowCtx {
             mode,
             state: OwnedStateMap::default(),
             widget_tree: None,
+
+            #[cfg(any(test, doc, feature = "test_util"))]
+            frame_id: crate::render::FrameId::first(),
         })))
     }
 
@@ -74,6 +80,7 @@ impl WindowCtx {
 }
 
 struct WidgetCtxData {
+    parent_id: Option<WidgetId>,
     id: WidgetId,
     flags: UpdateFlags,
     state: OwnedStateMap<state_map::Widget>,
@@ -98,6 +105,7 @@ impl WidgetCtx {
     /// New widget context.
     pub fn new(id: WidgetId) -> Self {
         Self(Mutex::new(Some(WidgetCtxData {
+            parent_id: None,
             id,
             flags: UpdateFlags::empty(),
             state: OwnedStateMap::default(),
@@ -355,6 +363,135 @@ impl WINDOW {
         let id = id.into();
         self.with_state(|s| s.contains(id))
     }
+
+    /// Calls `f` inside a new headless window and root widget.
+    #[cfg(any(test, doc, feature = "test_util"))]
+    pub fn with_test_context<R>(&self, f: impl FnOnce() -> R) -> R {
+        let ctx = WindowCtx::new(WindowId::new_unique(), WindowMode::Headless);
+        WINDOW.with_context(&ctx, || {
+            let ctx = WidgetCtx::new(WidgetId::new_unique());
+            WIDGET.with_context(&ctx, f)
+        })
+    }
+
+    /// Call inside [`with_test_context`] to finalize the window.
+    ///
+    /// [`with_test_context`]: Self::with_test_context
+    #[cfg(any(test, doc, feature = "test_util"))]
+    pub fn test_init(&self, widget_tree: WidgetInfoTree) {
+        WINDOW.req_mut().widget_tree = Some(widget_tree);
+    }
+
+    /// Call inside [`with_test_context`] to setup an [`UiNode::info`] update context.
+    ///
+    /// [`with_test_context`]: Self::with_test_context
+    #[cfg(any(test, doc, feature = "test_util"))]
+    pub fn test_info<R>(&self, f: impl FnOnce(&mut crate::widget_info::WidgetInfoBuilder) -> R) -> R {
+        let l_size = PxSize::new(1000.into(), 800.into());
+        let mut info = crate::widget_info::WidgetInfoBuilder::new(
+            WINDOW.id(),
+            WIDGET.id(),
+            WidgetBoundsInfo::new_size(l_size, l_size),
+            WidgetBorderInfo::new(),
+            1.fct(),
+            None,
+        );
+        let r = f(&mut info);
+        WINDOW.req_mut().widget_tree = Some(info.finalize().0);
+        r
+    }
+
+    /// Call inside [`with_test_context`] to setup an [`UiNode::update`] update context.
+    ///
+    /// Can also be used for [`UiNode::init`] and [`UiNode::deinit`].
+    ///
+    /// [`with_test_context`]: Self::with_test_context
+    #[cfg(any(test, doc, feature = "test_util"))]
+    pub fn test_update<R>(&self, f: impl FnOnce(&mut WidgetUpdates) -> R) -> (R, ContextUpdates) {
+        let mut u = WidgetUpdates::default();
+        let r = f(&mut u);
+        (r, UPDATES.apply())
+    }
+
+    /// Call inside [`with_test_context`] to setup a [`UiNode::measure`] and [`UiNode::layout`] update context.
+    ///
+    /// [`with_test_context`]: Self::with_test_context
+    #[cfg(any(test, doc, feature = "test_util"))]
+    pub fn test_layout(
+        &self,
+        f: impl FnOnce(&mut WidgetMeasure, &mut crate::widget_info::WidgetLayout) -> PxSize,
+    ) -> (PxSize, ContextUpdates) {
+        let r = crate::widget_info::WidgetLayout::with_root_widget(0, |wl| {
+            LAYOUT.with_context(Px(16), 1.fct(), 96.0, PxSize::new(Px(1000), Px(800)), || {
+                let mut wm = WidgetMeasure::new();
+                f(&mut wm, wl)
+            })
+        });
+        (r, UPDATES.apply())
+    }
+
+    /// Call inside [`with_test_context`] to setup a [`UiNode::render`] update context.
+    ///
+    /// [`with_test_context`]: Self::with_test_context
+    #[cfg(any(test, doc, feature = "test_util"))]
+    pub fn test_render<R>(&self, f: impl FnOnce(&mut crate::render::FrameBuilder) -> R) -> (R, crate::render::BuiltFrame) {
+        use crate::render::*;
+
+        let mut frame = {
+            let mut win = WINDOW.req_mut();
+            let wgt = WIDGET.req();
+
+            let frame_id = win.frame_id;
+            win.frame_id = frame_id.next();
+
+            FrameBuilder::new_renderless(
+                frame_id,
+                wgt.id,
+                &wgt.info.bounds,
+                win.widget_tree.as_ref().unwrap(),
+                1.fct(),
+                crate::text::FontAntiAliasing::Default,
+                None,
+            )
+        };
+
+        let r = f(&mut frame);
+        let tree = WINDOW.req().widget_tree.as_ref().unwrap().clone();
+        let f = frame.finalize(&tree).0;
+
+        (r, f)
+    }
+
+    /// Call inside [`with_test_context`] to setup a [`UiNode::render_update`] update context.
+    ///
+    /// [`with_test_context`]: Self::with_test_context
+    #[cfg(any(test, doc, feature = "test_util"))]
+    pub fn test_render_update<R>(&self, f: impl FnOnce(&mut crate::render::FrameUpdate) -> R) -> (R, crate::render::BuiltFrameUpdate) {
+        use crate::render::*;
+
+        let mut update = {
+            let mut win = WINDOW.req_mut();
+            let wgt = WIDGET.req();
+
+            let frame_id = win.frame_id;
+            win.frame_id = frame_id.next_update();
+
+            FrameUpdate::new(
+                frame_id,
+                wgt.id,
+                wgt.info.bounds.clone(),
+                None,
+                crate::color::RenderColor::BLACK,
+                None,
+            )
+        };
+
+        let r = f(&mut update);
+        let tree = WINDOW.req().widget_tree.as_ref().unwrap().clone();
+        let f = update.finalize(&tree).0;
+
+        (r, f)
+    }
 }
 
 /// Current context widget.
@@ -364,12 +501,19 @@ impl WIDGET {
     ///
     /// The `ctx` must be `Some(_)`, it will be moved to the [`WIDGET`] storage and back to `ctx` after `f` returns.
     pub fn with_context<R>(&self, ctx: &WidgetCtx, f: impl FnOnce() -> R) -> R {
+        let parent_id = WIDGET.try_id();
+
         let mut ctx = ctx.0.lock();
-        assert!(ctx.is_some());
+        if let Some(ctx) = &mut *ctx {
+            ctx.parent_id = parent_id;
+        } else {
+            unreachable!()
+        }
 
         let r = WIDGET_CTX.with_context_opt(&mut ctx, f);
 
         let ctx = ctx.as_mut().unwrap();
+        ctx.parent_id = None;
 
         if let Some(parent) = &mut *WIDGET_CTX.write() {
             if ctx.take_flag(UpdateFlags::UPDATE) {
@@ -629,7 +773,7 @@ impl WIDGET {
     ///
     /// Panics if not called inside an widget.
     pub fn parent_id(&self) -> Option<WidgetId> {
-        todo!("!!:")
+        self.req().parent_id
     }
 }
 
@@ -960,7 +1104,11 @@ impl UPDATES {
 
         if !u.flags.contains(UpdateFlags::UPDATE) {
             u.flags.insert(UpdateFlags::UPDATE);
-            u.event_sender.as_ref().unwrap().send_ext_update().expect("no app to receive update");
+            u.event_sender
+                .as_ref()
+                .unwrap()
+                .send_ext_update()
+                .expect("no app to receive update");
         }
 
         for id in targets {
@@ -983,7 +1131,11 @@ impl UPDATES {
 
         if !u.flags.contains(UpdateFlags::UPDATE) {
             u.flags.insert(UpdateFlags::UPDATE);
-            u.event_sender.as_ref().unwrap().send_ext_update().expect("no app to receive update");
+            u.event_sender
+                .as_ref()
+                .unwrap()
+                .send_ext_update()
+                .expect("no app to receive update");
         }
     }
 
