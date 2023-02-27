@@ -278,6 +278,7 @@ mod tests {
         let mut updated = false;
         app.update_observe(
             || {
+                assert!(!updated, "expected one update");
                 updated = true;
                 assert_eq!(Some(10), mapped2.get_new());
                 assert_eq!(Some(10), mapped2_copy.get_new());
@@ -309,6 +310,7 @@ mod tests {
         let mut updated = false;
         app.update_observe(
             || {
+                assert!(!updated, "expected one update");
                 updated = true;
                 assert_eq!(Some(10), mapped2.get_new());
                 other_ctx.with_context(|| {

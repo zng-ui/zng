@@ -251,7 +251,7 @@ pub mod nodes {
                     }
 
                     self.child.init();
-                    WIDGET.update().layout().render();
+                    WIDGET.info().layout().render();
 
                     #[cfg(debug_assertions)]
                     {

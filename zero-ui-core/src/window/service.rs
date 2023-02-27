@@ -36,7 +36,6 @@ pub(super) struct WindowsService {
     windows: LinearMap<WindowId, AppWindow>,
     windows_info: LinearMap<WindowId, AppWindowInfo>,
     open_requests: Vec<OpenWindowRequest>,
-    update_sender: Option<AppEventSender>,
     close_requests: Vec<CloseWindowRequest>,
     close_responders: LinearMap<WindowId, Vec<ResponderVar<CloseWindowResult>>>,
     focus_request: Option<WindowId>,
@@ -54,7 +53,6 @@ impl WindowsService {
             windows_info: LinearMap::with_capacity(1),
             open_requests: Vec::with_capacity(1),
             close_responders: LinearMap::with_capacity(1),
-            update_sender: None,
             close_requests: vec![],
             focus_request: None,
             bring_to_top_requests: vec![],
@@ -79,7 +77,7 @@ impl WindowsService {
             loading_handle: WindowLoading::new(),
         };
         self.open_requests.push(request);
-        let _ = self.update_sender.as_ref().expect("`WindowManager` not inited").send_ext_update();
+        UPDATES.update_ext();
 
         response
     }
@@ -90,21 +88,14 @@ impl WindowsService {
         if let Some(info) = self.windows_info.get_mut(&window_id) {
             // window already opened, check if not loaded
             if !info.is_loaded {
-                handle = Some(
-                    info.loading_handle
-                        .new_handle(self.update_sender.as_ref().expect("`WindowManager` not inited"), deadline),
-                )
+                handle = Some(info.loading_handle.new_handle(UPDATES.sender(), deadline))
             }
 
             // drop timer to nearest deadline, will recreate in the next update.
             self.loading_deadline = None;
         } else if let Some(request) = self.open_requests.iter_mut().find(|r| r.id == window_id) {
             // window not opened yet
-            handle = Some(
-                request
-                    .loading_handle
-                    .new_handle(self.update_sender.as_ref().expect("`WindowManager` not inited"), deadline),
-            );
+            handle = Some(request.loading_handle.new_handle(UPDATES.sender(), deadline));
         }
 
         handle
@@ -126,7 +117,7 @@ impl WindowsService {
 
         let (responder, response) = response_var();
         self.close_requests.push(CloseWindowRequest { responder, windows: group });
-        let _ = self.update_sender.as_ref().expect("`WindowManager` not inited").send_ext_update();
+        UPDATES.update_ext();
 
         Ok(response)
     }
@@ -458,7 +449,7 @@ impl WINDOWS {
         if !self.is_focused(window_id)? {
             let mut w = WINDOWS_SV.write();
             w.focus_request = Some(window_id);
-            let _ = w.update_sender.as_ref().expect("`WindowManager` not inited").send_ext_update();
+            UPDATES.update_ext();
         }
         Ok(())
     }
@@ -493,7 +484,7 @@ impl WINDOWS {
         let mut w = WINDOWS_SV.write();
         if w.windows_info.contains_key(&window_id) {
             w.bring_to_top_requests.push(window_id);
-            let _ = w.update_sender.as_ref().expect("`WindowManager` not inited").send_ext_update();
+            UPDATES.update_ext();
             Ok(())
         } else {
             Err(WindowNotFound(window_id))
@@ -933,10 +924,11 @@ impl AppWindow {
     }
 
     fn ctrl_in_ctx(&mut self, action: impl FnOnce(&mut WindowCtrl)) {
-        WINDOW.with_context(&self.ctx, || {
+        let info_update = WINDOW.with_context(&self.ctx, || {
             action(self.ctrl.get_mut());
+            self.ctrl.get_mut().window_updates()
         });
-        if let Some(new) = self.ctrl.get_mut().window_updates() {
+        if let Some(new) = info_update {
             self.ctx.set_widget_tree(new);
         }
     }
@@ -1025,11 +1017,8 @@ impl WindowLoading {
         }
     }
 
-    pub fn new_handle(&mut self, update: &AppEventSender, deadline: Deadline) -> WindowLoadingHandle {
-        let h = Arc::new(WindowLoadingHandleData {
-            update: update.clone(),
-            deadline,
-        });
+    pub fn new_handle(&mut self, update: AppEventSender, deadline: Deadline) -> WindowLoadingHandle {
+        let h = Arc::new(WindowLoadingHandleData { update, deadline });
         self.handles.push(Arc::downgrade(&h));
         WindowLoadingHandle(h)
     }

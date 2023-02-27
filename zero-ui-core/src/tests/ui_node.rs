@@ -6,7 +6,7 @@ use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
 
 use crate::{
     app::App,
-    context::{WidgetUpdates, LAYOUT, WIDGET, WINDOW},
+    context::{WidgetUpdates, WIDGET, WINDOW},
     ui_node,
     units::*,
     widget_instance::{ui_vec, UiNode, UiNodeList},
@@ -59,40 +59,28 @@ fn test_trace(node: impl UiNode) {
     let mut wgt = util::test_wgt(node);
 
     WINDOW.with_test_context(|| {
-        WINDOW.test_update(|_| {
-            wgt.init();
-        });
+        WINDOW.test_init(&mut wgt);
         assert_only_traced!(wgt, "init");
 
-        WINDOW.test_info(|b| {
-            wgt.info(b);
-        });
+        WINDOW.test_info(&wgt);
         assert_only_traced!(wgt, "info");
 
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None);
         assert_only_traced!(wgt, "update");
 
-        WINDOW.test_layout(|_, wl| wgt.layout(wl));
+        WINDOW.test_layout(&mut wgt, None);
         assert_only_traced!(wgt, "layout");
 
-        WINDOW.test_render(|frame| {
-            wgt.render(frame);
-        });
+        WINDOW.test_render(&wgt);
         assert_only_traced!(wgt, "render");
 
         TestTraceNode::notify_render_update(&mut wgt);
         assert_only_traced!(wgt, "event");
 
-        WINDOW.test_render_update(|update| {
-            wgt.render_update(update);
-        });
+        WINDOW.test_render_update(&wgt);
         assert_only_traced!(wgt, "render_update");
 
-        WINDOW.test_update(|_| {
-            wgt.deinit();
-        });
+        WINDOW.test_deinit(&mut wgt);
         assert_only_traced!(wgt, "deinit");
     });
 }
@@ -119,14 +107,10 @@ pub fn allow_missing_delegate() {
         let mut wgt = util::test_wgt(node);
 
         WINDOW.with_test_context(|| {
-            WINDOW.test_update(|_| {
-                wgt.init();
-            });
+            WINDOW.test_init(&mut wgt);
             assert_only_traced!(wgt, "init");
 
-            WINDOW.test_update(|u| {
-                wgt.update(u);
-            });
+            WINDOW.test_update(&mut wgt, None);
             assert_did_not_trace!(wgt);
         });
     }
@@ -151,48 +135,41 @@ pub fn default_no_child() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
-        let (_, wu) = WINDOW.test_update(|u| {
-            wgt.init();
-            wgt.update(u);
-            wgt.deinit();
-        });
+        let wu = WINDOW.test_init(&mut wgt);
+        assert!(wu.update_widgets.delivery_list().is_done());
+        assert!(wu.layout);
+        assert!(wu.render);
 
-        // we expect defaults to make no requests.
-        assert!(!wu.update);
-        assert!(!wu.layout);
-        assert!(!wu.render);
+        let wu = WINDOW.test_update(&mut wgt, None);
+        assert!(!wu.has_updates());
 
-        wgt.init();
+        let wu = WINDOW.test_deinit(&mut wgt);
+        assert!(!wu.has_updates());
 
-        WINDOW.test_info(|u| {
-            wgt.info(u);
-        });
-        let tree = WINDOW.widget_tree();
-        let wgt_info = tree.get(WIDGET.id()).unwrap();
-        assert!(wgt_info.descendants().next().is_none());
-        assert!(wgt_info.meta().is_empty());
+        WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&wgt);
+
+        wgt.with_context(|| {
+            let tree = WINDOW.widget_tree();
+            let wgt_info = tree.get(WIDGET.id()).unwrap();
+            assert!(wgt_info.descendants().next().is_none());
+            assert!(wgt_info.meta().is_empty());
+        })
+        .unwrap();
 
         let constrains = PxConstrains2d::new_unbounded()
             .with_min(Px(1), Px(8))
             .with_max(Px(100), Px(800))
             .with_fill(true, true);
-        let (desired_size, _) = WINDOW.test_layout(|_, wl| {
-            // we expect default to fill or collapsed depending on the
-            LAYOUT.with_constrains(|_| constrains, || wgt.layout(wl))
-        });
+        let (desired_size, _) = WINDOW.test_layout(&mut wgt, Some(constrains));
         assert_eq!(desired_size, constrains.max_size().unwrap());
 
         let constrains = constrains.with_fill(false, false);
-        let (desired_size, _) = WINDOW.test_layout(|_, wl| LAYOUT.with_constrains(|_| constrains, || wgt.layout(wl)));
+        let (desired_size, _) = WINDOW.test_layout(&mut wgt, Some(constrains));
         assert_eq!(desired_size, constrains.min_size());
 
-        WINDOW.test_render(|f| {
-            wgt.render(f);
-        });
-
-        let (_, update) = WINDOW.test_render_update(|u| {
-            wgt.render_update(u);
-        });
+        WINDOW.test_render(&wgt);
+        let (update, _) = WINDOW.test_render_update(&wgt);
         assert!(!update.transforms.is_empty());
         assert!(update.floats.is_empty());
         assert!(update.colors.is_empty());
@@ -205,7 +182,7 @@ mod util {
     use std::sync::Arc;
 
     use crate::{
-        context::{StaticStateId, WidgetUpdates, WIDGET},
+        context::{StaticStateId, UpdateDeliveryList, WidgetUpdates, WIDGET, WINDOW},
         event::{event, event_args, EventUpdate},
         render::{FrameBuilder, FrameUpdate},
         units::*,
@@ -279,7 +256,8 @@ mod util {
 
         pub fn notify_render_update(wgt: &mut impl UiNode) {
             let id = wgt.with_context(|| WIDGET.id()).expect("expected widget");
-            RENDER_UPDATE_EVENT.notify(RenderUpdateArgs::now(id));
+            let mut update = RENDER_UPDATE_EVENT.new_update_custom(RenderUpdateArgs::now(id), UpdateDeliveryList::new_any());
+            WINDOW.test_event(wgt, &mut update);
         }
     }
     impl UiNode for TestTraceNode {

@@ -23,6 +23,7 @@ pub mod empty_wgt {
  */
 #[test]
 pub fn implicit_inherited() {
+    let _app = App::minimal().run_headless(false);
     let expected = WidgetId::new_unique();
     let wgt = empty_wgt! {
         id = expected;
@@ -327,28 +328,18 @@ pub fn wgt_when() {
 
     WINDOW.with_test_context(|| {
         let mut wgt = when_wgt!();
-        wgt.init();
+        WINDOW.test_init(&mut wgt);
 
         assert!(util::traced(&wgt, "boo!"));
 
         util::set_state(&mut wgt, true);
-
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-
+        WINDOW.test_update(&mut wgt, None); // state
+        WINDOW.test_update(&mut wgt, None); // when
         assert!(util::traced(&wgt, "ok."));
 
         util::set_state(&mut wgt, false);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None); // state
+        WINDOW.test_update(&mut wgt, None); // when
 
         assert!(util::traced(&wgt, "boo!"));
     });
@@ -370,22 +361,13 @@ pub fn widget_user_when() {
         assert!(util::traced(&wgt, "A"));
 
         util::set_state(&mut wgt, true);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None); // state
+        WINDOW.test_update(&mut wgt, None); // when
 
         assert!(util::traced(&wgt, "B"));
 
-        util::set_state(&mut wgt, false);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        util::set_state(&mut wgt, false); // state
+        WINDOW.test_update(&mut wgt, None); // when
 
         assert!(util::traced(&wgt, "A"));
     });
@@ -420,22 +402,13 @@ pub fn wgt_multi_when() {
         assert!(util::traced(&wgt, "default"));
 
         util::set_state(&mut wgt, true);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None); // state
+        WINDOW.test_update(&mut wgt, None); // when
 
         assert!(util::traced(&wgt, "state_1"));
 
         util::set_state(&mut wgt, false);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None);
 
         assert!(util::traced(&wgt, "default"));
     });
@@ -549,22 +522,13 @@ pub fn wgt_cfg_when() {
         assert!(util::traced(&wgt, "trace"));
 
         util::set_state(&mut wgt, true);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None); // state
+        WINDOW.test_update(&mut wgt, None); // when
 
         assert!(util::traced(&wgt, "is_state"));
 
         util::set_state(&mut wgt, false);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None);
 
         assert!(util::traced(&wgt, "trace"));
     });
@@ -599,22 +563,13 @@ pub fn user_cfg_when() {
         assert!(util::traced(&wgt, "trace"));
 
         util::set_state(&mut wgt, true);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None); // state
+        WINDOW.test_update(&mut wgt, None); // when
 
         assert!(util::traced(&wgt, "is_state"));
 
         util::set_state(&mut wgt, false);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None);
 
         assert!(util::traced(&wgt, "trace"));
     });
@@ -1063,21 +1018,12 @@ pub fn when_reuse() {
             assert!(util::traced(&wgt, "false"), "did not trace `false` in {pass} pass");
 
             util::set_state(&mut wgt, true);
-            WINDOW.test_update(|u| {
-                wgt.update(u);
-            });
-            WINDOW.test_update(|u| {
-                wgt.update(u);
-            });
+            WINDOW.test_update(&mut wgt, None); // state
+            WINDOW.test_update(&mut wgt, None); // when
             assert!(util::traced(&wgt, "true"), "did not trace `true` after when in {pass} pass");
 
             util::set_state(&mut wgt, false);
-            WINDOW.test_update(|u| {
-                wgt.update(u);
-            });
-            WINDOW.test_update(|u| {
-                wgt.update(u);
-            });
+            WINDOW.test_update(&mut wgt, None);
         });
     };
 
@@ -1154,12 +1100,8 @@ pub fn allowed_in_when_without_wgt_assign1() {
         assert!(!util::traced(&wgt, "when-trace"));
 
         util::set_state(&mut wgt, true);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None); // state update
+        WINDOW.test_update(&mut wgt, None); // when update
 
         assert!(util::traced(&wgt, "when-trace"));
     });
@@ -1190,12 +1132,8 @@ pub fn allowed_in_when_without_wgt_assign2() {
         assert!(!util::traced(&wgt, "when-trace"));
 
         util::set_state(&mut wgt, true);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None); // state update
+        WINDOW.test_update(&mut wgt, None); // when update
         assert!(util::traced(&wgt, "when-trace"));
     });
 }
@@ -1244,12 +1182,8 @@ pub fn generated_name_collision_in_when() {
 
         wgt.init();
         util::set_state(&mut wgt, true);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None); // state
+        WINDOW.test_update(&mut wgt, None); // when
 
         assert!(util::traced(&wgt, "3"));
         assert!(!util::traced(&wgt, "2"));
@@ -1272,12 +1206,8 @@ pub fn generated_name_collision_in_when_assign() {
 
         wgt.init();
         util::set_state(&mut wgt, true);
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None); // state update
+        WINDOW.test_update(&mut wgt, None); // when update
 
         assert!(util::traced(&wgt, "1"));
         assert!(util::traced(&wgt, "true"));
@@ -1309,13 +1239,8 @@ pub fn name_collision_wgt_when() {
 
         wgt.init();
         util::set_state(&mut wgt, true);
-
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
-        WINDOW.test_update(|u| {
-            wgt.update(u);
-        });
+        WINDOW.test_update(&mut wgt, None); // state update
+        WINDOW.test_update(&mut wgt, None); // when update
 
         assert!(util::traced(&wgt, "3"));
         assert!(!util::traced(&wgt, "2"));

@@ -123,7 +123,7 @@ pub trait AppRunWindowExt {
     ///     });
     /// })   
     /// ```
-    /// 
+    ///
     /// [`WINDOW`]: crate::context::WINDOW
     fn run_window(self, new_window: impl FnOnce() -> Window + Send + 'static);
 }
@@ -145,7 +145,7 @@ pub trait HeadlessAppWindowExt {
     /// The `new_window` runs inside the [`WINDOW`] context of the new window.
     ///
     /// Returns the [`WindowId`] of the new window.
-    /// 
+    ///
     /// [`WINDOW`]: crate::context::WINDOW
     fn open_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static) -> WindowId;
 

@@ -47,25 +47,25 @@
 //!     })
 //! }
 //! ```
-//! 
+//!
 //! # Vars
-//! 
+//!
 //! TODO
-//! 
+//!
 //! # Events
-//! 
+//!
 //! TODO
-//! 
+//!
 //! ## Routes
-//! 
+//!
 //! TODO
-//! 
+//!
 //! # Contexts
-//! 
+//!
 //! TODO
-//! 
+//!
 //! # Tasks
-//! 
+//!
 //! TODO
 
 // to make the proc-macro $crate substitute work in doc-tests.

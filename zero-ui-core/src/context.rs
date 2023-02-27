@@ -138,10 +138,9 @@ impl WidgetCtx {
         })))
     }
 
-    /// Clears all state and handles.
+    /// Drops all var and event handles.
     pub fn deinit(&mut self) {
         let ctx = self.0.get_mut().as_mut().unwrap();
-        ctx.state.clear();
         ctx.var_handles.clear();
         ctx.event_handles.clear();
         ctx.flags = UpdateFlags::empty();
@@ -332,12 +331,22 @@ impl WINDOW {
 
     #[track_caller]
     fn req(&self) -> MappedRwLockReadGuard<'static, WindowCtxData> {
-        MappedRwLockReadGuard::map(WINDOW_CTX.read(), |c| c.as_ref().expect("no window in context"))
+        let read = WINDOW_CTX.read();
+        if read.is_none() {
+            // validate before map to track_caller
+            panic!("no window in context")
+        }
+        MappedRwLockReadGuard::map(read, |c| c.as_ref().unwrap())
     }
 
     #[track_caller]
     fn req_mut(&self) -> MappedRwLockWriteGuard<'static, WindowCtxData> {
-        MappedRwLockWriteGuard::map(WINDOW_CTX.write(), |c| c.as_mut().expect("no window in context"))
+        let write = WINDOW_CTX.write();
+        if write.is_none() {
+            // validate before map to track_caller
+            panic!("no window in context")
+        }
+        MappedRwLockWriteGuard::map(write, |c| c.as_mut().unwrap())
     }
 
     /// Get the widget ID, if called inside a window.
@@ -429,30 +438,43 @@ impl WINDOW {
         let id = id.into();
         self.with_state(|s| s.contains(id))
     }
+}
 
+/// Test only methods.
+#[cfg(any(test, doc, feature = "test_util"))]
+impl WINDOW {
     /// Calls `f` inside a new headless window and root widget.
-    #[cfg(any(test, doc, feature = "test_util"))]
     pub fn with_test_context<R>(&self, f: impl FnOnce() -> R) -> R {
-        let ctx = WindowCtx::new(WindowId::new_unique(), WindowMode::Headless);
+        let window_id = WindowId::new_unique();
+        let root_id = WidgetId::new_unique();
+        let mut ctx = WindowCtx::new(window_id, WindowMode::Headless);
+        ctx.set_widget_tree(WidgetInfoTree::wgt(window_id, root_id));
         WINDOW.with_context(&ctx, || {
-            let ctx = WidgetCtx::new(WidgetId::new_unique());
+            let ctx = WidgetCtx::new(root_id);
             WIDGET.with_context(&ctx, f)
         })
     }
 
-    /// Call inside [`with_test_context`] to finalize the window.
+    /// Call inside [`with_test_context`] to init the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn test_init(&self, widget_tree: WidgetInfoTree) {
-        WINDOW.req_mut().widget_tree = Some(widget_tree);
+    pub fn test_init(&self, content: &mut impl UiNode) -> ContextUpdates {
+        content.init();
+        UPDATES.apply()
     }
 
-    /// Call inside [`with_test_context`] to setup an [`UiNode::info`] update context.
+    /// Call inside [`with_test_context`] to deinit the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn test_info<R>(&self, f: impl FnOnce(&mut crate::widget_info::WidgetInfoBuilder) -> R) -> R {
+    pub fn test_deinit(&self, content: &mut impl UiNode) -> ContextUpdates {
+        content.deinit();
+        UPDATES.apply()
+    }
+
+    /// Call inside [`with_test_context`] to rebuild info the `content` as a child of the test window root.
+    ///
+    /// [`with_test_context`]: Self::with_test_context
+    pub fn test_info(&self, content: &impl UiNode) -> ContextUpdates {
         let l_size = PxSize::new(1000.into(), 800.into());
         let mut info = crate::widget_info::WidgetInfoBuilder::new(
             WINDOW.id(),
@@ -462,45 +484,67 @@ impl WINDOW {
             1.fct(),
             None,
         );
-        let r = f(&mut info);
-        WINDOW.req_mut().widget_tree = Some(info.finalize().0);
-        r
+        content.info(&mut info);
+        let tree = info.finalize().0;
+        WINDOW.req_mut().widget_tree = Some(tree);
+        UPDATES.apply()
     }
 
-    /// Call inside [`with_test_context`] to setup an [`UiNode::update`] update context.
-    ///
-    /// Can also be used for [`UiNode::init`] and [`UiNode::deinit`].
+    /// Call inside [`with_test_context`] to delivery an event to the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn test_update<R>(&self, f: impl FnOnce(&mut WidgetUpdates) -> R) -> (R, ContextUpdates) {
-        let mut u = WidgetUpdates::default();
-        let r = f(&mut u);
-        (r, UPDATES.apply())
+    pub fn test_event(&self, content: &mut impl UiNode, update: &mut EventUpdate) -> ContextUpdates {
+        update.fulfill_search([&WINDOW.widget_tree()].into_iter());
+        content.event(update);
+        UPDATES.apply()
     }
 
-    /// Call inside [`with_test_context`] to setup a [`UiNode::measure`] and [`UiNode::layout`] update context.
+    /// Call inside [`with_test_context`] to update the `content` as a child of the test window root.
+    ///
+    /// The `updates` can be set to a custom delivery list, otherwise window root and `content` widget are flagged for update.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn test_layout(
-        &self,
-        f: impl FnOnce(&mut WidgetMeasure, &mut crate::widget_info::WidgetLayout) -> PxSize,
-    ) -> (PxSize, ContextUpdates) {
-        let r = crate::widget_info::WidgetLayout::with_root_widget(0, |wl| {
-            LAYOUT.with_context(Px(16), 1.fct(), 96.0, PxSize::new(Px(1000), Px(800)), || {
-                let mut wm = WidgetMeasure::new();
-                f(&mut wm, wl)
+    pub fn test_update(&self, content: &mut impl UiNode, updates: Option<&mut WidgetUpdates>) -> ContextUpdates {
+        if let Some(updates) = updates {
+            updates.fulfill_search([&WINDOW.widget_tree()].into_iter());
+            content.update(updates)
+        } else {
+            let target = if let Some(content_id) = content.with_context(|| WIDGET.id()) {
+                WidgetPath::new(WINDOW.id(), vec![WIDGET.id(), content_id].into())
+            } else {
+                WidgetPath::new(WINDOW.id(), vec![WIDGET.id()].into())
+            };
+
+            let mut updates = WidgetUpdates::new(UpdateDeliveryList::new_any());
+            updates.delivery_list.insert_path(&target);
+
+            content.update(&mut updates);
+        }
+        UPDATES.apply()
+    }
+
+    /// Call inside [`with_test_context`] to layout the `content` as a child of the test window root.
+    ///
+    /// [`with_test_context`]: Self::with_test_context
+    pub fn test_layout(&self, content: &mut impl UiNode, constrains: Option<PxConstrains2d>) -> (PxSize, ContextUpdates) {
+        let font_size = Length::pt_to_px(14.0, 1.0.fct());
+
+        let viewport = content
+            .with_context(|| WIDGET.bounds().outer_size())
+            .unwrap_or_else(|| PxSize::new(Px(1000), Px(800)));
+
+        let size = LAYOUT.with_context(font_size, 1.fct(), 96.0, viewport, || {
+            crate::widget_info::WidgetLayout::with_root_widget(0, |wl| {
+                LAYOUT.with_constrains(|c| constrains.unwrap_or(c), || content.layout(wl))
             })
         });
-        (r, UPDATES.apply())
+        (size, UPDATES.apply())
     }
 
-    /// Call inside [`with_test_context`] to setup a [`UiNode::render`] update context.
+    /// Call inside [`with_test_context`] to render the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn test_render<R>(&self, f: impl FnOnce(&mut crate::render::FrameBuilder) -> R) -> (R, crate::render::BuiltFrame) {
+    pub fn test_render(&self, content: &impl UiNode) -> (crate::render::BuiltFrame, ContextUpdates) {
         use crate::render::*;
 
         let mut frame = {
@@ -521,18 +565,20 @@ impl WINDOW {
             )
         };
 
-        let r = f(&mut frame);
+        frame.push_inner(self.test_root_translation_key(), false, |frame| {
+            content.render(frame);
+        });
+
         let tree = WINDOW.req().widget_tree.as_ref().unwrap().clone();
         let f = frame.finalize(&tree).0;
 
-        (r, f)
+        (f, UPDATES.apply())
     }
 
-    /// Call inside [`with_test_context`] to setup a [`UiNode::render_update`] update context.
+    /// Call inside [`with_test_context`] to render_update the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn test_render_update<R>(&self, f: impl FnOnce(&mut crate::render::FrameUpdate) -> R) -> (R, crate::render::BuiltFrameUpdate) {
+    pub fn test_render_update(&self, content: &impl UiNode) -> (crate::render::BuiltFrameUpdate, ContextUpdates) {
         use crate::render::*;
 
         let mut update = {
@@ -552,11 +598,18 @@ impl WINDOW {
             )
         };
 
-        let r = f(&mut update);
+        update.update_inner(self.test_root_translation_key(), false, |update| {
+            content.render_update(update);
+        });
         let tree = WINDOW.req().widget_tree.as_ref().unwrap().clone();
         let f = update.finalize(&tree).0;
 
-        (r, f)
+        (f, UPDATES.apply())
+    }
+
+    fn test_root_translation_key(&self) -> crate::render::FrameValueKey<PxTransform> {
+        static ID: StaticStateId<crate::render::FrameValueKey<PxTransform>> = StaticStateId::new_unique();
+        WINDOW.with_state_mut(|mut s| *s.entry(&ID).or_insert_with(crate::render::FrameValueKey::new_unique))
     }
 }
 
@@ -628,12 +681,20 @@ impl WIDGET {
 
     #[track_caller]
     fn req(&self) -> MappedRwLockReadGuard<'static, WidgetCtxData> {
-        MappedRwLockReadGuard::map(WIDGET_CTX.read(), |c| c.as_ref().expect("no widget in context"))
+        let read = WIDGET_CTX.read();
+        if read.is_none() {
+            panic!("no widget in context");
+        }
+        MappedRwLockReadGuard::map(read, |c| c.as_ref().unwrap())
     }
 
     #[track_caller]
     fn req_mut(&self) -> MappedRwLockWriteGuard<'static, WidgetCtxData> {
-        MappedRwLockWriteGuard::map(WIDGET_CTX.write(), |c| c.as_mut().expect("no widget in context"))
+        let write = WIDGET_CTX.write();
+        if write.is_none() {
+            panic!("no widget in context");
+        }
+        MappedRwLockWriteGuard::map(write, |c| c.as_mut().unwrap())
     }
 
     /// Get the widget ID, if called inside a widget.
@@ -663,9 +724,8 @@ impl WIDGET {
     /// After all requested updates apply the parent window and widgets will re-build the info tree.
     pub fn info(&self) -> &Self {
         let mut ctx = self.req_mut();
-        if !ctx.flags.contains(UpdateFlags::LAYOUT) {
-            ctx.flags.insert(UpdateFlags::LAYOUT);
-            UPDATES.update_ext_internal();
+        if !ctx.flags.contains(UpdateFlags::INFO) {
+            ctx.flags.insert(UpdateFlags::INFO);
         }
         self
     }
@@ -858,12 +918,20 @@ pub struct LAYOUT;
 impl LAYOUT {
     #[track_caller]
     fn req(&self) -> MappedRwLockReadGuard<'static, LayoutCtx> {
-        MappedRwLockReadGuard::map(LAYOUT_CTX.read(), |c| c.as_ref().expect("not in layout context"))
+        let read = LAYOUT_CTX.read();
+        if read.is_none() {
+            panic!("not in layout context");
+        }
+        MappedRwLockReadGuard::map(read, |c| c.as_ref().unwrap())
     }
 
     #[track_caller]
     fn req_mut(&self) -> MappedRwLockWriteGuard<'static, LayoutCtx> {
-        MappedRwLockWriteGuard::map(LAYOUT_CTX.write(), |c| c.as_mut().expect("not in layout context"))
+        let write = LAYOUT_CTX.write();
+        if write.is_none() {
+            panic!("not in layout context");
+        }
+        MappedRwLockWriteGuard::map(write, |c| c.as_mut().unwrap())
     }
 
     /// Calls `f` in a new layout context.
@@ -1208,7 +1276,7 @@ impl UPDATES {
     /// Schedules a layout update that will affect all app extensions.
     ///
     /// Note that you must use [`WIDGET.layout`] to request a layout update for an widget.
-    /// 
+    ///
     /// [`WIDGET.layout`]: WIDGET::layout
     pub fn layout(&self) -> &Self {
         UpdatesTrace::log_layout();
@@ -1222,7 +1290,7 @@ impl UPDATES {
     /// Schedules a render update that will affect all app extensions.
     ///
     /// Note that you must use [`WIDGET.render`] or [`WIDGET.render_update`] to request a render update for an widget.
-    /// 
+    ///
     /// [`WIDGET.render`]: WIDGET::render
     /// [`WIDGET.render_update`]: WIDGET::render_update
     pub fn render(&self) -> &Self {
@@ -1644,7 +1712,7 @@ impl UpdateDeliveryList {
 
     /// Returns `true` if has entered all widgets on the list.
     pub fn is_done(&self) -> bool {
-        self.widgets.is_empty()
+        self.widgets.is_empty() && self.search.is_empty()
     }
 
     /// Copy windows, widgets and search from `other`, trusting that all values are allowed.

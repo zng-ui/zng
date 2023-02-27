@@ -368,7 +368,7 @@ pub trait UiNode: Any + Send {
         self
     }
 
-    /// Wraps the node in a [`TraceNode`] that, before delegating each method, calls a closure with 
+    /// Wraps the node in a [`TraceNode`] that, before delegating each method, calls a closure with
     /// the method name as a `&'static str`, the closure can return a *span* that is dropped after the method delegation.
     ///
     /// You can use  the [`tracing`](https://docs.rs/tracing) crate to create the span.
