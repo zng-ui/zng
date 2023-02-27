@@ -5,8 +5,8 @@ use linear_map::set::LinearSet;
 use super::{types::*, MonitorId, MonitorQuery};
 use crate::{
     color::ColorScheme,
+    context::StaticStateId,
     context::WINDOW,
-    context::{state_map, BorrowStateMap, StaticStateId},
     image::Image,
     render::RenderMode,
     text::{Text, ToText},

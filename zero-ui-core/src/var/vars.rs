@@ -2,12 +2,7 @@ use std::{mem, time::Duration};
 
 use zero_ui_view_api::AnimationsConfig;
 
-use crate::{
-    app::{AppEventSender, LoopTimer},
-    context::app_local,
-    crate_util,
-    units::Factor,
-};
+use crate::{app::LoopTimer, context::app_local, crate_util, units::Factor};
 
 use super::{
     animation::{Animations, ModifyInfo},
@@ -56,7 +51,6 @@ app_local! {
 }
 
 pub(crate) struct VarsService {
-    app_event_sender: Option<AppEventSender>,
     pub(super) ans: Animations,
 
     update_id: VarUpdateId,
@@ -70,7 +64,6 @@ pub(crate) struct VarsService {
 impl VarsService {
     pub(crate) fn new() -> Self {
         Self {
-            app_event_sender: None,
             ans: Animations::new(),
             update_id: VarUpdateId(1),
             apply_update_id: VarApplyUpdateId(1),
@@ -78,10 +71,6 @@ impl VarsService {
             spare_updates: Mutex::new(Vec::with_capacity(128)),
             modify_receivers: Mutex::new(vec![]),
         }
-    }
-
-    pub(crate) fn init(&mut self, app_event_sender: AppEventSender) {
-        self.app_event_sender = Some(app_event_sender)
     }
 }
 
@@ -300,10 +289,6 @@ impl VARS {
 
     pub(crate) fn register_channel_recv(&self, recv_modify: Box<dyn Fn() -> bool + Send>) {
         VARS_SV.read().modify_receivers.lock().push(recv_modify);
-    }
-
-    pub(crate) fn app_event_sender(&self) -> AppEventSender {
-        VARS_SV.read().app_event_sender.as_ref().unwrap().clone()
     }
 
     pub(crate) fn receive_sended_modify(&self) {

@@ -1,4 +1,4 @@
-use crate::{app::AppEventSender, context::app_local};
+use crate::context::{app_local, UPDATES};
 
 use super::*;
 
@@ -7,7 +7,6 @@ app_local! {
 }
 
 pub(crate) struct EventsService {
-    app_event_sender: Option<AppEventSender>,
     updates: Mutex<Vec<EventUpdate>>, // not locked, used to make service Sync.
     commands: Vec<Command>,
 }
@@ -15,14 +14,9 @@ pub(crate) struct EventsService {
 impl EventsService {
     fn new() -> Self {
         Self {
-            app_event_sender: None,
             updates: Mutex::new(vec![]),
             commands: vec![],
         }
-    }
-
-    pub(crate) fn init(&mut self, app_event_sender: AppEventSender) {
-        self.app_event_sender = Some(app_event_sender);
     }
 
     pub(super) fn register_command(&mut self, command: Command) {
@@ -37,7 +31,7 @@ impl EventsService {
         A: EventArgs + Send,
     {
         EventSender {
-            sender: self.app_event_sender.as_ref().unwrap().clone(),
+            sender: UPDATES.sender(),
             event,
         }
     }

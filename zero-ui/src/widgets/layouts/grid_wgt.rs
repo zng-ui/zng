@@ -542,7 +542,7 @@ pub mod cell {
 
         /// Get the cell info stored in the `wgt` state.
         pub fn get_wgt(wgt: &impl UiNode) -> Self {
-            wgt.with_context(|| Self::get()).unwrap_or_default()
+            wgt.with_context(Self::get).unwrap_or_default()
         }
     }
 
@@ -720,7 +720,7 @@ impl GridNode {
         let mut max_custom = 0;
         let mut max_auto_placed_i = 0;
         self.children[2].for_each(|i, c| {
-            let info = c.with_context(|| cell::CellInfo::get()).unwrap_or_default();
+            let info = c.with_context(cell::CellInfo::get).unwrap_or_default();
 
             let n = match auto_mode {
                 AutoGrowMode::Rows(_) => info.row,

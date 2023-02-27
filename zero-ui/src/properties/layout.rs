@@ -1609,7 +1609,7 @@ impl SizePropertyLength {
 
     /// Get the size set in the widget state.
     pub fn get_wgt(wgt: &impl UiNode) -> euclid::Size2D<SizePropertyLength, ()> {
-        wgt.with_context(|| Self::get()).unwrap_or_default()
+        wgt.with_context(Self::get).unwrap_or_default()
     }
 }
 impl From<&Length> for SizePropertyLength {

@@ -172,7 +172,7 @@ where
         }
 
         Self {
-            wake: VARS.app_event_sender(),
+            wake: UPDATES.sender(),
             sender,
         }
     }
@@ -244,7 +244,7 @@ where
         }
 
         Self {
-            wake: VARS.app_event_sender(),
+            wake: UPDATES.sender(),
             sender,
         }
     }

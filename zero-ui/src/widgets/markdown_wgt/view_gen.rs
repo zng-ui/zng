@@ -205,55 +205,55 @@ pub struct PanelGenArgs {
 
 context_var! {
     /// Widget generator for a markdown text segment.
-    pub static TEXT_GEN_VAR: WidgetGenerator<TextGenArgs> = WidgetGenerator::new(|args| default_text_gen(args));
+    pub static TEXT_GEN_VAR: WidgetGenerator<TextGenArgs> = WidgetGenerator::new(default_text_gen);
 
     /// Widget generator for a markdown link segment.
-    pub static LINK_GEN_VAR: WidgetGenerator<LinkGenArgs> = WidgetGenerator::new(|args| default_link_gen(args));
+    pub static LINK_GEN_VAR: WidgetGenerator<LinkGenArgs> = WidgetGenerator::new(default_link_gen);
 
     /// Widget generator for a markdown inline code segment.
-    pub static CODE_INLINE_GEN_VAR: WidgetGenerator<CodeInlineGenArgs> = WidgetGenerator::new(|args| default_code_inline_gen(args));
+    pub static CODE_INLINE_GEN_VAR: WidgetGenerator<CodeInlineGenArgs> = WidgetGenerator::new(default_code_inline_gen);
 
     /// Widget generator for a markdown code block segment.
-    pub static CODE_BLOCK_GEN_VAR: WidgetGenerator<CodeBlockGenArgs> = WidgetGenerator::new(|args| default_code_block_gen(args));
+    pub static CODE_BLOCK_GEN_VAR: WidgetGenerator<CodeBlockGenArgs> = WidgetGenerator::new(default_code_block_gen);
 
     /// Widget generator for a markdown paragraph.
-    pub static PARAGRAPH_GEN_VAR: WidgetGenerator<ParagraphGenArgs> = WidgetGenerator::new(|args| default_paragraph_gen(args));
+    pub static PARAGRAPH_GEN_VAR: WidgetGenerator<ParagraphGenArgs> = WidgetGenerator::new(default_paragraph_gen);
 
     /// Widget generator for a markdown heading.
-    pub static HEADING_GEN_VAR: WidgetGenerator<HeadingGenArgs> = WidgetGenerator::new(|args| default_heading_gen(args));
+    pub static HEADING_GEN_VAR: WidgetGenerator<HeadingGenArgs> = WidgetGenerator::new(default_heading_gen);
 
     /// Widget generator for a markdown list.
-    pub static LIST_GEN_VAR: WidgetGenerator<ListGenArgs> = WidgetGenerator::new(|args| default_list_gen(args));
+    pub static LIST_GEN_VAR: WidgetGenerator<ListGenArgs> = WidgetGenerator::new(default_list_gen);
 
     /// Widget generator for a markdown list item bullet, checkmark or number.
-    pub static LIST_ITEM_BULLET_GEN_VAR: WidgetGenerator<ListItemBulletGenArgs> = WidgetGenerator::new(|args| default_list_item_bullet_gen(args));
+    pub static LIST_ITEM_BULLET_GEN_VAR: WidgetGenerator<ListItemBulletGenArgs> = WidgetGenerator::new(default_list_item_bullet_gen);
 
     /// Widget generator for a markdown list item content.
-    pub static LIST_ITEM_GEN_VAR: WidgetGenerator<ListItemGenArgs> = WidgetGenerator::new(|args| default_list_item_gen(args));
+    pub static LIST_ITEM_GEN_VAR: WidgetGenerator<ListItemGenArgs> = WidgetGenerator::new(default_list_item_gen);
 
     /// Widget generator for a markdown image.
-    pub static IMAGE_GEN_VAR: WidgetGenerator<ImageGenArgs> = WidgetGenerator::new(|args| default_image_gen(args));
+    pub static IMAGE_GEN_VAR: WidgetGenerator<ImageGenArgs> = WidgetGenerator::new(default_image_gen);
 
     /// Widget generator for a markdown rule line.
-    pub static RULE_GEN_VAR: WidgetGenerator<RuleGenArgs> = WidgetGenerator::new(|args| default_rule_gen(args));
+    pub static RULE_GEN_VAR: WidgetGenerator<RuleGenArgs> = WidgetGenerator::new(default_rule_gen);
 
     /// Widget generator for a markdown block quote.
-    pub static BLOCK_QUOTE_GEN_VAR: WidgetGenerator<BlockQuoteGenArgs> = WidgetGenerator::new(|args| default_block_quote_gen(args));
+    pub static BLOCK_QUOTE_GEN_VAR: WidgetGenerator<BlockQuoteGenArgs> = WidgetGenerator::new(default_block_quote_gen);
 
     /// Widget generator for an inline reference to a footnote.
-    pub static FOOTNOTE_REF_GEN_VAR: WidgetGenerator<FootnoteRefGenArgs> = WidgetGenerator::new(|args| default_footnote_ref_gen(args));
+    pub static FOOTNOTE_REF_GEN_VAR: WidgetGenerator<FootnoteRefGenArgs> = WidgetGenerator::new(default_footnote_ref_gen);
 
     /// Widget generator for a footnote definition block.
-    pub static FOOTNOTE_DEF_GEN_VAR: WidgetGenerator<FootnoteDefGenArgs> = WidgetGenerator::new(|args| default_footnote_def_gen(args));
+    pub static FOOTNOTE_DEF_GEN_VAR: WidgetGenerator<FootnoteDefGenArgs> = WidgetGenerator::new(default_footnote_def_gen);
 
     /// Widget generator for a markdown table.
-    pub static TABLE_GEN_VAR: WidgetGenerator<TableGenArgs> = WidgetGenerator::new(|args| default_table_gen(args));
+    pub static TABLE_GEN_VAR: WidgetGenerator<TableGenArgs> = WidgetGenerator::new(default_table_gen);
 
     /// Widget generator for a markdown table body cell.
-    pub static TABLE_CELL_GEN_VAR: WidgetGenerator<TableCellGenArgs> = WidgetGenerator::new(|args| default_table_cell_gen(args));
+    pub static TABLE_CELL_GEN_VAR: WidgetGenerator<TableCellGenArgs> = WidgetGenerator::new(default_table_cell_gen);
 
     /// Widget generator for a markdown panel.
-    pub static PANEL_GEN_VAR: WidgetGenerator<PanelGenArgs> = WidgetGenerator::new(|args| default_panel_gen(args));
+    pub static PANEL_GEN_VAR: WidgetGenerator<PanelGenArgs> = WidgetGenerator::new(default_panel_gen);
 }
 
 /// Widget generator that converts [`TextGenArgs`] to widgets.

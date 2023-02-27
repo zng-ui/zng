@@ -19,7 +19,7 @@ use crate::{
     text::FONTS,
     units::*,
     var::*,
-    widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree},
+    widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
     window::AutoSize,
 };
@@ -33,7 +33,6 @@ use super::{
 
 /// Implementer of `App <-> View` sync in a headed window.
 struct HeadedCtrl {
-    window_id: WindowId,
     window: Option<ViewWindow>,
     waiting_view: bool,
     delayed_view_updates: Vec<Box<dyn FnOnce(&ViewWindow) + Send>>,
@@ -63,9 +62,8 @@ struct HeadedCtrl {
     root_font_size: Dip,
 }
 impl HeadedCtrl {
-    pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
         Self {
-            window_id,
             window: None,
             waiting_view: false,
             delayed_view_updates: vec![],
@@ -76,7 +74,7 @@ impl HeadedCtrl {
             transparent: content.transparent,
             render_mode: content.render_mode,
 
-            content: ContentCtrl::new(window_id, vars.clone(), commands, content),
+            content: ContentCtrl::new(vars.clone(), commands, content),
             vars: vars.clone(),
             respawned: false,
 
@@ -409,8 +407,9 @@ impl HeadedCtrl {
         self.content.update(updates);
     }
 
-    pub fn window_updates(&mut self) {
-        self.content.window_updates();
+    #[must_use]
+    pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
+        self.content.window_updates()
     }
 
     pub fn pre_event(&mut self, update: &mut EventUpdate) {
@@ -521,10 +520,10 @@ impl HeadedCtrl {
                 && self.vars.0.children.with(|c| c.contains(&args.window_id))
             {
                 // child restored.
-                RESTORE_CMD.scoped(self.window_id).notify();
+                RESTORE_CMD.scoped(WINDOW.id()).notify();
             }
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
-            if args.new_focus == Some(self.window_id) {
+            if args.new_focus == Some(WINDOW.id()) {
                 self.vars.0.children.with(|c| {
                     for &c in c {
                         let _ = WINDOWS.bring_to_top(c);
@@ -533,11 +532,11 @@ impl HeadedCtrl {
             } else if let Some(new_focus) = args.new_focus {
                 self.vars.0.children.with(|c| {
                     if c.contains(&new_focus) {
-                        let _ = WINDOWS.bring_to_top(self.window_id);
+                        let _ = WINDOWS.bring_to_top(WINDOW.id());
 
                         for c in c {
                             if *c != new_focus {
-                                let _ = WINDOWS.bring_to_top(self.window_id);
+                                let _ = WINDOWS.bring_to_top(WINDOW.id());
                             }
                         }
 
@@ -554,7 +553,7 @@ impl HeadedCtrl {
             }
             self.vars.monitor().touch();
         } else if let Some(args) = RAW_WINDOW_OPEN_EVENT.on(update) {
-            if args.window_id == self.window_id {
+            if args.window_id == WINDOW.id() {
                 self.waiting_view = false;
 
                 WINDOWS.set_renderer(WINDOW.id(), args.window.renderer());
@@ -589,7 +588,7 @@ impl HeadedCtrl {
                 }
             }
         } else if let Some(args) = RAW_COLOR_SCHEME_CHANGED_EVENT.on(update) {
-            if args.window_id == self.window_id {
+            if args.window_id == WINDOW.id() {
                 self.system_color_scheme = Some(args.color_scheme);
 
                 let scheme = self
@@ -602,7 +601,7 @@ impl HeadedCtrl {
                 self.vars.0.actual_color_scheme.set_ne(scheme);
             }
         } else if let Some(args) = RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.on(update) {
-            if args.window_id == self.window_id && self.window.is_none() && self.waiting_view {
+            if args.window_id == WINDOW.id() && self.window.is_none() && self.waiting_view {
                 tracing::error!("view-process failed to open a window, {}", args.error);
 
                 // was waiting view and failed, treat like a respawn.
@@ -710,7 +709,7 @@ impl HeadedCtrl {
         }
 
         // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
-        if !WINDOWS.try_load(self.window_id) {
+        if !WINDOWS.try_load(WINDOW.id()) {
             // block on loading handles.
             return;
         }
@@ -836,33 +835,27 @@ impl HeadedCtrl {
             assert!(!skip_auto_size);
 
             let auto_size_origin = self.vars.auto_size_origin().get();
-            // let mut auto_size_origin = |size| {
-            //     ctx.layout_context(
-            //         root_font_size,
-            //         scale_factor,
-            //         screen_ppi,
-            //         size,
-            //         &self.content.info_tree,
-            //         &self.content.root_info,
-            //         &mut self.content.root_state,
-            //         |ctx| auto_size_origin.layout(ctx, |_| PxPoint::zero()).to_dip(scale_factor.0),
-            //     )
-            // };
-            // let prev_origin = auto_size_origin(current_size);
-            // let new_origin = auto_size_origin(size);
+            let auto_size_origin = |size| {
+                LAYOUT.with_context(root_font_size, scale_factor, screen_ppi, size, || {
+                    auto_size_origin
+                        .layout(&LAYOUT.metrics(), |_| PxPoint::zero())
+                        .to_dip(scale_factor.0)
+                })
+            };
+            let prev_origin = auto_size_origin(current_size);
+            let new_origin = auto_size_origin(size);
 
-            // let size = size.to_dip(scale_factor.0);
+            let size = size.to_dip(scale_factor.0);
 
-            // state.restore_rect.size = size;
-            // state.restore_rect.origin += prev_origin - new_origin;
+            state.restore_rect.size = size;
+            state.restore_rect.origin += prev_origin - new_origin;
 
-            // if let Some(view) = &self.window {
-            //     let _: Ignore = view.set_state(state);
-            // } else {
-            //     debug_assert!(self.respawned);
-            //     self.state = Some(state);
-            // }
-            todo!("!!:")
+            if let Some(view) = &self.window {
+                let _: Ignore = view.set_state(state);
+            } else {
+                debug_assert!(self.respawned);
+                self.state = Some(state);
+            }
         }
     }
 
@@ -892,7 +885,7 @@ impl HeadedCtrl {
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
 
-            focus: WINDOWS.is_focused(self.window_id).unwrap_or(false),
+            focus: WINDOWS.is_focused(WINDOW.id()).unwrap_or(false),
             focus_indicator: self.vars.focus_indicator().get(),
         };
 
@@ -1013,7 +1006,6 @@ fn update_parent(parent: &mut Option<WindowId>, vars: &WindowVars) -> bool {
 
 /// Implementer of `App <-> View` sync in a headless window.
 struct HeadlessWithRendererCtrl {
-    window_id: WindowId,
     surface: Option<ViewHeadless>,
     waiting_view: bool,
     delayed_view_updates: Vec<Box<dyn FnOnce(&ViewHeadless) + Send>>,
@@ -1033,9 +1025,8 @@ struct HeadlessWithRendererCtrl {
     var_bindings: VarHandles,
 }
 impl HeadlessWithRendererCtrl {
-    pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
         Self {
-            window_id,
             surface: None,
             waiting_view: false,
             delayed_view_updates: vec![],
@@ -1045,7 +1036,7 @@ impl HeadlessWithRendererCtrl {
             headless_monitor: content.headless_monitor,
             headless_simulator: HeadlessSimulator::new(),
 
-            content: ContentCtrl::new(window_id, vars.clone(), commands, content),
+            content: ContentCtrl::new(vars.clone(), commands, content),
 
             actual_parent: None,
             size: DipSize::zero(),
@@ -1076,8 +1067,9 @@ impl HeadlessWithRendererCtrl {
         self.content.update(updates);
     }
 
-    pub fn window_updates(&mut self) {
-        self.content.window_updates();
+    #[must_use]
+    pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
+        self.content.window_updates()
     }
 
     pub fn pre_event(&mut self, update: &mut EventUpdate) {
@@ -1097,7 +1089,7 @@ impl HeadlessWithRendererCtrl {
                 }
             }
         } else if let Some(args) = RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.on(update) {
-            if args.window_id == self.window_id && self.surface.is_none() && self.waiting_view {
+            if args.window_id == WINDOW.id() && self.surface.is_none() && self.waiting_view {
                 tracing::error!("view-process failed to open a headless surface, {}", args.error);
 
                 // was waiting view and failed, treat like a respawn.
@@ -1178,7 +1170,7 @@ impl HeadlessWithRendererCtrl {
         } else if !self.waiting_view {
             // (re)spawn the view surface:
 
-            if !WINDOWS.try_load(self.window_id) {
+            if !WINDOWS.try_load(WINDOW.id()) {
                 return;
             }
 
@@ -1282,11 +1274,11 @@ struct HeadlessCtrl {
     var_bindings: VarHandles,
 }
 impl HeadlessCtrl {
-    pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
         Self {
             vars: vars.clone(),
             headless_monitor: content.headless_monitor,
-            content: ContentCtrl::new(window_id, vars.clone(), commands, content),
+            content: ContentCtrl::new(vars.clone(), commands, content),
             headless_simulator: HeadlessSimulator::new(),
             actual_parent: None,
             var_bindings: VarHandles::dummy(),
@@ -1314,8 +1306,9 @@ impl HeadlessCtrl {
         self.content.update(updates);
     }
 
-    pub fn window_updates(&mut self) {
-        self.content.window_updates();
+    #[must_use]
+    pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
+        self.content.window_updates()
     }
 
     pub fn pre_event(&mut self, update: &mut EventUpdate) {
@@ -1475,7 +1468,7 @@ struct ContentCtrl {
     previous_transforms: IdMap<WidgetId, PxTransform>,
 }
 impl ContentCtrl {
-    pub fn new(window_id: WindowId, vars: WindowVars, commands: WindowCommands, window: Window) -> Self {
+    pub fn new(vars: WindowVars, commands: WindowCommands, window: Window) -> Self {
         Self {
             vars,
             commands,
@@ -1532,6 +1525,7 @@ impl ContentCtrl {
         }
     }
 
+    #[must_use]
     pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
         self.layout_requested |= self.root_ctx.is_pending_layout();
         if self.root_ctx.is_pending_render() {
@@ -1656,44 +1650,36 @@ impl ContentCtrl {
 
         self.layout_pass += 1;
 
-        // ctx.layout_context(
-        //     root_font_size,
-        //     scale_factor,
-        //     screen_ppi,
-        //     viewport_size,
-        //     &self.info_tree,
-        //     &self.root_info,
-        //     &mut self.root_state,
-        //     |ctx| {
-        //         let desired_size = ctx.with_constrains(
-        //             |mut c| {
-        //                 if !skip_auto_size {
-        //                     if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-        //                         c = c.with_unbounded_x();
-        //                     }
-        //                     if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-        //                         c = c.with_unbounded_y();
-        //                     }
-        //                 }
-        //                 c
-        //             },
-        //             |ctx| WidgetLayout::with_root_widget(ctx, self.layout_pass, |ctx, wl| self.root.layout(ctx, wl)),
-        //         );
+        WIDGET.with_context(&self.root_ctx, || {
+            LAYOUT.with_context(root_font_size, scale_factor, screen_ppi, viewport_size, || {
+                let desired_size = LAYOUT.with_constrains(
+                    |mut c| {
+                        if !skip_auto_size {
+                            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                                c = c.with_unbounded_x();
+                            }
+                            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                                c = c.with_unbounded_y();
+                            }
+                        }
+                        c
+                    },
+                    || WidgetLayout::with_root_widget(self.layout_pass, |wl| self.root.layout(wl)),
+                );
 
-        //         let mut final_size = viewport_size;
-        //         if !skip_auto_size {
-        //             if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-        //                 final_size.width = desired_size.width.max(min_size.width).min(max_size.width);
-        //             }
-        //             if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-        //                 final_size.height = desired_size.height.max(min_size.height).min(max_size.height);
-        //             }
-        //         }
+                let mut final_size = viewport_size;
+                if !skip_auto_size {
+                    if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                        final_size.width = desired_size.width.max(min_size.width).min(max_size.width);
+                    }
+                    if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                        final_size.height = desired_size.height.max(min_size.height).min(max_size.height);
+                    }
+                }
 
-        //         final_size
-        //     },
-        // )
-        todo!("!!:")
+                final_size
+            })
+        })
     }
 
     pub fn render(&mut self, renderer: Option<ViewRenderer>, scale_factor: Factor, wait_id: Option<FrameWaitId>) {
@@ -1722,32 +1708,31 @@ impl ContentCtrl {
                     self.used_frame_builder.take(),
                 );
 
-                // let (frame, used) = ctx.render_context(self.root_id, &self.root_state, &self.info_tree, &self.root_info, |ctx| {
-                //     self.root.render(ctx, &mut frame);
-                //     frame.finalize(ctx.info_tree)
-                // });
+                let (frame, used) = WIDGET.with_context(&self.root_ctx, || {
+                    self.root.render(&mut frame);
+                    frame.finalize(&WINDOW.widget_tree())
+                });
 
-                // self.notify_transform_changes();
+                self.notify_transform_changes();
 
-                // self.used_frame_builder = Some(used);
+                self.used_frame_builder = Some(used);
 
-                // self.clear_color = frame.clear_color;
+                self.clear_color = frame.clear_color;
 
-                // let capture_image = self.take_capture_image();
+                let capture_image = self.take_capture_image();
 
-                // if let Some(renderer) = renderer {
-                //     let _: Ignore = renderer.render(FrameRequest {
-                //         id: self.frame_id,
-                //         pipeline_id: frame.display_list.pipeline_id(),
-                //         clear_color: self.clear_color,
-                //         display_list: frame.display_list,
-                //         capture_image,
-                //         wait_id,
-                //     });
+                if let Some(renderer) = renderer {
+                    let _: Ignore = renderer.render(FrameRequest {
+                        id: self.frame_id,
+                        pipeline_id: frame.display_list.pipeline_id(),
+                        clear_color: self.clear_color,
+                        display_list: frame.display_list,
+                        capture_image,
+                        wait_id,
+                    });
 
-                //     self.is_rendering = true;
-                // }
-                todo!("!!:")
+                    self.is_rendering = true;
+                }
             }
 
             // RENDER UPDATE
@@ -1772,35 +1757,34 @@ impl ContentCtrl {
                     self.used_frame_update.take(),
                 );
 
-                // let (update, used) = ctx.render_context(self.root_id, &self.root_state, &self.info_tree, &self.root_info, |ctx| {
-                //     self.root.render_update(ctx, &mut update);
-                //     update.finalize(ctx.info_tree)
-                // });
+                let (update, used) = WIDGET.with_context(&self.root_ctx, || {
+                    self.root.render_update(&mut update);
+                    update.finalize(&WINDOW.widget_tree())
+                });
 
-                // self.notify_transform_changes();
+                self.notify_transform_changes();
 
-                // self.used_frame_update = Some(used);
+                self.used_frame_update = Some(used);
 
-                // if let Some(c) = update.clear_color {
-                //     self.clear_color = c;
-                // }
+                if let Some(c) = update.clear_color {
+                    self.clear_color = c;
+                }
 
-                // let capture_image = self.take_capture_image();
+                let capture_image = self.take_capture_image();
 
-                // if let Some(renderer) = renderer {
-                //     let _: Ignore = renderer.render_update(FrameUpdateRequest {
-                //         id: self.frame_id,
-                //         transforms: update.transforms,
-                //         floats: update.floats,
-                //         colors: update.colors,
-                //         clear_color: update.clear_color,
-                //         capture_image,
-                //         wait_id,
-                //     });
+                if let Some(renderer) = renderer {
+                    let _: Ignore = renderer.render_update(FrameUpdateRequest {
+                        id: self.frame_id,
+                        transforms: update.transforms,
+                        floats: update.floats,
+                        colors: update.colors,
+                        clear_color: update.clear_color,
+                        capture_image,
+                        wait_id,
+                    });
 
-                //     self.is_rendering = true;
-                // }
-                todo!("!!:")
+                    self.is_rendering = true;
+                }
             }
             RenderUpdate::None => {
                 debug_assert!(false, "self.render_requested != RenderUpdate::None")
@@ -1855,12 +1839,12 @@ enum WindowCtrlMode {
     HeadlessWithRenderer(HeadlessWithRendererCtrl),
 }
 impl WindowCtrl {
-    pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, mode: WindowMode, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, commands: WindowCommands, mode: WindowMode, content: Window) -> Self {
         WindowCtrl(match mode {
-            WindowMode::Headed => WindowCtrlMode::Headed(HeadedCtrl::new(window_id, vars, commands, content)),
-            WindowMode::Headless => WindowCtrlMode::Headless(HeadlessCtrl::new(window_id, vars, commands, content)),
+            WindowMode::Headed => WindowCtrlMode::Headed(HeadedCtrl::new(vars, commands, content)),
+            WindowMode::Headless => WindowCtrlMode::Headless(HeadlessCtrl::new(vars, commands, content)),
             WindowMode::HeadlessWithRenderer => {
-                WindowCtrlMode::HeadlessWithRenderer(HeadlessWithRendererCtrl::new(window_id, vars, commands, content))
+                WindowCtrlMode::HeadlessWithRenderer(HeadlessWithRendererCtrl::new(vars, commands, content))
             }
         })
     }
@@ -1873,7 +1857,8 @@ impl WindowCtrl {
         }
     }
 
-    pub fn window_updates(&mut self) {
+    #[must_use]
+    pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.window_updates(),
             WindowCtrlMode::Headless(c) => c.window_updates(),

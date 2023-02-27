@@ -722,7 +722,7 @@ impl WidgetLayout {
                 self.inline = Some(Default::default());
             }
         }
-        let parent_bounds = mem::replace(&mut self.bounds, bounds.clone());
+        let parent_bounds = mem::replace(&mut self.bounds, bounds);
         self.nest_group = LayoutNestGroup::Inner;
         let prev_inner_offset = self.bounds.inner_offset();
         let prev_child_offset = self.bounds.child_offset();

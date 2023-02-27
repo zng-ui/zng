@@ -15,7 +15,7 @@ use crate::app::{
     AppEventSender,
 };
 use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
-use crate::context::{state_map, OwnedStateMap, WidgetUpdates, WindowCtx};
+use crate::context::{WidgetUpdates, WindowCtx};
 use crate::context::{UPDATES, WINDOW};
 use crate::crate_util::IdSet;
 use crate::event::{AnyEventArgs, EventUpdate};
@@ -62,10 +62,6 @@ impl WindowsService {
             loading_deadline: None,
             latest_color_scheme: ColorScheme::Dark,
         }
-    }
-
-    pub(super) fn init(&mut self, update_sender: AppEventSender) {
-        self.update_sender = Some(update_sender);
     }
 
     fn open_impl(
@@ -925,7 +921,7 @@ impl AppWindow {
         let commands = WindowCommands::new(id);
 
         let root_id = window.id;
-        let ctrl = WindowCtrl::new(id, &vars, commands, mode, window);
+        let ctrl = WindowCtrl::new(&vars, commands, mode, window);
 
         let window = Self {
             ctrl: Mutex::new(ctrl),
@@ -940,7 +936,9 @@ impl AppWindow {
         WINDOW.with_context(&self.ctx, || {
             action(self.ctrl.get_mut());
         });
-        self.ctrl.get_mut().window_updates()
+        if let Some(new) = self.ctrl.get_mut().window_updates() {
+            self.ctx.set_widget_tree(new);
+        }
     }
 
     pub fn pre_event(&mut self, update: &mut EventUpdate) {
