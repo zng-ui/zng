@@ -912,6 +912,8 @@ impl AppWindow {
 
         let window = WINDOW.with_context(&ctx, new);
 
+        ctx.set_widget_tree(WidgetInfoTree::wgt(id, window.id));
+
         if window.kiosk {
             vars.chrome().set_ne(WindowChrome::None);
             vars.visible().set_ne(true);
@@ -935,18 +937,10 @@ impl AppWindow {
     }
 
     fn ctrl_in_ctx(&mut self, action: impl FnOnce(&mut WindowCtrl)) {
-        // !!: TODO refactor to this
         WINDOW.with_context(&self.ctx, || {
             action(self.ctrl.get_mut());
         });
-        //
-        // let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| action(ctx, self.ctrl.get_mut()));
-        // if updates.is_any() {
-        //     let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| {
-        //         self.ctrl.get_mut().window_updates(ctx, updates)
-        //     });
-        //     debug_assert!(updates.is_none());
-        // }
+        self.ctrl.get_mut().window_updates()
     }
 
     pub fn pre_event(&mut self, update: &mut EventUpdate) {

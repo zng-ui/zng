@@ -320,9 +320,6 @@ pub mod state_map {
     /// Widget state-map tag.
     pub enum Widget {}
 
-    /// Update state-map tag.
-    pub enum Update {}
-
     pub(super) struct StateMap {
         map: AnyMap,
     }

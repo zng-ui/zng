@@ -70,11 +70,11 @@ impl WindowCtx {
         })))
     }
 
-    /// Initializes the context.
+    /// Sets the widget tree, must be called after every info update.
     ///
-    /// Window contexts are partially available in the window new closure, but values like the `widget_tree` are
-    /// only available after init.
-    pub fn init(&mut self, widget_tree: WidgetInfoTree) {
+    /// Window contexts are partially available in the window new closure, but values like the `widget_tree` is
+    /// available on init, so a [`WidgetInfoTree::wgt`] must be set as soon as the window and widget ID are available.
+    pub fn set_widget_tree(&mut self, widget_tree: WidgetInfoTree) {
         self.0.get_mut().as_mut().unwrap().widget_tree = Some(widget_tree);
     }
 
@@ -1189,7 +1189,9 @@ impl UPDATES {
         }
     }
 
-    /// Schedules a layout update that will affect all app extensions and widgets with invalidated layout.
+    /// Schedules a layout update that will affect all app extensions.
+    ///
+    /// Note that you must use [`WIDGET.layout`] to request a layout update for an widget.
     pub fn layout(&self) -> &Self {
         UpdatesTrace::log_layout();
         self.layout_internal();
@@ -1199,7 +1201,9 @@ impl UPDATES {
         UPDATES_SV.write().flags.insert(UpdateFlags::LAYOUT);
     }
 
-    /// Schedules a render update that will affect all app extensions and widgets with invalidated layout.
+    /// Schedules a render update that will affect all app extensions.
+    ///
+    /// Note that you must use [`WIDGET.render`] or [`WIDGET.render_update`] to request a render update for an widget.
     pub fn render(&self) -> &Self {
         self.render_internal();
         self
@@ -1716,166 +1720,6 @@ impl std::ops::BitOr for ContextUpdates {
         self
     }
 }
-
-/// Types to remove.
-pub mod temp {
-    use super::*;
-
-    /// Info, Layout or render updates that where requested by the content of a window.
-    ///
-    /// Unlike the general updates, layout and render can be optimized to only apply if
-    /// the window content requested it.
-    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-    pub struct InfoLayoutRenderUpdates {
-        /// Info tree rebuild requested.
-        ///
-        /// Windows should call [`UiNode::info`] to rebuild the info tree as soon as they receive this flag.
-        ///
-        /// [`UiNode::info`]: crate::widget_instance::UiNode::info
-        pub info: bool,
-
-        /// Layout requested.
-        pub layout: bool,
-        /// Full frame or frame update requested.
-        pub render: WindowRenderUpdate,
-    }
-    impl InfoLayoutRenderUpdates {
-        /// No updates, this the default value.
-        pub fn none() -> Self {
-            Self::default()
-        }
-
-        /// Update layout and render frame.
-        pub fn all() -> Self {
-            InfoLayoutRenderUpdates {
-                info: true,
-                layout: true,
-                render: WindowRenderUpdate::Render,
-            }
-        }
-
-        /// Info tree rebuild and subscriptions only.
-        pub fn info() -> Self {
-            InfoLayoutRenderUpdates {
-                info: true,
-                layout: false,
-                render: WindowRenderUpdate::None,
-            }
-        }
-
-        /// Update layout only.
-        pub fn layout() -> Self {
-            InfoLayoutRenderUpdates {
-                info: false,
-                layout: true,
-                render: WindowRenderUpdate::None,
-            }
-        }
-
-        /// Update render only.
-        pub fn render() -> Self {
-            InfoLayoutRenderUpdates {
-                info: false,
-                layout: false,
-                render: WindowRenderUpdate::Render,
-            }
-        }
-
-        /// Update render-update only.
-        pub fn render_update() -> Self {
-            InfoLayoutRenderUpdates {
-                info: false,
-                layout: false,
-                render: WindowRenderUpdate::RenderUpdate,
-            }
-        }
-
-        /// Returns if `self` is not equal to [`none`].
-        ///
-        /// [`none`]: Self::none
-        pub fn is_any(self) -> bool {
-            self != Self::none()
-        }
-
-        /// Returns if `self` is equal to [`none`].
-        ///
-        /// [`none`]: Self::none
-        pub fn is_none(self) -> bool {
-            self == Self::none()
-        }
-    }
-    impl std::ops::BitOrAssign for InfoLayoutRenderUpdates {
-        fn bitor_assign(&mut self, rhs: Self) {
-            self.info |= rhs.info;
-            self.layout |= rhs.layout;
-            self.render |= rhs.render;
-        }
-    }
-    impl std::ops::BitOr for InfoLayoutRenderUpdates {
-        type Output = Self;
-
-        fn bitor(mut self, rhs: Self) -> Self {
-            self |= rhs;
-            self
-        }
-    }
-
-    /// Kind of render updated requested by the content of a window.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub enum WindowRenderUpdate {
-        /// No render update requested.
-        None,
-        /// Full frame requested.
-        Render,
-        /// Only frame update requested.
-        RenderUpdate,
-    }
-    impl WindowRenderUpdate {
-        /// If full frame was requested.
-        pub fn is_render(self) -> bool {
-            matches!(self, Self::Render)
-        }
-
-        /// If only frame update was requested.
-        pub fn is_render_update(self) -> bool {
-            matches!(self, Self::RenderUpdate)
-        }
-
-        /// If no render was requested.
-        pub fn is_none(self) -> bool {
-            matches!(self, Self::None)
-        }
-
-        /// Returns a copy of `self` and replaces `self` with `None`
-        pub fn take(&mut self) -> Self {
-            mem::take(self)
-        }
-    }
-    impl Default for WindowRenderUpdate {
-        fn default() -> Self {
-            WindowRenderUpdate::None
-        }
-    }
-    impl std::ops::BitOrAssign for WindowRenderUpdate {
-        fn bitor_assign(&mut self, rhs: Self) {
-            use WindowRenderUpdate::*;
-            *self = match (*self, rhs) {
-                (Render, _) | (_, Render) => Render,
-                (RenderUpdate, _) | (_, RenderUpdate) => RenderUpdate,
-                _ => None,
-            };
-        }
-    }
-    impl std::ops::BitOr for WindowRenderUpdate {
-        type Output = Self;
-
-        fn bitor(mut self, rhs: Self) -> Self {
-            self |= rhs;
-            self
-        }
-    }
-}
-pub use temp::*;
 
 /// Constrains for inline measure.
 ///

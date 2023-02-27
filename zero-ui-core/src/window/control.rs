@@ -11,15 +11,15 @@ use crate::{
         view_process::*,
     },
     color::{ColorScheme, RenderColor},
-    context::{state_map, InfoLayoutRenderUpdates, OwnedStateMap, WidgetUpdates, WindowRenderUpdate, LAYOUT, UPDATES, WIDGET, WINDOW},
+    context::{WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW},
     crate_util::IdMap,
-    event::{AnyEventArgs, EventHandles, EventUpdate},
+    event::{AnyEventArgs, EventUpdate},
     image::{Image, ImageVar, IMAGES},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::FONTS,
     units::*,
     var::*,
-    widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
+    widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree},
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
     window::AutoSize,
 };
@@ -409,8 +409,8 @@ impl HeadedCtrl {
         self.content.update(updates);
     }
 
-    pub fn window_updates(&mut self, updates: InfoLayoutRenderUpdates) {
-        self.content.window_updates(updates);
+    pub fn window_updates(&mut self) {
+        self.content.window_updates();
     }
 
     pub fn pre_event(&mut self, update: &mut EventUpdate) {
@@ -461,7 +461,7 @@ impl HeadedCtrl {
                                 if self.content.layout_requested {
                                     UPDATES.layout();
                                 }
-                                if !self.content.render_requested.is_none() {
+                                if !matches!(self.content.render_requested, RenderUpdate::None) {
                                     UPDATES.render();
                                 }
                             }
@@ -497,8 +497,10 @@ impl HeadedCtrl {
                 if let Some(id) = args.frame_wait_id {
                     self.resize_wait_id = Some(id);
 
-                    self.content.pending_render |= WindowRenderUpdate::RenderUpdate;
-                    self.content.render_requested = self.content.pending_render.take();
+                    if !matches!(self.content.pending_render, RenderUpdate::Render) {
+                        self.content.pending_render = RenderUpdate::RenderUpdate;
+                    }
+                    self.content.render_requested = mem::replace(&mut self.content.pending_render, RenderUpdate::None);
                     UPDATES.render();
                 }
 
@@ -610,7 +612,7 @@ impl HeadedCtrl {
                 self.respawned = true;
 
                 self.content.layout_requested = true;
-                self.content.render_requested = WindowRenderUpdate::Render;
+                self.content.render_requested = RenderUpdate::Render;
                 self.content.is_rendering = false;
 
                 UPDATES.layout().render();
@@ -626,7 +628,7 @@ impl HeadedCtrl {
                     self.respawned = true;
 
                     self.content.layout_requested = true;
-                    self.content.render_requested = WindowRenderUpdate::Render;
+                    self.content.render_requested = RenderUpdate::Render;
                     self.content.is_rendering = false;
 
                     UPDATES.layout().render();
@@ -901,7 +903,7 @@ impl HeadedCtrl {
     }
 
     pub fn render(&mut self) {
-        if self.content.render_requested.is_none() {
+        if matches!(self.content.render_requested, RenderUpdate::Render) {
             return;
         }
 
@@ -1074,8 +1076,8 @@ impl HeadlessWithRendererCtrl {
         self.content.update(updates);
     }
 
-    pub fn window_updates(&mut self, updates: InfoLayoutRenderUpdates) {
-        self.content.window_updates(updates);
+    pub fn window_updates(&mut self) {
+        self.content.window_updates();
     }
 
     pub fn pre_event(&mut self, update: &mut EventUpdate) {
@@ -1104,7 +1106,7 @@ impl HeadlessWithRendererCtrl {
                 self.delayed_view_updates = vec![];
 
                 self.content.layout_requested = true;
-                self.content.render_requested = WindowRenderUpdate::Render;
+                self.content.render_requested = RenderUpdate::Render;
 
                 UPDATES.layout().render();
             }
@@ -1117,7 +1119,7 @@ impl HeadlessWithRendererCtrl {
 
                     self.content.is_rendering = false;
                     self.content.layout_requested = true;
-                    self.content.render_requested = WindowRenderUpdate::Render;
+                    self.content.render_requested = RenderUpdate::Render;
 
                     UPDATES.layout().render();
                 }
@@ -1199,7 +1201,7 @@ impl HeadlessWithRendererCtrl {
     }
 
     pub fn render(&mut self) {
-        if self.content.render_requested.is_none() {
+        if matches!(self.content.render_requested, RenderUpdate::None) {
             return;
         }
 
@@ -1299,7 +1301,7 @@ impl HeadlessCtrl {
 
         if matches!(self.content.init_state, InitState::Init) {
             self.content.layout_requested = true;
-            self.content.pending_render = WindowRenderUpdate::Render;
+            self.content.pending_render = RenderUpdate::Render;
 
             UPDATES.layout();
             UPDATES.render();
@@ -1312,8 +1314,8 @@ impl HeadlessCtrl {
         self.content.update(updates);
     }
 
-    pub fn window_updates(&mut self, updates: InfoLayoutRenderUpdates) {
-        self.content.window_updates(updates);
+    pub fn window_updates(&mut self) {
+        self.content.window_updates();
     }
 
     pub fn pre_event(&mut self, update: &mut EventUpdate) {
@@ -1366,7 +1368,7 @@ impl HeadlessCtrl {
     }
 
     pub fn render(&mut self) {
-        if self.content.render_requested.is_none() {
+        if matches!(self.content.render_requested, RenderUpdate::None) {
             return;
         }
         let fct = self.vars.0.scale_factor.get();
@@ -1440,20 +1442,21 @@ enum InitState {
     Inited,
 }
 
+enum RenderUpdate {
+    None,
+    Render,
+    RenderUpdate,
+}
+
 /// Implementer of window UI node tree initialization and management.
 struct ContentCtrl {
     vars: WindowVars,
     commands: WindowCommands,
 
-    root_id: WidgetId,
-    root_state: OwnedStateMap<state_map::Widget>,
+    root_ctx: WidgetCtx,
     root: BoxedUiNode,
     // info
-    info_tree: WidgetInfoTree,
-    root_info: WidgetContextInfo,
     used_info_builder: Option<UsedWidgetInfoBuilder>,
-    root_var_handles: VarHandles,
-    root_event_handles: EventHandles,
     layout_pass: LayoutPassId,
 
     used_frame_builder: Option<UsedFrameBuilder>,
@@ -1464,10 +1467,10 @@ struct ContentCtrl {
     clear_color: RenderColor,
 
     is_rendering: bool,
-    pending_render: WindowRenderUpdate,
+    pending_render: RenderUpdate,
 
     layout_requested: bool,
-    render_requested: WindowRenderUpdate,
+    render_requested: RenderUpdate,
 
     previous_transforms: IdMap<WidgetId, PxTransform>,
 }
@@ -1477,15 +1480,10 @@ impl ContentCtrl {
             vars,
             commands,
 
-            root_id: window.id,
-            root_state: OwnedStateMap::new(),
+            root_ctx: WidgetCtx::new(window.id),
             root: window.child,
 
-            info_tree: WidgetInfoTree::wgt(window_id, window.id),
-            root_info: WidgetContextInfo::new(),
             used_info_builder: None,
-            root_var_handles: VarHandles::default(),
-            root_event_handles: EventHandles::default(),
             layout_pass: 0,
 
             used_frame_builder: None,
@@ -1496,10 +1494,10 @@ impl ContentCtrl {
             clear_color: RenderColor::BLACK,
 
             is_rendering: false,
-            pending_render: WindowRenderUpdate::None,
+            pending_render: RenderUpdate::None,
 
             layout_requested: false,
-            render_requested: WindowRenderUpdate::None,
+            render_requested: RenderUpdate::None,
 
             previous_transforms: IdMap::default(),
         }
@@ -1511,19 +1509,11 @@ impl ContentCtrl {
                 self.commands.update(&self.vars);
 
                 updates.with_window(|updates| {
-                    // ctx.widget_context(
-                    //     &self.info_tree,
-                    //     &self.root_info,
-                    //     &mut self.root_state,
-                    //     &mut self.root_var_handles,
-                    //     &mut self.root_event_handles,
-                    //     |ctx| {
-                    //         updates.with_widget(ctx, |ctx, updates| {
-                    //             self.root.update(ctx, updates);
-                    //         });
-                    //     },
-                    // );
-                    todo!("!!:")
+                    WIDGET.with_context(&self.root_ctx, || {
+                        updates.with_widget(|updates| {
+                            self.root.update(updates);
+                        });
+                    });
                 });
             }
 
@@ -1533,48 +1523,49 @@ impl ContentCtrl {
             }
             InitState::Init => {
                 self.commands.init(&self.vars);
-                // ctx.widget_context(
-                //     &self.info_tree,
-                //     &self.root_info,
-                //     &mut self.root_state,
-                //     &mut self.root_var_handles,
-                //     &mut self.root_event_handles,
-                //     |ctx| {
-                //         self.root.init(ctx);
-
-                //         WIDGET.info();
-                //     },
-                // );
-                todo!("!!:");
+                WIDGET.with_context(&self.root_ctx, || {
+                    self.root.init();
+                    WIDGET.info();
+                });
                 self.init_state = InitState::Inited;
             }
         }
     }
 
-    pub fn window_updates(&mut self, updates: InfoLayoutRenderUpdates) {
-        self.layout_requested |= updates.layout;
-        self.render_requested |= updates.render;
+    pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
+        self.layout_requested |= self.root_ctx.is_pending_layout();
+        if self.root_ctx.is_pending_render() {
+            self.render_requested = RenderUpdate::Render;
+        } else if self.root_ctx.is_pending_render_update() && !matches!(&self.render_requested, RenderUpdate::Render) {
+            self.render_requested = RenderUpdate::RenderUpdate;
+        }
 
-        if updates.info {
+        if self.root_ctx.take_info() {
             let mut info = WidgetInfoBuilder::new(
                 WINDOW.id(),
-                self.root_id,
-                self.root_info.bounds.clone(),
-                self.root_info.border.clone(),
+                self.root_ctx.id(),
+                self.root_ctx.bounds(),
+                self.root_ctx.border(),
                 self.vars.0.scale_factor.get(),
                 self.used_info_builder.take(),
             );
 
-            // ctx.info_context(&self.info_tree, &self.root_info, &self.root_state, |ctx| {
-            //     self.root.info(ctx, &mut info);
-            // });
-            todo!("!!:");
+            WIDGET.with_context(&self.root_ctx, || {
+                self.root.info(&mut info);
+            });
 
             let (info, used) = info.finalize();
-            self.info_tree = info.clone();
             self.used_info_builder = Some(used);
 
-            WINDOWS.set_widget_tree(info, self.layout_requested, !self.render_requested.is_none());
+            WINDOWS.set_widget_tree(
+                info.clone(),
+                self.layout_requested,
+                !matches!(self.render_requested, RenderUpdate::None),
+            );
+
+            Some(info)
+        } else {
+            None
         }
     }
 
@@ -1582,14 +1573,16 @@ impl ContentCtrl {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
                 self.is_rendering = false;
-                match self.pending_render.take() {
-                    WindowRenderUpdate::None => {}
-                    WindowRenderUpdate::Render => {
-                        self.render_requested = WindowRenderUpdate::Render;
+                match mem::replace(&mut self.pending_render, RenderUpdate::None) {
+                    RenderUpdate::None => {}
+                    RenderUpdate::Render => {
+                        self.render_requested = RenderUpdate::Render;
                         UPDATES.render();
                     }
-                    WindowRenderUpdate::RenderUpdate => {
-                        self.render_requested |= WindowRenderUpdate::RenderUpdate;
+                    RenderUpdate::RenderUpdate => {
+                        if !matches!(self.render_requested, RenderUpdate::Render) {
+                            self.render_requested = RenderUpdate::RenderUpdate;
+                        }
                         UPDATES.render();
                     }
                 }
@@ -1608,38 +1601,21 @@ impl ContentCtrl {
         debug_assert!(matches!(self.init_state, InitState::Inited));
 
         update.with_window(|update| {
-            // ctx.widget_context(
-            //     &self.info_tree,
-            //     &self.root_info,
-            //     &mut self.root_state,
-            //     &mut self.root_var_handles,
-            //     &mut self.root_event_handles,
-            //     |ctx| {
-            //         update.with_widget(ctx, |ctx, update| {
-            //             self.root.event(ctx, update);
-            //         });
-            //     },
-            // );
-            todo!("!!:");
+            WIDGET.with_context(&self.root_ctx, || {
+                update.with_widget(|update| {
+                    self.root.event(update);
+                })
+            });
         });
     }
 
     pub fn close(&mut self) {
-        // ctx.widget_context(
-        //     &self.info_tree,
-        //     &self.root_info,
-        //     &mut self.root_state,
-        //     &mut self.root_var_handles,
-        //     &mut self.root_event_handles,
-        //     |ctx| {
-        //         self.root.deinit(ctx);
-        //     },
-        // );
-        todo!("!!:");
+        WIDGET.with_context(&self.root_ctx, || {
+            self.root.deinit();
+        });
 
         self.vars.0.is_open.set(false);
-        self.root_var_handles.clear();
-        self.root_event_handles.clear();
+        self.root_ctx.deinit();
     }
 
     /// Run an `action` in the context of a monitor screen that is parent of this content.
@@ -1721,11 +1697,11 @@ impl ContentCtrl {
     }
 
     pub fn render(&mut self, renderer: Option<ViewRenderer>, scale_factor: Factor, wait_id: Option<FrameWaitId>) {
-        match mem::take(&mut self.render_requested) {
+        match mem::replace(&mut self.render_requested, RenderUpdate::None) {
             // RENDER FULL FRAME
-            WindowRenderUpdate::Render => {
+            RenderUpdate::Render => {
                 if self.is_rendering {
-                    self.pending_render = WindowRenderUpdate::Render;
+                    self.pending_render = RenderUpdate::Render;
                     return;
                 }
 
@@ -1737,9 +1713,9 @@ impl ContentCtrl {
 
                 let mut frame = FrameBuilder::new(
                     self.frame_id,
-                    self.root_id,
-                    &self.root_info.bounds,
-                    &self.info_tree,
+                    self.root_ctx.id(),
+                    &self.root_ctx.bounds(),
+                    &WINDOW.widget_tree(),
                     renderer.clone(),
                     scale_factor,
                     default_text_aa,
@@ -1775,9 +1751,11 @@ impl ContentCtrl {
             }
 
             // RENDER UPDATE
-            WindowRenderUpdate::RenderUpdate => {
+            RenderUpdate::RenderUpdate => {
                 if self.is_rendering {
-                    self.pending_render |= WindowRenderUpdate::RenderUpdate;
+                    if !matches!(self.pending_render, RenderUpdate::Render) {
+                        self.pending_render = RenderUpdate::RenderUpdate;
+                    }
                     return;
                 }
 
@@ -1787,8 +1765,8 @@ impl ContentCtrl {
 
                 let mut update = FrameUpdate::new(
                     self.frame_id,
-                    self.root_id,
-                    self.root_info.bounds.clone(),
+                    self.root_ctx.id(),
+                    self.root_ctx.bounds(),
                     renderer.as_ref(),
                     self.clear_color,
                     self.used_frame_update.take(),
@@ -1824,8 +1802,8 @@ impl ContentCtrl {
                 // }
                 todo!("!!:")
             }
-            WindowRenderUpdate::None => {
-                debug_assert!(false, "self.render_requested != WindowRenderUpdate::None")
+            RenderUpdate::None => {
+                debug_assert!(false, "self.render_requested != RenderUpdate::None")
             }
         }
     }
@@ -1844,7 +1822,8 @@ impl ContentCtrl {
         let mut changes_count = 0;
 
         TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {
-            if let Some(wgt) = self.info_tree.get(wid) {
+            let tree = WINDOW.widget_tree();
+            if let Some(wgt) = tree.get(wid) {
                 let transform = wgt.bounds_info().inner_transform();
 
                 match self.previous_transforms.entry(wid) {
@@ -1894,11 +1873,11 @@ impl WindowCtrl {
         }
     }
 
-    pub fn window_updates(&mut self, updates: InfoLayoutRenderUpdates) {
+    pub fn window_updates(&mut self) {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.window_updates(updates),
-            WindowCtrlMode::Headless(c) => c.window_updates(updates),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.window_updates(updates),
+            WindowCtrlMode::Headed(c) => c.window_updates(),
+            WindowCtrlMode::Headless(c) => c.window_updates(),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.window_updates(),
         }
     }
 
