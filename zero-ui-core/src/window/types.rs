@@ -27,10 +27,9 @@ use super::HeadlessMonitor;
 unique_id_32! {
     /// Unique identifier of an open window.
     ///
-    /// Can be obtained from [`WindowContext::window_id`] or [`WidgetContext::path`].
+    /// Can be obtained from [`WINDOW.id`] inside a window.
     ///
-    /// [`WindowContext::window_id`]: crate::context::WindowContext::window_id
-    /// [`WidgetContext::path`]: crate::context::WidgetContext::path
+    /// [`WINDOW.id`]: crate::context::WINDOW::id
     pub struct WindowId;
 }
 impl WindowId {

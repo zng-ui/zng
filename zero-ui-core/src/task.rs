@@ -41,9 +41,9 @@
 //! }
 //! ```
 //!
-//! The example demonstrates three different ***tasks***, the first is a [`ui::WidgetTask`] in the `async_hn` handler,
-//! this task is *async* but not *parallel*, meaning that it will execute in more then one app update, but it will only execute in the app
-//! main thread. This is good for coordinating UI state, like setting variables, but is not good if you want to do CPU intensive work.
+//! The example demonstrates three different ***tasks***, the first is a [`ui::UiTask`] in the `async_hn` handler,
+//! this task is *async* but not *parallel*, meaning that it will execute in more then one app update, but it will only execute in the
+//! `on_click` context and thread. This is good for coordinating UI state, like setting variables, but is not good if you want to do CPU intensive work.
 //!
 //! To keep the app responsive we move the computation work inside a [`run`] task, this task is *async* and *parallel*,
 //! meaning it can `.await` and will execute in parallel threads. It runs in a [`rayon`] thread-pool so you can
@@ -589,7 +589,7 @@ where
 /// Blocks the thread until the `task` future finishes.
 ///
 /// This function is useful for implementing async tests, using it in an app will probably cause
-/// the app to stop responding. To test UI task use [`TestWidgetContext::block_on`] or [`HeadlessApp::block_on`].
+/// the app to stop responding. To test UI task use [`HeadlessApp::block_on`].
 ///
 /// The crate [`futures-lite`] is used to execute the task.
 ///
@@ -616,7 +616,6 @@ where
 /// # run_ok();
 /// ```
 ///
-/// [`TestWidgetContext::block_on`]: crate::context::TestWidgetContext::block_on
 /// [`HeadlessApp::block_on`]: crate::app::HeadlessApp::block_on
 /// [`futures-lite`]: https://docs.rs/futures-lite/
 pub fn block_on<F>(task: F) -> F::Output
@@ -670,14 +669,11 @@ where
 /// # Warning
 ///
 /// This does not schedule an [`wake`], if the executor does not poll this future again it will wait forever.
-/// You can use [`yield_now`] to force a wake in parallel tasks or use [`AppContextMut::update`] or
-/// [`WidgetContextMut::update`] to force an update in UI tasks.
+/// You can use [`yield_now`] to request an wake or update.
 ///
 /// [`Pending`]: std::task::Poll::Pending
 /// [`Ready`]: std::task::Poll::Ready
 /// [`wake`]: std::task::Waker::wake
-/// [`AppContextMut::update`]: crate::context::AppContextMut::update
-/// [`WidgetContextMut::update`]: crate::context::WidgetContextMut::update
 pub async fn yield_one() {
     struct YieldOneFut(bool);
     impl Future for YieldOneFut {
@@ -700,16 +696,9 @@ pub async fn yield_one() {
 ///
 /// After the first `.await` the future is always [`Ready`] and on the first `.await` if calls [`wake`].
 ///
-/// # UI Update
-///
-/// In UI tasks you can call [`AppContextMut::update`] or [`WidgetContextMut::update`] instead of this function
-/// for a slightly increase in performance.
-///
 /// [`Pending`]: std::task::Poll::Pending
 /// [`Ready`]: std::task::Poll::Ready
 /// [`wake`]: std::task::Waker::wake
-/// [`AppContextMut::update`]: crate::context::AppContextMut::update
-/// [`WidgetContextMut::update`]: crate::context::WidgetContextMut::update
 pub async fn yield_now() {
     struct YieldNowFut(bool);
     impl Future for YieldNowFut {

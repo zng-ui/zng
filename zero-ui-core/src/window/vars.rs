@@ -71,11 +71,8 @@ pub(super) struct WindowVarsData {
 ///
 /// You can get the controller for any window using [`WINDOWS.vars`].
 ///
-/// You can get the controller for the current context window using [`req`] and the `window_state`
-/// in [`WindowContext`] and [`WidgetContext`].
+/// You can get the controller for the current context window using [`req`].
 ///
-/// [`WindowContext`]: crate::context::WindowContext::window_state
-/// [`WidgetContext`]: crate::context::WidgetContext::window_state
 /// [`WINDOWS.vars`]: crate::window::WINDOWS::vars
 /// [`req`]: WindowVars::req
 #[derive(Clone)]
@@ -584,11 +581,11 @@ impl WindowVars {
     ///
     /// If set to [`Next`] the value will change to [`Sporadic`] after the frame is rendered.
     ///
-    /// Note that setting this to [`Next`] does not cause a frame request. Use [`Updates::render_update`] for that.
+    /// Note that setting this to [`Next`] does not cause a frame request. Use [`WIDGET.render_update`] for that.
     ///
     /// [`Next`]: FrameCaptureMode::Next
     /// [`Sporadic`]: FrameCaptureMode::Sporadic
-    /// [`Updates::render_update`]: crate::context::Updates::render_update
+    /// [`WIDGET.render_update`]: crate::context::WIDGET::render_update
     pub fn frame_capture_mode(&self) -> &ArcVar<FrameCaptureMode> {
         &self.0.frame_capture_mode
     }

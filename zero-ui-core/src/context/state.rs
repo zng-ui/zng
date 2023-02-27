@@ -521,7 +521,7 @@ pub mod state_map {
 
 /// Helper for declaring properties that set the widget state.
 ///
-/// The state ID is set in [`widget_state`](WidgetContext::widget_state) on init and is kept updated. On deinit it is set to the `default` value.
+/// The state ID is set in [`WIDGET`] on init and is kept updated. On deinit it is set to the `default` value.
 ///
 /// # Examples
 ///

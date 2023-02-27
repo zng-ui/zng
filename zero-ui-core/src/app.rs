@@ -182,7 +182,7 @@ impl<'a, M> Future for RecvFut<'a, M> {
 /// [`render`]: AppExtension::event
 /// [`deinit`]: AppExtension::deinit
 /// [drop]: Drop
-/// [update is requested]: Updates::update
+/// [update is requested]: UPDATES::update
 /// [init]: #1-init
 /// [events]: #2-events
 /// [updates]: #3-updates
@@ -819,11 +819,6 @@ impl<E: AppExtension> AppExtended<E> {
     /// Runs the application calling `start` once at the beginning.
     ///
     /// This method only returns when the app has exited.
-    ///
-    /// # Panics
-    ///
-    /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
-    /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
     pub fn run(mut self, start: impl FnOnce()) {
         let app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
 
@@ -836,11 +831,6 @@ impl<E: AppExtension> AppExtended<E> {
     ///
     /// If `with_renderer` is `true` spawns a renderer process for headless rendering. See [`HeadlessApp::renderer_enabled`]
     /// for more details.
-    ///
-    /// # Tests
-    ///
-    /// If called in a test (`cfg(test)`) this blocks until no other instance of [`HeadlessApp`] and
-    /// [`TestWidgetContext`] are running in the current thread.
     pub fn run_headless(mut self, with_renderer: bool) -> HeadlessApp {
         let app = RunningApp::start(
             self._cleanup,
@@ -2129,9 +2119,9 @@ pub(crate) enum AppEvent {
 
 /// A sender that can awake apps and insert events into the main loop.
 ///
-/// A Clone of the sender is available in [`Updates::sender`].
+/// A Clone of the sender is available in [`UPDATES.sender`].
 ///
-/// [`Updates::sender`]: crate::context::Updates::sender
+/// [`Updates.sender`]: crate::context::UPDATES.sender
 #[derive(Clone)]
 pub struct AppEventSender(flume::Sender<AppEvent>);
 impl AppEventSender {

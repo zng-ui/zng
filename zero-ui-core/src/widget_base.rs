@@ -228,9 +228,8 @@ pub mod nodes {
         .cfg_boxed()
     }
 
-    /// Create a widget node that wraps `child` and introduces a new widget context. The node calls
-    /// [`WidgetContext::widget_context`], [`LayoutContext::with_widget`] and [`FrameBuilder::push_widget`]
-    /// to define the widget.
+    /// Create a widget node that wraps `child` and introduces a new widget context. The node defines
+    /// an [`WIDGET.widget_context`] and implements the widget in each specific node method.
     ///
     /// This node must wrap the outer-most context node in the build, it is the [`base`] widget type.
     ///

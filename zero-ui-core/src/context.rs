@@ -1863,9 +1863,7 @@ impl std::hash::Hash for LayoutMetricsSnapshot {
     }
 }
 
-/// Layout metrics in a [`LayoutContext`].
-///
-/// The [`LayoutContext`] type dereferences to this one.
+/// Layout metrics in a [`LAYOUT`] context.
 #[derive(Debug, Clone)]
 pub struct LayoutMetrics {
     use_mask: Arc<Mutex<LayoutMask>>,

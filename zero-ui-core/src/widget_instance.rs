@@ -202,7 +202,7 @@ pub trait UiNode: Any + Send {
 
     /// Called every time an update is requested.
     ///
-    /// An update can be requested using the context [`Updates`], after each request, they also happen
+    /// An update can be requested using the context [`WIDGET`], after each request, they also happen
     /// when variables update and any other context or service structure that can be observed updates.
     fn update(&mut self, updates: &mut WidgetUpdates);
 
@@ -368,8 +368,8 @@ pub trait UiNode: Any + Send {
         self
     }
 
-    /// Wraps the node in a [`TraceNode`] that, before delegating each method, calls a closure with an [`InfoContext`]
-    /// and the method name as a `&'static str`, the closure can return a *span* that is dropped after the method delegation.
+    /// Wraps the node in a [`TraceNode`] that, before delegating each method, calls a closure with 
+    /// the method name as a `&'static str`, the closure can return a *span* that is dropped after the method delegation.
     ///
     /// You can use  the [`tracing`](https://docs.rs/tracing) crate to create the span.
     fn trace<E, S>(self, enter_mtd: E) -> TraceNode<Self, E>

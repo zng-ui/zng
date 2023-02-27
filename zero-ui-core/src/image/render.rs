@@ -68,7 +68,7 @@ impl IMAGES {
     /// The *window* is created as a headless surface and rendered to the returned image. You can use the
     /// [`ImageRenderVars::retain`] var create an image that updates with new frames, or by default only render once.
     ///
-    /// The closure input is the [`WindowContext`] of the headless window.
+    /// The closure runs in the [`WINDOW`] context of the headless window.
     ///
     /// Requires the [`WINDOWS`] service.
     pub fn render<N>(&self, render: N) -> ImageVar
@@ -183,8 +183,7 @@ struct RenderRequest {
 
 /// Controls properties of the render window used by [`IMAGES.render`].
 ///
-/// You can get the controller inside the closure using [`req`] or [`get`] and the `window_state`
-/// in [`WindowContext`] and [`WidgetContext`].
+/// You can get the controller inside the render closure using [`req`] or [`get`].
 ///
 /// [`WindowContext`]: crate::context::WindowContext::window_state
 /// [`WidgetContext`]: crate::context::WidgetContext::window_state

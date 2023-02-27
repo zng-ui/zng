@@ -1556,9 +1556,9 @@ pub enum SizePropertyLength {
     ///
     /// The *leftover* length needs to be computed by the parent panel, as it depends on the length of the sibling widgets,
     /// not just the panel constrains. Panels that support this, compute the value for each widget and measure/layout each using
-    /// [`LayoutContext::with_leftover`] to inject the computed value.
+    /// [`LAYOUT.with_leftover`] to inject the computed value.
     ///
-    /// [`LayoutContext::with_leftover`]: crate::core::context::LayoutContext::with_leftover
+    /// [`LAYOUT.with_leftover`]: crate::core::context::LAYOUT::with_leftover
     Leftover(Factor),
     /// Any of the other [`Length`] kinds. All contextual metrics needed to compute these values is already available
     /// in the [`LayoutMetrics`], panels that support [`Length::Leftover`] can layout this widget first to compute the

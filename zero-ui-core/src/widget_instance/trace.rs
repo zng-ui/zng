@@ -9,8 +9,8 @@ use crate::{
 
 /// Debug helper for tracing the lifetime of [`UiNode`] method calls.
 ///
-/// The node delegates to the traced node, before calling each method a closure is called with an [`InfoContext`]
-/// and the method name as a `&'static str`, the closure can return a *span* that is dropped after the method delegation.
+/// The node delegates to the traced node, before calling each method a closure is called with the method name 
+/// as a `&'static str`, the closure can return a *span* that is dropped after the method delegation.
 ///
 /// This node can be used in conjunction with the [`tracing`](https://docs.rs/tracing) crate for creating the span.
 ///

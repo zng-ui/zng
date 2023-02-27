@@ -283,8 +283,7 @@ impl TimersService {
 
 /// App timers, deadlines and timeouts.
 ///
-/// An instance of this `struct` is available in the [`AppContext`] and derived contexts. You can use it to
-/// create UI bound timers, these timers run using only the main thread and can awake the app event loop
+/// You can use this service  to create UI bound timers, these timers run using only the app loop and awake the app
 /// to notify updates.
 ///
 /// Timer updates can be observed using variables that update when the timer elapses, or you can register

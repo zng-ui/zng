@@ -89,7 +89,7 @@ impl AppExtension for WindowManager {
 pub trait AppRunWindowExt {
     /// Runs the application event loop and requests a new window.
     ///
-    /// The `new_window` argument is the [`WindowContext`] of the new window.
+    /// The `new_window` closure runs inside the [`WINDOW`] context of the new window.
     ///
     /// This method only returns when the app has exited.
     ///
@@ -123,6 +123,8 @@ pub trait AppRunWindowExt {
     ///     });
     /// })   
     /// ```
+    /// 
+    /// [`WINDOW`]: crate::context::WINDOW
     fn run_window(self, new_window: impl FnOnce() -> Window + Send + 'static);
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
@@ -140,9 +142,11 @@ impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
 pub trait HeadlessAppWindowExt {
     /// Open a new headless window and returns the new window ID.
     ///
-    /// The `new_window` argument is the [`WindowContext`] of the new window.
+    /// The `new_window` runs inside the [`WINDOW`] context of the new window.
     ///
     /// Returns the [`WindowId`] of the new window.
+    /// 
+    /// [`WINDOW`]: crate::context::WINDOW
     fn open_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static) -> WindowId;
 
     /// Cause the headless window to think it is focused in the screen.

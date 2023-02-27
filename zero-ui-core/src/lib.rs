@@ -167,20 +167,20 @@ pub use zero_ui_proc_macros::widget_new;
 /// # struct MyNode { child: BoxedUiNode }
 /// #[ui_node(child)]
 /// impl MyNode {
-///     fn do_the_thing(&mut self, ctx: &mut WidgetContext) {
+///     fn do_the_thing(&mut self) {
 ///         // ..
 ///     }
 ///
 ///     #[UiNode]
-///     fn init(&mut self, ctx: &mut WidgetContext) {
-///         self.child.init(ctx);
-///         self.do_the_thing(ctx);
+///     fn init(&mut self) {
+///         self.child.init();
+///         self.do_the_thing();
 ///     }
 ///
 ///     #[UiNode]
-///     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-///         self.child.update(ctx, updates);
-///         self.do_the_thing(ctx);
+///     fn update(&mut self, updates: &mut WidgetUpdates) {
+///         self.child.update(updates);
+///         self.do_the_thing();
 ///     }
 /// }
 /// ```
@@ -204,8 +204,8 @@ pub use zero_ui_proc_macros::widget_new;
 ///         #[var] number: impl Var<u32>,
 ///     })]
 ///     impl UiNode for MyNode {
-///         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-///             self.child.update(ctx, updates);
+///         fn update(&mut self, updates: &mut WidgetUpdates) {
+///             self.child.update(updates);
 ///             if let Some(n) = self.number.get_new() {
 ///                 println!("new number: {n}");
 ///             }
@@ -244,8 +244,8 @@ pub use zero_ui_proc_macros::widget_new;
 /// ## Subscription
 ///
 /// You can mark members with the `#[var]` or `#[event]` pseudo attributes to generate initialization code that subscribes the var or
-/// event to the [`WidgetContext::handles`]. The init code is placed in a method with signature `fn auto_subs(&mut self, &mut WidgetContext)`,
-/// if you manually implement the `init` node method you must call `self.auto_subs(ctx);` in it, a compile time error is emitted if the call is missing.
+/// event to the [`WIDGET`]  context. The init code is placed in a method with signature `fn auto_subs(&mut self)`,
+/// if you manually implement the `init` node method you must call `self.auto_subs();` in it, a compile time error is emitted if the call is missing.
 ///
 /// ## Limitations
 ///
@@ -260,7 +260,7 @@ pub use zero_ui_proc_macros::widget_new;
 /// [`measure`]: crate::widget_instance::UiNode::measure
 /// [`layout`]: crate::widget_instance::UiNode::layout
 /// [`render`]: crate::widget_instance::UiNode::render
-/// [`WidgetContext::handles`]: crate::context::WidgetContext::handles
+/// [`WIDGET`]: crate::context::WIDGET
 #[doc(inline)]
 pub use zero_ui_proc_macros::ui_node;
 

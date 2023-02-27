@@ -244,7 +244,7 @@ pub struct OnDeinitArgs {
 ///
 /// The async handlers do not work here because widget bound async tasks only advance past the first `.await`
 /// during widget updates, but we are deiniting the widget, probably about to drop it. You can start an UI bound
-/// async task in the app context using [`WidgetContext::async_task`] or you can use [`task::spawn`] to start a parallel async task
+/// async task in the app context using [`UPDATES.run`] or you can use [`task::spawn`] to start a parallel async task
 /// in a worker thread.
 #[property(EVENT)]
 pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs>) -> impl UiNode {
@@ -283,7 +283,7 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs>) 
 ///
 /// The async handlers do not work here because widget bound async tasks only advance past the first `.await`
 /// during widget updates, but we are deiniting the widget, probably about to drop it. You can start an UI bound
-/// async task in the app context using [`WidgetContext::async_task`] or you can use [`task::spawn`] to start a parallel async task
+/// async task in the app context using [`UPDATES.run`] or you can use [`task::spawn`] to start a parallel async task
 /// in a worker thread.
 ///
 /// [`on_update`]: fn@on_update

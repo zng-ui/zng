@@ -1,6 +1,6 @@
 //! Handler types and macros.
 //!
-//! A handler is a closure that takes a *context* and *arguments*, the context can be [`WidgetContext`] or [`AppContext`]
+//! A handler is a closure that takes a *context* and *arguments*, the context can be [`WIDGET`] or the app
 //! with handler types implementing [`WidgetHandler`] or [`AppHandler`] respectively. These traits allow a single caller
 //! to support multiple different flavors of handlers, both synchronous and asynchronous, and both `FnMut` and `FnOnce` all
 //! by implementing a single entry point.
@@ -38,11 +38,9 @@ pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     /// Called every widget update.
     ///
     /// Returns `false` when all pending async tasks are completed. Note that event properties
-    /// will call this method every update even if it is returning `false`. The return value is
-    /// used to implement the test [`block_on`] only.
+    /// will call this method every update even if it is returning `false`.
     ///
     /// [`update`]: WidgetHandler::update
-    /// [`block_on`]: crate::context::TestWidgetContext::block_on
     fn update(&mut self) -> bool {
         false
     }
@@ -610,10 +608,10 @@ pub trait AppHandler<A: Clone + 'static>: Any + Send {
     /// Called every time the event happens.
     ///
     /// The `handler_args` can be used to unsubscribe the handler. Async handlers are expected to schedule
-    /// their tasks to run somewhere in the app, usually in the [`Updates::on_update`]. The `handle` is
+    /// their tasks to run somewhere in the app, usually in the [`UPDATES.on_update`]. The `handle` is
     /// **not** expected to cancel running async tasks, only to drop `self` before the next event happens.
     ///
-    /// [`Updates::on_update`]: crate::context::Updates::on_update
+    /// [`UPDATES.on_update`]: crate::context::UPDATES::on_update
     fn event(&mut self, args: &A, handler_args: &AppHandlerArgs);
 
     /// Boxes the handler.
@@ -927,7 +925,7 @@ where
 /// the input is the same syntax.
 ///
 /// The handler generates a future for each event, the future is polled immediately if it does not finish it is scheduled
-/// to update in [`on_pre_update`](crate::context::Updates::on_pre_update) or [`on_update`](crate::context::Updates::on_update) depending
+/// to update in [`on_pre_update`](crate::context::UPDATES::on_pre_update) or [`on_update`](crate::context::UPDATES::on_update) depending
 /// on if the handler was assigned to a *preview* event or not.
 ///
 /// Note that this means [`propagation`](crate::event::AnyEventArgs::propagation) can only be meaningfully stopped before the
