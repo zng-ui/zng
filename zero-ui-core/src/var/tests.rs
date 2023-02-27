@@ -284,7 +284,7 @@ mod bindings {
         let _ = app.update_observe(
             || {
                 assert!(!updated, "expected one update");
-                updated = false;
+                updated = true;
 
                 assert_eq!(Some(20), a.get_new());
                 assert_eq!(Some(21), b.get_new());
@@ -783,25 +783,31 @@ mod flat_map {
 
         source.get().var.set(42usize);
 
-        let _ = app.update(false);
-
-        assert!(test.is_new());
-        assert_eq!(42, test.get());
-
-        let _ = app.update(false);
+        let _ = app.update_observe(
+            || {
+                assert!(test.is_new());
+                assert_eq!(42, test.get());
+            },
+            false,
+        );
 
         let old_var = source.get().var;
         source.set(Foo { bar: false, var: var(192) });
-        let _ = app.update(false);
-
-        assert!(test.is_new());
-        assert_eq!(192, test.get());
-
-        let _ = app.update(false);
+        let _ = app.update_observe(
+            || {
+                assert!(test.is_new());
+                assert_eq!(192, test.get());
+            },
+            false,
+        );
 
         old_var.set(220usize);
-        let _ = app.update(false);
-        assert!(!test.is_new());
-        assert_eq!(192, test.get());
+        let _ = app.update_observe(
+            || {
+                assert!(!test.is_new());
+                assert_eq!(192, test.get());
+            },
+            false,
+        );
     }
 }

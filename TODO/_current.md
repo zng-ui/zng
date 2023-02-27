@@ -8,6 +8,10 @@
         - Places that used the `WidgetContextPath` can maybe use `WIDGET.item(&self) -> WidgetInfo`.
         - Can change `WINDOW.widget_tree` to returns the tree directly, only one place can panic.
 
+* Review `UPDATES.update_ext()` usage from `task::spawn`.
+    - We can't always send an update request because it will cause a double update in the normal blocking update usage.
+    - What happens if the app is sleeping when the other thread makes the request?
+
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
     - The units `fn layout(&self, metrics, default_closure)` method can also be improved.

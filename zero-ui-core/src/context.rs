@@ -1226,25 +1226,11 @@ impl UPDATES {
         if let Some(id) = target {
             u.update_widgets.search_widget(id);
         }
-        u.event_sender
-            .as_ref()
-            .unwrap()
-            .send_ext_update()
-            .expect("no app to receive update");
     }
 
     pub(crate) fn recv_update_internal(&mut self, targets: Vec<WidgetId>) {
         let mut u = UPDATES_SV.write();
-
-        if !u.flags.contains(UpdateFlags::UPDATE) {
-            u.flags.insert(UpdateFlags::UPDATE);
-            u.event_sender
-                .as_ref()
-                .unwrap()
-                .send_ext_update()
-                .expect("no app to receive update");
-        }
-
+        u.flags.insert(UpdateFlags::UPDATE);
         for id in targets {
             u.update_widgets.search_widget(id);
         }
@@ -1262,15 +1248,7 @@ impl UPDATES {
     }
     pub(crate) fn update_ext_internal(&self) {
         let mut u = UPDATES_SV.write();
-
-        if !u.flags.contains(UpdateFlags::UPDATE) {
-            u.flags.insert(UpdateFlags::UPDATE);
-            u.event_sender
-                .as_ref()
-                .unwrap()
-                .send_ext_update()
-                .expect("no app to receive update");
-        }
+        u.flags.insert(UpdateFlags::UPDATE);
     }
 
     /// Schedules a layout update that will affect all app extensions.
