@@ -229,7 +229,7 @@ pub mod nodes {
     }
 
     /// Create a widget node that wraps `child` and introduces a new widget context. The node defines
-    /// an [`WIDGET.widget_context`] and implements the widget in each specific node method.
+    /// an [`WIDGET`] context and implements the widget in each specific node method.
     ///
     /// This node must wrap the outer-most context node in the build, it is the [`base`] widget type.
     ///

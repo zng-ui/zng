@@ -54,7 +54,7 @@ struct WindowCtxData {
 
 /// Defines the backing data of [`WINDOW`].
 ///
-/// Each window owns this data and calls [`WINDOW.with_context`] to delegate to it's child node.
+/// Each window owns this data and calls [`WINDOW.with_context`](WINDOW::with_context) to delegate to it's child node.
 pub struct WindowCtx(Mutex<Option<WindowCtxData>>);
 impl WindowCtx {
     /// New window context.
@@ -120,6 +120,8 @@ impl WidgetCtxData {
 /// Defines the backing data of [`WIDGET`].
 ///
 /// Each widget owns this data and calls [`WIDGET.with_context`] to delegate to it's child node.
+///
+/// [`WIDGET.with_context`]: WIDGET::with_context
 pub struct WidgetCtx(Mutex<Option<WidgetCtxData>>);
 impl WidgetCtx {
     /// New widget context.
@@ -160,6 +162,9 @@ impl WidgetCtx {
     /// Returns `true` once if a info rebuild was requested in a previous [`WIDGET.with_context`] call.
     ///
     /// Child nodes can request updates using [`WIDGET.info`].
+    ///
+    /// [`WIDGET.with_context`]: WIDGET::with_context
+    /// [`WIDGET.info`]: WIDGET::info
     pub fn take_info(&self) -> bool {
         self.take_flag(UpdateFlags::INFO)
     }
@@ -171,7 +176,10 @@ impl WidgetCtx {
 
     /// Returns `true` once if a re-layout was requested in a previous [`WIDGET.with_context`] call.
     ///
-    /// Child nodes can request updates using [`WIDGET.layout`].
+    /// Child nodes can request updates using [`WIDGET.layout`].    
+    ///  
+    /// [`WIDGET.with_context`]: WIDGET::with_context
+    /// [`WIDGET.layout`]: WIDGET::layout
     pub fn take_layout(&mut self) -> bool {
         self.take_flag(UpdateFlags::LAYOUT)
     }
@@ -191,6 +199,9 @@ impl WidgetCtx {
     ///
     /// [`take_render_update`]: Self::take_render_update
     /// [`set_render_reuse`]: Self::set_render_reuse
+    ///
+    /// [`WIDGET.with_context`]: WIDGET::with_context
+    /// [`WIDGET.render`]: WIDGET::render
     pub fn take_render(&self) -> Option<ReuseRange> {
         let mut ctx = self.0.lock();
         let ctx = ctx.as_mut().unwrap();
@@ -234,6 +245,9 @@ impl WidgetCtx {
     /// Logs an error if a full render is requested, must be called after [`take_render`].
     ///
     /// [`take_render`]: Self::take_render
+    ///
+    /// [`WIDGET.with_context`]: WIDGET::with_context
+    /// [`WIDGET.render_update`]: WIDGET::render_update
     pub fn take_render_update(&self) -> bool {
         let mut ctx = self.0.lock();
         let ctx = ctx.as_mut().unwrap();
@@ -249,6 +263,8 @@ impl WidgetCtx {
     /// Returns `true` if an [`WIDGET.reinit`] request was made.
     ///
     /// Unlike other requests, the widget re-init immediately.
+    ///
+    /// [`WIDGET.reinit`]: WIDGET::reinit
     pub fn take_reinit(&mut self) -> bool {
         self.take_flag(UpdateFlags::REINIT)
     }
@@ -1192,6 +1208,8 @@ impl UPDATES {
     /// Schedules a layout update that will affect all app extensions.
     ///
     /// Note that you must use [`WIDGET.layout`] to request a layout update for an widget.
+    /// 
+    /// [`WIDGET.layout`]: WIDGET::layout
     pub fn layout(&self) -> &Self {
         UpdatesTrace::log_layout();
         self.layout_internal();
@@ -1204,6 +1222,9 @@ impl UPDATES {
     /// Schedules a render update that will affect all app extensions.
     ///
     /// Note that you must use [`WIDGET.render`] or [`WIDGET.render_update`] to request a render update for an widget.
+    /// 
+    /// [`WIDGET.render`]: WIDGET::render
+    /// [`WIDGET.render_update`]: WIDGET::render_update
     pub fn render(&self) -> &Self {
         self.render_internal();
         self
