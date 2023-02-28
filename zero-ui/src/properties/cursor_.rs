@@ -49,7 +49,17 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                         self.hovered_binding = Some(self.cursor.bind(&cursor));
                     }
                 } else if args.is_mouse_leave() {
-                    self.hovered_binding = None;
+                    // restore to default, if not set to other value already
+                    if self.hovered_binding.is_some() {
+                        self.hovered_binding = None;
+                        let value = self.cursor.get();
+                        WindowVars::req().cursor().modify(move |c| {
+                            if c.as_ref() == &value {
+                                *c.to_mut() = Some(CursorIcon::Default);
+                            }
+                        });
+                    }
+
                 }
             }
         }
