@@ -1636,6 +1636,8 @@ impl ContentCtrl {
         let _s = tracing::trace_span!("window.on_layout", window = %WINDOW.id().sequential()).entered();
 
         self.layout_requested = false;
+        let _root_layout = self.root_ctx.take_layout();
+        debug_assert!(_root_layout);
 
         let auto_size = self.vars.auto_size().get();
 
@@ -1691,8 +1693,10 @@ impl ContentCtrl {
                     self.pending_render = RenderUpdate::Render;
                     return;
                 }
-
                 let _s = tracing::trace_span!("window.on_render", window = %WINDOW.id().sequential()).entered();
+
+                let _reuse = self.root_ctx.take_render();
+                debug_assert!(_reuse.is_none()); // if render was requested inside window the root cannot be reused.
 
                 self.frame_id = self.frame_id.next();
 
@@ -1746,6 +1750,9 @@ impl ContentCtrl {
                 }
 
                 let _s = tracing::trace_span!("window.on_render_update", window = %WINDOW.id().sequential()).entered();
+
+                let _root_render_update = self.root_ctx.take_render_update();
+                debug_assert!(_root_render_update);
 
                 self.frame_id = self.frame_id.next_update();
 

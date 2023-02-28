@@ -210,7 +210,7 @@ impl WidgetCtx {
         if c {
             ctx.flags.remove(UpdateFlags::RENDER);
             ctx.flags.remove(UpdateFlags::RENDER_UPDATE);
-
+            ctx.render_reuse = None;
             None
         } else {
             ctx.render_reuse.take()
