@@ -1637,7 +1637,7 @@ impl ContentCtrl {
 
         self.layout_requested = false;
         let _root_layout = self.root_ctx.take_layout();
-        debug_assert!(_root_layout);
+        //debug_assert!(_root_layout); // we request layout directly in the window.
 
         let auto_size = self.vars.auto_size().get();
 
