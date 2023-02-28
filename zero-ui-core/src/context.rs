@@ -184,30 +184,34 @@ impl WidgetCtx {
         self.take_flag(UpdateFlags::LAYOUT)
     }
 
-    /// Returns `true` if re-render was requested for the widget.
+    /// Returns `true` if full re-render was requested for the widget.
+    ///
+    /// Note that [`take_render`] will upgrade [`is_pending_render_update`] to full render.
+    ///
+    /// [`take_render`]: Self::take_render
+    /// [`is_pending_render_update`]: Self::is_pending_render_update
     pub fn is_pending_render(&self) -> bool {
         self.contains_flag(UpdateFlags::RENDER)
     }
 
     /// Returns the render reuse range once if a re-render was **not** requested in a previous [`WIDGET.with_context`] call.
     ///
-    /// Child nodes can request updates using [`WIDGET.render`].
+    /// Child nodes can request updates using [`WIDGET.render`]. Upgrades [`WIDGET.render_update`] requests to a full render request,
+    /// the widget node will receive a single call to [`UiNode::render`] or [`UiNode::render_update`], if any other widget in the window
+    /// requests full render the render updates are converted to full render.
     ///
-    /// Removes render-update requests and must be called before [`take_render_update`].
-    ///
-    /// The updated reuse range must be stored using [`set_render_reuse`].
+    /// The updated reuse range must be stored using [`set_render_reuse`] after the widget is pushed onto the frame.
     ///
     /// [`take_render_update`]: Self::take_render_update
     /// [`set_render_reuse`]: Self::set_render_reuse
-    ///
     /// [`WIDGET.with_context`]: WIDGET::with_context
     /// [`WIDGET.render`]: WIDGET::render
+    /// [`WIDGET.render_update`]: WIDGET::render_update
     pub fn take_render(&self) -> Option<ReuseRange> {
         let mut ctx = self.0.lock();
         let ctx = ctx.as_mut().unwrap();
 
-        let c = ctx.flags.contains(UpdateFlags::RENDER);
-        if c {
+        if ctx.flags.contains(UpdateFlags::RENDER) || ctx.flags.contains(UpdateFlags::RENDER_UPDATE) {
             ctx.flags.remove(UpdateFlags::RENDER);
             ctx.flags.remove(UpdateFlags::RENDER_UPDATE);
             ctx.render_reuse = None;

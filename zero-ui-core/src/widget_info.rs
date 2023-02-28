@@ -342,7 +342,7 @@ pub struct WidgetRenderInfo {
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
 ///
 /// Can be retrieved in the [`WIDGET`] and [`WidgetInfo`].
-/// 
+///
 /// [`WIDGET`]: crate::context::WIDGET
 #[derive(Default, Clone, Debug)]
 pub struct WidgetBoundsInfo(Arc<Mutex<WidgetBoundsData>>);

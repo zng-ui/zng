@@ -1,14 +1,8 @@
-* `border` resize does not update layout until click.
-    - Same bug in `button` probably others (not `transform`, not `window`).
-* `calculator` can maximize.
 * `cursor` does not clear.
-* `icon` overlay does not open.
-* `image` can't scroll panorama with mouse pointer.
 * `markdown` scroll to title breaks it.
 * `scroll` does not show scroll-bars.
     - Scroll-to does not animate right.
 * `text` font-size animation does not work right.
-* `window` overlay does not completely fades-in on Exit click.
 
 * Merge.
 
