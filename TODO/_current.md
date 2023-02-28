@@ -1,7 +1,6 @@
 * `markdown` scroll to title breaks it.
 * `scroll` does not show scroll-bars.
     - Scroll-to does not animate right.
-* `text` font-size animation does not work right.
 
 * Merge.
 

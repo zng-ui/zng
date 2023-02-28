@@ -59,7 +59,6 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                             }
                         });
                     }
-
                 }
             }
         }

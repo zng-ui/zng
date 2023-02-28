@@ -250,6 +250,7 @@ impl HeadedCtrl {
 
                         if font_size != self.root_font_size {
                             self.root_font_size = font_size;
+                            self.content.layout_requested = true;
                             UPDATES.layout();
                         }
                     }
