@@ -1298,6 +1298,7 @@ impl<E: AppExtension> RunningApp<E> {
             AppEvent::Event(ev) => EVENTS.notify(ev.get()),
             AppEvent::Var => VARS.receive_sended_modify(),
             AppEvent::Update(targets) => UPDATES.recv_update_internal(targets),
+            AppEvent::CheckUpdate => {}
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
     }
@@ -1376,6 +1377,8 @@ impl<E: AppExtension> RunningApp<E> {
             return ControlFlow::Wait;
         }
 
+        UPDATES.on_app_awake();
+
         // clear timers.
         let updated_timers = self.loop_timer.awake();
         if updated_timers {
@@ -1412,10 +1415,12 @@ impl<E: AppExtension> RunningApp<E> {
         UPDATES.next_deadline(&mut self.loop_timer);
 
         if self.extensions.0.exit() {
+            UPDATES.on_app_sleep();
             ControlFlow::Exit
         } else if self.has_pending_updates() {
             ControlFlow::Poll
         } else {
+            UPDATES.on_app_sleep();
             ControlFlow::Wait
         }
     }
@@ -2111,6 +2116,8 @@ pub(crate) enum AppEvent {
     Update(Vec<WidgetId>),
     /// Resume a panic in the app thread.
     ResumeUnwind(PanicPayload),
+    /// Check for pending updates.
+    CheckUpdate,
 }
 
 /// A sender that can awake apps and insert events into the main loop.
@@ -2171,6 +2178,11 @@ impl AppEventSender {
             AppEvent::ResumeUnwind(p) => AppDisconnected(p),
             _ => unreachable!(),
         })
+    }
+
+    /// [`UPDATES`] util.
+    pub(crate) fn send_check_update(&self) -> Result<(), AppDisconnected<()>> {
+        self.send_app_event(AppEvent::CheckUpdate).map_err(|_| AppDisconnected(()))
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).

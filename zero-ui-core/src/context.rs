@@ -15,7 +15,7 @@ mod value;
 pub use value::*;
 
 use crate::{
-    app::{AppEventSender, LoopTimer},
+    app::{AppDisconnected, AppEventSender, LoopTimer},
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::{Event, EventArgs, EventHandle, EventHandles, EventUpdate, EVENTS, EVENTS_SV},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
@@ -1138,6 +1138,9 @@ struct UpdatesService {
 
     pre_handlers: Mutex<Vec<UpdateHandler>>,
     pos_handlers: Mutex<Vec<UpdateHandler>>,
+
+    app_is_awake: bool,
+    awake_pending: bool,
 }
 impl UpdatesService {
     fn new() -> Self {
@@ -1148,7 +1151,28 @@ impl UpdatesService {
 
             pre_handlers: Mutex::new(vec![]),
             pos_handlers: Mutex::new(vec![]),
+
+            app_is_awake: false,
+            awake_pending: false,
         }
+    }
+
+    fn flag_update(&mut self, flag: UpdateFlags) {
+        if !self.flags.contains(flag) {
+            self.flags.insert(flag);
+
+            if !self.app_is_awake && !self.awake_pending {
+                self.awake_pending = true;
+                if let Err(AppDisconnected(())) = self.event_sender.as_ref().unwrap().send_check_update() {
+                    tracing::error!("no app connected to update");
+                }
+            }
+        }
+    }
+
+    fn app_awake(&mut self, wake: bool) {
+        self.awake_pending = false;
+        self.app_is_awake = wake;
     }
 }
 
@@ -1175,6 +1199,14 @@ impl UPDATES {
             layout,
             render,
         }
+    }
+
+    pub(crate) fn on_app_awake(&self) {
+        UPDATES_SV.write().app_awake(true);
+    }
+
+    pub(crate) fn on_app_sleep(&self) {
+        UPDATES_SV.write().app_awake(false);
     }
 
     /// Returns next timer or animation tick time.
@@ -1216,7 +1248,7 @@ impl UPDATES {
     }
     pub(crate) fn update_internal(&self, target: Option<WidgetId>) {
         let mut u = UPDATES_SV.write();
-        u.flags.insert(UpdateFlags::UPDATE);
+        u.flag_update(UpdateFlags::UPDATE);
         if let Some(id) = target {
             u.update_widgets.search_widget(id);
         }
@@ -1241,8 +1273,7 @@ impl UPDATES {
         self
     }
     pub(crate) fn update_ext_internal(&self) {
-        let mut u = UPDATES_SV.write();
-        u.flags.insert(UpdateFlags::UPDATE);
+        UPDATES_SV.write().flag_update(UpdateFlags::UPDATE);
     }
 
     /// Schedules a layout update that will affect all app extensions.
@@ -1256,7 +1287,7 @@ impl UPDATES {
         self
     }
     pub(crate) fn layout_internal(&self) {
-        UPDATES_SV.write().flags.insert(UpdateFlags::LAYOUT);
+        UPDATES_SV.write().flag_update(UpdateFlags::LAYOUT);
     }
 
     /// Schedules a render update that will affect all app extensions.
@@ -1270,7 +1301,7 @@ impl UPDATES {
         self
     }
     pub(crate) fn render_internal(&self) {
-        UPDATES_SV.write().flags.insert(UpdateFlags::RENDER);
+        UPDATES_SV.write().flag_update(UpdateFlags::RENDER);
     }
 
     /// Schedule an *once* handler to run when these updates are applied.
@@ -1279,7 +1310,7 @@ impl UPDATES {
     /// one call it is scheduled to update in *preview* updates.
     pub fn run<H: AppHandler<UpdateArgs>>(&self, handler: H) -> OnUpdateHandle {
         let mut u = UPDATES_SV.write();
-        u.flags.insert(UpdateFlags::UPDATE); // in case this was called outside of an update.
+        u.flag_update(UpdateFlags::UPDATE);
         Self::push_handler(u.pos_handlers.get_mut(), true, handler, true)
     }
 
