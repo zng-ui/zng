@@ -170,7 +170,7 @@ pub trait HeadlessAppWindowExt {
 impl HeadlessAppWindowExt for HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static) -> WindowId {
         let response = WINDOWS.open(new_window);
-        self.run_task(move || async move {
+        self.run_task(async move {
             response.wait_rsp().await;
             response.rsp().unwrap().window_id
         })

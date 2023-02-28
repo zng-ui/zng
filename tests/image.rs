@@ -34,7 +34,7 @@ pub fn get_before_view_init(app: &mut HeadlessApp) {
         .assert_wait();
     }
 
-    app.run_task(async_clone_move_fn!(img, || {
+    app.run_task(async_clone_move!(img, {
         task::with_deadline(img.get().wait_done(), 5.secs()).await.unwrap();
     }));
 

@@ -1766,13 +1766,12 @@ impl HeadlessApp {
     /// Execute the async `task` in the UI thread, updating the app until it finishes or the app shuts-down.
     ///
     /// Returns the task result if the app has not shut-down.
-    pub fn run_task<R, F, T>(&mut self, task: T) -> Option<R>
+    pub fn run_task<R, T>(&mut self, task: T) -> Option<R>
     where
         R: 'static,
-        F: Future<Output = R> + Send + Sync + 'static,
-        T: FnOnce() -> F,
+        T: Future<Output = R> + Send + Sync + 'static,
     {
-        let mut task = UiTask::new(None, task());
+        let mut task = UiTask::new(None, task);
 
         let mut flow = self.update_observe(
             || {
@@ -1808,7 +1807,7 @@ impl HeadlessApp {
     ///
     /// Forces deinit if exit is cancelled.
     pub fn exit(mut self) {
-        self.run_task(|| async move {
+        self.run_task(async move {
             let req = APP_PROCESS.exit();
             req.wait_rsp().await;
         });
