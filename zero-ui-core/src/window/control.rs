@@ -896,7 +896,7 @@ impl HeadedCtrl {
     }
 
     pub fn render(&mut self) {
-        if matches!(self.content.render_requested, RenderUpdate::Render) {
+        if matches!(self.content.render_requested, RenderUpdate::None) {
             return;
         }
 
@@ -1435,6 +1435,7 @@ enum InitState {
     Inited,
 }
 
+#[derive(Clone, Copy, Debug)]
 enum RenderUpdate {
     None,
     Render,
