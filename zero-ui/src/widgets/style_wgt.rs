@@ -102,7 +102,7 @@ pub mod style_mixin {
     ///
     ///         context_var! {
     ///             /// Foo style.
-    ///             pub static STYLE_VAR: StyleGenerator = style_gen!(|ctx, _args| {
+    ///             pub static STYLE_VAR: StyleGenerator = style_gen!(|_args| {
     ///                 style! {
     ///                     background_color = color_scheme_pair((colors::BLACK, colors::WHITE));
     ///                     cursor = CursorIcon::Crosshair;
