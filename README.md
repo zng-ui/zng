@@ -30,13 +30,13 @@ Then create your first window:
 use zero_ui::prelude::*;
 
 fn run() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         let size = var_from((800, 600));
         window! {
             title = size.map(|s: &Size| formatx!("Button Example - {}", s));
             size;
             child = button! {
-                on_click = hn!(|_,_| {
+                on_click = hn!(|_| {
                     println!("Button clicked!");
                 });
                 margin = 10;

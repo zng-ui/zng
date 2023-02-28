@@ -24,8 +24,7 @@ use crate::{
     units::*,
     var::{AnyVar, VarHandle, VarHandles, VARS},
     widget_info::{
-        InlineSegmentPos, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfo, WidgetInfoTree, WidgetInlineMeasure,
-        WidgetMeasure, WidgetPath,
+        InlineSegmentPos, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetMeasure, WidgetPath,
     },
     widget_instance::{UiNode, WidgetId},
     window::{WindowId, WindowMode},
@@ -106,7 +105,8 @@ struct WidgetCtxData {
     state: OwnedStateMap<state_map::Widget>,
     var_handles: VarHandles,
     event_handles: EventHandles,
-    info: WidgetContextInfo,
+    bounds: WidgetBoundsInfo,
+    border: WidgetBorderInfo,
     render_reuse: Option<ReuseRange>,
 }
 impl WidgetCtxData {
@@ -133,7 +133,8 @@ impl WidgetCtx {
             state: OwnedStateMap::default(),
             var_handles: VarHandles::dummy(),
             event_handles: EventHandles::dummy(),
-            info: WidgetContextInfo::default(),
+            bounds: WidgetBoundsInfo::default(),
+            border: WidgetBorderInfo::default(),
             render_reuse: None,
         })))
     }
@@ -290,12 +291,12 @@ impl WidgetCtx {
 
     /// Gets the widget bounds.
     pub fn bounds(&self) -> WidgetBoundsInfo {
-        self.0.lock().as_ref().unwrap().info.bounds.clone()
+        self.0.lock().as_ref().unwrap().bounds.clone()
     }
 
     /// Gets the widget borders.
     pub fn border(&self) -> WidgetBorderInfo {
-        self.0.lock().as_ref().unwrap().info.border.clone()
+        self.0.lock().as_ref().unwrap().border.clone()
     }
 }
 
@@ -557,7 +558,7 @@ impl WINDOW {
             FrameBuilder::new_renderless(
                 frame_id,
                 wgt.id,
-                &wgt.info.bounds,
+                &wgt.bounds,
                 win.widget_tree.as_ref().unwrap(),
                 1.fct(),
                 crate::text::FontAntiAliasing::Default,
@@ -588,14 +589,7 @@ impl WINDOW {
             let frame_id = win.frame_id;
             win.frame_id = frame_id.next_update();
 
-            FrameUpdate::new(
-                frame_id,
-                wgt.id,
-                wgt.info.bounds.clone(),
-                None,
-                crate::color::RenderColor::BLACK,
-                None,
-            )
+            FrameUpdate::new(frame_id, wgt.id, wgt.bounds.clone(), None, crate::color::RenderColor::BLACK, None)
         };
 
         update.update_inner(self.test_root_translation_key(), false, |update| {
@@ -887,12 +881,12 @@ impl WIDGET {
 
     /// Widget bounds, updated every layout.
     pub fn bounds(&self) -> WidgetBoundsInfo {
-        self.req().info.bounds.clone()
+        self.req().bounds.clone()
     }
 
     /// Widget border, updated every layout.
     pub fn border(&self) -> WidgetBorderInfo {
-        self.req().info.border.clone()
+        self.req().border.clone()
     }
 
     /// Gets the parent widget or `None` if is root.

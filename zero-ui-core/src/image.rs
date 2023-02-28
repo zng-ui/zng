@@ -678,9 +678,9 @@ impl IMAGES {
     /// Get an image from a PNG file embedded in the app executable using [`include_bytes!`].
     ///
     /// ```
-    /// # use zero_ui_core::{image::*, context::AppContext};
+    /// # use zero_ui_core::{image::*};
     /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
-    /// # fn demo(ctx: &mut AppContext) {
+    /// # fn demo() {
     /// let image_var = IMAGES.from_static(include_bytes!("ico.png"), "png");
     /// # }
     pub fn from_static(&self, data: &'static [u8], format: impl Into<ImageDataFormat>) -> ImageVar {

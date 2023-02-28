@@ -26,7 +26,6 @@ use crate::crate_util::RunOnDrop;
 /// implement custom layouts that align the layered widget with a normal widget using the info values it will always be in sync with
 /// a single layout pass, see [`insert_anchored`] for more details.
 ///
-/// [`WindowContext`]: crate::core::context::WindowContext
 /// [`insert_anchored`]: Self::insert_anchored
 pub struct WindowLayers {
     items: EditableUiNodeListRef,

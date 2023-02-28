@@ -146,7 +146,7 @@ where
 /// # on_click }
 /// ```
 ///
-/// The closure input is `&mut WidgetContext` for all handlers and `&ClickArgs` for this property. Note that
+/// The closure input is `&ClickArgs` for this property. Note that
 /// if you want to use the event args you must annotate the input type, the context type is inferred.
 ///
 /// ```
@@ -155,7 +155,7 @@ where
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// # let
-/// on_click = hn!(|ctx, args: &ClickArgs| {
+/// on_click = hn!(|args: &ClickArgs| {
 ///     println!("Clicked {}!", args.click_count);
 /// });
 /// # on_click }
@@ -251,7 +251,7 @@ where
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
-/// on_click = hn_once!(|_, _| {
+/// on_click = hn_once!(|_| {
 ///     for i in data {
 ///         print!("{i}, ");
 ///     }
@@ -260,8 +260,7 @@ where
 /// ```
 ///
 /// Other then declaring a `FnOnce` this macro behaves like [`hn!`], so the same considerations apply. You can *clone-move* variables,
-/// the type of the first closure input is `&mut WidgetContext` and is inferred automatically, the type if the second input is the event
-/// arguments and must be annotated.
+/// the type of the input is the event arguments and must be annotated.
 ///
 /// ```
 /// # use zero_ui_core::gesture::ClickArgs;
@@ -270,7 +269,7 @@ where
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
-/// on_click = hn_once!(data, |ctx, args: &ClickArgs| {
+/// on_click = hn_once!(data, |args: &ClickArgs| {
 ///     drop(data);
 /// });
 ///
@@ -368,18 +367,19 @@ where
 /// # on_click }
 /// ```
 ///
-/// The closure input is `WidgetContextMut` for all handlers and `ClickArgs` for this property. Note that
-/// if you want to use the event args you must annotate the input type, the context type is inferred.
+/// The closure input is `ClickArgs` for this property. Note that
+/// if you want to use the event args you must annotate the input type.
 ///
 /// ```
 /// # use zero_ui_core::gesture::ClickArgs;
 /// # use zero_ui_core::handler::async_hn;
+/// # use zero_ui_core::context::WIDGET;
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// # let
-/// on_click = async_hn!(|ctx, args: ClickArgs| {
-///     println!("Clicked {}!", args.click_count);
-///     ctx.with(|c| {  });
+/// on_click = async_hn!(|args: ClickArgs| {
+///     println!("Clicked {} {} times!", WIDGET.id(), args.click_count);
+///     
 /// });
 /// # on_click }
 /// ```
@@ -526,7 +526,7 @@ where
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
-/// on_open = async_hn_once!(|_, _| {
+/// on_open = async_hn_once!(|_| {
 ///     task::run(async move {
 ///          for i in data {
 ///              print!("{i}, ");
@@ -703,16 +703,15 @@ where
 /// ```
 /// # use zero_ui_core::gesture::CLICK_EVENT;
 /// # use zero_ui_core::handler::app_hn;
-/// # use zero_ui_core::context::AppContext;
 /// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type(ctx: &mut AppContext) {
-/// CLICK_EVENT.on_event(app_hn!(|_| {
+/// # fn assert_type() {
+/// CLICK_EVENT.on_event(app_hn!(|_, _| {
 ///     println!("Clicked Somewhere!");
 /// })).perm();
 /// # }
 /// ```
 ///
-/// The closure input is `&mut AppContext, &A, &dyn AppWeakHandle` with `&A` equaling `&ClickArgs` for this event. Note that
+/// The closure input is `&A, &dyn AppWeakHandle` with `&A` equaling `&ClickArgs` for this event. Note that
 /// if you want to use the event args you must annotate the input type, the context and handle type is inferred.
 ///
 /// The handle can be used to unsubscribe the event handler, if [`unsubscribe`](AppWeakHandle::unsubscribe) is called the handler
@@ -721,9 +720,8 @@ where
 /// ```
 /// # use zero_ui_core::gesture::{CLICK_EVENT, ClickArgs};
 /// # use zero_ui_core::handler::app_hn;
-/// # use zero_ui_core::context::AppContext;
 /// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type(ctx: &mut AppContext) {
+/// # fn assert_type() {
 /// CLICK_EVENT.on_event(app_hn!(|args: &ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
 ///     handle.unsubscribe();
@@ -737,10 +735,9 @@ where
 /// # use zero_ui_core::gesture::{CLICK_EVENT, ClickArgs};
 /// # use zero_ui_core::text::{formatx, ToText};
 /// # use zero_ui_core::var::{var, Var};
-/// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::handler::app_hn;
 /// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type(ctx: &mut AppContext) {
+/// # fn assert_type() {
 /// let foo = var("".to_text());
 ///
 /// CLICK_EVENT.on_event(app_hn!(foo, |args: &ClickArgs, _| {
@@ -817,12 +814,11 @@ where
 /// ```
 /// # use zero_ui_core::gesture::CLICK_EVENT;
 /// # use zero_ui_core::handler::app_hn_once;
-/// # use zero_ui_core::context::AppContext;
 /// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type(ctx: &mut AppContext) {
+/// # fn assert_type() {
 /// let data = vec![1, 2, 3];
 ///
-/// CLICK_EVENT.on_event(app_hn_once!(|_, _| {
+/// CLICK_EVENT.on_event(app_hn_once!(|_| {
 ///     for i in data {
 ///         print!("{i}, ");
 ///     }
@@ -831,18 +827,16 @@ where
 /// ```
 ///
 /// Other then declaring a `FnOnce` this macro behaves like [`app_hn!`], so the same considerations apply. You can *clone-move* variables,
-/// the type of the first closure input is `&mut AppContext` and is inferred automatically, the type if the second input is the event
-/// arguments and must be annotated.
+/// the type of the input is the event arguments and must be annotated.
 ///
 /// ```
 /// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
 /// # use zero_ui_core::handler::app_hn_once;
-/// # use zero_ui_core::context::AppContext;
 /// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type(ctx: &mut AppContext) {
+/// # fn assert_type() {
 /// let data = vec![1, 2, 3];
 ///
-/// CLICK_EVENT.on_event(app_hn_once!(data, |ctx, args: &ClickArgs| {
+/// CLICK_EVENT.on_event(app_hn_once!(data, |args: &ClickArgs| {
 ///     drop(data);
 /// })).perm();
 ///
@@ -938,11 +932,10 @@ where
 /// ```
 /// # use zero_ui_core::gesture::CLICK_EVENT;
 /// # use zero_ui_core::handler::async_app_hn;
-/// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::task;
 /// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type(ctx: &mut AppContext) {
-/// CLICK_EVENT.on_event(async_app_hn!(|_| {
+/// # fn assert_type() {
+/// CLICK_EVENT.on_event(async_app_hn!(|_, _| {
 ///     println!("Clicked Somewhere!");
 ///
 ///     task::run(async {
@@ -954,7 +947,7 @@ where
 /// # }
 /// ```
 ///
-/// The closure input is `AppContextMut, A, Box<dyn AppWeakHandle>` for all handlers and `ClickArgs` for this property. Note that
+/// The closure input is `A, Box<dyn AppWeakHandle>` for all handlers and `ClickArgs` for this property. Note that
 /// if you want to use the event args you must annotate the input type, the context and handle types are inferred.
 ///
 /// The handle can be used to unsubscribe the event handler, if [`unsubscribe`](AppWeakHandle::unsubscribe) is called the handler
@@ -964,10 +957,9 @@ where
 /// ```
 /// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
 /// # use zero_ui_core::handler::async_app_hn;
-/// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::task;
 /// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type(ctx: &mut AppContext) {
+/// # fn assert_type() {
 /// CLICK_EVENT.on_event(async_app_hn!(|args: ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
 ///     task::run(async move {
@@ -982,12 +974,11 @@ where
 /// ```
 /// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
 /// # use zero_ui_core::handler::async_app_hn;
-/// # use zero_ui_core::context::AppContext;
 /// # use zero_ui_core::var::{var, Var};
 /// # use zero_ui_core::task;
 /// # use zero_ui_core::text::{formatx, ToText};
 /// # let _scope = zero_ui_core::app::App::minimal();
-/// # fn assert_type(ctx: &mut AppContext) {
+/// # fn assert_type() {
 /// let status = var("pending..".to_text());
 ///
 /// CLICK_EVENT.on_event(async_app_hn!(status, |args: ClickArgs, _| {
@@ -1110,7 +1101,7 @@ where
 /// # fn assert_type() -> impl zero_ui_core::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
-/// on_open = async_hn_once!(|_, _| {
+/// on_open = async_hn_once!(|_| {
 ///     task::run(async move {
 ///          for i in data {
 ///              print!("{i}, ");
@@ -1726,7 +1717,7 @@ impl HeadlessApp {
                 let flow = self.update(false);
                 if Instant::now().duration_since(start_time) >= timeout {
                     return Err(format!(
-                        "TestWidgetContext::block_on reached timeout of {timeout:?} before the handler task could finish",
+                        "block_on reached timeout of {timeout:?} before the handler task could finish",
                     ));
                 }
 
@@ -1841,7 +1832,7 @@ mod async_clone_move_fn_tests {
     }
 
     fn one_input(a: &String) {
-        let _ = async_clone_move_fn!(a, |_ctx: u32| {
+        let _ = async_clone_move_fn!(a, |_args: u32| {
             let _: String = a;
             ready(true).await
         });
@@ -1895,7 +1886,7 @@ mod async_clone_move_fn_once_tests {
     }
 
     fn one_input(a: &String) {
-        let _ = async_clone_move_fn_once!(a, |_ctx: u32| {
+        let _ = async_clone_move_fn_once!(a, |_args: u32| {
             let _: String = a;
             ready(true).await
         });

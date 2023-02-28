@@ -25,8 +25,8 @@ unique_id_64! {
     /// # use zero_ui_core::context::*;
     /// static FOO_ID: StaticStateId<bool> = StateId::new_static();
     ///
-    /// # fn demo(ctx: &mut WidgetContext) {
-    /// let foo = ctx.widget_state.get(&FOO_ID);
+    /// # fn demo() {
+    /// let foo = WIDGET.get_state(&FOO_ID);
     /// # ; }
     /// ```
     pub struct StateId<T: (StateValue)>;
@@ -540,12 +540,12 @@ pub mod state_map {
 ///
 /// /// Get the value from outside the widget.
 /// fn get_foo_outer(widget: &impl UiNode) -> u32 {
-///     widget.with_context(|ctx| ctx.widget_state.get(&FOO_ID).copied()).flatten().unwrap_or_default()
+///     widget.with_context(|| WIDGET.get_state(&FOO_ID)).flatten().unwrap_or_default()
 /// }
 ///
 /// /// Get the value from inside the widget.
-/// fn get_foo_inner(ctx: &WidgetContext) -> u32 {
-///     ctx.widget_state.get(&FOO_ID).copied().unwrap_or_default()
+/// fn get_foo_inner() -> u32 {
+///     WIDGET.get_state(&FOO_ID).unwrap_or_default()
 /// }
 /// ```
 pub fn with_widget_state<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> impl UiNode

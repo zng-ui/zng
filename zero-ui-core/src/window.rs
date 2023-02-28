@@ -97,10 +97,11 @@ pub trait AppRunWindowExt {
     ///
     /// ```no_run
     /// # use zero_ui_core::app::App;
+    /// # use zero_ui_core::context::WINDOW;
     /// # use zero_ui_core::window::AppRunWindowExt;
     /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
-    /// App::default().run_window(|ctx| {
-    ///     println!("starting app with window {:?}", ctx.window_id);
+    /// App::default().run_window(|| {
+    ///     println!("starting app with window {:?}", WINDOW.id());
     ///     window! {
     ///         title = "Window 1";
     ///         child = text!("Window 1");
@@ -111,11 +112,12 @@ pub trait AppRunWindowExt {
     /// Which is a shortcut for:
     /// ```no_run
     /// # use zero_ui_core::app::App;
+    /// # use zero_ui_core::context::WINDOW;
     /// # use zero_ui_core::window::WINDOWS;
     /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
-    /// App::default().run(|_| {
-    ///     WINDOWS.open(|ctx| {
-    ///         println!("starting app with window {:?}", ctx.window_id);
+    /// App::default().run(|| {
+    ///     WINDOWS.open(|| {
+    ///         println!("starting app with window {:?}", WINDOW.id());
     ///         window! {
     ///             title = "Window 1";
     ///             child = text!("Window 1");

@@ -22,7 +22,7 @@ pub mod button {
         /// # let _scope = App::minimal();
         /// #
         /// button! {
-        ///     on_click = hn!(|ctx, args: &ClickArgs| {
+        ///     on_click = hn!(|args: &ClickArgs| {
         ///         assert!(args.is_primary());
         ///         println!("button {:?} clicked!", ctx.path.widget_id());
         ///     });

@@ -83,14 +83,14 @@ macro_rules! __event_property {
 ///     pub fn key_input {
 ///         event: KEY_INPUT_EVENT,
 ///         args: KeyInputArgs,
-///         // default filter is |ctx, args| true,
+///         // default filter is |args| true,
 ///     }
 ///
 ///     pub(crate) fn key_down {
 ///         event: KEY_INPUT_EVENT,
 ///         args: KeyInputArgs,
 ///         // optional filter:
-///         filter: |ctx, args| args.state == KeyState::Pressed,
+///         filter: |args| args.state == KeyState::Pressed,
 ///     }
 /// }
 /// ```

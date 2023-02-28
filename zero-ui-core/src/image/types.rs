@@ -503,7 +503,7 @@ impl ImageSource {
     /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
     /// # let _ =
     /// ImageSource::render(
-    ///     |_ctx, args| window! {
+    ///     |args| window! {
     ///         size = (500, 400);
     ///         parent = args.parent;
     ///         background_color = colors::GREEN;
@@ -544,7 +544,7 @@ impl ImageSource {
     /// # let _ =
     /// ImageSource::render_node(
     ///     RenderMode::Software,
-    ///     |_ctx, _args| container! {
+    ///     |_args| container! {
     ///         size = (500, 400);
     ///         background_color = colors::GREEN;
     ///         child = text!("Rendered!");

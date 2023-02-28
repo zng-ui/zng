@@ -39,21 +39,6 @@ pub(crate) use hit::HitTestClips;
 pub use self::hit::RelativeHitZ;
 use self::iter::TreeIterator;
 
-/// Bundle of widget info data from the current widget.
-#[derive(Clone, Default)]
-pub struct WidgetContextInfo {
-    /// Bounds layout info.
-    pub bounds: WidgetBoundsInfo,
-    /// Border and corners info.
-    pub border: WidgetBorderInfo,
-}
-impl WidgetContextInfo {
-    /// New default.
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 /// Stats over the lifetime of a widget info tree.
 ///
 /// The stats for a tree are available in [`WidgetInfoTree::stats`].
@@ -356,7 +341,7 @@ pub struct WidgetRenderInfo {
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
 ///
-/// Can be retrieved in the [`WidgetContextInfo`] and [`WidgetInfo`].
+/// Can be retrieved in the [`WIDGET`] and [`WidgetInfo`].
 #[derive(Default, Clone, Debug)]
 pub struct WidgetBoundsInfo(Arc<Mutex<WidgetBoundsData>>);
 impl WidgetBoundsInfo {

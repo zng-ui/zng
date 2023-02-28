@@ -64,7 +64,7 @@ impl<U: UiNode> View<U> {
 ///     }.boxed(),
 ///
 ///     // presenter:
-///     move |ctx, n| match state {
+///     move |n| match state {
 ///         State::Starting => {
 ///             state = State::Counting;
 ///             View::Update(text! {
@@ -174,7 +174,7 @@ type BoxedGenerator<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 /// # let _ =
 /// image! {
 ///     source = "not_found.png";
-///     img_error_gen = WidgetGenerator::new(|_ctx, e: ImageErrorArgs| text! {
+///     img_error_gen = WidgetGenerator::new(|e: ImageErrorArgs| text! {
 ///         txt = e.error.clone();
 ///         txt_color = colors::RED;
 ///     });
@@ -370,7 +370,7 @@ pub enum DataUpdate<D> {
 /// # let _ =
 /// image! {
 ///     source = "not_found.png";
-///     img_error_gen = wgt_gen!(img_error_vis, |_ctx, e: ImageErrorArgs| text! {
+///     img_error_gen = wgt_gen!(img_error_vis, |e: ImageErrorArgs| text! {
 ///         txt = e.error.clone();
 ///         txt_color = colors::RED;
 ///         visibility = img_error_vis.clone();

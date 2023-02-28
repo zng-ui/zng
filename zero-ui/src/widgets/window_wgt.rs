@@ -16,7 +16,7 @@ pub mod window_properties;
 /// ```no_run
 /// use zero_ui::prelude::*;
 ///
-/// App::default().run_window(|_| {
+/// App::default().run_window(|| {
 ///     window! {
 ///         title = "Window 1";
 ///         child = text!("Window 1");
@@ -123,8 +123,8 @@ pub mod window {
         /// ```no_run
         /// use zero_ui::prelude::*;
         ///
-        /// fn example(ctx: &mut WindowContext) -> Window {
-        ///     let selected_mode = WindowVars::req(ctx).render_mode();
+        /// fn example() -> Window {
+        ///     let selected_mode = WindowVars::req().render_mode();
         ///     window! {
         ///         title = "Render Mode";
         ///         render_mode = RenderMode::Dedicated;

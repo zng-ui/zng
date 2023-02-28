@@ -1,5 +1,5 @@
 use zero_ui::core::{
-    context::{WidgetContext, WidgetUpdates},
+    context::WidgetUpdates,
     ui_node,
     widget_instance::{NilUiNode, UiNode},
 };
@@ -9,15 +9,15 @@ struct Node1<C> {
 }
 #[ui_node(child)]
 impl<C: UiNode> UiNode for Node1<C> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
+    fn init(&mut self) {
         // calls self.child.init like the default
         // `child` impl would have done.
-        self.child.init(ctx);
+        self.child.init();
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-        let _ = (ctx, updates);
-        // does not call self.child.update(ctx, updates);
+    fn update(&mut self, updates: &mut WidgetUpdates) {
+        let _ = updates;
+        // does not call self.child.update(updates);
     }
 }
 

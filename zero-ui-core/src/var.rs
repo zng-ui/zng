@@ -705,13 +705,13 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///         bar: impl Var<u32>,
 ///     })]
 ///     impl UiNode for FooNode {
-///         fn init(&mut self, ctx: &mut WidgetContext) {
-///             self.child.init(ctx);
+///         fn init(&mut self) {
+///             self.child.init();
 ///             println!("init: {}", self.bar.get());
 ///         }
 ///         
-///         fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-///             self.child.update(ctx, updates);
+///         fn update(&mut self, updates: &mut WidgetUpdates) {
+///             self.child.update(updates);
 ///             if let Some(new) = self.bar.get_new() {
 ///                 println!("update: {new}");
 ///             }

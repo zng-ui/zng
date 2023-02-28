@@ -91,14 +91,14 @@ pub fn allow_missing_delegate() {
     impl UiNode for Node1 {
         #[allow_(zero_ui::missing_delegate)]
         fn update(&mut self, _: &mut WidgetUpdates) {
-            // self.child.update(ctx, updates);
+            // self.child.update(updates);
         }
     }
     #[ui_node(struct Node2 { child: impl UiNode })]
     #[allow_(zero_ui::missing_delegate)]
     impl UiNode for Node2 {
         fn update(&mut self, _: &mut WidgetUpdates) {
-            // self.child.update(ctx, updates);
+            // self.child.update(updates);
         }
     }
 

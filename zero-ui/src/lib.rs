@@ -87,7 +87,7 @@ pub mod widgets;
 /// ```no_run
 /// use zero_ui::prelude::*;
 ///
-/// App::default().run_window(|_| {
+/// App::default().run_window(|| {
 ///     // ..
 /// # unimplemented!()
 /// })
@@ -210,8 +210,8 @@ pub mod prelude {
     ///     #[var] value: impl Var<bool>,
     /// })]
     /// impl UiNode for MyPropertyNode {
-    ///     fn update(&mut self, ctx: &mut WidgetContext, updates: &mut WidgetUpdates) {
-    ///         self.child.update(ctx, updates);
+    ///     fn update(&mut self, updates: &mut WidgetUpdates) {
+    ///         self.child.update(updates);
     ///         if let Some(new_value) = self.value.get_new() {
     ///             // ..
     ///         }

@@ -204,10 +204,10 @@ pub mod ui;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{context::WidgetContext, task::{self, rayon::iter::*}, var::{ResponseVar, response_channel}};
+/// # use zero_ui_core::{task::{self, rayon::iter::*}, var::{ResponseVar, response_channel}};
 /// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # impl SomeStruct {
-/// fn on_event(&mut self, ctx: &mut WidgetContext) {
+/// fn on_event(&mut self) {
 ///     let (sender, response) = response_channel();
 ///     self.sum_response = response;
 ///
@@ -218,7 +218,7 @@ pub mod ui;
 ///     });
 /// }
 ///
-/// fn on_update(&mut self, ctx: &mut WidgetContext) {
+/// fn on_update(&mut self) {
 ///     if let Some(result) = self.sum_response.rsp_new() {
 ///         println!("sum of squares 0..1000: {result}");   
 ///     }
@@ -448,17 +448,17 @@ where
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{context::WidgetContext, task::{self, rayon::iter::*}, var::ResponseVar};
+/// # use zero_ui_core::{task::{self, rayon::iter::*}, var::ResponseVar};
 /// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # async fn read_numbers() -> Vec<usize> { vec![] }
 /// # impl SomeStruct {
-/// fn on_event(&mut self, ctx: &mut WidgetContext) {
+/// fn on_event(&mut self) {
 ///     self.sum_response = task::respond(async {
 ///         read_numbers().await.par_iter().map(|i| i * i).sum()
 ///     });
 /// }
 ///
-/// fn on_update(&mut self, ctx: &mut WidgetContext) {
+/// fn on_update(&mut self) {
 ///     if let Some(result) = self.sum_response.rsp_new() {
 ///         println!("sum of squares: {result}");   
 ///     }

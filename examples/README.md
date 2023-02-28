@@ -31,7 +31,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|| {
         window! {
             title = "Foo Example";
             child = text!("Bar");

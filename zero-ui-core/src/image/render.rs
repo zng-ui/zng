@@ -185,8 +185,6 @@ struct RenderRequest {
 ///
 /// You can get the controller inside the render closure using [`req`] or [`get`].
 ///
-/// [`WindowContext`]: crate::context::WindowContext::window_state
-/// [`WidgetContext`]: crate::context::WidgetContext::window_state
 /// [`Windows::vars`]: crate::window::Windows::vars
 /// [`req`]: ImageRenderVars::req
 /// [`get`]: ImageRenderVars::get

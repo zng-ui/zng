@@ -236,7 +236,7 @@ impl TimersService {
     pub(crate) fn notify() {
         let _s = tracing::trace_span!("Timers").entered();
 
-        // we need to detach the handlers from the AppContext, so we can pass the context for then
+        // we need to detach the handlers, so we can pass the context for then
         // so we `mem::take` for the duration of the call. But new timers can be registered inside
         // the handlers, so we add those handlers using `extend`.
 
@@ -321,9 +321,8 @@ impl TIMERS {
     /// # use zero_ui_core::handler::*;
     /// # use zero_ui_core::units::*;
     /// # use zero_ui_core::var::*;
-    /// # use zero_ui_core::context::WidgetContext;
     /// # use std::time::Instant;
-    /// # fn foo(ctx: &mut WidgetContext) {
+    /// # fn foo() {
     /// let deadline = TIMERS.deadline(20.secs());
     ///
     /// # let
@@ -351,9 +350,8 @@ impl TIMERS {
     /// # use zero_ui_core::units::*;
     /// # use zero_ui_core::var::*;
     /// # use zero_ui_core::text::*;
-    /// # use zero_ui_core::context::WidgetContext;
     /// # use std::time::Instant;
-    /// # fn foo(ctx: &mut WidgetContext) {
+    /// # fn foo() {
     /// let timer = TIMERS.interval(1.secs(), false);
     ///
     /// # let
@@ -381,9 +379,8 @@ impl TIMERS {
     /// # use zero_ui_core::timer::*;
     /// # use zero_ui_core::handler::*;
     /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::context::AppContext;
     /// # use std::time::Instant;
-    /// # fn foo(ctx: &mut AppContext) {
+    /// # fn foo() {
     /// let handle = TIMERS.on_deadline(20.secs(), app_hn_once!(|_| {
     ///     println!("20 seconds have passed");
     /// }));
@@ -433,9 +430,8 @@ impl TIMERS {
 /// # use zero_ui_core::handler::*;
 /// # use zero_ui_core::units::*;
 /// # use zero_ui_core::var::*;
-/// # use zero_ui_core::context::WidgetContext;
 /// # use std::time::Instant;
-/// # fn foo(ctx: &mut WidgetContext) {
+/// # fn foo() {
 /// let deadline: DeadlineVar = TIMERS.deadline(20.secs());
 ///
 /// # let
@@ -758,9 +754,8 @@ impl WeakTimerHandle {
 /// # use zero_ui_core::units::*;
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
-/// # use zero_ui_core::context::WidgetContext;
 /// # use std::time::Instant;
-/// # fn foo(ctx: &mut WidgetContext) {
+/// # fn foo() {
 /// let timer: TimerVar = TIMERS.interval(1.secs(), false);
 ///
 /// # let

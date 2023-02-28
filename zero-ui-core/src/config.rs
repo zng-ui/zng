@@ -451,7 +451,7 @@ impl ConfigService {
 /// ```no_run
 /// # use zero_ui_core::{app::*, window::*, config::*, units::*};
 /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
-/// App::default().run_window(|_| {
+/// App::default().run_window(|| {
 ///     // load a ConfigSource.
 ///     CONFIG.load(ConfigFile::new("app.config.json"));
 ///     

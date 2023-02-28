@@ -547,11 +547,7 @@ impl App {
 
     fn assert_can_run() {
         if App::is_running() {
-            if cfg!(any(test, doc, feature = "test_util")) {
-                panic!("only one app or `TestWidgetContext` is allowed per thread")
-            } else {
-                panic!("only one app is allowed per thread")
-            }
+            panic!("only one app is allowed per thread")
         }
     }
 
@@ -2372,7 +2368,7 @@ mod headless_tests {
     }
 
     #[test]
-    #[should_panic(expected = "only one app or `TestWidgetContext` is allowed per thread")]
+    #[should_panic(expected = "only one app is allowed per thread")]
     pub fn two_in_one_thread() {
         let _a = App::default().run_headless(false);
         let _b = App::default().run_headless(false);
