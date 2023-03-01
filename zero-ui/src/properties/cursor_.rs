@@ -40,7 +40,8 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
         fn event(&mut self, update: &mut EventUpdate) {
             self.child.event(update);
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                if args.is_mouse_enter() {
+                let is_over = args.target.as_ref().map(|t| t.as_path().contains(WIDGET.id())).unwrap_or(false);
+                if is_over {
                     if self.hovered_binding.is_none() {
                         // we are not already set, setup binding.
 
@@ -48,7 +49,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                         cursor.set_ne(self.cursor.get());
                         self.hovered_binding = Some(self.cursor.bind(&cursor));
                     }
-                } else if args.is_mouse_leave() {
+                } else {
                     // restore to default, if not set to other value already
                     if self.hovered_binding.is_some() {
                         self.hovered_binding = None;

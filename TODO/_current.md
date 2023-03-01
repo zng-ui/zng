@@ -1,6 +1,4 @@
 * Review all examples.
-    - `button` example:
-        - when clicking the disabled button the cursor changes
     - `gradient` example:
         - no window
     - `text` example:

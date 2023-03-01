@@ -20,19 +20,25 @@ fn app_main() {
         window! {
             title = "Button Example";
             child = stack! {
-                direction = StackDirection::top_to_bottom();
+                direction = StackDirection::left_to_right();
+                spacing = 20;
                 align = Align::CENTER;
-                spacing = 5;
-                sticky_width = true;
                 children = ui_vec![
-                    example(),
-                    example(),
-                    disabled(),
-                    image_button(),
-                    separator(),
-                    toggle_buttons(),
+                    stack! {
+                        direction = StackDirection::top_to_bottom();
+                        spacing = 5;
+                        sticky_width = true;
+                        children = ui_vec![
+                            example(),
+                            example(),
+                            disabled(),
+                            image_button(),
+                            separator(),
+                            toggle_buttons(),
+                            ];
+                    },
                     dyn_buttons(),
-                ];
+                ]
             };
         }
     })
@@ -81,7 +87,7 @@ fn image_button() -> impl UiNode {
 }
 
 fn dyn_buttons() -> impl UiNode {
-    let dyn_children = EditableUiNodeList::from_vec(ui_vec![separator()]);
+    let dyn_children = EditableUiNodeList::new();
     let children_ref = dyn_children.reference();
     let mut btn = 'A';
 
