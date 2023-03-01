@@ -1,10 +1,10 @@
 * Review all examples.
     - `gradient` example:
         - no window
-    - `text` example:
-        - font size change is not causing a render
     
 * Merge.
+
+* Fix grid without columns and rows.
 
 * Refactor `WidgetInfo` to own ref to the tree?
     - Places that used the `WidgetContextPath` can maybe use `WIDGET.item(&self) -> WidgetInfo`.

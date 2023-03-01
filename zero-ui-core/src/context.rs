@@ -712,7 +712,9 @@ impl WIDGET {
         let mut ctx = self.req_mut();
         if !ctx.flags.contains(UpdateFlags::UPDATE) {
             ctx.flags.insert(UpdateFlags::UPDATE);
-            UPDATES.update(ctx.id);
+            let id = ctx.id;
+            drop(ctx);
+            UPDATES.update(id);
         }
         self
     }
@@ -735,6 +737,7 @@ impl WIDGET {
         let mut ctx = self.req_mut();
         if !ctx.flags.contains(UpdateFlags::LAYOUT) {
             ctx.flags.insert(UpdateFlags::LAYOUT);
+            drop(ctx);
             UPDATES.layout();
         }
         self
@@ -751,6 +754,7 @@ impl WIDGET {
         let mut ctx = self.req_mut();
         if !ctx.flags.contains(UpdateFlags::RENDER) {
             ctx.flags.insert(UpdateFlags::RENDER);
+            drop(ctx);
             UPDATES.render();
         }
         self
@@ -767,6 +771,7 @@ impl WIDGET {
         let mut ctx = self.req_mut();
         if !ctx.flags.contains(UpdateFlags::RENDER_UPDATE) {
             ctx.flags.insert(UpdateFlags::RENDER_UPDATE);
+            drop(ctx);
             UPDATES.render();
         }
         self

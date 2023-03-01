@@ -702,12 +702,12 @@ impl WidgetLayout {
         if let Some(child_count) = &mut self.child_count {
             *child_count += 1;
         }
-        if reuse && {
+        if reuse {
             let uses = bounds.metrics_used();
-            bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false)
-        } {
-            // reuse
-            return bounds.outer_size();
+            if bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false) {
+                metrics.register_use(uses);
+                return bounds.outer_size();
+            }
         }
 
         let parent_child_count = self.child_count.take();
