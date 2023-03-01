@@ -6,7 +6,7 @@ use std::{cell::RefCell, rc::Rc, sync::Arc, thread::ThreadId};
 use linear_map::LinearMap;
 
 thread_local! {
-    static FONT_KIT_CACHE: RefCell<Vec<FontKitThreadLocalEntry>>  = RefCell::new(vec![]);
+    static FONT_KIT_CACHE: RefCell<Vec<FontKitThreadLocalEntry>> = const { RefCell::new(vec![]) };
 }
 struct FontKitThreadLocalEntry {
     key: Arc<usize>,

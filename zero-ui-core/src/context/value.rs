@@ -90,10 +90,12 @@ pub struct ThreadContext {
     context: Vec<ThreadId>,
 }
 thread_local! {
-    static THREAD_CONTEXT: RefCell<ThreadContext> = RefCell::new(ThreadContext {
-        app: None,
-        context: vec![],
-    });
+    static THREAD_CONTEXT: RefCell<ThreadContext> = const {
+        RefCell::new(ThreadContext {
+            app: None,
+            context: vec![],
+        })
+    };
 }
 impl ThreadContext {
     fn clone(&self) -> Self {

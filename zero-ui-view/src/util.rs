@@ -521,7 +521,7 @@ pub(crate) fn v_key_to_key(v_key: VKey) -> Key {
 }
 
 thread_local! {
-    static SUPPRESS: Cell<bool>  = Cell::new(false);
+    static SUPPRESS: Cell<bool> = const { Cell::new(false) };
 }
 
 /// If `true` our custom panic hook must not log anything.

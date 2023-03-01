@@ -1408,8 +1408,8 @@ mod util {
         pub tag: &'static str,
     }
     thread_local! {
-        static COUNT: Cell<u32> = Cell::new(0);
-        static COUNT_INIT: Cell<u32> = Cell::new(0);
+        static COUNT: Cell<u32> = const { Cell::new(0) };
+        static COUNT_INIT: Cell<u32> = const { Cell::new(0) };
     }
     impl Position {
         pub fn next(tag: &'static str) -> Self {

@@ -502,7 +502,7 @@ fn timestamp() -> u64 {
 }
 
 thread_local! {
-    static THREAD_ID: Cell<Option<u64>> = Cell::new(None);
+    static THREAD_ID: Cell<Option<u64>> = const { Cell::new(None) };
 }
 
 fn span_values_sender<'a>(id: &'a span::Id, sender: &'a mpsc::Sender<Msg>) -> RecordVisitor<impl FnMut(&'static str, String) + 'a> {
