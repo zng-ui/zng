@@ -1144,14 +1144,13 @@ mod tests {
     }
 }
 
-/*
+#[allow(unused)]
 macro_rules! print_backtrace {
     () => {{
-        let bt = backtrace::Backtrace::new();
-        println!("[{}:{}] BACKTRACE\n{bt:?}\n=====\n", file!(), line!())
-    }}
+        let bt = std::backtrace::Backtrace::capture();
+        println!("[{}:{}] BACKTRACE\n{bt}\n=====\n", file!(), line!())
+    }};
 }
-*/
 
 /// Extension methods for [`flume::Receiver<T>`].
 pub trait ReceiverExt<T> {
