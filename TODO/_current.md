@@ -1,4 +1,11 @@
 * Review all examples.
+    - `button` example:
+        - when clicking the disabled button the cursor changes
+    - `gradient` example:
+        - no window
+    - `text` example:
+        - font size change is not causing a render
+    
 * Merge.
 
 * Refactor `WidgetInfo` to own ref to the tree?
