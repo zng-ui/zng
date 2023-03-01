@@ -1,4 +1,3 @@
-* Review all examples.    
 * Merge.
 
 * Fix grid without columns and rows.

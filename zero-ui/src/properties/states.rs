@@ -194,7 +194,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
         }
         fn event(&mut self, update: &mut EventUpdate) {
             if let Some(args) = CLICK_EVENT.on(update) {
-                if args.shortcut().is_some() {
+                if args.shortcut().is_some() && args.is_enabled(WIDGET.id()) {
                     // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
                     // unless we where already doing that, then we just stop showing pressed, this causes
                     // a flickering effect when rapid clicks are happening.
