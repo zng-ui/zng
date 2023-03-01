@@ -1,7 +1,5 @@
-* `markdown` scroll to title breaks it.
-* `scroll` does not show scroll-bars.
-    - Scroll-to does not animate right.
-
+* Run all tests.
+* Review all examples.
 * Merge.
 
 * Refactor `WidgetInfo` to own ref to the tree?

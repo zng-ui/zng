@@ -1529,11 +1529,20 @@ impl ContentCtrl {
 
     #[must_use]
     pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
-        self.layout_requested |= self.root_ctx.is_pending_layout();
+        if self.root_ctx.take_layout() {
+            self.layout_requested = true;
+            UPDATES.layout();
+        }
         if self.root_ctx.is_pending_render() {
+            let _ = self.root_ctx.take_render();
             self.render_requested = RenderUpdate::Render;
-        } else if self.root_ctx.is_pending_render_update() && !matches!(&self.render_requested, RenderUpdate::Render) {
-            self.render_requested = RenderUpdate::RenderUpdate;
+            UPDATES.render();
+        } else if self.root_ctx.is_pending_render_update() {
+            let _ = self.root_ctx.take_render_update();
+            if !matches!(&self.render_requested, RenderUpdate::Render) {
+                self.render_requested = RenderUpdate::RenderUpdate;
+            }
+            UPDATES.render();
         }
 
         if self.root_ctx.take_info() {
@@ -1637,8 +1646,6 @@ impl ContentCtrl {
         let _s = tracing::trace_span!("window.on_layout", window = %WINDOW.id().sequential()).entered();
 
         self.layout_requested = false;
-        let _root_layout = self.root_ctx.take_layout();
-        //debug_assert!(_root_layout); // we request layout directly in the window.
 
         let auto_size = self.vars.auto_size().get();
 
@@ -1696,9 +1703,6 @@ impl ContentCtrl {
                 }
                 let _s = tracing::trace_span!("window.on_render", window = %WINDOW.id().sequential()).entered();
 
-                let _reuse = self.root_ctx.take_render();
-                debug_assert!(_reuse.is_none()); // if render was requested inside window the root cannot be reused.
-
                 self.frame_id = self.frame_id.next();
 
                 let default_text_aa = FONTS.system_font_aa().get();
@@ -1751,9 +1755,6 @@ impl ContentCtrl {
                 }
 
                 let _s = tracing::trace_span!("window.on_render_update", window = %WINDOW.id().sequential()).entered();
-
-                let _root_render_update = self.root_ctx.take_render_update();
-                debug_assert!(_root_render_update);
 
                 self.frame_id = self.frame_id.next_update();
 
