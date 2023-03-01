@@ -144,7 +144,9 @@ pub fn default_no_child() {
         assert!(!wu.has_updates());
 
         let wu = WINDOW.test_deinit(&mut wgt);
-        assert!(!wu.has_updates());
+        assert!(wu.update_widgets.delivery_list().is_done());
+        assert!(wu.layout);
+        assert!(wu.render);
 
         WINDOW.test_init(&mut wgt);
         WINDOW.test_info(&wgt);
