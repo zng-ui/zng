@@ -621,24 +621,29 @@ impl WIDGET {
         let parent_id = WIDGET.try_id();
 
         let mut ctx = ctx.0.lock();
-        if let Some(ctx) = &mut *ctx {
+        let old_flags = if let Some(ctx) = &mut *ctx {
             ctx.parent_id = parent_id;
+            mem::replace(&mut ctx.flags, UpdateFlags::empty())
         } else {
             unreachable!()
-        }
+        };
 
         let r = WIDGET_CTX.with_context_opt(&mut ctx, f);
 
         let ctx = ctx.as_mut().unwrap();
-        ctx.parent_id = None;
 
         if let Some(parent) = &mut *WIDGET_CTX.write() {
             if ctx.take_flag(UpdateFlags::UPDATE) {
+                // only used to avoid making too many `UPDATES.update(wgt_id)` requests.
                 parent.flags.insert(UpdateFlags::UPDATE);
             }
+
+            // used by window to immediately rebuild info.
             if ctx.flags.contains(UpdateFlags::INFO) {
                 parent.flags.insert(UpdateFlags::INFO);
             }
+
+            // invalidate layout & render
             if ctx.flags.contains(UpdateFlags::LAYOUT) {
                 parent.flags.insert(UpdateFlags::LAYOUT);
             }
@@ -648,6 +653,9 @@ impl WIDGET {
                 parent.flags.insert(UpdateFlags::RENDER_UPDATE);
             }
         }
+        ctx.parent_id = None;
+        ctx.flags.insert(old_flags);
+
         r
     }
 
