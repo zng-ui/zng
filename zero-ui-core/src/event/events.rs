@@ -47,6 +47,7 @@ impl EVENTS {
     /// Schedules the raw event update.
     pub fn notify(&self, update: EventUpdate) {
         EVENTS_SV.write().updates.get_mut().push(update);
+        UPDATES.send_awake();
     }
 
     /// Commands that had handles generated in this app.

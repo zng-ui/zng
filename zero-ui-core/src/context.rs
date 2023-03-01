@@ -1164,12 +1164,15 @@ impl UpdatesService {
     fn flag_update(&mut self, flag: UpdateFlags) {
         if !self.flags.contains(flag) {
             self.flags.insert(flag);
+            self.send_awake();
+        }
+    }
 
-            if !self.app_is_awake && !self.awake_pending {
-                self.awake_pending = true;
-                if let Err(AppDisconnected(())) = self.event_sender.as_ref().unwrap().send_check_update() {
-                    tracing::error!("no app connected to update");
-                }
+    fn send_awake(&mut self) {
+        if !self.app_is_awake && !self.awake_pending {
+            self.awake_pending = true;
+            if let Err(AppDisconnected(())) = self.event_sender.as_ref().unwrap().send_check_update() {
+                tracing::error!("no app connected to update");
             }
         }
     }
@@ -1256,6 +1259,10 @@ impl UPDATES {
         if let Some(id) = target {
             u.update_widgets.search_widget(id);
         }
+    }
+
+    pub(crate) fn send_awake(&self) {
+        UPDATES_SV.write().send_awake();
     }
 
     pub(crate) fn recv_update_internal(&mut self, targets: Vec<WidgetId>) {

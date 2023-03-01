@@ -238,6 +238,7 @@ impl VARS {
     pub(super) fn schedule_update(&self, update: VarUpdateFn) {
         let curr_modify = self.current_modify();
         VARS_SV.read().updates.lock().push((curr_modify, update));
+        UPDATES.send_awake();
     }
 
     /// Id of each `schedule_update` cycle during `apply_updates`

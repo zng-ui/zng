@@ -645,6 +645,8 @@ impl Animations {
 
         vars.ans.next_frame = Some(Deadline(Instant::now()));
 
+        UPDATES.send_awake();
+
         handle
     }
 }
