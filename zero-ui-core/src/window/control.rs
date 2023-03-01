@@ -17,6 +17,7 @@ use crate::{
     image::{Image, ImageVar, IMAGES},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::FONTS,
+    timer::TIMERS,
     units::*,
     var::*,
     widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
@@ -309,6 +310,23 @@ impl HeadedCtrl {
 
                 if let Some(ico) = &self.icon {
                     self.icon_binding = ico.bind_map(&self.vars.0.actual_icon, |img| Some(img.clone()));
+
+                    if ico.get().is_loading() && self.window.is_none() && !self.waiting_view {
+                        if self.icon_deadline.has_elapsed() {
+                            UPDATES.layout();
+                        } else {
+                            TIMERS
+                                .on_deadline(
+                                    self.icon_deadline,
+                                    app_hn_once!(ico, |_| {
+                                        if ico.get().is_loading() {
+                                            UPDATES.layout();
+                                        }
+                                    }),
+                                )
+                                .perm();
+                        }
+                    }
                 } else {
                     self.vars.0.actual_icon.set_ne(None);
                     self.icon_binding = VarHandle::dummy();
@@ -705,6 +723,7 @@ impl HeadedCtrl {
         if let Some(icon) = &self.icon {
             if !self.icon_deadline.has_elapsed() && icon.get().is_loading() {
                 // block on icon loading.
+                self.content.layout_requested = true;
                 return;
             }
         }
@@ -712,6 +731,7 @@ impl HeadedCtrl {
         // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
         if !WINDOWS.try_load(WINDOW.id()) {
             // block on loading handles.
+            self.content.layout_requested = true;
             return;
         }
 

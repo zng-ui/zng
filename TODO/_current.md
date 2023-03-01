@@ -1,7 +1,4 @@
-* Review all examples.
-    - `gradient` example:
-        - no window
-    
+* Review all examples.    
 * Merge.
 
 * Fix grid without columns and rows.
