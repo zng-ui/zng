@@ -89,7 +89,7 @@ impl HeadedCtrl {
             parent_color_scheme: None,
             actual_parent: None,
             actual_state: None,
-            root_font_size: Dip::new(11),
+            root_font_size: Dip::from_px(Length::pt_to_px(11.0, 1.fct()), 1.0),
         }
     }
 
@@ -244,13 +244,17 @@ impl HeadedCtrl {
                         let scale_factor = m.scale_factor().get();
                         let screen_ppi = m.ppi().get();
                         let screen_size = m.size().get();
-                        let font_size = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
+                        let mut font_size_px = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
                             font_size.layout(LAYOUT.metrics().for_x(), |_| Length::pt_to_px(11.0, scale_factor))
                         });
-                        let font_size = font_size.to_dip(scale_factor.0);
+                        if font_size_px < Px(0) {
+                            tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
+                            font_size_px = Length::pt_to_px(11.0, scale_factor);
+                        }
+                        let font_size_dip = font_size_px.to_dip(scale_factor.0);
 
-                        if font_size != self.root_font_size {
-                            self.root_font_size = font_size;
+                        if font_size_dip != self.root_font_size {
+                            self.root_font_size = font_size_dip;
                             self.content.layout_requested = true;
                             UPDATES.layout();
                         }
@@ -712,11 +716,12 @@ impl HeadedCtrl {
 
             let size = self.vars.size().get().layout(&LAYOUT.metrics(), |_| default_size(scale_factor));
 
-            let root_font_size = self
-                .vars
-                .font_size()
-                .get()
-                .layout(LAYOUT.metrics().for_x(), |_| Length::pt_to_px(11.0, scale_factor));
+            let font_size = self.vars.font_size().get();
+            let mut root_font_size = font_size.layout(LAYOUT.metrics().for_x(), |_| Length::pt_to_px(11.0, scale_factor));
+            if root_font_size < Px(0) {
+                tracing::error!("invalid font size {font_size:?} => {root_font_size:?}");
+                root_font_size = Length::pt_to_px(11.0, scale_factor);
+            }
 
             (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
         });

@@ -213,12 +213,24 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let font_size = FONT_SIZE_VAR.get().layout(LAYOUT.metrics().for_y(), |m| m.metrics.root_font_size());
-            LAYOUT.with_font_size(font_size, || self.child.measure(wm))
+            let font_size = FONT_SIZE_VAR.get();
+            let font_size_px = font_size.layout(LAYOUT.metrics().for_y(), |m| m.metrics.root_font_size());
+            if font_size_px >= Px(0) {
+                LAYOUT.with_font_size(font_size_px, || self.child.measure(wm))
+            } else {
+                tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
+                self.child.measure(wm)
+            }
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let font_size = FONT_SIZE_VAR.get().layout(LAYOUT.metrics().for_y(), |m| m.metrics.root_font_size());
-            LAYOUT.with_font_size(font_size, || self.child.layout(wl))
+            let font_size = FONT_SIZE_VAR.get();
+            let font_size_px = font_size.layout(LAYOUT.metrics().for_y(), |m| m.metrics.root_font_size());
+            if font_size_px >= Px(0) {
+                LAYOUT.with_font_size(font_size_px, || self.child.layout(wl))
+            } else {
+                tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
+                self.child.layout(wl)
+            }
         }
     }
     let child = FontSizeNode { child };

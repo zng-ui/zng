@@ -22,9 +22,9 @@ fn app_main() {
 
         window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
-            font_size = fs.easing(150.ms(), easing::linear);
             child = z_stack(ui_vec![
                 stack! {
+                    font_size = fs.easing(150.ms(), easing::linear);
                     direction = StackDirection::left_to_right();
                     align = Align::CENTER;
                     spacing = 40;
