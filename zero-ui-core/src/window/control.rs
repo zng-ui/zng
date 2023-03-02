@@ -682,6 +682,19 @@ impl HeadedCtrl {
     fn layout_init(&mut self) {
         self.monitor = Some(self.vars.monitor().get().select_fallback());
 
+        // await icon load for up to 1s.
+        if let Some(icon) = &self.icon {
+            if !self.icon_deadline.has_elapsed() && icon.get().is_loading() {
+                // block on icon loading.
+                return;
+            }
+        }
+        // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
+        if !WINDOWS.try_load(WINDOW.id()) {
+            // block on loading handles.
+            return;
+        }
+
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().get();
         let screen_ppi = m.ppi().get();
@@ -711,28 +724,11 @@ impl HeadedCtrl {
         self.root_font_size = root_font_size.to_dip(scale_factor.0);
 
         let state = self.vars.state().get();
-
         if state == WindowState::Normal && self.vars.auto_size().get() != AutoSize::DISABLED {
             // layout content to get auto-size size.
             size = self
                 .content
                 .layout(scale_factor, screen_ppi, min_size, max_size, size, root_font_size, false);
-        }
-
-        // await icon load for up to 1s.
-        if let Some(icon) = &self.icon {
-            if !self.icon_deadline.has_elapsed() && icon.get().is_loading() {
-                // block on icon loading.
-                self.content.layout_requested = true;
-                return;
-            }
-        }
-
-        // update window "load" state, `is_loaded` and the `WindowLoadEvent` happen here.
-        if !WINDOWS.try_load(WINDOW.id()) {
-            // block on loading handles.
-            self.content.layout_requested = true;
-            return;
         }
 
         // Layout initial position in the monitor space.
