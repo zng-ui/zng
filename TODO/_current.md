@@ -1,10 +1,3 @@
-* Test examples.
-    - `window` does not exit.
-        - `image` too.
-        - Problem is is `run_same_process` with no `multi_app` feature.
-        - Not deadlock, at least not from `parkinglot` locks.
-
-
 * `INSPECT_CMD` without handlers?
     - See `window` example that only shows a button if has handlers.
 

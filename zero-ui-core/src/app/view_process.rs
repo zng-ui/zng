@@ -43,6 +43,12 @@ app_local! {
 /// See [`ViewProcess`] for more details.
 pub static VIEW_PROCESS: ViewProcess = ViewProcess(None);
 
+#[cfg(feature = "multi_app")] // can hold strong ref because all services will be deinited
+type ViewProcessRef = Option<Arc<Mutex<ViewApp>>>;
+
+#[cfg(not(feature = "multi_app"))] // can only hold weak ref because we need to manually deinit the `VIEW_APP`.
+type ViewProcessRef = Option<std::sync::Weak<Mutex<ViewApp>>>;
+
 /// Reference to a running View Process.
 ///
 /// This is the lowest level API, used for implementing fundamental services for headed apps or headless apps with renderer.
@@ -51,7 +57,7 @@ pub static VIEW_PROCESS: ViewProcess = ViewProcess(None);
 /// The process shuts down when all clones of this struct drops.
 ///
 /// All methods except [`ViewProcess::is_available`] panic if `is_available` returns `false`.
-pub struct ViewProcess(Option<Arc<Mutex<ViewApp>>>);
+pub struct ViewProcess(ViewProcessRef);
 struct ViewApp {
     process: zero_ui_view_api::Controller,
     device_ids: LinearMap<ApiDeviceId, DeviceId>,
@@ -83,6 +89,13 @@ impl ViewApp {
         invalid
     }
 }
+#[cfg(not(feature = "multi_app"))]
+impl Clone for ViewProcess {
+    fn clone(&self) -> Self {
+        Self(Some(Arc::downgrade(&self.req())))
+    }
+}
+#[cfg(feature = "multi_app")]
 impl Clone for ViewProcess {
     fn clone(&self) -> Self {
         Self(Some(self.req()))
@@ -108,11 +121,22 @@ impl ViewProcess {
             pending_frames: 0,
         })));
     }
+    #[cfg(not(feature = "multi_app"))]
+    pub(super) fn exit() {
+        *VIEW_APP.write() = None;
+    }
 
     #[track_caller]
     fn req(&self) -> Arc<Mutex<ViewApp>> {
         if let Some(a) = &self.0 {
-            a.clone()
+            #[cfg(not(feature = "multi_app"))]
+            {
+                return a.upgrade().expect("VIEW_PROCESS exited");
+            }
+            #[cfg(feature = "multi_app")]
+            {
+                a.clone()
+            }
         } else {
             VIEW_APP
                 .read()

@@ -1595,6 +1595,9 @@ impl<E: AppExtension> Drop for RunningApp<E> {
     fn drop(&mut self) {
         let _s = tracing::debug_span!("extensions.deinit").entered();
         self.extensions.deinit();
+
+        #[cfg(not(feature = "multi_app"))]
+        ViewProcess::exit();
     }
 }
 

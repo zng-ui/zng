@@ -543,7 +543,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 /// If the crate is compiled with the `multi_app` feature a different internal implementation is used that supports multiple
 /// apps, either running in parallel in different threads or one after the other. This backing implementation has some small overhead,
 /// but usually you only want multiple app instances per-process when running tests.
-/// 
+///
 /// The lifetime of `multi_app` locals is also more limited, trying to use an app-local before starting to build an app will panic,
 /// the app-local value will be dropped when the app is dropped. Without the `multi_app` feature the app-locals can be used at
 /// any point before or after the app lifetime, values are not explicitly dropped, just unloaded with the process.
