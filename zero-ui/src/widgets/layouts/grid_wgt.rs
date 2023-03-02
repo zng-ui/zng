@@ -694,6 +694,11 @@ struct GridInfo {
     columns: Vec<ColumnInfo>,
     rows: Vec<RowInfo>,
 }
+impl GridInfo {
+    fn is_collapse(&self) -> bool {
+        self.columns.is_empty() && self.rows.is_empty()
+    }
+}
 
 fn downcast_auto(cols_or_rows: &mut BoxedUiNodeList) -> &mut Vec<BoxedUiNode> {
     cols_or_rows.as_any_mut().downcast_mut::<Vec<BoxedUiNodeList>>().unwrap()[1]
@@ -712,11 +717,17 @@ fn downcast_auto(cols_or_rows: &mut BoxedUiNodeList) -> &mut Vec<BoxedUiNode> {
     info: Mutex<GridInfo>,
 })]
 impl GridNode {
+    fn collapse_info(&mut self) {
+        let info = self.info.get_mut();
+        info.columns.clear();
+        info.rows.clear();
+    }
+
     // add/remove info entries, auto-grow/shrink
     fn update_info(&mut self) {
         let auto_mode = self.auto_grow_mode.get();
 
-        // max need column or row in the auto_mode axis.
+        // max needed column or row in the auto_mode axis.
         let mut max_custom = 0;
         let mut max_auto_placed_i = 0;
         self.children[2].for_each(|i, c| {
@@ -740,8 +751,14 @@ impl GridNode {
 
         match auto_mode {
             AutoGrowMode::Rows(max) => {
-                let max_auto_placed = max_auto_placed_i / self.children[0].len() + 1;
-                #[allow(clippy::manual_clamp)] // (max-selected).min(limit)
+                let columns_len = self.children[0].len();
+                if columns_len == 0 {
+                    self.collapse_info();
+                    return;
+                }
+
+                let max_auto_placed = max_auto_placed_i / columns_len + 1;
+                #[allow(clippy::manual_clamp)] // (max_place).min(limit)
                 let max_needed = max_auto_placed.max(max_custom).min(max as usize);
 
                 let rows_len = self.children[1].len();
@@ -771,7 +788,13 @@ impl GridNode {
                 }
             }
             AutoGrowMode::Columns(max) => {
-                let max_auto_placed = max_auto_placed_i / self.children[0].len() + 1;
+                let rows_len = self.children[1].len();
+                if rows_len == 0 {
+                    self.collapse_info();
+                    return;
+                }
+
+                let max_auto_placed = max_auto_placed_i / rows_len + 1;
                 #[allow(clippy::manual_clamp)] // (max-selected).min(limit)
                 let max_needed = max_auto_placed.max(max_custom).min(max as usize);
 
@@ -871,6 +894,9 @@ impl GridNode {
     fn layout_info(&self, wm: &mut WidgetMeasure) -> (PxGridSpacing, PxSize) {
         let mut info = self.info.lock();
         let info = &mut *info;
+        if info.is_collapse() {
+            return (PxGridSpacing::zero(), PxSize::zero());
+        }
 
         let spacing = self.spacing.get().layout(&LAYOUT.metrics(), |_| PxGridSpacing::zero());
         let constrains = LAYOUT.constrains();
@@ -1295,6 +1321,10 @@ impl GridNode {
         let constrains = LAYOUT.constrains();
 
         let info = self.info.get_mut();
+        if info.is_collapse() {
+            wl.collapse_descendants();
+            return LAYOUT.constrains().fill_or_exact().unwrap_or_default();
+        }
 
         let mut children = self.children.iter_mut();
         let columns = children.next().unwrap();

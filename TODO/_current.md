@@ -1,5 +1,3 @@
-* Fix grid without columns and rows.
-
 * Review `AnyEvent` vs `Event` and `AnyVar` vs `Var`.
     - Now more methods are not generic.
 
