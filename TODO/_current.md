@@ -1,6 +1,3 @@
-* Replace `linear_map` with something that does const init.
-    - Make `MONITORS_SV` const.
-
 * Review `command!` meta init, does it need to be a closure?
     - Can use const init if we manage to remove the `Box::new`.
 

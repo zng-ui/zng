@@ -63,3 +63,10 @@
     - Render needs "nested display list", to avoid double alloc (insert).
     - Info needs double alloc, one for the partial tree in a thread branch, other for when it is inserted in the actual tree.
       - Probably not an issue.
+
+# Const
+
+* Use `const` in our function and methods.
+  - Wait until clippy has a lint for this?
+* Replace `linear_map` with something that does const init.
+  - Make `MONITORS_SV` const.
