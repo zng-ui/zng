@@ -46,15 +46,7 @@
 
 * How much overhead needed to add `rayon` join support for UiNode methods?
     * Event `propagation` becomes indeterministic?
-      - Could make event notification linear, most nodes are not visited.
-    * Services must become sync.
-      - Turn services into command channels?
-    * State must become sync!
-      - No more mutable references?
-        - Use concurrent map.
-        - No entry API.
-      - Could keep the &mut for widgets, forcing each widget to be in a single thread.
-        - No parallel event handlers in this case.
+      - Could make event notification linear, most nodes are not visited for events.
 
 * What we want to enable:
   - Allow background init of UI.
@@ -71,21 +63,3 @@
     - Render needs "nested display list", to avoid double alloc (insert).
     - Info needs double alloc, one for the partial tree in a thread branch, other for when it is inserted in the actual tree.
       - Probably not an issue.
-
-* Review `AppContextMut`.
-* Use `ThreadContext` in `core::task`.
-    - It is not just for UI threads?
-
-* Rayon:
-  - We can run the app in a rayon thread-pool made for the app.
-  - Rayon automatically uses the thread-pool it is in.
-  - But we don't load the `ThreadContext` for rayon internal jobs.
-    - Maybe we can use a trace API to inject the context, see https://github.com/rayon-rs/rayon/issues/915.
-    - We could have an parallel iter adapter that loads the context? see https://github.com/wagnerf42/diam/blob/main/src/adaptors/log.rs
-  - So `core::task` spawned from the app end-up running in the UI threads?
-    - The idea was to avoid blocking the UI at all costs, need a different thread-pool for `task`?
-
-* How we can start:
-  - We can implement parallel var and event hooks.
-  - And parallel var modify + animations.
-  - Just need to figure out the thread pool.
