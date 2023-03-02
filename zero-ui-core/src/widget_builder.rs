@@ -10,7 +10,6 @@ use linear_map::{set::LinearSet, LinearMap};
 use parking_lot::Mutex;
 
 use crate::{
-    context::WIDGET,
     handler::WidgetHandler,
     impl_from_and_into_var,
     text::{formatx, Text},
@@ -2536,7 +2535,7 @@ impl WidgetBuilding {
         if self.trace_widget {
             let name = self.widget_mod.name();
             node = node
-                .trace(move |mtd| crate::context::UpdatesTrace::widget_span(WIDGET.id(), name, mtd))
+                .trace(move |mtd| crate::context::UpdatesTrace::widget_span(crate::context::WIDGET.id(), name, mtd))
                 .boxed();
         }
 
