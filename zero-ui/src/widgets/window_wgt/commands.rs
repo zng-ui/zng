@@ -34,7 +34,7 @@ pub(super) fn inspect_node(
 
     on_command(
         child,
-        || INSPECT_CMD.scoped(WIDGET.id()),
+        || INSPECT_CMD.scoped(WINDOW.id()),
         move || can_inspect.clone(),
         hn!(|args: &CommandArgs| {
             if !args.enabled {

@@ -1,6 +1,3 @@
-* `INSPECT_CMD` without handlers?
-    - See `window` example that only shows a button if has handlers.
-
 * Replace `linear_map` with something that does const init.
     - Make `MONITORS_SV` const.
 
