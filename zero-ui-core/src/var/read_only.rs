@@ -100,6 +100,18 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
     fn var_ptr(&self) -> VarPtr {
         self.1.var_ptr()
     }
+
+    fn get_debug(&self) -> crate::text::Text {
+        self.with(var_debug)
+    }
+
+    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
+        Var::modify(self, var_touch)
+    }
+
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+        Var::map(self, var_debug)
+    }
 }
 
 impl<T: VarValue, V: WeakVar<T>> AnyWeakVar for WeakReadOnlyVar<T, V> {

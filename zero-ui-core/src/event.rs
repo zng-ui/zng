@@ -152,10 +152,8 @@ impl<A: EventArgs> Event<A> {
     ///
     /// Note that trying to subscribe inside `visit` will deadlock, inside `visit` you can notify the event,
     /// generate event updates or even visit recursive.
-    pub fn visit_subscribers(&self, mut visit: impl FnMut(WidgetId)) {
-        for sub in self.local.read().widget_subs.keys() {
-            visit(*sub);
-        }
+    pub fn visit_subscribers(&self, visit: impl FnMut(WidgetId)) {
+        self.as_any().visit_subscribers(visit)
     }
 
     /// Event name.
@@ -434,6 +432,16 @@ impl AnyEvent {
     /// Returns `true`  if at least one widget is subscribed to this event.
     pub fn has_subscribers(&self) -> bool {
         !self.local.read().widget_subs.is_empty()
+    }
+
+    /// Calls `visit` for each widget subscribed to this event.
+    ///
+    /// Note that trying to subscribe inside `visit` will deadlock, inside `visit` you can notify the event,
+    /// generate event updates or even visit recursive.
+    pub fn visit_subscribers(&self, mut visit: impl FnMut(WidgetId)) {
+        for sub in self.local.read().widget_subs.keys() {
+            visit(*sub);
+        }
     }
 
     fn on_update(&self, update: &mut EventUpdate) {

@@ -1,6 +1,3 @@
-* Review `AnyEvent` vs `Event` and `AnyVar` vs `Var`.
-    - Now more methods are not generic.
-
 * Review `thread_local!` has a `const` variant that is more performant on init, can we do something similar
     for `app_local!` and `context_local!`?
 

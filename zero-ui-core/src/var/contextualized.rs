@@ -179,6 +179,18 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
     fn var_ptr(&self) -> VarPtr {
         VarPtr::new_arc(&self.init)
     }
+
+    fn get_debug(&self) -> crate::text::Text {
+        self.with(var_debug)
+    }
+
+    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
+        Var::modify(self, var_touch)
+    }
+
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+        Var::map(self, var_debug)
+    }
 }
 impl<T: VarValue, S: Var<T>> AnyWeakVar for WeakContextualizedVar<T, S> {
     fn clone_any(&self) -> BoxedAnyWeakVar {

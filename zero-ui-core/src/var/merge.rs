@@ -249,6 +249,18 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
     fn var_ptr(&self) -> VarPtr {
         VarPtr::new_arc(&self.0)
     }
+
+    fn get_debug(&self) -> crate::text::Text {
+        self.with(var_debug)
+    }
+
+    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
+        Var::modify(self, var_touch)
+    }
+
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+        Var::map(self, var_debug)
+    }
 }
 
 impl<T: VarValue> AnyWeakVar for WeakMergeVar<T> {

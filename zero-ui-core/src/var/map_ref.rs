@@ -113,6 +113,18 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
     fn var_ptr(&self) -> VarPtr {
         self.source.var_ptr()
     }
+
+    fn get_debug(&self) -> crate::text::Text {
+        self.with(var_debug)
+    }
+
+    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
+        Var::modify(self, var_touch)
+    }
+
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+        Var::map(self, var_debug)
+    }
 }
 impl<I: VarValue, O: VarValue, S: WeakVar<I>> AnyWeakVar for WeakMapRef<I, O, S> {
     fn clone_any(&self) -> BoxedAnyWeakVar {
@@ -318,6 +330,18 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
 
     fn var_ptr(&self) -> VarPtr {
         self.source.var_ptr()
+    }
+
+    fn get_debug(&self) -> crate::text::Text {
+        self.with(var_debug)
+    }
+
+    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
+        Var::modify(self, var_touch)
+    }
+
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+        Var::map(self, var_debug)
     }
 }
 impl<I: VarValue, O: VarValue, S: WeakVar<I>> AnyWeakVar for WeakMapRefBidi<I, O, S> {

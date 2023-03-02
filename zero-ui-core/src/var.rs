@@ -450,12 +450,19 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Flags that indicate what operations the variable is capable of.
     fn capabilities(&self) -> VarCapabilities;
 
+    /// Gets if the [`last_update`] is the current update, meaning the variable value just changed.
+    ///
+    /// [`last_update`]: AnyVar::last_update
+    fn is_new(&self) -> bool {
+        VARS.update_id() == self.last_update()
+    }
+
     /// If the variable current value was set by an active animation.
     ///
     /// The variable [`is_new`] when this changes to `true`, but it can change to `false` at any time
     /// without the value updating.
     ///
-    /// [`is_new`]: Var::is_new
+    /// [`is_new`]: AnyVar::is_new
     fn is_animating(&self) -> bool;
 
     /// Gets a value that indicates the *importance* clearance that is needed to modify this variable.
@@ -524,6 +531,20 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// If two of these values are equal, both variables point to the same *rc* or *context* at the moment of comparison.
     /// Note that you can't store this or actually get unsafe access to the var internals, this is only for comparison.
     fn var_ptr(&self) -> VarPtr;
+
+    /// Get the value as a debug [`Text`].
+    ///
+    /// [`Text`]: crate::text::Text
+    fn get_debug(&self) -> crate::text::Text;
+
+    /// Causes a variable update without actually changing the variable value.
+    fn touch(&self) -> Result<(), VarIsReadOnlyError>;
+
+    /// Create a [`map`] that converts from `T` to a [`Text`] debug print.
+    ///
+    /// [`map`]: Var::map
+    /// [`Text`]: crate::text::Text
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>>;
 }
 
 /// Represents an [`AnyVar`] *pointer* that can be used for comparison.
@@ -809,9 +830,9 @@ macro_rules! impl_infallible_write {
             Var::set_ne(self, value).unwrap()
         }
 
-        /// Infallible [`Var::touch`].
+        /// Infallible [`AnyVar::touch`].
         pub fn touch(&self) {
-            Var::touch(self).unwrap()
+            AnyVar::touch(self).unwrap()
         }
     };
 }
@@ -889,18 +910,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The returned variable can still update if `self` is modified, but it does not have the `MODIFY` capability.
     fn read_only(&self) -> Self::ReadOnly;
 
-    /// Gets if the [`last_update`] is the current update, meaning the variable value just changed.
-    ///
-    /// [`last_update`]: AnyVar::last_update
-    fn is_new(&self) -> bool {
-        VARS.update_id() == self.last_update()
-    }
-
     /// Create a future that awaits for [`is_new`] to be `true`.
     ///
     /// The future can only be used in app bound async code, it can be reused.
     ///
-    /// [`is_new`]: Var::is_new
+    /// [`is_new`]: AnyVar::is_new
     fn wait_is_new(&self) -> types::WaitIsNewFut<T, Self> {
         types::WaitIsNewFut::new(self)
     }
@@ -916,7 +930,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Visit the current value of the variable, if it [`is_new`].
     ///
-    /// [`is_new`]: Var::is_new
+    /// [`is_new`]: AnyVar::is_new
     fn with_new<R, F>(&self, read: F) -> Option<R>
     where
         F: FnOnce(&T) -> R,
@@ -931,13 +945,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Get a clone of the current value.
     fn get(&self) -> T {
         self.with(Clone::clone)
-    }
-
-    /// Get the value as a debug [`Text`].
-    ///
-    /// [`Text`]: crate::text::Text
-    fn get_debug(&self) -> crate::text::Text {
-        self.with(|v| crate::text::formatx!("{v:?}"))
     }
 
     /// Gets the value as a display [`Text`].
@@ -973,7 +980,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Get a clone of the current value, if it [`is_new`].
     ///
-    /// [`is_new`]: Var::is_new
+    /// [`is_new`]: AnyVar::is_new
     fn get_new(&self) -> Option<T> {
         if self.is_new() {
             Some(self.with(Clone::clone))
@@ -984,7 +991,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Get a clone of the current value into `value` if the current value [`is_new`].
     ///
-    /// [`is_new`]: Var::is_new
+    /// [`is_new`]: AnyVar::is_new
     fn get_new_into(&self, value: &mut T) -> bool {
         let is_new = self.is_new();
         if is_new {
@@ -995,7 +1002,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Get a clone of the current value into `value` if the variable value [`is_new`] and not equal to the `value`.
     ///
-    /// [`is_new`]: Var::is_new
+    /// [`is_new`]: AnyVar::is_new
     fn get_new_ne(&self, value: &mut T) -> bool
     where
         T: PartialEq,
@@ -1031,11 +1038,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         I: Into<T>,
     {
         self.modify(var_set_ne(value.into()))
-    }
-
-    /// Causes a variable update without actually changing the variable value.
-    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
-        self.modify(var_touch)
     }
 
     /// Create a ref-counted var that redirects to this variable until the first value touch, then it behaves like a [`ArcVar<T>`].
@@ -1108,14 +1110,6 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         T: ToString,
     {
         self.map(ToString::to_string)
-    }
-
-    /// Create a [`map`] that converts from `T` to a [`Text`] debug print.
-    ///
-    /// [`map`]: Var::map
-    /// [`Text`]: crate::text::Text
-    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
-        self.map(|v| crate::text::formatx!("{v:?}"))
     }
 
     /// Create a ref-counted var that maps from this variable on read and to it on write.
@@ -1940,6 +1934,13 @@ where
     T: VarValue,
 {
     var_value.to_mut();
+}
+
+fn var_debug<T>(value: &T) -> crate::text::Text
+where
+    T: VarValue,
+{
+    crate::text::formatx!("{value:?}")
 }
 
 fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {

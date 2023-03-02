@@ -192,6 +192,18 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
     fn var_ptr(&self) -> VarPtr {
         (**self).var_ptr()
     }
+
+    fn get_debug(&self) -> crate::text::Text {
+        (**self).get_debug()
+    }
+
+    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
+        (**self).touch()
+    }
+
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+        (**self).map_debug()
+    }
 }
 
 impl<T: VarValue> IntoVar<T> for BoxedVar<T> {

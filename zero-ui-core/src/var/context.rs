@@ -166,6 +166,18 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
     fn var_ptr(&self) -> VarPtr {
         VarPtr::new_ctx_local(self.0)
     }
+
+    fn get_debug(&self) -> crate::text::Text {
+        self.with(var_debug)
+    }
+
+    fn touch(&self) -> Result<(), VarIsReadOnlyError> {
+        Var::modify(self, var_touch)
+    }
+
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+        Var::map(self, var_debug)
+    }
 }
 
 impl<T: VarValue> IntoVar<T> for ContextVar<T> {
@@ -378,7 +390,7 @@ mod helpers {
     /// the result will be accessible to the inner properties, the widget user can then set with the composed value in steps and
     /// the final consumer of the composed value only need to monitor to a single context variable.
     ///
-    /// [`is_new`]: Var::is_new
+    /// [`is_new`]: AnyVar::is_new
     /// [`read_only`]: Var::read_only
     /// [`actual_var`]: Var::actual_var
     /// [`default`]: crate::property#default
