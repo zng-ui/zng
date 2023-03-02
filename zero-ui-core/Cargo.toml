@@ -50,7 +50,16 @@ dyn_closure = []
 #
 # For external dependents, build with this feature to use the test helper types that show
 # in the documentation.
-test_util = ["deadlock_detection"]
+test_util = ["multi_app", "deadlock_detection"]
+
+# Allows multiple app instances per-process.
+#
+# This feature allows multiple apps, one app per thread at a time. The `ThreadContext` tracks
+# what app is currently running in each thread and `app_local!` statics switch to the value of each app
+# depending on the current thread.
+#
+# Not enabled by default, but enabled by `feature="test_util"`.
+multi_app = []
 
 # Instrument every widget outer-most node to trace UI methods.
 trace_widget = []
@@ -62,7 +71,7 @@ trace_wgt_item = []
 
 # Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
 #
-# Not enabled by default, but enabled by default in `feature="test_util"`.
+# Not enabled by default, but enabled by `feature="test_util"`.
 deadlock_detection = ["parking_lot/deadlock_detection"]
 
 # Embed hyphenation dictionaries for all supported languages.

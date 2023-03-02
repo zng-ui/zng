@@ -1,7 +1,6 @@
 //! Image loading and cache.
 
 use std::{
-    collections::HashMap,
     env,
     future::Future,
     mem,
@@ -22,7 +21,7 @@ use crate::{
         AppExtension,
     },
     app_local,
-    crate_util::IdMap,
+    crate_util::{id_map_new, IdMap},
     event::EventUpdate,
     task::{self, fs, io::*, ui::UiTask},
     text::Text,
@@ -280,7 +279,7 @@ impl ImagesService {
             loading: vec![],
             decoding: vec![],
             download_accept: Text::empty(),
-            cache: HashMap::default(),
+            cache: id_map_new(),
             not_cached: vec![],
             render: render::ImagesRender::default(),
         }

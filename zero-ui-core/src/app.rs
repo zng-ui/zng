@@ -576,6 +576,13 @@ event! {
 /// [`default`]: App::default
 pub struct App;
 impl App {
+    /// If the crate was build with `feature="multi_app"`.
+    ///
+    /// If `true` multiple apps can run in the same process, but only one app per thread at a time.
+    pub fn multi_app_enabled() -> bool {
+        cfg!(feature = "multi_app")
+    }
+
     /// If an app is already running in the current thread.
     ///
     /// An app is *running* as soon as it starts building ([`App::minimal`], [`App::default`]), and it stops running after
@@ -595,7 +602,19 @@ impl App {
         ThreadContext::current_app()
     }
 
+    #[cfg(not(feature = "multi_app"))]
+    fn assert_can_run_single() {
+        use std::sync::atomic::*;
+        static CAN_RUN: AtomicBool = AtomicBool::new(true);
+
+        if !CAN_RUN.swap(false, Ordering::SeqCst) {
+            panic!("only one app is allowed per process")
+        }
+    }
+
     fn assert_can_run() {
+        #[cfg(not(feature = "multi_app"))]
+        Self::assert_can_run_single();
         if App::is_running() {
             panic!("only one app is allowed per thread")
         }
@@ -2438,7 +2457,7 @@ mod headless_tests {
     #[test]
     pub fn cleanup_deadlock() {
         app_local! {
-            static LOCAL: bool = true;
+            static LOCAL: bool = const { true };
         }
 
         {

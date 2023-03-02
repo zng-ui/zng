@@ -16,7 +16,7 @@ use std::{
 use crate::{
     clone_move,
     context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WIDGET, WINDOW},
-    crate_util::{IdMap, IdSet},
+    crate_util::{id_map_new, IdEntry, IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
     widget_info::WidgetInfoTree,
     widget_instance::WidgetId,
@@ -78,7 +78,7 @@ macro_rules! event_macro {
             $(#[$attr])*
             $vis static $EVENT: $crate::event::Event<$Args> = {
                 $crate::context::app_local! {
-                    static LOCAL: $crate::event::EventData = $crate::event::EventData::new(std::stringify!($EVENT));
+                    static LOCAL: $crate::event::EventData = const { $crate::event::EventData::new(std::stringify!($EVENT)) };
                 }
                 $crate::event::Event::new(&LOCAL)
             };
@@ -96,10 +96,10 @@ pub struct EventData {
 }
 impl EventData {
     #[doc(hidden)]
-    pub fn new(name: &'static str) -> Self {
+    pub const fn new(name: &'static str) -> Self {
         EventData {
             name,
-            widget_subs: IdMap::default(),
+            widget_subs: id_map_new(),
             hooks: vec![],
         }
     }
@@ -568,14 +568,14 @@ impl UpdateSubscribers for AnyEvent {
     fn contains(&self, widget_id: WidgetId) -> bool {
         if let Some(mut write) = self.local.try_write() {
             match write.widget_subs.entry(widget_id) {
-                std::collections::hash_map::Entry::Occupied(e) => {
+                IdEntry::Occupied(e) => {
                     let t = e.get().retain();
                     if !t {
                         e.remove();
                     }
                     t
                 }
-                std::collections::hash_map::Entry::Vacant(_) => false,
+                IdEntry::Vacant(_) => false,
             }
         } else {
             // fallback without cleanup

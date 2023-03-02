@@ -1,5 +1,18 @@
-* Review `thread_local!` has a `const` variant that is more performant on init, can we do something similar
-    for `app_local!` and `context_local!`?
+* Test examples.
+    - `window` does not exit.
+        - `image` too.
+        - Problem is is `run_same_process` with no `multi_app` feature.
+        - Not deadlock, at least not from `parkinglot` locks.
+
+
+* `INSPECT_CMD` without handlers?
+    - See `window` example that only shows a button if has handlers.
+
+* Replace `linear_map` with something that does const init.
+    - Make `MONITORS_SV` const.
+
+* Review `command!` meta init, does it need to be a closure?
+    - Can use const init if we manage to remove the `Box::new`.
 
 * Review `WindowVars`, `ScrollContext` and any other "contextual widget service" like `ContextBorders` and `ZIndex`.
     - For window stuff can have an extension of `WINDOW`?

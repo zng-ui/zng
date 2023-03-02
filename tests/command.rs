@@ -150,5 +150,5 @@ command! {
 }
 
 app_local! {
-    static TEST_TRACE: Vec<String> = vec![];
+    static TEST_TRACE: Vec<String> = const { vec![] };
 }

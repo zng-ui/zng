@@ -37,7 +37,7 @@ struct TimerVarEntry {
 }
 
 app_local! {
-   pub(crate) static TIMERS_SV: TimersService = TimersService::new();
+   pub(crate) static TIMERS_SV: TimersService = const { TimersService::new() };
 }
 
 pub(crate) struct TimersService {
@@ -48,7 +48,7 @@ pub(crate) struct TimersService {
     has_pending_handlers: bool,
 }
 impl TimersService {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             deadlines: vec![],
             timers: vec![],

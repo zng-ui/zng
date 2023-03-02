@@ -35,7 +35,7 @@ struct EncodeRequest {
 }
 
 app_local! {
-    static VIEW_APP: Option<Arc<Mutex<ViewApp>>> = None;
+    static VIEW_APP: Option<Arc<Mutex<ViewApp>>> = const { None };
 }
 
 /// The running app View Process.

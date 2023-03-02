@@ -239,13 +239,13 @@ impl<U> fmt::Debug for OwnedStateMap<U> {
 }
 impl<U> Default for OwnedStateMap<U> {
     fn default() -> Self {
-        OwnedStateMap(state_map::StateMap::new(), PhantomData)
+        Self::new()
     }
 }
 impl<U> OwnedStateMap<U> {
     /// New default, empty.
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        OwnedStateMap(state_map::StateMap::new(), PhantomData)
     }
 
     /// Remove the key.
@@ -310,6 +310,8 @@ impl<U> BorrowMutStateMap<U> for OwnedStateMap<U> {
 pub mod state_map {
     use std::any::Any;
 
+    use crate::crate_util::{id_map_new, IdEntry, IdOccupiedEntry, IdVacantEntry};
+
     use super::*;
 
     type AnyMap = crate::crate_util::IdMap<u64, Box<dyn Any + Send + Sync>>;
@@ -318,8 +320,8 @@ pub mod state_map {
         map: AnyMap,
     }
     impl StateMap {
-        pub(super) fn new() -> Self {
-            StateMap { map: AnyMap::default() }
+        pub(super) const fn new() -> Self {
+            StateMap { map: id_map_new() }
         }
 
         pub(super) fn len(&self) -> usize {
@@ -360,11 +362,11 @@ pub mod state_map {
 
         pub fn entry<T: StateValue>(&mut self, id: StateId<T>) -> StateMapEntry<T> {
             match self.map.entry(id.get()) {
-                std::collections::hash_map::Entry::Occupied(e) => StateMapEntry::Occupied(OccupiedStateMapEntry {
+                IdEntry::Occupied(e) => StateMapEntry::Occupied(OccupiedStateMapEntry {
                     _type: PhantomData,
                     entry: e,
                 }),
-                std::collections::hash_map::Entry::Vacant(e) => StateMapEntry::Vacant(VacantStateMapEntry {
+                IdEntry::Vacant(e) => StateMapEntry::Vacant(VacantStateMapEntry {
                     _type: PhantomData,
                     entry: e,
                 }),
@@ -389,7 +391,7 @@ pub mod state_map {
     /// This struct is part of [`StateMapEntry`].
     pub struct OccupiedStateMapEntry<'a, T: StateValue> {
         _type: PhantomData<T>,
-        entry: std::collections::hash_map::OccupiedEntry<'a, u64, Box<dyn Any + Send + Sync>>,
+        entry: IdOccupiedEntry<'a, u64, Box<dyn Any + Send + Sync>>,
     }
     impl<'a, T: StateValue> OccupiedStateMapEntry<'a, T> {
         /// Gets a reference to the value in the entry.
@@ -440,7 +442,7 @@ pub mod state_map {
     /// This struct is part of [`StateMapEntry`].
     pub struct VacantStateMapEntry<'a, T: StateValue> {
         _type: PhantomData<T>,
-        entry: std::collections::hash_map::VacantEntry<'a, u64, Box<dyn Any + Send + Sync>>,
+        entry: IdVacantEntry<'a, u64, Box<dyn Any + Send + Sync>>,
     }
     impl<'a, T: StateValue> VacantStateMapEntry<'a, T> {
         /// Sets the value of the entry and returns a mutable reference to it.

@@ -3,7 +3,7 @@ use crate::context::{app_local, UPDATES};
 use super::*;
 
 app_local! {
-    pub(crate) static EVENTS_SV: EventsService = EventsService::new();
+    pub(crate) static EVENTS_SV: EventsService = const { EventsService::new() };
 }
 
 pub(crate) struct EventsService {
@@ -12,7 +12,7 @@ pub(crate) struct EventsService {
 }
 
 impl EventsService {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             updates: Mutex::new(vec![]),
             commands: vec![],

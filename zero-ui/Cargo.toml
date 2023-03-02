@@ -50,6 +50,15 @@ dyn_closure = ["zero-ui-core/dyn_closure"]
 # in the documentation.
 test_util = ["zero-ui-core/test_util"]
 
+# Allows multiple app instances per-process.
+#
+# This feature allows multiple apps, one app per thread at a time. The `ThreadContext` tracks
+# what app is currently running in each thread and `app_local!` statics switch to the value of each app
+# depending on the current thread.
+#
+# Not enabled by default, but enabled by `feature="test_util"`.
+multi_app = ["zero-ui-core/multi_app"]
+
 # Instrument every widget outer-most node to trace UI methods.
 trace_widget = ["zero-ui-core/trace_widget"]
 

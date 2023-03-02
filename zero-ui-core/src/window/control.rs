@@ -12,7 +12,7 @@ use crate::{
     },
     color::{ColorScheme, RenderColor},
     context::{WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW},
-    crate_util::IdMap,
+    crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
     image::{Image, ImageVar, IMAGES},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
@@ -1842,14 +1842,14 @@ impl ContentCtrl {
                 let transform = wgt.bounds_info().inner_transform();
 
                 match self.previous_transforms.entry(wid) {
-                    std::collections::hash_map::Entry::Occupied(mut e) => {
+                    IdEntry::Occupied(mut e) => {
                         let prev = e.insert(transform);
                         if prev != transform {
                             TRANSFORM_CHANGED_EVENT.notify(TransformChangedArgs::now(wgt.path(), prev, transform));
                             changes_count += 1;
                         }
                     }
-                    std::collections::hash_map::Entry::Vacant(e) => {
+                    IdEntry::Vacant(e) => {
                         e.insert(transform);
                     }
                 }

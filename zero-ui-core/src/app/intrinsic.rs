@@ -72,8 +72,10 @@ impl AppExtension for AppIntrinsic {
 }
 
 app_local! {
-    pub(super) static APP_PROCESS_SV: AppProcessService = AppProcessService {
-        exit_requests: None,
+    pub(super) static APP_PROCESS_SV: AppProcessService = const {
+        AppProcessService {
+            exit_requests: None,
+        }
     };
 }
 

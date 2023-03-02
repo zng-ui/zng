@@ -427,7 +427,7 @@ mod context {
     }
 
     app_local! {
-        static PROBE_ID: Text = Text::empty();
+        static PROBE_ID: Text = const { Text::empty() };
     }
 
     #[property(CONTEXT, default(TEST_VAR))]

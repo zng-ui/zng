@@ -116,7 +116,7 @@ macro_rules! __command {
         $(#[$attr])*
         $vis static $COMMAND: $crate::event::Command = {
             $crate::context::app_local! {
-                static EVENT: $crate::event::EventData = $crate::event::EventData::new(std::stringify!($COMMAND));
+                static EVENT: $crate::event::EventData = const { $crate::event::EventData::new(std::stringify!($COMMAND)) };
                 static DATA: $crate::event::CommandData = $crate::event::CommandData::new(std::boxed::Box::new($meta_init));
             }
             $crate::event::Command::new(&EVENT, &DATA)

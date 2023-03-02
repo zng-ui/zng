@@ -90,7 +90,7 @@ use crate::{
     app::AppExtension,
     app_local,
     context::*,
-    crate_util::IdMap,
+    crate_util::{IdEntry, IdMap},
     event::*,
     mouse::MOUSE_INPUT_EVENT,
     render::FrameId,
@@ -102,7 +102,6 @@ use crate::{
 };
 
 use std::{
-    collections::hash_map,
     mem,
     time::{Duration, Instant},
 };
@@ -1240,8 +1239,8 @@ impl FocusService {
                             } else {
                                 self.return_focused.insert(scope.widget_id(), path.clone());
                                 match self.return_focused_var.entry(scope.widget_id()) {
-                                    hash_map::Entry::Occupied(e) => e.get().set(Some(path.clone())),
-                                    hash_map::Entry::Vacant(e) => {
+                                    IdEntry::Occupied(e) => e.get().set(Some(path.clone())),
+                                    IdEntry::Vacant(e) => {
                                         e.insert(var(Some(path.clone())));
                                     }
                                 }
@@ -1329,14 +1328,14 @@ impl FocusService {
 
                 if scope_path.is_some() {
                     match self.return_focused_var.entry(scope_id) {
-                        hash_map::Entry::Occupied(e) => {
+                        IdEntry::Occupied(e) => {
                             if e.get().strong_count() == 1 {
                                 e.remove();
                             } else {
                                 e.get().set(None);
                             }
                         }
-                        hash_map::Entry::Vacant(_) => {}
+                        IdEntry::Vacant(_) => {}
                     }
                 } else if let Some(var) = self.return_focused_var.remove(&scope_id) {
                     if var.strong_count() > 1 {

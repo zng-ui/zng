@@ -4,9 +4,9 @@ use crate::{text::Text, units::Deadline};
 use rand::Rng;
 use rustc_hash::FxHasher;
 use std::{
-    collections::{hash_map, HashMap, HashSet},
+    collections::{hash_map, HashMap},
     fmt,
-    hash::{BuildHasher, BuildHasherDefault, Hasher},
+    hash::{BuildHasher, Hasher},
     num::{NonZeroU32, NonZeroU64},
     path::{Path, PathBuf},
     sync::{
@@ -404,13 +404,39 @@ pub fn un_splitmix64(z: u64) -> u64 {
 }
 
 /// Ideal map type for key types generated using `unique_id!`.
-pub type IdMap<K, V> = HashMap<K, V, BuildHasherDefault<IdHasher>>;
+///
+/// Use [`id_map_new`] to instantiate.
+pub type IdMap<K, V> = hashbrown::HashMap<K, V, BuildIdHasher>;
 /// Ideal set type for key types generated using `unique_id!`.
+///
+/// Use [`id_set_new`] to instantiate.
 #[allow(unused)]
-pub type IdSet<K> = HashSet<K, BuildHasherDefault<IdHasher>>;
+pub type IdSet<K> = hashbrown::HashSet<K, BuildIdHasher>;
+
+pub const fn id_map_new<K, V>() -> IdMap<K, V> {
+    hashbrown::HashMap::with_hasher(BuildIdHasher)
+}
+#[allow(unused)]
+pub const fn id_set_new<K>() -> IdSet<K> {
+    hashbrown::HashSet::with_hasher(BuildIdHasher)
+}
 
 /// Entry in [`IdMap`].
-pub type IdEntry<'a, K, V> = std::collections::hash_map::Entry<'a, K, V>;
+pub type IdEntry<'a, K, V> = hashbrown::hash_map::Entry<'a, K, V, BuildIdHasher>;
+
+pub type IdOccupiedEntry<'a, K, V> = hashbrown::hash_map::OccupiedEntry<'a, K, V, BuildIdHasher>;
+
+pub type IdVacantEntry<'a, K, V> = hashbrown::hash_map::VacantEntry<'a, K, V, BuildIdHasher>;
+
+#[derive(Default, Clone, Debug, Copy)]
+pub struct BuildIdHasher;
+impl BuildHasher for BuildIdHasher {
+    type Hasher = IdHasher;
+
+    fn build_hasher(&self) -> Self::Hasher {
+        IdHasher::default()
+    }
+}
 
 #[derive(Default)]
 pub struct IdHasher(u64);

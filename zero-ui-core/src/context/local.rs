@@ -203,23 +203,68 @@ impl ThreadContext {
     app_local!
 */
 
-/// An app local storage.
-///
-/// This is similar to [`std::thread::LocalKey`], but works across all threads of the app.
-///
-/// Use the [`app_local!`] macro to declare a static variable in the same style as [`thread_local!`].
-///
-/// Note that an app local can only be used if [`App::is_running`] in the thread, if no app is running read and write **will panic**.
-///
-/// [`App::is_running`]: crate::app::App::is_running
-pub struct AppLocal<T: Send + Sync + 'static> {
+#[doc(hidden)]
+pub struct AppLocalConst<T: Send + Sync + 'static> {
+    value: RwLock<T>,
+}
+impl<T: Send + Sync + 'static> AppLocalConst<T> {
+    pub const fn new(init: T) -> Self {
+        Self { value: RwLock::new(init) }
+    }
+}
+#[doc(hidden)]
+pub struct AppLocalOption<T: Send + Sync + 'static> {
+    value: RwLock<Option<T>>,
+    init: fn() -> T,
+}
+impl<T: Send + Sync + 'static> AppLocalOption<T> {
+    pub const fn new(init: fn() -> T) -> Self {
+        Self {
+            value: RwLock::new(None),
+            init,
+        }
+    }
+
+    fn read_impl(&'static self, read: RwLockReadGuard<'static, Option<T>>) -> MappedRwLockReadGuard<T> {
+        if read.is_some() {
+            return RwLockReadGuard::map(read, |v| v.as_ref().unwrap());
+        }
+        drop(read);
+
+        let mut write = self.value.write();
+        if write.is_some() {
+            drop(write);
+            return self.read();
+        }
+
+        let value = (self.init)();
+        *write = Some(value);
+
+        let read = RwLockWriteGuard::downgrade(write);
+
+        RwLockReadGuard::map(read, |v| v.as_ref().unwrap())
+    }
+
+    fn write_impl(&'static self, mut write: RwLockWriteGuard<'static, Option<T>>) -> MappedRwLockWriteGuard<T> {
+        if write.is_some() {
+            return RwLockWriteGuard::map(write, |v| v.as_mut().unwrap());
+        }
+
+        let value = (self.init)();
+        *write = Some(value);
+
+        RwLockWriteGuard::map(write, |v| v.as_mut().unwrap())
+    }
+}
+
+#[doc(hidden)]
+pub struct AppLocalVec<T: Send + Sync + 'static> {
     value: RwLock<Vec<(AppId, T)>>,
     init: fn() -> T,
 }
-impl<T: Send + Sync + 'static> AppLocal<T> {
-    #[doc(hidden)]
+impl<T: Send + Sync + 'static> AppLocalVec<T> {
     pub const fn new(init: fn() -> T) -> Self {
-        AppLocal {
+        Self {
             value: RwLock::new(vec![]),
             init,
         }
@@ -228,7 +273,6 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     fn cleanup(&'static self, id: AppId) {
         self.try_cleanup(id, 0);
     }
-
     fn try_cleanup(&'static self, id: AppId, tries: u8) {
         if let Some(mut w) = self.value.try_write_for(if tries == 0 { 50.ms() } else { 500.ms() }) {
             if let Some(i) = w.iter().position(|(s, _)| *s == id) {
@@ -241,32 +285,6 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
                 self.try_cleanup(id, tries + 1);
             });
         }
-    }
-
-    /// Read lock the value associated with the current app.
-    ///
-    /// Initializes the default value for the app if this is the first read.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no app is running, see [`App::is_running`] for more details.
-    ///
-    /// [`App::is_running`]: crate::app::App::is_running
-    pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
-        self.read_impl(self.value.read_recursive())
-    }
-
-    /// Try read lock the value associated with the current app.
-    ///
-    /// Initializes the default value for the app if this is the first read.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no app is running, see [`App::is_running`] for more details.
-    ///
-    /// [`App::is_running`]: crate::app::App::is_running
-    pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
-        Some(self.read_impl(self.value.try_read_recursive()?))
     }
 
     fn read_impl(&'static self, read: RwLockReadGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockReadGuard<T> {
@@ -294,32 +312,6 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
         RwLockReadGuard::map(read, |v| &v[i].1)
     }
 
-    /// Write lock the value associated with the current app.
-    ///
-    /// Initializes the default value for the app if this is the first read.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no app is running, see [`App::is_running`] for more details.
-    ///
-    /// [`App::is_running`]: crate::app::App::is_running
-    pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
-        self.write_impl(self.value.write())
-    }
-
-    /// Try to write lock the value associated with the current app.
-    ///
-    /// Initializes the default value for the app if this is the first read.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no app is running, see [`App::is_running`] for more details.
-    ///
-    /// [`App::is_running`]: crate::app::App::is_running
-    pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
-        Some(self.write_impl(self.value.try_write()?))
-    }
-
     fn write_impl(&'static self, mut write: RwLockWriteGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockWriteGuard<T> {
         let id = ThreadContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
 
@@ -335,8 +327,142 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 
         RwLockWriteGuard::map(write, |v| &mut v[i].1)
     }
+}
+#[doc(hidden)]
+pub trait AppLocalImpl<T: Send + Sync + 'static>: Send + Sync + 'static {
+    fn read(&'static self) -> MappedRwLockReadGuard<T>;
+    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>>;
+    fn write(&'static self) -> MappedRwLockWriteGuard<T>;
+    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>>;
+}
+
+impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalVec<T> {
+    fn read(&'static self) -> MappedRwLockReadGuard<T> {
+        self.read_impl(self.value.read_recursive())
+    }
+
+    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
+        Some(self.read_impl(self.value.try_read_recursive()?))
+    }
+
+    fn write(&'static self) -> MappedRwLockWriteGuard<T> {
+        self.write_impl(self.value.write())
+    }
+
+    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
+        Some(self.write_impl(self.value.try_write()?))
+    }
+}
+impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalOption<T> {
+    fn read(&'static self) -> MappedRwLockReadGuard<T> {
+        self.read_impl(self.value.read_recursive())
+    }
+
+    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
+        Some(self.read_impl(self.value.try_read_recursive()?))
+    }
+
+    fn write(&'static self) -> MappedRwLockWriteGuard<T> {
+        self.write_impl(self.value.write())
+    }
+
+    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
+        Some(self.write_impl(self.value.try_write()?))
+    }
+}
+impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalConst<T> {
+    fn read(&'static self) -> MappedRwLockReadGuard<T> {
+        RwLockReadGuard::map(self.value.read(), |l| l)
+    }
+
+    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
+        Some(RwLockReadGuard::map(self.value.try_read()?, |l| l))
+    }
+
+    fn write(&'static self) -> MappedRwLockWriteGuard<T> {
+        RwLockWriteGuard::map(self.value.write(), |l| l)
+    }
+
+    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
+        Some(RwLockWriteGuard::map(self.value.try_write()?, |l| l))
+    }
+}
+
+/// An app local storage.
+///
+/// This is similar to [`std::thread::LocalKey`], but works across all threads of the app.
+///
+/// Use the [`app_local!`] macro to declare a static variable in the same style as [`thread_local!`].
+///
+/// Note that an app local can only be used if [`App::is_running`] in the thread, if no app is running read and write **will panic**.
+///
+/// [`App::is_running`]: crate::app::App::is_running
+pub struct AppLocal<T: Send + Sync + 'static> {
+    inner: &'static dyn AppLocalImpl<T>,
+}
+impl<T: Send + Sync + 'static> AppLocal<T> {
+    #[doc(hidden)]
+    pub const fn new(inner: &'static dyn AppLocalImpl<T>) -> Self {
+        AppLocal { inner }
+    }
+
+    /// Read lock the value associated with the current app.
+    ///
+    /// Initializes the default value for the app if this is the first read.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no app is running, see [`App::is_running`] for more details.
+    ///
+    /// [`App::is_running`]: crate::app::App::is_running
+    #[inline]
+    pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
+        self.inner.read()
+    }
+
+    /// Try read lock the value associated with the current app.
+    ///
+    /// Initializes the default value for the app if this is the first read.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no app is running, see [`App::is_running`] for more details.
+    ///
+    /// [`App::is_running`]: crate::app::App::is_running
+    #[inline]
+    pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
+        self.inner.try_read()
+    }
+
+    /// Write lock the value associated with the current app.
+    ///
+    /// Initializes the default value for the app if this is the first read.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no app is running, see [`App::is_running`] for more details.
+    ///
+    /// [`App::is_running`]: crate::app::App::is_running
+    #[inline]
+    pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
+        self.inner.write()
+    }
+
+    /// Try to write lock the value associated with the current app.
+    ///
+    /// Initializes the default value for the app if this is the first read.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no app is running, see [`App::is_running`] for more details.
+    ///
+    /// [`App::is_running`]: crate::app::App::is_running
+    pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
+        self.inner.try_write()
+    }
 
     /// Get a clone of the value.
+    #[inline]
     pub fn get(&'static self) -> T
     where
         T: Clone,
@@ -345,6 +471,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     }
 
     /// Set the value.
+    #[inline]
     pub fn set(&'static self, value: T) {
         *self.write() = value;
     }
@@ -352,6 +479,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// Try to get a clone of the value.
     ///
     /// Returns `None` if can't acquire a read lock.
+    #[inline]
     pub fn try_get(&'static self) -> Option<T>
     where
         T: Clone,
@@ -362,6 +490,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// Try to set the value.
     ///
     /// Returns `Err(value)` if can't acquire a write lock.
+    #[inline]
     pub fn try_set(&'static self, value: T) -> Result<(), T> {
         match self.try_write() {
             Some(mut l) => {
@@ -373,22 +502,26 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     }
 
     /// Create a read lock and `map` it to a sub-value.
+    #[inline]
     pub fn read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> MappedRwLockReadGuard<O> {
         MappedRwLockReadGuard::map(self.read(), map)
     }
 
     /// Try to create a read lock and `map` it to a sub-value.
+    #[inline]
     pub fn try_wread_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> Option<MappedRwLockReadGuard<O>> {
         let lock = self.try_read()?;
         Some(MappedRwLockReadGuard::map(lock, map))
     }
 
     /// Create a write lock and `map` it to a sub-value.
+    #[inline]
     pub fn write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> MappedRwLockWriteGuard<O> {
         MappedRwLockWriteGuard::map(self.write(), map)
     }
 
     /// Try to create a write lock and `map` it to a sub-value.
+    #[inline]
     pub fn try_write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> Option<MappedRwLockWriteGuard<O>> {
         let lock = self.try_write()?;
         Some(MappedRwLockWriteGuard::map(lock, map))
@@ -397,7 +530,33 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 
 ///<span data-del-macro-root></span> Declares new app local variable.
 ///
+/// An app local is a static variable that is declared using the same syntax as [`thread_local!`], but can be
+/// accessed by any thread in the app. In apps that only run once per process it compiles down to the equivalent
+/// of a `static LOCAL: RwLock<T> = const;` or `static LOCAL: RwLock<Option<T>>` that initializes on first usage. In test
+/// builds with multiple parallel apps it compiles to a switching storage that provides a different value depending on
+/// what app is running in the current thread.
+///
 /// See [`AppLocal<T>`] for more details.
+///
+/// # Multi App
+///
+/// If the crate is compiled with the `multi_app` feature a different internal implementation is used that supports multiple
+/// apps, either running in parallel in different threads or one after the other. This backing implementation has some small overhead,
+/// but usually you only want multiple app instances per-process when running tests.
+/// 
+/// The lifetime of `multi_app` locals is also more limited, trying to use an app-local before starting to build an app will panic,
+/// the app-local value will be dropped when the app is dropped. Without the `multi_app` feature the app-locals can be used at
+/// any point before or after the app lifetime, values are not explicitly dropped, just unloaded with the process.
+///
+/// # Const
+///
+/// The initialization expression can be wrapped in a `const { .. }` block, if the `multi_app` feature is **not** enabled
+/// a faster implementation is used that is equivalent to a direct `static LOCAL: RwLock<T>` in terms of performance.
+///
+/// Note that this syntax is available even if the `multi_app` feature is enabled, the expression must be const either way,
+/// but with the feature the same dynamic implementation is used.
+///
+/// Note that `const` initialization does not automatically convert the value into the static type.
 ///
 /// # Examples
 ///
@@ -405,7 +564,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 /// # use zero_ui_core::{app::*, context::*};
 /// app_local! {
 ///     /// A public documented value.
-///     pub static FOO: u8 = 10u8;
+///     pub static FOO: u8 = const { 10u8 };
 ///
 ///     // A private value.
 ///     static BAR: String = "Into!";
@@ -422,30 +581,107 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 macro_rules! app_local {
     ($(
         $(#[$meta:meta])*
-        $vis:vis static $IDENT:ident : $T:ty = $init:expr;
+        $vis:vis static $IDENT:ident : $T:ty = $(const { $init_const:expr })? $($init:expr)?;
     )+) => {$(
-        $(#[$meta])*
-        $vis static $IDENT: $crate::context::AppLocal<$T> = {
-            fn init() -> $T {
-                std::convert::Into::into($init)
-            }
-            $crate::context::AppLocal::new(init)
-        };
+        $crate::context::app_local_impl! {
+            $(#[$meta])*
+            $vis static $IDENT: $T = $(const { $init_const })? $($init)?;
+        }
     )+};
 }
 #[doc(inline)]
 pub use app_local;
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! app_local_impl_single {
+    (
+        $(#[$meta:meta])*
+        $vis:vis static $IDENT:ident : $T:ty = const { $init:expr };
+    ) => {
+        $(#[$meta])*
+        $vis static $IDENT: $crate::context::AppLocal<$T> = {
+            static IMPL: $crate::context::AppLocalConst<$T> = $crate::context::AppLocalConst::new($init);
+            $crate::context::AppLocal::new(&IMPL)
+        };
+    };
+    (
+        $(#[$meta:meta])*
+        $vis:vis static $IDENT:ident : $T:ty = $init:expr;
+    ) => {
+        $(#[$meta])*
+        $vis static $IDENT: $crate::context::AppLocal<$T> = {
+            fn init() -> $T {
+                std::convert::Into::into($init)
+            }
+            static IMPL: $crate::context::AppLocalOption<$T> = $crate::context::AppLocalOption::new(init);
+            $crate::context::AppLocal::new(&IMPL)
+        };
+    };
+    (
+        $(#[$meta:meta])*
+        $vis:vis static $IDENT:ident : $T:ty = ($tt:tt)*
+    ) => {
+        std::compile_error!("expected `const { $expr };` or `$expr;`")
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! app_local_impl_multi {
+    (
+        $(#[$meta:meta])*
+        $vis:vis static $IDENT:ident : $T:ty = const { $init:expr };
+    ) => {
+        $(#[$meta])*
+        $vis static $IDENT: $crate::context::AppLocal<$T> = {
+            const fn init() -> $T {
+                $init
+            }
+            static IMPL: $crate::context::AppLocalVec<$T> = $crate::context::AppLocalVec::new(init);
+            $crate::context::AppLocal::new(&IMPL)
+        };
+    };
+    (
+        $(#[$meta:meta])*
+        $vis:vis static $IDENT:ident : $T:ty = $init:expr;
+    ) => {
+        $(#[$meta])*
+        $vis static $IDENT: $crate::context::AppLocal<$T> = {
+            fn init() -> $T {
+                std::convert::Into::into($init)
+            }
+            static IMPL: $crate::context::AppLocalVec<$T> = $crate::context::AppLocalVec::new(init);
+            $crate::context::AppLocal::new(&IMPL)
+        };
+    };
+    (
+        $(#[$meta:meta])*
+        $vis:vis static $IDENT:ident : $T:ty = ($tt:tt)*
+    ) => {
+        std::compile_error!("expected `const { $expr };` or `$expr;`")
+    };
+}
+
+#[cfg(feature = "multi_app")]
+#[doc(hidden)]
+pub use app_local_impl_multi as app_local_impl;
+#[cfg(not(feature = "multi_app"))]
+#[doc(hidden)]
+pub use app_local_impl_single as app_local_impl;
+
 /*
     context_local!
 */
 
-struct ContextLocalData<T: Send + Sync + 'static> {
+#[doc(hidden)]
+pub struct ContextLocalData<T: Send + Sync + 'static> {
     values: Vec<(ThreadId, T)>,
     default: Option<T>,
 }
 impl<T: Send + Sync + 'static> ContextLocalData<T> {
-    fn new() -> Self {
+    #[doc(hidden)]
+    pub const fn new() -> Self {
         Self {
             values: vec![],
             default: None,
@@ -464,9 +700,9 @@ pub struct ContextLocal<T: Send + Sync + 'static> {
 }
 impl<T: Send + Sync + 'static> ContextLocal<T> {
     #[doc(hidden)]
-    pub const fn new(init: fn() -> T) -> Self {
+    pub const fn new(storage: &'static dyn AppLocalImpl<ContextLocalData<T>>, init: fn() -> T) -> Self {
         Self {
-            data: AppLocal::new(ContextLocalData::new),
+            data: AppLocal::new(storage),
             init,
         }
     }
@@ -785,17 +1021,58 @@ macro_rules! context_local {
         $(#[$meta:meta])*
         $vis:vis static $IDENT:ident : $T:ty = $init:expr;
     )+) => {$(
+        $crate::context::context_local_impl! {
+            $(#[$meta])*
+            $vis static $IDENT: $T = $init;
+        }
+    )+};
+}
+#[doc(inline)]
+pub use context_local;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! context_local_impl_single {
+    ($(
+        $(#[$meta:meta])*
+        $vis:vis static $IDENT:ident : $T:ty = $init:expr;
+    )+) => {$(
         $(#[$meta])*
         $vis static $IDENT: $crate::context::ContextLocal<$T> = {
             fn init() -> $T {
                 std::convert::Into::into($init)
             }
-            $crate::context::ContextLocal::new(init)
+            static IMPL: $crate::context::AppLocalConst<$crate::context::ContextLocalData<$T>> = $crate::context::AppLocalConst::new($crate::context::ContextLocalData::new());
+            $crate::context::ContextLocal::new(&IMPL, init)
         };
     )+};
 }
-#[doc(inline)]
-pub use context_local;
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! context_local_impl_multi {
+    ($(
+        $(#[$meta:meta])*
+        $vis:vis static $IDENT:ident : $T:ty = $init:expr;
+    )+) => {$(
+        $(#[$meta])*
+        $vis static $IDENT: $crate::context::ContextLocal<$T> = {
+            fn init() -> $T {
+                std::convert::Into::into($init)
+            }
+            static IMPL: $crate::context::AppLocalVec<$crate::context::ContextLocalData<$T>> = $crate::context::AppLocalVec::new($crate::context::ContextLocalData::new);
+            $crate::context::ContextLocal::new(&IMPL, init)
+        };
+    )+};
+}
+
+#[cfg(feature = "multi_app")]
+#[doc(hidden)]
+pub use context_local_impl_multi as context_local_impl;
+
+#[cfg(not(feature = "multi_app"))]
+#[doc(hidden)]
+pub use context_local_impl_single as context_local_impl;
 
 #[doc(hidden)]
 pub mod option {
