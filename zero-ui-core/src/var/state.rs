@@ -340,15 +340,15 @@ pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl
 /// updates. The `deinit` closure is called on deinit to get the *reset* value.
 pub fn widget_state_is_state(
     child: impl UiNode,
-    predicate: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
-    deinit: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
+    predicate: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
+    deinit: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
     state: impl IntoVar<bool>,
 ) -> impl UiNode {
     #[ui_node(struct WidgetStateIsStateNode {
         child: impl UiNode,
         state: impl Var<bool>,
-        predicate: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
-        deinit: impl Fn(StateMapRef<state_map::Widget>) -> bool + Send + 'static,
+        predicate: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
+        deinit: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
     })]
     impl UiNode for WidgetStateIsStateNode {
         fn init(&mut self) {
@@ -388,16 +388,16 @@ pub fn widget_state_is_state(
 /// the `state` updates. The `get_deinit` closure is called on deinit to get the *reset* value.
 pub fn widget_state_get_state<T: VarValue>(
     child: impl UiNode,
-    get_new: impl Fn(StateMapRef<state_map::Widget>, &T) -> Option<T> + Send + 'static,
-    get_deinit: impl Fn(StateMapRef<state_map::Widget>, &T) -> Option<T> + Send + 'static,
+    get_new: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
+    get_deinit: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
     state: impl IntoVar<T>,
 ) -> impl UiNode {
     #[ui_node(struct WidgetStateGetStateNode<T: VarValue> {
         _t: PhantomData<T>,
         child: impl UiNode,
         state: impl Var<T>,
-        get_new: impl Fn(StateMapRef<state_map::Widget>, &T) -> Option<T> + Send + 'static,
-        get_deinit: impl Fn(StateMapRef<state_map::Widget>, &T) -> Option<T> + Send + 'static,
+        get_new: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
+        get_deinit: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
     })]
     impl UiNode for WidgetStateGetStateNode {
         fn init(&mut self) {

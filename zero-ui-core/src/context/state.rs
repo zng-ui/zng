@@ -314,12 +314,6 @@ pub mod state_map {
 
     type AnyMap = crate::crate_util::IdMap<u64, Box<dyn Any + Send + Sync>>;
 
-    /// Window state-map tag.
-    pub enum Window {}
-
-    /// Widget state-map tag.
-    pub enum Widget {}
-
     pub(super) struct StateMap {
         map: AnyMap,
     }

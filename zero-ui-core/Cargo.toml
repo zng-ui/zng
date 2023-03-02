@@ -122,6 +122,7 @@ async-recursion = "1"
 pretty-type-name = "1"
 num_enum = "0.5"
 take_mut = "0.2"
+smallvec = { version = "1", features = ["const_new"] }
 
 # serde
 serde = "1"

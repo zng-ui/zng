@@ -1,66 +1,19 @@
-use std::{any::Any, cell::RefCell, fmt, marker::PhantomData, mem, sync::Arc, thread::ThreadId};
+use std::{any::Any, cell::RefCell, marker::PhantomData, mem, sync::Arc, thread::ThreadId};
 
 use parking_lot::*;
+use smallvec::SmallVec;
 
 use crate::{
+    app::AppId,
     context::WidgetUpdates,
-    crate_util::{IdNameError, NameIdMap, RunOnDrop},
+    crate_util::RunOnDrop,
     event::EventUpdate,
     render::{FrameBuilder, FrameUpdate},
-    text::Text,
     ui_node,
     units::{self, TimeUnits},
     widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
     widget_instance::UiNode,
 };
-
-unique_id_32! {
-    /// Identifies an app instance.
-    ///
-    /// You can get the current app ID from [`App::current_id`].
-    ///
-    /// [`App::current_id`]: crate::app::App::current_id
-    pub struct AppId;
-}
-impl AppId {
-    fn name_map() -> parking_lot::MappedMutexGuard<'static, NameIdMap<Self>> {
-        static NAME_MAP: Mutex<Option<NameIdMap<AppId>>> = parking_lot::const_mutex(None);
-        parking_lot::MutexGuard::map(NAME_MAP.lock(), |m| m.get_or_insert_with(NameIdMap::new))
-    }
-
-    /// Returns the name associated with the id or `""`.
-    pub fn name(self) -> Text {
-        Self::name_map().get_name(self)
-    }
-
-    /// Associate a `name` with the id, if it is not named.
-    ///
-    /// If the `name` is already associated with a different id, returns the [`NameUsed`] error.
-    /// If the id is already named, with a name different from `name`, returns the [`AlreadyNamed`] error.
-    /// If the `name` is an empty string or already is the name of the id, does nothing.
-    ///
-    /// [`NameUsed`]: IdNameError::NameUsed
-    /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
-    pub fn set_name(self, name: impl Into<Text>) -> Result<(), IdNameError<Self>> {
-        Self::name_map().set(name.into(), self)
-    }
-}
-impl fmt::Debug for AppId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = self.name();
-        if f.alternate() {
-            f.debug_struct("AppId")
-                .field("id", &self.get())
-                .field("sequential", &self.sequential())
-                .field("name", &name)
-                .finish()
-        } else if !name.is_empty() {
-            write!(f, r#"AppId("{name}")"#)
-        } else {
-            write!(f, "AppId({})", self.sequential())
-        }
-    }
-}
 
 struct ThreadOwnerApp {
     id: AppId,
@@ -87,13 +40,13 @@ impl Drop for AppScope {
 /// Tracks current thread and current task *owner* threads.
 pub struct ThreadContext {
     app: Option<Arc<ThreadOwnerApp>>,
-    context: Vec<ThreadId>,
+    context: SmallVec<[ThreadId; 8]>,
 }
 thread_local! {
     static THREAD_CONTEXT: RefCell<ThreadContext> = const {
         RefCell::new(ThreadContext {
             app: None,
-            context: vec![],
+            context: SmallVec::new_const(),
         })
     };
 }
@@ -246,18 +199,9 @@ impl ThreadContext {
     }
 }
 
-struct ContextLocalData<T: Send + Sync + 'static> {
-    values: Vec<(ThreadId, T)>,
-    default: Option<T>,
-}
-impl<T: Send + Sync + 'static> ContextLocalData<T> {
-    fn new() -> Self {
-        Self {
-            values: vec![],
-            default: None,
-        }
-    }
-}
+/*
+    app_local!
+*/
 
 /// An app local storage.
 ///
@@ -491,6 +435,23 @@ macro_rules! app_local {
 }
 #[doc(inline)]
 pub use app_local;
+
+/*
+    context_local!
+*/
+
+struct ContextLocalData<T: Send + Sync + 'static> {
+    values: Vec<(ThreadId, T)>,
+    default: Option<T>,
+}
+impl<T: Send + Sync + 'static> ContextLocalData<T> {
+    fn new() -> Self {
+        Self {
+            values: vec![],
+            default: None,
+        }
+    }
+}
 
 /// Represents an [`AppLocal<T>`] value that can be temporarily overridden in a context.
 ///

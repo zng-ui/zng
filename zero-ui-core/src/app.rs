@@ -6,12 +6,14 @@ pub mod raw_events;
 pub mod view_process;
 
 pub use intrinsic::*;
+use parking_lot::Mutex;
 
 use crate::config::ConfigManager;
-use crate::crate_util::{PanicPayload, ReceiverExt};
+use crate::crate_util::{IdNameError, NameIdMap, PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, EVENTS};
 use crate::image::ImageManager;
 use crate::task::ui::UiTask;
+use crate::text::Text;
 use crate::timer::TimersService;
 use crate::units::Deadline;
 use crate::var::VARS;
@@ -40,6 +42,54 @@ use std::{
     fmt,
     time::Instant,
 };
+
+unique_id_32! {
+    /// Identifies an app instance.
+    ///
+    /// You can get the current app ID from [`App::current_id`].
+    ///
+    /// [`App::current_id`]: crate::app::App::current_id
+    pub struct AppId;
+}
+impl AppId {
+    fn name_map() -> parking_lot::MappedMutexGuard<'static, NameIdMap<Self>> {
+        static NAME_MAP: Mutex<Option<NameIdMap<AppId>>> = parking_lot::const_mutex(None);
+        parking_lot::MutexGuard::map(NAME_MAP.lock(), |m| m.get_or_insert_with(NameIdMap::new))
+    }
+
+    /// Returns the name associated with the id or `""`.
+    pub fn name(self) -> Text {
+        Self::name_map().get_name(self)
+    }
+
+    /// Associate a `name` with the id, if it is not named.
+    ///
+    /// If the `name` is already associated with a different id, returns the [`NameUsed`] error.
+    /// If the id is already named, with a name different from `name`, returns the [`AlreadyNamed`] error.
+    /// If the `name` is an empty string or already is the name of the id, does nothing.
+    ///
+    /// [`NameUsed`]: IdNameError::NameUsed
+    /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
+    pub fn set_name(self, name: impl Into<Text>) -> Result<(), IdNameError<Self>> {
+        Self::name_map().set(name.into(), self)
+    }
+}
+impl fmt::Debug for AppId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = self.name();
+        if f.alternate() {
+            f.debug_struct("AppId")
+                .field("id", &self.get())
+                .field("sequential", &self.sequential())
+                .field("name", &name)
+                .finish()
+        } else if !name.is_empty() {
+            write!(f, r#"AppId("{name}")"#)
+        } else {
+            write!(f, "AppId({})", self.sequential())
+        }
+    }
+}
 
 /// Error when the app connected to a sender/receiver channel has disconnected.
 ///

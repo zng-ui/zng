@@ -11,8 +11,8 @@ pub use state::*;
 mod trace;
 pub use trace::*;
 
-mod value;
-pub use value::*;
+mod local;
+pub use local::*;
 
 use crate::{
     app::{AppDisconnected, AppEventSender, LoopTimer},
@@ -44,7 +44,7 @@ bitflags! {
 struct WindowCtxData {
     id: WindowId,
     mode: WindowMode,
-    state: OwnedStateMap<state_map::Window>,
+    state: OwnedStateMap<WINDOW>,
     widget_tree: Option<WidgetInfoTree>,
 
     #[cfg(any(test, doc, feature = "test_util"))]
@@ -93,7 +93,7 @@ impl WindowCtx {
     }
 
     /// Gets the window state.
-    pub fn state(&mut self) -> &mut OwnedStateMap<state_map::Window> {
+    pub fn state(&mut self) -> &mut OwnedStateMap<WINDOW> {
         &mut self.0.get_mut().as_mut().unwrap().state
     }
 }
@@ -102,7 +102,7 @@ struct WidgetCtxData {
     parent_id: Option<WidgetId>,
     id: WidgetId,
     flags: UpdateFlags,
-    state: OwnedStateMap<state_map::Widget>,
+    state: OwnedStateMap<WIDGET>,
     var_handles: VarHandles,
     event_handles: EventHandles,
     bounds: WidgetBoundsInfo,
@@ -279,7 +279,7 @@ impl WidgetCtx {
     }
 
     /// Gets the widget state.
-    pub fn state(&mut self) -> &mut OwnedStateMap<state_map::Widget> {
+    pub fn state(&mut self) -> &mut OwnedStateMap<WIDGET> {
         &mut self.0.get_mut().as_mut().unwrap().state
     }
 
@@ -380,7 +380,7 @@ impl WINDOW {
     ///
     /// Note that this locks the entire [`WINDOW`], this is an entry point for widget extensions and must
     /// return as soon as possible. A common pattern is cloning the stored value.
-    pub fn with_state<R>(&self, f: impl FnOnce(StateMapRef<state_map::Window>) -> R) -> R {
+    pub fn with_state<R>(&self, f: impl FnOnce(StateMapRef<WINDOW>) -> R) -> R {
         f(self.req().state.borrow())
     }
 
@@ -388,7 +388,7 @@ impl WINDOW {
     ///
     /// Note that this locks the entire [`WINDOW`], this is an entry point for widget extensions and must
     /// return as soon as possible. A common pattern is cloning the stored value.
-    pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<state_map::Window>) -> R) -> R {
+    pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<WINDOW>) -> R) -> R {
         f(self.req_mut().state.borrow_mut())
     }
 
@@ -796,7 +796,7 @@ impl WIDGET {
     ///
     /// Note that this locks the entire [`WIDGET`], this is an entry point for widget extensions and must
     /// return as soon as possible. A common pattern is cloning the stored value.
-    pub fn with_state<R>(&self, f: impl FnOnce(StateMapRef<state_map::Widget>) -> R) -> R {
+    pub fn with_state<R>(&self, f: impl FnOnce(StateMapRef<WIDGET>) -> R) -> R {
         f(self.req().state.borrow())
     }
 
@@ -804,7 +804,7 @@ impl WIDGET {
     ///
     /// Note that this locks the entire [`WIDGET`], this is an entry point for widget extensions and must
     /// return as soon as possible. A common pattern is cloning the stored value.
-    pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<state_map::Widget>) -> R) -> R {
+    pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<WIDGET>) -> R) -> R {
         f(self.req_mut().state.borrow_mut())
     }
 

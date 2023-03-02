@@ -1,7 +1,7 @@
 use std::{any::TypeId, mem};
 
 use crate::{
-    app::App,
+    app::{App, AppId},
     context::*,
     crate_util::FxHashMap,
     gesture::CommandShortcutExt,
