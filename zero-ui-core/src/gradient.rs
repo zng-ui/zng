@@ -482,7 +482,11 @@ impl ColorStop {
     /// [is positional]: Self::is_positional
     pub fn layout(&self, x_axis: bool) -> RenderGradientStop {
         RenderGradientStop {
-            offset: self.offset.layout_f32(x_axis),
+            offset: if self.offset.is_default() {
+                f32::INFINITY
+            } else {
+                self.offset.layout_f32(x_axis)
+            },
             color: self.color.into(),
         }
     }

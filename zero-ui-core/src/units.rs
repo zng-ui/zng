@@ -333,7 +333,7 @@ impl Orientation2D {
 mod tests {
     use std::f32::consts::{PI, TAU};
 
-    use crate::context::LAYOUT;
+    use crate::{context::LAYOUT, app::App};
 
     use super::*;
 
@@ -397,6 +397,8 @@ mod tests {
 
     #[test]
     pub fn length_expr_eval() {
+        let _app = App::minimal().run_headless(false);
+
         let l = (Length::from(200) - 100.pct()).abs();
         let l = LAYOUT.with_context(Px(0), 1.fct(), 96.0, PxSize::new(Px(600), Px(400)), || l.layout_x());
 
@@ -405,6 +407,8 @@ mod tests {
 
     #[test]
     pub fn length_expr_clamp() {
+        let _app = App::minimal().run_headless(false);
+
         let l = Length::from(100.pct()).clamp(100, 500);
         assert!(matches!(l, Length::Expr(_)));
 
