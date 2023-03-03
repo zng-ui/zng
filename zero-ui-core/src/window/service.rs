@@ -1026,8 +1026,11 @@ impl WindowLoading {
 
 /// Represents a handle that stops a window from opening while it exists.
 ///
-/// A handle can be retrieved using [`WINDOWS.loading_handle`], the window does not
+/// A handle can be retrieved using [`WINDOWS.loading_handle`] or [`WINDOW_CTRL.loading_handle`], the window does not
 /// open until all handles are dropped.
+///
+/// [`WINDOWS.loading_handle`]: WINDOWS::loading_handle
+/// [`WINDOW_CTRL.loading_handle`]: WINDOW_CTRL::loading_handle
 #[derive(Clone)]
 pub struct WindowLoadingHandle(Arc<WindowLoadingHandleData>);
 impl WindowLoadingHandle {
@@ -1059,5 +1062,77 @@ impl std::hash::Hash for WindowLoadingHandle {
 impl fmt::Debug for WindowLoadingHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "WindowLoadingHandle(_)")
+    }
+}
+
+/// Control and variables of the context [`WINDOW`] created using [`WINDOWS`].
+#[allow(non_camel_case_types)]
+pub struct WINDOW_CTRL;
+
+impl WINDOW_CTRL {
+    /// Clone a reference to the variables that get and set window properties.
+    pub fn vars(&self) -> super::WindowVars {
+        WindowVars::req()
+    }
+
+    /// Returns `true` if the window is open.
+    pub fn is_open(&self) -> bool {
+        WINDOWS.is_open(WINDOW.id())
+    }
+
+    /// Returns `true` if the window is open and loaded.
+    pub fn is_loaded(&self) -> bool {
+        WINDOWS.is_loaded(WINDOW.id())
+    }
+
+    /// Gets a handle that stops the window from loading while it exists.
+    ///
+    /// The window is only opened in the view-process after it is loaded, without any loading handles the window is considered *loaded*
+    /// after the first layout pass. Nodes in the window can request a loading handle to delay the view opening to after all async resources
+    /// it requires to render correctly are loaded.
+    ///
+    /// Note that a window is only loaded after all handles are dropped or expired, you should set a reasonable `deadline`    
+    /// after a time it is best to partially render a window than not showing anything.
+    ///
+    /// Returns `None` if the window has already loaded.
+    pub fn loading_handle(&self, deadline: impl Into<Deadline>) -> Option<WindowLoadingHandle> {
+        WINDOWS.loading_handle(WINDOW.id(), deadline)
+    }
+
+    /// Generate an image from the current rendered frame of the window.
+    ///
+    /// The image is not loaded at the moment of return, it will update when it is loaded.
+    pub fn frame_image(&self) -> ImageVar {
+        WINDOWS.frame_image(WINDOW.id())
+    }
+
+    /// Generate an image from a selection of the current rendered frame of the window.
+    ///
+    /// The image is not loaded at the moment of return, it will update when it is loaded.
+    ///
+    /// If the window is not found the error is reported in the image error.
+    pub fn frame_image_rect(&self, rect: PxRect) -> ImageVar {
+        WINDOWS.frame_image_rect(WINDOW.id(), rect)
+    }
+
+    /// Move the window to the front of the Z stack.
+    ///
+    /// See [`WINDOWS.bring_to_top`] for more details.
+    ///
+    /// [`WINDOWS.bring_to_top`]: WINDOWS::bring_to_top
+    pub fn bring_to_top(&self) {
+        WINDOWS.bring_to_top(WINDOW.id()).ok();
+    }
+
+    /// Starts closing a window, the operation can be canceled by listeners of
+    /// [`WINDOW_CLOSE_REQUESTED_EVENT`]. If the window has children they are closed together.
+    ///
+    /// Returns a response var that will update once with the result of the operation.
+    ///
+    /// See [`WINDOWS.close`] for more details.
+    ///
+    /// [`WINDOWS.close`]: WINDOWS::close
+    pub fn close(&self) -> ResponseVar<CloseWindowResult> {
+        WINDOWS.close(WINDOW.id()).unwrap()
     }
 }

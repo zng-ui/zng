@@ -6,7 +6,7 @@ use crate::core::config::{ConfigKey, CONFIG};
 use crate::core::text::formatx;
 use crate::core::window::{
     AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState, WindowVars, MONITORS,
-    WINDOWS, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT,
+    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_CTRL, WINDOW_LOAD_EVENT,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,7 @@ where
     })]
     impl UiNode for BindWindowVarNode {
         fn init(&mut self) {
-            let window_var = (self.select)(&WindowVars::req());
+            let window_var = (self.select)(&WINDOW_CTRL.vars());
             if !self.user_var.capabilities().is_always_static() {
                 let binding = self.user_var.bind_bidi(&window_var);
                 WIDGET.push_var_handles(binding);
@@ -267,7 +267,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
         fn init(&mut self) {
             if let Some(key) = self.enabled.window_key(WINDOW.id()) {
                 let rsp = CONFIG.read(key);
-                let loading = self.enabled.loading_timeout().and_then(|t| WINDOWS.loading_handle(WINDOW.id(), t));
+                let loading = self.enabled.loading_timeout().and_then(|t| WINDOW_CTRL.loading_handle(t));
                 rsp.subscribe(WIDGET.id()).perm();
                 self.task = Task::Read { rsp, loading };
             }
@@ -295,7 +295,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                         match &self.task {
                             Task::None => {
                                 // request write.
-                                let window_vars = WindowVars::req();
+                                let window_vars = WINDOW_CTRL.vars();
                                 let cfg = WindowStateCfg {
                                     state: window_vars.state().get(),
                                     restore_rect: window_vars.restore_rect().get().cast(),
@@ -316,7 +316,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             if let Task::Read { rsp, .. } = &mut self.task {
                 if let Some(rsp) = rsp.rsp() {
                     if let Some(s) = rsp {
-                        let window_vars = WindowVars::req();
+                        let window_vars = WINDOW_CTRL.vars();
                         window_vars.state().set_ne(s.state);
                         let restore_rect: DipRect = s.restore_rect.cast();
 

@@ -3,7 +3,7 @@ use std::fmt;
 
 pub use crate::core::image::ImageLimits;
 pub use crate::core::render::ImageRendering;
-use crate::core::window::{WindowLoadingHandle, WINDOWS};
+use crate::core::window::{WindowLoadingHandle, WINDOW_CTRL};
 use crate::widgets::window::nodes::BlockWindowLoad;
 use nodes::CONTEXT_IMAGE_VAR;
 
@@ -419,7 +419,7 @@ pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWi
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
             if let Some(delay) = self.enabled.deadline() {
-                self.block = WINDOWS.loading_handle(WINDOW.id(), delay);
+                self.block = WINDOW_CTRL.loading_handle(delay);
             }
             self.child.init();
         }

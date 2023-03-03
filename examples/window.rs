@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::core::app::EXIT_CMD;
 use zero_ui::core::units::{DipPoint, DipSize};
-use zero_ui::core::window::WindowVars;
 use zero_ui::prelude::new_widget::WINDOW;
 use zero_ui::prelude::*;
 
@@ -24,11 +23,9 @@ fn app_main() {
 }
 
 fn main_window() -> Window {
-    let window_vars = WindowVars::req();
-    let window_id = WINDOW.id();
-
     // WINDOWS.exit_on_last_close().set(false);
 
+    let window_vars = WINDOW_CTRL.vars();
     let title = merge_var!(
         window_vars.actual_position(),
         window_vars.actual_size(),
@@ -54,7 +51,7 @@ fn main_window() -> Window {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
-                        state_commands(window_id),
+                        state_commands(),
                         focus_control(),
                     ]
                 },
@@ -62,16 +59,16 @@ fn main_window() -> Window {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
-                        state(&window_vars),
-                        visibility(&window_vars),
-                        chrome(&window_vars),
+                        state(),
+                        visibility(),
+                        chrome(),
                     ];
                 },
                 stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
-                        icon(&window_vars),
+                        icon(),
                         background_color(background),
                     ];
                 },
@@ -80,7 +77,7 @@ fn main_window() -> Window {
                     spacing = 20;
                     children = ui_vec![
                         screenshot(),
-                        misc(window_id, &window_vars),
+                        misc(),
                     ];
                 },
             ];
@@ -145,7 +142,7 @@ fn screenshot() -> impl UiNode {
                 println!("taking `screenshot.png`..");
 
                 let t = Instant::now();
-                let img = WINDOWS.frame_image(WINDOW.id()).get();
+                let img = WINDOW_CTRL.frame_image().get();
                 img.wait_done().await;
                 println!("taken in {:?}, saving..", t.elapsed());
 
@@ -198,10 +195,8 @@ fn screenshot() -> impl UiNode {
                                 Ok(_) => println!("saved"),
                                 Err(e) => eprintln!("{e}")
                             }
-
-                            let window_id = args.window_id;
-                            WINDOWS.close(window_id).unwrap();
-
+                            debug_assert_eq!(WINDOW.id(), args.window_id);
+                            WINDOW_CTRL.close();
                             enabled.set(true);
                         });
                     }),
@@ -214,7 +209,7 @@ fn screenshot() -> impl UiNode {
     section("Screenshot", ui_vec![of_window(), of_headless_temp(),])
 }
 
-fn icon(window_vars: &WindowVars) -> impl UiNode {
+fn icon() -> impl UiNode {
     let icon_btn = |label: &'static str, ico: WindowIcon| {
         toggle! {
             child = text!(label);
@@ -223,7 +218,7 @@ fn icon(window_vars: &WindowVars) -> impl UiNode {
     };
     select(
         "Icon",
-        window_vars.icon().clone(),
+        WINDOW_CTRL.vars().icon(),
         ui_vec![
             icon_btn("Default", WindowIcon::Default),
             icon_btn("Png File", "examples/res/window/icon-file.png".into()),
@@ -257,7 +252,7 @@ fn icon(window_vars: &WindowVars) -> impl UiNode {
     )
 }
 
-fn chrome(window_vars: &WindowVars) -> impl UiNode {
+fn chrome() -> impl UiNode {
     let chrome_btn = |c: WindowChrome| {
         toggle! {
             child = text!("{c:?}");
@@ -266,7 +261,7 @@ fn chrome(window_vars: &WindowVars) -> impl UiNode {
     };
     select(
         "Chrome",
-        window_vars.chrome().clone(),
+        WINDOW_CTRL.vars().chrome(),
         ui_vec![
             chrome_btn(WindowChrome::Default),
             chrome_btn(WindowChrome::None),
@@ -275,8 +270,10 @@ fn chrome(window_vars: &WindowVars) -> impl UiNode {
     )
 }
 
-fn state_commands(window_id: WindowId) -> impl UiNode {
+fn state_commands() -> impl UiNode {
     use zero_ui::widgets::window::commands::*;
+
+    let window_id = WINDOW.id();
 
     section(
         "Commands",
@@ -317,7 +314,7 @@ fn focus_control() -> impl UiNode {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            WindowVars::req().focus_indicator().set(Some(FocusIndicator::Critical));
+            WINDOW_CTRL.vars().focus_indicator().set(Some(FocusIndicator::Critical));
             enabled.set(true);
         });
     };
@@ -330,7 +327,7 @@ fn focus_control() -> impl UiNode {
             enabled.set(false);
             task::deadline(5.secs()).await;
 
-            WindowVars::req().focus_indicator().set(Some(FocusIndicator::Info));
+            WINDOW_CTRL.vars().focus_indicator().set(Some(FocusIndicator::Info));
             enabled.set(true);
         });
     };
@@ -338,7 +335,7 @@ fn focus_control() -> impl UiNode {
     section("Focus", ui_vec![focus_btn, critical_btn, info_btn,])
 }
 
-fn state(window_vars: &WindowVars) -> impl UiNode {
+fn state() -> impl UiNode {
     let state_btn = |s: WindowState| {
         toggle! {
             child = text!("{s:?}");
@@ -348,7 +345,7 @@ fn state(window_vars: &WindowVars) -> impl UiNode {
 
     select(
         "State",
-        window_vars.state().clone(),
+        WINDOW_CTRL.vars().state(),
         ui_vec![
             state_btn(WindowState::Minimized),
             separator(),
@@ -362,8 +359,8 @@ fn state(window_vars: &WindowVars) -> impl UiNode {
     )
 }
 
-fn visibility(window_vars: &WindowVars) -> impl UiNode {
-    let visible = window_vars.visible();
+fn visibility() -> impl UiNode {
+    let visible = WINDOW_CTRL.vars().visible();
     let btn = button! {
         enabled = visible.clone();
         child = text!("Hide for 1s");
@@ -379,18 +376,21 @@ fn visibility(window_vars: &WindowVars) -> impl UiNode {
     section("Visibility", ui_vec![btn])
 }
 
-fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl UiNode {
+fn misc() -> impl UiNode {
+    let window_vars = WINDOW_CTRL.vars();
+    let window_id = WINDOW.id();
+
     let can_open_windows = window_vars.state().map(|&s| s != WindowState::Exclusive);
     section(
         "Misc.",
         ui_vec![
             toggle! {
                 child = text!("Taskbar Visible");
-                checked = window_vars.taskbar_visible().clone();
+                checked = window_vars.taskbar_visible();
             },
             toggle! {
                 child = text!("Always on Top");
-                checked = window_vars.always_on_top().clone();
+                checked = window_vars.always_on_top();
             },
             separator(),
             cmd_btn(zero_ui::widgets::window::commands::INSPECT_CMD.scoped(window_id)),

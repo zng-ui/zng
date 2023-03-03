@@ -1,7 +1,4 @@
-* Review `WindowVars`, `SizePropertyLength` and any other "contextual widget service".
-    - `WindowVars` are also returned by [`WINDOWS.vars`].
-    - Implement `WINDOWS.with_context(id, f)` to run a closure in a `WINDOW` context.
-    - But keep the `WINDOWS.vars` and `WINDOWS.widget_tree`, they are convenient?
+* Refactor `SizePropertyLength`.
 
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.

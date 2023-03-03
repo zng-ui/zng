@@ -1,6 +1,6 @@
 use crate::core::{
     mouse::MOUSE_HOVERED_EVENT,
-    window::{CursorIcon, WindowVars},
+    window::{CursorIcon, WINDOW_CTRL},
 };
 use crate::prelude::new_property::*;
 
@@ -45,7 +45,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                     if self.hovered_binding.is_none() {
                         // we are not already set, setup binding.
 
-                        let cursor = WindowVars::req().cursor();
+                        let cursor = WINDOW_CTRL.vars().cursor();
                         cursor.set_ne(self.cursor.get());
                         self.hovered_binding = Some(self.cursor.bind(&cursor));
                     }
@@ -54,7 +54,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                     if self.hovered_binding.is_some() {
                         self.hovered_binding = None;
                         let value = self.cursor.get();
-                        WindowVars::req().cursor().modify(move |c| {
+                        WINDOW_CTRL.vars().cursor().modify(move |c| {
                             if c.as_ref() == &value {
                                 *c.to_mut() = Some(CursorIcon::Default);
                             }

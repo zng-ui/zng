@@ -71,10 +71,10 @@ pub(super) struct WindowVarsData {
 ///
 /// You can get the controller for any window using [`WINDOWS.vars`].
 ///
-/// You can get the controller for the current context window using [`req`].
+/// You can get the controller for the current context window using [`WINDOW_CTRL.vars`].
 ///
 /// [`WINDOWS.vars`]: crate::window::WINDOWS::vars
-/// [`req`]: WindowVars::req
+/// [`WINDOW_CTRL.vars`]: crate::window::WINDOW_CTRL::vars
 #[derive(Clone)]
 pub struct WindowVars(pub(super) Arc<WindowVarsData>);
 impl WindowVars {
@@ -143,13 +143,8 @@ impl WindowVars {
     /// # Panics
     ///
     /// Panics if called in a custom window context that did not setup the variables.
-    pub fn req() -> Self {
+    pub(super) fn req() -> Self {
         WINDOW.req_state(&WINDOW_VARS_ID)
-    }
-
-    /// Tries to get the window vars from the window state.
-    pub fn get() -> Option<Self> {
-        WINDOW.get_state(&WINDOW_VARS_ID)
     }
 
     /// Window chrome, the non-client area of the window.

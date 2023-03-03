@@ -124,7 +124,7 @@ pub mod window {
         /// use zero_ui::prelude::*;
         ///
         /// fn example() -> Window {
-        ///     let selected_mode = WindowVars::req().render_mode();
+        ///     let selected_mode = WINDOW_CTRL.vars().render_mode();
         ///     window! {
         ///         title = "Render Mode";
         ///         render_mode = RenderMode::Dedicated;

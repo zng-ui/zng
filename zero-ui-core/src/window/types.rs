@@ -490,7 +490,7 @@ impl WindowIcon {
     {
         Self::Image(ImageSource::render_node(RenderMode::Software, move |args| {
             let node = new_icon();
-            super::WindowVars::req().parent().set_ne(args.parent);
+            super::WINDOW_CTRL.vars().parent().set_ne(args.parent);
             node
         }))
     }

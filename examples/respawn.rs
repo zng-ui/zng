@@ -87,7 +87,7 @@ fn image() -> impl UiNode {
 }
 
 fn window_status() -> impl UiNode {
-    let vars = WindowVars::req();
+    let vars = WINDOW_CTRL.vars();
 
     macro_rules! status {
         ($name:ident) => {

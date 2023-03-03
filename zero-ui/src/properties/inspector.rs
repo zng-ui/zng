@@ -2,12 +2,11 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use zero_ui_core::window::WindowVars;
-
 use crate::core::{
     focus::*,
     mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
     widget_info::*,
+    window::WINDOW_CTRL,
 };
 use crate::prelude::new_property::*;
 
@@ -193,7 +192,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         fn event(&mut self, update: &mut EventUpdate) {
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                 if self.valid && self.enabled.get() {
-                    let factor = WindowVars::req().scale_factor().get();
+                    let factor = WINDOW_CTRL.vars().scale_factor().get();
                     let pt = args.position.to_px(factor.0);
 
                     let fails = Rc::new(RefCell::new(vec![]));

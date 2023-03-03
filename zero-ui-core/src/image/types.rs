@@ -18,7 +18,7 @@ use crate::{
     units::*,
     var::{AnyVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar},
     widget_instance::UiNode,
-    window::{FrameCaptureMode, Window, WindowId, WindowVars},
+    window::{FrameCaptureMode, Window, WindowId, WINDOW_CTRL},
 };
 
 pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
@@ -520,9 +520,10 @@ impl ImageSource {
     {
         Self::Render(
             Arc::new(Box::new(move |args| {
-                WindowVars::req().parent().set_ne(args.parent);
+                let vars = WINDOW_CTRL.vars();
+                vars.parent().set_ne(args.parent);
                 let r = new_img(args);
-                WindowVars::req().frame_capture_mode().set_ne(FrameCaptureMode::All);
+                vars.frame_capture_mode().set_ne(FrameCaptureMode::All);
                 r
             })),
             None,
@@ -560,7 +561,7 @@ impl ImageSource {
         N: Fn(&ImageRenderArgs) -> U + Send + Sync + 'static,
     {
         Self::render(move |args| {
-            WindowVars::req().parent().set_ne(args.parent);
+            WINDOW_CTRL.vars().parent().set_ne(args.parent);
             let node = render(args);
             Window::new_container(
                 crate::widget_instance::WidgetId::new_unique(),
