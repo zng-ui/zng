@@ -86,6 +86,8 @@ impl SideOffsets {
     }
 
     /// Compute the offsets in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
     pub fn layout(&self) -> PxSideOffsets {
         PxSideOffsets::new(
             self.top.layout_y(),

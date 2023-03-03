@@ -101,6 +101,8 @@ impl Rect {
     }
 
     /// Compute the rectangle in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
     pub fn layout(&self) -> PxRect {
         PxRect::new(self.origin.layout(), self.size.layout())
     }

@@ -31,6 +31,8 @@ impl GridSpacing {
     }
 
     /// Compute the spacing in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
     pub fn layout(&self) -> PxGridSpacing {
         PxGridSpacing {
             column: self.column.layout_x(),

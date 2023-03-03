@@ -84,6 +84,8 @@ impl Vector {
     }
 
     /// Compute the vector in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
     pub fn layout(&self) -> PxVector {
         PxVector::new(self.x.layout_x(), self.y.layout_y())
     }

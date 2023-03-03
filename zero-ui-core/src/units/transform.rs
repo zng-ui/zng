@@ -124,6 +124,8 @@ impl Transform {
     }
 
     /// Compute a [`PxTransform`] in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
     pub fn layout(&self) -> PxTransform {
         let mut r = PxTransform::identity();
         for step in &self.parts {

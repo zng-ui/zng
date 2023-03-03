@@ -114,6 +114,8 @@ impl Line {
     }
 
     /// Compute the line in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
     pub fn layout(&self) -> PxLine {
         PxLine {
             start: self.start.layout(),

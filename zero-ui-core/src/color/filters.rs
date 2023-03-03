@@ -44,6 +44,8 @@ impl Filter {
     /// layout context to calculate relative values.
     ///
     /// Relative blur radius lengths are calculated using the `constrains().fill_size().width` value.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
     pub fn layout(&self) -> RenderFilter {
         self.filters
             .iter()

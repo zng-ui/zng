@@ -74,6 +74,8 @@ impl Size {
     }
 
     /// Compute the size in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
     pub fn layout(&self) -> PxSize {
         PxSize::new(self.width.layout_x(), self.height.layout_y())
     }

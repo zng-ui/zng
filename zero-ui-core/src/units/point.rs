@@ -126,6 +126,8 @@ impl Point {
     }
 
     /// Compute the point in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
     pub fn layout(&self) -> PxPoint {
         PxPoint::new(self.x.layout_x(), self.y.layout_y())
     }
