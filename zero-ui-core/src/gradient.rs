@@ -214,7 +214,7 @@ impl GradientRadius {
 
         LAYOUT.with_constrains(
             |_| PxConstrains2d::new_exact(length, length),
-            || LAYOUT.with_default(length, length, || self.radii.layout()),
+            || LAYOUT.with_default_xy(length, || self.radii.layout()),
         )
     }
 }

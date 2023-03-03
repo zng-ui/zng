@@ -164,39 +164,31 @@ impl StackDirection {
         }
     }
 
-    /// Compute offset of the next item.
-    pub fn layout(&self, ctx: &LayoutMetrics, prev_item: PxRect, next_item: PxSize) -> PxVector {
-        if self.is_rtl_aware && ctx.direction().is_ltr() {
+    /// Compute offset of the next item in the current [`LAYOUT`] context.
+    pub fn layout(&self, prev_item: PxRect, next_item: PxSize) -> PxVector {
+        if self.is_rtl_aware && LAYOUT.direction().is_ltr() {
             let mut d = self.clone();
             mem::swap(&mut d.place.x, &mut d.origin.x);
             d.is_rtl_aware = false;
-            return d.layout_resolved_rtl(ctx, prev_item, next_item);
+            return d.layout_resolved_rtl(prev_item, next_item);
         }
 
-        self.layout_resolved_rtl(ctx, prev_item, next_item)
+        self.layout_resolved_rtl(prev_item, next_item)
     }
-    pub(crate) fn layout_resolved_rtl(&self, ctx: &LayoutMetrics, prev_item: PxRect, next_item: PxSize) -> PxVector {
-        let place = {
-            let ctx = ctx.clone().with_constrains(|c| c.with_exact_size(prev_item.size));
-            self.place.layout(&ctx, |_| PxPoint::zero())
-        };
-        let origin = {
-            let ctx = ctx.clone().with_constrains(|c| c.with_exact_size(next_item));
-            self.origin.layout(&ctx, |_| PxPoint::zero())
-        };
+    pub(crate) fn layout_resolved_rtl(&self, prev_item: PxRect, next_item: PxSize) -> PxVector {
+        let place = LAYOUT.with_constrains(|c| c.with_exact_size(prev_item.size), || self.place.layout());
+        let origin = LAYOUT.with_constrains(|c| c.with_exact_size(next_item), || self.origin.layout());
         prev_item.origin.to_vector() + place.to_vector() - origin.to_vector()
     }
 
     /// Direction vector.
     ///
     /// Values are `0`, `1` or `-1`.
-    pub fn vector(&self, ctx: LayoutDirection) -> euclid::Vector2D<i8, ()> {
+    pub fn vector(&self, direction: LayoutDirection) -> euclid::Vector2D<i8, ()> {
         let size = PxSize::new(Px(10), Px(10));
-        let p = self.layout(
-            &LayoutMetrics::new(1.fct(), size, Px(10)).with_direction(ctx),
-            PxRect::from_size(size),
-            size,
-        );
+        let p = LAYOUT.with_context(Px(10), 1.fct(), 96.0, size, || {
+            LAYOUT.with_direction(direction, || self.layout(PxRect::from_size(size), size))
+        });
 
         pub(crate) fn v(px: Px) -> i8 {
             use std::cmp::Ordering::*;

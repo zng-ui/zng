@@ -508,24 +508,24 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let (letter_spacing, word_spacing, tab_length) = {
                 let m = metrics.clone().with_constrains(|_| PxConstrains2d::new_exact(space_len, space_len));
                 (
-                    LETTER_SPACING_VAR.get().layout(m.for_x(), |_| Px(0)),
-                    WORD_SPACING_VAR.get().layout(m.for_x(), |_| Px(0)),
-                    TAB_LENGTH_VAR.get().layout(m.for_x(), |_| dft_tab_len),
+                    LETTER_SPACING_VAR.get().layout_x(),
+                    WORD_SPACING_VAR.get().layout_x(),
+                    LAYOUT.with_default_xy(dft_tab_len, || TAB_LENGTH_VAR.get().layout_x()),
                 )
             };
 
             let dft_line_height = font.metrics().line_height();
             let line_height = {
-                let m = metrics
-                    .clone()
-                    .with_constrains(|_| PxConstrains2d::new_exact(dft_line_height, dft_line_height));
-                LINE_HEIGHT_VAR.get().layout(m.for_y(), |_| dft_line_height)
+                LAYOUT.with_constrains(
+                    |_| PxConstrains2d::new_exact(dft_line_height, dft_line_height),
+                    || LAYOUT.with_default_xy(dft_line_height, || LINE_HEIGHT_VAR.get().layout_y()),
+                )
             };
             let line_spacing = {
-                let m = metrics
-                    .clone()
-                    .with_constrains(|_| PxConstrains2d::new_exact(line_height, line_height));
-                LINE_SPACING_VAR.get().layout(m.for_y(), |_| Px(0))
+                LAYOUT.with_constrains(
+                    |_| PxConstrains2d::new_exact(line_height, line_height),
+                    || LINE_SPACING_VAR.get().layout_y(),
+                )
             };
 
             if !self.pending.contains(Layout::RESHAPE)
@@ -549,13 +549,17 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             let dft_thickness = font.metrics().underline_thickness;
             let (overline, strikethrough, underline) = {
-                let m = metrics
-                    .clone()
-                    .with_constrains(|_| PxConstrains2d::new_exact(line_height, line_height));
-                (
-                    OVERLINE_THICKNESS_VAR.get().layout(m.for_y(), |_| dft_thickness),
-                    STRIKETHROUGH_THICKNESS_VAR.get().layout(m.for_y(), |_| dft_thickness),
-                    UNDERLINE_THICKNESS_VAR.get().layout(m.for_y(), |_| dft_thickness),
+                LAYOUT.with_constrains(
+                    |_| PxConstrains2d::new_exact(line_height, line_height),
+                    || {
+                        LAYOUT.with_default_xy(dft_thickness, || {
+                            (
+                                OVERLINE_THICKNESS_VAR.get().layout_y(),
+                                STRIKETHROUGH_THICKNESS_VAR.get().layout_y(),
+                                UNDERLINE_THICKNESS_VAR.get().layout_y(),
+                            )
+                        })
+                    },
                 )
             };
 

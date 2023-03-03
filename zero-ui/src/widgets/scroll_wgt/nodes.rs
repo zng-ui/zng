@@ -340,11 +340,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),
                 || {
-                    let metrics = LAYOUT.metrics();
-                    self.layout_line = PxVector::new(
-                        HORIZONTAL_LINE_UNIT_VAR.get().layout(metrics.for_x(), |_| Px(20)),
-                        VERTICAL_LINE_UNIT_VAR.get().layout(metrics.for_y(), |_| Px(20)),
-                    );
+                    LAYOUT.with_default_xy(Px(20), || {
+                        self.layout_line =
+                            PxVector::new(HORIZONTAL_LINE_UNIT_VAR.get().layout_x(), VERTICAL_LINE_UNIT_VAR.get().layout_y());
+                    });
                 },
             );
 
@@ -463,11 +462,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),
                 || {
-                    let metrics = LAYOUT.metrics();
-                    self.layout_page = PxVector::new(
-                        HORIZONTAL_PAGE_UNIT_VAR.get().layout(metrics.for_x(), |_| Px(20)),
-                        VERTICAL_PAGE_UNIT_VAR.get().layout(metrics.for_y(), |_| Px(20)),
-                    );
+                    LAYOUT.with_default_xy(Px(20), || {
+                        self.layout_page =
+                            PxVector::new(HORIZONTAL_PAGE_UNIT_VAR.get().layout_x(), VERTICAL_PAGE_UNIT_VAR.get().layout_y());
+                    });
                 },
             );
 
@@ -647,10 +645,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     let target_bounds = bounds.inner_bounds();
                     match mode {
                         ScrollToMode::Minimal { margin } => {
-                            let margin = LAYOUT.with_constrains(
-                                |_| PxConstrains2d::new_fill_size(target_bounds.size),
-                                || margin.layout(&LAYOUT.metrics(), |_| PxSideOffsets::zero()),
-                            );
+                            let margin = LAYOUT.with_constrains(|_| PxConstrains2d::new_fill_size(target_bounds.size), || margin.layout());
                             let mut target_bounds = target_bounds;
                             target_bounds.origin.x -= margin.left;
                             target_bounds.origin.y -= margin.top;
@@ -695,13 +690,13 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             let default = (target_bounds.size / Px(2)).to_vector().to_point();
                             let widget_point = LAYOUT.with_constrains(
                                 |_| PxConstrains2d::new_fill_size(target_bounds.size),
-                                || widget_point.layout(&LAYOUT.metrics(), |_| default),
+                                || LAYOUT.with_default_pt(default, || widget_point.layout()),
                             );
 
                             let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
                             let scroll_point = LAYOUT.with_constrains(
                                 |_| PxConstrains2d::new_fill_size(viewport_bounds.size),
-                                || scroll_point.layout(&LAYOUT.metrics(), |_| default),
+                                || LAYOUT.with_default_pt(default, || scroll_point.layout()),
                             );
 
                             let widget_point = widget_point + target_bounds.origin.to_vector();
@@ -780,7 +775,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
             LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),
                 || {
-                    let offset = self.offset.layout(&LAYOUT.metrics(), |_| viewport.to_vector());
+                    let offset = LAYOUT.with_default_sz(viewport, || self.offset.layout());
                     self.offset = Vector::zero();
 
                     if offset.y != Px(0) {

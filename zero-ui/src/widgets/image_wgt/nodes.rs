@@ -338,7 +338,11 @@ pub fn image_presenter() -> impl UiNode {
             let img_rect = PxRect::from_size(self.img_size);
             let crop = LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(self.img_size),
-                || IMAGE_CROP_VAR.get().layout(&LAYOUT.metrics(), |_| img_rect),
+                || {
+                    let mut r = IMAGE_CROP_VAR.get();
+                    r.replace_default(&img_rect.into());
+                    r.layout()
+                },
             );
             let render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
 
@@ -368,7 +372,11 @@ pub fn image_presenter() -> impl UiNode {
             let img_rect = PxRect::from_size(self.img_size);
             let crop = LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(self.img_size),
-                || IMAGE_CROP_VAR.get().layout(&LAYOUT.metrics(), |_| img_rect),
+                || {
+                    let mut r = IMAGE_CROP_VAR.get();
+                    r.replace_default(&img_rect.into());
+                    r.layout()
+                },
             );
             let mut render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
             let mut render_offset = -render_clip.origin.to_vector();
@@ -445,10 +453,7 @@ pub fn image_presenter() -> impl UiNode {
             }
 
             // Part 3 - Custom Offset and Update
-            let offset = LAYOUT.with_constrains(
-                |_| PxConstrains2d::new_fill_size(wgt_size),
-                || IMAGE_OFFSET_VAR.get().layout(&LAYOUT.metrics(), |_| PxVector::zero()),
-            );
+            let offset = LAYOUT.with_constrains(|_| PxConstrains2d::new_fill_size(wgt_size), || IMAGE_OFFSET_VAR.get().layout());
             if offset != PxVector::zero() {
                 render_offset += offset;
 

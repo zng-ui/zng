@@ -164,7 +164,7 @@ impl StackNode {
                         return true; // continue, skip collapsed
                     }
 
-                    let offset = direction.layout(&LAYOUT.metrics(), item_rect, size) + child_spacing;
+                    let offset = direction.layout(item_rect, size) + child_spacing;
 
                     item_rect.origin = offset.to_point();
                     item_rect.size = size;
@@ -214,7 +214,7 @@ impl StackNode {
                         return true; // continue, skip collapsed
                     }
 
-                    let offset = direction.layout(&LAYOUT.metrics(), item_rect, size) + child_spacing;
+                    let offset = direction.layout(item_rect, size) + child_spacing;
                     o.child_offset = offset;
                     o.define_reference_frame = define_ref_frame;
 

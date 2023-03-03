@@ -47,21 +47,15 @@ pub fn linear_gradient_ext(
             let final_size = LAYOUT.constrains().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
-                self.render_line = self.axis.get().layout(&LAYOUT.metrics());
+                self.render_line = self.axis.get().layout();
 
                 let length = self.render_line.length();
 
                 LAYOUT.with_constrains(
                     |c| c.with_new_exact_x(length),
                     || {
-                        self.stops.with(|s| {
-                            s.layout_linear(
-                                LAYOUT.metrics().for_x(),
-                                self.extend_mode.get(),
-                                &mut self.render_line,
-                                &mut self.render_stops,
-                            )
-                        })
+                        self.stops
+                            .with(|s| s.layout_linear(true, self.extend_mode.get(), &mut self.render_line, &mut self.render_stops))
                     },
                 );
 
@@ -136,26 +130,19 @@ pub fn linear_gradient_full(
             if self.final_size != final_size {
                 self.final_size = final_size;
 
-                self.final_tile_size = self.tile_size.get().layout(&metrics, |_| self.final_size);
-                self.final_tile_spacing = self.tile_spacing.get().layout(&metrics, |_| self.final_size);
+                LAYOUT.with_default_sz(self.final_size, || {
+                    self.final_tile_size = self.tile_size.get().layout();
+                    self.final_tile_spacing = self.tile_spacing.get().layout();
+                });
 
-                self.final_line = LAYOUT.with_constrains(
-                    |c| c.with_exact_size(self.final_tile_size),
-                    || self.axis.get().layout(&LAYOUT.metrics()),
-                );
+                self.final_line = LAYOUT.with_constrains(|c| c.with_exact_size(self.final_tile_size), || self.axis.get().layout());
 
                 let length = self.final_line.length();
                 LAYOUT.with_constrains(
                     |c| c.with_new_exact_x(length),
                     || {
-                        self.stops.with(|s| {
-                            s.layout_linear(
-                                LAYOUT.metrics().for_x(),
-                                self.extend_mode.get(),
-                                &mut self.final_line,
-                                &mut self.final_stops,
-                            )
-                        })
+                        self.stops
+                            .with(|s| s.layout_linear(true, self.extend_mode.get(), &mut self.final_line, &mut self.final_stops))
                     },
                 );
 
@@ -256,12 +243,12 @@ pub fn radial_gradient_ext(
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_size),
                     || {
-                        self.render_center = self
-                            .center
-                            .get()
-                            .layout(&LAYOUT.metrics(), |_| self.final_size.to_vector().to_point() * 0.5.fct());
-
-                        self.render_radius = self.radius.get().layout(&LAYOUT.metrics(), self.render_center);
+                        LAYOUT.with_default_vc(self.final_size.to_vector() * 0.5.fct(), || {
+                            self.render_center = self.center.get().layout();
+                        });
+                        LAYOUT.with_default_pt(self.render_center, || {
+                            self.render_radius = self.radius.get().layout();
+                        })
                     },
                 );
 
@@ -269,7 +256,7 @@ pub fn radial_gradient_ext(
                     |c| c.with_exact_x(self.render_radius.width.max(self.render_radius.height)),
                     || {
                         self.stops
-                            .with(|s| s.layout_radial(LAYOUT.metrics().for_x(), self.extend_mode.get(), &mut self.render_stops))
+                            .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.render_stops))
                     },
                 );
 

@@ -1,13 +1,9 @@
-* Reduce boilerplate of core units `layout` methods.
-    - They all request the metrics and default.
-    - Some units are one-dimensional so the caller must define what dimension they operate in.
-    - Default needs to be a closure because some defaults make use of metrics.
-        - This is rare, but the idea is that the default metrics usage is only flagged if the default is used.
-    - Default evaluation needs to be injected as-well, because `LengthExpr` may need it we can't just return `None` or something.
-    - `Leftover` is set on the context, but default is set on the input.
-        - Maybe we can just make the default be a value (not closure) and set on the context like leftover.
-        - And if not set the default is zero.
-        - In some rare cases we may default only metrics dependency, but the perf loss is minimal.
+* Implement `trait Layout { fn layout(&self) -> T }` and `trait LayoutXY { fn layout(&self, for_x: bool) -> Px }`.
+    - For every unit that currently has a `layout` function.
+    - For every `Var<T: Layout>` using `Var::with` instead of cloning.
+
+* Test all.
+* Merge.
 
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.

@@ -1129,6 +1129,26 @@ impl LAYOUT {
         self.with_metrics(|m| m.with_default(x, y), f)
     }
 
+    /// Calls `f` with new default values.
+    pub fn with_default_xy<R>(&self, xy: Px, f: impl FnOnce() -> R) -> R {
+        self.with_default(xy, xy, f)
+    }
+
+    /// Calls `f` with new default values.
+    pub fn with_default_pt<R>(&self, pt: PxPoint, f: impl FnOnce() -> R) -> R {
+        self.with_default(pt.x, pt.y, f)
+    }
+
+    /// Calls `f` with new default values.
+    pub fn with_default_vc<R>(&self, vc: PxVector, f: impl FnOnce() -> R) -> R {
+        self.with_default(vc.x, vc.y, f)
+    }
+
+    /// Calls `f` with new default values.
+    pub fn with_default_sz<R>(&self, sz: PxSize, f: impl FnOnce() -> R) -> R {
+        self.with_default(sz.width, sz.height, f)
+    }
+
     /// Root font size.
     pub fn root_font_size(&self) -> Px {
         self.req().metrics.root_font_size()

@@ -83,12 +83,12 @@ pub mod rule_line {
 
             match self.orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get().layout(metrics.for_x(), |c| c.constrains().fill()),
-                    self.stroke_thickness.get().layout(metrics.for_y(), |_| default_stroke),
+                    LAYOUT.with_default_xy(metrics.constrains().x.fill(), || self.length.get().layout_x()),
+                    LAYOUT.with_default_xy(default_stroke, || self.stroke_thickness.get().layout_y()),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness.get().layout(metrics.for_x(), |_| default_stroke),
-                    self.length.get().layout(metrics.for_y(), |c| c.constrains().fill()),
+                    LAYOUT.with_default_xy(default_stroke, || self.stroke_thickness.get().layout_x()),
+                    LAYOUT.with_default_xy(metrics.constrains().y.fill(), || self.length.get().layout_y()),
                 ),
             }
         }
@@ -98,12 +98,12 @@ pub mod rule_line {
 
             let bounds = match self.orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get().layout(metrics.for_x(), |c| c.constrains().fill()),
-                    self.stroke_thickness.get().layout(metrics.for_y(), |_| default_stroke),
+                    LAYOUT.with_default_xy(metrics.constrains().x.fill(), || self.length.get().layout_x()),
+                    LAYOUT.with_default_xy(default_stroke, || self.stroke_thickness.get().layout_y()),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness.get().layout(metrics.for_x(), |_| default_stroke),
-                    self.length.get().layout(metrics.for_y(), |c| c.constrains().fill()),
+                    LAYOUT.with_default_xy(default_stroke, || self.stroke_thickness.get().layout_x()),
+                    LAYOUT.with_default_xy(metrics.constrains().x.fill(), || self.length.get().layout_y()),
                 ),
             };
 

@@ -107,9 +107,9 @@ pub fn node() -> impl UiNode {
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
             self.final_size = LAYOUT.constrains().fill_size();
 
-            let tile_size = SIZE_VAR.get().layout(&LAYOUT.metrics(), |_| PxSize::splat(Px(4)));
+            let tile_size = LAYOUT.with_default_xy(Px(4), || SIZE_VAR.get().layout());
 
-            let mut offset = OFFSET_VAR.get().layout(&LAYOUT.metrics(), |_| PxVector::zero());
+            let mut offset = OFFSET_VAR.get().layout();
             if offset.x > self.tile_size.width {
                 offset.x /= self.tile_size.width;
             }
