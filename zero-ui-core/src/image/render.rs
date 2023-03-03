@@ -71,7 +71,7 @@ impl IMAGES {
     /// The closure runs in the [`WINDOW`] context of the headless window.
     ///
     /// Requires the [`WINDOWS`] service.
-    /// 
+    ///
     /// [`IMAGE_RENDER.retain`]: IMAGE_RENDER::retain
     pub fn render<N>(&self, render: N) -> ImageVar
     where

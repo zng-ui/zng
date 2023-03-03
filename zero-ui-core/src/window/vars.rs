@@ -157,8 +157,8 @@ impl WindowVars {
     /// See [`WindowChrome`] for details.
     ///
     /// The default value is [`WindowChrome::Default`].
-    pub fn chrome(&self) -> &ArcVar<WindowChrome> {
-        &self.0.chrome
+    pub fn chrome(&self) -> ArcVar<WindowChrome> {
+        self.0.chrome.clone()
     }
 
     /// Window icon.
@@ -170,8 +170,8 @@ impl WindowVars {
     /// You can retrieve the custom icon image using [`actual_icon`].
     ///
     /// [`actual_icon`]: Self::actual_icon
-    pub fn icon(&self) -> &ArcVar<WindowIcon> {
-        &self.0.icon
+    pub fn icon(&self) -> ArcVar<WindowIcon> {
+        self.0.icon.clone()
     }
 
     /// Window icon image.
@@ -196,8 +196,8 @@ impl WindowVars {
     /// Window title text.
     ///
     /// The default value is `""`.
-    pub fn title(&self) -> &ArcVar<Text> {
-        &self.0.title
+    pub fn title(&self) -> ArcVar<Text> {
+        self.0.title.clone()
     }
 
     /// Window screen state.
@@ -205,8 +205,8 @@ impl WindowVars {
     /// Minimized, maximized or full-screen. See [`WindowState`] for details.
     ///
     /// The default value is [`WindowState::Normal`]
-    pub fn state(&self) -> &ArcVar<WindowState> {
-        &self.0.state
+    pub fn state(&self) -> ArcVar<WindowState> {
+        self.0.state.clone()
     }
 
     /// Window monitor.
@@ -230,13 +230,13 @@ impl WindowVars {
     /// [`position`]: WindowVars::position
     /// [`actual_monitor`]: WindowVars::actual_monitor
     /// [`size`]: WindowVars::size
-    pub fn monitor(&self) -> &ArcVar<MonitorQuery> {
-        &self.0.monitor
+    pub fn monitor(&self) -> ArcVar<MonitorQuery> {
+        self.0.monitor.clone()
     }
 
     /// Video mode for exclusive fullscreen.
-    pub fn video_mode(&self) -> &ArcVar<VideoMode> {
-        &self.0.video_mode
+    pub fn video_mode(&self) -> ArcVar<VideoMode> {
+        self.0.video_mode.clone()
     }
 
     /// Current monitor hosting the window.
@@ -329,8 +329,8 @@ impl WindowVars {
     /// [`actual_position`]: WindowVars::actual_position
     /// [`monitor`]: WindowVars::monitor
     /// [`Normal`]: WindowState::Normal
-    pub fn position(&self) -> &ArcVar<Point> {
-        &self.0.position
+    pub fn position(&self) -> ArcVar<Point> {
+        self.0.position.clone()
     }
 
     /// Window actual size on the screen.
@@ -370,8 +370,8 @@ impl WindowVars {
     /// [`actual_size`]: WindowVars::actual_size
     /// [`restore_rect`]: WindowVars::restore_rect
     /// [`Normal`]: WindowState::Normal
-    pub fn size(&self) -> &ArcVar<Size> {
-        &self.0.size
+    pub fn size(&self) -> ArcVar<Size> {
+        self.0.size.clone()
     }
 
     /// Configure window size-to-content.
@@ -380,8 +380,8 @@ impl WindowVars {
     /// and [`max_size`](Self::max_size). Auto-size is disabled if the user [manually resizes](Self::resizable).
     ///
     /// The default value is [`AutoSize::DISABLED`].
-    pub fn auto_size(&self) -> &ArcVar<AutoSize> {
-        &self.0.auto_size
+    pub fn auto_size(&self) -> ArcVar<AutoSize> {
+        self.0.auto_size.clone()
     }
 
     /// The point in the window content that does not move when the window is resized by [`auto_size`].
@@ -395,8 +395,8 @@ impl WindowVars {
     /// The default value is [`Point::top_left`].
     ///
     /// [`auto_size`]: Self::auto_size
-    pub fn auto_size_origin(&self) -> &ArcVar<Point> {
-        &self.0.auto_size_origin
+    pub fn auto_size_origin(&self) -> ArcVar<Point> {
+        self.0.auto_size_origin.clone()
     }
 
     /// Minimal window width and height constrain on the [`size`].
@@ -409,8 +409,8 @@ impl WindowVars {
     /// The default value is `(192, 48)`.
     ///
     /// [`size`]: Self::size
-    pub fn min_size(&self) -> &ArcVar<Size> {
-        &self.0.min_size
+    pub fn min_size(&self) -> ArcVar<Size> {
+        self.0.min_size.clone()
     }
 
     /// Maximal window width and height constrain on the [`size`].
@@ -423,13 +423,13 @@ impl WindowVars {
     /// The default value is `(100.pct(), 100.pct())`
     ///
     /// [`size`]: Self::size
-    pub fn max_size(&self) -> &ArcVar<Size> {
-        &self.0.max_size
+    pub fn max_size(&self) -> ArcVar<Size> {
+        self.0.max_size.clone()
     }
 
     /// Root font size.
-    pub fn font_size(&self) -> &ArcVar<Length> {
-        &self.0.font_size
+    pub fn font_size(&self) -> ArcVar<Length> {
+        self.0.font_size.clone()
     }
 
     /// If the user can resize the window using the window frame.
@@ -437,8 +437,8 @@ impl WindowVars {
     /// Note that even if disabled the window can still be resized from other sources.
     ///
     /// The default value is `true`.
-    pub fn resizable(&self) -> &ArcVar<bool> {
-        &self.0.resizable
+    pub fn resizable(&self) -> ArcVar<bool> {
+        self.0.resizable.clone()
     }
 
     /// If the user can move the window using the window frame.
@@ -446,8 +446,8 @@ impl WindowVars {
     /// Note that even if disabled the window can still be moved from other sources.
     ///
     /// The default value is `true`.
-    pub fn movable(&self) -> &ArcVar<bool> {
-        &self.0.movable
+    pub fn movable(&self) -> ArcVar<bool> {
+        self.0.movable.clone()
     }
 
     /// Whether the window should always stay on top of other windows.
@@ -455,8 +455,8 @@ impl WindowVars {
     /// Note this only applies to other windows that are not also "always-on-top".
     ///
     /// The default value is `false`.
-    pub fn always_on_top(&self) -> &ArcVar<bool> {
-        &self.0.always_on_top
+    pub fn always_on_top(&self) -> ArcVar<bool> {
+        self.0.always_on_top.clone()
     }
 
     /// If the window is visible on the screen and in the task-bar.
@@ -465,15 +465,15 @@ impl WindowVars {
     /// is always not visible.
     ///
     /// The default value is `true`.
-    pub fn visible(&self) -> &ArcVar<bool> {
-        &self.0.visible
+    pub fn visible(&self) -> ArcVar<bool> {
+        self.0.visible.clone()
     }
 
     /// If the window is visible in the task-bar.
     ///
     /// The default value is `true`.
-    pub fn taskbar_visible(&self) -> &ArcVar<bool> {
-        &self.0.taskbar_visible
+    pub fn taskbar_visible(&self) -> ArcVar<bool> {
+        self.0.taskbar_visible.clone()
     }
 
     /// Window parent.
@@ -500,8 +500,8 @@ impl WindowVars {
     /// [`modal`]: Self::modal
     /// [`color_scheme`]: Self::color_scheme
     /// [`actual_color_scheme`]: Self::color_scheme
-    pub fn parent(&self) -> &ArcVar<Option<WindowId>> {
-        &self.0.parent
+    pub fn parent(&self) -> ArcVar<Option<WindowId>> {
+        self.0.parent.clone()
     }
 
     /// Configure the [`parent`](Self::parent) connection.
@@ -509,8 +509,8 @@ impl WindowVars {
     /// Value is ignored is `parent` is not set.
     ///
     /// The default value is `false`.
-    pub fn modal(&self) -> &ArcVar<bool> {
-        &self.0.modal
+    pub fn modal(&self) -> ArcVar<bool> {
+        self.0.modal.clone()
     }
 
     /// Window children.
@@ -527,8 +527,8 @@ impl WindowVars {
     /// If set to `None` the system preference is used, see [`actual_color_scheme`].
     ///
     /// [`actual_color_scheme`]: Self::actual_color_scheme
-    pub fn color_scheme(&self) -> &ArcVar<Option<ColorScheme>> {
-        &self.0.color_scheme
+    pub fn color_scheme(&self) -> ArcVar<Option<ColorScheme>> {
+        self.0.color_scheme.clone()
     }
 
     /// Actual color scheme to use.
@@ -573,8 +573,8 @@ impl WindowVars {
     ///
     /// [`FOCUS`]: crate::focus::FOCUS
     /// [`FocusRequest`]: crate::focus::FocusRequest
-    pub fn focus_indicator(&self) -> &ArcVar<Option<FocusIndicator>> {
-        &self.0.focus_indicator
+    pub fn focus_indicator(&self) -> ArcVar<Option<FocusIndicator>> {
+        self.0.focus_indicator.clone()
     }
 
     /// The window [`FrameCaptureMode`].
@@ -586,8 +586,8 @@ impl WindowVars {
     /// [`Next`]: FrameCaptureMode::Next
     /// [`Sporadic`]: FrameCaptureMode::Sporadic
     /// [`WIDGET.render_update`]: crate::context::WIDGET::render_update
-    pub fn frame_capture_mode(&self) -> &ArcVar<FrameCaptureMode> {
-        &self.0.frame_capture_mode
+    pub fn frame_capture_mode(&self) -> ArcVar<FrameCaptureMode> {
+        self.0.frame_capture_mode.clone()
     }
 
     /// Window actual render mode.
