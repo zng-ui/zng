@@ -550,30 +550,53 @@ where
     }
 }
 
-static Z_INDEX_ID: StaticStateId<ZIndex> = StaticStateId::new_unique();
-
 #[derive(Default, Clone, Debug)]
-struct ZIndexContext {
+struct ZIndexCtx {
     // used in `z_index` to validate that it will have an effect.
     panel_id: Option<WidgetId>,
     // set by `z_index` to signal a z-resort is needed.
     resort: bool,
 }
-impl ZIndexContext {
-    fn with(panel_id: WidgetId, action: impl FnOnce()) -> bool {
-        let ctx = ZIndexContext {
+
+context_local! {
+    static Z_INDEX_CTX: ZIndexCtx = ZIndexCtx::default();
+}
+
+/// Access to widget z-index.
+///
+/// The z-index can be set using the [`z_index`] property.
+///
+/// [`z_index`]: fn@z_index
+#[allow(non_camel_case_types)]
+pub struct Z_INDEX;
+impl Z_INDEX {
+    fn with(&self, panel_id: WidgetId, action: impl FnOnce()) -> bool {
+        let ctx = ZIndexCtx {
             panel_id: Some(panel_id),
             resort: false,
         };
-        Z_INDEX.with_context(&mut Some(ctx), || {
+        Z_INDEX_CTX.with_context(&mut Some(ctx), || {
             action();
-            Z_INDEX.get().resort
+            Z_INDEX_CTX.get().resort
         })
     }
+
+    /// Gets the index set on the [`WIDGET`].
+    ///
+    /// Returns `DEFAULT` if the node is not an widget.
+    pub fn get(&self) -> ZIndex {
+        WIDGET.get_state(&Z_INDEX_ID).unwrap_or_default()
+    }
+
+    /// Gets the index set on the `widget`.
+    ///
+    /// Returns `DEFAULT` if the node is not an widget.
+    pub fn get_wgt(&self, widget: &impl UiNode) -> ZIndex {
+        widget.with_context(|| self.get()).unwrap_or_default()
+    }
 }
-context_local! {
-    static Z_INDEX: ZIndexContext = ZIndexContext::default();
-}
+
+static Z_INDEX_ID: StaticStateId<ZIndex> = StaticStateId::new_unique();
 
 /// Position of a widget inside an [`UiNodeList`] render operation.
 ///
@@ -624,15 +647,6 @@ impl ZIndex {
     /// [`BACK`]: Self::BACK
     pub fn saturating_sub(self, other: impl Into<Self>) -> Self {
         ZIndex(self.0.saturating_sub(other.into().0))
-    }
-
-    /// Gets the index set on a widget.
-    ///
-    /// Returns `DEFAULT` if the node is not an widget.
-    pub fn get(widget: &impl UiNode) -> ZIndex {
-        widget
-            .with_context(|| WIDGET.get_state(&Z_INDEX_ID).unwrap_or_default())
-            .unwrap_or_default()
     }
 }
 impl Default for ZIndex {
@@ -736,7 +750,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     })]
     impl UiNode for ZIndexNode {
         fn init(&mut self) {
-            let mut z_ctx = Z_INDEX.write();
+            let mut z_ctx = Z_INDEX_CTX.write();
             if z_ctx.panel_id != WIDGET.parent_id() || z_ctx.panel_id.is_none() {
                 tracing::error!(
                     "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
@@ -759,7 +773,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
         fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.valid {
                 if let Some(i) = self.index.get_new() {
-                    let mut z_ctx = Z_INDEX.write();
+                    let mut z_ctx = Z_INDEX_CTX.write();
                     debug_assert_eq!(z_ctx.panel_id, WIDGET.parent_id());
                     z_ctx.resort = true;
                     WIDGET.set_state(&Z_INDEX_ID, i);
@@ -1548,7 +1562,7 @@ where
         let mut has_non_default_zs = false;
 
         self.list.for_each(|i, node| {
-            let z = ZIndex::get(node);
+            let z = Z_INDEX.get_wgt(node);
             z_and_i.push(((z.0 as u64) << 32) | i as u64);
 
             need_map |= z < prev_z;
@@ -1652,7 +1666,7 @@ where
 
     fn init_all(&mut self) {
         self.z_map.get_mut().clear();
-        let resort = ZIndexContext::with(WIDGET.id(), || self.list.init_all());
+        let resort = Z_INDEX.with(WIDGET.id(), || self.list.init_all());
         self.z_naturally_sorted.set(!resort);
         self.data.resize_with(self.list.len(), Default::default);
     }
@@ -1671,7 +1685,7 @@ where
             data: &mut self.data,
             observer,
         };
-        let resort = ZIndexContext::with(WIDGET.id(), || self.list.update_all(updates, &mut observer));
+        let resort = Z_INDEX.with(WIDGET.id(), || self.list.update_all(updates, &mut observer));
         if resort || (observer.changed && self.z_naturally_sorted.get()) {
             self.z_map.get_mut().clear();
             self.z_naturally_sorted.set(false);
