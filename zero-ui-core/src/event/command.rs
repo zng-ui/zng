@@ -60,7 +60,7 @@ use super::*;
 /// }
 /// ```
 ///
-/// The initialization uses the [command extensions] pattern and runs once for each app, so usually just once.
+/// The initialization uses the [command extensions] pattern and runs once for each app.
 ///
 /// Or you can use a custom closure to initialize the command:
 ///
@@ -91,12 +91,12 @@ use super::*;
 macro_rules! command {
     ($(
         $(#[$attr:meta])*
-        $vis:vis static $COMMAND:ident $(=> $custom_meta_init:expr ;)? $(= { $($meta_ident:ident : $meta_init:expr),* $(,)? };)? $(;)?
+        $vis:vis static $COMMAND:ident $(=> |$cmd:ident|$custom_meta_init:expr ;)? $(= { $($meta_ident:ident : $meta_init:expr),* $(,)? };)? $(;)?
     )+) => {
         $(
             $crate::__command! {
                 $(#[$attr])*
-                $vis static $COMMAND $(=> $custom_meta_init)? $(= {
+                $vis static $COMMAND $(=> |$cmd|$custom_meta_init)? $(= {
                     $($meta_ident: $meta_init,)+
                 })? ;
             }
@@ -111,13 +111,16 @@ pub use command;
 macro_rules! __command {
     (
         $(#[$attr:meta])*
-        $vis:vis static $COMMAND:ident => $meta_init:expr;
+        $vis:vis static $COMMAND:ident => |$cmd:ident| $meta_init:expr;
     ) => {
         $(#[$attr])*
         $vis static $COMMAND: $crate::event::Command = {
+            fn __meta_init__($cmd: $crate::event::Command) {
+                $meta_init
+            }
             $crate::context::app_local! {
                 static EVENT: $crate::event::EventData = const { $crate::event::EventData::new(std::stringify!($COMMAND)) };
-                static DATA: $crate::event::CommandData = $crate::event::CommandData::new(std::boxed::Box::new($meta_init));
+                static DATA: $crate::event::CommandData =  $crate::event::CommandData::new(__meta_init__);
             }
             $crate::event::Command::new(&EVENT, &DATA)
         };
@@ -152,12 +155,10 @@ macro_rules! __command {
     ) => {
         $crate::__command! {
             $(#[$attr])*
-            $vis static $COMMAND => $crate::event::__command_no_meta;
+            $vis static $COMMAND => |_cmd|{};
         }
     };
 }
-#[doc(hidden)]
-pub fn __command_no_meta(_: Command) {}
 
 /// Identifies a command event.
 ///
@@ -972,7 +973,7 @@ enum CommandMetaState {}
 
 #[doc(hidden)]
 pub struct CommandData {
-    meta_init: Option<Box<dyn Fn(Command) + Send + Sync>>,
+    meta_init: Option<fn(Command)>,
     meta: Mutex<OwnedStateMap<CommandMetaState>>,
 
     handle_count: usize,
@@ -985,10 +986,10 @@ pub struct CommandData {
     scopes: FxHashMap<CommandScope, ScopedValue>,
 }
 impl CommandData {
-    pub fn new(meta_init: Box<dyn Fn(Command) + Send + Sync>) -> Self {
+    pub fn new(meta_init: fn(Command)) -> Self {
         CommandData {
             meta_init: Some(meta_init),
-            meta: Mutex::new(OwnedStateMap::default()),
+            meta: Mutex::new(OwnedStateMap::new()),
 
             handle_count: 0,
             enabled_count: 0,

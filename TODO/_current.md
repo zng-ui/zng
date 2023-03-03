@@ -1,6 +1,3 @@
-* Review `command!` meta init, does it need to be a closure?
-    - Can use const init if we manage to remove the `Box::new`.
-
 * Review `WindowVars`, `ScrollContext` and any other "contextual widget service" like `ContextBorders` and `ZIndex`.
     - For window stuff can have an extension of `WINDOW`?
         - As a trait `WINDOW_Ext` or as a `struct FULL_WINDOW;` that deref to `WINDOW`.
