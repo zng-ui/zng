@@ -173,9 +173,9 @@ impl GradientRadius {
         }
     }
 
-    /// Compute the radius in the layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, center: PxPoint) -> PxSize {
-        let size = ctx.constrains().fill_size();
+    /// Compute the radius in the current [`LAYOUT`] context.
+    pub fn layout(&self, center: PxPoint) -> PxSize {
+        let size = LAYOUT.constrains().fill_size();
 
         let length = match self.base {
             GradientRadiusBase::ClosestSide => center

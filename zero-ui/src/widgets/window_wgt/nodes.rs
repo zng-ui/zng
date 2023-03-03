@@ -220,18 +220,15 @@ impl LAYERS {
                         // if we don't link visibility or anchor is not collapsed.
 
                         self.offset_point = match &mode.transform {
-                            AnchorTransform::InnerOffset(p) => LAYOUT.with_constrains(
-                                |_| PxConstrains2d::new_exact_size(bounds.inner_size()),
-                                || p.layout(&LAYOUT.metrics(), |_| PxPoint::zero()),
-                            ),
-                            AnchorTransform::InnerBorderOffset(p) => LAYOUT.with_constrains(
-                                |_| PxConstrains2d::new_exact_size(border.inner_size(bounds)),
-                                || p.layout(&LAYOUT.metrics(), |_| PxPoint::zero()),
-                            ),
-                            AnchorTransform::OuterOffset(p) => LAYOUT.with_constrains(
-                                |_| PxConstrains2d::new_exact_size(bounds.outer_size()),
-                                || p.layout(&LAYOUT.metrics(), |_| PxPoint::zero()),
-                            ),
+                            AnchorTransform::InnerOffset(p) => {
+                                LAYOUT.with_constrains(|_| PxConstrains2d::new_exact_size(bounds.inner_size()), || p.layout())
+                            }
+                            AnchorTransform::InnerBorderOffset(p) => {
+                                LAYOUT.with_constrains(|_| PxConstrains2d::new_exact_size(border.inner_size(bounds)), || p.layout())
+                            }
+                            AnchorTransform::OuterOffset(p) => {
+                                LAYOUT.with_constrains(|_| PxConstrains2d::new_exact_size(bounds.outer_size()), || p.layout())
+                            }
                             _ => PxPoint::zero(),
                         };
 

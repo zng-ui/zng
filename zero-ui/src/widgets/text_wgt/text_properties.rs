@@ -214,7 +214,7 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
             let font_size = FONT_SIZE_VAR.get();
-            let font_size_px = font_size.layout(LAYOUT.metrics().for_y(), |m| m.metrics.root_font_size());
+            let font_size_px = LAYOUT.with_default_xy(LAYOUT.root_font_size(), || font_size.layout_x());
             if font_size_px >= Px(0) {
                 LAYOUT.with_font_size(font_size_px, || self.child.measure(wm))
             } else {
@@ -224,7 +224,7 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let font_size = FONT_SIZE_VAR.get();
-            let font_size_px = font_size.layout(LAYOUT.metrics().for_y(), |m| m.metrics.root_font_size());
+            let font_size_px = LAYOUT.with_default_xy(LAYOUT.root_font_size(), || font_size.layout_x());
             if font_size_px >= Px(0) {
                 LAYOUT.with_font_size(font_size_px, || self.child.layout(wl))
             } else {

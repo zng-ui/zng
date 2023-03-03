@@ -506,11 +506,15 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let dft_tab_len = space_len * 3;
 
             let (letter_spacing, word_spacing, tab_length) = {
-                let m = metrics.clone().with_constrains(|_| PxConstrains2d::new_exact(space_len, space_len));
-                (
-                    LETTER_SPACING_VAR.get().layout_x(),
-                    WORD_SPACING_VAR.get().layout_x(),
-                    LAYOUT.with_default_xy(dft_tab_len, || TAB_LENGTH_VAR.get().layout_x()),
+                LAYOUT.with_constrains(
+                    |_| PxConstrains2d::new_exact(space_len, space_len),
+                    || {
+                        (
+                            LETTER_SPACING_VAR.get().layout_x(),
+                            WORD_SPACING_VAR.get().layout_x(),
+                            LAYOUT.with_default_xy(dft_tab_len, || TAB_LENGTH_VAR.get().layout_x()),
+                        )
+                    },
                 )
             };
 

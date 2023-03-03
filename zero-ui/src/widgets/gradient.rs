@@ -247,7 +247,7 @@ pub fn radial_gradient_ext(
                             self.render_center = self.center.get().layout();
                         });
                         LAYOUT.with_default_pt(self.render_center, || {
-                            self.render_radius = self.radius.get().layout();
+                            self.render_radius = self.radius.get().layout(self.render_center);
                         })
                     },
                 );
@@ -332,23 +332,21 @@ pub fn radial_gradient_full(
         }
 
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let metrics = LAYOUT.metrics();
-            let final_size = metrics.constrains().fill_size();
+            let final_size = LAYOUT.constrains().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
 
-                self.final_tile_size = self.tile_size.get().layout(&metrics, |_| self.final_size);
-                self.final_tile_spacing = self.tile_spacing.get().layout(&metrics, |_| self.final_size);
+                LAYOUT.with_default_sz(self.final_size, || {
+                    self.final_tile_size = self.tile_size.get().layout();
+                    self.final_tile_spacing = self.tile_spacing.get().layout();
+                });
 
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_tile_size),
                     || {
-                        self.render_center = self
-                            .center
-                            .get()
-                            .layout(&LAYOUT.metrics(), |_| self.final_tile_size.to_vector().to_point() * 0.5.fct());
-
-                        self.render_radius = self.radius.get().layout(&LAYOUT.metrics(), self.render_center);
+                        LAYOUT.with_default_pt(self.final_tile_size.to_vector().to_point() * 0.5.fct(), || {
+                            self.render_radius = self.radius.get().layout(self.render_center);
+                        });
                     },
                 );
 
@@ -356,7 +354,7 @@ pub fn radial_gradient_full(
                     |c| c.with_exact_x(self.render_radius.width.max(self.render_radius.height)),
                     || {
                         self.stops
-                            .with(|s| s.layout_radial(LAYOUT.metrics().for_x(), self.extend_mode.get(), &mut self.render_stops))
+                            .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.render_stops))
                     },
                 );
 
@@ -452,10 +450,9 @@ pub fn conic_gradient_ext(
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_size),
                     || {
-                        self.render_center = self
-                            .center
-                            .get()
-                            .layout(&LAYOUT.metrics(), |_| self.final_size.to_vector().to_point() * 0.5.fct());
+                        LAYOUT.with_default_pt(self.final_size.to_vector().to_point() * 0.5.fct(), || {
+                            self.render_center = self.center.get().layout();
+                        });
                     },
                 );
 
@@ -468,7 +465,7 @@ pub fn conic_gradient_ext(
                     |c| c.with_exact_x(perimeter),
                     || {
                         self.stops
-                            .with(|s| s.layout_radial(LAYOUT.metrics().for_x(), self.extend_mode.get(), &mut self.render_stops))
+                            .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.render_stops))
                     },
                 );
 
@@ -536,21 +533,21 @@ pub fn conic_gradient_full(
         }
 
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let metrics = LAYOUT.metrics();
-            let final_size = metrics.constrains().fill_size();
+            let final_size = LAYOUT.constrains().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
 
-                self.final_tile_size = self.tile_size.get().layout(&metrics, |_| self.final_size);
-                self.final_tile_spacing = self.tile_spacing.get().layout(&metrics, |_| self.final_size);
+                LAYOUT.with_default_sz(self.final_size, || {
+                    self.final_tile_size = self.tile_size.get().layout();
+                    self.final_tile_spacing = self.tile_spacing.get().layout();
+                });
 
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_tile_size),
                     || {
-                        self.render_center = self
-                            .center
-                            .get()
-                            .layout(&LAYOUT.metrics(), |_| self.final_tile_size.to_vector().to_point() * 0.5.fct());
+                        LAYOUT.with_default_pt(self.final_tile_size.to_vector().to_point() * 0.5.fct(), || {
+                            self.render_center = self.center.get().layout();
+                        });
                     },
                 );
 
@@ -563,7 +560,7 @@ pub fn conic_gradient_full(
                     |c| c.with_exact_x(perimeter),
                     || {
                         self.stops
-                            .with(|s| s.layout_radial(LAYOUT.metrics().for_x(), self.extend_mode.get(), &mut self.render_stops))
+                            .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.render_stops))
                     },
                 );
 
