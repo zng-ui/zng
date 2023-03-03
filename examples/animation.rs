@@ -204,7 +204,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 )
             }
 
-            zero_ui::core::image::ImageRenderVars::req().retain().set(true);
+            zero_ui::core::image::IMAGE_RENDER.retain().set(true);
             let meta_color = WindowVars::req().actual_color_scheme().map(|t| match t {
                 ColorScheme::Light => rgba(0, 0, 0, 0.4),
                 ColorScheme::Dark => rgba(255, 255, 255, 0.4),

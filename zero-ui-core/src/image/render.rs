@@ -120,9 +120,9 @@ impl ImageManager {
             if let Some(img) = req.image.upgrade() {
                 WINDOWS.open_headless(
                     move || {
-                        let vars = ImageRenderVars::new();
-                        let retain = vars.retain.clone();
-                        WINDOW.set_state(&IMAGE_RENDER_VARS_ID, vars);
+                        let ctx = ImageRenderCtx::new();
+                        let retain = ctx.retain.clone();
+                        WINDOW.set_state(&IMAGE_RENDER_ID, ctx);
                         let vars = WindowVars::req();
                         vars.auto_size().set(true);
                         vars.min_size().set((1.px(), 1.px()));
@@ -181,51 +181,42 @@ struct RenderRequest {
     image: WeakArcVar<Image>,
 }
 
-/// Controls properties of the render window used by [`IMAGES.render`].
-///
-/// You can get the controller inside the render closure using [`req`] or [`get`].
-///
-/// [`Windows::vars`]: crate::window::Windows::vars
-/// [`req`]: ImageRenderVars::req
-/// [`get`]: ImageRenderVars::get
 #[derive(Clone)]
-pub struct ImageRenderVars {
+struct ImageRenderCtx {
     retain: ArcVar<bool>,
 }
-impl ImageRenderVars {
+impl ImageRenderCtx {
     fn new() -> Self {
         Self { retain: var(false) }
     }
+}
 
-    /// Require the vars from the window state.
-    ///
-    /// # Panics
-    ///
-    /// Panics if not called inside a render closure or widget.
-    pub fn req() -> Self {
-        WINDOW.req_state(&IMAGE_RENDER_VARS_ID)
-    }
+static IMAGE_RENDER_ID: StaticStateId<ImageRenderCtx> = StaticStateId::new_unique();
 
-    /// Tries to get the window vars from the window state.
-    pub fn get() -> Option<Self> {
-        WINDOW.get_state(&IMAGE_RENDER_VARS_ID)
+/// Controls properties of the render window used by [`IMAGES.render`].
+#[allow(non_camel_case_types)]
+pub struct IMAGE_RENDER;
+impl IMAGE_RENDER {
+    /// If the current context is an [`IMAGES.render`] closure, window or widget.
+    pub fn is_in_render(&self) -> bool {
+        WINDOW.contains_state(&IMAGE_RENDER_ID)
     }
 
     /// If the render task is kept alive after a frame is produced, this is `false` by default
     /// meaning the image only renders once, if set to `true` the image will automatically update
     /// when the render widget requests a new frame.
-    pub fn retain(&self) -> &ArcVar<bool> {
-        &self.retain
+    pub fn retain(&self) -> ArcVar<bool> {
+        WINDOW.req_state(&IMAGE_RENDER_ID).retain
     }
 }
-
-pub(super) static IMAGE_RENDER_VARS_ID: StaticStateId<ImageRenderVars> = StaticStateId::new_unique();
 
 /// If the render task is kept alive after a frame is produced, this is `false` by default
 /// meaning the image only renders once, if set to `true` the image will automatically update
 /// when the render widget requests a new frame.
 ///
-/// This property sets and binds `retain` to [`ImageRenderVars::retain`].
+/// This property sets and binds `retain` to [`IMAGE_RENDER.retain`].
+///
+/// [`IMAGE_RENDER.retain`]: IMAGE_RENDER::retain
 #[property(CONTEXT)]
 pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct RenderRetainNode {
@@ -234,12 +225,13 @@ pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiN
     })]
     impl UiNode for RenderRetainNode {
         fn init(&mut self) {
-            if let Some(vars) = ImageRenderVars::get() {
-                vars.retain.set_ne(self.retain.get());
-                let handle = self.retain.bind(vars.retain());
+            if IMAGE_RENDER.is_in_render() {
+                let retain = IMAGE_RENDER.retain();
+                retain.set_ne(self.retain.get());
+                let handle = self.retain.bind(&retain);
                 WIDGET.push_var_handle(handle);
             } else {
-                tracing::error!("can only set `render_retain` in render widgets");
+                tracing::error!("can only set `render_retain` in render widgets")
             }
 
             self.child.init();

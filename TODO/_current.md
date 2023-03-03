@@ -2,6 +2,8 @@
     - For window stuff can have an extension of `WINDOW`?
         - As a trait `WINDOW_Ext` or as a `struct FULL_WINDOW;` that deref to `WINDOW`.
         - This is the demonstration of how to extend services.
+    - Refactored `ImageRenderVars` to `IMAGE_RENDER`, looks good.
+        - Maybe `WINDOW_VARS` then?
 
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
