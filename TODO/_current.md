@@ -1,4 +1,4 @@
-* Review `WindowVars`, `ScrollContext` and any other "contextual widget service" like `ContextBorders` and `ZIndex`.
+* Review `WindowVars` and any other "contextual widget service" like `ContextBorders` and `ZIndex`.
     - For window stuff can have an extension of `WINDOW`?
         - As a trait `WINDOW_Ext` or as a `struct FULL_WINDOW;` that deref to `WINDOW`.
         - This is the demonstration of how to extend services.

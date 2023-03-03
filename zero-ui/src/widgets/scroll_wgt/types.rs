@@ -92,50 +92,50 @@ struct ScrollConfig {
 /// Controls the parent scroll.
 ///
 /// Also see [`SCROLL_VERTICAL_OFFSET_VAR`] and [`SCROLL_HORIZONTAL_OFFSET_VAR`] for controlling the scroll offset.
-pub struct ScrollContext {}
-impl ScrollContext {
-    /// New node that holds data for the [`ScrollContext`] operation.
+pub struct SCROLL;
+impl SCROLL {
+    /// New node that holds data for the [`SCROLL`] context.
     ///
     /// Scroll implementers must add this node to their context.
-    pub fn config_node(child: impl UiNode) -> impl UiNode {
+    pub fn config_node(&self, child: impl UiNode) -> impl UiNode {
         with_context_local(child, &SCROLL_CONFIG, ScrollConfig::default())
     }
 
     /// Ratio of the scroll parent viewport height to its content.
     ///
     /// The value is `viewport.height / content.height`.
-    pub fn vertical_ratio() -> ReadOnlyContextVar<Factor> {
+    pub fn vertical_ratio(&self) -> ReadOnlyContextVar<Factor> {
         SCROLL_VERTICAL_RATIO_VAR.read_only()
     }
     /// Ratio of the scroll parent viewport width to its content.
     ///
     /// The value is `viewport.width / content.width`.
-    pub fn horizontal_ratio() -> ReadOnlyContextVar<Factor> {
+    pub fn horizontal_ratio(&self) -> ReadOnlyContextVar<Factor> {
         SCROLL_HORIZONTAL_RATIO_VAR.read_only()
     }
 
     /// If the vertical scrollbar should be visible.
-    pub fn vertical_content_overflows() -> ReadOnlyContextVar<bool> {
+    pub fn vertical_content_overflows(&self) -> ReadOnlyContextVar<bool> {
         SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.read_only()
     }
 
     /// If the horizontal scrollbar should be visible.
-    pub fn horizontal_content_overflows() -> ReadOnlyContextVar<bool> {
+    pub fn horizontal_content_overflows(&self) -> ReadOnlyContextVar<bool> {
         SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.read_only()
     }
 
     /// Latest computed viewport size of the parent scroll.
-    pub fn viewport_size() -> ReadOnlyContextVar<PxSize> {
+    pub fn viewport_size(&self) -> ReadOnlyContextVar<PxSize> {
         SCROLL_VIEWPORT_SIZE_VAR.read_only()
     }
 
     /// Latest computed content size of the parent scroll.
-    pub fn content_size() -> ReadOnlyContextVar<PxSize> {
+    pub fn content_size(&self) -> ReadOnlyContextVar<PxSize> {
         SCROLL_CONTENT_SIZE_VAR.read_only()
     }
 
     /// Offset the vertical position by the given pixel `amount`.
-    pub fn scroll_vertical(amount: Px) {
+    pub fn scroll_vertical(&self, amount: Px) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
         let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
@@ -151,12 +151,12 @@ impl ScrollContext {
 
         if new_scroll != curr_scroll {
             let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-            ScrollContext::chase_vertical(new_offset.fct());
+            SCROLL.chase_vertical(new_offset.fct());
         }
     }
 
     /// Offset the horizontal position by the given pixel `amount`.
-    pub fn scroll_horizontal(amount: Px) {
+    pub fn scroll_horizontal(&self, amount: Px) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
         let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
@@ -172,13 +172,13 @@ impl ScrollContext {
 
         if new_scroll != curr_scroll {
             let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-            ScrollContext::chase_horizontal(new_offset.fct());
+            SCROLL.chase_horizontal(new_offset.fct());
         }
     }
 
     /// Set the [`SCROLL_VERTICAL_OFFSET_VAR`] to `offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
     /// just setting the var if smooth scrolling is disabled.
-    pub fn chase_vertical<F: Into<Factor>>(new_offset: F) {
+    pub fn chase_vertical<F: Into<Factor>>(&self, new_offset: F) {
         let new_offset = new_offset.into().clamp_range();
 
         //smooth scrolling
@@ -202,7 +202,7 @@ impl ScrollContext {
 
     /// Set the [`SCROLL_HORIZONTAL_OFFSET_VAR`] to `offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
     /// just setting the var if smooth scrolling is disabled.
-    pub fn chase_horizontal<F: Into<Factor>>(new_offset: F) {
+    pub fn chase_horizontal<F: Into<Factor>>(&self, new_offset: F) {
         let new_offset = new_offset.into().clamp_range();
 
         //smooth scrolling
@@ -225,7 +225,7 @@ impl ScrollContext {
     }
 
     /// Returns `true` if the content height is greater then the viewport height.
-    pub fn can_scroll_vertical() -> bool {
+    pub fn can_scroll_vertical(&self) -> bool {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
         let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
@@ -233,7 +233,7 @@ impl ScrollContext {
     }
 
     /// Returns `true` if the content width is greater then the viewport with.
-    pub fn can_scroll_horizontal() -> bool {
+    pub fn can_scroll_horizontal(&self) -> bool {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
         let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
@@ -242,7 +242,7 @@ impl ScrollContext {
 
     /// Returns `true` if the content height is greater then the viewport height and the vertical offset
     /// is not at the maximum.
-    pub fn can_scroll_down() -> bool {
+    pub fn can_scroll_down(&self) -> bool {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
         let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
@@ -251,7 +251,7 @@ impl ScrollContext {
 
     /// Returns `true` if the content height is greater then the viewport height and the vertical offset
     /// is not at the minimum.
-    pub fn can_scroll_up() -> bool {
+    pub fn can_scroll_up(&self) -> bool {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
         let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
@@ -260,7 +260,7 @@ impl ScrollContext {
 
     /// Returns `true` if the content width is greater then the viewport width and the horizontal offset
     /// is not at the minimum.
-    pub fn can_scroll_left() -> bool {
+    pub fn can_scroll_left(&self) -> bool {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
         let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
@@ -269,7 +269,7 @@ impl ScrollContext {
 
     /// Returns `true` if the content width is greater then the viewport width and the horizontal offset
     /// is not at the maximum.
-    pub fn can_scroll_right() -> bool {
+    pub fn can_scroll_right(&self) -> bool {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
         let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 

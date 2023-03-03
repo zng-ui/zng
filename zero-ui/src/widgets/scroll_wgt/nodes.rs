@@ -260,10 +260,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 
             let scope = WIDGET.id();
 
-            self.up = SCROLL_UP_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_up());
-            self.down = SCROLL_DOWN_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_down());
-            self.left = SCROLL_LEFT_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_left());
-            self.right = SCROLL_RIGHT_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_right());
+            self.up = SCROLL_UP_CMD.scoped(scope).subscribe(SCROLL.can_scroll_up());
+            self.down = SCROLL_DOWN_CMD.scoped(scope).subscribe(SCROLL.can_scroll_down());
+            self.left = SCROLL_LEFT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_left());
+            self.right = SCROLL_RIGHT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_right());
 
             self.child.init();
         }
@@ -280,10 +280,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
 
-            self.up.set_enabled(ScrollContext::can_scroll_up());
-            self.down.set_enabled(ScrollContext::can_scroll_down());
-            self.left.set_enabled(ScrollContext::can_scroll_left());
-            self.right.set_enabled(ScrollContext::can_scroll_right());
+            self.up.set_enabled(SCROLL.can_scroll_up());
+            self.down.set_enabled(SCROLL.can_scroll_down());
+            self.left.set_enabled(SCROLL.can_scroll_left());
+            self.right.set_enabled(SCROLL.can_scroll_right());
 
             if VERTICAL_LINE_UNIT_VAR.is_new() || HORIZONTAL_LINE_UNIT_VAR.is_new() {
                 WIDGET.layout();
@@ -301,7 +301,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    ScrollContext::scroll_vertical(offset);
+                    SCROLL.scroll_vertical(offset);
                 });
             } else if let Some(args) = SCROLL_DOWN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.down, |_| {
@@ -309,7 +309,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    ScrollContext::scroll_vertical(offset);
+                    SCROLL.scroll_vertical(offset);
                 });
             } else if let Some(args) = SCROLL_LEFT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.left, |_| {
@@ -317,7 +317,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    ScrollContext::scroll_horizontal(offset);
+                    SCROLL.scroll_horizontal(offset);
                 });
             } else if let Some(args) = SCROLL_RIGHT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.right, |_| {
@@ -325,7 +325,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    ScrollContext::scroll_horizontal(offset);
+                    SCROLL.scroll_horizontal(offset);
                 });
             }
         }
@@ -383,10 +383,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
 
             let scope = WIDGET.id();
 
-            self.up = PAGE_UP_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_up());
-            self.down = PAGE_DOWN_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_down());
-            self.left = PAGE_LEFT_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_left());
-            self.right = PAGE_RIGHT_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_right());
+            self.up = PAGE_UP_CMD.scoped(scope).subscribe(SCROLL.can_scroll_up());
+            self.down = PAGE_DOWN_CMD.scoped(scope).subscribe(SCROLL.can_scroll_down());
+            self.left = PAGE_LEFT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_left());
+            self.right = PAGE_RIGHT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_right());
 
             self.child.init();
         }
@@ -403,10 +403,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
 
-            self.up.set_enabled(ScrollContext::can_scroll_up());
-            self.down.set_enabled(ScrollContext::can_scroll_down());
-            self.left.set_enabled(ScrollContext::can_scroll_left());
-            self.right.set_enabled(ScrollContext::can_scroll_right());
+            self.up.set_enabled(SCROLL.can_scroll_up());
+            self.down.set_enabled(SCROLL.can_scroll_down());
+            self.left.set_enabled(SCROLL.can_scroll_left());
+            self.right.set_enabled(SCROLL.can_scroll_right());
 
             if VERTICAL_PAGE_UNIT_VAR.is_new() || HORIZONTAL_PAGE_UNIT_VAR.is_new() {
                 WIDGET.layout();
@@ -424,7 +424,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    ScrollContext::scroll_vertical(offset);
+                    SCROLL.scroll_vertical(offset);
                 });
             } else if let Some(args) = PAGE_DOWN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.down, |_| {
@@ -432,7 +432,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    ScrollContext::scroll_vertical(offset);
+                    SCROLL.scroll_vertical(offset);
                 });
             } else if let Some(args) = PAGE_LEFT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.left, |_| {
@@ -440,7 +440,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    ScrollContext::scroll_horizontal(offset);
+                    SCROLL.scroll_horizontal(offset);
                 });
             } else if let Some(args) = PAGE_RIGHT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.right, |_| {
@@ -448,7 +448,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    ScrollContext::scroll_horizontal(offset);
+                    SCROLL.scroll_horizontal(offset);
                 });
             }
         }
@@ -501,10 +501,10 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
         fn init(&mut self) {
             let scope = WIDGET.id();
 
-            self.top = SCROLL_TO_TOP_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_up());
-            self.bottom = SCROLL_TO_BOTTOM_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_down());
-            self.leftmost = SCROLL_TO_LEFTMOST_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_left());
-            self.rightmost = SCROLL_TO_RIGHTMOST_CMD.scoped(scope).subscribe(ScrollContext::can_scroll_right());
+            self.top = SCROLL_TO_TOP_CMD.scoped(scope).subscribe(SCROLL.can_scroll_up());
+            self.bottom = SCROLL_TO_BOTTOM_CMD.scoped(scope).subscribe(SCROLL.can_scroll_down());
+            self.leftmost = SCROLL_TO_LEFTMOST_CMD.scoped(scope).subscribe(SCROLL.can_scroll_left());
+            self.rightmost = SCROLL_TO_RIGHTMOST_CMD.scoped(scope).subscribe(SCROLL.can_scroll_right());
 
             self.child.init();
         }
@@ -521,10 +521,10 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
 
-            self.top.set_enabled(ScrollContext::can_scroll_up());
-            self.bottom.set_enabled(ScrollContext::can_scroll_down());
-            self.leftmost.set_enabled(ScrollContext::can_scroll_left());
-            self.rightmost.set_enabled(ScrollContext::can_scroll_right());
+            self.top.set_enabled(SCROLL.can_scroll_up());
+            self.bottom.set_enabled(SCROLL.can_scroll_down());
+            self.leftmost.set_enabled(SCROLL.can_scroll_left());
+            self.rightmost.set_enabled(SCROLL.can_scroll_right());
         }
 
         fn event(&mut self, update: &mut EventUpdate) {
@@ -534,19 +534,19 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
 
             if let Some(args) = SCROLL_TO_TOP_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.top, |_| {
-                    ScrollContext::chase_vertical(0.fct());
+                    SCROLL.chase_vertical(0.fct());
                 });
             } else if let Some(args) = SCROLL_TO_BOTTOM_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.bottom, |_| {
-                    ScrollContext::chase_vertical(1.fct());
+                    SCROLL.chase_vertical(1.fct());
                 });
             } else if let Some(args) = SCROLL_TO_LEFTMOST_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.leftmost, |_| {
-                    ScrollContext::chase_horizontal(0.fct());
+                    SCROLL.chase_horizontal(0.fct());
                 });
             } else if let Some(args) = SCROLL_TO_RIGHTMOST_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.rightmost, |_| {
-                    ScrollContext::chase_horizontal(1.fct());
+                    SCROLL.chase_horizontal(1.fct());
                 });
             } else {
             }
@@ -660,32 +660,32 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             if target_bounds.size.width < viewport_bounds.size.width {
                                 if target_bounds.origin.x < viewport_bounds.origin.x {
                                     let diff = target_bounds.origin.x - viewport_bounds.origin.x;
-                                    ScrollContext::scroll_horizontal(diff);
+                                    SCROLL.scroll_horizontal(diff);
                                 } else if target_bounds.max_x() > viewport_bounds.max_x() {
                                     let diff = target_bounds.max_x() - viewport_bounds.max_x();
-                                    ScrollContext::scroll_horizontal(diff);
+                                    SCROLL.scroll_horizontal(diff);
                                 }
                             } else {
                                 let target_center_x = (target_bounds.size.width / Px(2)) + target_bounds.origin.x;
                                 let viewport_center_x = (target_bounds.size.width / Px(2)) + viewport_bounds.origin.x;
 
                                 let diff = target_center_x - viewport_center_x;
-                                ScrollContext::scroll_horizontal(diff);
+                                SCROLL.scroll_horizontal(diff);
                             }
                             if target_bounds.size.height < viewport_bounds.size.height {
                                 if target_bounds.origin.y < viewport_bounds.origin.y {
                                     let diff = target_bounds.origin.y - viewport_bounds.origin.y;
-                                    ScrollContext::scroll_vertical(diff);
+                                    SCROLL.scroll_vertical(diff);
                                 } else if target_bounds.max_y() > viewport_bounds.max_y() {
                                     let diff = target_bounds.max_y() - viewport_bounds.max_y();
-                                    ScrollContext::scroll_vertical(diff);
+                                    SCROLL.scroll_vertical(diff);
                                 }
                             } else {
                                 let target_center_y = (target_bounds.size.height / Px(2)) + target_bounds.origin.y;
                                 let viewport_center_y = (target_bounds.size.height / Px(2)) + viewport_bounds.origin.y;
 
                                 let diff = target_center_y - viewport_center_y;
-                                ScrollContext::scroll_vertical(diff);
+                                SCROLL.scroll_vertical(diff);
                             }
                         }
                         ScrollToMode::Center {
@@ -709,8 +709,8 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                             let diff = widget_point - scroll_point;
 
-                            ScrollContext::scroll_vertical(diff.y);
-                            ScrollContext::scroll_horizontal(diff.x);
+                            SCROLL.scroll_vertical(diff.y);
+                            SCROLL.scroll_horizontal(diff.x);
                         }
                     }
                 }
@@ -784,10 +784,10 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                     self.offset = Vector::zero();
 
                     if offset.y != Px(0) {
-                        ScrollContext::scroll_vertical(offset.y);
+                        SCROLL.scroll_vertical(offset.y);
                     }
                     if offset.x != Px(0) {
-                        ScrollContext::scroll_horizontal(offset.x);
+                        SCROLL.scroll_horizontal(offset.x);
                     }
                 },
             );
