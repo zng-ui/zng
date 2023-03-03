@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{Factor2d, LayoutMask, Length, Point, Px, PxPoint, PxRect, PxToWr};
 
@@ -113,11 +113,11 @@ impl Line {
         }
     }
 
-    /// Compute the line in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxLine) -> PxLine {
+    /// Compute the line in the current [`LAYOUT`] context.
+    pub fn layout(&self) -> PxLine {
         PxLine {
-            start: self.start.layout(ctx, |ctx| default_value(ctx).start),
-            end: self.end.layout(ctx, |ctx| default_value(ctx).end),
+            start: self.start.layout(),
+            end: self.end.layout(),
         }
     }
 

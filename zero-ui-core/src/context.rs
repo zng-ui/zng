@@ -1,6 +1,6 @@
 //! New static contexts.
 
-use std::{fmt, mem, ops, sync::Arc, task::Waker};
+use std::{fmt, mem, sync::Arc, task::Waker};
 
 use linear_map::set::LinearSet;
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex};
@@ -985,9 +985,34 @@ impl LAYOUT {
         self.req().metrics.constrains()
     }
 
+    /// Current length constrains for the given axis.
+    pub fn constrains_for(&self, x_axis: bool) -> PxConstrains {
+        let c = self.constrains();
+        if x_axis {
+            c.x
+        } else {
+            c.y
+        }
+    }
+
     /// Calls `constrains` to generate new constrains that are used during the call to  `f`.
     pub fn with_constrains<R>(&self, constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d, f: impl FnOnce() -> R) -> R {
         self.with_metrics(|m| m.with_constrains(constrains), f)
+    }
+
+    /// Calls `constrains` to generate new constrains for the given axis that are used during the call to  `f`.
+    pub fn with_constrains_for<R>(&self, x_axis: bool, constrains: impl FnOnce(PxConstrains) -> PxConstrains, f: impl FnOnce() -> R) -> R {
+        self.with_constrains(
+            move |mut c| {
+                if x_axis {
+                    c.x = constrains(c.x);
+                } else {
+                    c.y = constrains(c.y);
+                }
+                c
+            },
+            f,
+        )
     }
 
     /// Runs a function `f` in a context that has its max size subtracted by `removed` and its final size added by `removed`.
@@ -1084,6 +1109,31 @@ impl LAYOUT {
         self.with_inline_constrains(Some(constrains), f)
     }
 
+    /// Current default value for *x* and *y* axis.
+    pub fn default_value(&self) -> (Px, Px) {
+        self.req().metrics.default_value()
+    }
+
+    /// Current default value for the given axis.
+    pub fn default_for(&self, x_axis: bool) -> Px {
+        let (x, y) = self.default_value();
+        if x_axis {
+            x
+        } else {
+            y
+        }
+    }
+
+    /// Calls `f` with new default values.
+    pub fn with_default<R>(&self, x: Px, y: Px, f: impl FnOnce() -> R) -> R {
+        self.with_metrics(|m| m.with_default(x, y), f)
+    }
+
+    /// Root font size.
+    pub fn root_font_size(&self) -> Px {
+        self.req().metrics.root_font_size()
+    }
+
     /// Current font size.
     pub fn font_size(&self) -> Px {
         self.req().metrics.font_size()
@@ -1097,6 +1147,26 @@ impl LAYOUT {
     /// Current viewport size.
     pub fn viewport(&self) -> PxSize {
         self.req().metrics.viewport()
+    }
+
+    /// Current smallest dimension of the viewport.
+    pub fn viewport_min(&self) -> Px {
+        self.req().metrics.viewport_min()
+    }
+
+    /// Current largest dimension of the viewport.
+    pub fn viewport_max(&self) -> Px {
+        self.req().metrics.viewport_max()
+    }
+
+    /// Current viewport length for the given axis.
+    pub fn viewport_for(&self, x_axis: bool) -> Px {
+        let vp = self.viewport();
+        if x_axis {
+            vp.width
+        } else {
+            vp.height
+        }
     }
 
     /// Calls `f` with `viewport` in the context.
@@ -1139,6 +1209,16 @@ impl LAYOUT {
     /// [`leftover_count`]: Self::leftover_count
     pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
         self.req().metrics.leftover()
+    }
+
+    /// Context leftover length for the given axis.
+    pub fn leftover_for(&self, x_axis: bool) -> Option<Px> {
+        let l = self.leftover();
+        if x_axis {
+            l.width
+        } else {
+            l.height
+        }
     }
 
     /// Calls `f` with [`leftover`] set to `with` and `height`.
@@ -1916,6 +1996,11 @@ pub struct LayoutMetricsSnapshot {
     /// [`inline_constrains`]: LayoutMetrics::inline_constrains
     pub inline_constrains: Option<InlineConstrains>,
 
+    /// The [`default_value`].
+    ///
+    /// [`default_value`]: LayoutMetrics::default_value
+    pub default_value: (Px, Px),
+
     /// The [`font_size`].
     ///
     /// [`font_size`]: LayoutMetrics::font_size
@@ -1952,6 +2037,7 @@ impl LayoutMetricsSnapshot {
     pub fn masked_eq(&self, other: &Self, mask: LayoutMask) -> bool {
         (!mask.contains(LayoutMask::CONSTRAINS)
             || (self.constrains == other.constrains && self.inline_constrains == other.inline_constrains))
+            && (!mask.contains(LayoutMask::DEFAULT_VALUE) || self.default_value == other.default_value)
             && (!mask.contains(LayoutMask::FONT_SIZE) || self.font_size == other.font_size)
             && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
             && (!mask.contains(LayoutMask::SCALE_FACTOR) || self.scale_factor == other.scale_factor)
@@ -2004,6 +2090,7 @@ impl LayoutMetrics {
             s: LayoutMetricsSnapshot {
                 constrains: PxConstrains2d::new_fill_size(viewport),
                 inline_constrains: None,
+                default_value: (Px(0), Px(0)),
                 font_size,
                 root_font_size: font_size,
                 scale_factor,
@@ -2012,22 +2099,6 @@ impl LayoutMetrics {
                 direction: LayoutDirection::default(),
                 leftover: euclid::size2(None, None),
             },
-        }
-    }
-
-    /// Selects the *width* dimension for 1D metrics.
-    pub fn for_x(&self) -> Layout1dMetrics {
-        Layout1dMetrics {
-            is_width: true,
-            metrics: self,
-        }
-    }
-
-    /// Selects the *height* dimension for 1D metrics.
-    pub fn for_y(&self) -> Layout1dMetrics {
-        Layout1dMetrics {
-            is_width: false,
-            metrics: self,
         }
     }
 
@@ -2060,6 +2131,12 @@ impl LayoutMetrics {
     pub fn constrains(&self) -> PxConstrains2d {
         self.register_use(LayoutMask::CONSTRAINS);
         self.s.constrains
+    }
+
+    /// Default value for the *x* and *y* dimensions.
+    pub fn default_value(&self) -> (Px, Px) {
+        self.register_use(LayoutMask::CONSTRAINS);
+        self.s.default_value
     }
 
     /// Current inline constrains.
@@ -2155,6 +2232,14 @@ impl LayoutMetrics {
         self
     }
 
+    /// Sets the [`default_value`].
+    ///
+    /// [`default_value`]: Self::default_value
+    pub fn with_default(mut self, x: Px, y: Px) -> Self {
+        self.s.default_value = (x, y);
+        self
+    }
+
     /// Sets the [`font_size`].
     ///
     /// [`font_size`]: Self::font_size
@@ -2219,53 +2304,6 @@ impl LayoutMetrics {
         let wgt_use = *use_mask;
         *use_mask = parent_use | wgt_use;
         wgt_use
-    }
-}
-
-/// Represents a [`LayoutMetrics`] with a selected dimension.
-#[derive(Clone, Copy, Debug)]
-pub struct Layout1dMetrics<'m> {
-    /// If the selected dimension is *width*, if not it is *height*.
-    pub is_width: bool,
-    /// The full metrics.
-    pub metrics: &'m LayoutMetrics,
-}
-impl<'m> Layout1dMetrics<'m> {
-    /// Length constrains in the selected dimension.
-    pub fn constrains(&self) -> PxConstrains {
-        self.metrics.register_use(LayoutMask::CONSTRAINS);
-        if self.is_width {
-            self.metrics.s.constrains.x
-        } else {
-            self.metrics.s.constrains.y
-        }
-    }
-
-    /// Viewport length in the selected dimension.
-    pub fn viewport_length(&self) -> Px {
-        self.metrics.register_use(LayoutMask::VIEWPORT);
-        if self.is_width {
-            self.metrics.s.viewport.width
-        } else {
-            self.metrics.s.viewport.height
-        }
-    }
-
-    /// Computed leftover length for the selected dimension.
-    pub fn leftover_length(&self) -> Option<Px> {
-        self.metrics.register_use(LayoutMask::LEFTOVER);
-        if self.is_width {
-            self.metrics.s.leftover.width
-        } else {
-            self.metrics.s.leftover.height
-        }
-    }
-}
-impl<'m> ops::Deref for Layout1dMetrics<'m> {
-    type Target = LayoutMetrics;
-
-    fn deref(&self) -> &Self::Target {
-        self.metrics
     }
 }
 

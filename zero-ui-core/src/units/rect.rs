@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{impl_length_comp_conversions, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
 
@@ -100,12 +100,9 @@ impl Rect {
         r
     }
 
-    /// Compute the rectangle in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxRect) -> PxRect {
-        PxRect::new(
-            self.origin.layout(ctx, |ctx| default_value(ctx).origin),
-            self.size.layout(ctx, |ctx| default_value(ctx).size),
-        )
+    /// Compute the rectangle in the current [`LAYOUT`] context.
+    pub fn layout(&self) -> PxRect {
+        PxRect::new(self.origin.layout(), self.size.layout())
     }
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].

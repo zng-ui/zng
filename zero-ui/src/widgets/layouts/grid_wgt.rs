@@ -898,7 +898,7 @@ impl GridNode {
             return (PxGridSpacing::zero(), PxSize::zero());
         }
 
-        let spacing = self.spacing.get().layout(&LAYOUT.metrics(), |_| PxGridSpacing::zero());
+        let spacing = self.spacing.get().layout();
         let constrains = LAYOUT.constrains();
 
         let fill_x = constrains.x.fill_or_exact();

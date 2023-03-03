@@ -265,9 +265,9 @@ impl StackNode {
 
         let spacing = self.spacing.get();
         let mut spacing = match (direction_vector.x == 0, direction_vector.y == 0) {
-            (false, false) => PxVector::new(spacing.layout(ctx.for_x(), |_| Px(0)), spacing.layout(ctx.for_y(), |_| Px(0))),
-            (true, false) => PxVector::new(Px(0), spacing.layout(ctx.for_y(), |_| Px(0))),
-            (false, true) => PxVector::new(spacing.layout(ctx.for_x(), |_| Px(0)), Px(0)),
+            (false, false) => PxVector::new(spacing.layout_x(), spacing.layout_y()),
+            (true, false) => PxVector::new(Px(0), spacing.layout_y()),
+            (false, true) => PxVector::new(spacing.layout_x(), Px(0)),
             (true, true) => PxVector::zero(),
         };
         if direction_vector.x < 0 {

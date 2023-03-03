@@ -4,7 +4,6 @@ use std::fmt;
 
 use crate::{
     color::{RenderColor, Rgba},
-    context::LayoutMetrics,
     impl_from_and_into_var,
     render::{webrender_api as wr, FilterOp, FrameValue},
     units::*,
@@ -39,19 +38,19 @@ impl Filter {
         self
     }
 
-    /// Compute a [`RenderFilter`].
+    /// Compute a [`RenderFilter`] in the current [`LAYOUT`] context.
     ///
     /// Most filters convert one-to-one, effects that have a [`Length`] value use the
     /// layout context to calculate relative values.
     ///
     /// Relative blur radius lengths are calculated using the `constrains().fill_size().width` value.
-    pub fn layout(&self, ctx: &LayoutMetrics) -> RenderFilter {
+    pub fn layout(&self) -> RenderFilter {
         self.filters
             .iter()
             .map(|f| match f {
                 FilterData::Op(op) => *op,
                 FilterData::Blur(l) => {
-                    let l = l.layout(ctx.for_x(), |_| Px(0)).0 as f32;
+                    let l = l.layout_f32_x();
                     FilterOp::Blur(l, l)
                 }
                 FilterData::DropShadow {
@@ -59,9 +58,9 @@ impl Filter {
                     blur_radius,
                     color,
                 } => FilterOp::DropShadow(wr::Shadow {
-                    offset: offset.layout(ctx, |_| PxPoint::zero()).to_wr().to_vector(),
+                    offset: offset.layout().to_wr().to_vector(),
                     color: RenderColor::from(*color),
-                    blur_radius: blur_radius.layout(ctx.for_x(), |_| Px(0)).0 as f32,
+                    blur_radius: blur_radius.layout_f32_x(),
                 }),
             })
             .collect()

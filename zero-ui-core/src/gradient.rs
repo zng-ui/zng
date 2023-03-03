@@ -212,10 +212,10 @@ impl GradientRadius {
             }
         };
 
-        self.radii
-            .layout(&ctx.clone().with_constrains(|_| PxConstrains2d::new_exact(length, length)), |_| {
-                PxSize::new(length, length)
-            })
+        LAYOUT.with_constrains(
+            |_| PxConstrains2d::new_exact(length, length),
+            || LAYOUT.with_default(length, length, || self.radii.layout()),
+        )
     }
 }
 impl_from_and_into_var! {
@@ -310,14 +310,14 @@ impl fmt::Debug for LinearGradientAxis {
     }
 }
 impl LinearGradientAxis {
-    /// Compute a [`PxLine`].
-    pub fn layout(&self, ctx: &LayoutMetrics) -> PxLine {
+    /// Compute a [`PxLine`] in the current [`LAYOUT`] context.
+    pub fn layout(&self) -> PxLine {
         match self {
             LinearGradientAxis::Angle(rad) => {
                 let dir_x = rad.0.sin();
                 let dir_y = -rad.0.cos();
 
-                let av = ctx.constrains().fill_size();
+                let av = LAYOUT.constrains().fill_size();
                 let av_width = av.width.0 as f32;
                 let av_height = av.height.0 as f32;
 
@@ -340,10 +340,9 @@ impl LinearGradientAxis {
                 )
             }
             LinearGradientAxis::Line(line) => {
-                line.layout(ctx, |ctx| {
-                    // default is 0º
-                    PxLine::new(PxPoint::new(Px(0), ctx.viewport().height), PxPoint::zero())
-                })
+                let mut line = line.clone();
+                line.start.replace_default(&PxPoint::new(Px(0), LAYOUT.viewport().height).into());
+                line.layout()
             }
         }
     }
@@ -473,15 +472,17 @@ impl ColorStop {
         !f32::is_finite(layout_offset)
     }
 
-    /// Compute a [`RenderGradientStop`].
+    /// Compute a [`RenderGradientStop`] in the current [`LAYOUT`] context.
+    ///
+    /// The `x_axis` value is used to select the [`LAYOUT`] axis inside the offset length.
     ///
     /// Note that if this color stop [is positional] the returned offset is [`f32::INFINITY`].
     /// You can use [`ColorStop::is_layout_positional`] to check a layout offset.
     ///
     /// [is positional]: Self::is_positional
-    pub fn layout(&self, ctx: Layout1dMetrics) -> RenderGradientStop {
+    pub fn layout(&self, x_axis: bool) -> RenderGradientStop {
         RenderGradientStop {
-            offset: self.offset.layout_f32(ctx, |_| f32::INFINITY),
+            offset: self.offset.layout_f32(x_axis),
             color: self.color.into(),
         }
     }
@@ -841,25 +842,21 @@ impl GradientStops {
         self.end.color.set_alpha(alpha);
     }
 
-    /// Computes the layout for a linear gradient.
+    /// Computes the linear gradient in the current [`LAYOUT`] context.
+    ///
+    /// The `x_axis` value selects the layout axis the offsets layout on.
     ///
     /// The `render_stops` content is replaced with stops with offset in the `0..=1` range.
     ///
     /// The `line` points are moved to accommodate input offsets outside the line bounds.
-    pub fn layout_linear(
-        &self,
-        ctx: Layout1dMetrics,
-        extend_mode: ExtendMode,
-        line: &mut PxLine,
-        render_stops: &mut Vec<RenderGradientStop>,
-    ) {
-        let (start_offset, end_offset) = self.layout(ctx, extend_mode, render_stops);
+    pub fn layout_linear(&self, x_axis: bool, extend_mode: ExtendMode, line: &mut PxLine, render_stops: &mut Vec<RenderGradientStop>) {
+        let (start_offset, end_offset) = self.layout(x_axis, extend_mode, render_stops);
 
         let mut l_start = line.start.to_wr();
         let mut l_end = line.end.to_wr();
 
         let v = l_end - l_start;
-        let v = v / ctx.constrains().fill().to_wr().get();
+        let v = v / LAYOUT.constrains_for(x_axis).fill().to_wr().get();
 
         l_end = l_start + v * end_offset;
         l_start += v * start_offset;
@@ -871,14 +868,14 @@ impl GradientStops {
     /// Computes the layout for a radial gradient.
     ///
     /// The `render_stops` content is replace with stops with offset in the `0..=1` range.
-    pub fn layout_radial(&self, ctx: Layout1dMetrics, extend_mode: ExtendMode, render_stops: &mut Vec<RenderGradientStop>) {
-        self.layout(ctx, extend_mode, render_stops);
+    pub fn layout_radial(&self, x_axis: bool, extend_mode: ExtendMode, render_stops: &mut Vec<RenderGradientStop>) {
+        self.layout(x_axis, extend_mode, render_stops);
     }
 
     /// Computes the actual color stops.
     ///
     /// Returns offsets of the first and last stop in the `length` line.
-    fn layout(&self, ctx: Layout1dMetrics, extend_mode: ExtendMode, render_stops: &mut Vec<RenderGradientStop>) -> (f32, f32) {
+    fn layout(&self, x_axis: bool, extend_mode: ExtendMode, render_stops: &mut Vec<RenderGradientStop>) -> (f32, f32) {
         // In this method we need to:
         // 1 - Convert all Length values to LayoutLength.
         // 2 - Adjust offsets so they are always after or equal to the previous offset.
@@ -899,7 +896,7 @@ impl GradientStops {
             render_stops.reserve(self.middle.len() + 2);
         }
 
-        let mut start = self.start.layout(ctx); // 1
+        let mut start = self.start.layout(x_axis); // 1
         if is_positional(start.offset) {
             start.offset = 0.0;
         }
@@ -912,7 +909,7 @@ impl GradientStops {
         for gs in self.middle.iter() {
             match gs {
                 GradientStop::Color(s) => {
-                    let mut stop = s.layout(ctx); // 1
+                    let mut stop = s.layout(x_axis); // 1
                     if is_positional(stop.offset) {
                         if positional_start.is_none() {
                             positional_start = Some(render_stops.len());
@@ -944,9 +941,9 @@ impl GradientStops {
             }
         }
 
-        let mut stop = self.end.layout(ctx); // 1
+        let mut stop = self.end.layout(x_axis); // 1
         if is_positional(stop.offset) {
-            stop.offset = ctx.constrains().fill().to_wr().get();
+            stop.offset = LAYOUT.constrains_for(x_axis).fill().to_wr().get();
         }
         if stop.offset < prev_offset {
             stop.offset = prev_offset; // 2
@@ -966,11 +963,11 @@ impl GradientStops {
             let length = after.offset - prev.offset;
             if length > 0.00001 {
                 if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
-                    let ctx = ctx
-                        .metrics
-                        .clone()
-                        .with_constrains(|c| c.with_new_max_y(Px(length as i32)).with_fill_y(true));
-                    let mut offset = offset.layout_f32(ctx.for_y(), |_| f32::INFINITY);
+                    let mut offset = LAYOUT.with_constrains_for(
+                        x_axis,
+                        |c| c.with_new_max(Px(length as i32)).with_fill(true),
+                        || offset.layout_f32(x_axis),
+                    );
                     if is_positional(offset) {
                         offset = length / 2.0;
                     } else {
@@ -1275,7 +1272,7 @@ mod tests {
 
         LAYOUT.with_context(Px(0), 1.fct(), 96.0, PxSize::new(Px(100), Px(100)), || {
             stops.layout_linear(
-                LAYOUT.metrics().for_x(),
+                true,
                 ExtendMode::Clamp,
                 &mut PxLine::new(PxPoint::zero(), PxPoint::new(Px(100), Px(100))),
                 &mut render_stops,

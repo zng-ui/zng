@@ -1,7 +1,7 @@
 use super::{about_eq, ByteLength, ByteUnits, Dip, DipToPx, Factor, FactorPercent, FactorUnits, Px, EPSILON, EPSILON_100};
 use std::{fmt, mem, ops};
 
-use crate::{context::Layout1dMetrics, impl_from_and_into_var, var::animation::Transitionable};
+use crate::{context::LAYOUT, impl_from_and_into_var, var::animation::Transitionable};
 
 /// 1D length units.
 ///
@@ -501,86 +501,96 @@ impl Length {
         }
     }
 
-    /// Compute the length at a context.
+    /// Compute the length given the current [`LAYOUT`] context.
     ///
-    /// Note that the result is not clamped by the [constrains], they are only used to compute the `Relative` value.
+    /// The `x_axis` param is used to select the default value if the length or expression contains [`Default`].
     ///
-    /// The `default_value` closure is evaluated for every [`Default`] value is request, it can be more then once for [`Expr`] lengths,
-    /// the closure value must not be expensive to produce, we only use a closure to avoid flagging layout dependencies in values that
-    /// are only used for [`Default`].
-    ///
-    /// [constrains]: Layout1dMetrics::constrains
     /// [`Default`]: Length::Default
-    /// [`Relative`]: Length::Relative
-    /// [`Expr`]: Length::Expr
-    pub fn layout(&self, ctx: Layout1dMetrics, default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
-        #[cfg(dyn_closure)]
-        let default_value: Box<dyn FnMut(Layout1dMetrics) -> Px> = Box::new(default_value);
-        self.layout_impl(ctx, default_value)
-    }
-    fn layout_impl(&self, ctx: Layout1dMetrics, mut default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
+    pub fn layout(&self, x_axis: bool) -> Px {
         use Length::*;
         match self {
-            Default => default_value(ctx),
-            Dip(l) => l.to_px(ctx.scale_factor().0),
+            Default => LAYOUT.default_for(x_axis),
+            Dip(l) => l.to_px(LAYOUT.scale_factor().0),
             Px(l) => *l,
-            Pt(l) => Self::pt_to_px(*l, ctx.scale_factor()),
-            Relative(f) => ctx.constrains().fill() * f.0,
+            Pt(l) => Self::pt_to_px(*l, LAYOUT.scale_factor()),
+            Relative(f) => LAYOUT.constrains_for(x_axis).fill() * f.0,
             Leftover(f) => {
-                if let Some(l) = ctx.leftover_length() {
+                if let Some(l) = LAYOUT.leftover_for(x_axis) {
                     l
                 } else {
-                    let fill = ctx.constrains().fill();
+                    let fill = LAYOUT.constrains_for(x_axis).fill();
                     (fill * f.0).clamp(self::Px(0), fill)
                 }
             }
-            Em(f) => ctx.font_size() * f.0,
-            RootEm(f) => ctx.root_font_size() * f.0,
-            ViewportWidth(p) => ctx.viewport().width * *p,
-            ViewportHeight(p) => ctx.viewport().height * *p,
-            ViewportMin(p) => ctx.viewport_min() * *p,
-            ViewportMax(p) => ctx.viewport_max() * *p,
-            DipF32(l) => self::Px((l * ctx.scale_factor().0).round() as i32),
+            Em(f) => LAYOUT.font_size() * f.0,
+            RootEm(f) => LAYOUT.root_font_size() * f.0,
+            ViewportWidth(p) => LAYOUT.viewport().width * *p,
+            ViewportHeight(p) => LAYOUT.viewport().height * *p,
+            ViewportMin(p) => LAYOUT.viewport_min() * *p,
+            ViewportMax(p) => LAYOUT.viewport_max() * *p,
+            DipF32(l) => self::Px((l * LAYOUT.scale_factor().0).round() as i32),
             PxF32(l) => self::Px(l.round() as i32),
-            Expr(e) => e.layout(ctx, &mut default_value),
+            Expr(e) => e.layout(x_axis),
         }
+    }
+
+    /// Compute the [`layout`] for the length in the ***x*** axis.
+    ///
+    /// [`layout`]: Self::layout
+    pub fn layout_x(&self) -> Px {
+        self.layout(true)
+    }
+
+    /// Compute the [`layout`] for the length in the ***y*** axis.
+    ///
+    /// [`layout`]: Self::layout
+    pub fn layout_y(&self) -> Px {
+        self.layout(false)
     }
 
     /// Same operation as [`layout`] but without rounding to nearest pixel.
     ///
     /// [`layout`]: Self::layout
-    pub fn layout_f32(&self, ctx: Layout1dMetrics, default_value: impl FnMut(Layout1dMetrics) -> f32) -> f32 {
-        #[cfg(dyn_closure)]
-        let default_value: Box<dyn FnMut(Layout1dMetrics) -> f32> = Box::new(default_value);
-        self.layout_f32_impl(ctx, default_value)
-    }
-
-    fn layout_f32_impl(&self, ctx: Layout1dMetrics, mut default_value: impl FnMut(Layout1dMetrics) -> f32) -> f32 {
+    pub fn layout_f32(&self, x_axis: bool) -> f32 {
         use Length::*;
         match self {
-            Default => default_value(ctx),
-            Dip(l) => l.to_f32() * ctx.scale_factor().0,
+            Default => LAYOUT.default_for(x_axis).0 as f32,
+            Dip(l) => l.to_f32() * LAYOUT.scale_factor().0,
             Px(l) => l.0 as f32,
-            Pt(l) => Self::pt_to_px_f32(*l, ctx.scale_factor()),
-            Relative(f) => ctx.constrains().fill().0 as f32 * f.0,
+            Pt(l) => Self::pt_to_px_f32(*l, LAYOUT.scale_factor()),
+            Relative(f) => LAYOUT.constrains_for(x_axis).fill().0 as f32 * f.0,
             Leftover(f) => {
-                if let Some(l) = ctx.leftover_length() {
+                if let Some(l) = LAYOUT.leftover_for(x_axis) {
                     l.0 as f32
                 } else {
-                    let fill = ctx.constrains().fill().0 as f32;
+                    let fill = LAYOUT.constrains_for(x_axis).fill().0 as f32;
                     (fill * f.0).clamp(0.0, fill)
                 }
             }
-            Em(f) => ctx.font_size().0 as f32 * f.0,
-            RootEm(f) => ctx.root_font_size().0 as f32 * f.0,
-            ViewportWidth(p) => ctx.viewport().width.0 as f32 * *p,
-            ViewportHeight(p) => ctx.viewport().height.0 as f32 * *p,
-            ViewportMin(p) => ctx.viewport_min().0 as f32 * *p,
-            ViewportMax(p) => ctx.viewport_max().0 as f32 * *p,
-            DipF32(l) => *l * ctx.scale_factor().0,
+            Em(f) => LAYOUT.font_size().0 as f32 * f.0,
+            RootEm(f) => LAYOUT.root_font_size().0 as f32 * f.0,
+            ViewportWidth(p) => LAYOUT.viewport().width.0 as f32 * *p,
+            ViewportHeight(p) => LAYOUT.viewport().height.0 as f32 * *p,
+            ViewportMin(p) => LAYOUT.viewport_min().0 as f32 * *p,
+            ViewportMax(p) => LAYOUT.viewport_max().0 as f32 * *p,
+            DipF32(l) => *l * LAYOUT.scale_factor().0,
             PxF32(l) => *l,
-            Expr(e) => e.layout_f32(ctx, &mut default_value),
+            Expr(e) => e.layout_f32(x_axis),
         }
+    }
+
+    /// Compute the [`layout_f32`] for the length in the ***x*** axis.
+    ///
+    /// [`layout_f32`]: Self::layout_f32
+    pub fn layout_f32_x(&self) -> f32 {
+        self.layout_f32(true)
+    }
+
+    /// Compute the [`layout_f32`] for the length in the ***y*** axis.
+    ///
+    /// [`layout_f32`]: Self::layout_f32
+    pub fn layout_f32_y(&self) -> f32 {
+        self.layout_f32(false)
     }
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
@@ -759,34 +769,34 @@ pub enum LengthExpr {
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
-    pub fn layout(&self, ctx: Layout1dMetrics, default_value: &mut dyn FnMut(Layout1dMetrics) -> Px) -> Px {
-        let l = self.layout_f32(ctx, &mut |ctx| default_value(ctx).0 as f32);
+    pub fn layout(&self, x_axis: bool) -> Px {
+        let l = self.layout_f32(x_axis);
         Px(l.round() as i32)
     }
 
     /// Same operation as [`layout`] but without rounding to nearest pixel.
     ///
     /// [`layout`]: Self::layout
-    pub fn layout_f32(&self, ctx: Layout1dMetrics, mut default_value: &mut dyn FnMut(Layout1dMetrics) -> f32) -> f32 {
+    pub fn layout_f32(&self, x_axis: bool) -> f32 {
         use LengthExpr::*;
         match self {
-            Add(a, b) => a.layout_f32(ctx, &mut default_value) + b.layout_f32(ctx, default_value),
-            Sub(a, b) => a.layout_f32(ctx, &mut default_value) - b.layout_f32(ctx, default_value),
-            Mul(l, s) => l.layout_f32(ctx, default_value) * s.0,
-            Div(l, s) => l.layout_f32(ctx, default_value) / s.0,
+            Add(a, b) => a.layout_f32(x_axis) + b.layout_f32(x_axis),
+            Sub(a, b) => a.layout_f32(x_axis) - b.layout_f32(x_axis),
+            Mul(l, s) => l.layout_f32(x_axis) * s.0,
+            Div(l, s) => l.layout_f32(x_axis) / s.0,
             Max(a, b) => {
-                let a = a.layout_f32(ctx, &mut default_value);
-                let b = b.layout_f32(ctx, default_value);
+                let a = a.layout_f32(x_axis);
+                let b = b.layout_f32(x_axis);
                 a.max(b)
             }
             Min(a, b) => {
-                let a = a.layout_f32(ctx, &mut default_value);
-                let b = b.layout_f32(ctx, default_value);
+                let a = a.layout_f32(x_axis);
+                let b = b.layout_f32(x_axis);
                 a.min(b)
             }
-            Abs(e) => e.layout_f32(ctx, default_value).abs(),
-            Neg(e) => -e.layout_f32(ctx, default_value),
-            Lerp(a, b, f) => a.layout_f32(ctx, &mut default_value).lerp(&b.layout_f32(ctx, default_value), *f),
+            Abs(e) => e.layout_f32(x_axis).abs(),
+            Neg(e) => -e.layout_f32(x_axis),
+            Lerp(a, b, f) => a.layout_f32(x_axis).lerp(&b.layout_f32(x_axis), *f),
         }
     }
 

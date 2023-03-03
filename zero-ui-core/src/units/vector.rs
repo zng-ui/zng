@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{
     impl_length_comp_conversions, translate, Dip, DipVector, Factor, Factor2d, FactorPercent, LayoutMask, Length, LengthUnits, Point, Px,
@@ -83,12 +83,9 @@ impl Vector {
         }
     }
 
-    /// Compute the vector in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxVector) -> PxVector {
-        PxVector::new(
-            self.x.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).x),
-            self.y.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).y),
-        )
+    /// Compute the vector in the current [`LAYOUT`] context.
+    pub fn layout(&self) -> PxVector {
+        PxVector::new(self.x.layout_x(), self.y.layout_y())
     }
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].

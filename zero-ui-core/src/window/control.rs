@@ -185,13 +185,10 @@ impl HeadedCtrl {
                         let screen_ppi = m.ppi().get();
                         let screen_size = m.size().get();
                         let (min_size, max_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                            let min_size = self
-                                .vars
-                                .min_size()
-                                .get()
-                                .layout(&LAYOUT.metrics(), |_| default_min_size(scale_factor));
-
-                            let max_size = self.vars.max_size().get().layout(&LAYOUT.metrics(), |_| screen_size);
+                            let default = default_min_size(scale_factor);
+                            let min_size = LAYOUT.with_default(default.width, default.height, || self.vars.min_size().get().layout());
+                            let max_size =
+                                LAYOUT.with_default(screen_size.width, screen_size.height, || self.vars.max_size().get().layout());
 
                             (min_size.to_dip(scale_factor.0), max_size.to_dip(scale_factor.0))
                         });
@@ -220,11 +217,10 @@ impl HeadedCtrl {
                             let screen_ppi = m.ppi().get();
                             let screen_size = m.size().get();
                             let size = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                                self.vars
-                                    .size()
-                                    .get()
-                                    .layout(&LAYOUT.metrics(), |_| default_size(scale_factor))
-                                    .to_dip(scale_factor.0)
+                                let default = default_size(scale_factor);
+                                LAYOUT.with_default(default.width, default.height, || {
+                                    self.vars.size().get().layout().to_dip(scale_factor.0)
+                                })
                             });
 
                             let size = size.min(new_state.max_size).max(new_state.min_size);
@@ -245,7 +241,8 @@ impl HeadedCtrl {
                         let screen_ppi = m.ppi().get();
                         let screen_size = m.size().get();
                         let mut font_size_px = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                            font_size.layout(LAYOUT.metrics().for_x(), |_| Length::pt_to_px(11.0, scale_factor))
+                            let default = Length::pt_to_px(11.0, scale_factor);
+                            LAYOUT.with_default(default, default, || font_size.layout_x())
                         });
                         if font_size_px < Px(0) {
                             tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
@@ -267,7 +264,7 @@ impl HeadedCtrl {
                         let screen_ppi = m.ppi().get();
                         let screen_size = m.size().get();
                         let pos = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-                            pos.layout(&LAYOUT.metrics(), |_| PxPoint::new(Px(50), Px(50)))
+                            LAYOUT.with_default(Px(50), Px(50), || pos.layout())
                         });
                         new_state.restore_rect.origin = pos.to_dip(scale_factor.0);
                     }
@@ -706,18 +703,19 @@ impl HeadedCtrl {
 
         // Layout min, max and size in the monitor space.
         let (min_size, max_size, mut size, root_font_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_rect.size, || {
-            let min_size = self
-                .vars
-                .min_size()
-                .get()
-                .layout(&LAYOUT.metrics(), |_| default_min_size(scale_factor));
+            let default = default_min_size(scale_factor);
+            let min_size = LAYOUT.with_default(default.width, default.height, || self.vars.min_size().get().layout());
 
-            let max_size = self.vars.max_size().get().layout(&LAYOUT.metrics(), |_| screen_rect.size);
+            let max_size = LAYOUT.with_default(screen_rect.size.width, screen_rect.size.height, || {
+                self.vars.max_size().get().layout()
+            });
 
-            let size = self.vars.size().get().layout(&LAYOUT.metrics(), |_| default_size(scale_factor));
+            let default = default_size(scale_factor);
+            let size = LAYOUT.with_default(default.width, default.height, || self.vars.size().get().layout());
 
             let font_size = self.vars.font_size().get();
-            let mut root_font_size = font_size.layout(LAYOUT.metrics().for_x(), |_| Length::pt_to_px(11.0, scale_factor));
+            let default = Length::pt_to_px(11.0, scale_factor);
+            let mut root_font_size = LAYOUT.with_default(default, default, || font_size.layout_x());
             if root_font_size < Px(0) {
                 tracing::error!("invalid font size {font_size:?} => {root_font_size:?}");
                 root_font_size = Length::pt_to_px(11.0, scale_factor);
@@ -746,7 +744,7 @@ impl HeadedCtrl {
                     PxPoint::zero()
                 } else {
                     self.content.outer_layout(scale_factor, screen_ppi, screen_rect.size, || {
-                        pos.layout(&LAYOUT.metrics(), |_| PxPoint::zero()) + screen_rect.origin.to_vector()
+                        pos.layout() + screen_rect.origin.to_vector()
                     })
                 }
             }
@@ -859,9 +857,7 @@ impl HeadedCtrl {
             let auto_size_origin = self.vars.auto_size_origin().get();
             let auto_size_origin = |size| {
                 LAYOUT.with_context(root_font_size, scale_factor, screen_ppi, size, || {
-                    auto_size_origin
-                        .layout(&LAYOUT.metrics(), |_| PxPoint::zero())
-                        .to_dip(scale_factor.0)
+                    auto_size_origin.layout().to_dip(scale_factor.0)
                 })
             };
             let prev_origin = auto_size_origin(current_size);
@@ -1159,21 +1155,16 @@ impl HeadlessWithRendererCtrl {
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
 
         let (min_size, max_size, size, root_font_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-            let min_size = self
-                .vars
-                .min_size()
-                .get()
-                .layout(&LAYOUT.metrics(), |_| default_min_size(scale_factor));
+            let default = default_min_size(scale_factor);
+            let min_size = LAYOUT.with_default(default.width, default.height, || self.vars.min_size().get().layout());
 
-            let max_size = self.vars.max_size().get().layout(&LAYOUT.metrics(), |_| screen_size);
+            let max_size = LAYOUT.with_default(screen_size.width, screen_size.height, || self.vars.max_size().get().layout());
 
-            let size = self.vars.size().get().layout(&LAYOUT.metrics(), |_| default_size(scale_factor));
+            let default = default_size(scale_factor);
+            let size = LAYOUT.with_default(default.width, default.height, || self.vars.size().get().layout());
 
-            let root_font_size = self
-                .vars
-                .font_size()
-                .get()
-                .layout(LAYOUT.metrics().for_x(), |_| Length::pt_to_px(11.0, scale_factor));
+            let default = Length::pt_to_px(11.0, scale_factor);
+            let root_font_size = LAYOUT.with_default(default, default, || self.vars.font_size().get().layout_x());
 
             (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
         });
@@ -1356,21 +1347,16 @@ impl HeadlessCtrl {
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
 
         let (min_size, max_size, size, root_font_size) = self.content.outer_layout(scale_factor, screen_ppi, screen_size, || {
-            let min_size = self
-                .vars
-                .min_size()
-                .get()
-                .layout(&LAYOUT.metrics(), |_| default_min_size(scale_factor));
+            let default = default_min_size(scale_factor);
+            let min_size = LAYOUT.with_default(default.width, default.height, || self.vars.min_size().get().layout());
 
-            let max_size = self.vars.max_size().get().layout(&LAYOUT.metrics(), |_| screen_size);
+            let max_size = LAYOUT.with_default(screen_size.width, screen_size.height, || self.vars.max_size().get().layout());
 
-            let size = self.vars.size().get().layout(&LAYOUT.metrics(), |_| default_size(scale_factor));
+            let default = default_size(scale_factor);
+            let size = LAYOUT.with_default(default.width, default.height, || self.vars.size().get().layout());
 
-            let root_font_size = self
-                .vars
-                .font_size()
-                .get()
-                .layout(LAYOUT.metrics().for_x(), |_| Length::pt_to_px(11.0, scale_factor));
+            let default = Length::pt_to_px(11.0, scale_factor);
+            let root_font_size = LAYOUT.with_default(default, default, || self.vars.font_size().get().layout_x());
 
             (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
         });

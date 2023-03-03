@@ -1,6 +1,6 @@
 use std::{fmt, mem, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, LayoutMask, Length, Px, PxVector};
 
@@ -30,11 +30,11 @@ impl GridSpacing {
         }
     }
 
-    /// Compute the spacing in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxGridSpacing) -> PxGridSpacing {
+    /// Compute the spacing in the current [`LAYOUT`] context.
+    pub fn layout(&self) -> PxGridSpacing {
         PxGridSpacing {
-            column: self.column.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).column),
-            row: self.row.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).row),
+            column: self.column.layout_x(),
+            row: self.row.layout_y(),
         }
     }
 

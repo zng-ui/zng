@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{impl_length_comp_conversions, DipSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, PxSize, Rect, Vector};
 
@@ -73,12 +73,9 @@ impl Size {
         [self.width, self.height]
     }
 
-    /// Compute the size in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxSize) -> PxSize {
-        PxSize::new(
-            self.width.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).width),
-            self.height.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).height),
-        )
+    /// Compute the size in the current [`LAYOUT`] context.
+    pub fn layout(&self) -> PxSize {
+        PxSize::new(self.width.layout_x(), self.height.layout_y())
     }
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].

@@ -333,7 +333,7 @@ impl Orientation2D {
 mod tests {
     use std::f32::consts::{PI, TAU};
 
-    use crate::context::LayoutMetrics;
+    use crate::context::LAYOUT;
 
     use super::*;
 
@@ -398,8 +398,7 @@ mod tests {
     #[test]
     pub fn length_expr_eval() {
         let l = (Length::from(200) - 100.pct()).abs();
-        let ctx = LayoutMetrics::new(1.0.fct(), PxSize::new(Px(600), Px(400)), Px(0));
-        let l = l.layout(ctx.for_x(), |_| Px(0));
+        let l = LAYOUT.with_context(Px(0), 1.fct(), 96.0, PxSize::new(Px(600), Px(400)), || l.layout_x());
 
         assert_eq!(l.0, (200i32 - 600i32).abs());
     }
@@ -409,17 +408,21 @@ mod tests {
         let l = Length::from(100.pct()).clamp(100, 500);
         assert!(matches!(l, Length::Expr(_)));
 
-        let metrics = LayoutMetrics::new(1.0.fct(), PxSize::new(Px(200), Px(50)), Px(0));
+        LAYOUT.with_context(Px(0), 1.fct(), 96.0, PxSize::new(Px(200), Px(50)), || {
+            let r = l.layout_x();
+            assert_eq!(r.0, 200);
 
-        let r = l.layout(metrics.for_x(), |_| Px(0));
-        assert_eq!(r.0, 200);
+            let r = l.layout_y();
+            assert_eq!(r.0, 100);
 
-        let r = l.layout(metrics.for_y(), |_| Px(0));
-        assert_eq!(r.0, 100);
-
-        let metrics = metrics.with_constrains(|c| c.with_new_max_x(Px(550)));
-        let r = l.layout(metrics.for_x(), |_| Px(0));
-        assert_eq!(r.0, 500);
+            LAYOUT.with_constrains(
+                |c| c.with_new_max_x(Px(550)),
+                || {
+                    let r = l.layout_x();
+                    assert_eq!(r.0, 500);
+                },
+            );
+        });
     }
 
     fn all_equal(rad: AngleRadian, grad: AngleGradian, deg: AngleDegree, turn: AngleTurn) {

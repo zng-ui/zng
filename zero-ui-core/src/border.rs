@@ -4,7 +4,7 @@ use std::{fmt, mem};
 
 use crate::{
     color::*,
-    context::{LayoutMetrics, WidgetUpdates, LAYOUT, WIDGET},
+    context::{WidgetUpdates, LAYOUT, WIDGET},
     context_local, property,
     render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValueKey},
     ui_node, ui_vec,
@@ -340,13 +340,13 @@ impl CornerRadius {
         self.top_left == self.top_right && self.top_left == self.bottom_right && self.top_left == self.bottom_left
     }
 
-    /// Compute the radii in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxCornerRadius) -> PxCornerRadius {
+    /// Compute the radii in the current [`LAYOUT`] context.
+    pub fn layout(&self) -> PxCornerRadius {
         PxCornerRadius {
-            top_left: self.top_left.layout(ctx, |ctx| default_value(ctx).top_left),
-            top_right: self.top_right.layout(ctx, |ctx| default_value(ctx).top_right),
-            bottom_left: self.bottom_left.layout(ctx, |ctx| default_value(ctx).bottom_left),
-            bottom_right: self.bottom_right.layout(ctx, |ctx| default_value(ctx).bottom_right),
+            top_left: self.top_left.layout(),
+            top_right: self.top_right.layout(),
+            bottom_left: self.bottom_left.layout(),
+            bottom_right: self.bottom_right.layout(),
         }
     }
 }
@@ -894,7 +894,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let offsets = self.offsets.get().layout(&LAYOUT.metrics(), |_| PxSideOffsets::zero());
+            let offsets = self.offsets.get().layout();
             BORDER.measure_with_border(offsets, || {
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
                 LAYOUT.with_inline_measure(
@@ -912,7 +912,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             // `wl` is targeting the child transform, child nodes are naturally inside borders, so we
             // need to add to the offset and take the size, fill_nodes optionally cancel this transform.
 
-            let offsets = self.layout_offsets.layout(&LAYOUT.metrics(), |_| PxSideOffsets::zero());
+            let offsets = self.layout_offsets.layout();
             if self.render_offsets != offsets {
                 self.render_offsets = offsets;
                 WIDGET.render();
@@ -1006,10 +1006,10 @@ impl BORDER {
                 if data.widget_id == Some(WIDGET.id()) {
                     data.border_radius()
                 } else {
-                    CORNER_RADIUS_VAR.get().layout(&LAYOUT.metrics(), |_| PxCornerRadius::zero())
+                    CORNER_RADIUS_VAR.get().layout()
                 }
             }
-            _ => CORNER_RADIUS_VAR.get().layout(&LAYOUT.metrics(), |_| PxCornerRadius::zero()),
+            _ => CORNER_RADIUS_VAR.get().layout(),
         }
     }
 
@@ -1022,10 +1022,10 @@ impl BORDER {
                 if data.widget_id == WIDGET.try_id() {
                     data.inner_radius()
                 } else {
-                    CORNER_RADIUS_VAR.get().layout(&LAYOUT.metrics(), |_| PxCornerRadius::zero())
+                    CORNER_RADIUS_VAR.get().layout()
                 }
             }
-            _ => CORNER_RADIUS_VAR.get().layout(&LAYOUT.metrics(), |_| PxCornerRadius::zero()),
+            _ => CORNER_RADIUS_VAR.get().layout(),
         }
     }
 
@@ -1117,7 +1117,7 @@ impl BorderOffsetsData {
         self.wgt_inner_offsets += offset;
 
         if mem::take(&mut self.eval_cr) {
-            self.corner_radius = CORNER_RADIUS_VAR.get().layout(&LAYOUT.metrics(), |_| PxCornerRadius::zero());
+            self.corner_radius = CORNER_RADIUS_VAR.get().layout();
             self.cr_offsets = PxSideOffsets::zero();
             self.cr_inner_offsets = PxSideOffsets::zero();
         }

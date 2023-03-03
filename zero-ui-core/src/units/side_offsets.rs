@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var, var::animation::Transitionable};
+use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{impl_length_comp_conversions, Factor, FactorPercent, FactorSideOffsets, LayoutMask, Length, PxSideOffsets};
 
@@ -85,13 +85,13 @@ impl SideOffsets {
         self.top == self.bottom && self.left == self.right
     }
 
-    /// Compute the offsets in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxSideOffsets) -> PxSideOffsets {
+    /// Compute the offsets in the current [`LAYOUT`] context.
+    pub fn layout(&self) -> PxSideOffsets {
         PxSideOffsets::new(
-            self.top.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).top),
-            self.right.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).right),
-            self.bottom.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).bottom),
-            self.left.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).left),
+            self.top.layout_y(),
+            self.right.layout_x(),
+            self.bottom.layout_y(),
+            self.left.layout_x(),
         )
     }
 

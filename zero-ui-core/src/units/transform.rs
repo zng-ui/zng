@@ -1,6 +1,4 @@
-use crate::context::LayoutMetrics;
-
-use super::{AngleRadian, AngleUnits, Factor, Length, Px, PxToWr, PxTransform};
+use super::{AngleRadian, AngleUnits, Factor, Length, PxTransform};
 
 /// A transform builder type.
 ///
@@ -125,16 +123,13 @@ impl Transform {
         self.scale_xy(s, s)
     }
 
-    /// Compute a [`PxTransform`].
-    pub fn layout(&self, ctx: &LayoutMetrics) -> PxTransform {
+    /// Compute a [`PxTransform`] in the current [`LAYOUT`] context.
+    pub fn layout(&self) -> PxTransform {
         let mut r = PxTransform::identity();
         for step in &self.parts {
             r = match step {
                 TransformPart::Computed(m) => r.then(m),
-                TransformPart::Translate(x, y) => r.then(&PxTransform::translation(
-                    x.layout(ctx.for_x(), |_| Px(0)).to_wr().get(),
-                    y.layout(ctx.for_y(), |_| Px(0)).to_wr().get(),
-                )),
+                TransformPart::Translate(x, y) => r.then(&PxTransform::translation(x.layout_f32_x(), y.layout_f32_y())),
             };
         }
         r
