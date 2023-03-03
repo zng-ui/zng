@@ -66,11 +66,13 @@ impl IMAGES {
     /// Render the *window* to an image.
     ///
     /// The *window* is created as a headless surface and rendered to the returned image. You can use the
-    /// [`ImageRenderVars::retain`] var create an image that updates with new frames, or by default only render once.
+    /// [`IMAGE_RENDER.retain`] var create an image that updates with new frames, or by default only render once.
     ///
     /// The closure runs in the [`WINDOW`] context of the headless window.
     ///
     /// Requires the [`WINDOWS`] service.
+    /// 
+    /// [`IMAGE_RENDER.retain`]: IMAGE_RENDER::retain
     pub fn render<N>(&self, render: N) -> ImageVar
     where
         N: FnOnce() -> Window + Send + Sync + 'static,
