@@ -250,7 +250,7 @@ impl WindowLayers {
                                         .with_context(
                                             self.corner_radius_ctx_handle.get_or_insert_with(ContextInitHandle::new).clone(),
                                             cr,
-                                            || ContextBorders::with_corner_radius(|| self.widget.layout(wl)),
+                                            || BORDER.with_corner_radius(|| self.widget.layout(wl)),
                                         )
                                         .1
                                 } else {

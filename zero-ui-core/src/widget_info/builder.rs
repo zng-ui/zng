@@ -1,6 +1,7 @@
 use std::hash::Hash;
 
 use crate::{
+    border::BORDER,
     context::{StateMapMut, LAYOUT, WIDGET, WINDOW},
     text::TextSegmentKind,
 };
@@ -777,7 +778,7 @@ impl WidgetLayout {
     /// [`widget_base::nodes::widget_inner`]: crate::widget_base::nodes::widget_inner
     pub fn with_inner(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         self.nest_group = LayoutNestGroup::Child;
-        let size = ContextBorders::with_inner(|| layout(self));
+        let size = BORDER.with_inner(|| layout(self));
         WIDGET.bounds().set_inner_size(size);
         self.nest_group = LayoutNestGroup::Inner;
         size

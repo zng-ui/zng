@@ -312,7 +312,7 @@ pub fn foreground_highlight(
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(wl);
 
-            let radius = ContextBorders::inner_radius();
+            let radius = BORDER.inner_radius();
             let offsets = self.offsets.get().layout(&LAYOUT.metrics(), |_| PxSideOffsets::zero());
             let radius = radius.deflate(offsets);
 
@@ -323,7 +323,7 @@ pub fn foreground_highlight(
                 }
             }
             if bounds.size.is_empty() {
-                let border_offsets = ContextBorders::inner_offsets();
+                let border_offsets = BORDER.inner_offsets();
 
                 bounds = PxRect::new(
                     PxPoint::new(offsets.left + border_offsets.left, offsets.top + border_offsets.top),
@@ -474,7 +474,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             let bounds = self.child.layout(wl);
 
             if self.clip.get() {
-                let corners = ContextBorders::border_radius();
+                let corners = BORDER.border_radius();
                 if corners != self.corners {
                     self.corners = corners;
                     WIDGET.render();

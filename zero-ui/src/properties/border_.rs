@@ -2,7 +2,7 @@ use crate::prelude::new_property::*;
 
 #[doc(inline)]
 pub use crate::core::border::{border_align, corner_radius, corner_radius_fit, CornerRadiusFit};
-use crate::core::border::{border_node, ContextBorders};
+use crate::core::border::{border_node, BORDER};
 
 /// Widget border.
 ///
@@ -29,12 +29,12 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
             LAYOUT.constrains().fill_size()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            self.corners = ContextBorders::border_radius();
+            self.corners = BORDER.border_radius();
             LAYOUT.constrains().fill_size()
         }
 
         fn render(&self, frame: &mut FrameBuilder) {
-            let (rect, offsets) = ContextBorders::border_layout();
+            let (rect, offsets) = BORDER.border_layout();
             frame.push_border(rect, offsets, self.sides.get(), self.corners);
         }
     }

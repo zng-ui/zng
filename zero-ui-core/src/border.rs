@@ -612,7 +612,7 @@ impl_from_and_into_var! {
 
 /// Defines how the [`corner_radius`] is computed for each usage.
 ///
-/// Nesting borders with round corners need slightly different radius values to perfectly fit, the [`ContextBorders`]
+/// Nesting borders with round corners need slightly different radius values to perfectly fit, the [`BORDER`]
 /// coordinator can adjusts the radius inside each border to match the inside curve of the border, this behavior is
 /// controlled by [`corner_radius_fit`].
 ///
@@ -668,7 +668,7 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            ContextBorders::with_corner_radius(|| self.child.layout(wl))
+            BORDER.with_corner_radius(|| self.child.layout(wl))
         }
     }
     with_context_var(CornerRadiusNode { child }, CORNER_RADIUS_VAR, radius)
@@ -676,7 +676,7 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
 
 /// Defines how the [`corner_radius`] is computed for each usage.
 ///
-/// Nesting borders with round corners need slightly different radius values to perfectly fit, the [`ContextBorders`]
+/// Nesting borders with round corners need slightly different radius values to perfectly fit, the [`BORDER`]
 /// coordinator can adjusts the radius inside each border to match the inside curve of the border.
 ///
 /// [`corner_radius`]: fn@corner_radius
@@ -757,7 +757,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
         }
 
         fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-            let offsets = ContextBorders::inner_offsets();
+            let offsets = BORDER.inner_offsets();
             let align = BORDER_ALIGN_VAR.get();
 
             let our_offsets = offsets * align;
@@ -772,7 +772,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             //
             // .. ( layout ( new_border/inner ( border_nodes ( FILL_NODES ( new_child_context ( new_child_layout ( ..
 
-            let offsets = ContextBorders::inner_offsets();
+            let offsets = BORDER.inner_offsets();
             let align = BORDER_ALIGN_VAR.get();
 
             let our_offsets = offsets * align;
@@ -785,7 +785,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             let size_offset = offsets - our_offsets;
             let size_increase = PxSize::new(size_offset.horizontal(), size_offset.vertical());
             let fill_bounds = LAYOUT.constrains().fill_size() + size_increase;
-            let corners = ContextBorders::inner_radius().inflate(size_offset);
+            let corners = BORDER.inner_radius().inflate(size_offset);
 
             if self.clip_bounds != fill_bounds || self.clip_corners != corners {
                 self.clip_bounds = fill_bounds;
@@ -895,7 +895,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
             let offsets = self.offsets.get().layout(&LAYOUT.metrics(), |_| PxSideOffsets::zero());
-            ContextBorders::measure_with_border(offsets, || {
+            BORDER.measure_with_border(offsets, || {
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
                 LAYOUT.with_inline_measure(
                     wm,
@@ -918,7 +918,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 WIDGET.render();
             }
 
-            let parent_offsets = ContextBorders::inner_offsets();
+            let parent_offsets = BORDER.inner_offsets();
             let origin = PxPoint::new(parent_offsets.left, parent_offsets.top);
             if self.border_rect.origin != origin {
                 self.border_rect.origin = origin;
@@ -926,7 +926,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             }
 
             // layout child and border visual
-            ContextBorders::with_border(offsets, || {
+            BORDER.with_border(offsets, || {
                 wl.translate(PxVector::new(offsets.left, offsets.top));
 
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
@@ -936,7 +936,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_exact_size(self.border_rect.size),
                     || {
-                        ContextBorders::with_border_layout(self.border_rect, offsets, || {
+                        BORDER.with_border_layout(self.border_rect, offsets, || {
                             self.children.with_node_mut(1, |n| n.layout(wl));
                         });
                     },
@@ -948,14 +948,14 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
 
         fn render(&self, frame: &mut FrameBuilder) {
             self.children.with_node(0, |c| c.render(frame));
-            ContextBorders::with_border_layout(self.border_rect, self.render_offsets, || {
+            BORDER.with_border_layout(self.border_rect, self.render_offsets, || {
                 self.children.with_node(1, |c| c.render(frame));
             });
         }
 
         fn render_update(&self, update: &mut FrameUpdate) {
             self.children.with_node(0, |c| c.render_update(update));
-            ContextBorders::with_border_layout(self.border_rect, self.render_offsets, || {
+            BORDER.with_border_layout(self.border_rect, self.render_offsets, || {
                 self.children.with_node(1, |c| c.render_update(update));
             })
         }
@@ -971,12 +971,12 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
 }
 
 /// Coordinates nested borders and corner-radius.
-pub struct ContextBorders {}
-impl ContextBorders {
+pub struct BORDER;
+impl BORDER {
     /// Gets the accumulated border offsets on the outside of the current border set on the current widget.
     ///
     /// This is only valid to call during layout.
-    pub fn border_offsets() -> PxSideOffsets {
+    pub fn border_offsets(&self) -> PxSideOffsets {
         let data = BORDER_DATA.read();
         if data.widget_id == WIDGET.try_id() {
             data.wgt_offsets
@@ -986,7 +986,7 @@ impl ContextBorders {
     }
 
     /// Gets the accumulated border offsets including the current border.
-    pub fn inner_offsets() -> PxSideOffsets {
+    pub fn inner_offsets(&self) -> PxSideOffsets {
         let data = BORDER_DATA.read();
         if data.widget_id == WIDGET.try_id() {
             data.wgt_inner_offsets
@@ -998,7 +998,7 @@ impl ContextBorders {
     /// Gets the corner radius for the border at the current context.
     ///
     /// This value is influenced by [`CORNER_RADIUS_VAR`], [`CORNER_RADIUS_FIT_VAR`] and all contextual borders.
-    pub fn border_radius() -> PxCornerRadius {
+    pub fn border_radius(&self) -> PxCornerRadius {
         match CORNER_RADIUS_FIT_VAR.get() {
             CornerRadiusFit::Tree => BORDER_DATA.read().border_radius(),
             CornerRadiusFit::Widget => {
@@ -1014,7 +1014,7 @@ impl ContextBorders {
     }
 
     /// Gets the corner radius for the inside of the current border at the current context.
-    pub fn inner_radius() -> PxCornerRadius {
+    pub fn inner_radius(&self) -> PxCornerRadius {
         match CORNER_RADIUS_FIT_VAR.get() {
             CornerRadiusFit::Tree => BORDER_DATA.read().inner_radius(),
             CornerRadiusFit::Widget => {
@@ -1029,26 +1029,26 @@ impl ContextBorders {
         }
     }
 
-    pub(super) fn with_inner(f: impl FnOnce() -> PxSize) -> PxSize {
+    pub(super) fn with_inner(&self, f: impl FnOnce() -> PxSize) -> PxSize {
         let mut data = BORDER_DATA.get();
         let border = WIDGET.border();
         data.add_inner(&border);
 
         BORDER_DATA.with_context(&mut Some(data), || {
-            let corner_radius = ContextBorders::border_radius();
+            let corner_radius = BORDER.border_radius();
             border.set_corner_radius(corner_radius);
             border.set_offsets(PxSideOffsets::zero());
             f()
         })
     }
 
-    fn with_border(offsets: PxSideOffsets, f: impl FnOnce()) {
+    fn with_border(&self, offsets: PxSideOffsets, f: impl FnOnce()) {
         let mut data = BORDER_DATA.get();
         data.add_offset(Some(&WIDGET.border()), offsets);
         BORDER_DATA.with_context(&mut Some(data), f);
     }
 
-    fn measure_with_border(offsets: PxSideOffsets, f: impl FnOnce() -> PxSize) -> PxSize {
+    fn measure_with_border(&self, offsets: PxSideOffsets, f: impl FnOnce() -> PxSize) -> PxSize {
         let mut data = BORDER_DATA.get();
         data.add_offset(None, offsets);
         BORDER_DATA.with_context(&mut Some(data), f)
@@ -1062,7 +1062,7 @@ impl ContextBorders {
     ///
     /// [`corner_radius`]: fn@corner_radius
     /// [`measure`]: UiNode::measure
-    pub fn with_corner_radius<R>(f: impl FnOnce() -> R) -> R {
+    pub fn with_corner_radius<R>(&self, f: impl FnOnce() -> R) -> R {
         let mut data = BORDER_DATA.get();
         data.set_corner_radius();
         BORDER_DATA.with_context(&mut Some(data), f)
@@ -1071,14 +1071,14 @@ impl ContextBorders {
     /// Gets the computed border rect and side offsets for the border visual.
     ///
     /// This is only valid to call in the border visual node (in [`border_node`]) during layout and render.
-    pub fn border_layout() -> (PxRect, PxSideOffsets) {
+    pub fn border_layout(&self) -> (PxRect, PxSideOffsets) {
         BORDER_LAYOUT.get().unwrap_or_else(|| {
             #[cfg(debug_assertions)]
             tracing::error!("the `border_layout` is only available inside the layout and render methods of the border visual node");
             (PxRect::zero(), PxSideOffsets::zero())
         })
     }
-    fn with_border_layout(rect: PxRect, offsets: PxSideOffsets, f: impl FnOnce()) {
+    fn with_border_layout(&self, rect: PxRect, offsets: PxSideOffsets, f: impl FnOnce()) {
         BORDER_LAYOUT.with_context_opt(&mut Some((rect, offsets)), f);
     }
 }
