@@ -309,7 +309,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                         status.set(Status::Cancel);
                         task::deadline(200.ms()).await;
 
-                        WindowLayers::remove(popup_id);
+                        LAYERS.remove(popup_id);
                     });
                     on_move = async_hn!(status, |args: TransformChangedArgs| {
                         if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
@@ -319,7 +319,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                         status.set(Status::Cancel);
                         task::deadline(200.ms()).await;
 
-                        WindowLayers::remove(popup_id);
+                        LAYERS.remove(popup_id);
                     });
 
                     on_click = async_hn_once!(status, |args: ClickArgs| {
@@ -366,7 +366,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                         status.set(if ok { Status::Ok } else { Status::Err });
                         task::deadline(200.ms()).await;
 
-                        WindowLayers::remove(popup_id);
+                        LAYERS.remove(popup_id);
                     });
                 },
                 text!(" 🡵"),
@@ -374,7 +374,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         }
     };
 
-    WindowLayers::insert_anchored(
+    LAYERS.insert_anchored(
         LayerIndex::ADORNER,
         args.link.widget_id(),
         AnchorMode::none().with_transform(Point::bottom()),

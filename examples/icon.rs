@@ -114,7 +114,7 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
             ]
         };
         on_click = hn!(|_| {
-            WindowLayers::insert(LayerIndex::TOP_MOST, expanded_icon(ico.clone()));
+            LAYERS.insert(LayerIndex::TOP_MOST, expanded_icon(ico.clone()));
         })
     }
 }
@@ -131,7 +131,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
         child_align = Align::CENTER;
         on_click = hn!(|args: &ClickArgs| {
             if WIDGET.id() == args.target.widget_id() {
-                WindowLayers::remove("expanded-icon");
+                LAYERS.remove("expanded-icon");
                 args.propagation().stop();
             }
         });
@@ -225,7 +225,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                         task::yield_one().await;
                         opacity.wait_animation().await;
 
-                        WindowLayers::remove("expanded-icon");
+                        LAYERS.remove("expanded-icon");
                     });
                 }
             ])

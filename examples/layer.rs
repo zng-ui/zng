@@ -5,7 +5,7 @@ use zero_ui::{
         mouse::{on_mouse_enter, on_mouse_leave},
         widget::on_pre_init,
     },
-    widgets::window::{AnchorMode, AnchorSize, AnchorTransform, LayerIndex, WindowLayers},
+    widgets::window::{AnchorMode, AnchorSize, AnchorTransform, LayerIndex, LAYERS},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -33,7 +33,7 @@ fn app_main() {
             // you can use the pre-init to insert layered widgets
             // before the first render.
             on_pre_init = hn!(|_| {
-                WindowLayers::insert(LayerIndex::TOP_MOST - 100, text! {
+                LAYERS.insert(LayerIndex::TOP_MOST - 100, text! {
                     hit_test_mode = HitTestMode::Disabled;
                     txt = "on_pre_init";
                     font_size = 72;
@@ -63,7 +63,7 @@ fn overlay_example() -> impl UiNode {
     button! {
         child = text!("TOP_MOST");
         on_click = hn!(|_| {
-            WindowLayers::insert(LayerIndex::TOP_MOST, overlay("overlay", 0));
+            LAYERS.insert(LayerIndex::TOP_MOST, overlay("overlay", 0));
         });
     }
 }
@@ -103,13 +103,13 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                                 visibility = offset < 50;
                                 child = text!("Open Another");
                                 on_click = hn!(|_| {
-                                    WindowLayers::insert(LayerIndex::TOP_MOST, overlay(WidgetId::new_unique(), offset + 10));
+                                    LAYERS.insert(LayerIndex::TOP_MOST, overlay(WidgetId::new_unique(), offset + 10));
                                 })
                             },
                             button! {
                                 child = text!("Remove");
                                 on_click = hn!(|_| {
-                                    WindowLayers::remove(id);
+                                    LAYERS.remove(id);
                                 })
                             },
                         ]
@@ -138,7 +138,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
         child = text!(label.clone());
         on_click = async_hn!(label, |_| {
             let id = WidgetId::new_unique();
-            WindowLayers::insert(n, container! {
+            LAYERS.insert(n, container! {
                 id;
                 child = text! {
                     txt = label.clone();
@@ -158,7 +158,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
 
             task::deadline(2.secs()).await; // wait fade-out
 
-            WindowLayers::remove(id);
+            LAYERS.remove(id);
         });
     }
 }
@@ -201,7 +201,7 @@ fn anchor_example() -> impl UiNode {
         align = Align::CENTER;
 
         on_mouse_enter = hn!(|_| {
-            WindowLayers::insert_anchored(LayerIndex::ADORNER, "anchor", anchor_mode.clone(), text! {
+            LAYERS.insert_anchored(LayerIndex::ADORNER, "anchor", anchor_mode.clone(), text! {
                 id = "anchored";
                 txt = "Example";
                 txt_color = rgb(0.92, 0.92, 0.92);
@@ -215,7 +215,7 @@ fn anchor_example() -> impl UiNode {
             })
         });
         on_mouse_leave = hn!(|_| {
-            WindowLayers::remove("anchored");
+            LAYERS.remove("anchored");
         });
 
         on_click = next_point;
@@ -233,7 +233,7 @@ fn transform_anchor_example() -> impl UiNode {
 
         on_click = hn!(|_| {
             if insert {
-                WindowLayers::insert_anchored(LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), container! {
+                LAYERS.insert_anchored(LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), container! {
                     id = "t-anchored";
                     child_align = Align::TOP_LEFT;
                     border = 1, colors::GREEN.lighten(30.pct());
@@ -245,7 +245,7 @@ fn transform_anchor_example() -> impl UiNode {
                     }
                 })
             } else {
-                WindowLayers::remove("t-anchored");
+                LAYERS.remove("t-anchored");
             }
             insert = !insert;
         })

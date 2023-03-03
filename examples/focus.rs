@@ -2,7 +2,7 @@
 use zero_ui::core::focus::{FocusRequest, FocusTarget, FOCUS_CHANGED_EVENT};
 use zero_ui::prelude::new_widget::WINDOW;
 use zero_ui::prelude::*;
-use zero_ui::widgets::window::{LayerIndex, WindowLayers};
+use zero_ui::widgets::window::{LayerIndex, LAYERS};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -144,7 +144,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             button! {
                 child = text!("Overlay Scope");
                 on_click = hn!(|_| {
-                    WindowLayers::insert(LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
+                    LAYERS.insert(LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
                 });
             },
             nested_focusables(),
@@ -190,7 +190,7 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
                         button! {
                                 child = text!("Close");
                                 on_click = hn!(|_| {
-                                    WindowLayers::remove("overlay");
+                                    LAYERS.remove("overlay");
                                 })
                             }
                         ]

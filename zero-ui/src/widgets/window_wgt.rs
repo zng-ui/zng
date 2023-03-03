@@ -36,7 +36,7 @@ pub mod window {
     pub use super::{commands, nodes};
 
     #[doc(inline)]
-    pub use nodes::{AnchorMode, AnchorSize, AnchorTransform, LayerIndex, WindowLayers};
+    pub use nodes::{AnchorMode, AnchorSize, AnchorTransform, LayerIndex, LAYERS};
 
     #[doc(inline)]
     pub use crate::widgets::window_wgt::window_properties::{

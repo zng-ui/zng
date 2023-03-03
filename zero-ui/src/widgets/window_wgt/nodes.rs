@@ -11,6 +11,10 @@ use std::{
 
 use crate::crate_util::RunOnDrop;
 
+struct LayersCtx {
+    items: EditableUiNodeListRef,
+}
+
 /// Windows layers.
 ///
 /// The window layers is z-order stacking panel that fills the window content area, widgets can be inserted
@@ -27,15 +31,13 @@ use crate::crate_util::RunOnDrop;
 /// a single layout pass, see [`insert_anchored`] for more details.
 ///
 /// [`insert_anchored`]: Self::insert_anchored
-pub struct WindowLayers {
-    items: EditableUiNodeListRef,
-}
-impl WindowLayers {
+pub struct LAYERS;
+impl LAYERS {
     /// Insert the `widget` in the layer identified by a [`LayerIndex`].
     ///
     /// If the `layer` variable updates the widget is moved to the new layer, if multiple widgets
     /// are inserted in the same layer the later inserts are on top of the previous.
-    pub fn insert(layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
+    pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
         struct LayeredWidget<L, W> {
             layer: L,
             widget: W,
@@ -86,6 +88,7 @@ impl WindowLayers {
     ///
     /// If the `anchor` widget is not found the `widget` is not rendered (visibility `Collapsed`).
     pub fn insert_anchored(
+        &self,
         layer: impl IntoVar<LayerIndex>,
         anchor: impl IntoVar<WidgetId>,
         mode: impl IntoVar<AnchorMode>,
@@ -395,7 +398,7 @@ impl WindowLayers {
             }
         }
 
-        Self::insert(
+        self.insert(
             layer,
             AnchoredWidget {
                 anchor: anchor.into_var(),
@@ -416,14 +419,14 @@ impl WindowLayers {
     /// Remove the widget from the layers overlay in the next update.
     ///
     /// The `id` must the widget id of a previous inserted widget, nothing happens if the widget is not found.
-    pub fn remove(id: impl Into<WidgetId>) {
+    pub fn remove(&self, id: impl Into<WidgetId>) {
         WINDOW.with_state(|s| {
             s.req(&WINDOW_LAYERS_ID).items.remove(id);
         });
     }
 }
 
-static WINDOW_LAYERS_ID: StaticStateId<WindowLayers> = StaticStateId::new_unique();
+static WINDOW_LAYERS_ID: StaticStateId<LayersCtx> = StaticStateId::new_unique();
 static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 
 /// Wrap around the window outer-most event node to create the layers.
@@ -440,7 +443,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
         fn init(&mut self) {
             WINDOW.set_state(
                 &WINDOW_LAYERS_ID,
-                WindowLayers {
+                LayersCtx {
                     items: self.layered.clone(),
                 },
             );
@@ -493,7 +496,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
 
 /// Represents a layer in a window.
 ///
-/// See the [`WindowLayers`] struct for more information.
+/// See [`LAYERS`] for more information.
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct LayerIndex(pub u32);
 impl LayerIndex {

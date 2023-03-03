@@ -190,7 +190,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::style::style_gen;
     #[doc(no_inline)]
-    pub use crate::widgets::window::{AnchorMode, LayerIndex, WindowLayers};
+    pub use crate::widgets::window::{AnchorMode, LayerIndex, LAYERS};
 
     /// All the types you need to declare a new property.
     ///

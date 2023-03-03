@@ -459,7 +459,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                 state.set(CloseState::Asking);
 
                 let dlg = close_dialog(args.windows.clone().into(), state.clone());
-                WindowLayers::insert(LayerIndex::TOP_MOST, dlg)
+                LAYERS.insert(LayerIndex::TOP_MOST, dlg)
             }
             CloseState::Asking => args.propagation().stop(),
             CloseState::Close => {}
@@ -522,7 +522,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                                     opacity.wait_animation().await;
 
                                     state.set(CloseState::Ask);
-                                    WindowLayers::remove("close-dialog");
+                                    LAYERS.remove("close-dialog");
                                 });
                             },
                         ]
