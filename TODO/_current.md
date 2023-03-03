@@ -1,5 +1,3 @@
-* Refactor `SizePropertyLength`.
-
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
     - The units `fn layout(&self, metrics, default_closure)` method can also be improved.

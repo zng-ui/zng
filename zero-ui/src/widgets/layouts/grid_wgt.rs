@@ -32,7 +32,7 @@ pub mod grid {
         /// the width of the cells assigned to it, the [`column::width`] property can be used to enforce a width, otherwise the
         /// column is sized by the widest cell.
         ///
-        /// The grid uses the [`SizePropertyLength`] value to select one of three layout modes for columns:
+        /// The grid uses the [`WIDGET_SIZE`] value to select one of three layout modes for columns:
         ///
         /// * *Cell*, used for columns that do not set width or set it to [`Length::Default`].
         /// * *Exact*, used for columns that set the width to a different unit.
@@ -916,7 +916,7 @@ impl GridNode {
         let mut has_leftover_rows = false;
 
         columns.for_each(|ci, col| {
-            let col_kind = SizePropertyLength::get_wgt(col).width;
+            let col_kind = WIDGET_SIZE.get_wgt(col).width;
 
             let col_info = &mut info.columns[ci];
 
@@ -924,15 +924,15 @@ impl GridNode {
             col_info.width = Px::MIN;
 
             match col_kind {
-                SizePropertyLength::Default => {
+                WidgetLength::Default => {
                     col_info.meta = ColRowMeta::default();
                     has_default = true;
                 }
-                SizePropertyLength::Leftover(f) => {
+                WidgetLength::Leftover(f) => {
                     col_info.meta = ColRowMeta::leftover(f);
                     has_leftover_cols = true;
                 }
-                SizePropertyLength::Exact => {
+                WidgetLength::Exact => {
                     col_info.width = col.measure(wm).width;
                     col_info.meta = ColRowMeta::exact();
                 }
@@ -941,7 +941,7 @@ impl GridNode {
             true
         });
         rows.for_each(|ri, row| {
-            let row_kind = SizePropertyLength::get_wgt(row).height;
+            let row_kind = WIDGET_SIZE.get_wgt(row).height;
 
             let row_info = &mut info.rows[ri];
 
@@ -949,15 +949,15 @@ impl GridNode {
             row_info.height = Px::MIN;
 
             match row_kind {
-                SizePropertyLength::Default => {
+                WidgetLength::Default => {
                     row_info.meta = ColRowMeta::default();
                     has_default = true;
                 }
-                SizePropertyLength::Leftover(f) => {
+                WidgetLength::Leftover(f) => {
                     row_info.meta = ColRowMeta::leftover(f);
                     has_leftover_rows = true;
                 }
-                SizePropertyLength::Exact => {
+                WidgetLength::Exact => {
                     row_info.height = row.measure(wm).height;
                     row_info.meta = ColRowMeta::exact();
                 }

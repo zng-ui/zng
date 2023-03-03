@@ -771,7 +771,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 ///
 /// Relative size values are computed from the constrains maximum bounded size.
 ///
-/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_INFO_ID`].
+/// This property disables inline layout for the widget. This property sets the [`WIDGET_SIZE`].
 ///
 /// # Examples
 ///
@@ -807,13 +807,13 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         fn init(&mut self) {
             self.auto_subs();
             self.child.init();
-            self.size.with(SizePropertyLength::set);
+            self.size.with(|l| WIDGET_SIZE.set(l));
         }
 
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
             self.size.with_new(|s| {
-                SizePropertyLength::set(s);
+                WIDGET_SIZE.set(s);
                 WIDGET.layout();
             });
         }
@@ -852,7 +852,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// When set the widget is layout with exact size constrains, clamped by the contextual min/max.
 /// Relative values are computed from the constrains maximum bounded width.
 ///
-/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_INFO_ID`] width.
+/// This property disables inline layout for the widget. This property sets the [`WIDGET_SIZE`] width.
 ///
 /// # Examples
 ///
@@ -885,13 +885,13 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
         fn init(&mut self) {
             self.auto_subs();
             self.child.init();
-            self.width.with(SizePropertyLength::set_width);
+            self.width.with(|s| WIDGET_SIZE.set_width(s));
         }
 
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
             self.width.with_new(|w| {
-                SizePropertyLength::set_width(w);
+                WIDGET_SIZE.set_width(w);
                 WIDGET.layout();
             });
         }
@@ -932,7 +932,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// When set the widget is layout with exact size constrains, clamped by the contextual min/max.
 /// Relative values are computed from the constrains maximum bounded height.
 ///
-/// This property disables inline layout for the widget. This property sets the [`SIZE_PROPERTY_INFO_ID`] height.
+/// This property disables inline layout for the widget. This property sets the [`WIDGET_SIZE`] height.
 ///
 /// # Examples
 ///
@@ -965,13 +965,13 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
         fn init(&mut self) {
             self.auto_subs();
             self.child.init();
-            self.height.with(SizePropertyLength::set_height);
+            self.height.with(|s| WIDGET_SIZE.set_height(s));
         }
 
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
             self.height.with_new(|h| {
-                SizePropertyLength::set_height(h);
+                WIDGET_SIZE.set_height(h);
                 WIDGET.layout();
             });
         }
@@ -1536,16 +1536,16 @@ pub fn child_insert_end(child: impl UiNode, insert: impl UiNode, spacing: impl I
     child_insert(child, ChildInsertPlace::End, insert, spacing)
 }
 
-/// Represents the size property value set on a widget.
+/// Represents the width or height property value set on a widget.
 ///
-/// Properties like [`size`], [`width`] and [`height`] set the [`SIZE_PROPERTY_INFO_ID`]
+/// Properties like [`size`], [`width`] and [`height`] set the [`WIDGET_SIZE`]
 /// metadata in the widget state. Panels can use this info to implement [`Length::Leftover`] support.
 ///  
 /// [`size`]: fn@size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum SizePropertyLength {
+pub enum WidgetLength {
     /// Evaluates to [`PxConstrains2d::fill_size`] when measured, can serve as a request for *size-to-fit*.
     ///
     /// The `grid!` widget uses this to fit the column and row widgets to *their* cells, as they don't
@@ -1565,64 +1565,72 @@ pub enum SizePropertyLength {
     /// leftover length.
     Exact,
 }
-impl Default for SizePropertyLength {
+impl Default for WidgetLength {
     fn default() -> Self {
-        SizePropertyLength::Default
+        WidgetLength::Default
     }
 }
-impl SizePropertyLength {
+impl From<&Length> for WidgetLength {
+    fn from(value: &Length) -> Self {
+        match value {
+            Length::Default => WidgetLength::Default,
+            Length::Leftover(f) => WidgetLength::Leftover(*f),
+            _ => WidgetLength::Exact,
+        }
+    }
+}
+
+/// Exact size property info.
+///
+/// Properties like [`size`], [`width`] and [`height`] set this metadata in the widget state.
+/// Panels can use this info to implement [`Length::Leftover`] support.
+///
+/// [`size`]: fn@size
+/// [`width`]: fn@width
+/// [`height`]: fn@height
+#[allow(non_camel_case_types)]
+pub struct WIDGET_SIZE;
+impl WIDGET_SIZE {
     /// Set the width state.
-    pub fn set_width(width: &Length) {
+    pub fn set_width(&self, width: &Length) {
         WIDGET.with_state_mut(|mut state| {
             let width = width.into();
-            match state.entry(&SIZE_PROPERTY_INFO_ID) {
+            match state.entry(&WIDGET_SIZE_ID) {
                 state_map::StateMapEntry::Occupied(mut e) => e.get_mut().width = width,
                 state_map::StateMapEntry::Vacant(e) => {
-                    e.insert(euclid::size2(width, SizePropertyLength::Default));
+                    e.insert(euclid::size2(width, WidgetLength::Default));
                 }
             }
         });
     }
 
     /// Set the height state.
-    pub fn set_height(height: &Length) {
+    pub fn set_height(&self, height: &Length) {
         WIDGET.with_state_mut(|mut state| {
             let height = height.into();
-            match state.entry(&SIZE_PROPERTY_INFO_ID) {
+            match state.entry(&WIDGET_SIZE_ID) {
                 state_map::StateMapEntry::Occupied(mut e) => e.get_mut().height = height,
                 state_map::StateMapEntry::Vacant(e) => {
-                    e.insert(euclid::size2(SizePropertyLength::Default, height));
+                    e.insert(euclid::size2(WidgetLength::Default, height));
                 }
             }
         })
     }
 
     /// Set the size state.
-    pub fn set(size: &Size) {
-        WIDGET.set_state(&SIZE_PROPERTY_INFO_ID, euclid::size2((&size.width).into(), (&size.height).into()));
+    pub fn set(&self, size: &Size) {
+        WIDGET.set_state(&WIDGET_SIZE_ID, euclid::size2((&size.width).into(), (&size.height).into()));
     }
 
     /// Get the size set in the state.
-    pub fn get() -> euclid::Size2D<SizePropertyLength, ()> {
-        WIDGET.get_state(&SIZE_PROPERTY_INFO_ID).unwrap_or_default()
+    pub fn get(&self) -> euclid::Size2D<WidgetLength, ()> {
+        WIDGET.get_state(&WIDGET_SIZE_ID).unwrap_or_default()
     }
 
     /// Get the size set in the widget state.
-    pub fn get_wgt(wgt: &impl UiNode) -> euclid::Size2D<SizePropertyLength, ()> {
-        wgt.with_context(Self::get).unwrap_or_default()
-    }
-}
-impl From<&Length> for SizePropertyLength {
-    fn from(value: &Length) -> Self {
-        match value {
-            Length::Default => SizePropertyLength::Default,
-            Length::Leftover(f) => SizePropertyLength::Leftover(*f),
-            _ => SizePropertyLength::Exact,
-        }
+    pub fn get_wgt(&self, wgt: &impl UiNode) -> euclid::Size2D<WidgetLength, ()> {
+        wgt.with_context(|| self.get()).unwrap_or_default()
     }
 }
 
-/// Id for widget state set by properties that directly enforce a widget size.
-///
-/// See [`SizePropertyLength`] for more details.
-pub static SIZE_PROPERTY_INFO_ID: StaticStateId<euclid::Size2D<SizePropertyLength, ()>> = StaticStateId::new_unique();
+static WIDGET_SIZE_ID: StaticStateId<euclid::Size2D<WidgetLength, ()>> = StaticStateId::new_unique();
