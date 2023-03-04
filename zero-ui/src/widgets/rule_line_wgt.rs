@@ -103,7 +103,7 @@ pub mod rule_line {
                 ),
                 LineOrientation::Vertical => PxSize::new(
                     self.stroke_thickness.layout_dft_x(default_stroke),
-                    self.length.layout_dft_y(metrics.constrains().x.fill()),
+                    self.length.layout_dft_y(metrics.constrains().y.fill()),
                 ),
             };
 
