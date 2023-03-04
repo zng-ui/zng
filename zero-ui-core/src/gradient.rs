@@ -1282,7 +1282,8 @@ mod tests {
 
         let mut render_stops = vec![];
 
-        LAYOUT.with_context(Px(0), 1.fct(), 96.0, PxSize::new(Px(100), Px(100)), || {
+        let metrics = LayoutMetrics::new(1.fct(), PxSize::new(Px(100), Px(100)), Px(0));
+        LAYOUT.with_context(metrics, || {
             stops.layout_linear(
                 true,
                 ExtendMode::Clamp,

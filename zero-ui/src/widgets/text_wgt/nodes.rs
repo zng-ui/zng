@@ -676,7 +676,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 let t = write.as_mut().expect("expected `ResolvedText` in `render` or `render_update`");
                 let metrics = self.last_layout.0.clone();
                 self.shaping_args.inline_constrains = self.last_layout.1;
-                self.layout(&metrics, t, false);
+                LAYOUT.with_context(metrics.clone(), || {
+                    self.layout(&metrics, t, false);
+                });
                 debug_assert!(!self.txt_is_measured);
             }
         }

@@ -448,7 +448,10 @@ pub trait Layout1d {
 mod tests {
     use std::f32::consts::{PI, TAU};
 
-    use crate::{app::App, context::LAYOUT};
+    use crate::{
+        app::App,
+        context::{LayoutMetrics, LAYOUT},
+    };
 
     use super::*;
 
@@ -515,7 +518,8 @@ mod tests {
         let _app = App::minimal().run_headless(false);
 
         let l = (Length::from(200) - 100.pct()).abs();
-        let l = LAYOUT.with_context(Px(0), 1.fct(), 96.0, PxSize::new(Px(600), Px(400)), || l.layout_x());
+        let metrics = LayoutMetrics::new(1.fct(), PxSize::new(Px(600), Px(400)), Px(0));
+        let l = LAYOUT.with_context(metrics, || l.layout_x());
 
         assert_eq!(l.0, (200i32 - 600i32).abs());
     }
@@ -527,7 +531,8 @@ mod tests {
         let l = Length::from(100.pct()).clamp(100, 500);
         assert!(matches!(l, Length::Expr(_)));
 
-        LAYOUT.with_context(Px(0), 1.fct(), 96.0, PxSize::new(Px(200), Px(50)), || {
+        let metrics = LayoutMetrics::new(1.fct(), PxSize::new(Px(200), Px(50)), Px(0));
+        LAYOUT.with_context(metrics, || {
             let r = l.layout_x();
             assert_eq!(r.0, 200);
 

@@ -11,7 +11,7 @@ use crate::{
         view_process::*,
     },
     color::{ColorScheme, RenderColor},
-    context::{WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW},
+    context::{LayoutMetrics, WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW},
     crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
     image::{Image, ImageVar, IMAGES},
@@ -843,9 +843,8 @@ impl HeadedCtrl {
 
             let auto_size_origin = self.vars.auto_size_origin().get();
             let auto_size_origin = |size| {
-                LAYOUT.with_context(root_font_size, scale_factor, screen_ppi, size, || {
-                    auto_size_origin.layout().to_dip(scale_factor.0)
-                })
+                let metrics = LayoutMetrics::new(scale_factor, size, root_font_size).with_screen_ppi(screen_ppi);
+                LAYOUT.with_context(metrics, || auto_size_origin.layout().to_dip(scale_factor.0))
             };
             let prev_origin = auto_size_origin(current_size);
             let new_origin = auto_size_origin(size);
@@ -1607,7 +1606,8 @@ impl ContentCtrl {
 
     /// Run an `action` in the context of a monitor screen that is parent of this content.
     pub fn outer_layout<R>(&mut self, scale_factor: Factor, screen_ppi: f32, screen_size: PxSize, action: impl FnOnce() -> R) -> R {
-        LAYOUT.with_context(Length::pt_to_px(11.0, scale_factor), scale_factor, screen_ppi, screen_size, action)
+        let metrics = LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(11.0, scale_factor)).with_screen_ppi(screen_ppi);
+        LAYOUT.with_context(metrics, action)
     }
 
     /// Layout content if there was a pending request, returns `Some(final_size)`.
@@ -1644,7 +1644,8 @@ impl ContentCtrl {
         self.layout_pass += 1;
 
         WIDGET.with_context(&self.root_ctx, || {
-            LAYOUT.with_context(root_font_size, scale_factor, screen_ppi, viewport_size, || {
+            let metrics = LayoutMetrics::new(scale_factor, viewport_size, root_font_size).with_screen_ppi(screen_ppi);
+            LAYOUT.with_context(metrics, || {
                 let desired_size = LAYOUT.with_constrains(
                     |mut c| {
                         if !skip_auto_size {

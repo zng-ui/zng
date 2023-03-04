@@ -1,3 +1,6 @@
+* Implement parallel image render.
+    - Test it in animation example.
+
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
 

@@ -186,9 +186,8 @@ impl StackDirection {
     /// Values are `0`, `1` or `-1`.
     pub fn vector(&self, direction: LayoutDirection) -> euclid::Vector2D<i8, ()> {
         let size = PxSize::new(Px(10), Px(10));
-        let p = LAYOUT.with_context(Px(10), 1.fct(), 96.0, size, || {
-            LAYOUT.with_direction(direction, || self.layout(PxRect::from_size(size), size))
-        });
+        let metrics = LayoutMetrics::new(1.fct(), size, Px(10)).with_direction(direction);
+        let p = LAYOUT.with_context(metrics, || self.layout(PxRect::from_size(size), size));
 
         pub(crate) fn v(px: Px) -> i8 {
             use std::cmp::Ordering::*;

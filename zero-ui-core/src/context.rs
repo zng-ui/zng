@@ -543,10 +543,9 @@ impl WINDOW {
             .with_context(|| WIDGET.bounds().outer_size())
             .unwrap_or_else(|| PxSize::new(Px(1000), Px(800)));
 
-        let size = LAYOUT.with_context(font_size, 1.fct(), 96.0, viewport, || {
-            crate::widget_info::WidgetLayout::with_root_widget(0, |wl| {
-                LAYOUT.with_constrains(|c| constrains.unwrap_or(c), || content.layout(wl))
-            })
+        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|c| constrains.unwrap_or(c));
+        let size = LAYOUT.with_context(metrics, || {
+            crate::widget_info::WidgetLayout::with_root_widget(0, |wl| content.layout(wl))
         });
         (size, UPDATES.apply())
     }
@@ -951,10 +950,8 @@ impl LAYOUT {
     }
 
     /// Calls `f` in a new layout context.
-    pub fn with_context<R>(&self, font_size: Px, scale_factor: Factor, screen_ppi: f32, viewport: PxSize, f: impl FnOnce() -> R) -> R {
-        let mut ctx = Some(LayoutCtx {
-            metrics: LayoutMetrics::new(scale_factor, viewport, font_size).with_screen_ppi(screen_ppi),
-        });
+    pub fn with_context<R>(&self, metrics: LayoutMetrics, f: impl FnOnce() -> R) -> R {
+        let mut ctx = Some(LayoutCtx { metrics });
         LAYOUT_CTX.with_context_opt(&mut ctx, f)
     }
 
