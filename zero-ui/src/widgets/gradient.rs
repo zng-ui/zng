@@ -130,10 +130,8 @@ pub fn linear_gradient_full(
             if self.final_size != final_size {
                 self.final_size = final_size;
 
-                LAYOUT.with_default_sz(self.final_size, || {
-                    self.final_tile_size = self.tile_size.get().layout();
-                    self.final_tile_spacing = self.tile_spacing.get().layout();
-                });
+                self.final_tile_size = self.tile_size.get().layout_dft(self.final_size);
+                self.final_tile_spacing = self.tile_spacing.get().layout_dft(self.final_size);
 
                 self.final_line = LAYOUT.with_constrains(|c| c.with_exact_size(self.final_tile_size), || self.axis.get().layout());
 
@@ -243,12 +241,8 @@ pub fn radial_gradient_ext(
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_size),
                     || {
-                        LAYOUT.with_default_vc(self.final_size.to_vector() * 0.5.fct(), || {
-                            self.render_center = self.center.get().layout();
-                        });
-                        LAYOUT.with_default_pt(self.render_center, || {
-                            self.render_radius = self.radius.get().layout(self.render_center);
-                        })
+                        self.render_center = self.center.get().layout_dft(self.final_size.to_vector().to_point() * 0.5.fct());
+                        self.render_radius = self.radius.get().layout(self.render_center);
                     },
                 );
 
@@ -336,17 +330,14 @@ pub fn radial_gradient_full(
             if self.final_size != final_size {
                 self.final_size = final_size;
 
-                LAYOUT.with_default_sz(self.final_size, || {
-                    self.final_tile_size = self.tile_size.get().layout();
-                    self.final_tile_spacing = self.tile_spacing.get().layout();
-                });
+                self.final_tile_size = self.tile_size.get().layout_dft(self.final_size);
+                self.final_tile_spacing = self.tile_spacing.get().layout_dft(self.final_size);
 
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_tile_size),
                     || {
-                        LAYOUT.with_default_pt(self.final_tile_size.to_vector().to_point() * 0.5.fct(), || {
-                            self.render_radius = self.radius.get().layout(self.render_center);
-                        });
+                        // self.final_tile_size.to_vector().to_point() * 0.5.fct()
+                        self.render_radius = self.radius.get().layout(self.render_center);
                     },
                 );
 
@@ -450,9 +441,7 @@ pub fn conic_gradient_ext(
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_size),
                     || {
-                        LAYOUT.with_default_pt(self.final_size.to_vector().to_point() * 0.5.fct(), || {
-                            self.render_center = self.center.get().layout();
-                        });
+                        self.render_center = self.center.get().layout_dft(self.final_size.to_vector().to_point() * 0.5.fct());
                     },
                 );
 
@@ -537,17 +526,16 @@ pub fn conic_gradient_full(
             if self.final_size != final_size {
                 self.final_size = final_size;
 
-                LAYOUT.with_default_sz(self.final_size, || {
-                    self.final_tile_size = self.tile_size.get().layout();
-                    self.final_tile_spacing = self.tile_spacing.get().layout();
-                });
+                self.final_tile_size = self.tile_size.get().layout_dft(self.final_size);
+                self.final_tile_spacing = self.tile_spacing.get().layout_dft(self.final_size);
 
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_tile_size),
                     || {
-                        LAYOUT.with_default_pt(self.final_tile_size.to_vector().to_point() * 0.5.fct(), || {
-                            self.render_center = self.center.get().layout();
-                        });
+                        self.render_center = self
+                            .center
+                            .get()
+                            .layout_dft(self.final_tile_size.to_vector().to_point() * 0.5.fct());
                     },
                 );
 

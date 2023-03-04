@@ -2,7 +2,7 @@ use std::{fmt, ops};
 
 use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
-use super::{impl_length_comp_conversions, DipSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, PxSize, Rect, Vector};
+use super::{impl_length_comp_conversions, DipSize, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, PxSize, Rect, Vector};
 
 /// 2D size in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -73,20 +73,6 @@ impl Size {
         [self.width, self.height]
     }
 
-    /// Compute the size in the current [`LAYOUT`] context.
-    ///
-    /// [`LAYOUT`]: crate::context::LAYOUT
-    pub fn layout(&self) -> PxSize {
-        PxSize::new(self.width.layout_x(), self.height.layout_y())
-    }
-
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
-    ///
-    /// [`layout`]: Self::layout
-    pub fn affect_mask(&self) -> LayoutMask {
-        self.width.affect_mask() | self.height.affect_mask()
-    }
-
     /// Returns `true` if all values are [`Length::Default`].
     pub fn is_default(&self) -> bool {
         self.width.is_default() && self.height.is_default()
@@ -104,6 +90,17 @@ impl Size {
             x: self.width,
             y: self.height,
         }
+    }
+}
+impl super::Layout2d for Size {
+    type Px = PxSize;
+
+    fn layout_dft(&self, default: Self::Px) -> Self::Px {
+        PxSize::new(self.width.layout_dft_x(default.width), self.height.layout_dft_y(default.height))
+    }
+
+    fn affect_mask(&self) -> LayoutMask {
+        self.width.affect_mask() | self.height.affect_mask()
     }
 }
 impl_length_comp_conversions! {

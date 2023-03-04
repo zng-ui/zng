@@ -329,11 +329,126 @@ impl Orientation2D {
     }
 }
 
+/// Represents a two-dimensional value that can be converted to a pixel value in a [`LAYOUT`] context.
+///
+/// [`LAYOUT`]: crate::context::LAYOUT
+pub trait Layout2d {
+    /// Pixel type.
+    type Px: Default;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout(&self) -> Self::Px {
+        self.layout_dft(Default::default())
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_dft(&self, default: Self::Px) -> Self::Px;
+
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
+    ///
+    /// [`layout`]: Self::layout
+    fn affect_mask(&self) -> LayoutMask;
+}
+
+/// Represents a one-dimensional length value that can be converted to a pixel length in a [`LAYOUT`] context.
+///
+/// [`LAYOUT`]: crate::context::LAYOUT
+pub trait Layout1d {
+    /// Compute the pixel value in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout(&self, x_axis: bool) -> Px {
+        self.layout_dft(x_axis, Px(0))
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_dft(&self, x_axis: bool, default: Px) -> Px;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_x(&self) -> Px {
+        self.layout(true)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_y(&self) -> Px {
+        self.layout(false)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_dft_x(&self, default: Px) -> Px {
+        self.layout_dft(true, default)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_dft_y(&self, default: Px) -> Px {
+        self.layout_dft(false, default)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_f32(&self, x_axis: bool) -> f32 {
+        self.layout_f32_dft(x_axis, 0.0)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_f32_dft(&self, x_axis: bool, default: f32) -> f32;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_f32_x(&self) -> f32 {
+        self.layout_f32(true)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_f32_y(&self) -> f32 {
+        self.layout_f32(false)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_f32_dft_x(&self, default: f32) -> f32 {
+        self.layout_f32_dft(true, default)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_f32_dft_y(&self, default: f32) -> f32 {
+        self.layout_f32_dft(false, default)
+    }
+
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
+    ///
+    /// [`layout`]: Self::layout
+    fn affect_mask(&self) -> LayoutMask;
+}
+
 #[cfg(test)]
 mod tests {
     use std::f32::consts::{PI, TAU};
 
-    use crate::{context::LAYOUT, app::App};
+    use crate::{app::App, context::LAYOUT};
 
     use super::*;
 

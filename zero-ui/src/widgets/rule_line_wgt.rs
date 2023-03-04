@@ -83,12 +83,12 @@ pub mod rule_line {
 
             match self.orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    LAYOUT.with_default_xy(metrics.constrains().x.fill(), || self.length.get().layout_x()),
-                    LAYOUT.with_default_xy(default_stroke, || self.stroke_thickness.get().layout_y()),
+                    self.length.get().layout_dft_x(metrics.constrains().x.fill()),
+                    self.stroke_thickness.get().layout_dft_y(default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    LAYOUT.with_default_xy(default_stroke, || self.stroke_thickness.get().layout_x()),
-                    LAYOUT.with_default_xy(metrics.constrains().y.fill(), || self.length.get().layout_y()),
+                    self.stroke_thickness.get().layout_dft_x(default_stroke),
+                    self.length.get().layout_dft_y(metrics.constrains().y.fill()),
                 ),
             }
         }
@@ -98,12 +98,12 @@ pub mod rule_line {
 
             let bounds = match self.orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    LAYOUT.with_default_xy(metrics.constrains().x.fill(), || self.length.get().layout_x()),
-                    LAYOUT.with_default_xy(default_stroke, || self.stroke_thickness.get().layout_y()),
+                    self.length.get().layout_dft_x(metrics.constrains().x.fill()),
+                    self.stroke_thickness.get().layout_dft_y(default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    LAYOUT.with_default_xy(default_stroke, || self.stroke_thickness.get().layout_x()),
-                    LAYOUT.with_default_xy(metrics.constrains().x.fill(), || self.length.get().layout_y()),
+                    self.stroke_thickness.get().layout_dft_x(default_stroke),
+                    self.length.get().layout_dft_y(metrics.constrains().x.fill()),
                 ),
             };
 

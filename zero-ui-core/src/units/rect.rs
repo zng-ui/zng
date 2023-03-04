@@ -100,20 +100,6 @@ impl Rect {
         r
     }
 
-    /// Compute the rectangle in the current [`LAYOUT`] context.
-    ///
-    /// [`LAYOUT`]: crate::context::LAYOUT
-    pub fn layout(&self) -> PxRect {
-        PxRect::new(self.origin.layout(), self.size.layout())
-    }
-
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
-    ///
-    /// [`layout`]: Self::layout
-    pub fn affect_mask(&self) -> LayoutMask {
-        self.origin.affect_mask() | self.size.affect_mask()
-    }
-
     /// Returns `true` if all values are [`Length::Default`].
     pub fn is_default(&self) -> bool {
         self.origin.is_default() && self.size.is_default()
@@ -123,6 +109,20 @@ impl Rect {
     pub fn replace_default(&mut self, overwrite: &Rect) {
         self.origin.replace_default(&overwrite.origin);
         self.size.replace_default(&overwrite.size);
+    }
+}
+impl super::Layout2d for Rect {
+    type Px = PxRect;
+
+    fn layout_dft(&self, default: Self::Px) -> Self::Px {
+        PxRect {
+            origin: self.origin.layout_dft(default.origin),
+            size: self.size.layout_dft(default.size),
+        }
+    }
+
+    fn affect_mask(&self) -> LayoutMask {
+        self.origin.affect_mask() | self.size.affect_mask()
     }
 }
 impl_length_comp_conversions! {

@@ -512,7 +512,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         (
                             LETTER_SPACING_VAR.get().layout_x(),
                             WORD_SPACING_VAR.get().layout_x(),
-                            LAYOUT.with_default_xy(dft_tab_len, || TAB_LENGTH_VAR.get().layout_x()),
+                            TAB_LENGTH_VAR.get().layout_dft_x(dft_tab_len),
                         )
                     },
                 )
@@ -522,7 +522,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let line_height = {
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_exact(dft_line_height, dft_line_height),
-                    || LAYOUT.with_default_xy(dft_line_height, || LINE_HEIGHT_VAR.get().layout_y()),
+                    || LINE_HEIGHT_VAR.get().layout_dft_y(dft_line_height),
                 )
             };
             let line_spacing = {
@@ -556,13 +556,11 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_exact(line_height, line_height),
                     || {
-                        LAYOUT.with_default_xy(dft_thickness, || {
-                            (
-                                OVERLINE_THICKNESS_VAR.get().layout_y(),
-                                STRIKETHROUGH_THICKNESS_VAR.get().layout_y(),
-                                UNDERLINE_THICKNESS_VAR.get().layout_y(),
-                            )
-                        })
+                        (
+                            OVERLINE_THICKNESS_VAR.get().layout_dft_y(dft_thickness),
+                            STRIKETHROUGH_THICKNESS_VAR.get().layout_dft_y(dft_thickness),
+                            UNDERLINE_THICKNESS_VAR.get().layout_dft_y(dft_thickness),
+                        )
                     },
                 )
             };

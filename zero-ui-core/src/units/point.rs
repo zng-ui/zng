@@ -2,7 +2,7 @@ use std::{fmt, ops};
 
 use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
-use super::{impl_length_comp_conversions, DipPoint, Factor2d, LayoutMask, Length, PxPoint, Size, Vector};
+use super::{impl_length_comp_conversions, DipPoint, Factor2d, Layout1d, LayoutMask, Length, PxPoint, Size, Vector};
 
 /// 2D point in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -125,20 +125,6 @@ impl Point {
         [self.x, self.y]
     }
 
-    /// Compute the point in the current [`LAYOUT`] context.
-    ///
-    /// [`LAYOUT`]: crate::context::LAYOUT
-    pub fn layout(&self) -> PxPoint {
-        PxPoint::new(self.x.layout_x(), self.y.layout_y())
-    }
-
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
-    ///
-    /// [`layout`]: Self::layout
-    pub fn affect_mask(&self) -> LayoutMask {
-        self.x.affect_mask() | self.y.affect_mask()
-    }
-
     /// Returns `true` if all values are [`Length::Default`].
     pub fn is_default(&self) -> bool {
         self.x.is_default() && self.y.is_default()
@@ -153,6 +139,17 @@ impl Point {
     /// Cast to [`Vector`].
     pub fn as_vector(self) -> Vector {
         Vector { x: self.x, y: self.y }
+    }
+}
+impl super::Layout2d for Point {
+    type Px = PxPoint;
+
+    fn layout_dft(&self, default: Self::Px) -> Self::Px {
+        PxPoint::new(self.x.layout_dft_x(default.x), self.y.layout_dft_y(default.y))
+    }
+
+    fn affect_mask(&self) -> LayoutMask {
+        self.x.affect_mask() | self.y.affect_mask()
     }
 }
 impl_length_comp_conversions! {

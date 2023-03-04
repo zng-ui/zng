@@ -1109,46 +1109,6 @@ impl LAYOUT {
         self.with_inline_constrains(Some(constrains), f)
     }
 
-    /// Current default value for *x* and *y* axis.
-    pub fn default_value(&self) -> (Px, Px) {
-        self.req().metrics.default_value()
-    }
-
-    /// Current default value for the given axis.
-    pub fn default_for(&self, x_axis: bool) -> Px {
-        let (x, y) = self.default_value();
-        if x_axis {
-            x
-        } else {
-            y
-        }
-    }
-
-    /// Calls `f` with new default values.
-    pub fn with_default<R>(&self, x: Px, y: Px, f: impl FnOnce() -> R) -> R {
-        self.with_metrics(|m| m.with_default(x, y), f)
-    }
-
-    /// Calls `f` with new default values.
-    pub fn with_default_xy<R>(&self, xy: Px, f: impl FnOnce() -> R) -> R {
-        self.with_default(xy, xy, f)
-    }
-
-    /// Calls `f` with new default values.
-    pub fn with_default_pt<R>(&self, pt: PxPoint, f: impl FnOnce() -> R) -> R {
-        self.with_default(pt.x, pt.y, f)
-    }
-
-    /// Calls `f` with new default values.
-    pub fn with_default_vc<R>(&self, vc: PxVector, f: impl FnOnce() -> R) -> R {
-        self.with_default(vc.x, vc.y, f)
-    }
-
-    /// Calls `f` with new default values.
-    pub fn with_default_sz<R>(&self, sz: PxSize, f: impl FnOnce() -> R) -> R {
-        self.with_default(sz.width, sz.height, f)
-    }
-
     /// Root font size.
     pub fn root_font_size(&self) -> Px {
         self.req().metrics.root_font_size()
@@ -2016,11 +1976,6 @@ pub struct LayoutMetricsSnapshot {
     /// [`inline_constrains`]: LayoutMetrics::inline_constrains
     pub inline_constrains: Option<InlineConstrains>,
 
-    /// The [`default_value`].
-    ///
-    /// [`default_value`]: LayoutMetrics::default_value
-    pub default_value: (Px, Px),
-
     /// The [`font_size`].
     ///
     /// [`font_size`]: LayoutMetrics::font_size
@@ -2057,7 +2012,6 @@ impl LayoutMetricsSnapshot {
     pub fn masked_eq(&self, other: &Self, mask: LayoutMask) -> bool {
         (!mask.contains(LayoutMask::CONSTRAINS)
             || (self.constrains == other.constrains && self.inline_constrains == other.inline_constrains))
-            && (!mask.contains(LayoutMask::DEFAULT_VALUE) || self.default_value == other.default_value)
             && (!mask.contains(LayoutMask::FONT_SIZE) || self.font_size == other.font_size)
             && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
             && (!mask.contains(LayoutMask::SCALE_FACTOR) || self.scale_factor == other.scale_factor)
@@ -2110,7 +2064,6 @@ impl LayoutMetrics {
             s: LayoutMetricsSnapshot {
                 constrains: PxConstrains2d::new_fill_size(viewport),
                 inline_constrains: None,
-                default_value: (Px(0), Px(0)),
                 font_size,
                 root_font_size: font_size,
                 scale_factor,
@@ -2151,12 +2104,6 @@ impl LayoutMetrics {
     pub fn constrains(&self) -> PxConstrains2d {
         self.register_use(LayoutMask::CONSTRAINS);
         self.s.constrains
-    }
-
-    /// Default value for the *x* and *y* dimensions.
-    pub fn default_value(&self) -> (Px, Px) {
-        self.register_use(LayoutMask::CONSTRAINS);
-        self.s.default_value
     }
 
     /// Current inline constrains.
@@ -2249,14 +2196,6 @@ impl LayoutMetrics {
     /// [`inline_constrains`]: Self::inline_constrains
     pub fn with_inline_constrains(mut self, inline_constrains: Option<InlineConstrains>) -> Self {
         self.s.inline_constrains = inline_constrains;
-        self
-    }
-
-    /// Sets the [`default_value`].
-    ///
-    /// [`default_value`]: Self::default_value
-    pub fn with_default(mut self, x: Px, y: Px) -> Self {
-        self.s.default_value = (x, y);
         self
     }
 

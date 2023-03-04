@@ -1,4 +1,4 @@
-use super::{AngleRadian, AngleUnits, Factor, Length, PxTransform};
+use super::{AngleRadian, AngleUnits, Factor, Layout1d, Length, PxTransform};
 
 /// A transform builder type.
 ///

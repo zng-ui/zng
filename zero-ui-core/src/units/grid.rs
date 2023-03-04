@@ -2,7 +2,7 @@ use std::{fmt, mem, ops};
 
 use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
-use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, LayoutMask, Length, Px, PxVector};
+use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, Px, PxVector};
 
 /// Spacing in-between grid cells in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -29,21 +29,18 @@ impl GridSpacing {
             row: same,
         }
     }
+}
+impl super::Layout2d for GridSpacing {
+    type Px = PxGridSpacing;
 
-    /// Compute the spacing in the current [`LAYOUT`] context.
-    ///
-    /// [`LAYOUT`]: crate::context::LAYOUT
-    pub fn layout(&self) -> PxGridSpacing {
+    fn layout_dft(&self, default: Self::Px) -> Self::Px {
         PxGridSpacing {
-            column: self.column.layout_x(),
-            row: self.row.layout_y(),
+            column: self.column.layout_dft_x(default.column),
+            row: self.row.layout_dft_y(default.row),
         }
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
-    ///
-    /// [`layout`]: Self::layout
-    pub fn affect_mask(&self) -> LayoutMask {
+    fn affect_mask(&self) -> LayoutMask {
         self.column.affect_mask() | self.row.affect_mask()
     }
 }

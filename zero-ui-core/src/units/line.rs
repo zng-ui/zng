@@ -112,21 +112,18 @@ impl Line {
             end: Point::bottom_right(),
         }
     }
+}
+impl super::Layout2d for Line {
+    type Px = PxLine;
 
-    /// Compute the line in the current [`LAYOUT`] context.
-    ///
-    /// [`LAYOUT`]: crate::context::LAYOUT
-    pub fn layout(&self) -> PxLine {
+    fn layout_dft(&self, default: Self::Px) -> Self::Px {
         PxLine {
-            start: self.start.layout(),
-            end: self.end.layout(),
+            start: self.start.layout_dft(default.start),
+            end: self.end.layout_dft(default.end),
         }
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
-    ///
-    /// [`layout`]: Self::layout
-    pub fn affect_mask(&self) -> LayoutMask {
+    fn affect_mask(&self) -> LayoutMask {
         self.start.affect_mask() | self.end.affect_mask()
     }
 }

@@ -3,8 +3,8 @@ use std::{fmt, ops};
 use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
 use super::{
-    impl_length_comp_conversions, translate, Dip, DipVector, Factor, Factor2d, FactorPercent, LayoutMask, Length, LengthUnits, Point, Px,
-    PxVector, Size, Transform,
+    impl_length_comp_conversions, translate, Dip, DipVector, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, LengthUnits,
+    Point, Px, PxVector, Size, Transform,
 };
 
 /// 2D vector in [`Length`] units.
@@ -83,20 +83,6 @@ impl Vector {
         }
     }
 
-    /// Compute the vector in the current [`LAYOUT`] context.
-    ///
-    /// [`LAYOUT`]: crate::context::LAYOUT
-    pub fn layout(&self) -> PxVector {
-        PxVector::new(self.x.layout_x(), self.y.layout_y())
-    }
-
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
-    ///
-    /// [`layout`]: Self::layout
-    pub fn affect_mask(&self) -> LayoutMask {
-        self.x.affect_mask() | self.y.affect_mask()
-    }
-
     /// Returns `true` if all values are [`Length::Default`].
     pub fn is_default(&self) -> bool {
         self.x.is_default() && self.y.is_default()
@@ -124,6 +110,17 @@ impl Vector {
     /// Create a translate transform from `self`.
     pub fn into_transform(self) -> Transform {
         translate(self.x, self.y)
+    }
+}
+impl super::Layout2d for Vector {
+    type Px = PxVector;
+
+    fn layout_dft(&self, default: Self::Px) -> Self::Px {
+        PxVector::new(self.x.layout_dft_x(default.x), self.y.layout_dft_y(default.y))
+    }
+
+    fn affect_mask(&self) -> LayoutMask {
+        self.x.affect_mask() | self.y.affect_mask()
     }
 }
 impl_length_comp_conversions! {

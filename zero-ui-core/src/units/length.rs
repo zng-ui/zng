@@ -501,128 +501,11 @@ impl Length {
         }
     }
 
-    /// Compute the length given the current [`LAYOUT`] context.
-    ///
-    /// The `x_axis` param is used to select the default value if the length or expression contains [`Default`].
-    ///
-    /// [`Default`]: Length::Default
-    pub fn layout(&self, x_axis: bool) -> Px {
-        use Length::*;
-        match self {
-            Default => LAYOUT.default_for(x_axis),
-            Dip(l) => l.to_px(LAYOUT.scale_factor().0),
-            Px(l) => *l,
-            Pt(l) => Self::pt_to_px(*l, LAYOUT.scale_factor()),
-            Relative(f) => LAYOUT.constrains_for(x_axis).fill() * f.0,
-            Leftover(f) => {
-                if let Some(l) = LAYOUT.leftover_for(x_axis) {
-                    l
-                } else {
-                    let fill = LAYOUT.constrains_for(x_axis).fill();
-                    (fill * f.0).clamp(self::Px(0), fill)
-                }
-            }
-            Em(f) => LAYOUT.font_size() * f.0,
-            RootEm(f) => LAYOUT.root_font_size() * f.0,
-            ViewportWidth(p) => LAYOUT.viewport().width * *p,
-            ViewportHeight(p) => LAYOUT.viewport().height * *p,
-            ViewportMin(p) => LAYOUT.viewport_min() * *p,
-            ViewportMax(p) => LAYOUT.viewport_max() * *p,
-            DipF32(l) => self::Px((l * LAYOUT.scale_factor().0).round() as i32),
-            PxF32(l) => self::Px(l.round() as i32),
-            Expr(e) => e.layout(x_axis),
-        }
-    }
-
-    /// Compute the [`layout`] for the length in the ***x*** axis.
-    ///
-    /// [`layout`]: Self::layout
-    pub fn layout_x(&self) -> Px {
-        self.layout(true)
-    }
-
-    /// Compute the [`layout`] for the length in the ***y*** axis.
-    ///
-    /// [`layout`]: Self::layout
-    pub fn layout_y(&self) -> Px {
-        self.layout(false)
-    }
-
-    /// Same operation as [`layout`] but without rounding to nearest pixel.
-    ///
-    /// [`layout`]: Self::layout
-    pub fn layout_f32(&self, x_axis: bool) -> f32 {
-        use Length::*;
-        match self {
-            Default => LAYOUT.default_for(x_axis).0 as f32,
-            Dip(l) => l.to_f32() * LAYOUT.scale_factor().0,
-            Px(l) => l.0 as f32,
-            Pt(l) => Self::pt_to_px_f32(*l, LAYOUT.scale_factor()),
-            Relative(f) => LAYOUT.constrains_for(x_axis).fill().0 as f32 * f.0,
-            Leftover(f) => {
-                if let Some(l) = LAYOUT.leftover_for(x_axis) {
-                    l.0 as f32
-                } else {
-                    let fill = LAYOUT.constrains_for(x_axis).fill().0 as f32;
-                    (fill * f.0).clamp(0.0, fill)
-                }
-            }
-            Em(f) => LAYOUT.font_size().0 as f32 * f.0,
-            RootEm(f) => LAYOUT.root_font_size().0 as f32 * f.0,
-            ViewportWidth(p) => LAYOUT.viewport().width.0 as f32 * *p,
-            ViewportHeight(p) => LAYOUT.viewport().height.0 as f32 * *p,
-            ViewportMin(p) => LAYOUT.viewport_min().0 as f32 * *p,
-            ViewportMax(p) => LAYOUT.viewport_max().0 as f32 * *p,
-            DipF32(l) => *l * LAYOUT.scale_factor().0,
-            PxF32(l) => *l,
-            Expr(e) => e.layout_f32(x_axis),
-        }
-    }
-
-    /// Compute the [`layout_f32`] for the length in the ***x*** axis.
-    ///
-    /// [`layout_f32`]: Self::layout_f32
-    pub fn layout_f32_x(&self) -> f32 {
-        self.layout_f32(true)
-    }
-
-    /// Compute the [`layout_f32`] for the length in the ***y*** axis.
-    ///
-    /// [`layout_f32`]: Self::layout_f32
-    pub fn layout_f32_y(&self) -> f32 {
-        self.layout_f32(false)
-    }
-
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
-    ///
-    /// [`layout`]: Self::layout
-    pub fn affect_mask(&self) -> LayoutMask {
-        use Length::*;
-        match self {
-            Default => LayoutMask::DEFAULT_VALUE,
-            Dip(_) => LayoutMask::SCALE_FACTOR,
-            Px(_) => LayoutMask::NONE,
-            Pt(_) => LayoutMask::SCALE_FACTOR,
-            Relative(_) => LayoutMask::CONSTRAINS,
-            Leftover(_) => LayoutMask::LEFTOVER,
-            Em(_) => LayoutMask::FONT_SIZE,
-            RootEm(_) => LayoutMask::ROOT_FONT_SIZE,
-            ViewportWidth(_) => LayoutMask::VIEWPORT,
-            ViewportHeight(_) => LayoutMask::VIEWPORT,
-            ViewportMin(_) => LayoutMask::VIEWPORT,
-            ViewportMax(_) => LayoutMask::VIEWPORT,
-            DipF32(_) => LayoutMask::SCALE_FACTOR,
-            PxF32(_) => LayoutMask::NONE,
-            Expr(e) => e.affect_mask(),
-        }
-    }
-
     /// If this length is zero in any finite layout context.
     ///
-    /// Returns `None` if the value depends on the input to [`layout`].
+    /// Returns `None` if the value depends on the default value.
     ///
     /// [`Expr`]: Length::Expr
-    /// [`layout`]: Length::layout
     pub fn is_zero(&self) -> Option<bool> {
         use Length::*;
         match self {
@@ -710,6 +593,84 @@ impl Length {
     /// 96.0 / 72.0
     const PT_TO_DIP: f32 = 96.0 / 72.0; // 1.3333..;
 }
+impl super::Layout1d for Length {
+    fn layout_dft(&self, x_axis: bool, default: Px) -> Px {
+        use Length::*;
+        match self {
+            Default => default,
+            Dip(l) => l.to_px(LAYOUT.scale_factor().0),
+            Px(l) => *l,
+            Pt(l) => Self::pt_to_px(*l, LAYOUT.scale_factor()),
+            Relative(f) => LAYOUT.constrains_for(x_axis).fill() * f.0,
+            Leftover(f) => {
+                if let Some(l) = LAYOUT.leftover_for(x_axis) {
+                    l
+                } else {
+                    let fill = LAYOUT.constrains_for(x_axis).fill();
+                    (fill * f.0).clamp(self::Px(0), fill)
+                }
+            }
+            Em(f) => LAYOUT.font_size() * f.0,
+            RootEm(f) => LAYOUT.root_font_size() * f.0,
+            ViewportWidth(p) => LAYOUT.viewport().width * *p,
+            ViewportHeight(p) => LAYOUT.viewport().height * *p,
+            ViewportMin(p) => LAYOUT.viewport_min() * *p,
+            ViewportMax(p) => LAYOUT.viewport_max() * *p,
+            DipF32(l) => self::Px((l * LAYOUT.scale_factor().0).round() as i32),
+            PxF32(l) => self::Px(l.round() as i32),
+            Expr(e) => e.layout_dft(x_axis, default),
+        }
+    }
+
+    fn layout_f32_dft(&self, x_axis: bool, default: f32) -> f32 {
+        use Length::*;
+        match self {
+            Default => default,
+            Dip(l) => l.to_f32() * LAYOUT.scale_factor().0,
+            Px(l) => l.0 as f32,
+            Pt(l) => Self::pt_to_px_f32(*l, LAYOUT.scale_factor()),
+            Relative(f) => LAYOUT.constrains_for(x_axis).fill().0 as f32 * f.0,
+            Leftover(f) => {
+                if let Some(l) = LAYOUT.leftover_for(x_axis) {
+                    l.0 as f32
+                } else {
+                    let fill = LAYOUT.constrains_for(x_axis).fill().0 as f32;
+                    (fill * f.0).clamp(0.0, fill)
+                }
+            }
+            Em(f) => LAYOUT.font_size().0 as f32 * f.0,
+            RootEm(f) => LAYOUT.root_font_size().0 as f32 * f.0,
+            ViewportWidth(p) => LAYOUT.viewport().width.0 as f32 * *p,
+            ViewportHeight(p) => LAYOUT.viewport().height.0 as f32 * *p,
+            ViewportMin(p) => LAYOUT.viewport_min().0 as f32 * *p,
+            ViewportMax(p) => LAYOUT.viewport_max().0 as f32 * *p,
+            DipF32(l) => *l * LAYOUT.scale_factor().0,
+            PxF32(l) => *l,
+            Expr(e) => e.layout_f32_dft(x_axis, default),
+        }
+    }
+
+    fn affect_mask(&self) -> LayoutMask {
+        use Length::*;
+        match self {
+            Default => LayoutMask::DEFAULT_VALUE,
+            Dip(_) => LayoutMask::SCALE_FACTOR,
+            Px(_) => LayoutMask::NONE,
+            Pt(_) => LayoutMask::SCALE_FACTOR,
+            Relative(_) => LayoutMask::CONSTRAINS,
+            Leftover(_) => LayoutMask::LEFTOVER,
+            Em(_) => LayoutMask::FONT_SIZE,
+            RootEm(_) => LayoutMask::ROOT_FONT_SIZE,
+            ViewportWidth(_) => LayoutMask::VIEWPORT,
+            ViewportHeight(_) => LayoutMask::VIEWPORT,
+            ViewportMin(_) => LayoutMask::VIEWPORT,
+            ViewportMax(_) => LayoutMask::VIEWPORT,
+            DipF32(_) => LayoutMask::SCALE_FACTOR,
+            PxF32(_) => LayoutMask::NONE,
+            Expr(e) => e.affect_mask(),
+        }
+    }
+}
 
 bitflags! {
     /// Mask of values that can affect the [`Length::layout`] operation.
@@ -768,57 +729,6 @@ pub enum LengthExpr {
     Lerp(Length, Length, Factor),
 }
 impl LengthExpr {
-    /// Evaluate the expression at a layout context.
-    pub fn layout(&self, x_axis: bool) -> Px {
-        let l = self.layout_f32(x_axis);
-        Px(l.round() as i32)
-    }
-
-    /// Same operation as [`layout`] but without rounding to nearest pixel.
-    ///
-    /// [`layout`]: Self::layout
-    pub fn layout_f32(&self, x_axis: bool) -> f32 {
-        use LengthExpr::*;
-        match self {
-            Add(a, b) => a.layout_f32(x_axis) + b.layout_f32(x_axis),
-            Sub(a, b) => a.layout_f32(x_axis) - b.layout_f32(x_axis),
-            Mul(l, s) => l.layout_f32(x_axis) * s.0,
-            Div(l, s) => l.layout_f32(x_axis) / s.0,
-            Max(a, b) => {
-                let a = a.layout_f32(x_axis);
-                let b = b.layout_f32(x_axis);
-                a.max(b)
-            }
-            Min(a, b) => {
-                let a = a.layout_f32(x_axis);
-                let b = b.layout_f32(x_axis);
-                a.min(b)
-            }
-            Abs(e) => e.layout_f32(x_axis).abs(),
-            Neg(e) => -e.layout_f32(x_axis),
-            Lerp(a, b, f) => a.layout_f32(x_axis).lerp(&b.layout_f32(x_axis), *f),
-        }
-    }
-
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result
-    /// of [`layout`] called for this length.
-    ///
-    /// [`layout`]: Self::layout
-    pub fn affect_mask(&self) -> LayoutMask {
-        use LengthExpr::*;
-        match self {
-            Add(a, b) => a.affect_mask() | b.affect_mask(),
-            Sub(a, b) => a.affect_mask() | b.affect_mask(),
-            Mul(a, _) => a.affect_mask(),
-            Div(a, _) => a.affect_mask(),
-            Max(a, b) => a.affect_mask() | b.affect_mask(),
-            Min(a, b) => a.affect_mask() | b.affect_mask(),
-            Abs(a) => a.affect_mask(),
-            Neg(a) => a.affect_mask(),
-            Lerp(a, b, _) => a.affect_mask() | b.affect_mask(),
-        }
-    }
-
     /// Gets the total memory allocated by this length expression.
     ///
     /// This includes the sum of all nested [`Length::Expr`] heap memory.
@@ -850,6 +760,50 @@ impl LengthExpr {
             return Length::zero();
         }
         Length::Expr(Box::new(self))
+    }
+}
+impl super::Layout1d for LengthExpr {
+    fn layout_dft(&self, x_axis: bool, default: Px) -> Px {
+        let l = self.layout_f32_dft(x_axis, default.0 as f32);
+        Px(l.round() as i32)
+    }
+
+    fn layout_f32_dft(&self, x_axis: bool, default: f32) -> f32 {
+        use LengthExpr::*;
+        match self {
+            Add(a, b) => a.layout_f32_dft(x_axis, default) + b.layout_f32_dft(x_axis, default),
+            Sub(a, b) => a.layout_f32_dft(x_axis, default) - b.layout_f32_dft(x_axis, default),
+            Mul(l, s) => l.layout_f32_dft(x_axis, default) * s.0,
+            Div(l, s) => l.layout_f32_dft(x_axis, default) / s.0,
+            Max(a, b) => {
+                let a = a.layout_f32_dft(x_axis, default);
+                let b = b.layout_f32_dft(x_axis, default);
+                a.max(b)
+            }
+            Min(a, b) => {
+                let a = a.layout_f32_dft(x_axis, default);
+                let b = b.layout_f32_dft(x_axis, default);
+                a.min(b)
+            }
+            Abs(e) => e.layout_f32_dft(x_axis, default).abs(),
+            Neg(e) => -e.layout_f32_dft(x_axis, default),
+            Lerp(a, b, f) => a.layout_f32_dft(x_axis, default).lerp(&b.layout_f32_dft(x_axis, default), *f),
+        }
+    }
+
+    fn affect_mask(&self) -> LayoutMask {
+        use LengthExpr::*;
+        match self {
+            Add(a, b) => a.affect_mask() | b.affect_mask(),
+            Sub(a, b) => a.affect_mask() | b.affect_mask(),
+            Mul(a, _) => a.affect_mask(),
+            Div(a, _) => a.affect_mask(),
+            Max(a, b) => a.affect_mask() | b.affect_mask(),
+            Min(a, b) => a.affect_mask() | b.affect_mask(),
+            Abs(a) => a.affect_mask(),
+            Neg(a) => a.affect_mask(),
+            Lerp(a, b, _) => a.affect_mask() | b.affect_mask(),
+        }
     }
 }
 impl fmt::Debug for LengthExpr {

@@ -340,10 +340,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),
                 || {
-                    LAYOUT.with_default_xy(Px(20), || {
-                        self.layout_line =
-                            PxVector::new(HORIZONTAL_LINE_UNIT_VAR.get().layout_x(), VERTICAL_LINE_UNIT_VAR.get().layout_y());
-                    });
+                    self.layout_line = PxVector::new(
+                        HORIZONTAL_LINE_UNIT_VAR.get().layout_dft_x(Px(20)),
+                        VERTICAL_LINE_UNIT_VAR.get().layout_dft_y(Px(20)),
+                    );
                 },
             );
 
@@ -462,10 +462,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),
                 || {
-                    LAYOUT.with_default_xy(Px(20), || {
-                        self.layout_page =
-                            PxVector::new(HORIZONTAL_PAGE_UNIT_VAR.get().layout_x(), VERTICAL_PAGE_UNIT_VAR.get().layout_y());
-                    });
+                    self.layout_page = PxVector::new(
+                        HORIZONTAL_PAGE_UNIT_VAR.get().layout_dft_x(Px(20)),
+                        VERTICAL_PAGE_UNIT_VAR.get().layout_dft_y(Px(20)),
+                    );
                 },
             );
 
@@ -690,13 +690,13 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             let default = (target_bounds.size / Px(2)).to_vector().to_point();
                             let widget_point = LAYOUT.with_constrains(
                                 |_| PxConstrains2d::new_fill_size(target_bounds.size),
-                                || LAYOUT.with_default_pt(default, || widget_point.layout()),
+                                || widget_point.layout_dft(default),
                             );
 
                             let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
                             let scroll_point = LAYOUT.with_constrains(
                                 |_| PxConstrains2d::new_fill_size(viewport_bounds.size),
-                                || LAYOUT.with_default_pt(default, || scroll_point.layout()),
+                                || scroll_point.layout_dft(default),
                             );
 
                             let widget_point = widget_point + target_bounds.origin.to_vector();
@@ -775,7 +775,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
             LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(viewport),
                 || {
-                    let offset = LAYOUT.with_default_sz(viewport, || self.offset.layout());
+                    let offset = self.offset.layout_dft(viewport.to_vector());
                     self.offset = Vector::zero();
 
                     if offset.y != Px(0) {

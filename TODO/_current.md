@@ -2,6 +2,61 @@
     - For every unit that currently has a `layout` function.
     - For every `Var<T: Layout>` using `Var::with` instead of cloning.
 
+```rust
+/// Represents a two-dimensional value that can be converted to a pixel value in a [`LAYOUT`] context.
+pub trait Layout2d {
+    /// Pixel type.
+    type Px: Default;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context.
+    fn layout(&self) -> Self::Px {
+        self.layout_dft(Default::default())
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context with `default`.
+    fn layout_dft(&self, default: Self::Px) -> Self::Px;
+}
+
+/// Represents a one-dimensional length value that can be converted to a pixel length in a [`LAYOUT`] context.
+pub trait Layout1d {
+    /// Compute the pixel value in the current [`LAYOUT`] context.
+    fn layout(&self, x_axis: bool) -> Px {
+        self.layout_dft(x_axis, Px(0))
+    }
+    
+    /// Compute the pixel value in the current [`LAYOUT`] context with `default`.
+    fn layout_dft(&self, x_axis: bool, default: Px) -> Px;
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis.
+    fn layout_x(&self) -> Px {
+        self.layout(true)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis.
+    fn layout_y(&self) -> Px {
+        self.layout(false)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
+    fn layout_dft_x(&self, default: Px) -> Px {
+        self.layout_dft(true, default)
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
+    fn layout_dft_y(&self, default: Px) -> Px {
+        self.layout_dft(false, default)
+    }
+}
+
+impl<T: Layout2d, V: Var<T>> Layout2d for V {
+    type Px = T::Px;
+    
+    fn layout_dft(&self, default: Self::Px) -> Self::Px {
+        self.with(move |v| v.layout_dft(default))
+    }
+}
+```
+
 * Test all.
 * Merge.
 

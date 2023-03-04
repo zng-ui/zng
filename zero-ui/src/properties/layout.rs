@@ -566,7 +566,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let max = LAYOUT.with_metrics(fill_metrics, || self.max_size.get().layout());
+            let max = with_fill_metrics(|d| self.max_size.get().layout_dft(d));
             let size = LAYOUT.with_inline_measure(
                 wm,
                 |_| None,
@@ -575,7 +575,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
             size.min(max)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let max = LAYOUT.with_metrics(fill_metrics, || self.max_size.get().layout());
+            let max = with_fill_metrics(|d| self.max_size.get().layout_dft(d));
             let size = LAYOUT.with_constrains(|c| c.with_max_size(max), || self.child.layout(wl));
             size.min(max)
         }
@@ -632,7 +632,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let max = LAYOUT.with_metrics(fill_metrics, || self.max_width.get().layout_x());
+            let max = with_fill_metrics(|d| self.max_width.get().layout_dft_x(d.width));
 
             let mut size = LAYOUT.with_inline_measure(
                 wm,
@@ -643,7 +643,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
             size
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let max = LAYOUT.with_metrics(fill_metrics, || self.max_width.get().layout_x());
+            let max = with_fill_metrics(|d| self.max_width.get().layout_dft_x(d.width));
 
             let mut size = LAYOUT.with_constrains(|c| c.with_max_x(max), || self.child.layout(wl));
             size.width = size.width.min(max);
@@ -702,7 +702,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let max = LAYOUT.with_metrics(fill_metrics, || self.max_height.get().layout_y());
+            let max = with_fill_metrics(|d| self.max_height.get().layout_dft_y(d.height));
 
             let mut size = LAYOUT.with_inline_measure(
                 wm,
@@ -713,7 +713,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
             size
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let max = LAYOUT.with_metrics(fill_metrics, || self.max_height.get().layout_y());
+            let max = with_fill_metrics(|d| self.max_height.get().layout_dft_y(d.height));
 
             let mut size = LAYOUT.with_constrains(|c| c.with_max_y(max), || self.child.layout(wl));
             size.height = size.height.min(max);
@@ -783,7 +783,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let size = LAYOUT.with_metrics(fill_metrics, || self.size.get().layout());
+            let size = with_fill_metrics(|d| self.size.get().layout_dft(d));
             let size = LAYOUT.constrains().clamp_size(size);
             LAYOUT.with_inline_measure(
                 wm,
@@ -793,7 +793,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             size
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = LAYOUT.with_metrics(fill_metrics, || self.size.get().layout());
+            let size = with_fill_metrics(|d| self.size.get().layout_dft(d));
             let size = LAYOUT.constrains().clamp_size(size);
             LAYOUT.with_constrains(|_| PxConstrains2d::new_exact_size(size), || self.child.layout(wl));
             size
@@ -855,7 +855,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let width = LAYOUT.with_metrics(fill_metrics, || self.width.get().layout_x());
+            let width = with_fill_metrics(|d| self.width.get().layout_dft_x(d.width));
             let width = LAYOUT.constrains().x.clamp(width);
             let mut size = LAYOUT.with_inline_measure(
                 wm,
@@ -866,7 +866,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
             size
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let width = LAYOUT.with_metrics(fill_metrics, || self.width.get().layout_x());
+            let width = with_fill_metrics(|d| self.width.get().layout_dft_x(d.width));
             let width = LAYOUT.constrains().x.clamp(width);
             let mut size = LAYOUT.with_constrains(|c| c.with_exact_x(width), || self.child.layout(wl));
             size.width = width;
@@ -929,7 +929,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let height = LAYOUT.with_metrics(fill_metrics, || self.height.get().layout_y());
+            let height = with_fill_metrics(|dft| self.height.get().layout_dft_y(dft.height));
             let height = LAYOUT.constrains().y.clamp(height);
             let mut size = LAYOUT.with_inline_measure(
                 wm,
@@ -940,7 +940,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
             size
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let height = LAYOUT.with_metrics(fill_metrics, || self.height.get().layout_y());
+            let height = with_fill_metrics(|dft| self.height.get().layout_dft_y(dft.height));
             let mut size = LAYOUT.with_constrains(|c| c.with_new_exact_y(height), || self.child.layout(wl));
             size.height = height;
             size
@@ -952,10 +952,9 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     }
 }
 
-fn fill_metrics(m: LayoutMetrics) -> LayoutMetrics {
-    let dft = m.constrains().fill_size();
-    m.with_default(dft.width, dft.height)
-        .with_constrains(|c| c.with_fill_vector(c.is_bounded()))
+fn with_fill_metrics<R>(f: impl FnOnce(PxSize) -> R) -> R {
+    let dft = LAYOUT.constrains().fill_size();
+    LAYOUT.with_constrains(|c| c.with_fill_vector(c.is_bounded()), || f(dft))
 }
 
 /// Set or overwrite the baseline of the widget.
@@ -992,7 +991,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
 
             let baseline = LAYOUT.with_constrains(
                 |c| c.with_max_size(inner_size).with_fill(true, true),
-                || LAYOUT.with_default_xy(default, || self.baseline.get().layout_y()),
+                || self.baseline.get().layout_dft_y(default),
             );
             wl.set_baseline(baseline);
 

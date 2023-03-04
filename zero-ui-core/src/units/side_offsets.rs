@@ -2,7 +2,7 @@ use std::{fmt, ops};
 
 use crate::{impl_from_and_into_var, var::animation::Transitionable};
 
-use super::{impl_length_comp_conversions, Factor, FactorPercent, FactorSideOffsets, LayoutMask, Length, PxSideOffsets};
+use super::{impl_length_comp_conversions, Factor, FactorPercent, FactorSideOffsets, Layout1d, LayoutMask, Length, PxSideOffsets};
 
 /// 2D size offsets in [`Length`] units.
 ///
@@ -84,27 +84,23 @@ impl SideOffsets {
     pub fn dimensions_eq(&self) -> bool {
         self.top == self.bottom && self.left == self.right
     }
+}
+impl super::Layout2d for SideOffsets {
+    type Px = PxSideOffsets;
 
-    /// Compute the offsets in the current [`LAYOUT`] context.
-    ///
-    /// [`LAYOUT`]: crate::context::LAYOUT
-    pub fn layout(&self) -> PxSideOffsets {
+    fn layout_dft(&self, default: Self::Px) -> Self::Px {
         PxSideOffsets::new(
-            self.top.layout_y(),
-            self.right.layout_x(),
-            self.bottom.layout_y(),
-            self.left.layout_x(),
+            self.top.layout_dft_y(default.top),
+            self.right.layout_dft_x(default.right),
+            self.bottom.layout_dft_y(default.bottom),
+            self.left.layout_dft_x(default.left),
         )
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
-    ///
-    /// [`layout`]: Self::layout
-    pub fn affect_mask(&self) -> LayoutMask {
+    fn affect_mask(&self) -> LayoutMask {
         self.top.affect_mask() | self.right.affect_mask() | self.bottom.affect_mask() | self.left.affect_mask()
     }
 }
-
 impl_from_and_into_var! {
     /// All sides equal.
     fn from(all: Length) -> SideOffsets {
