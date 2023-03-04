@@ -104,13 +104,13 @@ impl UiNode for WrapNode {
     }
 
     fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-        let spacing = self.spacing.get().layout();
+        let spacing = self.spacing.layout();
         self.layout.lock().measure(wm, &self.children, self.children_align.get(), spacing)
     }
 
     #[allow_(zero_ui::missing_delegate)] // false positive
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        let spacing = self.spacing.get().layout();
+        let spacing = self.spacing.layout();
         self.layout
             .get_mut()
             .layout(wl, &mut self.children, self.children_align.get(), spacing)

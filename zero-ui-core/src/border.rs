@@ -339,15 +339,21 @@ impl CornerRadius {
     pub fn all_corners_eq(&self) -> bool {
         self.top_left == self.top_right && self.top_left == self.bottom_right && self.top_left == self.bottom_left
     }
+}
+impl Layout2d for CornerRadius {
+    type Px = PxCornerRadius;
 
-    /// Compute the radii in the current [`LAYOUT`] context.
-    pub fn layout(&self) -> PxCornerRadius {
+    fn layout_dft(&self, default: Self::Px) -> Self::Px {
         PxCornerRadius {
-            top_left: self.top_left.layout(),
-            top_right: self.top_right.layout(),
-            bottom_left: self.bottom_left.layout(),
-            bottom_right: self.bottom_right.layout(),
+            top_left: self.top_left.layout_dft(default.top_left),
+            top_right: self.top_right.layout_dft(default.top_right),
+            bottom_left: self.bottom_left.layout_dft(default.bottom_left),
+            bottom_right: self.bottom_right.layout_dft(default.bottom_right),
         }
+    }
+
+    fn affect_mask(&self) -> LayoutMask {
+        self.top_left.affect_mask() | self.top_right.affect_mask() | self.bottom_left.affect_mask() | self.bottom_right.affect_mask()
     }
 }
 impl_from_and_into_var! {
@@ -894,7 +900,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let offsets = self.offsets.get().layout();
+            let offsets = self.offsets.layout();
             BORDER.measure_with_border(offsets, || {
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
                 LAYOUT.with_inline_measure(
@@ -1006,10 +1012,10 @@ impl BORDER {
                 if data.widget_id == Some(WIDGET.id()) {
                     data.border_radius()
                 } else {
-                    CORNER_RADIUS_VAR.get().layout()
+                    CORNER_RADIUS_VAR.layout()
                 }
             }
-            _ => CORNER_RADIUS_VAR.get().layout(),
+            _ => CORNER_RADIUS_VAR.layout(),
         }
     }
 
@@ -1022,10 +1028,10 @@ impl BORDER {
                 if data.widget_id == WIDGET.try_id() {
                     data.inner_radius()
                 } else {
-                    CORNER_RADIUS_VAR.get().layout()
+                    CORNER_RADIUS_VAR.layout()
                 }
             }
-            _ => CORNER_RADIUS_VAR.get().layout(),
+            _ => CORNER_RADIUS_VAR.layout(),
         }
     }
 
@@ -1117,7 +1123,7 @@ impl BorderOffsetsData {
         self.wgt_inner_offsets += offset;
 
         if mem::take(&mut self.eval_cr) {
-            self.corner_radius = CORNER_RADIUS_VAR.get().layout();
+            self.corner_radius = CORNER_RADIUS_VAR.layout();
             self.cr_offsets = PxSideOffsets::zero();
             self.cr_inner_offsets = PxSideOffsets::zero();
         }

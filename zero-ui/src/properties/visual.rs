@@ -313,7 +313,7 @@ pub fn foreground_highlight(
             let size = self.child.layout(wl);
 
             let radius = BORDER.inner_radius();
-            let offsets = self.offsets.get().layout();
+            let offsets = self.offsets.layout();
             let radius = radius.deflate(offsets);
 
             let mut bounds = PxRect::zero();
@@ -331,10 +331,7 @@ pub fn foreground_highlight(
                 );
             }
 
-            let widths = LAYOUT.with_constrains(
-                |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
-                || self.widths.get().layout(),
-            );
+            let widths = LAYOUT.with_constrains(|c| PxConstrains2d::new_exact_size(c.fill_size_or(size)), || self.widths.layout());
 
             if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {
                 self.render_bounds = bounds;

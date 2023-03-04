@@ -47,7 +47,7 @@ pub fn linear_gradient_ext(
             let final_size = LAYOUT.constrains().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
-                self.render_line = self.axis.get().layout();
+                self.render_line = self.axis.layout();
 
                 let length = self.render_line.length();
 
@@ -130,10 +130,10 @@ pub fn linear_gradient_full(
             if self.final_size != final_size {
                 self.final_size = final_size;
 
-                self.final_tile_size = self.tile_size.get().layout_dft(self.final_size);
-                self.final_tile_spacing = self.tile_spacing.get().layout_dft(self.final_size);
+                self.final_tile_size = self.tile_size.layout_dft(self.final_size);
+                self.final_tile_spacing = self.tile_spacing.layout_dft(self.final_size);
 
-                self.final_line = LAYOUT.with_constrains(|c| c.with_exact_size(self.final_tile_size), || self.axis.get().layout());
+                self.final_line = LAYOUT.with_constrains(|c| c.with_exact_size(self.final_tile_size), || self.axis.layout());
 
                 let length = self.final_line.length();
                 LAYOUT.with_constrains(
@@ -241,7 +241,7 @@ pub fn radial_gradient_ext(
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_size),
                     || {
-                        self.render_center = self.center.get().layout_dft(self.final_size.to_vector().to_point() * 0.5.fct());
+                        self.render_center = self.center.layout_dft(self.final_size.to_vector().to_point() * 0.5.fct());
                         self.render_radius = self.radius.get().layout(self.render_center);
                     },
                 );
@@ -330,8 +330,8 @@ pub fn radial_gradient_full(
             if self.final_size != final_size {
                 self.final_size = final_size;
 
-                self.final_tile_size = self.tile_size.get().layout_dft(self.final_size);
-                self.final_tile_spacing = self.tile_spacing.get().layout_dft(self.final_size);
+                self.final_tile_size = self.tile_size.layout_dft(self.final_size);
+                self.final_tile_spacing = self.tile_spacing.layout_dft(self.final_size);
 
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_tile_size),
@@ -441,7 +441,7 @@ pub fn conic_gradient_ext(
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_size),
                     || {
-                        self.render_center = self.center.get().layout_dft(self.final_size.to_vector().to_point() * 0.5.fct());
+                        self.render_center = self.center.layout_dft(self.final_size.to_vector().to_point() * 0.5.fct());
                     },
                 );
 
@@ -526,8 +526,8 @@ pub fn conic_gradient_full(
             if self.final_size != final_size {
                 self.final_size = final_size;
 
-                self.final_tile_size = self.tile_size.get().layout_dft(self.final_size);
-                self.final_tile_spacing = self.tile_spacing.get().layout_dft(self.final_size);
+                self.final_tile_size = self.tile_size.layout_dft(self.final_size);
+                self.final_tile_spacing = self.tile_spacing.layout_dft(self.final_size);
 
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_fill_size(self.final_tile_size),

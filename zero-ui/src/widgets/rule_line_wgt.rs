@@ -83,12 +83,12 @@ pub mod rule_line {
 
             match self.orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get().layout_dft_x(metrics.constrains().x.fill()),
-                    self.stroke_thickness.get().layout_dft_y(default_stroke),
+                    self.length.layout_dft_x(metrics.constrains().x.fill()),
+                    self.stroke_thickness.layout_dft_y(default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness.get().layout_dft_x(default_stroke),
-                    self.length.get().layout_dft_y(metrics.constrains().y.fill()),
+                    self.stroke_thickness.layout_dft_x(default_stroke),
+                    self.length.layout_dft_y(metrics.constrains().y.fill()),
                 ),
             }
         }
@@ -98,12 +98,12 @@ pub mod rule_line {
 
             let bounds = match self.orientation.get() {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get().layout_dft_x(metrics.constrains().x.fill()),
-                    self.stroke_thickness.get().layout_dft_y(default_stroke),
+                    self.length.layout_dft_x(metrics.constrains().x.fill()),
+                    self.stroke_thickness.layout_dft_y(default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness.get().layout_dft_x(default_stroke),
-                    self.length.get().layout_dft_y(metrics.constrains().x.fill()),
+                    self.stroke_thickness.layout_dft_x(default_stroke),
+                    self.length.layout_dft_y(metrics.constrains().x.fill()),
                 ),
             };
 

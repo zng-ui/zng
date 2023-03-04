@@ -341,8 +341,8 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 |_| PxConstrains2d::new_fill_size(viewport),
                 || {
                     self.layout_line = PxVector::new(
-                        HORIZONTAL_LINE_UNIT_VAR.get().layout_dft_x(Px(20)),
-                        VERTICAL_LINE_UNIT_VAR.get().layout_dft_y(Px(20)),
+                        HORIZONTAL_LINE_UNIT_VAR.layout_dft_x(Px(20)),
+                        VERTICAL_LINE_UNIT_VAR.layout_dft_y(Px(20)),
                     );
                 },
             );
@@ -463,8 +463,8 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 |_| PxConstrains2d::new_fill_size(viewport),
                 || {
                     self.layout_page = PxVector::new(
-                        HORIZONTAL_PAGE_UNIT_VAR.get().layout_dft_x(Px(20)),
-                        VERTICAL_PAGE_UNIT_VAR.get().layout_dft_y(Px(20)),
+                        HORIZONTAL_PAGE_UNIT_VAR.layout_dft_x(Px(20)),
+                        VERTICAL_PAGE_UNIT_VAR.layout_dft_y(Px(20)),
                     );
                 },
             );

@@ -510,9 +510,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     |_| PxConstrains2d::new_exact(space_len, space_len),
                     || {
                         (
-                            LETTER_SPACING_VAR.get().layout_x(),
-                            WORD_SPACING_VAR.get().layout_x(),
-                            TAB_LENGTH_VAR.get().layout_dft_x(dft_tab_len),
+                            LETTER_SPACING_VAR.layout_x(),
+                            WORD_SPACING_VAR.layout_x(),
+                            TAB_LENGTH_VAR.layout_dft_x(dft_tab_len),
                         )
                     },
                 )
@@ -522,13 +522,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let line_height = {
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_exact(dft_line_height, dft_line_height),
-                    || LINE_HEIGHT_VAR.get().layout_dft_y(dft_line_height),
+                    || LINE_HEIGHT_VAR.layout_dft_y(dft_line_height),
                 )
             };
             let line_spacing = {
                 LAYOUT.with_constrains(
                     |_| PxConstrains2d::new_exact(line_height, line_height),
-                    || LINE_SPACING_VAR.get().layout_y(),
+                    || LINE_SPACING_VAR.layout_y(),
                 )
             };
 
@@ -557,9 +557,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     |_| PxConstrains2d::new_exact(line_height, line_height),
                     || {
                         (
-                            OVERLINE_THICKNESS_VAR.get().layout_dft_y(dft_thickness),
-                            STRIKETHROUGH_THICKNESS_VAR.get().layout_dft_y(dft_thickness),
-                            UNDERLINE_THICKNESS_VAR.get().layout_dft_y(dft_thickness),
+                            OVERLINE_THICKNESS_VAR.layout_dft_y(dft_thickness),
+                            STRIKETHROUGH_THICKNESS_VAR.layout_dft_y(dft_thickness),
+                            UNDERLINE_THICKNESS_VAR.layout_dft_y(dft_thickness),
                         )
                     },
                 )

@@ -1870,6 +1870,65 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             _t: PhantomData,
         }
     }
+    /// Compute the pixel value in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout(&self) -> T::Px
+    where
+        T: Layout2d,
+    {
+        self.with(|s| s.layout())
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_dft(&self, default: T::Px) -> T::Px
+    where
+        T: Layout2d,
+    {
+        self.with(move |s| s.layout_dft(default))
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_x(&self) -> Px
+    where
+        T: Layout1d,
+    {
+        self.with(|s| s.layout_x())
+    }
+
+    /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_y(&self) -> Px
+    where
+        T: Layout1d,
+    {
+        self.with(|s| s.layout_y())
+    }
+
+    // Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_dft_x(&self, default: Px) -> Px
+    where
+        T: Layout1d,
+    {
+        self.with(move |s| s.layout_dft_x(default))
+    }
+
+    // Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
+    ///
+    /// [`LAYOUT`]: crate::context::LAYOUT
+    fn layout_dft_y(&self, default: Px) -> Px
+    where
+        T: Layout1d,
+    {
+        self.with(move |s| s.layout_dft_y(default))
+    }
 
     /*
     after https://github.com/rust-lang/rust/issues/20041

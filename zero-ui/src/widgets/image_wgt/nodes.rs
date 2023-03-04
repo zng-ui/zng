@@ -453,7 +453,7 @@ pub fn image_presenter() -> impl UiNode {
             }
 
             // Part 3 - Custom Offset and Update
-            let offset = LAYOUT.with_constrains(|_| PxConstrains2d::new_fill_size(wgt_size), || IMAGE_OFFSET_VAR.get().layout());
+            let offset = LAYOUT.with_constrains(|_| PxConstrains2d::new_fill_size(wgt_size), || IMAGE_OFFSET_VAR.layout());
             if offset != PxVector::zero() {
                 render_offset += offset;
 

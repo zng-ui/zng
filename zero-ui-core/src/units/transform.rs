@@ -158,6 +158,27 @@ impl Transform {
         self.needs_layout
     }
 }
+impl super::Layout2d for Transform {
+    type Px = PxTransform;
+
+    fn layout_dft(&self, _: Self::Px) -> Self::Px {
+        self.layout()
+    }
+
+    fn affect_mask(&self) -> super::LayoutMask {
+        let mut mask = super::LayoutMask::empty();
+        for part in &self.parts {
+            match part {
+                TransformPart::Computed(_) => {}
+                TransformPart::Translate(x, y) => {
+                    mask |= x.affect_mask();
+                    mask |= y.affect_mask();
+                }
+            }
+        }
+        mask
+    }
+}
 
 /// Create a 2d rotation transform.
 pub fn rotate<A: Into<AngleRadian>>(angle: A) -> Transform {

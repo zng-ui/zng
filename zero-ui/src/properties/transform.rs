@@ -31,12 +31,12 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(wl);
 
-            let transform = self.transform.get().layout();
+            let transform = self.transform.layout();
             let av_size = WIDGET.bounds().inner_size();
             let default_origin = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
             let origin = LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(av_size),
-                || TRANSFORM_ORIGIN_VAR.get().layout_dft(default_origin),
+                || TRANSFORM_ORIGIN_VAR.layout_dft(default_origin),
             );
 
             let x = origin.x.0 as f32;

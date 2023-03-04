@@ -309,9 +309,14 @@ impl fmt::Debug for LinearGradientAxis {
         }
     }
 }
-impl LinearGradientAxis {
-    /// Compute a [`PxLine`] in the current [`LAYOUT`] context.
-    pub fn layout(&self) -> PxLine {
+impl Layout2d for LinearGradientAxis {
+    type Px = PxLine;
+
+    fn layout(&self) -> Self::Px {
+        self.layout_dft(PxLine::new(PxPoint::new(Px(0), LAYOUT.viewport().height), PxPoint::zero()))
+    }
+
+    fn layout_dft(&self, default: Self::Px) -> Self::Px {
         match self {
             LinearGradientAxis::Angle(rad) => {
                 let dir_x = rad.0.sin();
@@ -339,11 +344,14 @@ impl LinearGradientAxis {
                     PxPoint::new(Px(end.x as i32), Px(end.y as i32)),
                 )
             }
-            LinearGradientAxis::Line(line) => {
-                let mut line = line.clone();
-                line.start.replace_default(&PxPoint::new(Px(0), LAYOUT.viewport().height).into());
-                line.layout()
-            }
+            LinearGradientAxis::Line(line) => line.layout_dft(default),
+        }
+    }
+
+    fn affect_mask(&self) -> LayoutMask {
+        match self {
+            LinearGradientAxis::Angle(_) => LayoutMask::CONSTRAINS,
+            LinearGradientAxis::Line(line) => line.affect_mask(),
         }
     }
 }

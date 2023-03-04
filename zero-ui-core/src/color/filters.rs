@@ -181,6 +181,28 @@ impl fmt::Debug for Filter {
         }
     }
 }
+impl Layout2d for Filter {
+    type Px = RenderFilter;
+
+    fn layout_dft(&self, _: Self::Px) -> Self::Px {
+        self.layout()
+    }
+
+    fn affect_mask(&self) -> LayoutMask {
+        let mut mask = LayoutMask::empty();
+        for f in &self.filters {
+            match f {
+                FilterData::Op(_) => {}
+                FilterData::Blur(l) => mask |= l.affect_mask(),
+                FilterData::DropShadow { offset, blur_radius, .. } => {
+                    mask |= offset.affect_mask();
+                    mask |= blur_radius.affect_mask();
+                }
+            }
+        }
+        mask
+    }
+}
 
 /// A computed [`Filter`], ready for Webrender.
 pub type RenderFilter = Vec<FilterOp>;

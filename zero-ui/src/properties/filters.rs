@@ -49,7 +49,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             if self.render_filter.is_none() {
-                self.render_filter = Some(self.filter.get().layout());
+                self.render_filter = Some(self.filter.layout());
                 WIDGET.render();
             }
             self.child.layout(wl)
@@ -109,7 +109,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             if self.render_filter.is_none() {
-                self.render_filter = Some(self.filter.get().layout());
+                self.render_filter = Some(self.filter.layout());
                 WIDGET.render();
             }
             self.child.layout(wl)
