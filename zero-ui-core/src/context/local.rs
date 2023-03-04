@@ -38,6 +38,7 @@ impl Drop for AppScope {
 }
 
 /// Tracks current thread and current task *owner* threads.
+#[derive(Clone)]
 pub struct ThreadContext {
     app: Option<Arc<ThreadOwnerApp>>,
     context: SmallVec<[ThreadId; 8]>,
@@ -51,13 +52,6 @@ thread_local! {
     };
 }
 impl ThreadContext {
-    fn clone(&self) -> Self {
-        Self {
-            app: self.app.clone(),
-            context: self.context.clone(),
-        }
-    }
-
     #[must_use]
     pub(crate) fn start_app(id: AppId) -> AppScope {
         let r = THREAD_CONTEXT.with(|s| {

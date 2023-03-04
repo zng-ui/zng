@@ -28,12 +28,13 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        std::thread::current().id()
         let consumer = ParallelCtxConsumer {
             base: consumer,
-            ctx: self.ctx,
+            ctx: self.ctx.clone(),
         };
-        self.base.drive_unindexed(consumer)
+        self.ctx.with_context(move || {
+            self.base.drive_unindexed(consumer)
+        })
     }
 }
 
