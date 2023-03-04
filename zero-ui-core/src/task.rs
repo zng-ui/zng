@@ -176,6 +176,7 @@ pub mod io;
 
 pub mod http;
 pub mod ui;
+pub mod rayon_ctx;
 
 /// Spawn a parallel async task, this function is not blocking and the `task` starts executing immediately.
 ///
