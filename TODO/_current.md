@@ -1,6 +1,3 @@
-* Test all.
-* Merge.
-
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
 
