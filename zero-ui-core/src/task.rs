@@ -5,7 +5,9 @@
 //!
 //! All functions of this module propagate the [`ThreadContext`].
 //!
-//! This module also re-exports the [`rayon`] and [`parking_lot`] crates for convenience.
+//! This module also re-exports the [`rayon`] and [`parking_lot`] crates for convenience. You can use the
+//! [`ParallelIteratorExt::with_ctx`] adapter in rayon iterators to propagate the [`ThreadContext`]. You can
+//! also use [`join`] to propagate thread context for a raw rayon join operation.
 //!
 //! # Examples
 //!
@@ -175,8 +177,10 @@ pub mod channel;
 pub mod io;
 
 pub mod http;
+mod rayon_ctx;
 pub mod ui;
-pub mod rayon_ctx;
+
+pub use rayon_ctx::*;
 
 /// Spawn a parallel async task, this function is not blocking and the `task` starts executing immediately.
 ///
@@ -291,6 +295,55 @@ where
         fut: Mutex::new(Some(Box::pin(task))),
     })
     .poll()
+}
+
+/// Rayon join with thread context.
+///
+/// This function captures the [`ThreadContext`] of the calling thread and propagates it to the threads that run the
+/// operations.
+///
+/// See [`rayon::join`] for more details about join.
+pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
+where
+    A: FnOnce() -> RA + Send,
+    B: FnOnce() -> RB + Send,
+    RA: Send,
+    RB: Send,
+{
+    self::join_context(move |_| oper_a(), move |_| oper_b())
+}
+
+/// Rayon join with thread context.
+///
+/// This function captures the [`ThreadContext`] of the calling thread and propagates it to the threads that run the
+/// operations.
+///
+/// See [`rayon::join_context`] for more details about join.
+pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
+where
+    A: FnOnce(rayon::FnContext) -> RA + Send,
+    B: FnOnce(rayon::FnContext) -> RB + Send,
+    RA: Send,
+    RB: Send,
+{
+    let ctx_a = ThreadContext::capture();
+    let ctx_b = ctx_a.clone();
+    rayon::join_context(
+        move |a| {
+            if a.migrated() {
+                ctx_a.with_context(|| oper_a(a))
+            } else {
+                oper_a(a)
+            }
+        },
+        move |b| {
+            if b.migrated() {
+                ctx_b.with_context(|| oper_b(b))
+            } else {
+                oper_b(b)
+            }
+        },
+    )
 }
 
 /// Spawn a parallel async task that can also be `.await` for the task result.

@@ -27,7 +27,7 @@ impl<I: ParallelIterator> ParallelIteratorExt for I {}
 
 /// Parallel iterator adapter the propagates the thread context.
 ///
-/// See [`ParallelIteratorCtx`] for more details.
+/// See [`ParallelIteratorExt`] for more details.
 pub struct ParallelIteratorWithCtx<I> {
     base: I,
     ctx: ThreadContext,
