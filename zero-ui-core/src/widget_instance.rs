@@ -1206,6 +1206,150 @@ pub struct FillUiNode;
 #[ui_node(none)]
 impl UiNode for FillUiNode {}
 
+impl<U: UiNode> UiNode for Mutex<U> {
+    fn init(&mut self) {
+        self.get_mut().init()
+    }
+
+    fn deinit(&mut self) {
+        self.get_mut().deinit()
+    }
+
+    fn info(&self, info: &mut WidgetInfoBuilder) {
+        self.lock().info(info)
+    }
+
+    fn event(&mut self, update: &mut EventUpdate) {
+        self.get_mut().event(update)
+    }
+
+    fn update(&mut self, updates: &mut WidgetUpdates) {
+        self.get_mut().update(updates)
+    }
+
+    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        self.lock().measure(wm)
+    }
+
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        self.get_mut().layout(wl)
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        self.lock().render(frame)
+    }
+
+    fn render_update(&self, update: &mut FrameUpdate) {
+        self.lock().render_update(update)
+    }
+
+    fn is_widget(&self) -> bool {
+        self.lock().is_widget()
+    }
+
+    fn with_context<R, F>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce() -> R,
+    {
+        self.lock().with_context(f)
+    }
+
+    fn into_widget(self) -> BoxedUiNode
+    where
+        Self: Sized,
+    {
+        use crate::widget_base::nodes;
+
+        if self.is_widget() {
+            return self.boxed();
+        }
+
+        let node = nodes::widget_inner(self.cfg_boxed());
+        let wgt = nodes::widget(node, WidgetId::new_unique());
+        wgt.boxed()
+    }
+}
+impl<L: UiNodeList> UiNodeList for Mutex<L> {
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
+        self.lock().with_node(index, f)
+    }
+
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
+        self.get_mut().with_node_mut(index, f)
+    }
+
+    fn for_each<F>(&self, f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
+        self.lock().for_each(f)
+    }
+
+    fn for_each_mut<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
+        self.get_mut().for_each_mut(f)
+    }
+
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        // in case `L` is not `Sync`
+        self.lock().par_each_mut(move |i, n| f(i, n))
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        self.get_mut().par_each_mut(f)
+    }
+
+    fn len(&self) -> usize {
+        self.lock().len()
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        Box::new(self)
+    }
+
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        self.get_mut().drain_into(vec)
+    }
+
+    fn init_all(&mut self) {
+        self.get_mut().init_all()
+    }
+
+    fn deinit_all(&mut self) {
+        self.get_mut().deinit_all()
+    }
+
+    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.get_mut().update_all(updates, observer)
+    }
+
+    fn event_all(&mut self, update: &mut EventUpdate) {
+        self.get_mut().event_all(update)
+    }
+
+    fn render_all(&self, frame: &mut FrameBuilder) {
+        self.lock().render_all(frame)
+    }
+
+    fn render_update_all(&self, update: &mut FrameUpdate) {
+        self.lock().render_update_all(update)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

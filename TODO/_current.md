@@ -14,6 +14,8 @@
         - `fn par_each(&self, f: impl Fn(usize, &BoxedUiNode) + Send + Sync)`.
             - Redirects to `for_each` in `Vec<BoxedUiNode>`.
             - In `PanelList`, other wrappers redirects to `par_each_mut` acquired by lock.
+                - In `UiNodeVec` this is a problem because we currently deref to `Vec<BoxedUiNode>`.
+                    - So we can't have a `Mutex<Vec<..>>`.
             - Can we constrain `par_each` to `Self: Sync`.
                 - No, we want to use `par_each` in default impl.
     - Lists can redirect to `for_each` if node count is low?
