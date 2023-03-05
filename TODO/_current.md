@@ -1,3 +1,21 @@
+* Implement `UiNodeList::par_each` and `UiNodeList::par_each_mut`.
+    - For `par_each` items must be `Sync`.
+        - Because `par_iter` requires it.
+        - `Vec<BoxedUiNode>` can't implement it?
+        - `par_iter_mut` only requires `Send`.
+            - Can't do parallel in `info`, `measure` and `render`+`render_update`?
+            - Measure is the worst, `layout` can.
+        - Can make `PanelList` use an internal mutex.
+    - Closure cannot return `bool` to interrupt, there is not such feature in rayon's `for_each`.
+    - Closure must be `Fn(usize, NODE)`, not `FnMut` as-well.
+    - Final design: 
+        - `fn par_each_mut(&mut self, f: impl Fn(usize, &mut BoxedUiNode) + Send + Sync)`.
+            - Implemented correctly in all.
+        - `fn par_each(&self, f: impl Fn(usize, &BoxedUiNode) + Send + Sync)`.
+            - Redirects to `for_each` in `Vec<BoxedUiNode>`.
+            - In `PanelList`, other wrappers redirects to `par_each_mut` acquired by lock.
+    - Lists can redirect to `for_each` if node count is low?
+
 * Implement parallel image render.
     - Test it in animation example.
 

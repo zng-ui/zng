@@ -424,6 +424,22 @@ pub trait UiNodeList: UiNodeListBoxed {
     where
         F: FnMut(usize, &mut BoxedUiNode) -> bool;
 
+    /// Calls `f` for each node in the list with the index in parallel.
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        todo!("!!: IMPLEMENT")
+    }
+
+    /// Calls `f` for each node in the list with the index in parallel.
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        todo!("!!: IMPLEMENT")
+    }
+
     /// Gets the current number of nodes in the list.
     fn len(&self) -> usize;
 
