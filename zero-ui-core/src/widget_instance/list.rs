@@ -1440,17 +1440,13 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
-        let ctx = ThreadContext::capture();
-        rayon::scope(|s| {
-            let ctx = &ctx;
+        task::scope(|s| {
             let f = &f;
             let mut offset = 0;
             for list in self {
                 let len = list.len();
                 s.spawn(move |_| {
-                    ctx.with_context(move || {
-                        list.par_each_mut(move |i, n| f(i + offset, n));
-                    })
+                    list.par_each_mut(move |i, n| f(i + offset, n));
                 });
                 offset += len;
             }

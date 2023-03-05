@@ -346,6 +346,56 @@ where
     )
 }
 
+/// Rayon scope with thread context.
+///
+/// This function captures the [`ThreadContext`] of the calling thread and propagates it to the threads that run the
+/// operations.
+///
+/// See [`rayon::scope`] for more details about scope.
+pub fn scope<'scope, OP, R>(op: OP) -> R
+where
+    OP: FnOnce(ScopeCtx<'_, 'scope>) -> R + Send,
+    R: Send,
+{
+    let ctx = ThreadContext::capture();
+
+    // Cast `&'_ ctx` to `&'scope ctx` to "inject" the context in the scope.
+    // Is there a better way to do this? I hope so.
+    //
+    // SAFETY:
+    //  * We are extending `'_` to `'scope`, that is one of the documented valid usages of `transmute`.
+    //  * No use after free because `rayon::scope` joins all threads before returning and we only drop `ctx` after. 
+    let ctx_ref: &'_ ThreadContext = &ctx;
+    let ctx_scope_ref: &'scope ThreadContext = unsafe { std::mem::transmute(ctx_ref) };
+
+    let r = rayon::scope(move |s| op(ScopeCtx { scope: s, ctx: ctx_scope_ref }));
+
+    drop(ctx);
+
+    r
+}
+
+/// Represents a fork-join scope which can be used to spawn any number of tasks that run in the caller's thread context.
+///
+/// See [`scope`] for more details.
+#[derive(Clone, Copy, Debug)]
+pub struct ScopeCtx<'a, 'scope: 'a> {
+    scope: &'a rayon::Scope<'scope>,
+    ctx: &'scope ThreadContext,
+}
+impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
+    /// Spawns a job into the fork-join scope `self`. The job runs in the captured thread context.
+    ///
+    /// See [`rayon::Scope::spawn`] for more details.
+    pub fn spawn<F>(self, f: F)
+    where
+        F: FnOnce(ScopeCtx<'_, 'scope>) + Send + 'scope,
+    {
+        let ctx = self.ctx;
+        self.scope.spawn(move |s| ctx.with_context(move || f(ScopeCtx { scope: s, ctx })));
+    }
+}
+
 /// Spawn a parallel async task that can also be `.await` for the task result.
 ///
 /// # Parallel
