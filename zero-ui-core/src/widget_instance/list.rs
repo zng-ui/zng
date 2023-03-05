@@ -8,8 +8,11 @@ use std::{
 use crate::{
     context_local, property,
     render::FrameValueKey,
+    task::{self, ParallelIteratorExt},
     var::{IntoVar, Var},
 };
+
+use rayon::prelude::*;
 
 use super::*;
 
@@ -103,6 +106,24 @@ impl UiNodeList for Vec<BoxedUiNode> {
                 break;
             }
         }
+    }
+
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        tracing::warn!("`<Vec<BoxedUiNode> as UiNodeList>::par_each` is not parallel, prefer `UiNodeVec`");
+        self.for_each(|i, n| {
+            f(i, n);
+            true
+        })
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        self.par_iter_mut().enumerate().with_ctx().for_each(|(i, n)| f(i, n));
     }
 
     fn len(&self) -> usize {
@@ -207,6 +228,20 @@ impl UiNodeList for UiNodeVec {
         self.0.for_each_mut(f)
     }
 
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        todo!("!!: lock .0 and use `par_each_mut`")
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        self.0.par_each_mut(f)
+    }
+
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -298,6 +333,23 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
             let offset = self.0.len();
             self.1.for_each_mut(move |i, n| f(i + offset, n))
         }
+    }
+
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        // let offset = self.0.len();
+        // task::join(|| self.0.par_each(&f), || self.1.par_each(|i, n| f(i + offset, n)));
+        todo!("!!: lock and use `par_each_mut`")
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        let offset = self.0.len();
+        task::join(|| self.0.par_each_mut(&f), || self.1.par_each_mut(|i, n| f(i + offset, n)));
     }
 
     fn len(&self) -> usize {
@@ -506,6 +558,26 @@ where
                 }
             }
         });
+    }
+
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        todo!("!!: HOW?")
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        // self.with_map_mut(|map, list| {
+        //     map.par_iter()
+        //         .enumerate()
+        //         .for_each(|(index, map)| list.with_node_mut(*map, |n| f(index, n)))
+        // })
+
+        todo!("!!: HOW?")
     }
 
     fn len(&self) -> usize {
@@ -1085,6 +1157,20 @@ impl UiNodeList for EditableUiNodeList {
         self.vec.for_each_mut(f)
     }
 
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        todo!("!!: lock self.vec and par_each_mut it")
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        self.vec.par_each_mut(f)
+    }
+
     fn len(&self) -> usize {
         self.vec.len()
     }
@@ -1339,6 +1425,20 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
             list.for_each_mut(|i, n| f(i + offset, n));
             offset += list.len();
         }
+    }
+
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        todo!("!!: rayon::scope ?")
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        todo!("!!: rayon::scope ?")
     }
 
     fn len(&self) -> usize {
@@ -1647,6 +1747,20 @@ where
         F: FnMut(usize, &mut BoxedUiNode) -> bool,
     {
         self.list.for_each_mut(f)
+    }
+
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        todo!("!!: lock `list` just in case?")
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        self.list.par_each_mut(f)
     }
 
     fn len(&self) -> usize {

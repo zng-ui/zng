@@ -427,18 +427,12 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// Calls `f` for each node in the list with the index in parallel.
     fn par_each<F>(&self, f: F)
     where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
-    {
-        todo!("!!: IMPLEMENT")
-    }
+        F: Fn(usize, &BoxedUiNode) + Send + Sync;
 
     /// Calls `f` for each node in the list with the index in parallel.
     fn par_each_mut<F>(&mut self, f: F)
     where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    {
-        todo!("!!: IMPLEMENT")
-    }
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync;
 
     /// Gets the current number of nodes in the list.
     fn len(&self) -> usize;
@@ -721,6 +715,8 @@ pub trait UiNodeListBoxed: Any + Send {
     fn with_node_mut_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode));
     fn for_each_boxed(&self, f: &mut dyn FnMut(usize, &BoxedUiNode) -> bool);
     fn for_each_mut_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode) -> bool);
+    fn par_each_boxed(&self, f: &(dyn Fn(usize, &BoxedUiNode) + Send + Sync));
+    fn par_each_mut_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync));
     fn len_boxed(&self) -> usize;
     fn drain_into_boxed(&mut self, vec: &mut Vec<BoxedUiNode>);
     fn init_all_boxed(&mut self);
@@ -749,6 +745,14 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
 
     fn for_each_mut_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode) -> bool) {
         self.for_each_mut(f);
+    }
+
+    fn par_each_boxed(&self, f: &(dyn Fn(usize, &BoxedUiNode) + Send + Sync)) {
+        self.par_each(f)
+    }
+
+    fn par_each_mut_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync)) {
+        self.par_each_mut(f)
     }
 
     fn len_boxed(&self) -> usize {
@@ -923,6 +927,20 @@ impl UiNodeList for BoxedUiNodeList {
         F: FnMut(usize, &mut BoxedUiNode) -> bool,
     {
         self.as_mut().for_each_mut_boxed(&mut f)
+    }
+
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        self.as_ref().par_each_boxed(&f)
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        self.as_mut().par_each_mut_boxed(&f)
     }
 
     fn len(&self) -> usize {
@@ -1122,6 +1140,24 @@ impl UiNodeList for Option<BoxedUiNode> {
     fn for_each_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
+        if let Some(node) = self {
+            f(0, node);
+        }
+    }
+
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        if let Some(node) = self {
+            f(0, node);
+        }
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
         if let Some(node) = self {
             f(0, node);

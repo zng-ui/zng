@@ -609,6 +609,20 @@ mod impls {
             self.delegate_owned_mut(|l| l.for_each_mut(f));
         }
 
+        fn par_each<F>(&self, f: F)
+        where
+            F: Fn(usize, &BoxedUiNode) + Send + Sync,
+        {
+            self.delegate_owned(|l| l.par_each(f));
+        }
+
+        fn par_each_mut<F>(&mut self, f: F)
+        where
+            F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+        {
+            self.delegate_owned_mut(|l| l.par_each_mut(f));
+        }
+
         fn len(&self) -> usize {
             self.delegate_owned(UiNodeList::len).unwrap_or(0)
         }

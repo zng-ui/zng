@@ -261,6 +261,20 @@ impl UiNodeList for WhenUiNodeList {
         self.children_mut_with_handles().0.for_each_mut(f)
     }
 
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        self.children().par_each(f)
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        self.children_mut_with_handles().0.par_each_mut(f)
+    }
+
     fn len(&self) -> usize {
         self.children().len()
     }
