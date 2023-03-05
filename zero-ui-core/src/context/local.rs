@@ -1,4 +1,4 @@
-use std::{any::Any, cell::RefCell, marker::PhantomData, mem, sync::Arc, thread::ThreadId};
+use std::{any::Any, cell::RefCell, fmt, marker::PhantomData, mem, sync::Arc, thread::ThreadId};
 
 use parking_lot::*;
 use smallvec::SmallVec;
@@ -42,6 +42,21 @@ impl Drop for AppScope {
 pub struct ThreadContext {
     app: Option<Arc<ThreadOwnerApp>>,
     context: SmallVec<[ThreadId; 8]>,
+}
+impl fmt::Debug for ThreadContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // "ThreadContext:AppId(1)//t0/t1/t2"
+        write!(f, "ThreadContext:")?;
+        if let Some(app) = &self.app {
+            write!(f, "{:?}/", app.id)?;
+        } else {
+            write!(f, "app/")?;
+        }
+        for t in &self.context {
+            write!(f, "/{:?}", t)?;
+        }
+        Ok(())
+    }
 }
 thread_local! {
     static THREAD_CONTEXT: RefCell<ThreadContext> = const {

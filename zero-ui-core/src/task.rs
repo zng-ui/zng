@@ -326,19 +326,19 @@ where
     RA: Send,
     RB: Send,
 {
-    let ctx_a = ThreadContext::capture();
-    let ctx_b = ctx_a.clone();
+    let ctx = ThreadContext::capture();
+    let ctx = &ctx;
     rayon::join_context(
         move |a| {
             if a.migrated() {
-                ctx_a.with_context(|| oper_a(a))
+                ctx.with_context(|| oper_a(a))
             } else {
                 oper_a(a)
             }
         },
         move |b| {
             if b.migrated() {
-                ctx_b.with_context(|| oper_b(b))
+                ctx.with_context(|| oper_b(b))
             } else {
                 oper_b(b)
             }

@@ -112,7 +112,7 @@ impl UiNodeList for Vec<BoxedUiNode> {
     where
         F: Fn(usize, &BoxedUiNode) + Send + Sync,
     {
-        tracing::warn!("`<Vec<BoxedUiNode> as UiNodeList>::par_each` is not parallel, prefer `UiNodeVec`");
+        tracing::warn!("`par_each` fallback to `for_each`, use a `Sync` list like `PanelList` to use `par_each` in parallel");
         self.for_each(|i, n| {
             f(i, n);
             true
@@ -232,7 +232,7 @@ impl UiNodeList for UiNodeVec {
     where
         F: Fn(usize, &BoxedUiNode) + Send + Sync,
     {
-        todo!("!!: lock .0 and use `par_each_mut`")
+        self.0.par_each(f)
     }
 
     fn par_each_mut<F>(&mut self, f: F)
@@ -339,9 +339,9 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     where
         F: Fn(usize, &BoxedUiNode) + Send + Sync,
     {
-        // let offset = self.0.len();
-        // task::join(|| self.0.par_each(&f), || self.1.par_each(|i, n| f(i + offset, n)));
-        todo!("!!: lock and use `par_each_mut`")
+        let offset = self.0.len();
+        self.0.par_each(&f);
+        self.1.par_each(|i, n| f(i + offset, n));
     }
 
     fn par_each_mut<F>(&mut self, f: F)
@@ -564,20 +564,20 @@ where
     where
         F: Fn(usize, &BoxedUiNode) + Send + Sync,
     {
-        todo!("!!: HOW?")
+        self.for_each(move |i, n| {
+            f(i, n);
+            true
+        })
     }
 
     fn par_each_mut<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
-        // self.with_map_mut(|map, list| {
-        //     map.par_iter()
-        //         .enumerate()
-        //         .for_each(|(index, map)| list.with_node_mut(*map, |n| f(index, n)))
-        // })
-
-        todo!("!!: HOW?")
+        self.for_each_mut(move |i, n| {
+            f(i, n);
+            true
+        })
     }
 
     fn len(&self) -> usize {
@@ -1161,7 +1161,7 @@ impl UiNodeList for EditableUiNodeList {
     where
         F: Fn(usize, &BoxedUiNode) + Send + Sync,
     {
-        todo!("!!: lock self.vec and par_each_mut it")
+        self.vec.par_each(f)
     }
 
     fn par_each_mut<F>(&mut self, f: F)
@@ -1431,14 +1431,30 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     where
         F: Fn(usize, &BoxedUiNode) + Send + Sync,
     {
-        todo!("!!: rayon::scope ?")
+        for list in self {
+            list.par_each(&f);
+        }
     }
 
     fn par_each_mut<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
-        todo!("!!: rayon::scope ?")
+        let ctx = ThreadContext::capture();
+        rayon::scope(|s| {
+            let ctx = &ctx;
+            let f = &f;
+            let mut offset = 0;
+            for list in self {
+                let len = list.len();
+                s.spawn(move |_| {
+                    ctx.with_context(move || {
+                        list.par_each_mut(move |i, n| f(i + offset, n));
+                    })
+                });
+                offset += len;
+            }
+        });
     }
 
     fn len(&self) -> usize {
@@ -1509,7 +1525,7 @@ pub struct PanelList<D = DefaultPanelListData>
 where
     D: PanelListData,
 {
-    list: BoxedUiNodeList,
+    list: Mutex<BoxedUiNodeList>, // Mutex to ensure `par_each` is actually parallel
     data: Vec<D>,
 
     offset_key: FrameValueKey<PxTransform>,
@@ -1535,7 +1551,7 @@ where
                 d.resize_with(list.len(), Default::default);
                 d
             },
-            list: list.boxed(),
+            list: Mutex::new(list.boxed()),
             offset_key: FrameValueKey::new_unique(),
             z_map: RefCell::new(vec![]),
             z_naturally_sorted: Cell::new(false),
@@ -1544,7 +1560,7 @@ where
 
     /// Into list and associated data.
     pub fn into_parts(self) -> (BoxedUiNodeList, Vec<D>, FrameValueKey<PxTransform>) {
-        (self.list, self.data, self.offset_key)
+        (self.list.into_inner(), self.data, self.offset_key)
     }
 
     /// New from list and associated data.
@@ -1555,7 +1571,7 @@ where
     pub fn from_parts(list: BoxedUiNodeList, data: Vec<D>, offset_key: FrameValueKey<PxTransform>) -> Self {
         assert_eq!(list.len(), data.len());
         Self {
-            list,
+            list: Mutex::new(list),
             data,
             offset_key,
             z_map: RefCell::new(vec![]),
@@ -1753,7 +1769,7 @@ where
     where
         F: Fn(usize, &BoxedUiNode) + Send + Sync,
     {
-        todo!("!!: lock `list` just in case?")
+        self.list.par_each(f)
     }
 
     fn par_each_mut<F>(&mut self, f: F)
