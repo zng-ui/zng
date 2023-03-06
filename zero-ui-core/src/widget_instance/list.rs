@@ -366,8 +366,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     }
 
     fn init_all(&mut self) {
-        self.0.init_all();
-        self.1.init_all();
+        if PARALLEL_VAR.get().contains(Parallel::INIT) {
+            task::join(|| self.0.init_all(), || self.1.init_all());
+        } else {
+            self.0.init_all();
+            self.1.init_all();
+        }
     }
 
     fn deinit_all(&mut self) {
@@ -1472,8 +1476,12 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 
     fn init_all(&mut self) {
-        for list in self {
-            list.init_all();
+        if PARALLEL_VAR.get().contains(Parallel::INIT) {
+            self.par_iter_mut().for_each(|l| l.init_all());
+        } else {
+            for l in self {
+                l.init_all();
+            }
         }
     }
 

@@ -1293,7 +1293,7 @@ fn macro_rules_generated() {
     };
 }
 
-mod util {
+pub mod util {
     use std::{
         cell::Cell,
         collections::{HashMap, HashSet},

@@ -1043,3 +1043,42 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         enabled: enabled.into_var(),
     }
 }
+
+bitflags! {
+    /// Node list methods that are made parallel.
+    ///
+    /// See [`parallel`] for more details.
+    ///
+    /// [`parallel`]: fn@parallel
+    pub struct Parallel: u8 {
+        /// Descendants init can run in parallel.
+        const INIT = 0b0001;
+    }
+}
+context_var! {
+    /// Controls what node list methods can run in parallel in an widget and descendants.
+    ///
+    /// This variable can be set using the [`parallel`] property.
+    ///
+    /// Is none by default.
+    ///
+    /// [`parallel`]: fn@parallel
+    pub static PARALLEL_VAR: Parallel = Parallel::empty();
+}
+impl_from_and_into_var! {
+    fn from(all: bool) -> Parallel {
+        if all {
+            Parallel::all()
+        } else {
+            Parallel::empty()
+        }
+    }
+}
+
+/// Defines what node list methods can run in parallel in the widget and descendants.
+///
+/// This property sets the [`PARALLEL_VAR`] that is used by [`UiNodeList`] implementers to toggle parallel processing.
+#[property(CONTEXT, default(PARALLEL_VAR))]
+pub fn parallel(child: impl UiNode, enabled: impl IntoVar<Parallel>) -> impl UiNode {
+    with_context_var(child, PARALLEL_VAR, enabled)
+}

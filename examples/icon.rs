@@ -18,7 +18,9 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().extend(icons::MaterialFonts).run_window(|| {
+    let t = std::time::Instant::now();
+
+    App::default().extend(icons::MaterialFonts).run_window(move || {
         window! {
             title = "Icon Example";
             icon = WindowIcon::render(|| icon! {
@@ -30,6 +32,10 @@ fn app_main() {
                 mode = ScrollMode::VERTICAL;
                 child = icons();
             };
+            on_load = hn_once!(|_| {
+                println!("loaded in {:?}", t.elapsed())
+            });
+            zero_ui::core::widget_base::parallel = true;
             // zero_ui::properties::inspector::show_hit_test = true;
         }
     })

@@ -364,11 +364,16 @@ where
     //
     // SAFETY:
     //  * We are extending `'_` to `'scope`, that is one of the documented valid usages of `transmute`.
-    //  * No use after free because `rayon::scope` joins all threads before returning and we only drop `ctx` after. 
+    //  * No use after free because `rayon::scope` joins all threads before returning and we only drop `ctx` after.
     let ctx_ref: &'_ ThreadContext = &ctx;
     let ctx_scope_ref: &'scope ThreadContext = unsafe { std::mem::transmute(ctx_ref) };
 
-    let r = rayon::scope(move |s| op(ScopeCtx { scope: s, ctx: ctx_scope_ref }));
+    let r = rayon::scope(move |s| {
+        op(ScopeCtx {
+            scope: s,
+            ctx: ctx_scope_ref,
+        })
+    });
 
     drop(ctx);
 

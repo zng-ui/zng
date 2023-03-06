@@ -11,7 +11,8 @@ use parking_lot::Mutex;
 use crate::{
     context::*,
     event::EventUpdate,
-    var::impl_from_and_into_var,
+    var::{impl_from_and_into_var, Var},
+    widget_base::{Parallel, PARALLEL_VAR},
     widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -454,10 +455,16 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn init_all(&mut self) {
-        self.for_each_mut(|_, c| {
-            c.init();
-            true
-        });
+        if PARALLEL_VAR.get().contains(Parallel::INIT) {
+            self.par_each_mut(|_, c| {
+                c.init();
+            });
+        } else {
+            self.for_each_mut(|_, c| {
+                c.init();
+                true
+            })
+        }
     }
 
     /// Deinit the list in a context, all nodes are also deinited.
