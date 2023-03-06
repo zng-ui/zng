@@ -3,6 +3,10 @@
     - Actually loses performance and texts don't init right.
     - Fix bugs caused by parallel, context vars not propagating correctly?
     - Try having parallel just in the main collection so only chunks are parallel.
+        - Loses the same performance.
+        - Single thread average init of `icon!` is 0.1ms. Parallel average is 0.8ms.
+            - Stuck in locks?
+            - Fix bugs first.
 
 * Implement parallel image render.
     - Test it in animation example.
