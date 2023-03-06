@@ -736,20 +736,19 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         let new_value = value.take().expect("no override provided");
         let thread_id = std::thread::current().id();
 
-        let i;
         let prev_value;
 
         let mut write = self.data.write();
-        if let Some(idx) = write.values.iter_mut().position(|(id, _)| *id == thread_id) {
+        if let Some(i) = write.values.iter_mut().position(|(id, _)| *id == thread_id) {
             // already contextualized in this thread
 
-            i = idx;
             prev_value = mem::replace(&mut write.values[i].1, new_value);
 
             drop(write);
 
             let _restore = RunOnDrop::new(move || {
                 let mut write = self.data.write();
+                let i = write.values.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
                 *value = Some(mem::replace(&mut write.values[i].1, prev_value));
             });
 
@@ -790,20 +789,19 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         let new_value: T = option::Option::cast(value.take());
         let thread_id = std::thread::current().id();
 
-        let i;
         let prev_value;
 
         let mut write = self.data.write();
-        if let Some(idx) = write.values.iter_mut().position(|(id, _)| *id == thread_id) {
+        if let Some(i) = write.values.iter_mut().position(|(id, _)| *id == thread_id) {
             // already contextualized in this thread
 
-            i = idx;
             prev_value = mem::replace(&mut write.values[i].1, new_value);
 
             drop(write);
 
             let _restore = RunOnDrop::new(move || {
                 let mut write = self.data.write();
+                let i = write.values.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
                 *value = mem::replace(&mut write.values[i].1, prev_value).get_mut().take();
             });
 
