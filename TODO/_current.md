@@ -1,12 +1,12 @@
-* Use `par_each`, test performance.
-    - Trying it in `icon` example now.
-    - Actually loses performance and texts don't init right.
-    - Fix bugs caused by parallel, context vars not propagating correctly?
-    - Try having parallel just in the main collection so only chunks are parallel.
-        - Loses the same performance.
-        - Single thread average init of `icon!` is 0.1ms. Parallel average is 0.8ms.
+* Parallel init causes text to use wrong font. 
+    - Context read wrong value.
+    - See `issue.md`.
+* Parallel init slower then linear in `icon` example.
+    - Fine tuning parallel to only work in the icon chunks still slower.
+    - Single thread average init of `icon!` is 0.1ms. Parallel average is 0.8ms.
             - Stuck in locks?
             - Fix bugs first.
+    - Try implementing `context_local!` to use a `thread_local!` fast path?
 
 * Implement parallel image render.
     - Test it in animation example.

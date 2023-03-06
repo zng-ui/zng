@@ -35,7 +35,7 @@ fn app_main() {
             on_load = hn_once!(|_| {
                 println!("loaded in {:?}", t.elapsed())
             });
-            // zero_ui::core::widget_base::parallel = true;
+            zero_ui::core::widget_base::parallel = true;
             // zero_ui::properties::inspector::show_hit_test = true;
         }
     })
