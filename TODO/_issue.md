@@ -127,3 +127,86 @@ Thread(2):        write, <-----------yield----------->, write
 Thread(1):               write, <----yield---->, write
 
 Not possible because Rayon will not return until Thread(2) joins.
+
+# Rayon Nested
+
+```rust
+wgt0! { // par_each
+    wgt1!();
+    wgt2! { // par_each
+        wgt_a!();
+        wgt_b!();
+        wgt_c!();
+    };
+    wgt3!();
+}
+```
+
+In the tree above Rayon can init `wgt_a!` in a thread that has `wgt3!` in context?
+
+Because this is the printout of the bug:
+
+```log
+with_context ThreadId(11) { // enter with_context, all prints for `font_family` setting to "Material Icons Outlined"
+with_context ThreadId(7) {
+with_context ThreadId(9) {
+} // ThreadId(11) // exit with_context, looks out of sync but ok, others in different threads (there is no nested font assign in `icon` example).
+} // ThreadId(7)
+} // ThreadId(9)
+with_context ThreadId(14) {
+} // ThreadId(14)
+with_context ThreadId(8) {
+with_context ThreadId(10) {
+with_context ThreadId(13) {
+with_context ThreadId(12) {
+with_context ThreadId(11) {
+} // ThreadId(8)
+} // ThreadId(10)
+} // ThreadId(13)
+with_context ThreadId(9) {
+                                                                // should not have got "Material Icons Outlined" here for text "East".
+"East" used "Material Icons Outlined"
+ThreadContext:AppId(1)//ThreadId(1)/ThreadId(7)/ThreadId(8)/ThreadId(11)/ThreadId(9)/ThreadId(14)
+[(ThreadId(11), "Material Icons Outlined"), (ThreadId(12), "Material Icons Outlined"), (ThreadId(9), "Material Icons Outlined")]
+
+} // ThreadId(12)
+} // ThreadId(11)
+with_context ThreadId(7) {
+"Aspect Ratio" used "Material Icons Outlined"
+ThreadContext:AppId(1)//ThreadId(1)/ThreadId(7)/ThreadId(8)/ThreadId(11)/ThreadId(10)
+[(ThreadId(9), "Material Icons Outlined"), (ThreadId(7), "Material Icons Outlined")]
+
+"Handyman" used "Material Icons Outlined"
+ThreadContext:AppId(1)//ThreadId(1)/ThreadId(7)/ThreadId(8)/ThreadId(11)/ThreadId(8)
+[(ThreadId(9), "Material Icons Outlined"), (ThreadId(7), "Material Icons Outlined")]
+
+} // ThreadId(9)
+"Fastfood" used "Material Icons Outlined"
+ThreadContext:AppId(1)//ThreadId(1)/ThreadId(7)/ThreadId(8)/ThreadId(11)/ThreadId(13)
+[(ThreadId(7), "Material Icons Outlined")]
+
+"Error" used "Material Icons Outlined"
+ThreadContext:AppId(1)//ThreadId(1)/ThreadId(7)/ThreadId(8)/ThreadId(11)/ThreadId(9)/ThreadId(12)
+[(ThreadId(7), "Material Icons Outlined")]
+
+"10mp" used "Material Icons Outlined"
+ThreadContext:AppId(1)//ThreadId(1)/ThreadId(7)/ThreadId(8)/ThreadId(11)
+[(ThreadId(7), "Material Icons Outlined")]
+
+} // ThreadId(7)
+with_context ThreadId(14) {
+with_context ThreadId(8) {
+with_context ThreadId(10) {
+with_context ThreadId(13) {
+} // ThreadId(14)
+with_context ThreadId(11) {
+with_context ThreadId(12) {
+} // ThreadId(8)
+} // ThreadId(13)
+"Eco" used "Material Icons Outlined"
+ThreadContext:AppId(1)//ThreadId(1)/ThreadId(7)/ThreadId(8)/ThreadId(11)/ThreadId(9)/ThreadId(14)
+[(ThreadId(11), "Material Icons Outlined"), (ThreadId(12), "Material Icons Outlined"), (ThreadId(10), "Material Icons Outlined")]
+
+} // ThreadId(10)
+} // ThreadId(11)
+```
