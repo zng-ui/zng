@@ -19,6 +19,7 @@
     - Can change `WINDOW.widget_tree` to returns the tree directly, only one place can panic.
 
 * Review `ThreadContext` in disconnected parallel tasks like `task::spawn`.
+    - Need to capture the app only?
 
 * Implement tracing parent propagation in `ThreadContext`?
     - https://github.com/wagnerf42/diam/blob/main/src/adaptors/log.rs

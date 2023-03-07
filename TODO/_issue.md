@@ -6,7 +6,7 @@ button! {
     )
 }
 
-# Single thread:
+# Single-thread:
 var.base="UI"
     var.with="ICO" { // icon!(ICO) usage
         var.read() => "ICO"
@@ -104,3 +104,26 @@ ContextVar::get()
 * Thread context can "cycle" `ThreadContext:AppId(1)//ThreadId(1)/ThreadId(10)/ThreadId(12)/ThreadId(9)/ThreadId(7)/ThreadId(12)`
     - Rayon work stealing setup causes this often, `ThreadId(12)` here was free when `ThreadId(7)` was busy.
     - Does this causes the problem?
+
+Thread(1): write, <------------------yield------------------->, write
+Thread(2):        write, <-----------yield----------->, write
+Thread(1):               write, <----yield---->, write
+
+0,          5
+  1,     4,
+    2, 3,
+
+0 - t(1)write: with_context -> push_value (first in t(1))
+1 - t(2)write: with_context -> push_value (first in t(2))
+2 - t(1)write: with_context -> replace_value (second in t(1))
+3 - t(1)write: with_context -> replace_value (drop)
+4 - t(2)write: with_context -> pop_value  (last in t(2))
+5 - t(1)write: with_context -> pop_value  (last in (t1))
+
+## Yield Shuffle
+
+Thread(1): write, <-yield->, write
+Thread(2):        write, <-----------yield----------->, write
+Thread(1):               write, <----yield---->, write
+
+Not possible because Rayon will not return until Thread(2) joins.
