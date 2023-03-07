@@ -156,7 +156,7 @@ mod util {
         static CTX_VAL: bool = false;
     }
 
-    #[property(CONTEXT, default(CTX_VAL.get()))]
+    #[property(CONTEXT, default(*CTX_VAL.get()))]
     pub fn ctx_val(child: impl UiNode, value: impl IntoValue<bool>) -> impl UiNode {
         with_context_local(child, &CTX_VAL, value)
     }
@@ -173,7 +173,7 @@ mod util {
 
                 thread::sleep(1.ms());
 
-                assert_eq!(self.expected, CTX_VAL.get());
+                assert_eq!(self.expected, *CTX_VAL.get());
             }
         }
         AssertNode {

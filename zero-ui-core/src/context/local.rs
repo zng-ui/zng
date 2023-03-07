@@ -1,7 +1,11 @@
-use std::{any::Any, cell::RefCell, fmt, marker::PhantomData, mem, sync::Arc, thread::ThreadId};
+use std::{
+    any::{Any, TypeId},
+    cell::RefCell,
+    fmt, mem,
+    sync::Arc,
+};
 
 use parking_lot::*;
-use smallvec::SmallVec;
 
 use crate::{
     app::AppId,
@@ -15,197 +19,208 @@ use crate::{
     widget_instance::UiNode,
 };
 
-struct ThreadOwnerApp {
-    id: AppId,
-    cleanup: Mutex<Vec<Box<dyn FnOnce(AppId) + Send>>>,
-}
-impl Drop for ThreadOwnerApp {
-    fn drop(&mut self) {
-        for c in self.cleanup.get_mut().drain(..) {
-            c(self.id);
-        }
-    }
-}
+type LocalValue = Arc<dyn Any + Send + Sync>;
+type LocalData = crate::crate_util::IdMap<TypeId, LocalValue>;
 
+/// Ends app on drop.
 pub(crate) struct AppScope {
     id: AppId,
-    _not_send: PhantomData<std::rc::Rc<()>>, // drop must be called in the same thread
+    _same_thread: std::rc::Rc<()>,
 }
 impl Drop for AppScope {
     fn drop(&mut self) {
-        ThreadContext::end_app(self.id)
+        LocalContext::end_app(self.id);
     }
 }
 
-/// Tracks current thread and current task *owner* threads.
+/// Tracks the current execution context.
 #[derive(Clone)]
-pub struct ThreadContext {
-    app: Option<Arc<ThreadOwnerApp>>,
-    context: SmallVec<[ThreadId; 8]>,
+pub struct LocalContext {
+    data: LocalData,
 }
-impl fmt::Debug for ThreadContext {
+impl fmt::Debug for LocalContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // "ThreadContext:AppId(1)//t0/t1/t2"
-        write!(f, "ThreadContext:")?;
-        if let Some(app) = &self.app {
-            write!(f, "{:?}/", app.id)?;
-        } else {
-            write!(f, "app/")?;
-        }
-        for t in &self.context {
-            write!(f, "/{:?}", t)?;
-        }
-        Ok(())
+        let app = self
+            .data
+            .get(&TypeId::of::<AppId>())
+            .map(|c| c.downcast_ref::<AppId>().unwrap())
+            .copied();
+
+        f.debug_struct("LocalContext")
+            .field("<app>", &app)
+            .field("<entries>", &(self.data.len() - 1))
+            .finish()
     }
 }
-thread_local! {
-    static THREAD_CONTEXT: RefCell<ThreadContext> = const {
-        RefCell::new(ThreadContext {
-            app: None,
-            context: SmallVec::new_const(),
-        })
-    };
+impl Default for LocalContext {
+    fn default() -> Self {
+        Self::new()
+    }
 }
-impl ThreadContext {
-    #[must_use]
-    pub(crate) fn start_app(id: AppId) -> AppScope {
-        let r = THREAD_CONTEXT.with(|s| {
-            let mut s = s.borrow_mut();
-            let t_id = std::thread::current().id();
-            if let Some(app) = &s.app {
-                return Err(format!(
-                    "thread `{:?}` already owned by `{:?}`, run `{:?}` in a new thread",
-                    t_id, app.id, id
-                ));
-            }
-            if !s.context.is_empty() {
-                return Err(format!("thread `{t_id:?}` already contextualized, run `{id:?}` in a new thread"));
-            }
-            s.app = Some(Arc::new(ThreadOwnerApp {
-                id,
-                cleanup: Mutex::new(vec![]),
-            }));
-            s.context.push(t_id);
+impl LocalContext {
+    /// New empty context.
+    pub const fn new() -> Self {
+        Self {
+            data: crate::crate_util::id_map_new(),
+        }
+    }
 
-            Ok(())
+    pub(crate) fn start_app(id: AppId) -> AppScope {
+        let valid = LOCAL.with(|c| {
+            let mut c = c.borrow_mut();
+            match c.entry(TypeId::of::<AppId>()) {
+                hashbrown::hash_map::Entry::Occupied(_) => false,
+                hashbrown::hash_map::Entry::Vacant(e) => {
+                    e.insert(Arc::new(id));
+                    true
+                }
+            }
         });
-        r.unwrap();
+        assert!(valid, "cannot start app, another app is already in the thread context");
 
         AppScope {
             id,
-            _not_send: PhantomData,
+            _same_thread: std::rc::Rc::new(()),
+        }
+    }
+    fn end_app(id: AppId) {
+        let valid = LOCAL.with(|c| {
+            let mut c = c.borrow_mut();
+            if c.get(&TypeId::of::<AppId>())
+                .map(|v| v.downcast_ref::<AppId>() == Some(&id))
+                .unwrap_or(false)
+            {
+                Some(mem::take(&mut *c))
+            } else {
+                None
+            }
+        });
+
+        if let Some(data) = valid {
+            drop(data); // deinit
+        } else {
+            panic!("cannot end app from outside");
         }
     }
 
-    fn end_app(id: AppId) {
-        let r = THREAD_CONTEXT.with(|s| {
-            let t_id = std::thread::current().id();
-            let mut s = s.borrow_mut();
-            if let Some(app) = &s.app {
-                if app.id != id {
-                    return Err(format!(
-                        "can only end `{id:?}` in same thread it started, currently in `{:?}`",
-                        app.id
-                    ));
-                }
-                if let Some(id) = s.context.first() {
-                    if id != &t_id {
-                        return Err(format!(
-                            "can only end `{id:?}` in same thread it started, currently in `{:?}`",
-                            t_id
-                        ));
-                    }
-                }
-                if s.context.len() != 1 {
-                    return Err(format!("can only end `{id:?}` at the root context"));
-                }
-                if s.context[0] != t_id {
-                    return Err(format!("can only end `{id:?}` at the same root thread `{t_id:?}`"));
-                }
-
-                s.context.clear();
-                Ok(s.app.take().unwrap())
-            } else {
-                Err(format!("thread not owned by `{id:?}`"))
-            }
-        });
-        let _app = r.unwrap(); // maybe run cleanup
-    }
-
-    fn register_cleanup(cleanup: Box<dyn FnOnce(AppId) + Send>) {
-        let r = THREAD_CONTEXT.with(|s| {
-            let s = s.borrow();
-            if let Some(app) = &s.app {
-                app.cleanup.lock().push(cleanup);
-                Ok(())
-            } else {
-                Err(format!("thread `{:?}` not owned by any app", std::thread::current().id()))
-            }
-        });
-        r.unwrap();
-    }
-
-    /// The current app.
-    pub fn app(&self) -> Option<AppId> {
-        self.app.as_ref().map(|a| a.id)
-    }
-
-    /// The contextual thread stack, last item is the current thread, first item is the root thread.
-    pub fn context(&self) -> &[ThreadId] {
-        &self.context
-    }
-
-    /// The app that owns the current thread.
+    /// Get the ID of the app that owns the current context.
     pub fn current_app() -> Option<AppId> {
-        THREAD_CONTEXT.with(|s| s.borrow().app.as_ref().map(|a| a.id))
-    }
-
-    /// Capture the current context.
-    ///
-    /// A context must be captured and recorded by tasks that may run in other threads, the context must be loaded
-    /// in the other thread using [`with_context`].
-    ///
-    /// [`with_context`]: ThreadContext::with_context
-    pub fn capture() -> ThreadContext {
-        THREAD_CONTEXT.with(|s| {
-            let mut r = s.borrow().clone();
-            let current = std::thread::current().id();
-            if r.context.last() != Some(&current) {
-                r.context.push(current);
-            }
-            r
+        LOCAL.with(|c| {
+            c.borrow()
+                .get(&TypeId::of::<AppId>())
+                .map(|c| c.downcast_ref::<AppId>().unwrap())
+                .copied()
         })
     }
 
-    /// Runs `f` within the context.
-    ///
-    /// This method must be used every time there is the possibility that the caller is running in a different thread.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::thread;
-    /// use zero_ui_core::context::ThreadContext;
-    ///
-    /// let outer_id = thread::current().id();
-    /// let ctx = ThreadContext::capture();
-    ///
-    /// assert_eq!(&[outer_id], ctx.context());
-    ///
-    /// thread::spawn(move || ctx.with_context(move || {
-    ///     let inner_id = thread::current().id();
-    ///     let ctx = ThreadContext::capture();
-    ///
-    ///     assert_eq!(&[outer_id, inner_id], ctx.context());
-    /// })).join().unwrap();
-    /// ```
-    pub fn with_context<R>(&self, f: impl FnOnce() -> R) -> R {
-        let prev = THREAD_CONTEXT.with(|s| mem::replace(&mut *s.borrow_mut(), self.clone()));
-        let _restore = RunOnDrop::new(move || {
-            let _drop = THREAD_CONTEXT.with(|s| mem::replace(&mut *s.borrow_mut(), prev));
+    /// Register to run when the app deinits and all clones of the app context are dropped.
+    pub fn register_cleanup(cleanup: impl FnOnce(AppId) + Send + 'static) {
+        let id = Self::current_app().expect("no app in context");
+        Self::register_cleanup_dyn(Box::new(move || cleanup(id)));
+    }
+    fn register_cleanup_dyn(cleanup: Box<dyn FnOnce() + Send>) {
+        let cleanup = RunOnDrop::new(cleanup);
+
+        type CleanupList = Vec<RunOnDrop<Box<dyn FnOnce() + Send>>>;
+        LOCAL.with(|c| {
+            let mut c = c.borrow_mut();
+            let c = c
+                .entry(TypeId::of::<CleanupList>())
+                .or_insert_with(|| Arc::new(Mutex::new(CleanupList::new())));
+            c.downcast_ref::<Mutex<CleanupList>>().unwrap().lock().push(cleanup);
         });
+    }
+
+    /// Capture a snapshot of the current context that can be restored in another thread to recreate
+    /// the current context.
+    ///
+    /// Context locals modified after this capture are not included in the capture.
+    pub fn capture() -> Self {
+        Self {
+            data: LOCAL.with(|c| c.borrow().clone()),
+        }
+    }
+
+    /// Calls `f` in the captured context.
+    pub fn with_context<R>(&mut self, f: impl FnOnce() -> R) -> R {
+        let data = mem::take(&mut self.data);
+        let prev = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), data));
+
+        let r = f();
+
+        self.data = LOCAL.with(|c| mem::replace(&mut *c.borrow_mut(), prev));
+
+        r
+    }
+
+    fn contains(key: TypeId) -> bool {
+        LOCAL.with(|c| c.borrow().contains_key(&key))
+    }
+
+    fn get(key: TypeId) -> Option<LocalValue> {
+        LOCAL.with(|c| c.borrow().get(&key).cloned())
+    }
+
+    fn set(key: TypeId, value: LocalValue) -> Option<LocalValue> {
+        LOCAL.with(|c| c.borrow_mut().insert(key, value))
+    }
+    fn remove(key: TypeId) -> Option<LocalValue> {
+        LOCAL.with(|c| c.borrow_mut().remove(&key))
+    }
+
+    fn with_value_ctx<T: Send + Sync + 'static, R>(key: &'static ContextLocal<T>, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
+        let key = key.key();
+        let prev = Self::set(key, value.take().expect("no `value` to set"));
+        let _restore = RunOnDrop::new(move || {
+            let back = if let Some(prev) = prev {
+                Self::set(key, prev)
+            } else {
+                Self::remove(key)
+            }
+            .unwrap();
+            *value = Some(Arc::downcast(back).unwrap());
+        });
+
         f()
     }
+
+    fn with_default_ctx<T: Send + Sync + 'static, R>(key: &'static ContextLocal<T>, f: impl FnOnce() -> R) -> R {
+        let key = key.key();
+        let prev = Self::remove(key);
+        let _restore = RunOnDrop::new(move || {
+            if let Some(prev) = prev {
+                Self::set(key, prev);
+            }
+        });
+
+        f()
+    }
+
+    fn with_mut<T, R>(local: &'static ContextLocal<T>, f: impl FnOnce(&mut T) -> R) -> R
+    where
+        T: Clone,
+        T: Send + Sync + 'static,
+    {
+        let local = local.data.read();
+        LOCAL.with(|l| {
+            let mut l = l.borrow_mut();
+            let entry = l.entry(local.key).or_insert_with(|| Arc::new((local.default_init)()));
+            match Arc::get_mut(entry) {
+                Some(v) => f(v.downcast_mut().unwrap()),
+                None => {
+                    let mut value = entry.downcast_ref::<T>().unwrap().clone();
+                    let r = f(&mut value);
+                    *entry = Arc::new(value);
+                    r
+                }
+            }
+        })
+    }
+}
+thread_local! {
+    static LOCAL: RefCell<LocalData> = const {
+        RefCell::new(crate::crate_util::id_map_new())
+    };
 }
 
 /*
@@ -297,7 +312,7 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
     }
 
     fn read_impl(&'static self, read: RwLockReadGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockReadGuard<T> {
-        let id = ThreadContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
+        let id = LocalContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
 
         if let Some(i) = read.iter().position(|(s, _)| *s == id) {
             return RwLockReadGuard::map(read, |v| &v[i].1);
@@ -314,7 +329,7 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
         let i = write.len();
         write.push((id, value));
 
-        ThreadContext::register_cleanup(Box::new(move |id| self.cleanup(id)));
+        LocalContext::register_cleanup(Box::new(move |id| self.cleanup(id)));
 
         let read = RwLockWriteGuard::downgrade(write);
 
@@ -322,7 +337,7 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
     }
 
     fn write_impl(&'static self, mut write: RwLockWriteGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockWriteGuard<T> {
-        let id = ThreadContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
+        let id = LocalContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
 
         if let Some(i) = write.iter().position(|(s, _)| *s == id) {
             return RwLockWriteGuard::map(write, |v| &mut v[i].1);
@@ -332,7 +347,7 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
         let i = write.len();
         write.push((id, value));
 
-        ThreadContext::register_cleanup(Box::new(move |id| self.cleanup(id)));
+        LocalContext::register_cleanup(move |id| self.cleanup(id));
 
         RwLockWriteGuard::map(write, |v| &mut v[i].1)
     }
@@ -685,15 +700,17 @@ pub use app_local_impl_single as app_local_impl;
 
 #[doc(hidden)]
 pub struct ContextLocalData<T: Send + Sync + 'static> {
-    values: Vec<(ThreadId, T)>,
-    default: Option<T>,
+    key: TypeId,
+    default_init: fn() -> T,
+    default_value: Option<Arc<T>>,
 }
 impl<T: Send + Sync + 'static> ContextLocalData<T> {
     #[doc(hidden)]
-    pub const fn new() -> Self {
+    pub const fn new(key: TypeId, default_init: fn() -> T) -> Self {
         Self {
-            values: vec![],
-            default: None,
+            key,
+            default_init,
+            default_value: None,
         }
     }
 }
@@ -705,276 +722,85 @@ impl<T: Send + Sync + 'static> ContextLocalData<T> {
 /// Use the [`context_local!`] macro to declare a static variable in the same style as [`thread_local!`].
 pub struct ContextLocal<T: Send + Sync + 'static> {
     data: AppLocal<ContextLocalData<T>>,
-    init: fn() -> T,
 }
 impl<T: Send + Sync + 'static> ContextLocal<T> {
     #[doc(hidden)]
-    pub const fn new(storage: &'static dyn AppLocalImpl<ContextLocalData<T>>, init: fn() -> T) -> Self {
+    pub const fn new(storage: &'static dyn AppLocalImpl<ContextLocalData<T>>) -> Self {
         Self {
             data: AppLocal::new(storage),
-            init,
         }
     }
+
+    fn key(&self) -> TypeId {
+        self.data.read().key
+    }
+
     /// Calls `f` with the `value` loaded in context.
     ///
     /// The `value` is moved in context, `f` is called, then restores the `value`.
     ///
     /// # Panics
     ///
-    /// If `value` is `None`. Note that if `T: Option<I>` you can use [`with_context_opt`].
-    ///
-    /// If no app is running, see [`App::is_running`] for more details.
-    ///
-    /// [`with_context_opt`]: Self::with_context_opt
-    /// [`App::is_running`]: crate::app::App::is_running
-    pub fn with_context<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R {
+    /// Panics if `value` is `None`.
+    pub fn with_context<R>(&'static self, value: &mut Option<Arc<T>>, f: impl FnOnce() -> R) -> R {
         #[cfg(dyn_closure)]
         let f: Box<dyn FnOnce() -> R> = Box::new(f);
-        self.with_context_impl(value, f)
-    }
-    fn with_context_impl<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R {
-        let new_value = value.take().expect("no override provided");
-        let thread_id = std::thread::current().id();
-
-        let prev_value;
-
-        let mut write = self.data.write();
-        if let Some(i) = write.values.iter_mut().position(|(id, _)| *id == thread_id) {
-            // already contextualized in this thread
-
-            prev_value = mem::replace(&mut write.values[i].1, new_value);
-
-            drop(write);
-
-            let _restore = RunOnDrop::new(move || {
-                let mut write = self.data.write();
-                let i = write.values.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
-                *value = Some(mem::replace(&mut write.values[i].1, prev_value));
-            });
-
-            f()
-        } else {
-            // first contextualization in this thread
-            write.values.push((thread_id, new_value));
-
-            drop(write);
-
-            let _restore = RunOnDrop::new(move || {
-                let mut write = self.data.write();
-                let i = write.values.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
-                *value = Some(write.values.swap_remove(i).1);
-            });
-
-            f()
-        }
+        LocalContext::with_value_ctx(self, value, f)
     }
 
-    /// Calls  `f` with the `value` loaded in context, even if it is `None`.
-    ///
-    /// This behave similar to [`with_context`], but where `T: Option<I>`.
-    ///
-    /// [`with_context`]: Self::with_context
-    pub fn with_context_opt<R, I: Send + Sync + 'static>(&'static self, value: &mut Option<I>, f: impl FnOnce() -> R) -> R
-    where
-        T: option::Option<I>,
-    {
+    /// Calls `f` with no value loaded in context.
+    pub fn with_default<R>(&'static self, f: impl FnOnce() -> R) -> R {
         #[cfg(dyn_closure)]
         let f: Box<dyn FnOnce() -> R> = Box::new(f);
-        self.with_context_opt_impl(value, f)
+        LocalContext::with_default_ctx(self, f)
     }
-    fn with_context_opt_impl<R, I: Send + Sync + 'static>(&'static self, value: &mut Option<I>, f: impl FnOnce() -> R) -> R
-    where
-        T: option::Option<I>,
-    {
-        let new_value: T = option::Option::cast(value.take());
-        let thread_id = std::thread::current().id();
 
-        let prev_value;
+    /// Gets if no value is set in the context.
+    pub fn is_default(&'static self) -> bool {
+        let cl = self.data.read();
+        !LocalContext::contains(cl.key)
+    }
 
-        let mut write = self.data.write();
-        if let Some(i) = write.values.iter_mut().position(|(id, _)| *id == thread_id) {
-            // already contextualized in this thread
-
-            prev_value = mem::replace(&mut write.values[i].1, new_value);
-
-            drop(write);
-
-            let _restore = RunOnDrop::new(move || {
-                let mut write = self.data.write();
-                let i = write.values.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
-                *value = mem::replace(&mut write.values[i].1, prev_value).get_mut().take();
-            });
-
-            f()
-        } else {
-            // first contextualization in this thread
-            write.values.push((thread_id, new_value));
-
-            drop(write);
-
-            let _restore = RunOnDrop::new(move || {
-                let mut write = self.data.write();
-                let i = write.values.iter_mut().position(|(id, _)| *id == thread_id).unwrap();
-                *value = write.values.swap_remove(i).1.get_mut().take();
-            });
-
-            f()
+    /// Clone a reference to the current value in the context or the default value.
+    pub fn get(&'static self) -> Arc<T> {
+        let cl = self.data.read();
+        match LocalContext::get(cl.key) {
+            Some(c) => Arc::downcast(c).unwrap(),
+            None => match &cl.default_value {
+                Some(d) => d.clone(),
+                None => {
+                    drop(cl);
+                    let mut cl = self.data.write();
+                    match &cl.default_value {
+                        None => {
+                            let d = Arc::new((cl.default_init)());
+                            cl.default_value = Some(d.clone());
+                            d
+                        }
+                        Some(d) => d.clone(),
+                    }
+                }
+            },
         }
     }
 
-    /// Lock the context local for read.
+    /// Calls `f` with a mutable reference to the value in context.
     ///
-    /// The value can be read locked more than once at the same time, including on the same thread. While the
-    /// read guard is alive calls to [`with_context`] and [`write`] are blocked.
+    /// The value is cloned only if it is shared and ends up inserted in the context if was not already there.
     ///
-    /// [`with_context`]: Self::with_context
-    /// [`write`]: Self::write
-    pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
-        let read = self.data.read();
-        self.read_impl(read)
-    }
-
-    /// Try lock the context local for read.
+    /// # Panics
     ///
-    /// The value can be read locked more than once at the same time, including on the same thread. While the
-    /// read guard is alive calls to [`with_context`] and [`write`] are blocked.
-    ///
-    /// [`with_context`]: Self::with_context
-    /// [`write`]: Self::write
-    pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
-        let read = self.data.try_read()?;
-        Some(self.read_impl(read))
-    }
-
-    fn read_impl(&'static self, read: MappedRwLockReadGuard<'static, ContextLocalData<T>>) -> MappedRwLockReadGuard<T> {
-        for thread_id in ThreadContext::capture().context().iter().rev() {
-            if let Some(i) = read.values.iter().position(|(id, _)| id == thread_id) {
-                // contextualized in thread or task parent thread.
-                return MappedRwLockReadGuard::map(read, move |v| &v.values[i].1);
-            }
-        }
-
-        if read.default.is_some() {
-            return MappedRwLockReadGuard::map(read, move |v| v.default.as_ref().unwrap());
-        }
-        drop(read);
-
-        let mut write = self.data.write();
-        write.default = Some((self.init)());
-
-        drop(write);
-        let read = self.data.read();
-        MappedRwLockReadGuard::map(read, move |v| v.default.as_ref().unwrap())
-    }
-
-    /// Exclusive lock the context local for write.
-    ///
-    /// The value can only be locked once at the same time, deadlocks if called twice in the same thread, blocks calls
-    /// to [`with_context`] and [`write`].
-    ///
-    /// [`with_context`]: Self::with_context
-    /// [`write`]: Self::write
-    pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
-        let write = self.data.write();
-        self.write_impl(write)
-    }
-
-    /// Try to exclusive lock the context local for write.
-    ///
-    /// The value can only be locked once at the same time, deadlocks if called twice in the same thread, blocks calls
-    /// to [`with_context`] and [`write`].
-    ///
-    /// [`with_context`]: Self::with_context
-    /// [`write`]: Self::write
-    pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
-        let write = self.data.try_write()?;
-        Some(self.write_impl(write))
-    }
-
-    fn write_impl(&'static self, mut write: MappedRwLockWriteGuard<'static, ContextLocalData<T>>) -> MappedRwLockWriteGuard<T> {
-        for thread_id in ThreadContext::capture().context().iter().rev() {
-            if let Some(i) = write.values.iter().position(|(id, _)| id == thread_id) {
-                // contextualized in thread or task parent thread.
-                return MappedRwLockWriteGuard::map(write, move |v| &mut v.values[i].1);
-            }
-        }
-
-        if write.default.is_some() {
-            return MappedRwLockWriteGuard::map(write, |v| v.default.as_mut().unwrap());
-        }
-
-        write.default = Some((self.init)());
-
-        MappedRwLockWriteGuard::map(write, |v| v.default.as_mut().unwrap())
-    }
-
-    /// Get a clone of the current contextual value.
-    pub fn get(&'static self) -> T
+    /// Panics if any context locals try to read inside `f` in the same thread.
+    pub fn with_mut<R>(&'static self, f: impl FnOnce(&mut T) -> R) -> R
     where
         T: Clone,
     {
-        self.read().clone()
+        LocalContext::with_mut(self, f)
     }
 
-    /// Try to get a clone of the current contextual value.
-    ///
-    /// Returns `None` if a read lock cannot be acquired.
-    pub fn try_get(&'static self) -> Option<T>
-    where
-        T: Clone,
-    {
-        self.try_read().map(|l| l.clone())
-    }
-
-    /// Set the current contextual value.
-    ///
-    /// This changes the current contextual value or the **default value**.
-    pub fn set(&'static self, value: T) {
-        *self.write() = value;
-    }
-
-    /// Set the current contextual value.
-    ///
-    /// This changes the current contextual value or the **default value**.
-    pub fn try_set(&'static self, value: T) -> Result<(), T> {
-        match self.try_write() {
-            Some(mut l) => {
-                *l = value;
-                Ok(())
-            }
-            None => Err(value),
-        }
-    }
-
-    /// Create a read lock and `map` it to a sub-value.
-    pub fn read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> MappedRwLockReadGuard<O> {
-        MappedRwLockReadGuard::map(self.read(), map)
-    }
-
-    /// Try to create a read lock and `map` it to a sub-value.
-    pub fn try_wread_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> Option<MappedRwLockReadGuard<O>> {
-        let lock = self.try_read()?;
-        Some(MappedRwLockReadGuard::map(lock, map))
-    }
-
-    /// Create a write lock and `map` it to a sub-value.
-    pub fn write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> MappedRwLockWriteGuard<O> {
-        MappedRwLockWriteGuard::map(self.write(), map)
-    }
-
-    /// Try to create a write lock and `map` it to a sub-value.
-    pub fn try_write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> Option<MappedRwLockWriteGuard<O>> {
-        let lock = self.try_write()?;
-        Some(MappedRwLockWriteGuard::map(lock, map))
-    }
-
-    /// Dump current threads using this context.
-    #[cfg(debug_assertions)]
-    pub fn current_values(&'static self) -> Vec<(ThreadId, T)>
-    where
-        T: Clone,
-    {
-        self.data.read().values.clone()
+    /// Inserts or replaces the value in context.
+    pub fn set(&'static self, value: Arc<T>) {
+        LocalContext::set(self.key(), value);
     }
 }
 
@@ -1058,8 +884,12 @@ macro_rules! context_local_impl_single {
             fn init() -> $T {
                 std::convert::Into::into($init)
             }
-            static IMPL: $crate::context::AppLocalConst<$crate::context::ContextLocalData<$T>> = $crate::context::AppLocalConst::new($crate::context::ContextLocalData::new());
-            $crate::context::ContextLocal::new(&IMPL, init)
+            struct Key { }
+            static IMPL: $crate::context::AppLocalConst<$crate::context::ContextLocalData<$T>> =
+                $crate::context::AppLocalConst::new(
+                    $crate::context::ContextLocalData::new(std::any::TypeId::of::<Key>(), init)
+                );
+            $crate::context::ContextLocal::new(&IMPL)
         };
     )+};
 }
@@ -1076,8 +906,12 @@ macro_rules! context_local_impl_multi {
             fn init() -> $T {
                 std::convert::Into::into($init)
             }
-            static IMPL: $crate::context::AppLocalVec<$crate::context::ContextLocalData<$T>> = $crate::context::AppLocalVec::new($crate::context::ContextLocalData::new);
-            $crate::context::ContextLocal::new(&IMPL, init)
+            struct Key { }
+            static IMPL: $crate::context::AppLocalVec<$crate::context::ContextLocalData<$T>> =
+            $crate::context::AppLocalVec::new(
+                || $crate::context::ContextLocalData::new(std::any::TypeId::of::<Key>(), init)
+            );
+            $crate::context::ContextLocal::new(&IMPL)
         };
     )+};
 }
@@ -1090,27 +924,6 @@ pub use context_local_impl_multi as context_local_impl;
 #[doc(hidden)]
 pub use context_local_impl_single as context_local_impl;
 
-#[doc(hidden)]
-pub mod option {
-    pub trait Option<T> {
-        fn get(&self) -> &std::option::Option<T>;
-        fn get_mut(&mut self) -> &mut std::option::Option<T>;
-        fn cast(value: std::option::Option<T>) -> Self;
-    }
-
-    impl<T> Option<T> for std::option::Option<T> {
-        fn get(&self) -> &std::option::Option<T> {
-            self
-        }
-        fn get_mut(&mut self) -> &mut std::option::Option<T> {
-            self
-        }
-        fn cast(value: std::option::Option<T>) -> Self {
-            value
-        }
-    }
-}
-
 /// Helper for declaring nodes that sets a [`ContextLocal`].
 pub fn with_context_local<T: Any + Send + Sync + 'static>(
     child: impl UiNode,
@@ -1120,7 +933,7 @@ pub fn with_context_local<T: Any + Send + Sync + 'static>(
     #[ui_node(struct WithContextLocalNode<T: Any + Send + Sync + 'static> {
         child: impl UiNode,
         context: &'static ContextLocal<T>,
-        value: RefCell<Option<T>>,
+        value: RefCell<Option<Arc<T>>>,
     })]
     impl WithContextLocalNode {
         fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
@@ -1181,6 +994,6 @@ pub fn with_context_local<T: Any + Send + Sync + 'static>(
     WithContextLocalNode {
         child,
         context,
-        value: RefCell::new(Some(value.into())),
+        value: RefCell::new(Some(Arc::new(value.into()))),
     }
 }

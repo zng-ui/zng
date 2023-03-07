@@ -3,11 +3,11 @@ use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
 };
 
-use crate::context::ThreadContext;
+use crate::context::LocalContext;
 
 /// Extends [`ParallelIterator`] with thread context.
 pub trait ParallelIteratorExt: ParallelIterator {
-    /// Captures the current [`ThreadContext`] and propagates it to all rayon tasks
+    /// Captures the current [`LocalContext`] and propagates it to all rayon tasks
     /// generated running this parallel iterator.
     ///
     /// Without this adapter all closures in the iterator chain that use [`context_local!`] and
@@ -18,7 +18,7 @@ pub trait ParallelIteratorExt: ParallelIterator {
     fn with_ctx(self) -> ParallelIteratorWithCtx<Self> {
         ParallelIteratorWithCtx {
             base: self,
-            ctx: ThreadContext::capture(),
+            ctx: LocalContext::capture(),
         }
     }
 }
@@ -30,7 +30,7 @@ impl<I: ParallelIterator> ParallelIteratorExt for I {}
 /// See [`ParallelIteratorExt`] for more details.
 pub struct ParallelIteratorWithCtx<I> {
     base: I,
-    ctx: ThreadContext,
+    ctx: LocalContext,
 }
 impl<T, I> ParallelIterator for ParallelIteratorWithCtx<I>
 where
@@ -78,7 +78,7 @@ impl<I: IndexedParallelIterator> IndexedParallelIterator for ParallelIteratorWit
 
 struct ParallelCtxConsumer<C> {
     base: C,
-    ctx: ThreadContext,
+    ctx: LocalContext,
 }
 impl<T, C> Consumer<T> for ParallelCtxConsumer<C>
 where
@@ -140,7 +140,7 @@ where
 
 struct ParallelCtxFolder<F> {
     base: F,
-    ctx: ThreadContext,
+    ctx: LocalContext,
 }
 impl<Item, F> Folder<Item> for ParallelCtxFolder<F>
 where
@@ -164,7 +164,7 @@ where
 
 struct ParallelCtxReducer<R> {
     base: R,
-    ctx: ThreadContext,
+    ctx: LocalContext,
 }
 impl<Result, R> Reducer<Result> for ParallelCtxReducer<R>
 where
@@ -177,7 +177,7 @@ where
 
 struct ParallelCtxProducerCallback<C> {
     base: C,
-    ctx: ThreadContext,
+    ctx: LocalContext,
 }
 impl<T, C: ProducerCallback<T>> ProducerCallback<T> for ParallelCtxProducerCallback<C> {
     type Output = C::Output;
@@ -196,7 +196,7 @@ impl<T, C: ProducerCallback<T>> ProducerCallback<T> for ParallelCtxProducerCallb
 
 struct ParallelCtxProducer<P> {
     base: P,
-    ctx: ThreadContext,
+    ctx: LocalContext,
 }
 impl<P: Producer> Producer for ParallelCtxProducer<P> {
     type Item = P::Item;
@@ -244,7 +244,7 @@ mod tests {
         let thread_id = std::thread::current().id();
         let used_other_thread = Arc::new(AtomicBool::new(false));
 
-        let sum: u32 = VALUE.with_context(&mut Some(1), || {
+        let sum: u32 = VALUE.with_context(&mut Some(Arc::new(1)), || {
             (0..1000)
                 .into_par_iter()
                 .with_ctx()
@@ -252,7 +252,7 @@ mod tests {
                     if thread_id != std::thread::current().id() {
                         used_other_thread.store(true, Ordering::Relaxed);
                     }
-                    VALUE.get()
+                    *VALUE.get()
                 })
                 .sum()
         });
@@ -267,13 +267,13 @@ mod tests {
         let thread_id = std::thread::current().id();
         let used_other_thread = Arc::new(AtomicBool::new(false));
 
-        let sum: u32 = VALUE.with_context(&mut Some(1), || {
+        let sum: u32 = VALUE.with_context(&mut Some(Arc::new(1)), || {
             let sum = Arc::new(AtomicU32::new(0));
             (0..1000).into_par_iter().with_ctx().for_each(|_| {
                 if thread_id != std::thread::current().id() {
                     used_other_thread.store(true, Ordering::Relaxed);
                 }
-                sum.fetch_add(VALUE.get(), Ordering::Relaxed);
+                sum.fetch_add(*VALUE.get(), Ordering::Relaxed);
             });
             sum.load(Ordering::Relaxed)
         });
@@ -288,7 +288,7 @@ mod tests {
         let thread_id = std::thread::current().id();
         let used_other_thread = Arc::new(AtomicBool::new(false));
 
-        let sum: u32 = VALUE.with_context(&mut Some(1), || {
+        let sum: u32 = VALUE.with_context(&mut Some(Arc::new(1)), || {
             let sum = Arc::new(AtomicU32::new(0));
 
             let a = (0..500).into_par_iter();
@@ -298,7 +298,7 @@ mod tests {
                 if thread_id != std::thread::current().id() {
                     used_other_thread.store(true, Ordering::Relaxed);
                 }
-                sum.fetch_add(VALUE.get(), Ordering::Relaxed);
+                sum.fetch_add(*VALUE.get(), Ordering::Relaxed);
             });
             sum.load(Ordering::Relaxed)
         });
@@ -313,7 +313,7 @@ mod tests {
         let thread_id = std::thread::current().id();
         let used_other_thread = Arc::new(AtomicBool::new(false));
 
-        let sum: u32 = VALUE.with_context(&mut Some(1), || {
+        let sum: u32 = VALUE.with_context(&mut Some(Arc::new(1)), || {
             let sum = Arc::new(AtomicU32::new(0));
 
             let a = (0..500).into_par_iter().with_ctx();
@@ -323,7 +323,7 @@ mod tests {
                 if thread_id != std::thread::current().id() {
                     used_other_thread.store(true, Ordering::Relaxed);
                 }
-                sum.fetch_add(VALUE.get(), Ordering::Relaxed);
+                sum.fetch_add(*VALUE.get(), Ordering::Relaxed);
             });
             sum.load(Ordering::Relaxed)
         });

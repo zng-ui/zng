@@ -3,10 +3,10 @@
 //! Use [`run`], [`respond`] or [`spawn`] to run parallel tasks, use [`wait`], [`io`] and [`fs`] to unblock
 //! IO operations, use [`http`] for async HTTP, and use [`ui`] to create async properties.
 //!
-//! All functions of this module propagate the [`ThreadContext`].
+//! All functions of this module propagate the [`LocalContext`].
 //!
 //! This module also re-exports the [`rayon`] and [`parking_lot`] crates for convenience. You can use the
-//! [`ParallelIteratorExt::with_ctx`] adapter in rayon iterators to propagate the [`ThreadContext`]. You can
+//! [`ParallelIteratorExt::with_ctx`] adapter in rayon iterators to propagate the [`LocalContext`]. You can
 //! also use [`join`] to propagate thread context for a raw rayon join operation.
 //!
 //! # Examples
@@ -130,7 +130,7 @@
 //! futures in the runtime.
 //!
 //! External tasks also don't propagate the thread context, if you want access to app services or want to set vars inside external
-//! parallel closures you must capture and load the [`ThreadContext`] manually.
+//! parallel closures you must capture and load the [`LocalContext`] manually.
 //!
 //! [`isahc`]: https://docs.rs/isahc
 //! [`AppExtension`]: crate::app::AppExtension
@@ -159,7 +159,7 @@ pub use parking_lot;
 use parking_lot::Mutex;
 
 use crate::{
-    context::ThreadContext,
+    context::LocalContext,
     crate_util::{panic_str, PanicResult},
     units::Deadline,
     var::{response_channel, ResponseVar, VarValue},
@@ -258,7 +258,7 @@ where
 
     // A future that is its own waker that polls inside the rayon primary thread-pool.
     struct RayonTask {
-        ctx: ThreadContext,
+        ctx: LocalContext,
         fut: Mutex<Option<Fut>>,
     }
     impl RayonTask {
@@ -291,7 +291,7 @@ where
     }
 
     Arc::new(RayonTask {
-        ctx: ThreadContext::capture(),
+        ctx: LocalContext::capture(),
         fut: Mutex::new(Some(Box::pin(task))),
     })
     .poll()
@@ -299,7 +299,7 @@ where
 
 /// Rayon join with thread context.
 ///
-/// This function captures the [`ThreadContext`] of the calling thread and propagates it to the threads that run the
+/// This function captures the [`LocalContext`] of the calling thread and propagates it to the threads that run the
 /// operations.
 ///
 /// See [`rayon::join`] for more details about join.
@@ -315,7 +315,7 @@ where
 
 /// Rayon join with thread context.
 ///
-/// This function captures the [`ThreadContext`] of the calling thread and propagates it to the threads that run the
+/// This function captures the [`LocalContext`] of the calling thread and propagates it to the threads that run the
 /// operations.
 ///
 /// See [`rayon::join_context`] for more details about join.
@@ -326,7 +326,7 @@ where
     RA: Send,
     RB: Send,
 {
-    let ctx = ThreadContext::capture();
+    let ctx = LocalContext::capture();
     let ctx = &ctx;
     rayon::join_context(
         move |a| {
@@ -348,7 +348,7 @@ where
 
 /// Rayon scope with thread context.
 ///
-/// This function captures the [`ThreadContext`] of the calling thread and propagates it to the threads that run the
+/// This function captures the [`LocalContext`] of the calling thread and propagates it to the threads that run the
 /// operations.
 ///
 /// See [`rayon::scope`] for more details about scope.
@@ -357,7 +357,7 @@ where
     OP: FnOnce(ScopeCtx<'_, 'scope>) -> R + Send,
     R: Send,
 {
-    let ctx = ThreadContext::capture();
+    let ctx = LocalContext::capture();
 
     // Cast `&'_ ctx` to `&'scope ctx` to "inject" the context in the scope.
     // Is there a better way to do this? I hope so.
@@ -365,8 +365,8 @@ where
     // SAFETY:
     //  * We are extending `'_` to `'scope`, that is one of the documented valid usages of `transmute`.
     //  * No use after free because `rayon::scope` joins all threads before returning and we only drop `ctx` after.
-    let ctx_ref: &'_ ThreadContext = &ctx;
-    let ctx_scope_ref: &'scope ThreadContext = unsafe { std::mem::transmute(ctx_ref) };
+    let ctx_ref: &'_ LocalContext = &ctx;
+    let ctx_scope_ref: &'scope LocalContext = unsafe { std::mem::transmute(ctx_ref) };
 
     let r = rayon::scope(move |s| {
         op(ScopeCtx {
@@ -386,7 +386,7 @@ where
 #[derive(Clone, Copy, Debug)]
 pub struct ScopeCtx<'a, 'scope: 'a> {
     scope: &'a rayon::Scope<'scope>,
-    ctx: &'scope ThreadContext,
+    ctx: &'scope LocalContext,
 }
 impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
     /// Spawns a job into the fork-join scope `self`. The job runs in the captured thread context.
@@ -492,7 +492,7 @@ where
 
     // A future that is its own waker that polls inside the rayon primary thread-pool.
     struct RayonCatchTask<R> {
-        ctx: ThreadContext,
+        ctx: LocalContext,
         fut: Mutex<Option<Fut<R>>>,
         sender: flume::Sender<PanicResult<R>>,
     }
@@ -539,7 +539,7 @@ where
     let (sender, receiver) = channel::bounded(1);
 
     Arc::new(RayonCatchTask {
-        ctx: ThreadContext::capture(),
+        ctx: LocalContext::capture(),
         fut: Mutex::new(Some(Box::pin(task))),
         sender: sender.into(),
     })
@@ -666,7 +666,7 @@ where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
 {
-    let ctx = ThreadContext::capture();
+    let mut ctx = LocalContext::capture();
     blocking::unblock(move || ctx.with_context(move || panic::catch_unwind(panic::AssertUnwindSafe(task)))).await
 }
 

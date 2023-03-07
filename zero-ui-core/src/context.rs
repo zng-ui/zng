@@ -3,7 +3,7 @@
 use std::{fmt, mem, sync::Arc, task::Waker};
 
 use linear_map::set::LinearSet;
-use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex};
+use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, RwLock};
 
 mod state;
 pub use state::*;
@@ -44,29 +44,34 @@ bitflags! {
 struct WindowCtxData {
     id: WindowId,
     mode: WindowMode,
-    state: OwnedStateMap<WINDOW>,
-    widget_tree: Option<WidgetInfoTree>,
+    state: RwLock<OwnedStateMap<WINDOW>>,
+    widget_tree: RwLock<Option<WidgetInfoTree>>,
 
     #[cfg(any(test, doc, feature = "test_util"))]
-    frame_id: crate::render::FrameId,
+    frame_id: Mutex<crate::render::FrameId>,
+}
+impl WindowCtxData {
+    fn no_context() -> Self {
+        panic!("no window in context")
+    }    
 }
 
 /// Defines the backing data of [`WINDOW`].
 ///
 /// Each window owns this data and calls [`WINDOW.with_context`](WINDOW::with_context) to delegate to it's child node.
-pub struct WindowCtx(Mutex<Option<WindowCtxData>>);
+pub struct WindowCtx(Mutex<Option<Arc<WindowCtxData>>>);
 impl WindowCtx {
     /// New window context.
     pub fn new(id: WindowId, mode: WindowMode) -> Self {
-        Self(Mutex::new(Some(WindowCtxData {
+        Self(Mutex::new(Some(Arc::new(WindowCtxData {
             id,
             mode,
-            state: OwnedStateMap::default(),
-            widget_tree: None,
+            state: RwLock::new(OwnedStateMap::default()),
+            widget_tree: RwLock::new(None),
 
             #[cfg(any(test, doc, feature = "test_util"))]
-            frame_id: crate::render::FrameId::first(),
-        })))
+            frame_id: Mutex::new(crate::render::FrameId::first()),
+        }))))
     }
 
     /// Sets the widget tree, must be called after every info update.
@@ -74,7 +79,7 @@ impl WindowCtx {
     /// Window contexts are partially available in the window new closure, but values like the `widget_tree` is
     /// available on init, so a [`WidgetInfoTree::wgt`] must be set as soon as the window and widget ID are available.
     pub fn set_widget_tree(&mut self, widget_tree: WidgetInfoTree) {
-        self.0.get_mut().as_mut().unwrap().widget_tree = Some(widget_tree);
+        *self.0.get_mut().as_mut().unwrap().widget_tree.write() = Some(widget_tree);
     }
 
     /// Gets the window ID.
@@ -89,12 +94,7 @@ impl WindowCtx {
 
     /// Gets the window tree.
     pub fn widget_tree(&self) -> WidgetInfoTree {
-        self.0.lock().as_ref().unwrap().widget_tree.as_ref().unwrap().clone()
-    }
-
-    /// Gets the window state.
-    pub fn state(&mut self) -> &mut OwnedStateMap<WINDOW> {
-        &mut self.0.get_mut().as_mut().unwrap().state
+        self.0.lock().as_ref().unwrap().widget_tree.read().as_ref().unwrap().clone()
     }
 }
 
@@ -110,6 +110,10 @@ struct WidgetCtxData {
     render_reuse: Option<ReuseRange>,
 }
 impl WidgetCtxData {
+    fn no_context() -> Self {
+        panic!("no widget in context")
+    } 
+
     fn take_flag(&mut self, flag: UpdateFlags) -> bool {
         let c = self.flags.contains(flag);
         self.flags.remove(flag);
@@ -305,8 +309,8 @@ impl WidgetCtx {
 }
 
 context_local! {
-    static WINDOW_CTX: Option<WindowCtxData> = None;
-    static WIDGET_CTX: Option<WidgetCtxData> = None;
+    static WINDOW_CTX: WindowCtxData = WindowCtxData::no_context();
+    static WIDGET_CTX: WidgetCtxData = WidgetCtxData::no_context();
 }
 
 /// Current context window.
@@ -326,59 +330,43 @@ impl WINDOW {
             Some(c) => UpdatesTrace::window_span(c.id),
             None => panic!("window is required"),
         };
-        WINDOW_CTX.with_context_opt(&mut ctx, f)
+        WINDOW_CTX.with_context(&mut ctx, f)
     }
 
     /// Calls `f` while no window is available in the context.
     pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
-        WINDOW_CTX.with_context_opt(&mut None, f)
+        WINDOW_CTX.with_default(f)
     }
 
     /// Returns `true` if called inside a window.
     pub fn is_in_window(&self) -> bool {
-        WINDOW_CTX.read().is_some()
-    }
-
-    #[track_caller]
-    fn req(&self) -> MappedRwLockReadGuard<'static, WindowCtxData> {
-        let read = WINDOW_CTX.read();
-        if read.is_none() {
-            // validate before map to track_caller
-            panic!("no window in context")
-        }
-        MappedRwLockReadGuard::map(read, |c| c.as_ref().unwrap())
-    }
-
-    #[track_caller]
-    fn req_mut(&self) -> MappedRwLockWriteGuard<'static, WindowCtxData> {
-        let write = WINDOW_CTX.write();
-        if write.is_none() {
-            // validate before map to track_caller
-            panic!("no window in context")
-        }
-        MappedRwLockWriteGuard::map(write, |c| c.as_mut().unwrap())
+        !WINDOW_CTX.is_default()
     }
 
     /// Get the widget ID, if called inside a window.
     pub fn try_id(&self) -> Option<WindowId> {
-        WINDOW_CTX.read().as_ref().map(|c| c.id)
+        if WINDOW_CTX.is_default() {
+            None
+        } else {
+            Some(WINDOW_CTX.get().id)
+        }
     }
 
     /// Get the widget ID if called inside a widget, or panic.
     pub fn id(&self) -> WindowId {
-        self.req().id
+        WINDOW_CTX.get().id
     }
 
     /// Get the window mode.
     pub fn mode(&self) -> WindowMode {
-        self.req().mode
+        WINDOW_CTX.get().mode
     }
 
     /// Gets the window info tree.
     ///
     /// Returns `None` if the window is not inited, panics if called outside of a window or window init closure.
     pub fn widget_tree(&self) -> WidgetInfoTree {
-        self.req().widget_tree.clone().expect("window not init")
+        WINDOW_CTX.get().widget_tree.read().clone().expect("window not init")
     }
 
     /// Calls `f` with a read lock on the current window state map.
@@ -386,7 +374,7 @@ impl WINDOW {
     /// Note that this locks the entire [`WINDOW`], this is an entry point for widget extensions and must
     /// return as soon as possible. A common pattern is cloning the stored value.
     pub fn with_state<R>(&self, f: impl FnOnce(StateMapRef<WINDOW>) -> R) -> R {
-        f(self.req().state.borrow())
+        f(WINDOW_CTX.get().state.read().borrow())
     }
 
     /// Calls `f` with a write lock on the current window state map.
@@ -394,7 +382,7 @@ impl WINDOW {
     /// Note that this locks the entire [`WINDOW`], this is an entry point for widget extensions and must
     /// return as soon as possible. A common pattern is cloning the stored value.
     pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<WINDOW>) -> R) -> R {
-        f(self.req_mut().state.borrow_mut())
+        f(WINDOW_CTX.get().state.write().borrow_mut())
     }
 
     /// Get the window state `id`, if it is set.
@@ -496,7 +484,7 @@ impl WINDOW {
         );
         content.info(&mut info);
         let tree = info.finalize().0;
-        WINDOW.req_mut().widget_tree = Some(tree);
+        *WINDOW_CTX.get().widget_tree.write() = Some(tree);
         UPDATES.apply()
     }
 
@@ -557,17 +545,17 @@ impl WINDOW {
         use crate::render::*;
 
         let mut frame = {
-            let mut win = WINDOW.req_mut();
-            let wgt = WIDGET.req();
+            let win = WINDOW_CTX.get();
+            let wgt = WIDGET_CTX.get();
 
-            let frame_id = win.frame_id;
-            win.frame_id = frame_id.next();
+            let mut frame_id = win.frame_id.lock();
+            *frame_id = frame_id.next();
 
             FrameBuilder::new_renderless(
-                frame_id,
+                *frame_id,
                 wgt.id,
                 &wgt.bounds,
-                win.widget_tree.as_ref().unwrap(),
+                win.widget_tree.read().as_ref().unwrap(),
                 1.fct(),
                 crate::text::FontAntiAliasing::Default,
                 None,
@@ -578,7 +566,7 @@ impl WINDOW {
             content.render(frame);
         });
 
-        let tree = WINDOW.req().widget_tree.as_ref().unwrap().clone();
+        let tree = WINDOW_CTX.get().widget_tree.read().as_ref().unwrap().clone();
         let f = frame.finalize(&tree).0;
 
         (f, UPDATES.apply())
@@ -591,19 +579,19 @@ impl WINDOW {
         use crate::render::*;
 
         let mut update = {
-            let mut win = WINDOW.req_mut();
-            let wgt = WIDGET.req();
+            let win = WINDOW_CTX.get();
+            let wgt = WIDGET_CTX.get();
 
-            let frame_id = win.frame_id;
-            win.frame_id = frame_id.next_update();
+            let mut frame_id = win.frame_id.lock();
+            *frame_id = frame_id.next_update();
 
-            FrameUpdate::new(frame_id, wgt.id, wgt.bounds.clone(), None, crate::color::RenderColor::BLACK, None)
+            FrameUpdate::new(*frame_id, wgt.id, wgt.bounds.clone(), None, crate::color::RenderColor::BLACK, None)
         };
 
         update.update_inner(self.test_root_translation_key(), false, |update| {
             content.render_update(update);
         });
-        let tree = WINDOW.req().widget_tree.as_ref().unwrap().clone();
+        let tree = WINDOW_CTX.widget_tree.read().as_ref().unwrap().clone();
         let f = update.finalize(&tree).0;
 
         (f, UPDATES.apply())

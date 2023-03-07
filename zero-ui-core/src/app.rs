@@ -590,7 +590,7 @@ impl App {
     ///
     /// You can use [`app_local!`] to create *static* resources that live for the app lifetime.
     pub fn is_running() -> bool {
-        ThreadContext::current_app().is_some()
+        LocalContext::current_app().is_some()
     }
 
     /// Gets an unique ID for the current app.
@@ -599,7 +599,7 @@ impl App {
     /// Resources that interact with [`app_local!`] values can use this ID to ensure that they are still operating in the same
     /// app.
     pub fn current_id() -> Option<AppId> {
-        ThreadContext::current_app()
+        LocalContext::current_app()
     }
 
     #[cfg(not(feature = "multi_app"))]
@@ -702,7 +702,7 @@ impl App {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
-        let scope = ThreadContext::start_app(AppId::new_unique());
+        let scope = LocalContext::start_app(AppId::new_unique());
         AppExtended {
             extensions: (),
             view_process_exe: None,
@@ -747,7 +747,7 @@ impl App {
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
-        let scope = ThreadContext::start_app(AppId::new_unique());
+        let scope = LocalContext::start_app(AppId::new_unique());
         AppExtended {
             extensions: vec![],
             view_process_exe: None,
