@@ -4,8 +4,9 @@ use super::widget::empty_wgt;
 use crate::{
     app::App,
     context::WINDOW,
+    ui_vec, widget,
     widget_base::parallel,
-    widget_instance::{PanelList, UiNode, UiNodeList},
+    widget_instance::{PanelList, UiNode, UiNodeList, UiNodeVec},
 };
 
 #[test]
@@ -41,33 +42,79 @@ pub fn init_many() {
     assert!(threads.len() > 1);
 }
 
+#[test]
+pub fn nested_context() {
+    let _app = App::minimal().run_headless(false);
+    let mut test = list_wgt! {
+        parallel = true;
+        children = (0..1000)
+            .map(|_| {
+                list_wgt! {
+                    children = ui_vec![
+                        empty_wgt! {
+                            util::ctx_val = true;
+                            util::assert_ctx_val = true;
+                        },
+                        empty_wgt! {
+                            util::assert_ctx_val = false;
+                        }
+                    ];
+                }
+            })
+            .collect::<UiNodeVec>();
+    };
+
+    WINDOW.with_test_context(|| {
+        WINDOW.test_init(&mut test);
+    });
+}
+
+#[widget($crate::tests::ui_node_list::list_wgt)]
+pub mod list_wgt {
+    use crate::widget_base;
+
+    inherit!(widget_base::base);
+
+    properties! {
+        pub widget_base::children;
+    }
+
+    fn include(wgt: &mut crate::widget_builder::WidgetBuilder) {
+        wgt.push_build_action(|wgt| {
+            let child = super::util::list_node(wgt.capture_ui_node_list_or_empty(crate::property_id!(self::children)));
+            wgt.set_child(child);
+        });
+    }
+}
+
 mod util {
-    use std::thread::ThreadId;
+    use std::thread::{self, ThreadId};
 
     use crate::{
-        context::{StaticStateId, WIDGET},
-        property, ui_node,
+        context::{with_context_local, StaticStateId, WIDGET},
+        context_local, property, ui_node,
+        units::*,
         var::IntoValue,
-        widget_instance::UiNode,
+        widget_instance::{UiNode, UiNodeList},
     };
 
     pub use super::super::widget::util::*;
 
     #[property(CONTEXT)]
     pub fn log_init_thread(child: impl UiNode, enabled: impl IntoValue<bool>) -> impl UiNode {
-        #[ui_node(struct ThreadNode {
+        #[ui_node(struct LogNode {
             child: impl UiNode,
             enabled: bool,
         })]
-        impl UiNode for ThreadNode {
+        impl UiNode for LogNode {
             fn init(&mut self) {
                 self.child.init();
                 if self.enabled {
-                    WIDGET.set_state(&INIT_THREAD_ID, std::thread::current().id());
+                    WIDGET.set_state(&INIT_THREAD_ID, thread::current().id());
                 }
             }
         }
-        ThreadNode {
+        LogNode {
             child,
             enabled: enabled.into(),
         }
@@ -79,4 +126,42 @@ mod util {
     }
 
     static INIT_THREAD_ID: StaticStateId<ThreadId> = StaticStateId::new_unique();
+
+    context_local! {
+        static CTX_VAL: bool = false;
+    }
+
+    #[property(CONTEXT, default(CTX_VAL.get()))]
+    pub fn ctx_val(child: impl UiNode, value: impl IntoValue<bool>) -> impl UiNode {
+        with_context_local(child, &CTX_VAL, value)
+    }
+
+    #[property(CHILD)]
+    pub fn assert_ctx_val(child: impl UiNode, expected: impl IntoValue<bool>) -> impl UiNode {
+        #[ui_node(struct AssertNode {
+            child: impl UiNode,
+            expected: bool,
+        })]
+        impl UiNode for AssertNode {
+            fn init(&mut self) {
+                self.child.init();
+
+                thread::sleep(1.ms());
+
+                assert_eq!(self.expected, CTX_VAL.get());
+            }
+        }
+        AssertNode {
+            child,
+            expected: expected.into(),
+        }
+    }
+
+    pub fn list_node(children: impl UiNodeList) -> impl UiNode {
+        #[ui_node(struct Node {
+            children: impl UiNodeList
+        })]
+        impl UiNode for Node {}
+        Node { children }
+    }
 }

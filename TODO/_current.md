@@ -26,5 +26,8 @@
 
 * Continue "#Parallel UI" in `./Performance.md`.
 
+* Window without child does not open.
+    - No layout request?
+
 * Review all docs.
     - Mentions of threads in particular.

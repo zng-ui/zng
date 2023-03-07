@@ -193,9 +193,9 @@ impl From<UiNodeVec> for Vec<BoxedUiNode> {
         vec.0
     }
 }
-impl FromIterator<BoxedUiNode> for UiNodeVec {
-    fn from_iter<T: IntoIterator<Item = BoxedUiNode>>(iter: T) -> Self {
-        Self(Vec::from_iter(iter))
+impl<U: UiNode> FromIterator<U> for UiNodeVec {
+    fn from_iter<T: IntoIterator<Item = U>>(iter: T) -> Self {
+        Self(Vec::from_iter(iter.into_iter().map(UiNode::boxed)))
     }
 }
 
