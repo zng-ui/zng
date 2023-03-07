@@ -89,14 +89,7 @@ impl<T: VarValue> ContextVar<T> {
     /// [contextualized]: types::ContextualizedVar
     pub fn with_context<R>(self, id: ContextInitHandle, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> (BoxedVar<T>, R) {
         let mut var = Some(var.into_var().actual_var().boxed());
-        let dbg = std::any::type_name::<T>().contains("FontNames");
-        if dbg {
-            println!("!!: with_context {:?} {{", std::thread::current().id());
-        } 
         let r = self.0.with_context(&mut var, move || id.with_context(action));
-        if dbg {
-            println!("!!: }} // {:?}", std::thread::current().id());
-        } 
         (var.unwrap(), r)
     }
 
