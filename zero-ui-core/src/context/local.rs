@@ -967,6 +967,15 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         let lock = self.try_write()?;
         Some(MappedRwLockWriteGuard::map(lock, map))
     }
+
+    /// Dump current threads using this context.
+    #[cfg(debug_assertions)]
+    pub fn current_values(&'static self) -> Vec<(ThreadId, T)>
+    where
+        T: Clone,
+    {
+        self.data.read().values.clone()
+    }
 }
 
 ///<span data-del-macro-root></span> Declares new app and context local variable.

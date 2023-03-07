@@ -192,6 +192,12 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
             let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
 
+            if text.chars().take(2).count() > 1 && faces.best().display_name().contains("Icon") {
+                println!("!!: {:?} used {:?}", text, faces.best().display_name());
+                println!("!!: {:?}", ThreadContext::capture());
+                println!("!!: {:?}\n", FONT_FAMILY_VAR.current_values());
+            }
+
             let editable = TEXT_EDITABLE_VAR.get();
             let caret_opacity = if editable && FOCUS.focused().get().map(|p| p.widget_id()) == Some(WIDGET.id()) {
                 let v = KEYBOARD.caret_animation();

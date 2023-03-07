@@ -92,6 +92,12 @@ impl<T: VarValue> ContextVar<T> {
         let r = self.0.with_context(&mut var, move || id.with_context(action));
         (var.unwrap(), r)
     }
+
+    /// Dump current threads using this context.
+    #[cfg(debug_assertions)]
+    pub fn current_values(self) -> Vec<(std::thread::ThreadId, T)> {
+        self.0.current_values().into_iter().map(|(t, v)| (t, v.get())).collect()
+    }
 }
 impl<T: VarValue> Copy for ContextVar<T> {}
 
