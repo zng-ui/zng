@@ -1477,7 +1477,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
 
     fn init_all(&mut self) {
         if PARALLEL_VAR.get().contains(Parallel::INIT) {
-            self.par_iter_mut().for_each(|l| l.init_all());
+            self.par_iter_mut().with_ctx().for_each(|l| l.init_all());
         } else {
             for l in self {
                 l.init_all();
