@@ -198,6 +198,15 @@ impl<U: UiNode> FromIterator<U> for UiNodeVec {
         Self(Vec::from_iter(iter.into_iter().map(UiNode::boxed)))
     }
 }
+impl IntoIterator for UiNodeVec {
+    type Item = BoxedUiNode;
+
+    type IntoIter = std::vec::IntoIter<BoxedUiNode>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
 impl UiNodeList for UiNodeVec {
     fn with_node<R, F>(&self, index: usize, f: F) -> R

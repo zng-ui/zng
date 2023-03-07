@@ -43,7 +43,7 @@ pub fn init_many() {
 }
 
 #[test]
-pub fn nested_context() {
+pub fn nested_par_each_ctx() {
     let _app = App::minimal().run_headless(false);
     let mut test = list_wgt! {
         parallel = true;
@@ -60,6 +60,31 @@ pub fn nested_context() {
                         }
                     ];
                 }
+            })
+            .collect::<UiNodeVec>();
+    };
+
+    WINDOW.with_test_context(|| {
+        WINDOW.test_init(&mut test);
+    });
+}
+
+#[test]
+pub fn par_each_ctx() {
+    let _app = App::minimal().run_headless(false);
+    let mut test = list_wgt! {
+        parallel = true;
+        children = (0..1000)
+            .flat_map(|_| {
+                ui_vec![
+                    empty_wgt! {
+                        util::ctx_val = true;
+                        util::assert_ctx_val = true;
+                    },
+                    empty_wgt! {
+                        util::assert_ctx_val = false;
+                    }
+                ]
             })
             .collect::<UiNodeVec>();
     };
