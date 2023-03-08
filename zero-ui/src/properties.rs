@@ -29,5 +29,9 @@ mod cursor_;
 #[doc(inline)]
 pub use cursor_::*;
 
+mod lazy_;
+#[doc(inline)]
+pub use lazy_::*;
+
 #[doc(inline)]
 pub use crate::core::widget_base::{hit_test_mode, interactive};
