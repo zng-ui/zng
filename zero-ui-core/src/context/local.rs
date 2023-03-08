@@ -895,15 +895,16 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 ///
 /// ```
 /// # use zero_ui_core::{context::context_local, app::App};
+/// # use std::sync::Arc;
 /// context_local! { static FOO: String = "default"; }
 ///
 /// fn print_value() {
-///     println!("value is {}!", FOO.read());
+///     println!("value is {}!", FOO.get());
 /// }
 ///
 /// let _scope = App::minimal();
 ///
-/// let mut value = Some(String::from("other"));
+/// let mut value = Some(Arc::new(String::from("other")));
 /// FOO.with_context(&mut value, || {
 ///     print!("in context, ");
 ///     print_value();

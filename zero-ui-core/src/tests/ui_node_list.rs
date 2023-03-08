@@ -4,8 +4,10 @@ use super::widget::empty_wgt;
 use crate::{
     app::App,
     context::WINDOW,
-    ui_vec, widget,
-    widget_base::parallel,
+    ui_vec,
+    var::ContextInitHandle,
+    widget,
+    widget_base::{parallel, PARALLEL_VAR},
     widget_instance::{PanelList, UiNode, UiNodeList, UiNodeVec},
 };
 
@@ -26,7 +28,9 @@ pub fn init_many() {
     let mut list = PanelList::new(list);
 
     WINDOW.with_test_context(|| {
-        list.init_all();
+        PARALLEL_VAR.with_context_var(ContextInitHandle::new(), true, || {
+            list.init_all();
+        })
     });
 
     let mut count = 0;
@@ -118,7 +122,6 @@ mod util {
     use crate::{
         context::{with_context_local, StaticStateId, WIDGET},
         context_local, property, ui_node,
-        units::*,
         var::IntoValue,
         widget_instance::{UiNode, UiNodeList},
     };
@@ -171,7 +174,7 @@ mod util {
             fn init(&mut self) {
                 self.child.init();
 
-                thread::sleep(1.ms());
+                // thread::sleep(1.ms());
 
                 assert_eq!(self.expected, *CTX_VAL.get());
             }
