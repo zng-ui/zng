@@ -1,15 +1,8 @@
-* Parallel init causes text to use wrong font. 
-    - Context read wrong value.
-    - See `issue.md`.
-* Parallel init slower then linear in `icon` example.
-    - Fine tuning parallel to only work in the icon chunks still slower.
-    - Single thread average init of `icon!` is 0.1ms. Parallel average is 0.8ms.
-            - Stuck in locks?
-            - Fix bugs first.
-    - Try implementing `context_local!` to use a `thread_local!` fast path?
-
-* Implement parallel image render.
+* Implement unblocking image render.
     - Test it in animation example.
+* Implement unblocking icon example loading.
+
+* Review if service locks are blocking parallel execution.
 
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
@@ -28,6 +21,9 @@
 
 * Window without child does not open.
     - No layout request?
+
+* `config` example with two windows sometimes does not update the other window.
+    - Try removing save file.
 
 * Review all docs.
     - Mentions of threads in particular.
