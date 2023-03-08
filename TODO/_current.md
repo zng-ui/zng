@@ -1,3 +1,9 @@
+* Implement `preload` property that shows an alternative content while the widget is init, layout and rendered for
+  the first time in background threads.
+  - While the widget is preloading it will not receive some events and updates, going out of sync.
+  - Background loading content can generate notifications talking about then-selves and services will not be able to actually find then.
+  - Try to implement lazy loading based on viewport first.
+
 * Parallelize more methods.
     - `info`: how to share the `&mut WidgetInfoBuilder`?
         - Or can we build in parallel and then merge?
@@ -15,6 +21,9 @@
             - Simpler than merging other builders.
             - Just need to figure out how to reuse then, right now we reuse alloc between updates.
 
+* Parallelize windows?
+    - Multiple window updates can happen in parallel.
+
 * Parallelize app extensions?
     - The API is careful to not change the order of updates.
     - Maybe extensions can provide their own `Parallel` selection.
@@ -25,12 +34,6 @@
     - Do we have extensions that depend on running after others?
         - With multiple priority update methods maybe we don't need it.
         - Review this.
-
-* Implement property that shows "loading" content while loading a large sub-tree up-to the first render request.
-    - The content is then swapped whey it is ready, updates after the init tend to be very light, is only
-      the init that is slow.
-    - Use this in `icon` example.
-    - Use this in image render?
 
 * Review if service locks are blocking parallel execution.
     - `FontFaceLoader::get_system` and `FontFace::load` are noticeable in release build traces.
