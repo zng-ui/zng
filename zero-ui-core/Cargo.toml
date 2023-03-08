@@ -54,7 +54,7 @@ test_util = ["multi_app", "deadlock_detection"]
 
 # Allows multiple app instances per-process.
 #
-# This feature allows multiple apps, one app per thread at a time. The `ThreadContext` tracks
+# This feature allows multiple apps, one app per thread at a time. The `LocalContext` tracks
 # what app is currently running in each thread and `app_local!` statics switch to the value of each app
 # depending on the current thread.
 #

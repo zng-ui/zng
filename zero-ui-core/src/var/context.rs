@@ -100,6 +100,7 @@ impl<T: VarValue> ContextVar<T> {
     /// method to avoid doing this in a hot path.
     ///
     /// [contextualized]: types::ContextualizedVar
+    /// [`with_context`]: Self::with_context
     pub fn with_context_var<R>(self, id: ContextInitHandle, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> R {
         let mut var = Some(Arc::new(var.into_var().actual_var().boxed()));
         self.with_context(id, &mut var, action)

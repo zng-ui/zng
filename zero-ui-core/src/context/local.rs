@@ -731,7 +731,7 @@ impl<T: Send + Sync + 'static> ContextLocalData<T> {
 
 /// Represents an [`AppLocal<T>`] value that can be temporarily overridden in a context.
 ///
-/// The *context* works across threads, as long as the threads are instrumented using [`ThreadContext`].
+/// The *context* works across threads, as long as the threads are instrumented using [`LocalContext`].
 ///
 /// Use the [`context_local!`] macro to declare a static variable in the same style as [`thread_local!`].
 pub struct ContextLocal<T: Send + Sync + 'static> {

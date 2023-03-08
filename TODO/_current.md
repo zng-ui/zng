@@ -11,10 +11,12 @@
     - Places that used the `WidgetContextPath` can maybe use `WIDGET.item(&self) -> WidgetInfo`.
     - Can change `WINDOW.widget_tree` to returns the tree directly, only one place can panic.
 
-* Review `ThreadContext` in disconnected parallel tasks like `task::spawn`.
+* Review `LocalContext` in disconnected parallel tasks like `task::spawn`.
     - Need to capture the app only?
+    - It causes the values to stay shared when going out-of-context in the widget that spawned.
+    - Not a problem exactly.
 
-* Implement tracing parent propagation in `ThreadContext`?
+* Implement tracing parent propagation in `LocalContext`?
     - https://github.com/wagnerf42/diam/blob/main/src/adaptors/log.rs
 
 * Continue "#Parallel UI" in `./Performance.md`.
