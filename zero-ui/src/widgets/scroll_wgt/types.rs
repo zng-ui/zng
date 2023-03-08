@@ -186,8 +186,7 @@ impl SCROLL {
         if smooth.is_disabled() {
             let _ = SCROLL_VERTICAL_OFFSET_VAR.set(new_offset);
         } else {
-            let mut config = SCROLL_CONFIG.write();
-            match &config.vertical {
+            SCROLL_CONFIG.with_mut(|config| match &config.vertical {
                 Some(anim) if !anim.handle.is_stopped() => {
                     anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.get());
                 }
@@ -196,7 +195,7 @@ impl SCROLL {
                     let anim = SCROLL_VERTICAL_OFFSET_VAR.chase_bounded(new_offset, smooth.duration, move |t| ease(t), 0.fct()..=1.fct());
                     config.vertical = Some(anim);
                 }
-            }
+            });
         }
     }
 
@@ -210,8 +209,7 @@ impl SCROLL {
         if smooth.is_disabled() {
             let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(new_offset);
         } else {
-            let mut config = SCROLL_CONFIG.write();
-            match &config.horizontal {
+            SCROLL_CONFIG.with_mut(|config| match &config.horizontal {
                 Some(anim) if !anim.handle.is_stopped() => {
                     anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.get());
                 }
@@ -220,7 +218,7 @@ impl SCROLL {
                     let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase_bounded(new_offset, smooth.duration, move |t| ease(t), 0.fct()..=1.fct());
                     config.horizontal = Some(anim);
                 }
-            }
+            });
         }
     }
 

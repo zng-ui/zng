@@ -3,6 +3,7 @@
 use std::{
     cell::{Cell, RefCell},
     fmt,
+    sync::Arc,
 };
 
 use font_features::FontVariations;
@@ -39,13 +40,22 @@ pub struct ResolvedText {
     baseline: Px,
 }
 impl ResolvedText {
-    /// Read lock the contextual resolved text.
+    fn no_context() -> Self {
+        panic!("no `ResolvedText` in context")
+    }
+
+    /// Gets if the current code has resolved text in context.
+    pub fn in_context() -> bool {
+        !RESOLVED_TEXT.is_default()
+    }
+
+    /// Get the current contextual resolved text.
     ///
-    /// The text can be read locked more than once at the same time, including on the same thread. The read lock
-    /// **must not** be held across node delegation, a nested text may be inserted by any child node and it needs write
-    /// access to setup its own context, if a read-lock is held it will deadlock.
-    pub fn read() -> crate::core::task::parking_lot::MappedRwLockReadGuard<'static, Option<ResolvedText>> {
-        RESOLVED_TEXT.read()
+    /// # Panics
+    ///
+    /// Panics if requested out of context.
+    pub fn get() -> Arc<ResolvedText> {
+        RESOLVED_TEXT.get()
     }
 }
 impl fmt::Debug for ResolvedText {
@@ -106,21 +116,26 @@ pub struct LayoutText {
     pub underline_thickness: Px,
 }
 impl LayoutText {
-    /// Read lock the contextual layout text.
-    ///
-    /// The text can be read locked more than once at the same time, including on the same thread. The read lock
-    /// **must not** be held across node delegation, a nested text may be inserted by any child node and it needs write
-    /// access to setup its own context, if a read-lock is held it will deadlock.
-    pub fn read() -> crate::core::task::parking_lot::MappedRwLockReadGuard<'static, Option<LayoutText>> {
-        LAYOUT_TEXT.read()
+    fn no_context() -> Self {
+        panic!("no `LayoutText` in context")
+    }
+
+    /// Gets if the current code has layout text in context.
+    pub fn in_context() -> bool {
+        !LAYOUT_TEXT.is_default()
+    }
+
+    /// Get the current contextual layout text.
+    pub fn get() -> Arc<LayoutText> {
+        LAYOUT_TEXT.get()
     }
 }
 
 context_local! {
     /// Represents the contextual [`ResolvedText`] setup by the [`resolve_text`] node.
-    static RESOLVED_TEXT: Option<ResolvedText> = None;
+    static RESOLVED_TEXT: ResolvedText = ResolvedText::no_context();
     /// Represents the contextual [`LayoutText`] setup by the [`layout_text`] node.
-    static LAYOUT_TEXT: Option<LayoutText> = None;
+    static LAYOUT_TEXT: LayoutText  = LayoutText::no_context();
 }
 
 /// An UI node that resolves the text context vars, applies the text transform and white space correction and segments the `text`.
@@ -672,12 +687,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
         fn ensure_layout_for_render(&mut self) {
             if self.txt_is_measured {
-                let mut write = RESOLVED_TEXT.write();
-                let t = write.as_mut().expect("expected `ResolvedText` in `render` or `render_update`");
-                let metrics = self.last_layout.0.clone();
-                self.shaping_args.inline_constrains = self.last_layout.1;
-                LAYOUT.with_context(metrics.clone(), || {
-                    self.layout(&metrics, t, false);
+                RESOLVED_TEXT.with_mut(|t| {
+                    let metrics = self.last_layout.0.clone();
+                    self.shaping_args.inline_constrains = self.last_layout.1;
+                    LAYOUT.with_context(metrics.clone(), || {
+                        self.layout(&metrics, t, false);
+                    });
                 });
                 debug_assert!(!self.txt_is_measured);
             }
@@ -806,10 +821,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if let Some(size) = txt.measure(&metrics) {
                 size
             } else {
-                let mut write = RESOLVED_TEXT.write();
-                let t = write.as_mut().expect("expected `ResolvedText` in `measure`");
+                let size = RESOLVED_TEXT.with_mut(|t| txt.layout(&metrics, t, true));
 
-                let size = txt.layout(&metrics, t, true);
                 if let (Some(inline), Some(l)) = (wm.inline(), txt.txt.as_ref()) {
                     if let Some(first_line) = l.shaped_text.first_line() {
                         inline.first = first_line.original_size();
@@ -856,12 +869,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let txt = self.txt.get_mut();
 
-            let mut write = RESOLVED_TEXT.write();
-            let t = write.as_mut().expect("expected `ResolvedText` in `layout`");
-
             let metrics = LAYOUT.metrics();
-
-            let size = txt.layout(&metrics, t, false);
+            let size = RESOLVED_TEXT.with_mut(|t| txt.layout(&metrics, t, false));
 
             if txt.pending != Layout::empty() {
                 WIDGET.render();
@@ -897,7 +906,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            wl.set_baseline(t.baseline);
+            let baseline = RESOLVED_TEXT.with_mut(|t| t.baseline);
+            wl.set_baseline(baseline);
 
             LAYOUT.with_constrains(
                 |_| PxConstrains2d::new_fill_size(size),
@@ -955,8 +965,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
 
         fn render(&self, frame: &mut FrameBuilder) {
             {
-                let read = LayoutText::read();
-                let t = read.as_ref().expect("expected `LayoutText` in `render_underlines`");
+                let t = LayoutText::get();
 
                 if !t.underlines.is_empty() {
                     let style = UNDERLINE_STYLE_VAR.get();
@@ -1001,8 +1010,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
 
         fn render(&self, frame: &mut FrameBuilder) {
             {
-                let read = LayoutText::read();
-                let t = read.as_ref().expect("expected `LayoutText` in `render_strikethroughs`");
+                let t = LayoutText::get();
                 if !t.strikethroughs.is_empty() {
                     let style = STRIKETHROUGH_STYLE_VAR.get();
                     if style != LineStyle::Hidden {
@@ -1046,8 +1054,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 
         fn render(&self, frame: &mut FrameBuilder) {
             {
-                let read = LayoutText::read();
-                let t = read.as_ref().expect("expected `LayoutText` in `render_overlines`");
+                let t = LayoutText::get();
                 if !t.overlines.is_empty() {
                     let style = OVERLINE_STYLE_VAR.get();
                     if style != LineStyle::Hidden {
@@ -1086,7 +1093,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
         fn init(&mut self) {
             self.color = if TEXT_EDITABLE_VAR.get() {
                 let mut c = CARET_COLOR_VAR.get();
-                c.alpha *= ResolvedText::read().as_ref().map(|t| t.caret_opacity.get().0).unwrap_or(0.0);
+                c.alpha *= ResolvedText::get().caret_opacity.get().0;
                 c
             } else {
                 rgba(0, 0, 0, 0)
@@ -1098,7 +1105,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
         fn update(&mut self, updates: &mut WidgetUpdates) {
             let color = if TEXT_EDITABLE_VAR.get() {
                 let mut c = CARET_COLOR_VAR.get();
-                c.alpha *= ResolvedText::read().as_ref().map(|t| t.caret_opacity.get().0).unwrap_or(0.0);
+                c.alpha *= ResolvedText::get().caret_opacity.get().0;
                 c
             } else {
                 rgba(0, 0, 0, 0)
@@ -1116,8 +1123,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             self.child.render(frame);
 
             if TEXT_EDITABLE_VAR.get() {
-                let read = LayoutText::read();
-                let t = read.as_ref().expect("expected `LayoutText` in `render_text`");
+                let t = LayoutText::get();
 
                 let mut clip_rect = PxRect::from_size(t.shaped_text.align_size());
                 clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
@@ -1182,10 +1188,8 @@ pub fn render_text() -> impl UiNode {
         }
 
         fn render(&self, frame: &mut FrameBuilder) {
-            let read = ResolvedText::read();
-            let r = read.as_ref().expect("expected `ResolvedText` in `render_text`");
-            let read = LayoutText::read();
-            let t = read.as_ref().expect("expected `LayoutText` in `render_text`");
+            let r = ResolvedText::get();
+            let t = LayoutText::get();
 
             let lh = t.shaped_text.line_height();
             let clip = PxRect::from_size(t.shaped_text.align_size()).inflate(lh, lh); // clip inflated to allow some weird glyphs

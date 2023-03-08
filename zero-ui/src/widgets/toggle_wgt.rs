@@ -305,7 +305,7 @@ pub mod toggle_properties {
         impl ValueNode {
             // Returns `true` if selected.
             fn select(value: &T) -> bool {
-                let selector = SELECTOR.read();
+                let selector = SELECTOR.get();
                 match selector.select(Box::new(value.clone())) {
                     Ok(()) => true,
                     Err(e) => {
@@ -324,7 +324,7 @@ pub mod toggle_properties {
 
             /// Returns `true` if deselected.
             fn deselect(value: &T) -> bool {
-                let selector = SELECTOR.read();
+                let selector = SELECTOR.get();
                 match selector.deselect(value) {
                     Ok(()) => true,
                     Err(e) => {
@@ -342,13 +342,13 @@ pub mod toggle_properties {
             }
 
             fn is_selected(value: &T) -> bool {
-                SELECTOR.read().is_selected(value)
+                SELECTOR.get().is_selected(value)
             }
 
             #[UiNode]
             fn init(&mut self) {
                 WIDGET.sub_var(&self.value).sub_var(&DESELECT_ON_NEW_VAR);
-                SELECTOR.read().subscribe();
+                SELECTOR.get().subscribe();
 
                 self.value.with(|value| {
                     let selected = if SELECT_ON_INIT_VAR.get() {

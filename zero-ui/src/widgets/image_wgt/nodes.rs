@@ -158,7 +158,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if IN_ERROR_VIEW.get() {
+            if IN_ERROR_VIEW.get_clone() {
                 // avoid recursion.
                 DataUpdate::None
             } else if is_new {
@@ -215,7 +215,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if IN_LOADING_VIEW.get() {
+            if IN_LOADING_VIEW.get_clone() {
                 // avoid recursion.
                 DataUpdate::None
             } else if is_new {

@@ -246,13 +246,11 @@ impl LAYERS {
                                     if let AnchorSize::InnerBorder = mode.size {
                                         cr = cr.deflate(border.offsets());
                                     }
-                                    CORNER_RADIUS_VAR
-                                        .with_context(
-                                            self.corner_radius_ctx_handle.get_or_insert_with(ContextInitHandle::new).clone(),
-                                            cr,
-                                            || BORDER.with_corner_radius(|| self.widget.layout(wl)),
-                                        )
-                                        .1
+                                    CORNER_RADIUS_VAR.with_context_var(
+                                        self.corner_radius_ctx_handle.get_or_insert_with(ContextInitHandle::new).clone(),
+                                        cr,
+                                        || BORDER.with_corner_radius(|| self.widget.layout(wl)),
+                                    )
                                 } else {
                                     self.widget.layout(wl)
                                 }

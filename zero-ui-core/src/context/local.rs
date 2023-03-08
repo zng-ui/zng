@@ -204,7 +204,7 @@ impl LocalContext {
         let local = local.data.read();
         LOCAL.with(|l| {
             let mut l = l.borrow_mut();
-            let entry = l.entry(local.key).or_insert_with(|| Arc::new((local.default_init)()));
+            let entry = l.entry((local.key)()).or_insert_with(|| Arc::new((local.default_init)()));
             match Arc::get_mut(entry) {
                 Some(v) => f(v.downcast_mut().unwrap()),
                 None => {
@@ -700,13 +700,13 @@ pub use app_local_impl_single as app_local_impl;
 
 #[doc(hidden)]
 pub struct ContextLocalData<T: Send + Sync + 'static> {
-    key: TypeId,
+    key: fn() -> TypeId,
     default_init: fn() -> T,
     default_value: Option<Arc<T>>,
 }
 impl<T: Send + Sync + 'static> ContextLocalData<T> {
     #[doc(hidden)]
-    pub const fn new(key: TypeId, default_init: fn() -> T) -> Self {
+    pub const fn new(key: fn() -> TypeId, default_init: fn() -> T) -> Self {
         Self {
             key,
             default_init,
@@ -732,7 +732,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     }
 
     fn key(&'static self) -> TypeId {
-        self.data.read().key
+        (self.data.read().key)()
     }
 
     /// Calls `f` with the `value` loaded in context.
@@ -753,6 +753,27 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         self.with_context(&mut Some(Arc::new(value)), f)
     }
 
+    /// Calls `f` with the `value` loaded in context.
+    ///
+    /// The `value` is moved in context, `f` is called, then restores the `value`. A clone is restored if
+    /// the value is still shared when `f` returns.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `value` is `None`.
+    pub fn with_context_opt<R>(&'static self, value: &mut Option<T>, f: impl FnOnce() -> R) -> R
+    where
+        T: Clone,
+    {
+        let mut val = value.take().map(Arc::new);
+        let r = self.with_context(&mut val, f);
+        match Arc::try_unwrap(val.unwrap()) {
+            Ok(val) => *value = Some(val),
+            Err(arc) => *value = Some(arc.as_ref().clone()),
+        }
+        r
+    }
+
     /// Calls `f` with no value loaded in context.
     pub fn with_default<R>(&'static self, f: impl FnOnce() -> R) -> R {
         #[cfg(dyn_closure)]
@@ -763,13 +784,13 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
     /// Gets if no value is set in the context.
     pub fn is_default(&'static self) -> bool {
         let cl = self.data.read();
-        !LocalContext::contains(cl.key)
+        !LocalContext::contains((cl.key)())
     }
 
     /// Clone a reference to the current value in the context or the default value.
     pub fn get(&'static self) -> Arc<T> {
         let cl = self.data.read();
-        match LocalContext::get(cl.key) {
+        match LocalContext::get((cl.key)()) {
             Some(c) => Arc::downcast(c).unwrap(),
             None => match &cl.default_value {
                 Some(d) => d.clone(),
@@ -795,7 +816,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         T: Clone,
     {
         let cl = self.data.read();
-        match LocalContext::get(cl.key) {
+        match LocalContext::get((cl.key)()) {
             Some(c) => c.downcast_ref::<T>().unwrap().clone(),
             None => match &cl.default_value {
                 Some(d) => d.as_ref().clone(),
@@ -916,10 +937,13 @@ macro_rules! context_local_impl_single {
             fn init() -> $T {
                 std::convert::Into::into($init)
             }
-            struct Key { }
+            fn key() -> std::any::TypeId {
+                struct Key { }
+                std::any::TypeId::of::<Key>()
+            }
             static IMPL: $crate::context::AppLocalConst<$crate::context::ContextLocalData<$T>> =
                 $crate::context::AppLocalConst::new(
-                    $crate::context::ContextLocalData::new(std::any::TypeId::of::<Key>(), init)
+                    $crate::context::ContextLocalData::new(key, init)
                 );
             $crate::context::ContextLocal::new(&IMPL)
         };
@@ -938,10 +962,13 @@ macro_rules! context_local_impl_multi {
             fn init() -> $T {
                 std::convert::Into::into($init)
             }
-            struct Key { }
+            fn key() -> std::any::TypeId {
+                struct Key { }
+                std::any::TypeId::of::<Key>()
+            }
             static IMPL: $crate::context::AppLocalVec<$crate::context::ContextLocalData<$T>> =
             $crate::context::AppLocalVec::new(
-                || $crate::context::ContextLocalData::new(std::any::TypeId::of::<Key>(), init)
+                || $crate::context::ContextLocalData::new(key, init)
             );
             $crate::context::ContextLocal::new(&IMPL)
         };
