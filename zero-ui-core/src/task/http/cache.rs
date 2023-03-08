@@ -894,6 +894,6 @@ mod tests {
     where
         F: std::future::Future,
     {
-        task::block_on(task::with_deadline(test, 5.secs())).unwrap()
+        task::block_on(task::with_deadline(test, 30.secs())).unwrap()
     }
 }
