@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use icons::MaterialIcon;
+use zero_ui::core::widget_base::parallel;
 use zero_ui::prelude::*;
 
 use zero_ui_material_icons as icons;
@@ -35,7 +36,6 @@ fn app_main() {
             on_load = hn_once!(|_| {
                 println!("loaded in {:?}", t.elapsed())
             });
-            zero_ui::core::widget_base::parallel = true;
             // zero_ui::properties::inspector::show_hit_test = true;
         }
     })
@@ -53,12 +53,12 @@ fn icons() -> impl UiNode {
         wrap! {
             spacing = 5;
             icon::vis::ico_size = 48;
-            // zero_ui::core::widget_base::parallel = true;
+            parallel = true;
             children = {
                 let x = icons
                 .chunks((icons.len() / 12).max(100))
                 .map(|c| wrap! { // segment into multiple inlined `wrap!` for a small perf gain.
-                    // zero_ui::core::widget_base::parallel = false;
+                    parallel = false;
                     spacing = 5;
                     children = c.iter()
                                 .map(|i| icon_btn(i.clone()).boxed())
