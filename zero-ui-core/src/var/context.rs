@@ -81,22 +81,28 @@ impl<T: VarValue> ContextVar<T> {
 
     /// Runs `action` with this context var representing the other `var` in the current thread.
     ///
-    /// Returns the actual var that was used and the result of `action`.
+    /// The `var` must be `Some` and must be the `actual_var`, it is moved to the context storage during the call.
     ///
     /// Note that the `var` must be the same for subsequent calls in the same *context*, otherwise [contextualized]
     /// variables may not update their binding, in widgets you must re-init the descendants if you replace the `var`.
     ///
     /// [contextualized]: types::ContextualizedVar
-    pub fn with_context<R>(self, id: ContextInitHandle, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> (BoxedVar<T>, R) {
-        let mut var = Some(var.into_var().actual_var().boxed());
-        let r = self.0.with_context(&mut var, move || id.with_context(action));
-        (var.unwrap(), r)
+    pub fn with_context<R>(self, id: ContextInitHandle, var: &mut Option<Arc<BoxedVar<T>>>, action: impl FnOnce() -> R) -> R {
+        self.0.with_context(var, move || id.with_context(action))
     }
 
-    /// Dump current threads using this context.
-    #[cfg(debug_assertions)]
-    pub fn current_values(self) -> Vec<(std::thread::ThreadId, T)> {
-        self.0.current_values().into_iter().map(|(t, v)| (t, v.get())).collect()
+    /// Runs `action` with this context var representing the other `var` in the current thread.
+    ///
+    /// Note that the `var` must be the same for subsequent calls in the same *context*, otherwise [contextualized]
+    /// variables may not update their binding, in widgets you must re-init the descendants if you replace the `var`.
+    ///
+    /// The `var` is converted into var, the actual var, boxed and placed in a new `Arc`, you can use the [`with_context`]
+    /// method to avoid doing this in a hot path.
+    ///
+    /// [contextualized]: types::ContextualizedVar
+    pub fn with_context_var<R>(self, id: ContextInitHandle, var: impl IntoVar<T>, action: impl FnOnce() -> R) -> R {
+        let mut var = Some(Arc::new(var.into_var().actual_var().boxed()));
+        self.with_context(id, &mut var, action)
     }
 }
 impl<T: VarValue> Copy for ContextVar<T> {}
@@ -130,43 +136,43 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
     }
 
     fn last_update(&self) -> VarUpdateId {
-        self.0.read().last_update()
+        self.0.get().last_update()
     }
 
     fn capabilities(&self) -> VarCapabilities {
-        self.0.read().capabilities() | VarCapabilities::CAPS_CHANGE
+        self.0.get().capabilities() | VarCapabilities::CAPS_CHANGE
     }
 
     fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
-        self.0.read().hook(pos_modify_action)
+        self.0.get().hook(pos_modify_action)
     }
 
     fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
-        self.0.read().subscribe(widget_id)
+        self.0.get().subscribe(widget_id)
     }
 
     fn strong_count(&self) -> usize {
-        self.0.read().strong_count()
+        self.0.get().strong_count()
     }
 
     fn weak_count(&self) -> usize {
-        self.0.read().weak_count()
+        self.0.get().weak_count()
     }
 
     fn actual_var_any(&self) -> BoxedAnyVar {
-        self.0.read().actual_var_any()
+        self.0.get().actual_var_any()
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        self.0.read().downgrade_any()
+        self.0.get().downgrade_any()
     }
 
     fn is_animating(&self) -> bool {
-        self.0.read().is_animating()
+        self.0.get().is_animating()
     }
 
     fn modify_importance(&self) -> usize {
-        self.0.read().modify_importance()
+        self.0.get().modify_importance()
     }
 
     fn var_ptr(&self) -> VarPtr {
@@ -205,22 +211,22 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        self.0.read().with(read)
+        self.0.get().with(read)
     }
 
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         F: FnOnce(&mut Cow<T>) + Send + 'static,
     {
-        self.0.read().modify(modify)
+        self.0.get().modify(modify)
     }
 
     fn actual_var(self) -> BoxedVar<T> {
-        self.0.read().clone().actual_var()
+        self.0.get_clone().actual_var()
     }
 
     fn downgrade(&self) -> BoxedWeakVar<T> {
-        self.0.read().downgrade()
+        self.0.get().downgrade()
     }
 
     fn into_value(self) -> T {
@@ -255,14 +261,14 @@ impl ContextInitHandle {
 
     /// Gets the current context handle.
     pub fn current() -> Self {
-        CONTEXT_INIT_ID.get()
+        CONTEXT_INIT_ID.get_clone()
     }
 
     /// Runs `action` with `self` as the current context ID.
     ///
     /// Note that [`ContextVar::with_context`] already calls this method.
     pub fn with_context<R>(&self, action: impl FnOnce() -> R) -> R {
-        CONTEXT_INIT_ID.with_context(&mut Some(self.clone()), action)
+        CONTEXT_INIT_ID.with_context_value(self.clone(), action)
     }
 
     /// Create a weak handle that can be used to monitor `self`, but does not hold it.
@@ -405,32 +411,29 @@ mod helpers {
             child: impl UiNode,
             context_var: ContextVar<T>,
             id: Option<ContextInitHandle>,
-            value: RefCell<Option<BoxedVar<T>>>,
+            value: RefCell<Option<Arc<BoxedVar<T>>>>,
         })]
         impl WithContextVarNode {
             fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
                 let mut value = self.value.borrow_mut();
-                let var = value.take().unwrap();
-                let (var, r) = self
-                    .context_var
-                    .with_context(self.id.clone().expect("node not inited"), var, move || mtd(&self.child));
-                *value = Some(var);
-                r
+                self.context_var
+                    .with_context(self.id.clone().expect("node not inited"), &mut value, || mtd(&self.child))
             }
 
             fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-                let var = self.value.get_mut().take().unwrap();
-                let (var, r) = self
-                    .context_var
-                    .with_context(self.id.get_or_insert_with(ContextInitHandle::new).clone(), var, || {
-                        mtd(&mut self.child)
-                    });
-                *self.value.get_mut() = Some(var);
-                r
+                let value = self.value.get_mut();
+                self.context_var
+                    .with_context(self.id.clone().expect("not not inited"), value, || mtd(&mut self.child))
             }
 
             #[UiNode]
             fn init(&mut self) {
+                if self.id.is_none() {
+                    self.id = Some(ContextInitHandle::new());
+                    let value = self.value.get_mut().as_mut().unwrap();
+                    let value = Arc::get_mut(value).unwrap();
+                    *value = value.clone().actual_var();
+                }
                 self.with_mut(|c| c.init())
             }
 
@@ -479,7 +482,7 @@ mod helpers {
             child: child.cfg_boxed(),
             context_var,
             id: None,
-            value: RefCell::new(Some(value.into_var().boxed())),
+            value: RefCell::new(Some(Arc::new(value.into_var().boxed()))),
         }
     }
 
@@ -499,28 +502,19 @@ mod helpers {
             context_var: ContextVar<T>,
             id: Option<ContextInitHandle>,
             init_value: impl FnMut() -> BoxedVar<T> + Send + 'static,
-            value: RefCell<Option<BoxedVar<T>>>,
+            value: RefCell<Option<Arc<BoxedVar<T>>>>,
         })]
         impl WithContextVarInitNode {
             fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
                 let mut value = self.value.borrow_mut();
-                let var = value.take().unwrap();
-                let (var, r) = self
-                    .context_var
-                    .with_context(self.id.clone().expect("node not inited"), var, move || mtd(&self.child));
-                *value = Some(var);
-                r
+                self.context_var
+                    .with_context(self.id.clone().expect("node not inited"), &mut *value, move || mtd(&self.child))
             }
 
             fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-                let var = self.value.get_mut().take().unwrap();
-                let (var, r) = self
-                    .context_var
-                    .with_context(self.id.get_or_insert_with(ContextInitHandle::new).clone(), var, || {
-                        mtd(&mut self.child)
-                    });
-                *self.value.get_mut() = Some(var);
-                r
+                let var = self.value.get_mut();
+                self.context_var
+                    .with_context(self.id.clone().expect("node not inited"), var, || mtd(&mut self.child))
             }
 
             #[UiNode]
@@ -530,7 +524,10 @@ mod helpers {
 
             #[UiNode]
             fn init(&mut self) {
-                *self.value.get_mut() = Some((self.init_value)());
+                if self.id.is_none() {
+                    self.id = Some(ContextInitHandle::new());
+                }
+                *self.value.get_mut() = Some(Arc::new((self.init_value)().actual_var()));
                 self.with_mut(|c| c.init());
             }
 

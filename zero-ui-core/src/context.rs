@@ -3,7 +3,7 @@
 use std::{fmt, mem, sync::Arc, task::Waker};
 
 use linear_map::set::LinearSet;
-use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, RwLock};
+use parking_lot::{Mutex, RwLock};
 
 mod state;
 pub use state::*;
@@ -53,7 +53,7 @@ struct WindowCtxData {
 impl WindowCtxData {
     fn no_context() -> Self {
         panic!("no window in context")
-    }    
+    }
 }
 
 /// Defines the backing data of [`WINDOW`].
@@ -96,27 +96,32 @@ impl WindowCtx {
     pub fn widget_tree(&self) -> WidgetInfoTree {
         self.0.lock().as_ref().unwrap().widget_tree.read().as_ref().unwrap().clone()
     }
+
+    /// Call `f` with an exclusive lock to the window state.
+    pub fn with_state<R>(&mut self, f: impl FnOnce(&mut OwnedStateMap<WINDOW>) -> R) -> R {
+        f(&mut self.0.get_mut().as_mut().unwrap().state.write())
+    }
 }
 
 struct WidgetCtxData {
-    parent_id: Option<WidgetId>,
+    parent_id: Mutex<Option<WidgetId>>,
     id: WidgetId,
-    flags: UpdateFlags,
-    state: OwnedStateMap<WIDGET>,
-    var_handles: VarHandles,
-    event_handles: EventHandles,
-    bounds: WidgetBoundsInfo,
-    border: WidgetBorderInfo,
-    render_reuse: Option<ReuseRange>,
+    flags: Mutex<UpdateFlags>,
+    state: RwLock<OwnedStateMap<WIDGET>>,
+    var_handles: Mutex<VarHandles>,
+    event_handles: Mutex<EventHandles>,
+    bounds: Mutex<WidgetBoundsInfo>,
+    border: Mutex<WidgetBorderInfo>,
+    render_reuse: Mutex<Option<ReuseRange>>,
 }
 impl WidgetCtxData {
     fn no_context() -> Self {
         panic!("no widget in context")
-    } 
+    }
 
-    fn take_flag(&mut self, flag: UpdateFlags) -> bool {
-        let c = self.flags.contains(flag);
-        self.flags.remove(flag);
+    fn take_flag(&self, flag: UpdateFlags) -> bool {
+        let c = self.flags.lock().contains(flag);
+        self.flags.lock().remove(flag);
         c
     }
 }
@@ -126,29 +131,29 @@ impl WidgetCtxData {
 /// Each widget owns this data and calls [`WIDGET.with_context`] to delegate to it's child node.
 ///
 /// [`WIDGET.with_context`]: WIDGET::with_context
-pub struct WidgetCtx(Mutex<Option<WidgetCtxData>>);
+pub struct WidgetCtx(Mutex<Option<Arc<WidgetCtxData>>>);
 impl WidgetCtx {
     /// New widget context.
     pub fn new(id: WidgetId) -> Self {
-        Self(Mutex::new(Some(WidgetCtxData {
-            parent_id: None,
+        Self(Mutex::new(Some(Arc::new(WidgetCtxData {
+            parent_id: Mutex::new(None),
             id,
-            flags: UpdateFlags::empty(),
-            state: OwnedStateMap::default(),
-            var_handles: VarHandles::dummy(),
-            event_handles: EventHandles::dummy(),
-            bounds: WidgetBoundsInfo::default(),
-            border: WidgetBorderInfo::default(),
-            render_reuse: None,
-        })))
+            flags: Mutex::new(UpdateFlags::empty()),
+            state: RwLock::new(OwnedStateMap::default()),
+            var_handles: Mutex::new(VarHandles::dummy()),
+            event_handles: Mutex::new(EventHandles::dummy()),
+            bounds: Mutex::new(WidgetBoundsInfo::default()),
+            border: Mutex::new(WidgetBorderInfo::default()),
+            render_reuse: Mutex::new(None),
+        }))))
     }
 
     /// Drops all var and event handles.
     pub fn deinit(&mut self) {
         let ctx = self.0.get_mut().as_mut().unwrap();
-        ctx.var_handles.clear();
-        ctx.event_handles.clear();
-        ctx.flags = UpdateFlags::empty();
+        ctx.var_handles.lock().clear();
+        ctx.event_handles.lock().clear();
+        *ctx.flags.lock() = UpdateFlags::empty();
     }
 
     fn take_flag(&self, flag: UpdateFlags) -> bool {
@@ -158,9 +163,7 @@ impl WidgetCtx {
     }
 
     fn contains_flag(&self, flag: UpdateFlags) -> bool {
-        let ctx = self.0.lock();
-        let ctx = ctx.as_ref().unwrap();
-        ctx.flags.contains(flag)
+        self.0.lock().as_ref().unwrap().flags.lock().contains(flag)
     }
 
     /// Returns `true` once if a info rebuild was requested in a previous [`WIDGET.with_context`] call.
@@ -215,13 +218,14 @@ impl WidgetCtx {
         let mut ctx = self.0.lock();
         let ctx = ctx.as_mut().unwrap();
 
-        if ctx.flags.contains(UpdateFlags::RENDER) || ctx.flags.contains(UpdateFlags::RENDER_UPDATE) {
-            ctx.flags.remove(UpdateFlags::RENDER);
-            ctx.flags.remove(UpdateFlags::RENDER_UPDATE);
-            ctx.render_reuse = None;
+        let mut flags = ctx.flags.lock();
+        if flags.contains(UpdateFlags::RENDER) || flags.contains(UpdateFlags::RENDER_UPDATE) {
+            flags.remove(UpdateFlags::RENDER);
+            flags.remove(UpdateFlags::RENDER_UPDATE);
+            *ctx.render_reuse.lock() = None;
             None
         } else {
-            ctx.render_reuse.take()
+            ctx.render_reuse.lock().take()
         }
     }
 
@@ -231,14 +235,13 @@ impl WidgetCtx {
     ///
     /// [`take_render`]: Self::take_render
     pub fn render_reuse(&self) -> Option<ReuseRange> {
-        let ctx = self.0.lock();
-        ctx.as_ref().unwrap().render_reuse.clone()
+        self.0.lock().as_ref().unwrap().render_reuse.lock().clone()
     }
 
     /// Store a render reuse range that can be used next render if no render request is made.
     pub fn set_render_reuse(&self, range: Option<ReuseRange>) {
         let mut ctx = self.0.lock();
-        ctx.as_mut().unwrap().render_reuse = range;
+        *ctx.as_mut().unwrap().render_reuse.lock() = range;
     }
 
     /// Returns `true` if frame update was requested for the widget.
@@ -260,11 +263,12 @@ impl WidgetCtx {
         let mut ctx = self.0.lock();
         let ctx = ctx.as_mut().unwrap();
 
-        if ctx.flags.contains(UpdateFlags::RENDER) {
+        let mut flags = ctx.flags.lock();
+        if flags.contains(UpdateFlags::RENDER) {
             tracing::error!("widget `{:?}` called `take_render_update` before `take_render`", ctx.id);
         }
-        let r = ctx.flags.contains(UpdateFlags::RENDER_UPDATE);
-        ctx.flags.remove(UpdateFlags::RENDER_UPDATE);
+        let r = flags.contains(UpdateFlags::RENDER_UPDATE);
+        flags.remove(UpdateFlags::RENDER_UPDATE);
         r
     }
 
@@ -281,30 +285,19 @@ impl WidgetCtx {
     pub fn id(&self) -> WidgetId {
         self.0.lock().as_ref().unwrap().id
     }
-
-    /// Gets the widget state.
-    pub fn state(&mut self) -> &mut OwnedStateMap<WIDGET> {
-        &mut self.0.get_mut().as_mut().unwrap().state
-    }
-
-    /// Gets the widget var handles.
-    pub fn var_handles(&mut self) -> &mut VarHandles {
-        &mut self.0.get_mut().as_mut().unwrap().var_handles
-    }
-
-    /// Gets the widget event handles.
-    pub fn event_handles(&mut self) -> &mut EventHandles {
-        &mut self.0.get_mut().as_mut().unwrap().event_handles
-    }
-
     /// Gets the widget bounds.
     pub fn bounds(&self) -> WidgetBoundsInfo {
-        self.0.lock().as_ref().unwrap().bounds.clone()
+        self.0.lock().as_ref().unwrap().bounds.lock().clone()
     }
 
     /// Gets the widget borders.
     pub fn border(&self) -> WidgetBorderInfo {
-        self.0.lock().as_ref().unwrap().border.clone()
+        self.0.lock().as_ref().unwrap().border.lock().clone()
+    }
+
+    /// Call `f` with an exclusive lock to the widget state.
+    pub fn with_state<R>(&mut self, f: impl FnOnce(&mut OwnedStateMap<WIDGET>) -> R) -> R {
+        f(&mut self.0.get_mut().as_mut().unwrap().state.write())
     }
 }
 
@@ -551,15 +544,16 @@ impl WINDOW {
             let mut frame_id = win.frame_id.lock();
             *frame_id = frame_id.next();
 
-            FrameBuilder::new_renderless(
+            let f = FrameBuilder::new_renderless(
                 *frame_id,
                 wgt.id,
-                &wgt.bounds,
+                &wgt.bounds.lock(),
                 win.widget_tree.read().as_ref().unwrap(),
                 1.fct(),
                 crate::text::FontAntiAliasing::Default,
                 None,
-            )
+            );
+            f
         };
 
         frame.push_inner(self.test_root_translation_key(), false, |frame| {
@@ -585,13 +579,21 @@ impl WINDOW {
             let mut frame_id = win.frame_id.lock();
             *frame_id = frame_id.next_update();
 
-            FrameUpdate::new(*frame_id, wgt.id, wgt.bounds.clone(), None, crate::color::RenderColor::BLACK, None)
+            let f = FrameUpdate::new(
+                *frame_id,
+                wgt.id,
+                wgt.bounds.lock().clone(),
+                None,
+                crate::color::RenderColor::BLACK,
+                None,
+            );
+            f
         };
 
         update.update_inner(self.test_root_translation_key(), false, |update| {
             content.render_update(update);
         });
-        let tree = WINDOW_CTX.widget_tree.read().as_ref().unwrap().clone();
+        let tree = WINDOW_CTX.get().widget_tree.read().as_ref().unwrap().clone();
         let f = update.finalize(&tree).0;
 
         (f, UPDATES.apply())
@@ -614,106 +616,92 @@ impl WIDGET {
 
         let mut ctx = ctx.0.lock();
         let old_flags = if let Some(ctx) = &mut *ctx {
-            ctx.parent_id = parent_id;
-            mem::replace(&mut ctx.flags, UpdateFlags::empty())
+            *ctx.parent_id.lock() = parent_id;
+            mem::replace(&mut *ctx.flags.lock(), UpdateFlags::empty())
         } else {
             unreachable!()
         };
 
-        let r = WIDGET_CTX.with_context_opt(&mut ctx, f);
+        let r = WIDGET_CTX.with_context(&mut ctx, f);
 
         let ctx = ctx.as_mut().unwrap();
 
-        if let Some(parent) = &mut *WIDGET_CTX.write() {
+        if let Some(parent) = parent_id.map(|_| WIDGET_CTX.get()) {
             if ctx.take_flag(UpdateFlags::UPDATE) {
                 // only used to avoid making too many `UPDATES.update(wgt_id)` requests.
-                parent.flags.insert(UpdateFlags::UPDATE);
+                parent.flags.lock().insert(UpdateFlags::UPDATE);
             }
 
             // used by window to immediately rebuild info.
-            if ctx.flags.contains(UpdateFlags::INFO) {
-                parent.flags.insert(UpdateFlags::INFO);
+            if ctx.flags.lock().contains(UpdateFlags::INFO) {
+                parent.flags.lock().insert(UpdateFlags::INFO);
             }
 
             // invalidate layout & render
-            if ctx.flags.contains(UpdateFlags::LAYOUT) {
-                parent.flags.insert(UpdateFlags::LAYOUT);
+            if ctx.flags.lock().contains(UpdateFlags::LAYOUT) {
+                parent.flags.lock().insert(UpdateFlags::LAYOUT);
             }
-            if ctx.flags.contains(UpdateFlags::RENDER) {
-                parent.flags.insert(UpdateFlags::RENDER);
-            } else if ctx.flags.contains(UpdateFlags::RENDER_UPDATE) {
-                parent.flags.insert(UpdateFlags::RENDER_UPDATE);
+            if ctx.flags.lock().contains(UpdateFlags::RENDER) {
+                parent.flags.lock().insert(UpdateFlags::RENDER);
+            } else if ctx.flags.lock().contains(UpdateFlags::RENDER_UPDATE) {
+                parent.flags.lock().insert(UpdateFlags::RENDER_UPDATE);
             }
         }
-        ctx.parent_id = None;
-        ctx.flags.insert(old_flags);
+        ctx.parent_id.lock().take();
+        ctx.flags.lock().insert(old_flags);
 
         r
     }
 
     /// Calls `f` while no widget is available in the context.
     pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
-        WIDGET_CTX.with_context_opt(&mut None, f)
+        WIDGET_CTX.with_default(f)
     }
 
     /// Calls `f` with an override target for var and event subscription handles.
     pub fn with_handles<R>(&self, var_handles: &mut VarHandles, event_handles: &mut EventHandles, f: impl FnOnce() -> R) -> R {
+        let w = WIDGET_CTX.get();
         {
-            let mut w = self.req_mut();
-            mem::swap(&mut w.var_handles, var_handles);
-            mem::swap(&mut w.event_handles, event_handles);
+            mem::swap(&mut *w.var_handles.lock(), var_handles);
+            mem::swap(&mut *w.event_handles.lock(), event_handles);
         }
         let r = f();
         {
-            let mut w = self.req_mut();
-            mem::swap(&mut w.var_handles, var_handles);
-            mem::swap(&mut w.event_handles, event_handles);
+            mem::swap(&mut *w.var_handles.lock(), var_handles);
+            mem::swap(&mut *w.event_handles.lock(), event_handles);
         }
         r
     }
 
     /// Returns `true` if called inside a widget.
     pub fn is_in_widget(&self) -> bool {
-        WIDGET_CTX.read().is_some()
-    }
-
-    #[track_caller]
-    fn req(&self) -> MappedRwLockReadGuard<'static, WidgetCtxData> {
-        let read = WIDGET_CTX.read();
-        if read.is_none() {
-            panic!("no widget in context");
-        }
-        MappedRwLockReadGuard::map(read, |c| c.as_ref().unwrap())
-    }
-
-    #[track_caller]
-    fn req_mut(&self) -> MappedRwLockWriteGuard<'static, WidgetCtxData> {
-        let write = WIDGET_CTX.write();
-        if write.is_none() {
-            panic!("no widget in context");
-        }
-        MappedRwLockWriteGuard::map(write, |c| c.as_mut().unwrap())
+        !WIDGET_CTX.is_default()
     }
 
     /// Get the widget ID, if called inside a widget.
     pub fn try_id(&self) -> Option<WidgetId> {
-        WIDGET_CTX.read().as_ref().map(|c| c.id)
+        if self.is_in_widget() {
+            Some(WIDGET_CTX.get().id)
+        } else {
+            None
+        }
     }
 
     /// Get the widget ID if called inside a widget, or panic.
     pub fn id(&self) -> WidgetId {
-        self.req().id
+        WIDGET_CTX.get().id
     }
 
     /// Schedule an update for the current widget.
     ///
     /// After the current update cycle the app-extensions, parent window and widgets will update again.
     pub fn update(&self) -> &Self {
-        let mut ctx = self.req_mut();
-        if !ctx.flags.contains(UpdateFlags::UPDATE) {
-            ctx.flags.insert(UpdateFlags::UPDATE);
-            let id = ctx.id;
-            drop(ctx);
+        let w = WIDGET_CTX.get();
+        let mut flags = w.flags.lock();
+        if !flags.contains(UpdateFlags::UPDATE) {
+            flags.insert(UpdateFlags::UPDATE);
+            let id = w.id;
+            drop(flags);
             UPDATES.update(id);
         }
         self
@@ -723,10 +711,7 @@ impl WIDGET {
     ///
     /// After all requested updates apply the parent window and widgets will re-build the info tree.
     pub fn info(&self) -> &Self {
-        let mut ctx = self.req_mut();
-        if !ctx.flags.contains(UpdateFlags::INFO) {
-            ctx.flags.insert(UpdateFlags::INFO);
-        }
+        WIDGET_CTX.get().flags.lock().insert(UpdateFlags::INFO);
         self
     }
 
@@ -734,10 +719,11 @@ impl WIDGET {
     ///
     /// After all requested updates apply the parent window and widgets will re-layout.
     pub fn layout(&self) -> &Self {
-        let mut ctx = self.req_mut();
-        if !ctx.flags.contains(UpdateFlags::LAYOUT) {
-            ctx.flags.insert(UpdateFlags::LAYOUT);
-            drop(ctx);
+        let w = WIDGET_CTX.get();
+        let mut flags = w.flags.lock();
+        if !flags.contains(UpdateFlags::LAYOUT) {
+            flags.insert(UpdateFlags::LAYOUT);
+            drop(flags);
             UPDATES.layout();
         }
         self
@@ -751,10 +737,11 @@ impl WIDGET {
     ///
     /// [`render_update`]: Self::render_update
     pub fn render(&self) -> &Self {
-        let mut ctx = self.req_mut();
-        if !ctx.flags.contains(UpdateFlags::RENDER) {
-            ctx.flags.insert(UpdateFlags::RENDER);
-            drop(ctx);
+        let w = WIDGET_CTX.get();
+        let mut flags = w.flags.lock();
+        if !flags.contains(UpdateFlags::RENDER) {
+            flags.insert(UpdateFlags::RENDER);
+            drop(flags);
             UPDATES.render();
         }
         self
@@ -768,10 +755,11 @@ impl WIDGET {
     ///
     /// [`render`]: Self::render
     pub fn render_update(&self) -> &Self {
-        let mut ctx = self.req_mut();
-        if !ctx.flags.contains(UpdateFlags::RENDER_UPDATE) {
-            ctx.flags.insert(UpdateFlags::RENDER_UPDATE);
-            drop(ctx);
+        let w = WIDGET_CTX.get();
+        let mut flags = w.flags.lock();
+        if !flags.contains(UpdateFlags::RENDER_UPDATE) {
+            flags.insert(UpdateFlags::RENDER_UPDATE);
+            drop(flags);
             UPDATES.render();
         }
         self
@@ -781,7 +769,7 @@ impl WIDGET {
     ///
     /// The widget will de-init and init as soon as it sees this request.
     pub fn reinit(&self) {
-        self.req_mut().flags.insert(UpdateFlags::REINIT);
+        WIDGET_CTX.get().flags.lock().insert(UpdateFlags::REINIT);
     }
 
     /// Calls `f` with a read lock on the current widget state map.
@@ -789,7 +777,7 @@ impl WIDGET {
     /// Note that this locks the entire [`WIDGET`], this is an entry point for widget extensions and must
     /// return as soon as possible. A common pattern is cloning the stored value.
     pub fn with_state<R>(&self, f: impl FnOnce(StateMapRef<WIDGET>) -> R) -> R {
-        f(self.req().state.borrow())
+        f(WIDGET_CTX.get().state.read().borrow())
     }
 
     /// Calls `f` with a write lock on the current widget state map.
@@ -797,7 +785,7 @@ impl WIDGET {
     /// Note that this locks the entire [`WIDGET`], this is an entry point for widget extensions and must
     /// return as soon as possible. A common pattern is cloning the stored value.
     pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<WIDGET>) -> R) -> R {
-        f(self.req_mut().state.borrow_mut())
+        f(WIDGET_CTX.get().state.write().borrow_mut())
     }
 
     /// Get the widget state `id`, if it is set.
@@ -854,64 +842,69 @@ impl WIDGET {
 
     /// Subscribe to receive updates when the `var` changes.
     pub fn sub_var(&self, var: &impl AnyVar) -> &Self {
-        let mut w = self.req_mut();
+        let w = WIDGET_CTX.get();
         let s = var.subscribe(w.id);
-        w.var_handles.push(s);
+        w.var_handles.lock().push(s);
         self
     }
 
     /// Subscribe to receive events from `event`.
     pub fn sub_event<A: EventArgs>(&self, event: &Event<A>) -> &Self {
-        let mut w = self.req_mut();
+        let w = WIDGET_CTX.get();
         let s = event.subscribe(w.id);
-        w.event_handles.push(s);
+        w.event_handles.lock().push(s);
         self
     }
 
     /// Hold the `handle` until the widget is deinited.
     pub fn push_event_handle(&self, handle: EventHandle) {
-        self.req_mut().event_handles.push(handle);
+        WIDGET_CTX.get().event_handles.lock().push(handle);
     }
 
     /// Hold the `handles` until the widget is deinited.
     pub fn push_event_handles(&self, handles: EventHandles) {
-        self.req_mut().event_handles.extend(handles);
+        WIDGET_CTX.get().event_handles.lock().extend(handles);
     }
 
     /// Hold the `handle` until the widget is deinited.
     pub fn push_var_handle(&self, handle: VarHandle) {
-        self.req_mut().var_handles.push(handle);
+        WIDGET_CTX.get().var_handles.lock().push(handle);
     }
 
     /// Hold the `handles` until the widget is deinited.
     pub fn push_var_handles(&self, handles: VarHandles) {
-        self.req_mut().var_handles.extend(handles);
+        WIDGET_CTX.get().var_handles.lock().extend(handles);
     }
 
     /// Widget bounds, updated every layout.
     pub fn bounds(&self) -> WidgetBoundsInfo {
-        self.req().bounds.clone()
+        WIDGET_CTX.get().bounds.lock().clone()
     }
 
     /// Widget border, updated every layout.
     pub fn border(&self) -> WidgetBorderInfo {
-        self.req().border.clone()
+        WIDGET_CTX.get().border.lock().clone()
     }
 
     /// Gets the parent widget or `None` if is root.
     ///
     /// Panics if not called inside an widget.
     pub fn parent_id(&self) -> Option<WidgetId> {
-        self.req().parent_id
+        *WIDGET_CTX.get().parent_id.lock()
     }
 }
 
 context_local! {
-    static LAYOUT_CTX: Option<LayoutCtx> = None;
+    static LAYOUT_CTX: LayoutCtx = LayoutCtx::no_context();
 }
 
 struct LayoutCtx {
     metrics: LayoutMetrics,
+}
+impl LayoutCtx {
+    fn no_context() -> Self {
+        panic!("no layout context")
+    }
 }
 
 /// Current layout context.
@@ -919,55 +912,31 @@ struct LayoutCtx {
 /// Only available in measure and layout methods.
 pub struct LAYOUT;
 impl LAYOUT {
-    #[track_caller]
-    fn req(&self) -> MappedRwLockReadGuard<'static, LayoutCtx> {
-        let read = LAYOUT_CTX.read();
-        if read.is_none() {
-            panic!("not in layout context");
-        }
-        MappedRwLockReadGuard::map(read, |c| c.as_ref().unwrap())
-    }
-
-    #[track_caller]
-    fn req_mut(&self) -> MappedRwLockWriteGuard<'static, LayoutCtx> {
-        let write = LAYOUT_CTX.write();
-        if write.is_none() {
-            panic!("not in layout context");
-        }
-        MappedRwLockWriteGuard::map(write, |c| c.as_mut().unwrap())
-    }
-
     /// Calls `f` in a new layout context.
     pub fn with_context<R>(&self, metrics: LayoutMetrics, f: impl FnOnce() -> R) -> R {
-        let mut ctx = Some(LayoutCtx { metrics });
-        LAYOUT_CTX.with_context_opt(&mut ctx, f)
+        let mut ctx = Some(Arc::new(LayoutCtx { metrics }));
+        LAYOUT_CTX.with_context(&mut ctx, f)
     }
 
     /// Calls `f` without a layout context.
     pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
-        LAYOUT_CTX.with_context_opt(&mut None, f)
+        LAYOUT_CTX.with_default(f)
     }
 
     /// Gets the context metrics.
     pub fn metrics(&self) -> LayoutMetrics {
-        self.req().metrics.clone()
+        LAYOUT_CTX.get().metrics.clone()
     }
 
     /// Calls `metrics` to generate new metrics that are used during the call to `f`.
     pub fn with_metrics<R>(&self, metrics: impl FnOnce(LayoutMetrics) -> LayoutMetrics, f: impl FnOnce() -> R) -> R {
         let new = metrics(self.metrics());
-        let prev = mem::replace(&mut self.req_mut().metrics, new);
-
-        let r = f();
-
-        self.req_mut().metrics = prev;
-
-        r
+        self.with_context(new, f)
     }
 
     /// Current size constrains.
     pub fn constrains(&self) -> PxConstrains2d {
-        self.req().metrics.constrains()
+        LAYOUT_CTX.get().metrics.constrains()
     }
 
     /// Current length constrains for the given axis.
@@ -1012,7 +981,7 @@ impl LAYOUT {
 
     /// Current inline constrains.
     pub fn inline_constrains(&self) -> Option<InlineConstrains> {
-        self.req().metrics.inline_constrains()
+        LAYOUT_CTX.get().metrics.inline_constrains()
     }
 
     /// Calls `f` with `inline_constrains` in the context.
@@ -1096,12 +1065,12 @@ impl LAYOUT {
 
     /// Root font size.
     pub fn root_font_size(&self) -> Px {
-        self.req().metrics.root_font_size()
+        LAYOUT_CTX.get().metrics.root_font_size()
     }
 
     /// Current font size.
     pub fn font_size(&self) -> Px {
-        self.req().metrics.font_size()
+        LAYOUT_CTX.get().metrics.font_size()
     }
 
     /// Calls `f` with `font_size` in the context.
@@ -1111,17 +1080,17 @@ impl LAYOUT {
 
     /// Current viewport size.
     pub fn viewport(&self) -> PxSize {
-        self.req().metrics.viewport()
+        LAYOUT_CTX.get().metrics.viewport()
     }
 
     /// Current smallest dimension of the viewport.
     pub fn viewport_min(&self) -> Px {
-        self.req().metrics.viewport_min()
+        LAYOUT_CTX.get().metrics.viewport_min()
     }
 
     /// Current largest dimension of the viewport.
     pub fn viewport_max(&self) -> Px {
-        self.req().metrics.viewport_max()
+        LAYOUT_CTX.get().metrics.viewport_max()
     }
 
     /// Current viewport length for the given axis.
@@ -1141,7 +1110,7 @@ impl LAYOUT {
 
     /// Current scale factor.
     pub fn scale_factor(&self) -> Factor {
-        self.req().metrics.scale_factor()
+        LAYOUT_CTX.get().metrics.scale_factor()
     }
 
     /// Calls `f` with `scale_factor` in the context.
@@ -1151,7 +1120,7 @@ impl LAYOUT {
 
     /// Current screen PPI.
     pub fn screen_ppi(&self) -> f32 {
-        self.req().metrics.screen_ppi()
+        LAYOUT_CTX.get().metrics.screen_ppi()
     }
 
     /// Calls `f` with `screen_ppi` in the context.
@@ -1161,7 +1130,7 @@ impl LAYOUT {
 
     /// Current layout direction.
     pub fn direction(&self) -> LayoutDirection {
-        self.req().metrics.direction()
+        LAYOUT_CTX.get().metrics.direction()
     }
 
     /// Calls `f` with `direction` in the context.
@@ -1173,7 +1142,7 @@ impl LAYOUT {
     ///
     /// [`leftover_count`]: Self::leftover_count
     pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
-        self.req().metrics.leftover()
+        LAYOUT_CTX.get().metrics.leftover()
     }
 
     /// Context leftover length for the given axis.

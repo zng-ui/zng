@@ -627,9 +627,9 @@ mod context {
         let _app = App::minimal();
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
-        let (_, a) = TEST_VAR.with_context(ContextInitHandle::new(), "A", || mapped.get());
+        let a = TEST_VAR.with_context_var(ContextInitHandle::new(), "A", || mapped.get());
 
-        let (_, b) = TEST_VAR.with_context(ContextInitHandle::new(), "B", || mapped.get());
+        let b = TEST_VAR.with_context_var(ContextInitHandle::new(), "B", || mapped.get());
 
         assert_ne!(a, b);
     }
@@ -663,7 +663,7 @@ mod context {
 
         let backing_var = var(Text::from(""));
 
-        TEST_VAR.with_context(ContextInitHandle::new(), backing_var.clone(), || {
+        TEST_VAR.with_context_var(ContextInitHandle::new(), backing_var.clone(), || {
             let t = TEST_VAR;
             assert!(t.capabilities().contains(VarCapabilities::MODIFY));
             t.set("set!").unwrap();
@@ -712,7 +712,7 @@ mod context {
             _ => TEST_VAR,
         };
 
-        let (_, r) = TEST_VAR.with_context(ContextInitHandle::new(), var.clone(), || var.get());
+        let r = TEST_VAR.with_context_var(ContextInitHandle::new(), var.clone(), || var.get());
 
         assert_eq!("", r);
     }
@@ -726,7 +726,7 @@ mod context {
             _ => var("hello".to_text()),
         };
 
-        let (_, r) = TEST_VAR.with_context(ContextInitHandle::new(), var.clone(), || var.get());
+        let r = TEST_VAR.with_context_var(ContextInitHandle::new(), var.clone(), || var.get());
 
         assert_eq!("", r);
     }
@@ -739,7 +739,7 @@ mod context {
         var.push(self::var(false), self::var("hello".to_text()));
         let var = var.contextualized_build().unwrap();
 
-        let (_, r) = TEST_VAR.with_context(ContextInitHandle::new(), var.clone(), || var.get());
+        let r = TEST_VAR.with_context_var(ContextInitHandle::new(), var.clone(), || var.get());
 
         assert_eq!("", r);
     }
@@ -750,7 +750,7 @@ mod context {
 
         let var = merge_var!(TEST_VAR, var(true), |t, _| t.clone());
 
-        let (_, r) = TEST_VAR.with_context(ContextInitHandle::new(), var.clone(), || var.get());
+        let r = TEST_VAR.with_context_var(ContextInitHandle::new(), var.clone(), || var.get());
 
         assert_eq!("", r);
     }

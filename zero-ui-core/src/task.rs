@@ -270,7 +270,7 @@ where
                     let waker = self.clone().into();
                     let mut cx = std::task::Context::from_waker(&waker);
 
-                    self.ctx.with_context(move || {
+                    self.ctx.clone().with_context(move || {
                         let r = panic::catch_unwind(panic::AssertUnwindSafe(move || {
                             if t.as_mut().poll(&mut cx).is_pending() {
                                 *task = Some(t);
@@ -331,14 +331,14 @@ where
     rayon::join_context(
         move |a| {
             if a.migrated() {
-                ctx.with_context(|| oper_a(a))
+                ctx.clone().with_context(|| oper_a(a))
             } else {
                 oper_a(a)
             }
         },
         move |b| {
             if b.migrated() {
-                ctx.with_context(|| oper_b(b))
+                ctx.clone().with_context(|| oper_b(b))
             } else {
                 oper_b(b)
             }
@@ -397,7 +397,8 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
         F: FnOnce(ScopeCtx<'_, 'scope>) + Send + 'scope,
     {
         let ctx = self.ctx;
-        self.scope.spawn(move |s| ctx.with_context(move || f(ScopeCtx { scope: s, ctx })));
+        self.scope
+            .spawn(move |s| ctx.clone().with_context(move || f(ScopeCtx { scope: s, ctx })));
     }
 }
 
@@ -511,6 +512,7 @@ where
 
                     let r = self
                         .ctx
+                        .clone()
                         .with_context(|| panic::catch_unwind(panic::AssertUnwindSafe(|| t.as_mut().poll(&mut cx))));
 
                     match r {

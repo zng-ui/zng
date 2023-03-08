@@ -895,7 +895,7 @@ impl AppWindow {
         let mut ctx = WindowCtx::new(id, mode);
 
         let vars = WindowVars::new(WINDOWS_SV.read().default_render_mode.get(), primary_scale_factor, color_scheme);
-        ctx.state().borrow_mut().set(&WINDOW_VARS_ID, vars.clone());
+        ctx.with_state(|s| s.borrow_mut().set(&WINDOW_VARS_ID, vars.clone()));
 
         let window = WINDOW.with_context(&ctx, new);
 

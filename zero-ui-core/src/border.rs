@@ -983,7 +983,7 @@ impl BORDER {
     ///
     /// This is only valid to call during layout.
     pub fn border_offsets(&self) -> PxSideOffsets {
-        let data = BORDER_DATA.read();
+        let data = BORDER_DATA.get();
         if data.widget_id == WIDGET.try_id() {
             data.wgt_offsets
         } else {
@@ -993,7 +993,7 @@ impl BORDER {
 
     /// Gets the accumulated border offsets including the current border.
     pub fn inner_offsets(&self) -> PxSideOffsets {
-        let data = BORDER_DATA.read();
+        let data = BORDER_DATA.get();
         if data.widget_id == WIDGET.try_id() {
             data.wgt_inner_offsets
         } else {
@@ -1006,9 +1006,9 @@ impl BORDER {
     /// This value is influenced by [`CORNER_RADIUS_VAR`], [`CORNER_RADIUS_FIT_VAR`] and all contextual borders.
     pub fn border_radius(&self) -> PxCornerRadius {
         match CORNER_RADIUS_FIT_VAR.get() {
-            CornerRadiusFit::Tree => BORDER_DATA.read().border_radius(),
+            CornerRadiusFit::Tree => BORDER_DATA.get().border_radius(),
             CornerRadiusFit::Widget => {
-                let data = BORDER_DATA.read();
+                let data = BORDER_DATA.get();
                 if data.widget_id == Some(WIDGET.id()) {
                     data.border_radius()
                 } else {
@@ -1022,9 +1022,9 @@ impl BORDER {
     /// Gets the corner radius for the inside of the current border at the current context.
     pub fn inner_radius(&self) -> PxCornerRadius {
         match CORNER_RADIUS_FIT_VAR.get() {
-            CornerRadiusFit::Tree => BORDER_DATA.read().inner_radius(),
+            CornerRadiusFit::Tree => BORDER_DATA.get().inner_radius(),
             CornerRadiusFit::Widget => {
-                let data = BORDER_DATA.read();
+                let data = BORDER_DATA.get();
                 if data.widget_id == WIDGET.try_id() {
                     data.inner_radius()
                 } else {
@@ -1036,11 +1036,11 @@ impl BORDER {
     }
 
     pub(super) fn with_inner(&self, f: impl FnOnce() -> PxSize) -> PxSize {
-        let mut data = BORDER_DATA.get();
+        let mut data = BORDER_DATA.get_clone();
         let border = WIDGET.border();
         data.add_inner(&border);
 
-        BORDER_DATA.with_context(&mut Some(data), || {
+        BORDER_DATA.with_context_value(data, || {
             let corner_radius = BORDER.border_radius();
             border.set_corner_radius(corner_radius);
             border.set_offsets(PxSideOffsets::zero());
@@ -1049,15 +1049,15 @@ impl BORDER {
     }
 
     fn with_border(&self, offsets: PxSideOffsets, f: impl FnOnce()) {
-        let mut data = BORDER_DATA.get();
+        let mut data = BORDER_DATA.get_clone();
         data.add_offset(Some(&WIDGET.border()), offsets);
-        BORDER_DATA.with_context(&mut Some(data), f);
+        BORDER_DATA.with_context_value(data, f);
     }
 
     fn measure_with_border(&self, offsets: PxSideOffsets, f: impl FnOnce() -> PxSize) -> PxSize {
-        let mut data = BORDER_DATA.get();
+        let mut data = BORDER_DATA.get_clone();
         data.add_offset(None, offsets);
-        BORDER_DATA.with_context(&mut Some(data), f)
+        BORDER_DATA.with_context_value(data, f)
     }
 
     /// Indicates a boundary point where the [`CORNER_RADIUS_VAR`] backing context changes during layout.
@@ -1069,9 +1069,9 @@ impl BORDER {
     /// [`corner_radius`]: fn@corner_radius
     /// [`measure`]: UiNode::measure
     pub fn with_corner_radius<R>(&self, f: impl FnOnce() -> R) -> R {
-        let mut data = BORDER_DATA.get();
+        let mut data = BORDER_DATA.get_clone();
         data.set_corner_radius();
-        BORDER_DATA.with_context(&mut Some(data), f)
+        BORDER_DATA.with_context_value(data, f)
     }
 
     /// Gets the computed border rect and side offsets for the border visual.
@@ -1085,7 +1085,7 @@ impl BORDER {
         })
     }
     fn with_border_layout(&self, rect: PxRect, offsets: PxSideOffsets, f: impl FnOnce()) {
-        BORDER_LAYOUT.with_context_opt(&mut Some((rect, offsets)), f);
+        BORDER_LAYOUT.with_context_value(Some((rect, offsets)), f)
     }
 }
 

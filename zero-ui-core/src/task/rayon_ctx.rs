@@ -39,7 +39,7 @@ where
 {
     type Item = T;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    fn drive_unindexed<C>(mut self, consumer: C) -> C::Result
     where
         C: UnindexedConsumer<Self::Item>,
     {
@@ -51,15 +51,15 @@ where
     }
 
     fn opt_len(&self) -> Option<usize> {
-        self.ctx.with_context(move || self.base.opt_len())
+        self.base.opt_len()
     }
 }
 impl<I: IndexedParallelIterator> IndexedParallelIterator for ParallelIteratorWithCtx<I> {
     fn len(&self) -> usize {
-        self.ctx.with_context(move || self.base.len())
+        self.base.len()
     }
 
-    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+    fn drive<C: Consumer<Self::Item>>(mut self, consumer: C) -> C::Result {
         let consumer = ParallelCtxConsumer {
             base: consumer,
             ctx: self.ctx.clone(),
@@ -67,7 +67,7 @@ impl<I: IndexedParallelIterator> IndexedParallelIterator for ParallelIteratorWit
         self.ctx.with_context(move || self.base.drive(consumer))
     }
 
-    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output {
+    fn with_producer<CB: ProducerCallback<Self::Item>>(mut self, callback: CB) -> CB::Output {
         let callback = ParallelCtxProducerCallback {
             base: callback,
             ctx: self.ctx.clone(),
@@ -89,7 +89,7 @@ where
     type Reducer = ParallelCtxReducer<C::Reducer>;
     type Result = C::Result;
 
-    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+    fn split_at(mut self, index: usize) -> (Self, Self, Self::Reducer) {
         let (left, right, reducer) = self.ctx.with_context(|| self.base.split_at(index));
         let reducer = ParallelCtxReducer {
             base: reducer,
@@ -106,13 +106,13 @@ where
         (left, right, reducer)
     }
 
-    fn into_folder(self) -> Self::Folder {
+    fn into_folder(mut self) -> Self::Folder {
         let base = self.ctx.with_context(|| self.base.into_folder());
         ParallelCtxFolder { base, ctx: self.ctx }
     }
 
     fn full(&self) -> bool {
-        self.ctx.with_context(|| self.base.full())
+        self.base.full()
     }
 }
 
@@ -122,17 +122,15 @@ where
     T: Send,
 {
     fn split_off_left(&self) -> Self {
-        let base = self.ctx.with_context(|| self.base.split_off_left());
         Self {
-            base,
+            base: self.base.split_off_left(),
             ctx: self.ctx.clone(),
         }
     }
 
     fn to_reducer(&self) -> Self::Reducer {
-        let base = self.ctx.with_context(|| self.base.to_reducer());
         ParallelCtxReducer {
-            base,
+            base: self.base.to_reducer(),
             ctx: self.ctx.clone(),
         }
     }
@@ -148,17 +146,17 @@ where
 {
     type Result = F::Result;
 
-    fn consume(self, item: Item) -> Self {
+    fn consume(mut self, item: Item) -> Self {
         let base = self.ctx.with_context(move || self.base.consume(item));
         Self { base, ctx: self.ctx }
     }
 
-    fn complete(self) -> Self::Result {
+    fn complete(mut self) -> Self::Result {
         self.ctx.with_context(|| self.base.complete())
     }
 
     fn full(&self) -> bool {
-        self.ctx.with_context(|| self.base.full())
+        self.base.full()
     }
 }
 
@@ -170,7 +168,7 @@ impl<Result, R> Reducer<Result> for ParallelCtxReducer<R>
 where
     R: Reducer<Result>,
 {
-    fn reduce(self, left: Result, right: Result) -> Result {
+    fn reduce(mut self, left: Result, right: Result) -> Result {
         self.ctx.with_context(move || self.base.reduce(left, right))
     }
 }
@@ -182,7 +180,7 @@ struct ParallelCtxProducerCallback<C> {
 impl<T, C: ProducerCallback<T>> ProducerCallback<T> for ParallelCtxProducerCallback<C> {
     type Output = C::Output;
 
-    fn callback<P>(self, producer: P) -> Self::Output
+    fn callback<P>(mut self, producer: P) -> Self::Output
     where
         P: Producer<Item = T>,
     {
@@ -203,11 +201,11 @@ impl<P: Producer> Producer for ParallelCtxProducer<P> {
 
     type IntoIter = P::IntoIter;
 
-    fn into_iter(self) -> Self::IntoIter {
+    fn into_iter(mut self) -> Self::IntoIter {
         self.ctx.with_context(|| self.base.into_iter())
     }
 
-    fn split_at(self, index: usize) -> (Self, Self) {
+    fn split_at(mut self, index: usize) -> (Self, Self) {
         let (left, right) = self.ctx.with_context(|| self.base.split_at(index));
         (
             Self {

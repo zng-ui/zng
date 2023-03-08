@@ -731,7 +731,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         }
     }
 
-    fn key(&self) -> TypeId {
+    fn key(&'static self) -> TypeId {
         self.data.read().key
     }
 
@@ -746,6 +746,11 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         #[cfg(dyn_closure)]
         let f: Box<dyn FnOnce() -> R> = Box::new(f);
         LocalContext::with_value_ctx(self, value, f)
+    }
+
+    /// Calls `f` with the `value` loaded in context.
+    pub fn with_context_value<R>(&'static self, value: T, f: impl FnOnce() -> R) -> R {
+        self.with_context(&mut Some(Arc::new(value)), f)
     }
 
     /// Calls `f` with no value loaded in context.
@@ -778,6 +783,33 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
                             d
                         }
                         Some(d) => d.clone(),
+                    }
+                }
+            },
+        }
+    }
+
+    /// Clone the current value in the context or the default value.
+    pub fn get_clone(&'static self) -> T
+    where
+        T: Clone,
+    {
+        let cl = self.data.read();
+        match LocalContext::get(cl.key) {
+            Some(c) => c.downcast_ref::<T>().unwrap().clone(),
+            None => match &cl.default_value {
+                Some(d) => d.as_ref().clone(),
+                None => {
+                    drop(cl);
+                    let mut cl = self.data.write();
+                    match &cl.default_value {
+                        None => {
+                            let val = (cl.default_init)();
+                            let r = val.clone();
+                            cl.default_value = Some(Arc::new(val));
+                            r
+                        }
+                        Some(d) => d.as_ref().clone(),
                     }
                 }
             },
