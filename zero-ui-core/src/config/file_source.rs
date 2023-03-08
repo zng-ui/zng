@@ -201,7 +201,8 @@ impl ConfigFile {
                         match rx.recv_timeout(if write_fails > 0 { 1.secs() } else { debounce }) {
                             Ok(request) => match request {
                                 Request::Read { key, rsp } => {
-                                    let r = data.get(&key).cloned();
+                                    let r = data.entry(key).or_insert(JsonValue::Null).clone();
+                                    let r = if r == JsonValue::Null { None } else { Some(r) };
 
                                     #[cfg(any(test, doc, feature = "test_util"))]
                                     if let Some(delay) = read_delay {

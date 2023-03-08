@@ -31,7 +31,7 @@ fn app_main() {
         trace_status(&status);
 
         window! {
-            title = "Config Example";
+            title = if std::env::var("MOVE-TO").is_err() { "Config Example" } else { "Config Example - Other Process" };
             background = text! {
                 txt = status.map_to_text();
                 margin = 10;
@@ -74,7 +74,7 @@ fn app_main() {
                         })
                     },
                     button! {
-                        child = text!("Open Another Instance");
+                        child = text!("Open Another Process");
                         on_click = hn!(|_| {
                             let offset = Dip::new(30);
                             let pos = WINDOW_CTRL.vars().actual_position().get() + DipVector::new(offset, offset);
@@ -85,8 +85,8 @@ fn app_main() {
                                 Ok(())
                             })();
                             match r {
-                                Ok(_) => println!("Opened another instance"),
-                                Err(e) => eprintln!("Error opening another instance, {e:?}"),
+                                Ok(_) => println!("Opened another process"),
+                                Err(e) => eprintln!("Error opening another process, {e:?}"),
                             }
                         })
                     }

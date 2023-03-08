@@ -1,6 +1,3 @@
-* `config` example with two windows sometimes does not update the other window.
-    - Try removing save file.
-
 * Parallelize more methods.
     - `info`: how to share the `&mut WidgetInfoBuilder`?
         - Or can we build in parallel and then merge?
