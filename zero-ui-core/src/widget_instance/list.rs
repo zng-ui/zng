@@ -1509,7 +1509,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
             for list in self {
                 list.deinit_all();
             }
-        }        
+        }
     }
 
     fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {

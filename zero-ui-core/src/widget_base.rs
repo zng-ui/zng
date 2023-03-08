@@ -1057,15 +1057,20 @@ bitflags! {
         const DEINIT = 0b0010;
     }
 }
+impl Default for Parallel {
+    fn default() -> Self {
+        Self::all()
+    }
+}
 context_var! {
     /// Controls what node list methods can run in parallel in an widget and descendants.
     ///
     /// This variable can be set using the [`parallel`] property.
     ///
-    /// Is none by default.
+    /// Is all enabled by default.
     ///
     /// [`parallel`]: fn@parallel
-    pub static PARALLEL_VAR: Parallel = Parallel::empty();
+    pub static PARALLEL_VAR: Parallel = Parallel::default();
 }
 impl_from_and_into_var! {
     fn from(all: bool) -> Parallel {

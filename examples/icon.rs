@@ -6,20 +6,18 @@ use zero_ui_material_icons as icons;
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    examples_util::print_info();
+    // examples_util::print_info();
     zero_ui_view::init();
 
-    // let rec = examples_util::record_profile("icon");
+    let rec = examples_util::record_profile("icon");
 
     // zero_ui_view::run_same_process(app_main);
     app_main();
 
-    // rec.finish();
+    rec.finish();
 }
 
 fn app_main() {
-    let t = std::time::Instant::now();
-
     App::default().extend(icons::MaterialFonts).run_window(move || {
         window! {
             title = "Icon Example";
@@ -32,10 +30,6 @@ fn app_main() {
                 mode = ScrollMode::VERTICAL;
                 child = icons();
             };
-            on_load = hn_once!(|_| {
-                println!("loaded in {:?}", t.elapsed())
-            });
-            zero_ui::core::widget_base::parallel = true;
             // zero_ui::properties::inspector::show_hit_test = true;
         }
     })

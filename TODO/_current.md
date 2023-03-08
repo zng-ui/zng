@@ -1,8 +1,42 @@
-* Implement unblocking image render.
-    - Test it in animation example.
-* Implement unblocking icon example loading.
+* `config` example with two windows sometimes does not update the other window.
+    - Try removing save file.
+
+* Parallelize more methods.
+    - `info`: how to share the `&mut WidgetInfoBuilder`?
+        - Or can we build in parallel and then merge?
+    - `measure` and `layout`: needs to be done in panels, also how to parallelize access to mutable associated data in `PanelList`?
+        - Also how to share the `&mut WidgetLayout`?
+    - `event` and `update`: do we need these?
+        - For rare broadcast events?
+        - How to share the distribution list?
+    - `render`: how to share the frame builder?
+        - Can we build partial frames and merge?
+    - `render_update`: do we need it?
+        - We don't have an example that generates massive updates, but it is possible.
+        - Also review if we avoid sending updates for culled widgets, we should avoid doing that.
+        - To implement parallel we can just have multiple update builders and merge then?
+            - Simpler than merging other builders.
+            - Just need to figure out how to reuse then, right now we reuse alloc between updates.
+
+* Parallelize app extensions?
+    - The API is careful to not change the order of updates.
+    - Maybe extensions can provide their own `Parallel` selection.
+        - No if an extension depends on updating after the other the first extension could enable parallel and break this.
+    - Maybe extensions can list their dependencies?
+        - This requires dynamic code to create lists that must update linearly.
+        - Right now we use generics in release builds to create zero-cost dispatch.
+    - Do we have extensions that depend on running after others?
+        - With multiple priority update methods maybe we don't need it.
+        - Review this.
+
+* Implement property that shows "loading" content while loading a large sub-tree up-to the first render request.
+    - The content is then swapped whey it is ready, updates after the init tend to be very light, is only
+      the init that is slow.
+    - Use this in `icon` example.
+    - Use this in image render?
 
 * Review if service locks are blocking parallel execution.
+    - `FontFaceLoader::get_system` and `FontFace::load` are noticeable in release build traces.
 
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
@@ -23,9 +57,6 @@
 
 * Window without child does not open.
     - No layout request?
-
-* `config` example with two windows sometimes does not update the other window.
-    - Try removing save file.
 
 * Review all docs.
     - Mentions of threads in particular.
