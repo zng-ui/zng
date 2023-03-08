@@ -203,16 +203,30 @@ impl LocalContext {
     {
         let local = local.data.read();
         LOCAL.with(|l| {
-            let mut l = l.borrow_mut();
-            let entry = l.entry((local.key)()).or_insert_with(|| Arc::new((local.default_init)()));
-            match Arc::get_mut(entry) {
-                Some(v) => f(v.downcast_mut().unwrap()),
-                None => {
-                    let mut value = entry.downcast_ref::<T>().unwrap().clone();
-                    let r = f(&mut value);
-                    *entry = Arc::new(value);
-                    r
+            let key = (local.key)();
+            let value = l.borrow_mut().remove(&key);
+            if let Some(mut value) = value {
+                match Arc::get_mut(&mut value) {
+                    Some(val) => {
+                        // can reuse
+                        let r = f(val.downcast_mut::<T>().unwrap());
+                        l.borrow_mut().insert(key, value);
+                        r
+                    }
+                    None => {
+                        // cannot reuse, clone
+                        let mut val = value.as_ref().downcast_ref::<T>().unwrap().clone();
+                        let r = f(&mut val);
+                        l.borrow_mut().insert(key, Arc::new(val));
+                        r
+                    }
                 }
+            } else {
+                // no value, init default
+                let mut val = (local.default_init)();
+                let r = f(&mut val);
+                l.borrow_mut().insert(key, Arc::new(val));
+                r
             }
         })
     }
@@ -839,11 +853,8 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 
     /// Calls `f` with a mutable reference to the value in context.
     ///
-    /// The value is cloned only if it is shared and ends up inserted in the context if was not already there.
-    ///
-    /// # Panics
-    ///
-    /// Panics if any context locals try to read inside `f` in the same thread.
+    /// The value is cloned only if it is shared, during the call to `f` the value is removed from the context, the value
+    /// is re-inserted in the context after `f`.
     pub fn with_mut<R>(&'static self, f: impl FnOnce(&mut T) -> R) -> R
     where
         T: Clone,
