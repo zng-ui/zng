@@ -6,7 +6,7 @@ use crate::core::config::{ConfigKey, CONFIG};
 use crate::core::text::formatx;
 use crate::core::window::{
     AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState, WindowVars, MONITORS,
-    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_CTRL, WINDOW_LOAD_EVENT,
+    WINDOW_CTRL, WINDOW_LOAD_EVENT,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
@@ -241,7 +241,7 @@ impl_from_and_into_var! {
 /// Save and restore the window state.
 ///
 /// If enabled a config entry is created for the window state in [`CONFIG`], and if a config backend is set
-/// the window state is persisted and restored when the app reopens.
+/// the window state is persisted on change and restored when the app reopens.
 ///
 /// This property is enabled by default in the `window!` widget, it is recommended to open the window with a name if
 /// the app can open more than one window.
@@ -259,29 +259,29 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
     #[ui_node(struct SaveStateNode {
         child: impl UiNode,
         enabled: SaveState,
-        handles: Option<[EventHandle; 2]>,
 
         task: Task,
     })]
     impl UiNode for SaveStateNode {
         fn init(&mut self) {
             if let Some(key) = self.enabled.window_key(WINDOW.id()) {
+                let vars = WINDOW_CTRL.vars();
+                WIDGET
+                    .sub_event(&WINDOW_LOAD_EVENT)
+                    .sub_var(&vars.state())
+                    .sub_var(&vars.restore_rect());
+
                 let rsp = CONFIG.read(key);
                 let loading = self.enabled.loading_timeout().and_then(|t| WINDOW_CTRL.loading_handle(t));
                 rsp.subscribe(WIDGET.id()).perm();
-                self.task = Task::Read { rsp, loading };
-            }
 
-            if self.enabled.is_enabled() {
-                let id = WIDGET.id();
-                self.handles = Some([WINDOW_CLOSE_REQUESTED_EVENT.subscribe(id), WINDOW_LOAD_EVENT.subscribe(id)]);
+                self.task = Task::Read { rsp, loading };
             }
 
             self.child.init();
         }
 
         fn deinit(&mut self) {
-            self.handles = None;
             self.child.deinit();
         }
 
@@ -289,26 +289,6 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             self.child.event(update);
             if WINDOW_LOAD_EVENT.has(update) {
                 self.task = Task::None;
-            } else if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
-                if !args.propagation().is_stopped() {
-                    if let Some(key) = self.enabled.window_key(WINDOW.id()) {
-                        match &self.task {
-                            Task::None => {
-                                // request write.
-                                let window_vars = WINDOW_CTRL.vars();
-                                let cfg = WindowStateCfg {
-                                    state: window_vars.state().get(),
-                                    restore_rect: window_vars.restore_rect().get().cast(),
-                                };
-
-                                CONFIG.write(key, cfg);
-                            }
-                            Task::Read { .. } => {
-                                // closing quick, ignore
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -329,6 +309,18 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                     }
                     self.task = Task::None;
                 }
+            } else if self.enabled.is_enabled() {
+                let vars = WINDOW_CTRL.vars();
+                if vars.state().is_new() || vars.restore_rect().is_new() {
+                    let cfg = WindowStateCfg {
+                        state: vars.state().get(),
+                        restore_rect: vars.restore_rect().get().cast(),
+                    };
+
+                    if let Some(key) = self.enabled.window_key(WINDOW.id()) {
+                        CONFIG.write(key, cfg);
+                    }
+                }
             }
             self.child.update(updates);
         }
@@ -336,7 +328,6 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
     SaveStateNode {
         child,
         enabled: enabled.into(),
-        handles: None,
         task: Task::None,
     }
 }
