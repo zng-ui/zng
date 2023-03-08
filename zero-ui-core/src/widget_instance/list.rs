@@ -384,8 +384,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     }
 
     fn deinit_all(&mut self) {
-        self.0.deinit_all();
-        self.1.deinit_all();
+        if PARALLEL_VAR.get().contains(Parallel::DEINIT) {
+            task::join(|| self.0.deinit_all(), || self.1.deinit_all());
+        } else {
+            self.0.deinit_all();
+            self.1.deinit_all();
+        }
     }
 
     fn event_all(&mut self, update: &mut EventUpdate) {
@@ -1499,9 +1503,13 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 
     fn deinit_all(&mut self) {
-        for list in self {
-            list.deinit_all();
-        }
+        if PARALLEL_VAR.get().contains(Parallel::DEINIT) {
+            self.par_iter_mut().with_ctx().for_each(|l| l.deinit_all());
+        } else {
+            for list in self {
+                list.deinit_all();
+            }
+        }        
     }
 
     fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {

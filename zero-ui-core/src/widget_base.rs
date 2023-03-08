@@ -1051,8 +1051,10 @@ bitflags! {
     ///
     /// [`parallel`]: fn@parallel
     pub struct Parallel: u8 {
-        /// Descendants init can run in parallel.
-        const INIT = 0b0001;
+        /// Descendants [`UiNode::init`] can run in parallel.
+        const INIT =   0b0001;
+        /// Descendants [`UiNode::deinit`] can run in parallel.
+        const DEINIT = 0b0010;
     }
 }
 context_var! {

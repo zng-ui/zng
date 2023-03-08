@@ -473,10 +473,16 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn deinit_all(&mut self) {
-        self.for_each_mut(|_, c| {
-            c.deinit();
-            true
-        });
+        if PARALLEL_VAR.get().contains(Parallel::DEINIT) {
+            self.par_each_mut(|_, c| {
+                c.deinit();
+            });
+        } else {
+            self.for_each_mut(|_, c| {
+                c.deinit();
+                true
+            });
+        }
     }
 
     /// Receive updates for the list in a context, all nodes are also updated.
