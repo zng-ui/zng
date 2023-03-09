@@ -49,7 +49,7 @@ fn icons() -> impl UiNode {
             icon::vis::ico_size = 48;
             children = {
                 let x = icons
-                .chunks((icons.len() / 12).max(100))
+                .chunks(100)
                 .map(|c| wrap! { // segment into multiple inlined `wrap!` for a small perf gain.
                     lazy = {
                         // estimate the size of the `wrap!` panel
@@ -74,7 +74,7 @@ fn icons() -> impl UiNode {
                             let row_len  = width / (btn_size.width + spacing);
                             let rows = len / row_len;
 
-                            let height = (rows * btn_size.height + spacing) - spacing;
+                            let height = rows * (btn_size.height + spacing) - spacing;
 
                             PxSize::new(width, height)
                         })

@@ -1,21 +1,9 @@
-* Implement `preload` property that shows an alternative content while the widget is init, layout and rendered for
-  the first time in background threads.
-  - While the widget is preloading it will not receive some events and updates, going out of sync.
-    - It can end-up loading the wrong theme for example, or partially loading the wrong theme.
-  - Background loading content can generate notifications talking about then-selves and services will not be able to actually find then.
-  - Try to implement lazy loading based on viewport first.
-
 * Implement `lazy` or `virtual` property that only reserves an estimated size for the widget when it is not within a page of the
     viewport.
-    - Some examples like `icon` or the inspector window have too many active widgets.
-        - In HTML Lighthouse starts complained after 800 nodes, https://developer.chrome.com/docs/lighthouse/performance/dom-size/
-    - Because widgets are loaded in sync this does not have the same problems as the `preload` idea.
-        - But a lot of widgets will just not be in the tree, so commands like `SCROLL_TO` will not find then.
-        - The user can work around this by not using `lazy` in such widgets.
-    - There is also no risk of lag after the init cycle, for the `preload` idea we count on the subsequent updates being all light
-      but that is not always the case.
     - A problem is the size estimate not being exactly right causing jumps in scroll.
         - This is a problem with all "lazy loading" or "virtualization", see how frameworks mitigate the issue.
+    - `lazy` needs to update the widget bounds with an estimated size.
+        - Inline widgets also need to estimate the inline info.
 
 # Other
 
