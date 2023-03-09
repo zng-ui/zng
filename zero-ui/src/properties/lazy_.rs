@@ -1,4 +1,4 @@
-use std::{fmt, sync::Arc};
+use std::{fmt, sync::{Arc, atomic::{AtomicBool, Ordering}}};
 
 use crate::prelude::new_property::*;
 
@@ -6,11 +6,12 @@ use crate::prelude::new_property::*;
 ///
 /// See [`LazyMode`] for details.
 #[property(CONTEXT, default(LazyMode::Disabled))]
-pub fn lazy(child: impl UiNode, enabled: impl IntoVar<LazyMode>) -> impl UiNode {
+pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
     LazyNode {
         child: None,
         not_inited: Some(child.boxed()),
-        enabled: enabled.into_var(),
+        mode: mode.into_var(),
+        init_deinit: AtomicBool::new(false),
     }
 }
 
@@ -58,7 +59,7 @@ impl LazyMode {
         }
     }
 
-    /// If lazy init is enabled.
+    /// If lazy init is mode.
     pub fn is_enabled(&self) -> bool {
         matches!(self, Self::Enabled { .. })
     }
@@ -82,12 +83,13 @@ impl fmt::Debug for LazyMode {
     not_inited: Option<BoxedUiNode>,
     
     #[var]
-    enabled: impl Var<LazyMode>,
+    mode: impl Var<LazyMode>,
+    init_deinit: AtomicBool,
 })]
 impl UiNode for LazyNode {
     fn init(&mut self) {
         self.auto_subs();
-        if !self.enabled.with(|e| e.is_enabled()) {
+        if !self.mode.with(|e| e.is_enabled()) {
             self.child = self.not_inited.take();
         }
 
@@ -100,7 +102,17 @@ impl UiNode for LazyNode {
     }
 
     fn update(&mut self, updates: &mut WidgetUpdates) {
-        // !!: TODO, activate
+        if self.init_deinit.swap(false, Ordering::Relaxed) {
+            if self.child.is_none() {
+                // init
+                self.child = self.not_inited.take();
+                self.child.init();
+            } else {
+                // deinit
+                self.child.deinit();
+                self.not_inited = self.child.take();
+            }
+        }
         self.child.update(updates);
     }
 
@@ -108,7 +120,7 @@ impl UiNode for LazyNode {
         if let Some(c) = &self.child {
             c.measure(wm)
         } else {
-            self.enabled.with(|l| match l {
+            self.mode.with(|l| match l {
                 LazyMode::Enabled { estimate_size, .. } => estimate_size(),
                 _ => unreachable!()
             })
@@ -119,7 +131,7 @@ impl UiNode for LazyNode {
         if let Some(c) = &mut self.child {
             c.layout(wl)
         } else {
-            self.enabled.with(|l| match l {
+            self.mode.with(|l| match l {
                 LazyMode::Enabled { estimate_size, .. } => estimate_size(),
                 _ => unreachable!()
             })
@@ -127,9 +139,26 @@ impl UiNode for LazyNode {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.auto_hide_rect(); // !!: can't we do something like this in `layout`?
-                                //     so we can call `init` immediately, otherwise we will have to generate two frames
-                                //     every time the widget enters auto_hide_rect.
-        self.child.render(frame);
+        let in_viewport = WIDGET.bounds().outer_bounds().intersects(&frame.auto_hide_rect());
+        if in_viewport {
+            if self.child.is_none() {
+                self.init_deinit.store(true, Ordering::Relaxed);
+                WIDGET.update();
+            } else {
+                self.child.render(frame);
+            }
+        } else if self.child.is_some() {
+            let deinit = self.mode.with(|l| match l {
+                LazyMode::Enabled { deinit, .. } => *deinit,
+                _ => false
+            });
+            if deinit {
+                self.init_deinit.store(true, Ordering::Relaxed);
+                WIDGET.update();
+            } else {
+                self.child.render(frame);
+            }
+        }
+
     }
 }
