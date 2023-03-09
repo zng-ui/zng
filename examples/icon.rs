@@ -51,6 +51,34 @@ fn icons() -> impl UiNode {
                 let x = icons
                 .chunks((icons.len() / 12).max(100))
                 .map(|c| wrap! { // segment into multiple inlined `wrap!` for a small perf gain.
+                    lazy = {
+                        // estimate the size of the `wrap!` panel
+                        //
+                        // !!: add a helper function to `wrap::estimate_size` that does this.
+                        use zero_ui::core::{units::*, context::*};
+                        let len = c.len();
+                        LazyMode::lazy(move || {
+                            let scale_factor = LAYOUT.scale_factor();
+
+                            let btn_size = DipSize::new(Dip::new(80), Dip::new(80)).to_px(scale_factor.0);
+                            let spacing = Dip::new(5).to_px(scale_factor.0);
+
+                            let width = (LAYOUT.constrains().x.max()).expect("scroll only vertical");
+
+                            if width == Px(0) {
+                                // !!: why does this happen?
+                                return PxSize::zero();
+                            }
+
+                            let len = Px(len as i32);
+                            let row_len  = width / (btn_size.width + spacing);
+                            let rows = len / row_len;
+
+                            let height = (rows * btn_size.height + spacing) - spacing;
+
+                            PxSize::new(width, height)
+                        })
+                    };
                     spacing = 5;
                     children = c.iter()
                                 .map(|i| icon_btn(i.clone()).boxed())
