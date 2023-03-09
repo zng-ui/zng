@@ -451,7 +451,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Init the list in a context, all nodes are also inited.
     ///
-    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to init nodes is an error.
+    /// The behavior of some list implementations depend on this call, using [`for_each_mut`] to init nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn init_all(&mut self) {
@@ -469,7 +469,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Deinit the list in a context, all nodes are also deinited.
     ///
-    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to deinit nodes is an error.
+    /// The behavior of some list implementations depend on this call, using [`for_each_mut`] to deinit nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn deinit_all(&mut self) {
@@ -487,7 +487,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Receive updates for the list in a context, all nodes are also updated.
     ///
-    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to update nodes is an error.
+    /// The behavior of some list implementations depend on this call, using [`for_each_mut`] to update nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
@@ -500,7 +500,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Receive an event for the list in a context, all nodes are also notified.
     ///
-    /// The functionality of some list implementations depend on this call, using [`for_each_mut`] to notify nodes is an error.
+    /// The behavior of some list implementations depend on this call, using [`for_each_mut`] to notify nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn event_all(&mut self, update: &mut EventUpdate) {
@@ -512,7 +512,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Render all nodes.
     ///
-    /// The correct functionality of some list implementations depend on this call, using [`for_each`] to render nodes can
+    /// The correct behavior of some list implementations depend on this call, using [`for_each`] to render nodes can
     /// break it, for example, the [`PanelList`] render nodes in a different order.
     ///
     /// [`for_each`]: UiNodeList::for_each
@@ -525,7 +525,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Render all nodes.
     ///
-    /// The correct functionality of some list implementations depend on this call, using [`for_each`] to render nodes can
+    /// The correct behavior of some list implementations depend on this call, using [`for_each`] to render nodes can
     /// break it, for example, the [`PanelList`] render nodes in a different order.
     ///
     /// [`for_each`]: UiNodeList::for_each

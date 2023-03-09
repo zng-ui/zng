@@ -315,11 +315,6 @@ impl Hash for InlineSegmentPos {
 /// Info about the input inline connecting rows of the widget.
 #[derive(Clone, Debug, Default)]
 pub struct WidgetInlineMeasure {
-    /// Maximum fill width possible on the first row.
-    pub first_max_fill: Px,
-    /// Maximum fill width possible on the last row.
-    pub last_max_fill: Px,
-
     /// Preferred first size.
     ///
     /// In left-to-right direction the origin is `top_left`, in right-to-left direction the origin is `top_right - first.width`.
@@ -582,6 +577,25 @@ impl WidgetInlineInfo {
         }
     }
 }
+impl Clone for WidgetInlineInfo {
+    fn clone(&self) -> Self {
+        Self {
+            rows: self.rows.clone(),
+            first_segs: self.first_segs.clone(),
+            last_segs: self.last_segs.clone(),
+            inner_size: self.inner_size,
+            negative_space: Mutex::new((Arc::new(vec![]), false)),
+        }
+    }
+}
+impl PartialEq for WidgetInlineInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.rows == other.rows
+            && self.first_segs == other.first_segs
+            && self.last_segs == other.last_segs
+            && self.inner_size == other.inner_size
+    }
+}
 
 /// Represents the in-progress measure pass for a widget tree.
 #[derive(Default)]
@@ -592,6 +606,13 @@ impl WidgetMeasure {
     /// New default.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// New with inline active.
+    pub fn new_inline() -> Self {
+        let mut s = Self::new();
+        s.inline = Some(Default::default());
+        s
     }
 
     /// If the parent widget is doing inline flow layout.
@@ -647,8 +668,10 @@ impl WidgetMeasure {
         }
 
         let parent_uses = metrics.enter_widget_ctx();
-        if LAYOUT.inline_constrains().is_some() && self.inline.is_none() {
-            self.inline = Some(Default::default());
+        if LAYOUT.inline_constrains().is_some() {
+            if self.inline.is_none() {
+                self.inline = Some(Default::default());
+            }
         } else {
             self.inline = None;
         }

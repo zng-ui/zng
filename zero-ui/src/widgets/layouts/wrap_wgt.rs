@@ -85,6 +85,38 @@ pub mod wrap {
             layout: Default::default(),
         }
     }
+
+    #[doc(inline)]
+    pub use super::lazy_estimate;
+}
+
+/// Create a node that estimates the size for a wrap panel children where all items have the same non-inline size.
+pub fn lazy_estimate(children_len: impl IntoVar<usize>, child_size: impl IntoVar<Size>, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {
+    #[ui_node(struct LazyWrapNode {
+        #[var] children_len: impl Var<usize>,
+        #[var] child_size: impl Var<Size>,
+        #[var] spacing: impl Var<GridSpacing>,
+    })]
+    impl UiNode for LazyWrapNode {
+        fn update(&mut self, _: &mut WidgetUpdates) {
+            if self.children_len.is_new() || self.child_size.is_new() || self.spacing.is_new() {
+                WIDGET.layout();
+            }
+        }
+
+        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            InlineLayout::estimate_measure(wm, self.children_len.get(), self.child_size.layout(), self.spacing.layout())
+        }
+
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            InlineLayout::estimate_layout(wl, self.children_len.get(), self.child_size.layout(), self.spacing.layout())
+        }
+    }
+    LazyWrapNode {
+        children_len: children_len.into_var(),
+        child_size: child_size.into_var(),
+        spacing: spacing.into_var(),
+    }
 }
 
 #[ui_node(struct WrapNode {
@@ -264,6 +296,79 @@ pub struct InlineLayout {
     bidi_default_segs: Arc<Vec<InlineSegmentPos>>,
 }
 impl InlineLayout {
+    pub fn estimate_measure(wm: &mut WidgetMeasure, children_len: usize, child_size: PxSize, spacing: PxGridSpacing) -> PxSize {
+        if children_len == 0 {
+            return PxSize::zero();
+        }
+
+        let metrics = LAYOUT.metrics();
+        let constrains = metrics.constrains();
+
+        if let (None, Some(known)) = (metrics.inline_constrains(), constrains.fill_or_exact()) {
+            return known;
+        }
+
+        if let Some(inline) = wm.inline() {
+            let inline_constrains = metrics.inline_constrains().unwrap().measure();
+
+            inline.first_wrapped = inline_constrains.first_max < child_size.width;
+
+            let mut children_len = Px(children_len as i32);
+
+            if !inline.first_wrapped {
+                // first row
+                let max_x = inline_constrains.first_max;
+                let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
+
+                children_len -= column_len;
+
+                inline.first.width = (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width;
+                inline.first.height = child_size.height.max(inline_constrains.mid_clear_min);
+            }
+
+            let max_x = constrains.x.max().unwrap_or(Px::MAX).max(child_size.width);
+            // spacing in between items means space available to divide for pairs (width+space) has 1 less item.
+            let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
+            let row_len = (children_len / column_len).max(Px(1));
+
+            let mut desired_size = PxSize::new(
+                (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width,
+                (row_len - Px(1)) * (child_size.height + spacing.row) + child_size.height,
+            );
+
+            inline.last_wrapped = row_len.0 > 1;
+            if inline.last_wrapped {
+                let last_len = column_len - (children_len % row_len);
+                if last_len.0 > 0 {
+                    inline.last.width = (last_len - Px(1)) * (child_size.width + spacing.column) + child_size.width;
+                } else {
+                    inline.last.width = desired_size.width;
+                }
+                inline.last.height = child_size.height;
+            }
+
+            if inline.first_wrapped {
+                inline.first.width = desired_size.width;
+                inline.first.height = desired_size.height;
+            } else {
+                desired_size.height += inline.first.height;
+            }
+
+            constrains.clamp_size(desired_size)
+        } else {
+            let max_x = constrains.x.max().unwrap_or(Px::MAX).max(child_size.width);
+            // spacing in between means space available to divide for pairs (width + column) has 1 less item.
+            let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
+            let row_len = (Px(children_len as i32) / column_len).max(Px(1));
+
+            let desired_size = PxSize::new(
+                (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width,
+                (row_len - Px(1)) * (child_size.height + spacing.row) + child_size.height,
+            );
+            constrains.clamp_size(desired_size)
+        }
+    }
+
     pub fn measure(&mut self, wm: &mut WidgetMeasure, children: &PanelList, child_align: Align, spacing: PxGridSpacing) -> PxSize {
         let metrics = LAYOUT.metrics();
         let constrains = metrics.constrains();
@@ -277,8 +382,6 @@ impl InlineLayout {
         if let Some(inline) = wm.inline() {
             inline.first_wrapped = self.first_wrapped;
             inline.last_wrapped = self.rows.len() > 1;
-            inline.first_max_fill = inline.first.width;
-            inline.last_max_fill = inline.last.width;
 
             if let Some(first) = self.rows.first() {
                 inline.first = first.size;
@@ -301,6 +404,34 @@ impl InlineLayout {
         }
 
         constrains.clamp_size(self.desired_size)
+    }
+
+    pub fn estimate_layout(wl: &mut WidgetLayout, children_len: usize, child_size: PxSize, spacing: PxGridSpacing) -> PxSize {
+        if let Some(inline) = wl.inline() {
+            let mut wm = WidgetMeasure::new_inline();
+            let size = Self::estimate_measure(&mut wm, children_len, child_size, spacing);
+            if let Some(m_inline) = wm.inline() {
+                inline.invalidate_negative_space();
+                inline.inner_size = size;
+
+                let inline_constrains = LAYOUT.inline_constrains().unwrap().layout();
+
+                let mut mid_height = size.height;
+
+                if !m_inline.first_wrapped {
+                    inline.rows.push(inline_constrains.first);
+                    mid_height -= child_size.height + spacing.row;
+                }
+                if m_inline.last_wrapped {
+                    mid_height -= spacing.row + size.height;
+                    inline.rows.push(PxRect::from_size(PxSize::new(size.width, mid_height)));
+                    inline.rows.push(inline_constrains.last);
+                }
+            }
+            size
+        } else {
+            Self::estimate_measure(&mut WidgetMeasure::new(), children_len, child_size, spacing)
+        }
     }
 
     pub fn layout(&mut self, wl: &mut WidgetLayout, children: &mut PanelList, child_align: Align, spacing: PxGridSpacing) -> PxSize {
@@ -850,5 +981,62 @@ impl InlineLayout {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::core::{app::App, context::*};
+    use crate::widgets::{container, wgt};
+
+    use super::*;
+
+    #[test]
+    fn lazy_estimate() {
+        let _app = App::minimal().run_headless(false);
+
+        WINDOW.with_test_context(|| {
+            let mut panel = wrap! {
+                children = (0..100).map(|_| wgt! {
+                    size = (80, 80);
+                }).collect::<UiNodeVec>();
+                spacing = 5;
+            };
+            let mut estimate = container! {
+                child = wrap::lazy_estimate(100, (80, 80), 5);
+            };
+
+            WINDOW.test_init(&mut panel);
+            WINDOW.test_init(&mut estimate);
+
+            let measure_constrains = InlineConstrainsMeasure {
+                first_max: Px(800),
+                mid_clear_min: Px(0),
+            };
+            let layout_constrains = InlineConstrainsLayout {
+                first: PxSize::new(Px(800), Px(80)).into(),
+                mid_clear: Px(0),
+                last: PxSize::new(Px(800), Px(80)).into(),
+                first_segs: Arc::new(vec![]),
+                last_segs: Arc::new(vec![]),
+            };
+            let panel_size = WINDOW
+                .test_layout_inline(&mut panel, None, measure_constrains, layout_constrains.clone())
+                .0;
+            let estimate_size = WINDOW
+                .test_layout_inline(&mut estimate, None, measure_constrains, layout_constrains)
+                .0;
+
+            let panel_bounds = panel.with_context(|| WIDGET.bounds()).unwrap();
+            let estimate_bounds = estimate.with_context(|| WIDGET.bounds()).unwrap();
+
+            assert_eq!(panel_size, estimate_size);
+            assert!(panel_bounds.inline().is_some());
+            assert!(estimate_bounds.inline().is_some());
+            assert_eq!(
+                panel_bounds.inline().as_deref().cloned(),
+                estimate_bounds.inline().as_deref().cloned()
+            );
+        });
     }
 }

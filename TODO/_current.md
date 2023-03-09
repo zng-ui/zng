@@ -1,10 +1,10 @@
-* Implement `lazy` or `virtual` property that only reserves an estimated size for the widget when it is not within a page of the
-    viewport.
-    - A problem is the size estimate not being exactly right causing jumps in scroll.
-        - This is a problem with all "lazy loading" or "virtualization", see how frameworks mitigate the issue.
-    - `lazy` needs to update the widget bounds with an estimated size.
-        - Inline widgets also need to estimate the inline info.
-
+* Implement `lazy` placeholder helper for panels.
+    - `wrap::lazy_estimate`: Limited to wrapping blocks of same size and spacing.
+                             Generating incorrect sizes, can se in icon example the scrollbar flickering.
+    - `stack`: TODO, this is the one that will be most used, in lists.
+                maybe support variation of item sizes for this one.
+    - `grid`: not possible.
+ 
 # Other
 
 * Parallelize more methods.

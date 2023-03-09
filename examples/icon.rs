@@ -6,15 +6,15 @@ use zero_ui_material_icons as icons;
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    // examples_util::print_info();
+    examples_util::print_info();
     zero_ui_view::init();
 
-    let rec = examples_util::record_profile("icon");
+    // let rec = examples_util::record_profile("icon");
 
     // zero_ui_view::run_same_process(app_main);
     app_main();
 
-    rec.finish();
+    // rec.finish();
 }
 
 fn app_main() {
@@ -50,35 +50,10 @@ fn icons() -> impl UiNode {
             children = {
                 let x = icons
                 .chunks(100)
-                .map(|c| wrap! { // segment into multiple inlined `wrap!` for a small perf gain.
-                    lazy = {
-                        // estimate the size of the `wrap!` panel
-                        //
-                        // !!: add a helper function to `wrap::estimate_size` that does this.
-                        use zero_ui::core::{units::*, context::*};
-                        let len = c.len();
-                        LazyMode::lazy(move || {
-                            let scale_factor = LAYOUT.scale_factor();
-
-                            let btn_size = DipSize::new(Dip::new(80), Dip::new(80)).to_px(scale_factor.0);
-                            let spacing = Dip::new(5).to_px(scale_factor.0);
-
-                            let width = (LAYOUT.constrains().x.max()).expect("scroll only vertical");
-
-                            if width == Px(0) {
-                                // !!: why does this happen?
-                                return PxSize::zero();
-                            }
-
-                            let len = Px(len as i32);
-                            let row_len  = width / (btn_size.width + spacing);
-                            let rows = len / row_len;
-
-                            let height = rows * (btn_size.height + spacing) - spacing;
-
-                            PxSize::new(width, height)
-                        })
-                    };
+                .map(|c| wrap! { // segment into multiple inlined lazy inited `wrap!` for better performance.
+                    lazy = LazyMode::lazy(wgt_gen!(|_| {
+                        wrap::lazy_estimate(100, (80, 80), 5)
+                    }));
                     spacing = 5;
                     children = c.iter()
                                 .map(|i| icon_btn(i.clone()).boxed())

@@ -1495,12 +1495,13 @@ pub fn child_insert_end(child: impl UiNode, insert: impl UiNode, spacing: impl I
 /// [`size`]: fn@size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum WidgetLength {
     /// Evaluates to [`PxConstrains2d::fill_size`] when measured, can serve as a request for *size-to-fit*.
     ///
     /// The `grid!` widget uses this to fit the column and row widgets to *their* cells, as they don't
     /// logically own the cells, this fit needs to be computed by the parent panel.
+    #[default]
     Default,
     /// The [`Length::Leftover`] value. Evaluates to the [`LayoutMetrics::leftover`] value when measured, if
     /// a leftover value is not provided evaluates like a [`Length::Relative`].
@@ -1516,11 +1517,7 @@ pub enum WidgetLength {
     /// leftover length.
     Exact,
 }
-impl Default for WidgetLength {
-    fn default() -> Self {
-        WidgetLength::Default
-    }
-}
+
 impl From<&Length> for WidgetLength {
     fn from(value: &Length) -> Self {
         match value {

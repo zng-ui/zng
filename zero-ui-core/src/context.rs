@@ -519,14 +519,39 @@ impl WINDOW {
     /// [`with_test_context`]: Self::with_test_context
     pub fn test_layout(&self, content: &mut impl UiNode, constrains: Option<PxConstrains2d>) -> (PxSize, ContextUpdates) {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
-
-        let viewport = content
-            .with_context(|| WIDGET.bounds().outer_size())
-            .unwrap_or_else(|| PxSize::new(Px(1000), Px(800)));
-
+        let viewport = PxSize::new(Px(1000), Px(800));
         let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|c| constrains.unwrap_or(c));
         let size = LAYOUT.with_context(metrics, || {
             crate::widget_info::WidgetLayout::with_root_widget(0, |wl| content.layout(wl))
+        });
+        (size, UPDATES.apply())
+    }
+
+    /// Call inside [`with_test_context`] to layout the `content` as a child of the test window root.
+    ///
+    /// Returns the measure and layout size, and the requested updates.
+    ///
+    /// [`with_test_context`]: Self::with_test_context
+    pub fn test_layout_inline(
+        &self,
+        content: &mut impl UiNode,
+        constrains: Option<PxConstrains2d>,
+        measure_constrains: InlineConstrainsMeasure,
+        layout_constrains: InlineConstrainsLayout,
+    ) -> ((PxSize, PxSize), ContextUpdates) {
+        let font_size = Length::pt_to_px(14.0, 1.0.fct());
+        let viewport = PxSize::new(Px(1000), Px(800));
+        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|c| constrains.unwrap_or(c));
+        let size = LAYOUT.with_context(metrics, || {
+            use crate::widget_info::*;
+
+            let measure_size =
+                LAYOUT.with_inline_measure(&mut WidgetMeasure::new(), |_| Some(measure_constrains), |wm| content.measure(wm));
+            let layout_size = crate::widget_info::WidgetLayout::with_root_widget(0, |wl| {
+                LAYOUT.with_inline_layout(|_| Some(layout_constrains), || content.layout(wl))
+            });
+
+            (measure_size, layout_size)
         });
         (size, UPDATES.apply())
     }
@@ -1861,7 +1886,7 @@ impl std::ops::BitOr for ContextUpdates {
 /// See [`InlineConstrains`] for more details.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub struct InlineConstrainsMeasure {
-    /// Reserved space on the first row.
+    /// Available space on the first row.
     pub first_max: Px,
     /// Current height of the row in the parent. If the widget wraps and defines the first
     /// row in *this* parent's row, the `mid_clear` value will be the extra space needed to clear
@@ -1901,7 +1926,10 @@ impl InlineConstrains {
     pub fn measure(self) -> InlineConstrainsMeasure {
         match self {
             InlineConstrains::Measure(m) => m,
-            InlineConstrains::Layout(_) => Default::default(),
+            InlineConstrains::Layout(l) => InlineConstrainsMeasure {
+                first_max: l.first.width(),
+                mid_clear_min: l.mid_clear,
+            },
         }
     }
 
