@@ -13,7 +13,6 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
         not_inited: Some(child.boxed()),
         mode: mode.into_var(),
         init_deinit: AtomicBool::new(false),
-        init_render: AtomicBool::new(false),
     }
 }
 
@@ -87,7 +86,6 @@ impl fmt::Debug for LazyMode {
     #[var]
     mode: impl Var<LazyMode>,
     init_deinit: AtomicBool,
-    init_render: AtomicBool,
 })]
 impl UiNode for LazyNode {
     fn init(&mut self) {
@@ -124,7 +122,6 @@ impl UiNode for LazyNode {
                     self.child = self.not_inited.take();
                     self.child.init();
                     WIDGET.info().layout().render();
-                    *self.init_render.get_mut() = true;
                 } else if deinit {
                     // child is actual child, deinit it, generate placeholder again.
                     self.child.deinit();
@@ -159,13 +156,14 @@ impl UiNode for LazyNode {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        let init_render = self.init_render.swap(false, Ordering::Relaxed);
         if self.not_inited.is_some() {
             // child is placeholder
             let in_viewport = WIDGET.bounds().outer_bounds().intersects(&frame.auto_hide_rect());
             if in_viewport {
                 self.init_deinit.store(true, Ordering::Relaxed);
                 WIDGET.update();
+
+                println!("!!: {} init, placeholder: {:?}", WIDGET.id(), WIDGET.bounds().outer_bounds());
             }
         } else {
             // child is actual child
@@ -173,7 +171,7 @@ impl UiNode for LazyNode {
                 LazyMode::Enabled { deinit, .. } => *deinit,
                 _ => false,
             });
-            if deinit && !init_render {
+            if deinit {
                 // can deinit and this is not the first render after init.
                 // we skip the first render after init to avoid flickering between
                 // placeholder and actual when the placeholder does not predict
@@ -182,6 +180,9 @@ impl UiNode for LazyNode {
                 if !in_viewport {
                     self.init_deinit.store(true, Ordering::Relaxed);
                     WIDGET.update();
+
+                    println!("!!: {} deinit, actual: {:?}", WIDGET.id(), WIDGET.bounds().outer_bounds());
+
                     return;
                 }
             }
