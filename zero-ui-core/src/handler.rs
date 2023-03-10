@@ -1741,7 +1741,7 @@ impl HeadlessApp {
         let waker = UPDATES.waker(vec![]);
         let mut cx = std::task::Context::from_waker(&waker);
         let start_time = Instant::now();
-        crate::task::pin!(future);
+        let mut future = std::pin::pin!(future);
         loop {
             if start_time.elapsed() >= timeout {
                 return Err(format!("reached timeout `{timeout:?}`"));

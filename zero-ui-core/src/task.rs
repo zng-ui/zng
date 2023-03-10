@@ -745,7 +745,9 @@ pub fn spin_on<F>(task: F) -> F::Output
 where
     F: Future,
 {
-    pin!(task);
+    use std::pin::pin;
+
+    let mut task = pin!(task);
     block_on(poll_fn(|cx| match task.as_mut().poll(cx) {
         Poll::Ready(r) => Poll::Ready(r),
         Poll::Pending => {
@@ -922,51 +924,6 @@ pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: impl Into
     })
     .await
 }
-
-/// <span data-del-macro-root></span> Pins variables on the stack.
-///
-/// # Examples
-///
-/// Poll a `!Unpin` future using [`poll_fn`]:
-///
-/// ```
-/// use zero_ui_core::task;
-/// use std::future::Future;
-/// use std::task::Poll;
-///
-/// async fn count_poll<F: Future>(fut: F) -> F::Output {
-///
-///     task::pin!(fut);
-///
-///     let mut count = 0;
-///     task::poll_fn(|cx| {
-///         count += 1;
-///         match fut.as_mut().poll(cx) {
-///             Poll::Ready(r) => {
-///                 println!("polled {count} times");
-///                 Poll::Ready(r)
-///             },
-///             p => p
-///         }
-///     }).await
-/// }
-/// ```
-#[macro_export]
-macro_rules! pin {
-    ($($var:ident),* $(,)?) => {
-        $(
-            // SAFETY: $var is moved to the stack, exclusively borrowed and shadowed
-            // by the pinned borrow, there is no way to move $var.
-            let mut $var = $var;
-            #[allow(unused_mut)]
-            let mut $var = unsafe {
-                std::pin::Pin::new_unchecked(&mut $var)
-            };
-        )*
-    }
-}
-#[doc(inline)]
-pub use crate::pin;
 
 /// <span data-del-macro-root></span> A future that *zips* other futures.
 ///
