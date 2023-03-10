@@ -1,5 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use meval::eval_str;
 use std::convert::TryInto;
 use zero_ui::prelude::*;
 
@@ -212,8 +211,9 @@ impl Calculator {
             self.buffer.clear();
             self.error = false;
         } else {
-            match eval_str(expr) {
+            match mexprp::eval::<f64>(expr) {
                 Ok(new) => {
+                    let new = new.unwrap_single();
                     if new.is_finite() {
                         self.buffer.clear();
                         let _ = write!(&mut self.buffer.to_mut(), "{new}");
