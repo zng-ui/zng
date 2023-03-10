@@ -329,7 +329,12 @@ impl InlineLayout {
             let max_x = constrains.x.max().unwrap_or(Px::MAX).max(child_size.width);
             // spacing in between items means space available to divide for pairs (width+space) has 1 less item.
             let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
-            let row_len = (children_len / column_len).max(Px(1));
+            let mut row_len = (children_len / column_len).max(Px(1));
+
+            if column_len * row_len < children_len {
+                row_len.0 += 1;
+                debug_assert!(column_len * row_len >= children_len);
+            }
 
             let mut desired_size = PxSize::new(
                 (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width,
@@ -409,7 +414,7 @@ impl InlineLayout {
     pub fn estimate_layout(wl: &mut WidgetLayout, children_len: usize, child_size: PxSize, spacing: PxGridSpacing) -> PxSize {
         let size = if let Some(inline) = wl.inline() {
             let mut wm = WidgetMeasure::new_inline();
-            let size = Self::estimate_measure(&mut wm, children_len, child_size, spacing);
+            let mut size = Self::estimate_measure(&mut wm, children_len, child_size, spacing);
             if let Some(m_inline) = wm.inline() {
                 inline.invalidate_negative_space();
                 inline.inner_size = size;
@@ -427,6 +432,8 @@ impl InlineLayout {
                     inline.rows.push(PxRect::from_size(PxSize::new(size.width, mid_height)));
                     inline.rows.push(inline_constrains.last);
                 }
+
+                size.height = inline_constrains.last.origin.y + inline_constrains.last.size.height;
             }
             size
         } else {
@@ -1001,33 +1008,35 @@ mod tests {
         WINDOW.with_test_context(|| {
             let mut panel = wrap! {
                 children = (0..100).map(|_| wgt! {
-                    size = (80, 80);
+                    size = (120, 120);
                 }).collect::<UiNodeVec>();
-                spacing = 5;
+                spacing = 8;
             };
             let mut estimate = container! {
-                child = wrap::lazy_estimate(100, (80, 80), 5);
+                child = wrap::lazy_estimate(100, (120, 120), 8);
             };
 
             WINDOW.test_init(&mut panel);
             WINDOW.test_init(&mut estimate);
 
+            let constrains = PxConstrains2d::new_unbounded().with_max_x(Px(1160));
+
             let measure_constrains = InlineConstrainsMeasure {
-                first_max: Px(800),
-                mid_clear_min: Px(0),
+                first_max: Px(1160),
+                mid_clear_min: Px(-8),
             };
             let layout_constrains = InlineConstrainsLayout {
-                first: PxSize::new(Px(800), Px(80)).into(),
+                first: PxSize::new(Px(1144), Px(120)).into(),
                 mid_clear: Px(0),
-                last: PxRect::new(PxPoint::new(Px(0), Px(670) - Px(80)), PxSize::new(Px(800), Px(80))),
+                last: PxRect::new(PxPoint::new(Px(0), Px(1408)), PxSize::new(Px(760), Px(120))),
                 first_segs: Arc::new(vec![]),
                 last_segs: Arc::new(vec![]),
             };
             let panel_size = WINDOW
-                .test_layout_inline(&mut panel, None, measure_constrains, layout_constrains.clone())
+                .test_layout_inline(&mut panel, Some(constrains), measure_constrains, layout_constrains.clone())
                 .0;
             let estimate_size = WINDOW
-                .test_layout_inline(&mut estimate, None, measure_constrains, layout_constrains)
+                .test_layout_inline(&mut estimate, Some(constrains), measure_constrains, layout_constrains)
                 .0;
 
             let panel_bounds = panel.with_context(|| WIDGET.bounds()).unwrap();
