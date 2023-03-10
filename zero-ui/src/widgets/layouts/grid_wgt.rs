@@ -758,7 +758,6 @@ impl GridNode {
                 }
 
                 let max_auto_placed = max_auto_placed_i / columns_len + 1;
-                #[allow(clippy::manual_clamp)] // (max_place).min(limit)
                 let max_needed = max_auto_placed.max(max_custom).min(max as usize);
 
                 let rows_len = self.children[1].len();
@@ -795,7 +794,6 @@ impl GridNode {
                 }
 
                 let max_auto_placed = max_auto_placed_i / rows_len + 1;
-                #[allow(clippy::manual_clamp)] // (max-selected).min(limit)
                 let max_needed = max_auto_placed.max(max_custom).min(max as usize);
 
                 let cols_len = self.children[0].len();

@@ -159,7 +159,7 @@ impl UiNode for LazyNode {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        let init_render = self.init_render.swap(true, Ordering::Relaxed);
+        let init_render = self.init_render.swap(false, Ordering::Relaxed);
         if self.not_inited.is_some() {
             // child is placeholder
             let in_viewport = WIDGET.bounds().outer_bounds().intersects(&frame.auto_hide_rect());

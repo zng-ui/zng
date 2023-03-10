@@ -1,5 +1,5 @@
 * Implement `lazy` placeholder helper for panels.
-    - `wrap`: Still bugged in icon, after scrolling a lot.
+    - `wrap`: Still bugged in icon, after scrolling a lot flickering.
     - `stack`: TODO, this is the one that will be most used, in lists.
                 maybe support variation of item sizes for this one.
     - `grid`: not possible.
