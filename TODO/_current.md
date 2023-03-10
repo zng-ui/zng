@@ -1,10 +1,7 @@
 * Implement `lazy` placeholder helper for panels.
-    - `wrap`: Still bugged in icon, after scrolling a lot flickering.
-        - Problem is sibling widgets loading wrong and pushing a widget out of viewport too.
-        - So we can't really do anything on an item level, need to be something on the panel?
-        - On an item level we can detect when the item did not actualize in the correct size.
-            - Maybe we can always layout the placeholder and force its size constrain on the actual.
-            - Only in `deinit` mode.
+    - `wrap`: Icon example still with the wrong size.
+            - Using this to implement better failing in `lazy`, but after need to fix `lazy_estimate`.
+
     - `stack`: TODO, this is the one that will be most used, in lists.
                 maybe support variation of item sizes for this one.
     - `grid`: not possible.
