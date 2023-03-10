@@ -1,6 +1,4 @@
 * Implement `lazy` placeholder helper for panels.
-    - `wrap::lazy_estimate`: Limited to wrapping blocks of same size and spacing.
-                             Generating incorrect sizes, can se in icon example the scrollbar flickering.
     - `stack`: TODO, this is the one that will be most used, in lists.
                 maybe support variation of item sizes for this one.
     - `grid`: not possible.
