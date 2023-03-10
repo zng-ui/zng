@@ -343,7 +343,7 @@ impl InlineLayout {
 
             inline.last_wrapped = row_len.0 > 1;
             if inline.last_wrapped {
-                let last_len = column_len - (children_len % row_len);
+                let last_len = children_len % column_len;
                 if last_len.0 > 0 {
                     inline.last.width = (last_len - Px(1)) * (child_size.width + spacing.column) + child_size.width;
                 } else {
