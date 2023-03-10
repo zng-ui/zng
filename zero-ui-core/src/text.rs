@@ -1695,17 +1695,13 @@ impl Default for UnderlineSkip {
 }
 
 /// Defines what line gets traced by the text underline decoration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum UnderlinePosition {
     /// Underline is positioned using the offset defined in the font file.
+    #[default]
     Font,
     /// Underline is positioned after the text *descent*, avoiding crossover with all glyph descenders.
     Descent,
-}
-impl Default for UnderlinePosition {
-    fn default() -> Self {
-        UnderlinePosition::Font
-    }
 }
 
 ///<span data-del-macro-root></span> Creates a [`Text`](crate::text::Text) by calling the `format!` macro and

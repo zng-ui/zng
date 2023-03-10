@@ -624,7 +624,7 @@ impl_from_and_into_var! {
 ///
 /// [`corner_radius`]: fn@corner_radius
 /// [`corner_radius_fit`]: fn@corner_radius_fit
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub enum CornerRadiusFit {
     /// Corner radius is computed for each usage.
     None,
@@ -638,12 +638,8 @@ pub enum CornerRadiusFit {
     ///
     /// [deflated]: PxCornerRadius::deflate
     /// [`corner_radius`]: fn@corner_radius
+    #[default]
     Tree,
-}
-impl Default for CornerRadiusFit {
-    fn default() -> Self {
-        CornerRadiusFit::Tree
-    }
 }
 impl fmt::Debug for CornerRadiusFit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

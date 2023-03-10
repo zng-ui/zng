@@ -432,9 +432,10 @@ impl Key {
 }
 
 /// Describes the appearance of the mouse cursor.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CursorIcon {
     /// The platform-dependent default cursor.
+    #[default]
     Default,
     /// A simple crosshair.
     Crosshair,
@@ -509,11 +510,6 @@ pub enum CursorIcon {
     /// Indicates that the item/row can be resized vertically.
     RowResize,
 }
-impl Default for CursorIcon {
-    fn default() -> Self {
-        CursorIcon::Default
-    }
-}
 
 impl CursorIcon {
     /// All cursor icons.
@@ -557,9 +553,10 @@ impl CursorIcon {
 }
 
 /// Window state after a resize.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum WindowState {
     /// Window is visible but does not fill the screen.
+    #[default]
     Normal,
     /// Window is only visible as an icon in the taskbar.
     Minimized,
@@ -569,11 +566,6 @@ pub enum WindowState {
     Fullscreen,
     /// Window has exclusive access to the video output, so only the window content is visible.
     Exclusive,
-}
-impl Default for WindowState {
-    fn default() -> Self {
-        WindowState::Normal
-    }
 }
 impl WindowState {
     /// Returns `true` if `self` matches [`Fullscreen`] or [`Exclusive`].

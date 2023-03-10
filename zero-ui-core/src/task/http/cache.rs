@@ -184,7 +184,7 @@ pub trait CacheDb: Send + Sync + 'static {
 /// [`Uri`]: crate::task::http::Uri
 ///
 /// [`ClientBuilder::cache_mode`]: crate::task::http::ClientBuilder::cache_mode
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum CacheMode {
     /// Always requests the server, never caches the response.
     NoCache,
@@ -192,6 +192,7 @@ pub enum CacheMode {
     /// Follow the standard cache policy as computed by [`http-cache-semantics`].
     ///
     /// [`http-cache-semantics`]: https://docs.rs/http-cache-semantics
+    #[default]
     Default,
 
     /// Always caches the response, overwriting cache control configs.
@@ -201,11 +202,6 @@ pub enum CacheMode {
 
     /// Returns the error.
     Error(Error),
-}
-impl Default for CacheMode {
-    fn default() -> Self {
-        CacheMode::Default
-    }
 }
 
 /// Represents a SHA-512/256 hash computed from a normalized request.

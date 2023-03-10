@@ -54,7 +54,7 @@ pub type RenderExtendMode = crate::render::webrender_api::ExtendMode;
 /// the center point to an edge or corner.
 ///
 /// Note that the color stops are layout in the longest dimension and then *squished* in the shortest dimension.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Default)]
 pub enum GradientRadiusBase {
     /// Length to the closest edge from the center point.
     ClosestSide,
@@ -65,6 +65,7 @@ pub enum GradientRadiusBase {
     /// Length to the farthest corner from the center point.
     ///
     /// This is the default value.
+    #[default]
     FarthestCorner,
 }
 impl fmt::Debug for GradientRadiusBase {
@@ -78,11 +79,6 @@ impl fmt::Debug for GradientRadiusBase {
             Self::FarthestSide => write!(f, "FarthestSide"),
             Self::FarthestCorner => write!(f, "FarthestCorner"),
         }
-    }
-}
-impl Default for GradientRadiusBase {
-    fn default() -> Self {
-        GradientRadiusBase::FarthestCorner
     }
 }
 

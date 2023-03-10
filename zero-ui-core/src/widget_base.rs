@@ -847,7 +847,7 @@ pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
 /// Defines if and how a widget is hit-tested.
 ///
 /// See [`hit_test_mode`](fn@hit_test_mode) for more details.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Default)]
 pub enum HitTestMode {
     /// Widget is never hit.
     ///
@@ -859,6 +859,7 @@ pub enum HitTestMode {
     /// Default mode.
     ///
     /// Same as `Bounds`, but also excludes the outside of rounded corners.
+    #[default]
     RoundedBounds,
     /// Every render primitive used for rendering the widget is hit-testable, the widget is hit only by
     /// points that intersect visible parts of the render primitives.
@@ -890,11 +891,6 @@ impl fmt::Debug for HitTestMode {
             Self::RoundedBounds => write!(f, "RoundedBounds"),
             Self::Visual => write!(f, "Visual"),
         }
-    }
-}
-impl Default for HitTestMode {
-    fn default() -> Self {
-        HitTestMode::RoundedBounds
     }
 }
 impl_from_and_into_var! {
