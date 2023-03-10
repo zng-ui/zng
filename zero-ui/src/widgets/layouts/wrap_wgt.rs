@@ -407,7 +407,7 @@ impl InlineLayout {
     }
 
     pub fn estimate_layout(wl: &mut WidgetLayout, children_len: usize, child_size: PxSize, spacing: PxGridSpacing) -> PxSize {
-        if let Some(inline) = wl.inline() {
+        let size = if let Some(inline) = wl.inline() {
             let mut wm = WidgetMeasure::new_inline();
             let size = Self::estimate_measure(&mut wm, children_len, child_size, spacing);
             if let Some(m_inline) = wm.inline() {
@@ -431,7 +431,10 @@ impl InlineLayout {
             size
         } else {
             Self::estimate_measure(&mut WidgetMeasure::new(), children_len, child_size, spacing)
-        }
+        };
+
+        let width = LAYOUT.constrains().x.fill_or(size.width);
+        PxSize::new(width, size.height)
     }
 
     pub fn layout(&mut self, wl: &mut WidgetLayout, children: &mut PanelList, child_align: Align, spacing: PxGridSpacing) -> PxSize {
@@ -1016,7 +1019,7 @@ mod tests {
             let layout_constrains = InlineConstrainsLayout {
                 first: PxSize::new(Px(800), Px(80)).into(),
                 mid_clear: Px(0),
-                last: PxSize::new(Px(800), Px(80)).into(),
+                last: PxRect::new(PxPoint::new(Px(0), Px(670) - Px(80)), PxSize::new(Px(800), Px(80))),
                 first_segs: Arc::new(vec![]),
                 last_segs: Arc::new(vec![]),
             };
@@ -1033,10 +1036,17 @@ mod tests {
             assert_eq!(panel_size, estimate_size);
             assert!(panel_bounds.inline().is_some());
             assert!(estimate_bounds.inline().is_some());
-            assert_eq!(
-                panel_bounds.inline().as_deref().cloned(),
-                estimate_bounds.inline().as_deref().cloned()
-            );
+
+            let panel_m_inline = panel_bounds.measure_inline().unwrap();
+            let estimate_m_inline = estimate_bounds.measure_inline().unwrap();
+            assert_eq!(panel_m_inline, estimate_m_inline);
+
+            let panel_inline = panel_bounds.inline().as_deref().cloned().unwrap();
+            let estimate_inline = estimate_bounds.inline().as_deref().cloned().unwrap();
+
+            assert_eq!(panel_inline.inner_size, estimate_inline.inner_size);
+            assert_eq!(panel_inline.rows[0], estimate_inline.rows[0]);
+            assert_eq!(panel_inline.rows.last().unwrap(), estimate_inline.rows.last().unwrap());
         });
     }
 }

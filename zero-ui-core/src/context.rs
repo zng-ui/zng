@@ -431,6 +431,14 @@ impl WINDOW {
     }
 }
 
+#[cfg(any(test, doc, feature = "test_util"))]
+static TEST_WINDOW_CFG: StaticStateId<TestWindowCfg> = StaticStateId::new_unique();
+
+#[cfg(any(test, doc, feature = "test_util"))]
+struct TestWindowCfg {
+    size: PxSize,
+}
+
 /// Test only methods.
 #[cfg(any(test, doc, feature = "test_util"))]
 impl WINDOW {
@@ -441,8 +449,27 @@ impl WINDOW {
         let mut ctx = WindowCtx::new(window_id, WindowMode::Headless);
         ctx.set_widget_tree(WidgetInfoTree::wgt(window_id, root_id));
         WINDOW.with_context(&ctx, || {
+            WINDOW.set_state(
+                &TEST_WINDOW_CFG,
+                TestWindowCfg {
+                    size: PxSize::new(Px(1132), Px(956)),
+                },
+            );
+
             let ctx = WidgetCtx::new(root_id);
             WIDGET.with_context(&ctx, f)
+        })
+    }
+
+    /// Get the test window size.
+    pub fn test_window_size(&self) -> PxSize {
+        WINDOW.with_state_mut(|mut s| s.get_mut(&TEST_WINDOW_CFG).expect("not in test window").size)
+    }
+
+    /// Set test window `size`.
+    pub fn set_test_window_size(&self, size: PxSize) {
+        WINDOW.with_state_mut(|mut s| {
+            s.get_mut(&TEST_WINDOW_CFG).expect("not in test window").size = size;
         })
     }
 
@@ -466,7 +493,7 @@ impl WINDOW {
     ///
     /// [`with_test_context`]: Self::with_test_context
     pub fn test_info(&self, content: &impl UiNode) -> ContextUpdates {
-        let l_size = PxSize::new(1000.into(), 800.into());
+        let l_size = self.test_window_size();
         let mut info = crate::widget_info::WidgetInfoBuilder::new(
             WINDOW.id(),
             WIDGET.id(),
@@ -519,7 +546,7 @@ impl WINDOW {
     /// [`with_test_context`]: Self::with_test_context
     pub fn test_layout(&self, content: &mut impl UiNode, constrains: Option<PxConstrains2d>) -> (PxSize, ContextUpdates) {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
-        let viewport = PxSize::new(Px(1000), Px(800));
+        let viewport = self.test_window_size();
         let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|c| constrains.unwrap_or(c));
         let size = LAYOUT.with_context(metrics, || {
             crate::widget_info::WidgetLayout::with_root_widget(0, |wl| content.layout(wl))
@@ -540,7 +567,7 @@ impl WINDOW {
         layout_constrains: InlineConstrainsLayout,
     ) -> ((PxSize, PxSize), ContextUpdates) {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
-        let viewport = PxSize::new(Px(1000), Px(800));
+        let viewport = self.test_window_size();
         let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|c| constrains.unwrap_or(c));
         let size = LAYOUT.with_context(metrics, || {
             use crate::widget_info::*;

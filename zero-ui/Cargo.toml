@@ -96,5 +96,8 @@ html-escape = "0.2"
 take_mut = "0.2"
 path-absolutize = "3"
 
+[dev-dependencies]
+pretty_assertions = "1"
+
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "zero-ui-core/src/doc/html-in-header.html" ]

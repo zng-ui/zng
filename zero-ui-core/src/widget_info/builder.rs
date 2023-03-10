@@ -313,7 +313,7 @@ impl Hash for InlineSegmentPos {
 }
 
 /// Info about the input inline connecting rows of the widget.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct WidgetInlineMeasure {
     /// Preferred first size.
     ///
