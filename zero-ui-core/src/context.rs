@@ -562,25 +562,24 @@ impl WINDOW {
     pub fn test_layout_inline(
         &self,
         content: &mut impl UiNode,
-        constrains: Option<PxConstrains2d>,
-        measure_constrains: InlineConstrainsMeasure,
-        layout_constrains: InlineConstrainsLayout,
+        measure_constrains: (PxConstrains2d, InlineConstrainsMeasure),
+        layout_constrains: (PxConstrains2d, InlineConstrainsLayout),
     ) -> ((PxSize, PxSize), ContextUpdates) {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
         let viewport = self.test_window_size();
-        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|c| constrains.unwrap_or(c));
-        let size = LAYOUT.with_context(metrics, || {
-            use crate::widget_info::*;
 
-            let measure_size =
-                LAYOUT.with_inline_measure(&mut WidgetMeasure::new(), |_| Some(measure_constrains), |wm| content.measure(wm));
-            let layout_size = crate::widget_info::WidgetLayout::with_root_widget(0, |wl| {
-                LAYOUT.with_inline_layout(|_| Some(layout_constrains), || content.layout(wl))
-            });
-
-            (measure_size, layout_size)
+        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|_| measure_constrains.0);
+        let measure_size = LAYOUT.with_context(metrics, || {
+            LAYOUT.with_inline_measure(&mut WidgetMeasure::new(), |_| Some(measure_constrains.1), |wm| content.measure(wm))
         });
-        (size, UPDATES.apply())
+        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|_| layout_constrains.0);
+        let layout_size = LAYOUT.with_context(metrics, || {
+            crate::widget_info::WidgetLayout::with_root_widget(0, |wl| {
+                LAYOUT.with_inline_layout(|_| Some(layout_constrains.1), || content.layout(wl))
+            })
+        });
+
+        ((measure_size, layout_size), UPDATES.apply())
     }
 
     /// Call inside [`with_test_context`] to render the `content` as a child of the test window root.

@@ -1019,24 +1019,28 @@ mod tests {
             WINDOW.test_init(&mut panel);
             WINDOW.test_init(&mut estimate);
 
-            let constrains = PxConstrains2d::new_unbounded().with_max_x(Px(1160));
-
+            let m_constrains = PxConstrains2d::new_unbounded().with_max_x(Px(1184));
             let measure_constrains = InlineConstrainsMeasure {
-                first_max: Px(1160),
+                first_max: Px(1184),
                 mid_clear_min: Px(-8),
             };
+            let l_constrains = PxConstrains2d::new_unbounded().with_max_x(Px(1144));
             let layout_constrains = InlineConstrainsLayout {
                 first: PxSize::new(Px(1144), Px(120)).into(),
                 mid_clear: Px(0),
-                last: PxRect::new(PxPoint::new(Px(0), Px(1408)), PxSize::new(Px(760), Px(120))),
+                last: PxRect::new(PxPoint::new(Px(0), Px(1408)), PxSize::new(Px(120), Px(120))),
                 first_segs: Arc::new(vec![]),
                 last_segs: Arc::new(vec![]),
             };
             let panel_size = WINDOW
-                .test_layout_inline(&mut panel, Some(constrains), measure_constrains, layout_constrains.clone())
+                .test_layout_inline(
+                    &mut panel,
+                    (m_constrains, measure_constrains),
+                    (l_constrains, layout_constrains.clone()),
+                )
                 .0;
             let estimate_size = WINDOW
-                .test_layout_inline(&mut estimate, Some(constrains), measure_constrains, layout_constrains)
+                .test_layout_inline(&mut estimate, (m_constrains, measure_constrains), (l_constrains, layout_constrains))
                 .0;
 
             let panel_bounds = panel.with_context(|| WIDGET.bounds()).unwrap();

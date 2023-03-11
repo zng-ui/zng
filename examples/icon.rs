@@ -50,6 +50,7 @@ fn icons() -> impl UiNode {
             children = {
                 let x = icons
                 .chunks(100)
+                .take(1)
                 .map(|c| wrap! { // segment into multiple inlined lazy inited `wrap!` for better performance.
                     lazy = LazyMode::lazy(wgt_gen!(|_| {
                         wrap::lazy_estimate(100, (80, 80), 5)
