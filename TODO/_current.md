@@ -5,6 +5,9 @@
     - `stack`: TODO, this is the one that will be most used, in lists.
                 maybe support variation of item sizes for this one.
     - `grid`: not possible.
+
+* Markdown example broken after inline measure fix.
+    - `link!` is now inline?
  
 # Other
 

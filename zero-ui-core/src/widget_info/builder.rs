@@ -667,13 +667,10 @@ impl WidgetMeasure {
             }
         }
 
+        let parent_inline = self.inline.take();
         let parent_uses = metrics.enter_widget_ctx();
         if LAYOUT.inline_constrains().is_some() {
-            if self.inline.is_none() {
-                self.inline = Some(Default::default());
-            }
-        } else {
-            self.inline = None;
+            self.inline = Some(Default::default());
         }
 
         let size = measure(self);
@@ -682,6 +679,7 @@ impl WidgetMeasure {
         bounds.set_measure_metrics(Some(snap), measure_uses);
         bounds.set_measure_outer_size(size);
         bounds.set_measure_inline(self.inline.take());
+        self.inline = parent_inline;
 
         size
     }

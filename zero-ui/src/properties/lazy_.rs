@@ -244,19 +244,20 @@ impl UiNode for LazyNode {
         if self.not_inited.is_none() && self.children.len() == 2 {
             // is inited and can deinit, measure the actual child and validate
 
-            let inline = wm.inline().map(mem::take);
-
+            let lazy_size = size;
             let actual_size = self.children[1].measure(wm);
 
-            if size != actual_size {
+            if lazy_size != actual_size {
                 tracing::error!(
-                    "widget `{}` measure size `{actual_size:?}` not equal to lazy size `{size:?}`",
+                    "widget `{}` measure size `{actual_size:?}` not equal to lazy size `{lazy_size:?}`",
                     WIDGET.id()
                 );
             }
 
+            let lazy_inline = self.children[0].with_context(|| WIDGET.bounds().measure_inline()).flatten();
+
             if let Some(actual_inline) = wm.inline() {
-                if let Some(inline) = inline {
+                if let Some(lazy_inline) = lazy_inline {
                     fn validate<T: PartialEq + fmt::Debug>(actual: T, lazy: T, name: &'static str) {
                         if actual != lazy {
                             tracing::error!(
@@ -265,19 +266,19 @@ impl UiNode for LazyNode {
                             );
                         }
                     }
-                    validate(actual_inline.first, inline.first, "first");
-                    validate(actual_inline.first_wrapped, inline.first_wrapped, "first_wrapped");
-                    validate(actual_inline.last, inline.last, "last");
-                    validate(actual_inline.last_wrapped, inline.last_wrapped, "last_wrapped");
+                    validate(actual_inline.first, lazy_inline.first, "first");
+                    validate(actual_inline.first_wrapped, lazy_inline.first_wrapped, "first_wrapped");
+                    validate(actual_inline.last, lazy_inline.last, "last");
+                    validate(actual_inline.last_wrapped, lazy_inline.last_wrapped, "last_wrapped");
 
-                    actual_inline.first = inline.first;
-                    actual_inline.first_wrapped = inline.first_wrapped;
-                    actual_inline.last = inline.last;
-                    actual_inline.last_wrapped = inline.last_wrapped;
+                    actual_inline.first = lazy_inline.first;
+                    actual_inline.first_wrapped = lazy_inline.first_wrapped;
+                    actual_inline.last = lazy_inline.last;
+                    actual_inline.last_wrapped = lazy_inline.last_wrapped;
                 } else {
                     tracing::error!("widget `{}` measure inlined, but lazy did not inline", WIDGET.id());
                 }
-            } else if inline.is_some() {
+            } else if lazy_inline.is_some() {
                 tracing::error!("widget `{}` measure did not inline, but lazy did", WIDGET.id());
             }
         }
@@ -291,34 +292,22 @@ impl UiNode for LazyNode {
         if self.not_inited.is_none() && self.children.len() == 2 {
             // is inited and can deinit, layout the actual child and validate
 
-            let inline = wl.inline().map(mem::take);
-
+            let lazy_size = size;
             let actual_size = self.children[1].layout(wl);
 
-            if size != actual_size {
+            if lazy_size != actual_size {
                 tracing::error!(
-                    "widget `{}` layout size `{actual_size:?}` not equal to lazy size `{size:?}`",
+                    "widget `{}` layout size `{actual_size:?}` not equal to lazy size `{lazy_size:?}`",
                     WIDGET.id()
                 );
             }
 
-            if let Some(actual_inline) = wl.inline() {
-                if let Some(inline) = inline {
-                    fn validate<T: PartialEq + fmt::Debug>(actual: T, lazy: T, name: &'static str) {
-                        if actual != lazy {
-                            tracing::error!(
-                                "widget `{}` layout inline {name} `{actual:?}` not equal to lazy `{lazy:?}`",
-                                WIDGET.id()
-                            );
-                        }
-                    }
-                    validate(actual_inline.inner_size, inline.inner_size, "inner_size");
-
-                    actual_inline.inner_size = inline.inner_size;
-                } else {
-                    tracing::error!("widget `{}` lazy inlined, but lazy did not inline", WIDGET.id());
+            let lazy_inlined = self.children[0].with_context(|| WIDGET.bounds().inline().is_some()).unwrap();
+            if wl.inline().is_some() {
+                if !lazy_inlined {
+                    tracing::error!("widget `{}` inlined, but lazy did not inline", WIDGET.id());
                 }
-            } else if inline.is_some() {
+            } else if lazy_inlined {
                 tracing::error!("widget `{}` layout did not inline, but lazy did", WIDGET.id());
             }
         }
