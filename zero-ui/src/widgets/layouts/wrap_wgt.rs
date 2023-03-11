@@ -428,8 +428,11 @@ impl InlineLayout {
                     mid_height -= child_size.height + spacing.row;
                 }
                 if m_inline.last_wrapped {
-                    mid_height -= spacing.row + size.height;
-                    inline.rows.push(PxRect::from_size(PxSize::new(size.width, mid_height)));
+                    mid_height -= spacing.row + child_size.height;
+                    inline.rows.push(PxRect::new(
+                        PxPoint::new(Px(0), spacing.row + child_size.height),
+                        PxSize::new(size.width, mid_height),
+                    ));
                     inline.rows.push(inline_constrains.last);
                 }
 

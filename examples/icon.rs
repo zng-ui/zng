@@ -45,6 +45,7 @@ fn icons() -> impl UiNode {
     }
     fn show_font(icons: Vec<MaterialIcon>) -> impl UiNode {
         wrap! {
+            id = "outer";
             spacing = 5;
             icon::vis::ico_size = 48;
             children = {
@@ -52,6 +53,7 @@ fn icons() -> impl UiNode {
                 .chunks(100)
                 .take(1)
                 .map(|c| wrap! { // segment into multiple inlined lazy inited `wrap!` for better performance.
+                    id = "chunk";
                     lazy = LazyMode::lazy(wgt_gen!(|_| {
                         wrap::lazy_estimate(100, (80, 80), 5)
                     }));

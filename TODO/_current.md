@@ -1,6 +1,6 @@
 * Implement `lazy` placeholder helper for panels.
     - `wrap`: Icon example still with the wrong size.
-            - Using this to implement better failing in `lazy`, but after need to fix `lazy_estimate`.
+            - Lazy interrupts inline, somehow.
 
     - `stack`: TODO, this is the one that will be most used, in lists.
                 maybe support variation of item sizes for this one.

@@ -315,8 +315,6 @@ impl UiNode for LazyNode {
                     validate(actual_inline.inner_size, inline.inner_size, "inner_size");
 
                     actual_inline.inner_size = inline.inner_size;
-
-                    // !!: need validation here?
                 } else {
                     tracing::error!("widget `{}` lazy inlined, but lazy did not inline", WIDGET.id());
                 }
