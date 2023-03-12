@@ -421,6 +421,11 @@ impl InlineLayout {
 
                 let inline_constrains = LAYOUT.inline_constrains().unwrap().layout();
 
+                if WIDGET.bounds().measure_inline().map(|i| i.first_wrapped).unwrap_or(false) {
+                    println!("!!: {:?}", LAYOUT.constrains());
+                    println!("!!: {:?}", inline_constrains);
+                }
+
                 let mut mid_height = size.height;
 
                 if !m_inline.first_wrapped {
@@ -1032,6 +1037,68 @@ mod tests {
                 first: PxSize::new(Px(1144), Px(120)).into(),
                 mid_clear: Px(0),
                 last: PxRect::new(PxPoint::new(Px(0), Px(1408)), PxSize::new(Px(120), Px(120))),
+                first_segs: Arc::new(vec![]),
+                last_segs: Arc::new(vec![]),
+            };
+            let panel_size = WINDOW
+                .test_layout_inline(
+                    &mut panel,
+                    (m_constrains, measure_constrains),
+                    (l_constrains, layout_constrains.clone()),
+                )
+                .0;
+            let estimate_size = WINDOW
+                .test_layout_inline(&mut estimate, (m_constrains, measure_constrains), (l_constrains, layout_constrains))
+                .0;
+
+            let panel_bounds = panel.with_context(|| WIDGET.bounds()).unwrap();
+            let estimate_bounds = estimate.with_context(|| WIDGET.bounds()).unwrap();
+
+            assert_eq!(panel_size, estimate_size);
+            assert!(panel_bounds.inline().is_some());
+            assert!(estimate_bounds.inline().is_some());
+
+            let panel_m_inline = panel_bounds.measure_inline().unwrap();
+            let estimate_m_inline = estimate_bounds.measure_inline().unwrap();
+            assert_eq!(panel_m_inline, estimate_m_inline);
+
+            let panel_inline = panel_bounds.inline().as_deref().cloned().unwrap();
+            let estimate_inline = estimate_bounds.inline().as_deref().cloned().unwrap();
+
+            assert_eq!(panel_inline.inner_size, estimate_inline.inner_size);
+            assert_eq!(panel_inline.rows[0], estimate_inline.rows[0]);
+            assert_eq!(panel_inline.rows.last().unwrap(), estimate_inline.rows.last().unwrap());
+        });
+    }
+
+    #[test]
+    fn lazy_estimate_first_wrap() {
+        let _app = App::minimal().run_headless(false);
+
+        WINDOW.with_test_context(|| {
+            let mut panel = wrap! {
+                children = (0..100).map(|_| wgt! {
+                    size = (120, 120);
+                }).collect::<UiNodeVec>();
+                spacing = 8;
+            };
+            let mut estimate = container! {
+                child = wrap::lazy_estimate(100, (120, 120), 8);
+            };
+
+            WINDOW.test_init(&mut panel);
+            WINDOW.test_init(&mut estimate);
+
+            let m_constrains = PxConstrains2d::new_unbounded().with_max_x(Px(1184));
+            let measure_constrains = InlineConstrainsMeasure {
+                first_max: Px(32),
+                mid_clear_min: Px(112),
+            };
+            let l_constrains = PxConstrains2d::new_unbounded().with_max_x(Px(1144));
+            let layout_constrains = InlineConstrainsLayout {
+                first: PxSize::new(Px(1144), Px(120)).into(),
+                mid_clear: Px(0),
+                last: PxRect::new(PxPoint::new(Px(0), Px(1416)), PxSize::new(Px(120), Px(120))),
                 first_segs: Arc::new(vec![]),
                 last_segs: Arc::new(vec![]),
             };

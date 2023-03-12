@@ -1,6 +1,6 @@
 * Implement `lazy` placeholder helper for panels.
     - `wrap`: Icon example still with the wrong size.
-            - Lazy interrupts inline, somehow.
+            - Lazy `first_wrapped` not working correctly.
 
     - `stack`: TODO, this is the one that will be most used, in lists.
                 maybe support variation of item sizes for this one.
