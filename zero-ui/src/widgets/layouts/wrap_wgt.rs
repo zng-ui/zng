@@ -421,11 +421,6 @@ impl InlineLayout {
 
                 let inline_constrains = LAYOUT.inline_constrains().unwrap().layout();
 
-                if WIDGET.bounds().measure_inline().map(|i| i.first_wrapped).unwrap_or(false) {
-                    println!("!!: {:?}", LAYOUT.constrains());
-                    println!("!!: {:?}", inline_constrains);
-                }
-
                 let mut mid_height = size.height;
 
                 if !m_inline.first_wrapped {
