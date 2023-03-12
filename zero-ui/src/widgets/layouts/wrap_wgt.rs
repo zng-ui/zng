@@ -354,7 +354,8 @@ impl InlineLayout {
 
             if inline.first_wrapped {
                 inline.first.width = desired_size.width;
-                inline.first.height = desired_size.height;
+                inline.first.height = child_size.height;
+                desired_size.height -= spacing.row; // !!: review where the extra spacing.row is coming from
             } else {
                 desired_size.height += inline.first.height;
             }
