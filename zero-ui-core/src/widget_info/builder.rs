@@ -372,6 +372,18 @@ impl WidgetInlineMeasure {
             }
         }
     }
+
+    /// If all value are not different from initial.
+    ///
+    /// This indicates the widget has not handled the inline config yet.
+    pub fn is_default(&self) -> bool {
+        self.first.is_empty()
+            && !self.first_wrapped
+            && self.first_segs.is_empty()
+            && self.last.is_empty()
+            && !self.last_wrapped
+            && self.last_segs.is_empty()
+    }
 }
 
 /// Info about a segment in the first or last row of an inlined widget.
@@ -678,7 +690,17 @@ impl WidgetMeasure {
         let measure_uses = metrics.exit_widget_ctx(parent_uses);
         bounds.set_measure_metrics(Some(snap), measure_uses);
         bounds.set_measure_outer_size(size);
-        bounds.set_measure_inline(self.inline.take());
+
+        if let Some(inline) = self.inline.take() {
+            if inline.is_default() && !size.is_empty() {
+                // widget did not handle inline
+                bounds.set_measure_inline(None);
+            } else {
+                bounds.set_measure_inline(Some(inline));
+            }
+        } else {
+            bounds.set_measure_inline(None);
+        }
         self.inline = parent_inline;
 
         size

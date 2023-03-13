@@ -520,7 +520,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
 ///
 /// See the [`inline`] property for more details.
 ///
-/// [`inline`]: fn@InlineConstrainsLayout
+/// [`inline`]: fn@inline
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub enum InlineMode {
     /// Widget does inline if requested by the parent widget layout and is composed only of properties that support inline.
@@ -557,13 +557,13 @@ impl fmt::Debug for InlineMode {
 
 /// Enforce an inline mode on the widget.
 ///
-/// Set to [`InlineMode::Enable`] to use the inline layout and visual even if the widget
+/// Set to [`InlineMode::Inline`] to use the inline layout and visual even if the widget
 /// is not in an inlining parent.
 ///
-/// Set to [`InlineMode::Disable`] to ensure the widget layouts as a block item if the parent
+/// Set to [`InlineMode::Block`] to ensure the widget layouts as a block item if the parent
 /// is inlining.
 ///
-/// Note that even if set to [`InlineMode::Enable`] the widget will only inline if all properties support
+/// Note that even if set to [`InlineMode::Inline`] the widget will only inline if all properties support
 /// inlining.
 #[property(CONTEXT-1, default(InlineMode::Allow))]
 pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode {

@@ -1,8 +1,10 @@
-* Container like widgets cause inline errors.
-    - If the container does not have a property that disables inline.
-    - The container child may be inlined or block, either way nothing is communicated back to the container.
-        - So it just keeps the default zero.
-    - The parent panel tries to use the zeroed inline info to layout, causing more errors.
+* Test all.
+* Merge.
+
+* Container like widgets should pass thought inlining.
+    - The `link!` widget does not inline/wrap because inlining is disabled for
+      due to not getting configured by the widget.
+    - In markdown we use `link! { child = text!(..) }` to implement hyper-links, those should wrap.
 
 * Implement `lazy` placeholder helper for panels.
     - `stack`: TODO, this is the one that will be most used, in lists.
