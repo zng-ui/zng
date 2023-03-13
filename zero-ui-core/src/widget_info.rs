@@ -14,6 +14,7 @@ use crate::{
     crate_util::IdMap,
     impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate},
+    text::Text,
     units::*,
     widget_instance::{WidgetId, ZIndex},
     window::WindowId,
@@ -927,6 +928,51 @@ impl<'a> WidgetInfo<'a> {
         path.shrink_to_fit();
 
         WidgetPath::new(self.tree.0.window_id, path.into())
+    }
+
+    /// Path details to help finding the widget during debug.
+    ///
+    /// If the inspector metadata is present the widget ident is included.
+    pub fn trace_path(self) -> Text {
+        let mut ws: Vec<_> = self.self_and_ancestors().collect();
+        ws.reverse();
+
+        use std::fmt::*;
+
+        let mut s = String::new();
+
+        let _ = write!(&mut s, "{:?}/", self.tree.window_id());
+        for w in ws {
+            #[cfg(inspector)]
+            {
+                use crate::inspector::*;
+                if let Some(info) = w.inspector_info() {
+                    let mod_path = info.builder.widget_mod().path;
+                    let mod_ident = if let Some((_, ident)) = mod_path.rsplit_once(':') {
+                        ident
+                    } else {
+                        mod_path
+                    };
+
+                    let id = w.widget_id();
+                    let name = id.name();
+                    if !name.is_empty() {
+                        let _ = write!(&mut s, "/{mod_ident}!({name:?})");
+                    } else {
+                        let _ = write!(&mut s, "/{mod_ident}!({})", id.sequential());
+                    }
+                } else {
+                    let _ = write!(&mut s, "/{}", w.widget_id());
+                }
+            }
+
+            #[cfg(not(inspector))]
+            {
+                let _ = write!(&mut s, "/{}", w.widget_id());
+            }
+        }
+
+        s.into()
     }
 
     /// Full path to this widget with [`interactivity`] values.

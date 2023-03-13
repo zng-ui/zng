@@ -1,12 +1,11 @@
 * Markdown example broken after inline measure fix.
-    - `link!` is now inline?
+    - Caused by`link!` is now being inline, tested with inline disabled, no error then.
+        - Before the fix inline was disabled in all widgets with child.
+        - Link is a kind of container, need to debug inline info passing by a parent that
+          is inline "neutral".
     - Merge.
 
 * Implement `lazy` placeholder helper for panels.
-    - `wrap`: Icon example still with the wrong size.
-        - Test different sets and proportions.
-        - Merge.
-
     - `stack`: TODO, this is the one that will be most used, in lists.
                 maybe support variation of item sizes for this one.
     - `grid`: not possible.

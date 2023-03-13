@@ -820,7 +820,7 @@ pub fn default_panel_gen(args: PanelGenArgs) -> impl UiNode {
     }
 }
 
-/// Default markdown footnote definition.
+/// Default markdown footnote reference.
 ///
 /// See [`FOOTNOTE_REF_GEN_VAR`] for more details.
 pub fn default_footnote_ref_gen(args: FootnoteRefGenArgs) -> impl UiNode {

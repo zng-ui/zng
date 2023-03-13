@@ -1,5 +1,7 @@
 //! Properties that affect the widget render only.
 
+use std::fmt;
+
 use crate::core::gradient::{GradientRadius, GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
 use crate::widgets::{conic_gradient, flood, linear_gradient, radial_gradient};
@@ -514,54 +516,116 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
     }
 }
 
-/// Force widget to do inline layout when it is not inside a parent doing inline layout.
+/// Inline mode explicitly selected for a widget.
 ///
-/// Widgets that support inlining can have different visuals when inlined, such as multiple *row* backgrounds. This
-/// property forces the widget to enter this mode by enabling inlining in the layout context if it is not already.
-#[property(CONTEXT-1, default(false))]
-pub fn inline(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+/// See the [`inline`] property for more details.
+///
+/// [`inline`]: fn@InlineConstrainsLayout
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+pub enum InlineMode {
+    /// Widget does inline if requested by the parent widget layout and is composed only of properties that support inline.
+    ///
+    /// This is the default behavior.
+    #[default]
+    Allow,
+    /// Widget always does inline.
+    ///
+    /// If the parent layout does not setup an inline layout environment the widget it-self will. This
+    /// can be used to force the inline visual, such as background clipping or any other special visual
+    /// that is only enabled when the widget is inlined.
+    ///
+    /// Note that the widget will only inline if composed only of properties that support inline.
+    Inline,
+    /// Widget disables inline.
+    ///
+    /// If the parent widget requests inline the request does not propagate for child nodes and
+    /// inline is disabled on the widget.
+    Block,
+}
+impl fmt::Debug for InlineMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "InlineMode::")?;
+        }
+        match self {
+            Self::Allow => write!(f, "Allow"),
+            Self::Inline => write!(f, "Inline"),
+            Self::Block => write!(f, "Block"),
+        }
+    }
+}
+
+/// Enforce an inline mode on the widget.
+///
+/// Set to [`InlineMode::Enable`] to use the inline layout and visual even if the widget
+/// is not in an inlining parent.
+///
+/// Set to [`InlineMode::Disable`] to ensure the widget layouts as a block item if the parent
+/// is inlining.
+///
+/// Note that even if set to [`InlineMode::Enable`] the widget will only inline if all properties support
+/// inlining.
+#[property(CONTEXT-1, default(InlineMode::Allow))]
+pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode {
     #[ui_node(struct InlineNode {
         child: impl UiNode,
-        enabled: impl Var<bool>,
+        #[var] mode: impl Var<InlineMode>,
     })]
     impl UiNode for InlineNode {
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
-            if self.enabled.is_new() {
+            if self.mode.is_new() {
                 WIDGET.layout();
             }
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            if self.enabled.get() && LAYOUT.inline_constrains().is_none() {
-                let c = InlineConstrainsMeasure {
-                    first_max: LAYOUT.constrains().x.max_or(Px::MAX),
-                    mid_clear_min: Px(0),
-                };
-                LAYOUT.with_inline_measure(wm, move |_| Some(c), |wm| self.child.measure(wm))
-            } else {
-                self.child.measure(wm)
+            match self.mode.get() {
+                InlineMode::Allow => self.child.measure(wm),
+                InlineMode::Inline => {
+                    if LAYOUT.inline_constrains().is_none() {
+                        // create an inline context
+                        todo!("enable in `WidgetMeasure`");
+                        // let c = InlineConstrainsMeasure {
+                        //     first_max: LAYOUT.constrains().x.max_or(Px::MAX),
+                        //     mid_clear_min: Px(0),
+                        // };
+                        // LAYOUT.with_inline_measure(wm, move |_| Some(c), |wm| self.child.measure(wm))
+                    } else {
+                        // already enabled by parent
+                        self.child.measure(wm)
+                    }
+                }
+                InlineMode::Block => {
+                    // disable inline, method also disables in `WidgetMeasure`
+                    LAYOUT.with_inline_measure(wm, |_| None, |wm| self.child.measure(wm))
+                }
             }
         }
 
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            if self.enabled.get() && LAYOUT.inline_constrains().is_none() {
-                if let Some(c) = WIDGET.bounds().measure_inline() {
-                    let c = InlineConstrainsLayout {
-                        first: PxRect::from_size(c.first),
-                        mid_clear: Px(0),
-                        last: PxRect::from_size(c.last),
-                        first_segs: Default::default(),
-                        last_segs: Default::default(),
-                    };
-                    return LAYOUT.with_inline_layout(move |_| Some(c), || self.child.layout(wl));
+            match self.mode.get() {
+                InlineMode::Allow => self.child.layout(wl),
+                InlineMode::Inline => {
+                    if LAYOUT.inline_constrains().is_none() {
+                        todo!("compute constrains, enable in `WidgetLayout`")
+                    } else {
+                        // already enabled by parent
+                        self.child.layout(wl)
+                    }
+                }
+                InlineMode::Block => {
+                    #[cfg(debug_assertions)]
+                    if wl.inline().is_some() {
+                        tracing::error!("inline enabled in `layout` when it signaled disabled in the previous `measure`")
+                    }
+                    self.child.layout(wl)
                 }
             }
-            self.child.layout(wl)
         }
     }
     InlineNode {
         child,
-        enabled: enabled.into_var(),
+        mode: mode.into_var(),
     }
 }

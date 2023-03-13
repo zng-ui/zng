@@ -18,8 +18,10 @@ use crate::{
     app::{AppDisconnected, AppEventSender, LoopTimer},
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::{Event, EventArgs, EventHandle, EventHandles, EventUpdate, EVENTS, EVENTS_SV},
+    formatx,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     render::ReuseRange,
+    text::Text,
     timer::TIMERS_SV,
     units::*,
     var::{AnyVar, VarHandle, VarHandles, VARS},
@@ -735,6 +737,31 @@ impl WIDGET {
             Some(WIDGET_CTX.get().id)
         } else {
             None
+        }
+    }
+
+    /// Gets a string that writes a detailed path to the current widget.
+    ///
+    /// This can be used to quickly identify the current widget during debug, the path printout will contain
+    /// the widget types if the inspector metadata is found for the widget.
+    ///
+    /// This method does not panic if called outside of an widget.
+    pub fn trace_path(&self) -> Text {
+        if let Some(w_id) = WINDOW.try_id() {
+            if let Some(id) = self.try_id() {
+                let tree = WINDOW.widget_tree();
+                if let Some(wgt) = tree.get(id) {
+                    wgt.trace_path()
+                } else {
+                    formatx!("{w_id:?}//<no-info>/{id:?}")
+                }
+            } else {
+                formatx!("{w_id:?}//<no-widget>")
+            }
+        } else if let Some(id) = self.try_id() {
+            formatx!("<no-window>//{id:?}")
+        } else {
+            Text::from("<no-widget>")
         }
     }
 

@@ -868,7 +868,7 @@ impl ShapedText {
                     seg_width <= line.width,
                     "seg_width({:?}) > line[{i}].width({:?})",
                     seg_width,
-                    line.width
+                    line.width,
                 );
 
                 prev_line_end = line.end;

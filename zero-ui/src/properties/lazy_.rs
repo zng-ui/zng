@@ -48,7 +48,7 @@ impl LazyMode {
     /// The generator must produce a node that is used as the layout placeholder for the actual widget content.
     ///
     /// The widget will init when the placeholder stops being culled by render, and deinit when it starts being culled.
-    /// Note that in this mode the placeholder size is always used as the widget size, see the `deinit` docs in [`LazyMOde::Enabled`]
+    /// Note that in this mode the placeholder size is always used as the widget size, see the `deinit` docs in [`LazyMode::Enabled`]
     /// for more details.
     ///
     /// See [`FrameBuilder::auto_hide_rect`] for more details about render culling.
