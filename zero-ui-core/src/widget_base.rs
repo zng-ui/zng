@@ -359,6 +359,11 @@ pub mod nodes {
                             }
                         }
 
+                        if WIDGET.id().name() == "test" {
+                            println!("\n !!: {:?}", LAYOUT.inline_constrains().is_some());
+                            println!("!!: {:?}", wm.inline());
+                        }
+
                         child_size
                     })
                 })

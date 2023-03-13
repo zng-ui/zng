@@ -1,9 +1,8 @@
-* Markdown example broken after inline measure fix.
-    - Caused by`link!` is now being inline, tested with inline disabled, no error then.
-        - Before the fix inline was disabled in all widgets with child.
-        - Link is a kind of container, need to debug inline info passing by a parent that
-          is inline "neutral".
-    - Merge.
+* Container like widgets cause inline errors.
+    - If the container does not have a property that disables inline.
+    - The container child may be inlined or block, either way nothing is communicated back to the container.
+        - So it just keeps the default zero.
+    - The parent panel tries to use the zeroed inline info to layout, causing more errors.
 
 * Implement `lazy` placeholder helper for panels.
     - `stack`: TODO, this is the one that will be most used, in lists.
