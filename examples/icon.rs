@@ -51,13 +51,13 @@ fn icons() -> impl UiNode {
             children = {
                 let x = icons
                 .chunks(100)
-                .enumerate()
-                .take(10)
-                .map(|(i, c)| wrap! { // segment into multiple inlined lazy inited `wrap!` for better performance.
-                    id = formatx!("c-{i}");
-                    lazy = LazyMode::lazy(wgt_gen!(|_| {
-                        wrap::lazy_estimate(100, (80, 80), 5)
-                    }));
+                .map(|c| wrap! { // segment into multiple inlined lazy inited `wrap!` for better performance.
+                    lazy = {
+                        let len = c.len();
+                        LazyMode::lazy(wgt_gen!(|_| {
+                            wrap::lazy_estimate(len, (80, 80), 5)
+                        }))
+                    };
                     spacing = 5;
                     children = c.iter()
                                 .map(|i| icon_btn(i.clone()).boxed())

@@ -1,13 +1,15 @@
+* Markdown example broken after inline measure fix.
+    - `link!` is now inline?
+    - Merge.
+
 * Implement `lazy` placeholder helper for panels.
     - `wrap`: Icon example still with the wrong size.
-            - Lazy `first_wrapped` not working correctly.
+        - Test different sets and proportions.
+        - Merge.
 
     - `stack`: TODO, this is the one that will be most used, in lists.
                 maybe support variation of item sizes for this one.
     - `grid`: not possible.
-
-* Markdown example broken after inline measure fix.
-    - `link!` is now inline?
  
 # Other
 
@@ -64,6 +66,9 @@
 
 * Window without child does not open.
     - No layout request?
+
+* Negative space clips not applied when only `render_update` moves then into view.
+    - In "icon" example, set `background_color` for each chunk and scroll using only the keyboard to see.
 
 * Review all docs.
     - Mentions of threads in particular.
