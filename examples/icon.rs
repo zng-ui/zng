@@ -55,7 +55,7 @@ fn icons() -> impl UiNode {
                     lazy = {
                         let len = c.len();
                         LazyMode::lazy(wgt_gen!(|_| {
-                            wrap::lazy_estimate(len, (80, 80), 5)
+                            wrap::lazy_node(len, (80, 80), 5)
                         }))
                     };
                     spacing = 5;

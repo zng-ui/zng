@@ -87,11 +87,11 @@ pub mod wrap {
     }
 
     #[doc(inline)]
-    pub use super::lazy_estimate;
+    pub use super::lazy_node;
 }
 
 /// Create a node that estimates the size for a wrap panel children where all items have the same non-inline size.
-pub fn lazy_estimate(children_len: impl IntoVar<usize>, child_size: impl IntoVar<Size>, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {
+pub fn lazy_node(children_len: impl IntoVar<usize>, child_size: impl IntoVar<Size>, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {
     #[ui_node(struct LazyWrapNode {
         #[var] children_len: impl Var<usize>,
         #[var] child_size: impl Var<Size>,
@@ -1017,7 +1017,7 @@ mod tests {
                 spacing = 8;
             };
             let mut estimate = container! {
-                child = wrap::lazy_estimate(100, (120, 120), 8);
+                child = wrap::lazy_node(100, (120, 120), 8);
             };
 
             WINDOW.test_init(&mut panel);
@@ -1079,7 +1079,7 @@ mod tests {
                 spacing = 8;
             };
             let mut estimate = container! {
-                child = wrap::lazy_estimate(100, (120, 120), 8);
+                child = wrap::lazy_node(100, (120, 120), 8);
             };
 
             WINDOW.test_init(&mut panel);
