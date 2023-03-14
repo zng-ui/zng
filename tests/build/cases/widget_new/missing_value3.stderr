@@ -12,5 +12,5 @@ note: associated function defined here
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
-8  |         cursor(/* value */) = ;
-   |               +++++++++++++
+8  |         cursor(/* cursor */) = ;
+   |               ++++++++++++++

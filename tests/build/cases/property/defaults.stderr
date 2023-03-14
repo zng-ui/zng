@@ -40,8 +40,8 @@ note: associated function defined here
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the arguments
    |
-9  | #[property(CONTEXT, default())](/* value */, /* value */)
-   |                                ++++++++++++++++++++++++++
+9  | #[property(CONTEXT, default())](/* a */, /* b */)
+   |                                ++++++++++++++++++
 
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
   --> cases/property/defaults.rs:15:21
@@ -59,8 +59,8 @@ note: associated function defined here
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
-15 | #[property(CONTEXT, default(true))](true, /* value */)
-   |                                    +++++++++++++++++++
+15 | #[property(CONTEXT, default(true))](true, /* b */)
+   |                                    +++++++++++++++
 
 error[E0061]: this function takes 2 arguments but 3 arguments were supplied
   --> cases/property/defaults.rs:27:21

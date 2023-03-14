@@ -1,6 +1,8 @@
 * Test all.
 * Merge.
 
+* Command tests sporadically failing.
+
 * Container like widgets should pass thought inlining.
     - The `link!` widget does not inline/wrap because inlining is disabled for
       due to not getting configured by the widget.

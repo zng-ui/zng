@@ -30,7 +30,7 @@ note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_li
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
   |     pub fn init_all(list: &mut impl UiNodeList) {
-  |                                     ^^^^^^^^^^ required by this bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::init_all`
+  |                                     ^^^^^^^^^^ required by this bound in `init_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
  --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:60
@@ -47,7 +47,7 @@ note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_li
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
   |     pub fn deinit_all(list: &mut impl UiNodeList) {
-  |                                       ^^^^^^^^^^ required by this bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::deinit_all`
+  |                                       ^^^^^^^^^^ required by this bound in `deinit_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
  --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:60
@@ -64,7 +64,7 @@ note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_li
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
   |     pub fn update_all(list: &mut impl UiNodeList, updates: &mut WidgetUpdates) {
-  |                                       ^^^^^^^^^^ required by this bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::update_all`
+  |                                       ^^^^^^^^^^ required by this bound in `update_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
  --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:60
@@ -81,7 +81,7 @@ note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_li
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
   |     pub fn event_all(list: &mut impl UiNodeList, update: &mut EventUpdate) {
-  |                                      ^^^^^^^^^^ required by this bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::event_all`
+  |                                      ^^^^^^^^^^ required by this bound in `event_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
  --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
@@ -132,7 +132,7 @@ note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_li
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
   |     pub fn render_all(list: &impl UiNodeList, frame: &mut FrameBuilder) {
-  |                                   ^^^^^^^^^^ required by this bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::render_all`
+  |                                   ^^^^^^^^^^ required by this bound in `render_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
  --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
@@ -149,4 +149,4 @@ note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_li
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
   |     pub fn render_update_all(list: &impl UiNodeList, update: &mut FrameUpdate) {
-  |                                          ^^^^^^^^^^ required by this bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::render_update_all`
+  |                                          ^^^^^^^^^^ required by this bound in `render_update_all`

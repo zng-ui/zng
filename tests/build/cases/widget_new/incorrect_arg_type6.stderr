@@ -3,8 +3,7 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
    |
 11 |        let _ = wgt! {
    |  ______________^
-12 | |          simple_type = {
-   | | _________-
+12 | |/         simple_type = {
 13 | ||             simple_a: 42,
 14 | ||             simple_b: true,
    | ||____________________- required by a bound introduced by this call

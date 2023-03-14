@@ -4,8 +4,7 @@ error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
 7  |        let _ = wgt! {
    |  ______________^
 8  | |          // only background_gradient gets highlighted here because generics..
-9  | |          background_gradient = {
-   | | _________-
+9  | |/         background_gradient = {
 10 | ||             axis: 0.deg(),
 11 | ||             stops: true
    | ||_________________- required by a bound introduced by this call
