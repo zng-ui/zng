@@ -1,6 +1,6 @@
 //! Debug inspection properties.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::core::{
     focus::*,
@@ -10,119 +10,127 @@ use crate::core::{
 };
 use crate::prelude::new_property::*;
 
-/// Draws a debug dot in every widget [center point] in the window.
-///
-/// # Window Only
-///
-/// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
+/// Target of inspection properties.
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+pub enum InspectMode {
+    /// Just the widget where the inspector property is set.
+    Widget,
+    /// The widget where the inspector property is set and all descendants.
+    ///
+    /// This is the `true` value.
+    WidgetAndDescendants,
+    /// Disable inspection.
+    ///
+    /// This is the `false` value.
+    #[default]
+    Disabled,
+}
+impl fmt::Debug for InspectMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "InspectMode::")?;
+        }
+        match self {
+            Self::Widget => write!(f, "Widget"),
+            Self::WidgetAndDescendants => write!(f, "WidgetAndDescendants"),
+            Self::Disabled => write!(f, "Disabled"),
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(widget_and_descendants: bool) -> InspectMode {
+        if widget_and_descendants {
+            InspectMode::WidgetAndDescendants
+        } else {
+            InspectMode::Disabled
+        }
+    }
+}
+
+/// Draws a debug dot in target widget's [center point].
 ///
 /// [center point]: crate::core::widget_info::WidgetInfo::center
 #[property(CONTEXT, default(false))]
-pub fn show_center_points(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn show_center_points(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl UiNode {
     show_widget_tree(
         child,
-        |tree, frame| {
-            for wgt in tree.all_widgets() {
-                frame.push_debug_dot(wgt.center(), colors::GREEN)
-            }
+        |_, wgt, frame| {
+            frame.push_debug_dot(wgt.center(), colors::GREEN);
         },
-        enabled,
+        mode,
     )
 }
 
-/// Draws a border for every widget outer and inner bounds in the window.
-///
-/// # Window Only
-///
-/// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
+/// Draws a border for every target widget's outer and inner bounds.
 #[property(CONTEXT, default(false))]
-pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn show_bounds(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl UiNode {
     show_widget_tree(
         child,
-        |tree, frame| {
+        |_, wgt, frame| {
             let p = Dip::new(1).to_px(frame.scale_factor().0);
 
-            for wgt in tree.all_widgets() {
-                if wgt.outer_bounds() != wgt.inner_bounds() {
-                    frame.push_border(
-                        wgt.outer_bounds(),
-                        PxSideOffsets::new_all_same(p),
-                        BorderSides::dotted(colors::PINK),
-                        PxCornerRadius::zero(),
-                    );
-                }
-
+            if wgt.outer_bounds() != wgt.inner_bounds() {
                 frame.push_border(
-                    wgt.inner_bounds(),
+                    wgt.outer_bounds(),
                     PxSideOffsets::new_all_same(p),
-                    BorderSides::solid(colors::ROYAL_BLUE),
+                    BorderSides::dotted(colors::PINK),
                     PxCornerRadius::zero(),
                 );
             }
+
+            frame.push_border(
+                wgt.inner_bounds(),
+                PxSideOffsets::new_all_same(p),
+                BorderSides::solid(colors::ROYAL_BLUE),
+                PxCornerRadius::zero(),
+            );
         },
-        enabled,
+        mode,
     )
 }
 
 /// Draws a border over every inlined widget row in the window.
-///
-/// # Window Only
-///
-/// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
 #[property(CONTEXT, default(false))]
-pub fn show_rows(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn show_rows(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl UiNode {
     let spatial_id = SpatialFrameId::new_unique();
     show_widget_tree(
         child,
-        move |tree, frame| {
+        move |i, wgt, frame| {
             let p = Dip::new(1).to_px(frame.scale_factor().0);
 
-            for (i, wgt) in tree.all_widgets().enumerate() {
-                let wgt = wgt.bounds_info();
-                let transform = wgt.inner_transform();
-                if let Some(inline) = wgt.inline() {
-                    frame.push_reference_frame((spatial_id, i as u32).into(), FrameValue::Value(transform), false, false, |frame| {
-                        for row in &inline.rows {
-                            frame.push_border(
-                                *row,
-                                PxSideOffsets::new_all_same(p),
-                                BorderSides::dotted(colors::LIGHT_SALMON),
-                                PxCornerRadius::zero(),
-                            )
-                        }
-                    })
-                };
-            }
+            let wgt = wgt.bounds_info();
+            let transform = wgt.inner_transform();
+            if let Some(inline) = wgt.inline() {
+                frame.push_reference_frame((spatial_id, i as u32).into(), FrameValue::Value(transform), false, false, |frame| {
+                    for row in &inline.rows {
+                        frame.push_border(
+                            *row,
+                            PxSideOffsets::new_all_same(p),
+                            BorderSides::dotted(colors::LIGHT_SALMON),
+                            PxCornerRadius::zero(),
+                        )
+                    }
+                })
+            };
         },
-        enabled,
+        mode,
     )
 }
 
 fn show_widget_tree(
     child: impl UiNode,
-    render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + Send + 'static,
-    enabled: impl IntoVar<bool>,
+    render: impl Fn(usize, WidgetInfo, &mut FrameBuilder) + Send + 'static,
+    mode: impl IntoVar<InspectMode>,
 ) -> impl UiNode {
     #[ui_node(struct RenderWidgetTreeNode {
         child: impl UiNode,
-        render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + Send + 'static,
-        #[var] enabled: impl Var<bool>,
-        valid: bool,
+        render: impl Fn(usize, WidgetInfo, &mut FrameBuilder) + Send + 'static,
+        #[var] mode: impl Var<InspectMode>,
+        cancel_space: SpatialFrameId,
     })]
     impl UiNode for RenderWidgetTreeNode {
-        fn init(&mut self) {
-            self.valid = WIDGET.parent_id().is_none();
-            if self.valid {
-                self.auto_subs();
-            } else {
-                tracing::error!("properties that render widget info are only valid in a window");
-            }
-
-            self.child.init();
-        }
-
         fn update(&mut self, updates: &mut WidgetUpdates) {
-            if self.valid && self.enabled.is_new() {
+            if self.mode.is_new() {
                 WIDGET.render();
             }
             self.child.update(updates);
@@ -131,19 +139,44 @@ fn show_widget_tree(
         fn render(&self, frame: &mut FrameBuilder) {
             self.child.render(frame);
 
-            if self.valid && self.enabled.get() {
-                frame.with_hit_tests_disabled(|frame| {
-                    (self.render)(&WINDOW.widget_tree(), frame);
-                });
+            let mut render = |render: &mut dyn FnMut(WidgetInfo, &mut FrameBuilder)| {
+                let tree = WINDOW.widget_tree();
+                if let Some(wgt) = tree.get(WIDGET.id()) {
+                    if WIDGET.parent_id().is_none() {
+                        render(wgt, frame);
+                    } else if let Some(t) = frame.transform().inverse() {
+                        // cancel current transform
+                        frame.push_reference_frame(self.cancel_space.into(), t.into(), false, false, |frame| {
+                            render(wgt, frame);
+                        })
+                    } else {
+                        tracing::error!("cannot inspect from `{:?}`, non-reversable transform", WIDGET.id())
+                    }
+                }
+            };
+
+            match self.mode.get() {
+                InspectMode::Widget => {
+                    render(&mut |wgt, frame| {
+                        (self.render)(0, wgt, frame);
+                    });
+                }
+                InspectMode::WidgetAndDescendants => {
+                    render(&mut |wgt, frame| {
+                        for (i, wgt) in wgt.self_and_descendants().enumerate() {
+                            (self.render)(i, wgt, frame);
+                        }
+                    });
+                }
+                InspectMode::Disabled => {}
             }
         }
     }
     RenderWidgetTreeNode {
         child,
         render,
-        enabled: enabled.into_var(),
-
-        valid: false,
+        mode: mode.into_var(),
+        cancel_space: SpatialFrameId::new_unique(),
     }
 }
 

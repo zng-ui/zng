@@ -588,7 +588,7 @@ impl InlineLayout {
                                 last
                             } else {
                                 let mut r = row;
-                                r.origin.y += child_last.origin.y + spacing.row;
+                                r.origin.y += child_last.origin.y;
                                 r.size = self.rows[next_row_i].size;
                                 r.origin.x = (panel_width - r.size.width) * child_align_x;
                                 r

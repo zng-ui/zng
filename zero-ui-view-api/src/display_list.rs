@@ -530,6 +530,11 @@ impl<T> FrameValue<T> {
         }
     }
 }
+impl<T> From<T> for FrameValue<T> {
+    fn from(value: T) -> Self {
+        FrameValue::Value(value)
+    }
+}
 
 /// Represents an update targeting a previously setup [`FrameValue`].
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
