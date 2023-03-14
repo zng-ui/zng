@@ -1,6 +1,3 @@
-* Test all.
-* Merge.
-
 * Command tests sporadically failing.
 
 * Container like widgets should pass thought inlining.
