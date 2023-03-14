@@ -1,3 +1,7 @@
+* Icon example has extra spacing.
+    - Used to return `measure` with less 1 spacing.row.
+    - Now renders joiner rows misaligned by 1 spacing.row.
+
 * Container like widgets should pass thought inlining.
     - The `link!` widget does not inline/wrap because inlining is disabled for
       due to not getting configured by the widget.

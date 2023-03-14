@@ -320,14 +320,13 @@ impl InlineLayout {
                 let max_x = inline_constrains.first_max;
                 let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
 
-                children_len -= column_len;
+                children_len -= column_len; // remove first row
 
                 inline.first.width = (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width;
                 inline.first.height = child_size.height.max(inline_constrains.mid_clear_min);
             }
 
             let max_x = constrains.x.max().unwrap_or(Px::MAX).max(child_size.width);
-            // spacing in between items means space available to divide for pairs (width+space) has 1 less item.
             let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
             let mut row_len = (children_len / column_len).max(Px(1));
 
@@ -336,10 +335,18 @@ impl InlineLayout {
                 debug_assert!(column_len * row_len >= children_len);
             }
 
+            // spacing in between items means space available to divide for pairs (width+space) has 1 less item.
             let mut desired_size = PxSize::new(
                 (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width,
                 (row_len - Px(1)) * (child_size.height + spacing.row) + child_size.height,
             );
+            if !inline.first_wrapped {
+                // first row already taken from `children_len` and `row_len`.
+                desired_size.height += inline.first.height;
+                if children_len.0 > 0 {
+                    desired_size.height += spacing.row;
+                }
+            }
 
             inline.last_wrapped = row_len.0 > 1;
             if inline.last_wrapped {
@@ -355,18 +362,15 @@ impl InlineLayout {
             if inline.first_wrapped {
                 inline.first.width = desired_size.width;
                 inline.first.height = child_size.height;
-                desired_size.height -= spacing.row; // !!: review where the extra spacing.row is coming from
-            } else {
-                desired_size.height += inline.first.height;
             }
 
             constrains.clamp_size(desired_size)
         } else {
             let max_x = constrains.x.max().unwrap_or(Px::MAX).max(child_size.width);
-            // spacing in between means space available to divide for pairs (width + column) has 1 less item.
             let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
             let row_len = (Px(children_len as i32) / column_len).max(Px(1));
 
+            // spacing in between means space available to divide for pairs (width + column) has 1 less item.
             let desired_size = PxSize::new(
                 (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width,
                 (row_len - Px(1)) * (child_size.height + spacing.row) + child_size.height,
@@ -594,7 +598,7 @@ impl InlineLayout {
                                 child_last.origin.x += next_row.size.width - child_last.size.width;
                             }
                             child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
-                            child_last.origin.y += spacing.row;
+                            // !!: REVIEW missing spacing.row in align?
 
                             let (last_bidi_x, last_bidi_width, last_bidi_segs) = if self.has_bidi_inline {
                                 self.rows[next_row_i].item_segs[0].x_width_segs()
@@ -822,10 +826,7 @@ impl InlineLayout {
                             row.size.width -= spacing.column;
                             row.size.width = row.size.width.max(Px(0));
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += row.size.height.max(wrap_clear_min);
-                            if !self.rows.is_empty() || inline_constrains.is_none() {
-                                self.desired_size.height += spacing.row;
-                            }
+                            self.desired_size.height += row.size.height.max(wrap_clear_min) + spacing.row;
                             self.rows.push_renew(&mut row);
                         }
 
@@ -844,7 +845,7 @@ impl InlineLayout {
         row.size.width -= spacing.column;
         row.size.width = row.size.width.max(Px(0));
         self.desired_size.width = self.desired_size.width.max(row.size.width);
-        self.desired_size.height += row.size.height;
+        self.desired_size.height += row.size.height; // no spacing because it's single line or already added in [^wrap by us]
         self.rows.push(row);
 
         self.rows.commit_reuse();
