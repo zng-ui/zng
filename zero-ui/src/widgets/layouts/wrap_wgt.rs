@@ -802,7 +802,7 @@ impl InlineLayout {
                         if inline.last_wrapped {
                             // wrap by child
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += size.height - inline.first.height + spacing.row;
+                            self.desired_size.height += size.height - inline.first.height;
 
                             self.rows.push_renew(&mut row);
                             row.size = inline.last;
