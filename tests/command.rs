@@ -126,6 +126,7 @@ fn listener_window(focused_wgt: bool) -> Window {
     }
 
     window! {
+        zero_ui::core::widget_base::parallel = false;
         child = stack! {
             direction = StackDirection::top_to_bottom();
             children = ui_vec![
