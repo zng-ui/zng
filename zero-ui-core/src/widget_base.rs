@@ -81,6 +81,9 @@ pub mod nodes {
     /// to not be a full widget or to be multiple children. This is important for making properties like *padding* or *content_align* work
     /// for any [`UiNode`] as content.
     ///
+    /// This node also pass through the `child` inline layout return info if the widget and child are inlining and the
+    /// widget has not set inline info before delegating measure.
+    ///
     /// This node must be intrinsic at [`NestGroup::CHILD`], the [`base`] default intrinsic inserts it.
     ///
     /// [`base`]: mod@base
@@ -92,14 +95,48 @@ pub mod nodes {
             })]
         impl UiNode for WidgetChildNode {
             fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-                self.child.measure(wm)
+                let desired_size = self.child.measure(wm);
+
+                if let Some(inline) = wm.inline() {
+                    if inline.is_default() {
+                        if let Some(child_inline) = self.child.with_context(|| WIDGET.bounds().measure_inline()).flatten() {
+                            // pass through child inline
+                            *inline = child_inline;
+                        }
+                    }
+                }
+
+                desired_size
             }
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
                 let (size, define_ref_frame) = wl.with_child(|wl| self.child.layout(wl));
+
                 if self.define_ref_frame != define_ref_frame {
                     self.define_ref_frame = define_ref_frame;
                     WIDGET.render();
                 }
+
+                let trace = WIDGET.id().name() == "container";
+
+                if !define_ref_frame {
+                    // child maybe widget, try to copy inline
+                    if let Some(inline) = wl.inline() {
+                        if trace && !inline.is_default() {
+                            println!("!!: {:#?}", inline);
+                        }
+
+                        if inline.is_default() {
+                            self.child.with_context(|| {
+                                let bounds = WIDGET.bounds();
+                                let child_inline = bounds.inline();
+                                if let Some(child_inline) = child_inline {
+                                    inline.clone_from(&*child_inline);
+                                }
+                            });
+                        }
+                    }
+                }
+
                 size
             }
             fn render(&self, frame: &mut FrameBuilder) {

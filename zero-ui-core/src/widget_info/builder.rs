@@ -588,6 +588,22 @@ impl WidgetInlineInfo {
             }
         }
     }
+
+    ///Return info to default state, but retain memory for reuse.
+    pub fn clear(&mut self) {
+        self.first_segs.clear();
+        self.last_segs.clear();
+        self.rows.clear();
+        self.inner_size = PxSize::zero();
+        self.invalidate_negative_space();
+    }
+
+    /// If all value are not different from initial.
+    ///
+    /// This indicates the widget has not handled the inline config yet.
+    pub fn is_default(&self) -> bool {
+        self.rows.is_empty() && self.first_segs.is_empty() && self.last_segs.is_empty() && self.inner_size.is_empty()
+    }
 }
 impl Clone for WidgetInlineInfo {
     fn clone(&self) -> Self {
@@ -598,6 +614,14 @@ impl Clone for WidgetInlineInfo {
             inner_size: self.inner_size,
             negative_space: Mutex::new((Arc::new(vec![]), false)),
         }
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        self.clear();
+        self.rows.extend_from_slice(&source.rows);
+        self.first_segs.extend_from_slice(&source.first_segs);
+        self.last_segs.extend_from_slice(&source.last_segs);
+        self.inner_size = source.inner_size;
     }
 }
 impl PartialEq for WidgetInlineInfo {
@@ -760,8 +784,7 @@ impl WidgetLayout {
             // inline enabled by parent and widget
             self.inline = bounds.take_inline();
             if let Some(inline) = self.inline.as_mut() {
-                inline.rows.clear();
-                inline.invalidate_negative_space();
+                inline.clear();
             } else {
                 self.inline = Some(Default::default());
             }

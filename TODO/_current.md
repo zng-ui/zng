@@ -1,10 +1,3 @@
-* Merge.
-
-* Container like widgets should pass thought inlining.
-    - The `link!` widget does not inline/wrap because inlining is disabled for
-      due to not getting configured by the widget.
-    - In markdown we use `link! { child = text!(..) }` to implement hyper-links, those should wrap.
-
 * Implement `lazy` placeholder helper for panels.
     - `stack`: TODO, this is the one that will be most used, in lists.
                 maybe support variation of item sizes for this one.
