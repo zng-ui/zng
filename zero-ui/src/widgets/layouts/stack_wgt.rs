@@ -111,6 +111,70 @@ pub mod stack {
             children_align: children_align.into_var(),
         }
     }
+
+    /// Create a node that estimates the size for a wrap panel children where all items have the same non-inline size.
+    pub fn lazy_node(
+        children_len: impl IntoVar<usize>,
+        child_size: impl IntoVar<Size>,
+        direction: impl IntoVar<StackDirection>,
+        spacing: impl IntoVar<Length>,
+    ) -> impl UiNode {
+        LazyStackNode {
+            children_len: children_len.into_var(),
+            child_size: child_size.into_var(),
+            direction: direction.into_var(),
+            spacing: spacing.into_var(),
+        }
+    }
+}
+
+#[ui_node(struct LazyStackNode {
+    #[var] children_len: impl Var<usize>,
+    #[var] child_size: impl Var<Size>,
+    #[var] direction: impl Var<StackDirection>,
+    #[var] spacing: impl Var<Length>,
+})]
+impl UiNode for LazyStackNode {
+    fn update(&mut self, _: &mut WidgetUpdates) {
+        if self.children_len.is_new() || self.child_size.is_new() || self.direction.is_new() || self.spacing.is_new() {
+            WIDGET.layout();
+        }
+    }
+
+    fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        let constrains = LAYOUT.constrains();
+        if let Some(known) = constrains.fill_or_exact() {
+            return known;
+        }
+
+        let len = Px(self.children_len.get() as i32);
+        if len.0 == 0 {
+            return PxSize::zero();
+        }
+
+        let child_size = self.child_size.layout();
+
+        let dv = self.direction.get().vector(LayoutDirection::LTR);
+        let desired_size = if dv.x == 0 && dv.y != 0 {
+            // horizontal stack
+            let spacing = self.spacing.layout_x();
+            PxSize::new(child_size.width, (len - Px(1)) * (child_size.height + spacing) + child_size.height)
+        } else if dv.x != 0 && dv.y == 0 {
+            // vertical stack
+            let spacing = self.spacing.layout_y();
+            PxSize::new((len - Px(1)) * (child_size.width + spacing) + child_size.width, child_size.height)
+        } else {
+            // unusual stack
+            let spacing = spacing_from_direction(dv, self.spacing.get());
+            todo!("!!:")
+        };
+
+        constrains.fill_size_or(desired_size)
+    }
+
+    fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
+        self.measure(&mut WidgetMeasure::new())
+    }
 }
 
 #[ui_node(struct StackNode {
@@ -262,22 +326,8 @@ impl StackNode {
     /// Spacing to add on each axis.
     fn layout_spacing(&self, ctx: &LayoutMetrics) -> PxVector {
         let direction_vector = self.direction.get().vector(ctx.direction());
-
         let spacing = self.spacing.get();
-        let mut spacing = match (direction_vector.x == 0, direction_vector.y == 0) {
-            (false, false) => PxVector::new(spacing.layout_x(), spacing.layout_y()),
-            (true, false) => PxVector::new(Px(0), spacing.layout_y()),
-            (false, true) => PxVector::new(spacing.layout_x(), Px(0)),
-            (true, true) => PxVector::zero(),
-        };
-        if direction_vector.x < 0 {
-            spacing.x = -spacing.x;
-        }
-        if direction_vector.y < 0 {
-            spacing.y = -spacing.y;
-        }
-
-        spacing
+        spacing_from_direction(direction_vector, spacing)
     }
 
     /// Max size to layout each child with.
@@ -336,6 +386,22 @@ impl StackNode {
 
         max_size
     }
+}
+
+fn spacing_from_direction(direction_vector: euclid::Vector2D<i8, ()>, spacing: Length) -> PxVector {
+    let mut spacing = match (direction_vector.x == 0, direction_vector.y == 0) {
+        (false, false) => PxVector::new(spacing.layout_x(), spacing.layout_y()),
+        (true, false) => PxVector::new(Px(0), spacing.layout_y()),
+        (false, true) => PxVector::new(spacing.layout_x(), Px(0)),
+        (true, true) => PxVector::zero(),
+    };
+    if direction_vector.x < 0 {
+        spacing.x = -spacing.x;
+    }
+    if direction_vector.y < 0 {
+        spacing.y = -spacing.y;
+    }
+    spacing
 }
 
 /// Basic horizontal stack layout.
