@@ -1,7 +1,6 @@
-* Implement `lazy` placeholder helper for panels.
-    - `stack`: TODO, this is the one that will be most used, in lists.
-                maybe support variation of item sizes for this one.
-    - `grid`: not possible.
+* Implement `lazy` placeholder helper for `stack!`.
+    - Maybe support variation of item sizes for this one.
+    - Use it in inspector window (`ansi_text!` outer panel is a stack, it has "pages" of fixed line length).
  
 # Other
 

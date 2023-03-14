@@ -555,6 +555,9 @@ mod ansi_gen {
             stack! {
                 direction = StackDirection::top_to_bottom();
                 children = args.lines;
+                // lazy = LazyMode::lazy(wgt_gen!(|| {
+                //     todo!("!!: need to estimate the line height?")
+                // }));
             }
             .boxed()
         }
@@ -571,7 +574,7 @@ mod ansi_gen {
         } else {
             stack! {
                 direction = StackDirection::top_to_bottom();
-                children = args.pages
+                children = args.pages;
             }
             .boxed()
         }

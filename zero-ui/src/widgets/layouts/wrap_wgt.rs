@@ -598,7 +598,6 @@ impl InlineLayout {
                                 child_last.origin.x += next_row.size.width - child_last.size.width;
                             }
                             child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
-                            // !!: REVIEW missing spacing.row in align?
 
                             let (last_bidi_x, last_bidi_width, last_bidi_segs) = if self.has_bidi_inline {
                                 self.rows[next_row_i].item_segs[0].x_width_segs()

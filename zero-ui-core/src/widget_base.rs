@@ -116,15 +116,9 @@ pub mod nodes {
                     WIDGET.render();
                 }
 
-                let trace = WIDGET.id().name() == "container";
-
                 if !define_ref_frame {
                     // child maybe widget, try to copy inline
                     if let Some(inline) = wl.inline() {
-                        if trace && !inline.is_default() {
-                            println!("!!: {:#?}", inline);
-                        }
-
                         if inline.is_default() {
                             self.child.with_context(|| {
                                 let bounds = WIDGET.bounds();
