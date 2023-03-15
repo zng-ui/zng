@@ -87,35 +87,43 @@ pub mod wrap {
     }
 
     #[doc(inline)]
-    pub use super::lazy_node;
+    pub use super::{lazy_sample, lazy_size};
 }
 
-/// Create a node that estimates the size for a wrap panel children where all items have the same non-inline size.
-pub fn lazy_node(children_len: impl IntoVar<usize>, child_size: impl IntoVar<Size>, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {
+/// Create a node that estimates the size for a wrap panel children where all items have the same `child_size`.
+pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_size: impl IntoVar<Size>) -> impl UiNode {
+    lazy_sample(children_len, spacing, crate::properties::size(NilUiNode, child_size))
+}
+
+/// Create a node that estimates the size for a wrap panel children where all items have the same size as `child_sample`.
+pub fn lazy_sample(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_sample: impl UiNode) -> impl UiNode {
     #[ui_node(struct LazyWrapNode {
+        child: impl UiNode,
         #[var] children_len: impl Var<usize>,
-        #[var] child_size: impl Var<Size>,
         #[var] spacing: impl Var<GridSpacing>,
     })]
     impl UiNode for LazyWrapNode {
-        fn update(&mut self, _: &mut WidgetUpdates) {
-            if self.children_len.is_new() || self.child_size.is_new() || self.spacing.is_new() {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            if self.children_len.is_new() || self.spacing.is_new() {
                 WIDGET.layout();
             }
+            self.child.update(updates);
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            InlineLayout::estimate_measure(wm, self.children_len.get(), self.child_size.layout(), self.spacing.layout())
+            let child_size = self.child.measure(wm);
+            InlineLayout::estimate_measure(wm, self.children_len.get(), child_size, self.spacing.layout())
         }
 
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            InlineLayout::estimate_layout(wl, self.children_len.get(), self.child_size.layout(), self.spacing.layout())
+            let child_size = self.child.layout(wl);
+            InlineLayout::estimate_layout(wl, self.children_len.get(), child_size, self.spacing.layout())
         }
     }
     LazyWrapNode {
         children_len: children_len.into_var(),
-        child_size: child_size.into_var(),
         spacing: spacing.into_var(),
+        child: child_sample,
     }
 }
 
@@ -1017,7 +1025,7 @@ mod tests {
                 spacing = 8;
             };
             let mut estimate = container! {
-                child = wrap::lazy_node(100, (120, 120), 8);
+                child = wrap::lazy_size(100, 8, (120, 120));
             };
 
             WINDOW.test_init(&mut panel);
@@ -1079,7 +1087,7 @@ mod tests {
                 spacing = 8;
             };
             let mut estimate = container! {
-                child = wrap::lazy_node(100, (120, 120), 8);
+                child = wrap::lazy_size(100, 8, (120, 120));
             };
 
             WINDOW.test_init(&mut panel);

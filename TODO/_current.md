@@ -1,4 +1,3 @@
-* Refactor `wrap::lazy_node` to support a sample node, like `stack::lazy_sample`. 
 * Review viewport culling range.
     - VSCode removes elements as soon as possible.
     - We reserve an extra viewport in all directions.
