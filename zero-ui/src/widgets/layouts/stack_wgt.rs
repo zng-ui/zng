@@ -154,7 +154,8 @@ impl UiNode for LazyStackNode {
 
         let child_size = self.child_size.layout();
 
-        let dv = self.direction.get().vector(LayoutDirection::LTR);
+        let direction = self.direction.get();
+        let dv = direction.vector(LayoutDirection::LTR);
         let desired_size = if dv.x == 0 && dv.y != 0 {
             // horizontal stack
             let spacing = self.spacing.layout_x();
@@ -166,7 +167,20 @@ impl UiNode for LazyStackNode {
         } else {
             // unusual stack
             let spacing = spacing_from_direction(dv, self.spacing.get());
-            todo!("!!:")
+
+            let mut item_rect = PxRect::from_size(child_size);
+            let mut item_bounds = euclid::Box2D::zero();
+            let mut child_spacing = PxVector::zero();
+            for _ in 0..len.0 {
+                let offset = direction.layout(item_rect, child_size) + child_spacing;
+                item_rect.origin = offset.to_point();
+                let item_box = item_rect.to_box2d();
+                item_bounds.min = item_bounds.min.min(item_box.min);
+                item_bounds.max = item_bounds.max.max(item_box.max);
+                child_spacing = spacing;
+            }
+
+            item_bounds.size()
         };
 
         constrains.fill_size_or(desired_size)
