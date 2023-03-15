@@ -426,7 +426,9 @@ mod ansi_gen {
     ///
     /// Returns a `text!` with the text and style.
     pub fn default_text_gen(args: TextGenArgs) -> impl UiNode {
-        use crate::widgets::text as t;
+        use crate::prelude::*;
+
+        use text as t;
 
         let mut builder = WidgetBuilder::new(widget_mod!(t));
         t::include(&mut builder);
@@ -522,19 +524,22 @@ mod ansi_gen {
             }
         }
 
-        crate::widgets::text::build(builder)
+        text::build(builder)
     }
 
     /// Default [`LINE_GEN_VAR`].
     ///
     /// Returns a `wrap!` for text with multiple segments, or returns the single segment, or an empty text.
     pub fn default_line_gen(mut args: LineGenArgs) -> impl UiNode {
+        use crate::prelude::*;
+
         if args.text.is_empty() {
-            crate::widgets::text!("").boxed()
+            text!("").boxed()
         } else if args.text.len() == 1 {
             args.text.remove(0)
         } else {
-            crate::widgets::layouts::wrap! {
+            stack! {
+                direction =  StackDirection::start_to_end();
                 children = args.text;
             }
             .boxed()
@@ -552,12 +557,14 @@ mod ansi_gen {
         } else if args.lines.len() == 1 {
             args.lines.remove(0)
         } else {
+            let len = args.lines.len();
             stack! {
                 direction = StackDirection::top_to_bottom();
                 children = args.lines;
-                // lazy = LazyMode::lazy(wgt_gen!(|| {
-                //     todo!("!!: need to estimate the line height?")
-                // }));
+                lazy = LazyMode::lazy_vertical(wgt_gen!(|_| {
+                    let height_sample = text!(" ");
+                    stack::lazy_sample(len, StackDirection::top_to_bottom(), 0, height_sample)
+                }));
             }
             .boxed()
         }

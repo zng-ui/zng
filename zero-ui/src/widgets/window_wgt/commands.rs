@@ -89,7 +89,6 @@ mod inspector_window {
             color_scheme = ColorScheme::Dark;
             child = scroll! {
                 child = ansi_text! { txt = inspector_text; };
-                mode = scroll::ScrollMode::VERTICAL;
                 child_align = Align::TOP_LEFT;
                 padding = 5;
             }

@@ -73,6 +73,10 @@
 #[allow(unused_extern_crates)]
 extern crate self as zero_ui;
 
+#[allow(unused_imports)]
+#[macro_use]
+extern crate bitflags;
+
 #[doc(no_inline)]
 pub use zero_ui_core as core;
 

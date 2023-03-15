@@ -1,7 +1,8 @@
-* Implement `lazy` placeholder helper for `stack!`.
-    - Maybe support variation of item sizes for this one.
-    - Use it in inspector window (`ansi_text!` outer panel is a stack, it has "pages" of fixed line length).
- 
+* Capture lazy subscriptions, so that we don't keep registering vars every deinit/init.
+* Implement node that samples the line height of text without the full weight of `text!`.
+    - `text::line_placeholder(width)`, only depends on the context font, size and line-height vars.
+* Refactor `wrap::lazy_node` to support a sample node, like `stack::lazy_sample`. 
+
 # Other
 
 * Parallelize more methods.

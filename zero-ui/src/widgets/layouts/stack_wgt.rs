@@ -112,16 +112,26 @@ pub mod stack {
         }
     }
 
-    /// Create a node that estimates the size for a wrap panel children where all items have the same non-inline size.
-    pub fn lazy_node(
+    /// Create a node that estimates the size for a stack panel children where all items have the same `child_size`.
+    pub fn lazy_size(
         children_len: impl IntoVar<usize>,
-        child_size: impl IntoVar<Size>,
         direction: impl IntoVar<StackDirection>,
         spacing: impl IntoVar<Length>,
+        child_size: impl IntoVar<Size>,
+    ) -> impl UiNode {
+        lazy_sample(children_len, direction, spacing, crate::properties::size(NilUiNode, child_size))
+    }
+
+    /// Create a node that estimates the size for a stack panel children where all items have the same size as `child_sample`.
+    pub fn lazy_sample(
+        children_len: impl IntoVar<usize>,
+        direction: impl IntoVar<StackDirection>,
+        spacing: impl IntoVar<Length>,
+        child_sample: impl UiNode,
     ) -> impl UiNode {
         LazyStackNode {
+            child: child_sample,
             children_len: children_len.into_var(),
-            child_size: child_size.into_var(),
             direction: direction.into_var(),
             spacing: spacing.into_var(),
         }
@@ -129,19 +139,20 @@ pub mod stack {
 }
 
 #[ui_node(struct LazyStackNode {
+    child: impl UiNode, // uses to estimate size.
     #[var] children_len: impl Var<usize>,
-    #[var] child_size: impl Var<Size>,
     #[var] direction: impl Var<StackDirection>,
     #[var] spacing: impl Var<Length>,
 })]
 impl UiNode for LazyStackNode {
-    fn update(&mut self, _: &mut WidgetUpdates) {
-        if self.children_len.is_new() || self.child_size.is_new() || self.direction.is_new() || self.spacing.is_new() {
+    fn update(&mut self, updates: &mut WidgetUpdates) {
+        if self.children_len.is_new() || self.direction.is_new() || self.spacing.is_new() {
             WIDGET.layout();
         }
+        self.child.update(updates);
     }
 
-    fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
         let constrains = LAYOUT.constrains();
         if let Some(known) = constrains.fill_or_exact() {
             return known;
@@ -152,17 +163,17 @@ impl UiNode for LazyStackNode {
             return PxSize::zero();
         }
 
-        let child_size = self.child_size.layout();
+        let child_size = self.child.measure(wm);
 
         let direction = self.direction.get();
         let dv = direction.vector(LayoutDirection::LTR);
         let desired_size = if dv.x == 0 && dv.y != 0 {
-            // horizontal stack
-            let spacing = self.spacing.layout_x();
-            PxSize::new(child_size.width, (len - Px(1)) * (child_size.height + spacing) + child_size.height)
-        } else if dv.x != 0 && dv.y == 0 {
             // vertical stack
             let spacing = self.spacing.layout_y();
+            PxSize::new(child_size.width, (len - Px(1)) * (child_size.height + spacing) + child_size.height)
+        } else if dv.x != 0 && dv.y == 0 {
+            // horizontal stack
+            let spacing = self.spacing.layout_x();
             PxSize::new((len - Px(1)) * (child_size.width + spacing) + child_size.width, child_size.height)
         } else {
             // unusual stack
@@ -186,6 +197,7 @@ impl UiNode for LazyStackNode {
         constrains.fill_size_or(desired_size)
     }
 
+    #[allow_(zero_ui::missing_delegate)]
     fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
         self.measure(&mut WidgetMeasure::new())
     }

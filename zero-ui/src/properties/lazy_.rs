@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::{fmt, mem};
 
 use crate::prelude::new_property::*;
+use crate::widgets::scroll::ScrollMode;
 
 /// Enables lazy init for the widget.
 ///
@@ -40,6 +41,15 @@ pub enum LazyMode {
         /// when the actual bounds are different causing an immediate deinit. An error is logged if the placeholder
         /// size does not match.
         deinit: bool,
+
+        /// The scroll directions that are considered for intersection with the viewport.
+        ///
+        /// If set to [`ScrollMode::VERTICAL`] the widget is inited if it intersects on the vertical dimension only,
+        /// even if it is not actually in the viewport due to horizontal offset, and if `deinit` is flagged only the placeholder
+        /// height is enforced, the width can be different from the actual.
+        ///
+        /// If set to [`ScrollMode::NONE`] this value is ignored, behaving like [`ScrollMode::ALL`].
+        intersect: ScrollMode,
     },
 }
 impl LazyMode {
@@ -53,7 +63,41 @@ impl LazyMode {
     ///
     /// See [`FrameBuilder::auto_hide_rect`] for more details about render culling.
     pub fn lazy(placeholder: WidgetGenerator<()>) -> Self {
-        Self::Enabled { placeholder, deinit: true }
+        Self::Enabled {
+            placeholder,
+            deinit: true,
+            intersect: ScrollMode::ALL,
+        }
+    }
+
+    /// Like [`lazy`], but only considers the height and vertical offset to init and deinit. Like [`lazy`]
+    /// the placeholder height is enforced, but the width is allowed to change between placeholder and actual.
+    ///
+    /// Note that if the widget is inlined the full size of the widget placeholder is enforced like [`lazy`],
+    /// the widget will still init and deinit considering only the vertical intersection.
+    ///
+    /// [`lazy`]: Self::lazy
+    pub fn lazy_vertical(placeholder: WidgetGenerator<()>) -> Self {
+        Self::Enabled {
+            placeholder,
+            deinit: true,
+            intersect: ScrollMode::VERTICAL,
+        }
+    }
+
+    /// Like [`lazy`], but only considers the width and horizontal offset to init and deinit. Like [`lazy`]
+    /// the placeholder width is enforced, but the height is allowed to change between placeholder and actual.
+    ///
+    /// Note that if the widget is inlined the full size of the widget placeholder is enforced like [`lazy`],
+    /// the widget will still init and deinit considering only the horizontal intersection.
+    ///
+    /// [`lazy`]: Self::lazy
+    pub fn lazy_horizontal(placeholder: WidgetGenerator<()>) -> Self {
+        Self::Enabled {
+            placeholder,
+            deinit: true,
+            intersect: ScrollMode::HORIZONTAL,
+        }
     }
 
     /// Like [`lazy`] but the widget stays inited after the first, even if it is culled by render it will be present in the UI tree.
@@ -69,6 +113,29 @@ impl LazyMode {
         Self::Enabled {
             placeholder,
             deinit: false,
+            intersect: ScrollMode::ALL,
+        }
+    }
+
+    /// Like [`once`], but only considers the height and vertical offset to init.
+    ///
+    /// [`once`]: Self::once
+    pub fn once_vertical(placeholder: WidgetGenerator<()>) -> Self {
+        Self::Enabled {
+            placeholder,
+            deinit: false,
+            intersect: ScrollMode::VERTICAL,
+        }
+    }
+
+    /// Like [`once`], but only considers the width and horizontal offset to init.
+    ///
+    /// [`once`]: Self::once
+    pub fn once_horizontal(placeholder: WidgetGenerator<()>) -> Self {
+        Self::Enabled {
+            placeholder,
+            deinit: false,
+            intersect: ScrollMode::HORIZONTAL,
         }
     }
 
@@ -80,6 +147,21 @@ impl LazyMode {
     /// If lazy init is disabled.
     pub fn is_disabled(&self) -> bool {
         matches!(self, Self::Disabled)
+    }
+
+    /// Unwrap and correct the intersect mode.
+    fn unwrap_intersect(&self) -> ScrollMode {
+        match self {
+            LazyMode::Disabled => panic!("expected `LazyMode::Enabled`"),
+            LazyMode::Enabled { intersect, .. } => {
+                let m = *intersect;
+                if m.is_empty() {
+                    ScrollMode::ALL
+                } else {
+                    m
+                }
+            }
+        }
     }
 }
 impl fmt::Debug for LazyMode {
@@ -127,7 +209,7 @@ impl UiNode for LazyNode {
 
     fn update(&mut self, updates: &mut WidgetUpdates) {
         if mem::take(self.init_deinit.get_mut()) {
-            if let LazyMode::Enabled { placeholder, deinit } = self.mode.get() {
+            if let LazyMode::Enabled { placeholder, deinit, .. } = self.mode.get() {
                 if let Some(actual) = self.not_inited.take() {
                     // child is placeholder, init actual child
                     debug_assert_eq!(self.children.len(), 1);
@@ -170,7 +252,7 @@ impl UiNode for LazyNode {
             }
         } else if let Some(mode) = self.mode.get_new() {
             match mode {
-                LazyMode::Enabled { deinit, placeholder } => {
+                LazyMode::Enabled { deinit, placeholder, .. } => {
                     if self.not_inited.is_some() {
                         debug_assert_eq!(self.children.len(), 1);
 
@@ -239,7 +321,7 @@ impl UiNode for LazyNode {
     }
 
     fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-        let size = self.children[0].measure(wm);
+        let mut size = self.children[0].measure(wm);
 
         if self.not_inited.is_none() && self.children.len() == 2 {
             // is inited and can deinit, measure the actual child and validate
@@ -247,15 +329,9 @@ impl UiNode for LazyNode {
             let lazy_size = size;
             let actual_size = self.children[1].measure(wm);
 
-            if lazy_size != actual_size {
-                tracing::error!(
-                    "widget `{}` measure size `{actual_size:?}` not equal to lazy size `{lazy_size:?}`",
-                    WIDGET.id()
-                );
-            }
+            let mut intersect_mode = ScrollMode::empty();
 
             let lazy_inline = self.children[0].with_context(|| WIDGET.bounds().measure_inline()).flatten();
-
             if let Some(actual_inline) = wm.inline() {
                 if let Some(lazy_inline) = lazy_inline {
                     fn validate<T: PartialEq + fmt::Debug>(actual: T, lazy: T, name: &'static str) {
@@ -275,11 +351,48 @@ impl UiNode for LazyNode {
                     actual_inline.first_wrapped = lazy_inline.first_wrapped;
                     actual_inline.last = lazy_inline.last;
                     actual_inline.last_wrapped = lazy_inline.last_wrapped;
+
+                    intersect_mode = ScrollMode::ALL;
                 } else {
                     tracing::error!("widget `{}` measure inlined, but lazy did not inline", WIDGET.id());
                 }
-            } else if lazy_inline.is_some() {
-                tracing::error!("widget `{}` measure did not inline, but lazy did", WIDGET.id());
+            } else {
+                if lazy_inline.is_some() {
+                    tracing::error!("widget `{}` measure did not inline, but lazy did", WIDGET.id());
+                }
+
+                intersect_mode = self.mode.with(|s| s.unwrap_intersect());
+            }
+
+            if intersect_mode == ScrollMode::ALL {
+                if lazy_size != actual_size {
+                    tracing::error!(
+                        "widget `{}` measure size `{actual_size:?}` not equal to lazy size `{lazy_size:?}`",
+                        WIDGET.id()
+                    );
+                }
+            } else if intersect_mode == ScrollMode::VERTICAL {
+                if lazy_size.height != actual_size.height {
+                    tracing::error!(
+                        "widget `{}` measure height `{:?}` not equal to lazy height `{:?}`",
+                        WIDGET.id(),
+                        actual_size.height,
+                        lazy_size.height,
+                    );
+                }
+
+                size.width = actual_size.width;
+            } else if intersect_mode == ScrollMode::HORIZONTAL {
+                if lazy_size.width != actual_size.width {
+                    tracing::error!(
+                        "widget `{}` measure width `{:?}` not equal to lazy width `{:?}`",
+                        WIDGET.id(),
+                        actual_size.width,
+                        lazy_size.width,
+                    );
+                }
+
+                size.height = actual_size.height;
             }
         }
 
@@ -287,7 +400,7 @@ impl UiNode for LazyNode {
     }
 
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        let size = self.children[0].layout(wl);
+        let mut size = self.children[0].layout(wl);
 
         if self.not_inited.is_none() && self.children.len() == 2 {
             // is inited and can deinit, layout the actual child and validate
@@ -295,20 +408,52 @@ impl UiNode for LazyNode {
             let lazy_size = size;
             let actual_size = self.children[1].layout(wl);
 
-            if lazy_size != actual_size {
-                tracing::error!(
-                    "widget `{}` layout size `{actual_size:?}` not equal to lazy size `{lazy_size:?}`",
-                    WIDGET.id()
-                );
-            }
+            let mut intersect_mode = ScrollMode::empty();
 
             let lazy_inlined = self.children[0].with_context(|| WIDGET.bounds().inline().is_some()).unwrap();
             if wl.inline().is_some() {
                 if !lazy_inlined {
                     tracing::error!("widget `{}` inlined, but lazy did not inline", WIDGET.id());
+                } else {
+                    intersect_mode = ScrollMode::ALL;
                 }
-            } else if lazy_inlined {
-                tracing::error!("widget `{}` layout did not inline, but lazy did", WIDGET.id());
+            } else {
+                if lazy_inlined {
+                    tracing::error!("widget `{}` layout did not inline, but lazy did", WIDGET.id());
+                }
+
+                intersect_mode = self.mode.with(|s| s.unwrap_intersect());
+            }
+
+            if intersect_mode == ScrollMode::ALL {
+                if lazy_size != actual_size {
+                    tracing::error!(
+                        "widget `{}` layout size `{actual_size:?}` not equal to lazy size `{lazy_size:?}`",
+                        WIDGET.id()
+                    );
+                }
+            } else if intersect_mode == ScrollMode::VERTICAL {
+                if lazy_size.height != actual_size.height {
+                    tracing::error!(
+                        "widget `{}` layout height `{:?}` not equal to lazy height `{:?}`",
+                        WIDGET.id(),
+                        actual_size.height,
+                        lazy_size.height,
+                    );
+                }
+
+                size.width = actual_size.width;
+            } else if intersect_mode == ScrollMode::HORIZONTAL {
+                if lazy_size.width != actual_size.width {
+                    tracing::error!(
+                        "widget `{}` layout width `{:?}` not equal to lazy width `{:?}`",
+                        WIDGET.id(),
+                        actual_size.width,
+                        lazy_size.width,
+                    );
+                }
+
+                size.height = actual_size.height;
             }
         }
 
@@ -318,7 +463,18 @@ impl UiNode for LazyNode {
     fn render(&self, frame: &mut FrameBuilder) {
         if self.not_inited.is_some() {
             // not inited, just verify
-            let in_viewport = WIDGET.bounds().outer_bounds().intersects(&frame.auto_hide_rect());
+
+            let intersect_mode = self.mode.with(|s| s.unwrap_intersect());
+            let outer_bounds = WIDGET.bounds().outer_bounds();
+            let viewport = frame.auto_hide_rect();
+
+            let in_viewport = if intersect_mode == ScrollMode::VERTICAL {
+                outer_bounds.min_y() < viewport.max_y() && outer_bounds.max_y() > viewport.min_y()
+            } else if intersect_mode == ScrollMode::HORIZONTAL {
+                outer_bounds.min_x() < viewport.max_x() && outer_bounds.max_x() > viewport.min_x()
+            } else {
+                outer_bounds.intersects(&viewport)
+            };
             if in_viewport {
                 // request init
                 self.init_deinit.store(true, Ordering::Relaxed);
@@ -326,9 +482,18 @@ impl UiNode for LazyNode {
             }
         } else if self.children.len() == 2 {
             // is inited and can deinit, check viewport on placeholder
-            let placeholder_bounds = self.children[0].with_context(|| WIDGET.bounds()).unwrap();
-            let in_viewport = placeholder_bounds.outer_bounds().intersects(&frame.auto_hide_rect());
 
+            let intersect_mode = self.mode.with(|s| s.unwrap_intersect());
+            let viewport = frame.auto_hide_rect();
+            let placeholder_bounds = self.children[0].with_context(|| WIDGET.bounds().outer_bounds()).unwrap();
+
+            let in_viewport = if intersect_mode == ScrollMode::VERTICAL {
+                placeholder_bounds.min_y() < viewport.max_y() && placeholder_bounds.max_y() > viewport.min_y()
+            } else if intersect_mode == ScrollMode::HORIZONTAL {
+                placeholder_bounds.min_x() < viewport.max_x() && placeholder_bounds.max_x() > viewport.min_x()
+            } else {
+                placeholder_bounds.intersects(&viewport)
+            };
             if !in_viewport {
                 // request deinit
                 self.init_deinit.store(true, Ordering::Relaxed);
