@@ -562,7 +562,7 @@ mod ansi_gen {
                 direction = StackDirection::top_to_bottom();
                 children = args.lines;
                 lazy = LazyMode::lazy_vertical(wgt_gen!(|_| {
-                    let height_sample = text!(" ");
+                    let height_sample = text::nodes::line_placeholder(50);
                     stack::lazy_sample(len, StackDirection::top_to_bottom(), 0, height_sample)
                 }));
             }

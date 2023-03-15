@@ -1,6 +1,10 @@
-* Implement node that samples the line height of text without the full weight of `text!`.
-    - `text::line_placeholder(width)`, only depends on the context font, size and line-height vars.
 * Refactor `wrap::lazy_node` to support a sample node, like `stack::lazy_sample`. 
+* Review viewport culling range.
+    - VSCode removes elements as soon as possible.
+    - We reserve an extra viewport in all directions.
+        - We do this because some widgets may have visuals that escape their bounds.
+            - Like a big drop-shadow glow.
+    - Maybe we can adjust this better.
 
 # Other
 

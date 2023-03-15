@@ -1238,3 +1238,14 @@ pub fn render_text() -> impl UiNode {
         color_key: None,
     }
 }
+
+/// Create a node that is sized one text line height by `width`.
+///
+/// This node can be used to reserve space for a full text in lazy loading contexts.
+///
+/// The contextual variables affect the layout size.
+pub fn line_placeholder(width: impl IntoVar<Length>) -> impl UiNode {
+    let child = layout_text(NilUiNode);
+    let child = resolve_text(child, " ");
+    crate::properties::width(child, width)
+}

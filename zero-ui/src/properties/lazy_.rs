@@ -1,5 +1,5 @@
-use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::{fmt, mem};
 
 use crate::prelude::new_property::*;
 use crate::widgets::scroll::ScrollMode;
@@ -186,7 +186,7 @@ impl UiNode for LazyNode {
         self.auto_subs();
 
         if let LazyMode::Enabled { placeholder, deinit, .. } = self.mode.get() {
-            if *self.in_viewport.get_mut() {
+            if mem::take(self.in_viewport.get_mut()) {
                 // init
 
                 if deinit {
