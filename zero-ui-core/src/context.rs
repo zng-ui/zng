@@ -274,6 +274,11 @@ impl WidgetCtx {
         r
     }
 
+    /// Returns `true` if reinit was requested for the widget.
+    pub fn is_pending_reinit(&self) -> bool {
+        self.contains_flag(UpdateFlags::REINIT)
+    }
+
     /// Returns `true` if an [`WIDGET.reinit`] request was made.
     ///
     /// Unlike other requests, the widget re-init immediately.
@@ -845,7 +850,14 @@ impl WIDGET {
 
     /// Flags the widget to re-init after the current update returns.
     ///
-    /// The widget will de-init and init as soon as it sees this request.
+    /// The widget responds to this request depending on node method:
+    ///
+    /// * [`UiNode::init`] and [`UiNode::deinit`]: Request is ignored, removed.
+    /// * [`UiNode::event`]: If the widget is pending a reinit, it is reinited first, then the event is propagated to child nodes.
+    ///                      If a reinit is requested during event handling the widget is reinited immediately after the event handler.
+    /// * [`UiNode::update`]: If the widget is pending a reinit, it is reinited and the update ignored.
+    ///                       If a reinit is requested during update the widget is reinited immediately after the update.
+    /// * Other methods: Reinit request is flagged and an [`UiNode::update`] is requested for the widget.
     pub fn reinit(&self) {
         WIDGET_CTX.get().flags.lock().insert(UpdateFlags::REINIT);
     }

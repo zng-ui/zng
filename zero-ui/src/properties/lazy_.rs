@@ -1,5 +1,5 @@
+use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::{fmt, mem};
 
 use crate::prelude::new_property::*;
 use crate::widgets::scroll::ScrollMode;
@@ -13,7 +13,7 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
         children: vec![],
         not_inited: Some(child.boxed()),
         mode: mode.into_var(),
-        init_deinit: AtomicBool::new(false),
+        in_viewport: AtomicBool::new(false),
     }
 }
 
@@ -179,18 +179,35 @@ impl fmt::Debug for LazyMode {
 
     #[var]
     mode: impl Var<LazyMode>,
-    init_deinit: AtomicBool,
+    in_viewport: AtomicBool,
 })]
 impl UiNode for LazyNode {
     fn init(&mut self) {
         self.auto_subs();
 
-        if let LazyMode::Enabled { placeholder, .. } = self.mode.get() {
-            let placeholder = placeholder.generate(());
-            let placeholder = crate::core::widget_base::nodes::widget_inner(placeholder).boxed();
+        if let LazyMode::Enabled { placeholder, deinit, .. } = self.mode.get() {
+            if *self.in_viewport.get_mut() {
+                // init
 
-            // just placeholder, and as the `widget_inner`, first render may init
-            self.children.push(placeholder);
+                if deinit {
+                    // Keep placeholder, layout will still use it to avoid glitches when the actual layout causes a deinit,
+                    // and the placeholder another init on a loop.
+                    //
+                    // This time we have the actual widget content, so the placeholder is upgraded to a full widget.
+
+                    let placeholder = placeholder.generate(()).into_widget();
+                    self.children.push(placeholder);
+                }
+                self.children.push(self.not_inited.take().unwrap());
+            } else {
+                // only placeholder
+
+                let placeholder = placeholder.generate(());
+                let placeholder = crate::core::widget_base::nodes::widget_inner(placeholder).boxed();
+
+                // just placeholder, and as the `widget_inner`, first render may init
+                self.children.push(placeholder);
+            }
         } else {
             // not enabled, just init actual
             self.children.push(self.not_inited.take().unwrap());
@@ -205,119 +222,6 @@ impl UiNode for LazyNode {
             self.not_inited = self.children.pop(); // pop actual
         }
         self.children.clear(); // drop placeholder, if any
-    }
-
-    fn update(&mut self, updates: &mut WidgetUpdates) {
-        if mem::take(self.init_deinit.get_mut()) {
-            if let LazyMode::Enabled { placeholder, deinit, .. } = self.mode.get() {
-                if let Some(actual) = self.not_inited.take() {
-                    // child is placeholder, init actual child
-                    debug_assert_eq!(self.children.len(), 1);
-
-                    self.children.deinit_all();
-                    self.children.clear();
-
-                    if deinit {
-                        // Keep placeholder, layout will still use it to avoid glitches when the actual layout causes a deinit,
-                        // and the placeholder another init on a loop.
-                        //
-                        // This time we have the actual widget content, so the placeholder is upgraded to a full widget.
-
-                        let placeholder = placeholder.generate(()).into_widget();
-                        self.children.push(placeholder);
-                    }
-                    self.children.push(actual);
-
-                    self.children.init_all();
-
-                    WIDGET.info().layout().render();
-                } else if deinit {
-                    // child is actual, deinit it, generate placeholder again.
-
-                    debug_assert_eq!(self.children.len(), 2);
-                    debug_assert!(self.not_inited.is_none());
-
-                    self.children.deinit_all();
-                    self.not_inited = self.children.pop();
-                    self.children.clear();
-
-                    let placeholder = placeholder.generate(());
-                    let placeholder = crate::core::widget_base::nodes::widget_inner(placeholder).boxed();
-
-                    self.children.push(placeholder);
-                    self.children.init_all();
-
-                    WIDGET.info().layout().render();
-                }
-            }
-        } else if let Some(mode) = self.mode.get_new() {
-            match mode {
-                LazyMode::Enabled { deinit, placeholder, .. } => {
-                    if self.not_inited.is_some() {
-                        debug_assert_eq!(self.children.len(), 1);
-
-                        // already enabled, because is not inited,
-                        // replace placeholder
-
-                        self.children.deinit_all();
-                        self.children.clear();
-
-                        let placeholder = placeholder.generate(());
-                        let placeholder = crate::core::widget_base::nodes::widget_inner(placeholder).boxed();
-
-                        self.children.push(placeholder);
-
-                        self.children.init_all();
-
-                        WIDGET.info().layout().render();
-                    } else if self.children.len() == 2 {
-                        // already enabled and could deinit,
-                        // remove or replace placeholder
-
-                        self.children[0].deinit();
-
-                        if deinit {
-                            // continue to allow deinit, replace
-                            let placeholder = placeholder.generate(());
-                            self.children[0] = placeholder.into_widget();
-
-                            self.children[0].init();
-                        } else {
-                            // cannot deinit anymore, remove
-                            self.children.remove(0);
-                        }
-
-                        WIDGET.info().layout().render();
-                    } else {
-                        // already enabled and could not deinit,
-                        // insert placeholder
-
-                        if deinit {
-                            let placeholder = placeholder.generate(());
-                            self.children.insert(0, placeholder.into_widget());
-
-                            self.children[0].init();
-
-                            WIDGET.info().layout().render();
-                        }
-                    }
-                }
-                LazyMode::Disabled => {
-                    if let Some(actual) = self.not_inited.take() {
-                        // child is placeholder, need to init actual
-                        self.children.deinit_all();
-                        self.children.clear();
-
-                        self.children.push(actual);
-
-                        self.children.init_all();
-
-                        WIDGET.info().layout().render();
-                    }
-                }
-            }
-        }
-        self.children.update_all(updates, &mut ());
     }
 
     fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
@@ -477,8 +381,8 @@ impl UiNode for LazyNode {
             };
             if in_viewport {
                 // request init
-                self.init_deinit.store(true, Ordering::Relaxed);
-                WIDGET.update();
+                self.in_viewport.store(true, Ordering::Relaxed);
+                WIDGET.reinit();
             }
         } else if self.children.len() == 2 {
             // is inited and can deinit, check viewport on placeholder
@@ -496,8 +400,8 @@ impl UiNode for LazyNode {
             };
             if !in_viewport {
                 // request deinit
-                self.init_deinit.store(true, Ordering::Relaxed);
-                WIDGET.update();
+                self.in_viewport.store(false, Ordering::Relaxed);
+                WIDGET.reinit();
             } else {
                 self.children[1].render(frame);
             }

@@ -278,7 +278,7 @@ pub mod nodes {
                 WIDGET.with_context(&self.ctx, || {
                     #[cfg(debug_assertions)]
                     if self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", WIDGET.id());
+                        tracing::error!(target: "widget_base", "`UiNode::init` called in inited widget {:?}", WIDGET.id());
                     }
 
                     self.child.init();
@@ -288,7 +288,8 @@ pub mod nodes {
                     {
                         self.inited = true;
                     }
-                })
+                });
+                self.ctx.take_reinit(); // ignore reinit request
             }
 
             fn deinit(&mut self) {
@@ -324,10 +325,19 @@ pub mod nodes {
                     } else {
                         info.push_widget_reuse();
                     }
-                })
+                });
+
+                if self.ctx.is_pending_reinit() {
+                    UPDATES.update(self.ctx.id());
+                }
             }
 
             fn event(&mut self, update: &mut EventUpdate) {
+                if self.ctx.take_reinit() {
+                    self.deinit();
+                    self.init();
+                }
+
                 WIDGET.with_context(&self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -338,6 +348,7 @@ pub mod nodes {
                         self.child.event(update);
                     });
                 });
+
                 if self.ctx.take_reinit() {
                     self.deinit();
                     self.init();
@@ -345,6 +356,12 @@ pub mod nodes {
             }
 
             fn update(&mut self, updates: &mut WidgetUpdates) {
+                if self.ctx.take_reinit() {
+                    self.deinit();
+                    self.init();
+                    return;
+                }
+
                 WIDGET.with_context(&self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -355,6 +372,7 @@ pub mod nodes {
                         self.child.update(updates);
                     });
                 });
+
                 if self.ctx.take_reinit() {
                     self.deinit();
                     self.init();
@@ -363,7 +381,7 @@ pub mod nodes {
 
             fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
                 let reuse = !self.ctx.is_pending_layout();
-                WIDGET.with_context(&self.ctx, || {
+                let desired_size = WIDGET.with_context(&self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", WIDGET.id());
@@ -392,12 +410,18 @@ pub mod nodes {
 
                         child_size
                     })
-                })
+                });
+
+                if self.ctx.is_pending_reinit() {
+                    UPDATES.update(self.ctx.id());
+                }
+
+                desired_size
             }
 
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
                 let reuse = !self.ctx.take_layout();
-                WIDGET.with_context(&self.ctx, || {
+                let final_size = WIDGET.with_context(&self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", WIDGET.id());
@@ -429,7 +453,13 @@ pub mod nodes {
 
                         child_size
                     })
-                })
+                });
+
+                if self.ctx.is_pending_reinit() {
+                    UPDATES.update(self.ctx.id());
+                }
+
+                final_size
             }
 
             fn render(&self, frame: &mut FrameBuilder) {
@@ -443,6 +473,10 @@ pub mod nodes {
                     frame.push_widget(&mut reuse, |frame| self.child.render(frame));
                 });
                 self.ctx.set_render_reuse(reuse);
+
+                if self.ctx.is_pending_reinit() {
+                    UPDATES.update(self.ctx.id());
+                }
             }
 
             fn render_update(&self, update: &mut FrameUpdate) {
@@ -456,6 +490,10 @@ pub mod nodes {
 
                     update.update_widget(reuse, |update| self.child.render_update(update));
                 });
+
+                if self.ctx.is_pending_reinit() {
+                    UPDATES.update(self.ctx.id());
+                }
             }
 
             fn is_widget(&self) -> bool {
