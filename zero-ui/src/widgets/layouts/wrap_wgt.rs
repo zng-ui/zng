@@ -92,7 +92,29 @@ pub mod wrap {
 
 /// Create a node that estimates the size for a wrap panel children where all items have the same `child_size`.
 pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_size: impl IntoVar<Size>) -> impl UiNode {
-    lazy_sample(children_len, spacing, crate::properties::size(NilUiNode, child_size))
+    #[ui_node(struct InlineSizeNode {
+        #[var] size: impl Var<Size>
+    })]
+    impl UiNode for InlineSizeNode {
+        fn update(&mut self, _: &mut WidgetUpdates) {
+            if self.size.is_new() {
+                UPDATES.layout();
+            }
+        }
+        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+            self.size.layout()
+        }
+        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
+            self.size.layout()
+        }
+    }
+
+    // we don't use `properties::size(NilUiNode, child_size)` because that size disables inlining.
+    let sample = InlineSizeNode {
+        size: child_size.into_var(),
+    };
+
+    lazy_sample(children_len, spacing, sample)
 }
 
 /// Create a node that estimates the size for a wrap panel children where all items have the same size as `child_sample`.
