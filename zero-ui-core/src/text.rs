@@ -1674,6 +1674,7 @@ impl fmt::Display for TextPointDisplay {
 
 bitflags! {
     /// Represents what parts of a text the underline must skip over.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct UnderlineSkip: u8 {
         /// Underline spans the entire text length.
         const NONE = 0;
@@ -1685,7 +1686,7 @@ bitflags! {
         const GLYPHS = 0b0010;
 
         /// Default value, skip glyphs.
-        const DEFAULT = Self::GLYPHS.bits;
+        const DEFAULT = Self::GLYPHS.bits();
     }
 }
 impl Default for UnderlineSkip {

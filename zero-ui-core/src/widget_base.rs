@@ -1115,6 +1115,7 @@ bitflags! {
     /// See [`parallel`] for more details.
     ///
     /// [`parallel`]: fn@parallel
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct Parallel: u8 {
         /// Descendants [`UiNode::init`] can run in parallel.
         const INIT =   0b0001;

@@ -407,6 +407,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 /// custom properties can be created to be inside this group and have access to the [`LayoutText::get`] function.
 pub fn layout_text(child: impl UiNode) -> impl UiNode {
     bitflags::bitflags! {
+        #[derive(Clone, Copy, PartialEq, Eq)]
         struct Layout: u8 {
             const UNDERLINE     = 0b0000_0001;
             const STRIKETHROUGH = 0b0000_0010;

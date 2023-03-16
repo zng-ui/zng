@@ -1779,6 +1779,7 @@ type InteractivityFilters = Vec<Arc<dyn Fn(&InteractivityFilterArgs) -> Interact
 
 bitflags! {
     /// Represents the level of interaction allowed for a widget.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct Interactivity: u8 {
         /// Normal interactions allowed.
         ///
@@ -1797,7 +1798,7 @@ bitflags! {
         const BLOCKED = 0b10;
 
         /// `BLOCKED` with `DISABLED` visuals.
-        const BLOCKED_DISABLED = Self::DISABLED.bits | Self::BLOCKED.bits;
+        const BLOCKED_DISABLED = Self::DISABLED.bits() | Self::BLOCKED.bits();
     }
 }
 impl Interactivity {

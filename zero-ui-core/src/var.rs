@@ -206,6 +206,7 @@ bitflags! {
     /// Kinds of interactions allowed by a [`Var<T>`] in the current update.
     ///
     /// You can get the current capabilities of a var by using the [`AnyVar::capabilities`] method.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct VarCapabilities: u8 {
         /// Var value can change.
         ///
@@ -229,9 +230,8 @@ bitflags! {
 }
 impl VarCapabilities {
     /// Remove only the `MODIFY` flag without removing `NEW`.
-    pub fn as_read_only(mut self) -> Self {
-        self.bits &= 0b1111_1110;
-        self
+    pub fn as_read_only(self) -> Self {
+        Self::from_bits_truncate(self.bits() & 0b1111_1110)
     }
 
     /// If cannot `MODIFY` and is not `CAPS_CHANGE`.

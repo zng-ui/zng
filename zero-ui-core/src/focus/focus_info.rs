@@ -312,6 +312,7 @@ pub enum FocusTarget {
 
 bitflags! {
     /// Represents the [`FocusTarget`] actions that move focus from the current focused widget.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct FocusNavAction: u16 {
         /// [`FocusTarget::Enter`]
         const ENTER =      0b0000_0000_0001;
@@ -336,11 +337,12 @@ bitflags! {
         const ALT =        0b0001_0000_0000;
 
         /// Up, right, down, left.
-        const DIRECTIONAL = FocusNavAction::UP.bits | FocusNavAction::RIGHT.bits | FocusNavAction::DOWN.bits | FocusNavAction::LEFT.bits;
+        const DIRECTIONAL = FocusNavAction::UP.bits() | FocusNavAction::RIGHT.bits() | FocusNavAction::DOWN.bits() | FocusNavAction::LEFT.bits();
     }
 }
 
 bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub(super) struct FocusMode: u8 {
         /// Allow focus in disabled widgets.
         const DISABLED = 1;

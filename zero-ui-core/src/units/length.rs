@@ -674,6 +674,7 @@ impl super::Layout1d for Length {
 
 bitflags! {
     /// Mask of values that can affect the [`Length::layout`] operation.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct LayoutMask: u32 {
         /// Represents no value dependency or change.
         const NONE = 0;

@@ -2,7 +2,6 @@ use crate::units::*;
 use crate::DisplayList;
 use crate::FrameValueUpdate;
 use crate::IpcBytes;
-use bitflags::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::{fmt, path::PathBuf};
@@ -1829,7 +1828,7 @@ impl PartialEq for ImageDataFormat {
 }
 impl Eq for ImageDataFormat {}
 impl std::hash::Hash for ImageDataFormat {
-    fn hash<H: _core::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
         match self {
             ImageDataFormat::Bgra8 { size, ppi } => {

@@ -87,7 +87,7 @@ zero-ui-core = { path = "../zero-ui-core", default-features = false }
 # util
 paste = "1"
 tracing = "0.1"
-bitflags = "1"
+bitflags = "2"
 linear-map = "1"
 serde = "1"
 pretty-type-name = "1"

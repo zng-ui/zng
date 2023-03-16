@@ -248,6 +248,7 @@ impl Window {
 
 bitflags! {
     /// Window auto-size config.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct AutoSize: u8 {
         /// Does not automatically adjust size.
         const DISABLED = 0;
@@ -256,7 +257,7 @@ bitflags! {
         /// Uses the content desired height.
         const CONTENT_HEIGHT = 0b10;
         /// Uses the content desired width and height.
-        const CONTENT = Self::CONTENT_WIDTH.bits | Self::CONTENT_HEIGHT.bits;
+        const CONTENT = Self::CONTENT_WIDTH.bits() | Self::CONTENT_HEIGHT.bits();
     }
 }
 impl_from_and_into_var! {
@@ -414,6 +415,7 @@ impl_from_and_into_var! {
 
 bitflags! {
     /// Mask of allowed [`WindowState`] states of a window.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct WindowStateAllowed: u8 {
         /// Enable minimize.
         const MINIMIZE = 0b0001;

@@ -1,9 +1,4 @@
-* Upgrade `IdMap` and `IdSet` to an actual pub type.
-    - Review the entry API, can it be used from outside?
-* Use const init where only the LinearMap init was a problem.
-    - See "Peroformance.md".
 * Review Cargo.toml and upgrade dependencies.
-* Review !!:
 * Test all.
 * Merge.
 

@@ -2335,6 +2335,7 @@ assert_non_null!(FrameValueKey<RenderColor>);
 
 bitflags! {
     /// Configure if a synthetic font is generated for fonts that do not implement **bold** or *oblique* variants.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct FontSynthesis: u8 {
         /// No synthetic font generated, if font resolution does not find a variant the matches the requested style and weight
         /// the request is ignored and the normal font is returned.
@@ -2344,7 +2345,7 @@ bitflags! {
         /// Enable synthetic oblique. If the font resolution does not find an oblique or italic variant a skew transform is applied.
         const STYLE = 2;
         /// Enabled all synthetic font possibilities.
-        const ENABLED = Self::BOLD.bits | Self::STYLE.bits;
+        const ENABLED = Self::BOLD.bits() | Self::STYLE.bits();
     }
 }
 impl Default for FontSynthesis {
