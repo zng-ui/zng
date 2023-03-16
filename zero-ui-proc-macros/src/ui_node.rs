@@ -651,6 +651,25 @@ impl<'a, 'ast> Visit<'ast> for DelegateValidator<'a> {
         visit::visit_expr_method_call(self, i)
     }
 
+    fn visit_expr_call(&mut self, i: &'ast ExprCall) {
+        if let Expr::Path(p) = &*i.func {
+            let len = p.path.segments.len();
+            if len >= 2 {
+                let q = &p.path.segments[len - 2].ident;
+                if q == "UiNode" {
+                    let method = &p.path.segments[len - 1].ident;
+                    if (method == self.ident && i.args.len() as u8 == self.args_count + 1)
+                        || method == &self.list_variant
+                        || method == &self.list_specific_variant
+                    {
+                        self.delegates = true;
+                    }
+                }
+            }
+        }
+        visit::visit_expr_call(self, i)
+    }
+
     fn visit_macro(&mut self, i: &'ast Macro) {
         for p in &self.todo_paths {
             if &i.path == p {

@@ -304,13 +304,13 @@ impl UiNode for LazyNode {
     }
 
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        let mut size = self.children[0].layout(wl);
+        let mut size = UiNode::layout(&mut self.children[0], wl); // rust-analyzer errors for `.layout(wl)`
 
         if self.not_inited.is_none() && self.children.len() == 2 {
             // is inited and can deinit, layout the actual child and validate
 
             let lazy_size = size;
-            let actual_size = self.children[1].layout(wl);
+            let actual_size = UiNode::layout(&mut self.children[1], wl);
 
             let mut intersect_mode = ScrollMode::empty();
 
