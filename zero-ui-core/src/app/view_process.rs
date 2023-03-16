@@ -4,8 +4,8 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::{self, Arc};
 
-use linear_map::LinearMap;
 use parking_lot::Mutex;
+use rustc_hash::FxHashMap;
 
 use super::{app_local, DeviceId};
 use crate::event::{event, event_args};
@@ -60,8 +60,8 @@ type ViewProcessRef = Option<std::sync::Weak<Mutex<ViewApp>>>;
 pub struct ViewProcess(ViewProcessRef);
 struct ViewApp {
     process: zero_ui_view_api::Controller,
-    device_ids: LinearMap<ApiDeviceId, DeviceId>,
-    monitor_ids: LinearMap<ApiMonitorId, MonitorId>,
+    device_ids: FxHashMap<ApiDeviceId, DeviceId>,
+    monitor_ids: FxHashMap<ApiMonitorId, MonitorId>,
 
     data_generation: ViewProcessGen,
 
@@ -113,8 +113,8 @@ impl ViewProcess {
         *VIEW_APP.write() = Some(Arc::new(Mutex::new(ViewApp {
             data_generation: process.generation(),
             process,
-            device_ids: LinearMap::default(),
-            monitor_ids: LinearMap::default(),
+            device_ids: FxHashMap::default(),
+            monitor_ids: FxHashMap::default(),
             loading_images: vec![],
             encoding_images: vec![],
             frame_images: vec![],

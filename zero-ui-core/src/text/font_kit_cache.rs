@@ -3,7 +3,7 @@
 
 use std::{cell::RefCell, rc::Rc, sync::Arc, thread::ThreadId};
 
-use linear_map::LinearMap;
+use rustc_hash::FxHashMap;
 
 thread_local! {
     static FONT_KIT_CACHE: RefCell<Vec<FontKitThreadLocalEntry>> = const { RefCell::new(vec![]) };
@@ -39,16 +39,16 @@ fn cleanup_current_font_kit_cache() {
 
 #[derive(Default, Clone)]
 pub struct FontKitCache {
-    threads: LinearMap<ThreadId, Arc<usize>>,
+    threads: FxHashMap<ThreadId, Arc<usize>>,
 }
 impl FontKitCache {
     pub fn get_or_init(&mut self, init: impl FnOnce() -> font_kit::font::Font) -> Rc<font_kit::font::Font> {
         match self.threads.entry(std::thread::current().id()) {
-            linear_map::Entry::Occupied(e) => {
+            std::collections::hash_map::Entry::Occupied(e) => {
                 let i = **e.get();
                 FONT_KIT_CACHE.with(|c| c.borrow()[i].font.clone().unwrap())
             }
-            linear_map::Entry::Vacant(e) => {
+            std::collections::hash_map::Entry::Vacant(e) => {
                 cleanup_current_font_kit_cache();
                 FONT_KIT_CACHE.with(|c| {
                     let mut c = c.borrow_mut();

@@ -1,6 +1,5 @@
 use std::{cell::Cell, mem};
 
-use linear_map::LinearMap;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use webrender_api::{self as wr, PipelineId};
@@ -574,7 +573,7 @@ struct CachedDisplayList {
 /// View process side cache of [`DisplayList`] frames for a pipeline.
 pub struct DisplayListCache {
     pipeline_id: PipelineId,
-    lists: LinearMap<FrameId, CachedDisplayList>,
+    lists: FxHashMap<FrameId, CachedDisplayList>,
     space_and_clip: Option<SpaceAndClip>,
 
     latest_frame: FrameId,
@@ -587,7 +586,7 @@ impl DisplayListCache {
     pub fn new(pipeline_id: PipelineId) -> Self {
         DisplayListCache {
             pipeline_id,
-            lists: LinearMap::new(),
+            lists: FxHashMap::default(),
             latest_frame: FrameId::INVALID,
             space_and_clip: Some(SpaceAndClip::new(pipeline_id)),
             bindings: FxHashMap::default(),

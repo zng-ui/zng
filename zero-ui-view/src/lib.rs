@@ -116,6 +116,8 @@ use webrender::api::*;
 use window::Window;
 use zero_ui_view_api::{units::*, *};
 
+use rustc_hash::FxHashMap;
+
 /// Runs the view-process server if called in the environment of a view-process.
 ///
 /// If this function is called in a process not configured to be a view-process it will return
@@ -331,7 +333,7 @@ pub(crate) struct App {
     #[cfg(windows)]
     skip_ralt: bool,
 
-    pressed_modifiers: linear_map::LinearMap<Key, (DeviceId, ScanCode)>,
+    pressed_modifiers: FxHashMap<Key, (DeviceId, ScanCode)>,
     pending_modifiers_update: Option<ModifiersState>,
     pending_modifiers_focus_clear: bool,
 
@@ -578,7 +580,7 @@ impl App {
             exited: false,
             #[cfg(windows)]
             skip_ralt: false,
-            pressed_modifiers: linear_map::LinearMap::new(),
+            pressed_modifiers: FxHashMap::default(),
             pending_modifiers_update: None,
             pending_modifiers_focus_clear: false,
         }

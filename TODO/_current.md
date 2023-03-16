@@ -1,3 +1,12 @@
+* Upgrade `IdMap` and `IdSet` to an actual pub type.
+    - !!: marks where we want to use it in main crate.
+* Use const init where only the LinearMap init was a problem.
+    - See "Peroformance.md".
+* Review Cargo.toml and upgrade dependencies.
+* Review !!:
+* Test all.
+* Merge.
+
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
 

@@ -22,7 +22,7 @@ use crate::{
     },
     app_local,
     context::UPDATES,
-    crate_util::FxHashMap,
+    crate_util::{FxHashMap, FxHashSet},
     event::{event, event_args, EventUpdate},
     units::*,
     var::{var, ArcVar, Var},
@@ -993,7 +993,7 @@ struct FontFaceLoader {
     custom_fonts: HashMap<FontName, Vec<FontFaceRef>>,
     system_fonts_cache: HashMap<FontName, Vec<SystemFontFace>>,
     #[cfg(debug_assertions)]
-    not_found_names: linear_map::set::LinearSet<FontName>,
+    not_found_names: FxHashSet<FontName>,
 }
 enum SystemFontFace {
     /// Properties queried and face returned by system.
@@ -1007,7 +1007,7 @@ impl FontFaceLoader {
             custom_fonts: HashMap::new(),
             system_fonts_cache: HashMap::new(),
             #[cfg(debug_assertions)]
-            not_found_names: linear_map::set::LinearSet::new(),
+            not_found_names: FxHashSet::default(),
         }
     }
 

@@ -1,12 +1,11 @@
 //! Aggregate events.
 
-use linear_map::{set::LinearSet, LinearMap};
 use parking_lot::Mutex;
 
 use crate::{
     app::*,
     context::*,
-    crate_util::{Handle, HandleOwner, WeakHandle},
+    crate_util::{FxHashMap, FxHashSet, Handle, HandleOwner, WeakHandle},
     event::*,
     event::{Command, CommandMetaVar, CommandScope, StaticCommandMetaVarId},
     focus::{FocusRequest, FocusTarget, FOCUS},
@@ -773,7 +772,7 @@ struct GesturesService {
 
     pressed_modifier: Option<(WindowId, ModifierGesture)>,
     primed_starter: Option<KeyGesture>,
-    chords: LinearMap<KeyGesture, LinearSet<KeyGesture>>,
+    chords: FxHashMap<KeyGesture, FxHashSet<KeyGesture>>,
 
     primary_clicks: Vec<(Shortcut, Arc<ShortcutTarget>)>,
     context_clicks: Vec<(Shortcut, Arc<ShortcutTarget>)>,
@@ -788,7 +787,7 @@ impl GesturesService {
 
             pressed_modifier: None,
             primed_starter: None,
-            chords: LinearMap::new(),
+            chords: FxHashMap::default(),
 
             primary_clicks: vec![],
             context_clicks: vec![],
@@ -820,7 +819,7 @@ impl GesturesService {
 
         for s in shortcuts.0 {
             if let Shortcut::Chord(c) = &s {
-                self.chords.entry(c.starter).or_insert_with(LinearSet::default).insert(c.complement);
+                self.chords.entry(c.starter).or_insert_with(FxHashSet::default).insert(c.complement);
             }
 
             collection.push((s, target.clone()));

@@ -405,11 +405,11 @@ pub fn un_splitmix64(z: u64) -> u64 {
 
 /// Ideal map type for key types generated using `unique_id!`.
 ///
-/// Use [`id_map_new`] to instantiate.
+/// Use [`id_map_new`] to instantiate in `const` contexts.
 pub type IdMap<K, V> = hashbrown::HashMap<K, V, BuildIdHasher>;
 /// Ideal set type for key types generated using `unique_id!`.
 ///
-/// Use [`id_set_new`] to instantiate.
+/// Use [`id_set_new`] to instantiate in `const` contexts.
 #[allow(unused)]
 pub type IdSet<K> = hashbrown::HashSet<K, BuildIdHasher>;
 
@@ -717,10 +717,14 @@ pub type PanicPayload = Box<dyn std::any::Any + Send + 'static>;
 /// The result that is returned by [`std::panic::catch_unwind`].
 pub type PanicResult<R> = thread::Result<R>;
 
-// this is the FxHasher with a patch that fixes slow deserialization.
-// see https://github.com/rust-lang/rustc-hash/issues/15 for details.
+// this is the FxHasher with random const init.
 #[derive(Clone)]
 pub struct BuildFxHasher(usize);
+impl BuildFxHasher {
+    const fn new() -> Self {
+        BuildFxHasher(const_random::const_random!(usize))
+    }
+}
 impl BuildHasher for BuildFxHasher {
     type Hasher = rustc_hash::FxHasher;
 
@@ -737,12 +741,24 @@ impl Default for BuildFxHasher {
 }
 
 /// Like [`rustc_hash::FxHashMap`] but faster deserialization and access to the raw_entry API.
+///
+/// Use [`fx_map_new`] for const init.
 pub type FxHashMap<K, V> = hashbrown::HashMap<K, V, BuildFxHasher>;
 /// Like [`rustc_hash::FxHashSet`] but faster deserialization.
+///
+/// Use [`fx_set_new`] for const init.
 pub type FxHashSet<V> = hashbrown::HashSet<V, BuildFxHasher>;
 
 /// Entry in [`FxHashMap`].
 pub type FxEntry<'a, K, V> = hashbrown::hash_map::Entry<'a, K, V, BuildFxHasher>;
+
+pub const fn fx_map_new<K, V>() -> FxHashMap<K, V> {
+    hashbrown::HashMap::with_hasher(BuildFxHasher::new())
+}
+#[allow(unused)]
+pub const fn fx_set_new<K>() -> FxHashSet<K> {
+    hashbrown::HashSet::with_hasher(BuildFxHasher::new())
+}
 
 /// Bidirectional map between a `Text` and a [`unique_id!`] generated id type.
 pub struct NameIdMap<I> {

@@ -2,7 +2,6 @@
 
 use std::{fmt, mem, sync::Arc, task::Waker};
 
-use linear_map::set::LinearSet;
 use parking_lot::{Mutex, RwLock};
 
 mod state;
@@ -1714,7 +1713,7 @@ impl WidgetUpdates {
 pub struct UpdateDeliveryList {
     subscribers: Box<dyn UpdateSubscribers>,
 
-    windows: LinearSet<WindowId>,
+    windows: IdSet<WindowId>,
     widgets: IdSet<WidgetId>,
     search: IdSet<WidgetId>,
 }
@@ -1737,7 +1736,7 @@ impl UpdateDeliveryList {
     pub fn new(subscribers: Box<dyn UpdateSubscribers>) -> Self {
         Self {
             subscribers,
-            windows: LinearSet::default(),
+            windows: IdSet::default(),
             widgets: IdSet::default(),
             search: IdSet::default(),
         }
@@ -1867,7 +1866,7 @@ impl UpdateDeliveryList {
     /// Windows in the delivery list.
     ///
     /// Note that each window that is visited is removed from the list.
-    pub fn windows(&self) -> &LinearSet<WindowId> {
+    pub fn windows(&self) -> &IdSet<WindowId> {
         &self.windows
     }
 

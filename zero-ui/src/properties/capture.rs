@@ -2,6 +2,7 @@ use crate::core::mouse::{CaptureMode, MOUSE, MOUSE_INPUT_EVENT};
 use crate::prelude::new_property::*;
 
 use crate::core::task::parking_lot::Mutex;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 /// Capture mouse for the widget on mouse down.
@@ -102,7 +103,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     static MODAL_WIDGETS: StaticStateId<Arc<Mutex<ModalWidgetsData>>> = StaticStateId::new_unique();
     #[derive(Default)]
     struct ModalWidgetsData {
-        widgets: linear_map::set::LinearSet<WidgetId>,
+        widgets: HashSet<WidgetId>, // !!:
         last_in_tree: Option<WidgetId>,
     }
 

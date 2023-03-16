@@ -78,7 +78,6 @@ byteorder = "1"
 rustc-hash = "1"
 rayon = "1"
 backtrace = "0.3"
-linear-map = "1"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.45.0"

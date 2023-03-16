@@ -8,7 +8,7 @@ use glutin::{
     prelude::*,
     surface::{Surface, SurfaceAttributesBuilder, WindowSurface},
 };
-use linear_map::set::LinearSet;
+use rustc_hash::FxHashSet;
 use winit::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget};
 use zero_ui_view_api::{RenderMode, WindowId};
 
@@ -19,16 +19,16 @@ use crate::{util, AppEvent};
 /// Create and track the current OpenGL context.
 pub(crate) struct GlContextManager {
     current: Rc<Cell<Option<WindowId>>>,
-    unsupported_headed: LinearSet<TryConfig>,
-    unsupported_headless: LinearSet<TryConfig>,
+    unsupported_headed: FxHashSet<TryConfig>,
+    unsupported_headless: FxHashSet<TryConfig>,
 }
 
 impl Default for GlContextManager {
     fn default() -> Self {
         Self {
             current: Rc::new(Cell::new(None)),
-            unsupported_headed: LinearSet::new(),
-            unsupported_headless: LinearSet::new(),
+            unsupported_headed: FxHashSet::default(),
+            unsupported_headless: FxHashSet::default(),
         }
     }
 }
@@ -583,7 +583,7 @@ fn check_wr_gl_version(gl: &dyn gl::Gl) -> Result<(), String> {
 }
 
 /// Glutin, SWGL config to attempt.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 struct TryConfig {
     mode: RenderMode,
     hardware_acceleration: Option<bool>,

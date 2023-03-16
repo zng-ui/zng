@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 use crate::app::view_process::{AnimationsConfig, VIEW_PROCESS_INITED_EVENT};
 use crate::app::{raw_events::*, *};
+use crate::crate_util::FxHashSet;
 use crate::event::*;
 use crate::focus::FOCUS;
 use crate::units::*;
@@ -17,7 +18,6 @@ use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
 use crate::{context::*, widget_instance::WidgetId};
 
-use linear_map::set::LinearSet;
 pub use zero_ui_view_api::{Key, KeyRepeatConfig, KeyState, ScanCode};
 
 event_args! {
@@ -290,7 +290,7 @@ impl KEYBOARD {
 
 app_local! {
     static KEYBOARD_SV: KeyboardService = KeyboardService {
-        current_modifiers: LinearSet::new(),
+        current_modifiers: FxHashSet::default(),
         modifiers: var(ModifiersState::empty()),
         codes: var(vec![]),
         keys: var(vec![]),
@@ -304,7 +304,7 @@ app_local! {
 }
 
 struct KeyboardService {
-    current_modifiers: LinearSet<Key>,
+    current_modifiers: FxHashSet<Key>,
 
     modifiers: ArcVar<ModifiersState>,
     codes: ArcVar<Vec<ScanCode>>,

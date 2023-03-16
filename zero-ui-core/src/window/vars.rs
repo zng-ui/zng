@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use linear_map::set::LinearSet;
-
 use super::{types::*, MonitorId, MonitorQuery};
 use crate::{
     color::ColorScheme,
     context::StaticStateId,
     context::WINDOW,
+    crate_util::IdSet,
     image::Image,
     render::RenderMode,
     text::{Text, ToText},
@@ -55,7 +54,7 @@ pub(super) struct WindowVarsData {
 
     parent: ArcVar<Option<WindowId>>,
     modal: ArcVar<bool>,
-    pub(super) children: ArcVar<LinearSet<WindowId>>,
+    pub(super) children: ArcVar<IdSet<WindowId>>,
 
     color_scheme: ArcVar<Option<ColorScheme>>,
     pub(super) actual_color_scheme: ArcVar<ColorScheme>,
@@ -124,7 +123,7 @@ impl WindowVars {
 
             parent: var(None),
             modal: var(false),
-            children: var(LinearSet::new()),
+            children: var(IdSet::default()),
 
             color_scheme: var(None),
             actual_color_scheme: var(system_color_scheme),
@@ -513,7 +512,7 @@ impl WindowVars {
     /// This is a set of other windows that have this window as a [`parent`].
     ///
     /// [`parent`]: Self::parent
-    pub fn children(&self) -> ReadOnlyArcVar<LinearSet<WindowId>> {
+    pub fn children(&self) -> ReadOnlyArcVar<IdSet<WindowId>> {
         self.0.children.read_only()
     }
 

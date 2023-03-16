@@ -5,6 +5,7 @@
 use crate::{
     app::{raw_events::*, view_process::VIEW_PROCESS_INITED_EVENT, *},
     context::*,
+    crate_util::FxHashMap,
     event::*,
     keyboard::{ModifiersState, MODIFIERS_CHANGED_EVENT},
     units::*,
@@ -15,7 +16,6 @@ use crate::{
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 
-use linear_map::LinearMap;
 pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchForce, TouchPhase};
 
 event_args! {
@@ -711,7 +711,7 @@ pub struct MouseManager {
     capture_count: u8,
 
     hovered: Option<InteractionPath>,
-    pressed: LinearMap<MouseButton, InteractionPath>,
+    pressed: FxHashMap<MouseButton, InteractionPath>,
 
     multi_click_config: ArcVar<MultiClickConfig>,
 }
@@ -728,7 +728,7 @@ impl Default for MouseManager {
             click_state: ClickState::None,
 
             hovered: None,
-            pressed: LinearMap::default(),
+            pressed: FxHashMap::default(),
 
             capture_count: 0,
 

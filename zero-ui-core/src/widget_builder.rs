@@ -6,10 +6,10 @@ use std::{
     sync::Arc,
 };
 
-use linear_map::{set::LinearSet, LinearMap};
 use parking_lot::Mutex;
 
 use crate::{
+    crate_util::{FxEntry, FxHashMap, IdEntry, IdMap, IdSet},
     handler::WidgetHandler,
     impl_from_and_into_var,
     text::{formatx, Text},
@@ -1499,7 +1499,7 @@ impl Clone for WidgetItem {
 }
 
 // [(PropertyId, "action-key") => (Importance, Vec<{action for each input}>)]
-type PropertyBuildActionsMap = LinearMap<(PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>)>;
+type PropertyBuildActionsMap = FxHashMap<(PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>)>;
 type PropertyBuildActionsVec = Vec<((PropertyId, &'static str), (Importance, Vec<Box<dyn AnyPropertyBuildAction>>))>;
 
 /// Widget instance builder.
@@ -1508,13 +1508,13 @@ pub struct WidgetBuilder {
 
     insert_idx: u32,
     p: WidgetBuilderProperties,
-    unset: LinearMap<PropertyId, Importance>,
+    unset: IdMap<PropertyId, Importance>,
 
     whens: Vec<WhenItemPositioned>,
     when_insert_idx: u32,
 
     p_build_actions: PropertyBuildActionsMap,
-    p_build_actions_unset: LinearMap<(PropertyId, &'static str), Importance>,
+    p_build_actions_unset: FxHashMap<(PropertyId, &'static str), Importance>,
 
     build_actions: Vec<Arc<Mutex<dyn FnMut(&mut WidgetBuilding) + Send>>>,
 
@@ -1651,12 +1651,12 @@ impl WidgetBuilder {
     pub fn push_unset(&mut self, importance: Importance, property_id: PropertyId) {
         let check;
         match self.unset.entry(property_id) {
-            linear_map::Entry::Occupied(mut e) => {
+            IdEntry::Occupied(mut e) => {
                 let i = e.get_mut();
                 check = *i < importance;
                 *i = importance;
             }
-            linear_map::Entry::Vacant(e) => {
+            IdEntry::Vacant(e) => {
                 check = true;
                 e.insert(importance);
             }
@@ -1697,12 +1697,12 @@ impl WidgetBuilder {
         input_actions: Vec<Box<dyn AnyPropertyBuildAction>>,
     ) {
         match self.p_build_actions.entry((property_id, action_name)) {
-            linear_map::Entry::Occupied(mut e) => {
+            FxEntry::Occupied(mut e) => {
                 if e.get().0 < importance {
                     e.insert((importance, input_actions));
                 }
             }
-            linear_map::Entry::Vacant(e) => {
+            FxEntry::Vacant(e) => {
                 if let Some(imp) = self.p_build_actions_unset.get(&(property_id, action_name)) {
                     if *imp >= importance {
                         // blocked by unset
@@ -1720,13 +1720,13 @@ impl WidgetBuilder {
     pub fn push_unset_property_build_action(&mut self, property_id: PropertyId, action_name: &'static str, importance: Importance) {
         let mut check = false;
         match self.p_build_actions_unset.entry((property_id, action_name)) {
-            linear_map::Entry::Occupied(mut e) => {
+            FxEntry::Occupied(mut e) => {
                 if *e.get() < importance {
                     e.insert(importance);
                     check = true;
                 }
             }
-            linear_map::Entry::Vacant(e) => {
+            FxEntry::Vacant(e) => {
                 e.insert(importance);
                 check = true;
             }
@@ -1838,7 +1838,7 @@ impl WidgetBuilder {
     pub fn split_off(&mut self, properties: impl IntoIterator<Item = PropertyId>, out: &mut WidgetBuilder) {
         self.split_off_impl(properties.into_iter().collect(), out)
     }
-    fn split_off_impl(&mut self, properties: LinearSet<PropertyId>, out: &mut WidgetBuilder) {
+    fn split_off_impl(&mut self, properties: IdSet<PropertyId>, out: &mut WidgetBuilder) {
         let mut found = 0;
 
         // move properties
@@ -1969,7 +1969,7 @@ impl WidgetBuilder {
             child: None,
         };
 
-        let mut p_build_actions = self.p_build_actions.into();
+        let mut p_build_actions = self.p_build_actions.into_iter().collect();
 
         if !self.whens.is_empty() {
             building.build_whens(self.whens, &mut p_build_actions);
@@ -2220,9 +2220,9 @@ impl WidgetBuilding {
             when_count: usize,
             /// map of key:action set in the property, in at least one when, and value:Vec of data for each when in order and
             /// Option of default action.
-            actions_data: LinearMap<&'static str, (Vec<Option<WhenBuildActionData>>, Option<WhenBuildDefaultAction>)>,
+            actions_data: FxHashMap<&'static str, (Vec<Option<WhenBuildActionData>>, Option<WhenBuildDefaultAction>)>,
         }
-        let mut assigns = LinearMap::new();
+        let mut assigns = FxHashMap::default();
 
         // rev so that the last when overrides others, the WhenVar returns the first true condition.
         'when: for WhenItemPositioned { when, .. } in whens.iter().rev() {
@@ -2299,8 +2299,8 @@ impl WidgetBuilding {
                 }
 
                 let entry = match assigns.entry(id) {
-                    linear_map::Entry::Occupied(e) => e.into_mut(),
-                    linear_map::Entry::Vacant(e) => e.insert(Assign {
+                    FxEntry::Occupied(e) => e.into_mut(),
+                    FxEntry::Vacant(e) => e.insert(Assign {
                         item_idx: i,
                         builder: info
                             .inputs
@@ -2353,7 +2353,7 @@ impl WidgetBuilding {
                 for ((property_id, action_key), action) in &when.build_action_data {
                     if *property_id == id {
                         match entry.actions_data.entry(*action_key) {
-                            linear_map::Entry::Occupied(mut e) => {
+                            FxEntry::Occupied(mut e) => {
                                 let e = e.get_mut();
                                 for _ in e.0.len()..(entry.when_count - 1) {
                                     e.0.push(None);
@@ -2363,7 +2363,7 @@ impl WidgetBuilding {
                                     e.1 = action.default_action.clone();
                                 }
                             }
-                            linear_map::Entry::Vacant(e) => {
+                            FxEntry::Vacant(e) => {
                                 let mut a = Vec::with_capacity(entry.when_count);
                                 for _ in 0..(entry.when_count - 1) {
                                     a.push(None);

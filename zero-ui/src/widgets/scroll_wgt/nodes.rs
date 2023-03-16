@@ -170,7 +170,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
                 // check if scrolled using only `render_update` to the end of the `auto_hide_extra` space.
                 let update_only_offset = (self.last_render_offset.get() - self.content_offset).abs();
-                const OFFSET_EXTRA: Px = Px(20);// give a margin of error for widgets that render outside bounds.
+                const OFFSET_EXTRA: Px = Px(20); // give a margin of error for widgets that render outside bounds.
                 let mut need_full_render = if update_only_offset.y < Px(0) {
                     update_only_offset.y.abs() + OFFSET_EXTRA > self.auto_hide_extra.top
                 } else {

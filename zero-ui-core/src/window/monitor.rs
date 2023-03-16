@@ -1,7 +1,5 @@
 use std::{fmt, sync::Arc};
 
-use linear_map::LinearMap;
-
 use super::VideoMode;
 use crate::{
     app::{
@@ -9,6 +7,7 @@ use crate::{
         view_process::VIEW_PROCESS_INITED_EVENT,
     },
     app_local,
+    crate_util::{fx_map_new, FxHashMap},
     event::{event, AnyEventArgs, EventUpdate},
     event_args,
     text::*,
@@ -46,8 +45,10 @@ impl MonitorId {
 }
 
 app_local! {
-    pub(super) static MONITORS_SV: MonitorsService = MonitorsService {
-        monitors: LinearMap::new(),
+    pub(super) static MONITORS_SV: MonitorsService = const {
+        MonitorsService {
+            monitors: fx_map_new(),
+        }
     };
 }
 
@@ -116,11 +117,11 @@ impl MONITORS {
 }
 
 pub(super) struct MonitorsService {
-    monitors: LinearMap<MonitorId, MonitorInfo>,
+    monitors: FxHashMap<MonitorId, MonitorInfo>,
 }
 impl MonitorsService {
     fn on_monitors_changed(&mut self, args: &RawMonitorsChangedArgs) {
-        let mut available_monitors: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
+        let mut available_monitors: FxHashMap<_, _> = args.available_monitors.iter().cloned().collect();
 
         let mut removed = vec![];
         let mut changed = vec![];

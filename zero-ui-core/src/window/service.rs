@@ -1,8 +1,6 @@
 use std::sync::Arc;
 use std::{fmt, mem};
 
-use linear_map::set::LinearSet;
-use linear_map::LinearMap;
 use parking_lot::Mutex;
 
 use super::commands::WindowCommands;
@@ -17,7 +15,7 @@ use crate::app::{
 use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
 use crate::context::{WidgetUpdates, WindowCtx};
 use crate::context::{UPDATES, WINDOW};
-use crate::crate_util::IdSet;
+use crate::crate_util::{IdMap, IdSet};
 use crate::event::{AnyEventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
@@ -33,11 +31,11 @@ pub(super) struct WindowsService {
     exit_on_last_close: ArcVar<bool>,
     default_render_mode: ArcVar<RenderMode>,
 
-    windows: LinearMap<WindowId, AppWindow>,
-    windows_info: LinearMap<WindowId, AppWindowInfo>,
+    windows: IdMap<WindowId, AppWindow>,
+    windows_info: IdMap<WindowId, AppWindowInfo>,
     open_requests: Vec<OpenWindowRequest>,
     close_requests: Vec<CloseWindowRequest>,
-    close_responders: LinearMap<WindowId, Vec<ResponderVar<CloseWindowResult>>>,
+    close_responders: IdMap<WindowId, Vec<ResponderVar<CloseWindowResult>>>,
     focus_request: Option<WindowId>,
     bring_to_top_requests: Vec<WindowId>,
     frame_images: Vec<ArcVar<Image>>,
@@ -49,10 +47,10 @@ impl WindowsService {
         Self {
             exit_on_last_close: var(true),
             default_render_mode: var(RenderMode::default()),
-            windows: LinearMap::with_capacity(1),
-            windows_info: LinearMap::with_capacity(1),
+            windows: IdMap::default(),
+            windows_info: IdMap::default(),
             open_requests: Vec::with_capacity(1),
-            close_responders: LinearMap::with_capacity(1),
+            close_responders: IdMap::default(),
             close_requests: vec![],
             focus_request: None,
             bring_to_top_requests: vec![],
@@ -102,7 +100,7 @@ impl WindowsService {
     }
 
     fn close_together(&mut self, windows: impl IntoIterator<Item = WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
-        let mut group = LinearSet::new();
+        let mut group = IdSet::default();
 
         for w in windows {
             if !self.windows_info.contains_key(&w) {
@@ -592,7 +590,7 @@ impl WINDOWS {
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             if WINDOWS_SV.read().windows.contains_key(&args.window_id) {
                 tracing::error!("view-process closed window without request");
-                let mut windows = LinearSet::with_capacity(1);
+                let mut windows = IdSet::default();
                 windows.insert(args.window_id);
                 let args = WindowCloseArgs::new(args.timestamp, args.propagation().clone(), windows);
                 WINDOW_CLOSE_EVENT.notify(args);
@@ -756,7 +754,7 @@ impl WINDOWS {
             let mut wns = WINDOWS_SV.write();
             let wns = &mut *wns;
 
-            let mut close_wns = LinearSet::new();
+            let mut close_wns = IdSet::default();
 
             for r in close {
                 for w in r.windows {
@@ -825,7 +823,7 @@ impl WINDOWS {
     ///
     /// The windows map is empty for the duration of `f` and should not be used, this is for
     /// mutating the window content while still allowing it to query the `Windows::windows_info`.
-    fn with_detached_windows(f: impl FnOnce(&mut LinearMap<WindowId, AppWindow>)) {
+    fn with_detached_windows(f: impl FnOnce(&mut IdMap<WindowId, AppWindow>)) {
         let mut windows = mem::take(&mut WINDOWS_SV.write().windows);
         f(&mut windows);
         let mut wns = WINDOWS_SV.write();
@@ -871,7 +869,7 @@ struct OpenWindowRequest {
 }
 struct CloseWindowRequest {
     responder: ResponderVar<CloseWindowResult>,
-    windows: LinearSet<WindowId>,
+    windows: IdSet<WindowId>,
 }
 
 /// Window context owner.

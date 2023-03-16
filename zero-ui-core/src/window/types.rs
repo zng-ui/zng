@@ -5,7 +5,6 @@ use std::{
     sync::Arc,
 };
 
-use linear_map::set::LinearSet;
 use parking_lot::Mutex;
 
 use crate::{
@@ -613,7 +612,7 @@ event_args! {
         /// Id of windows that were closed.
         ///
         ///  This is at least one window, is multiple if the close operation was requested as group.
-        pub windows: LinearSet<WindowId>,
+        pub windows: IdSet<WindowId>,
 
         ..
 
@@ -770,7 +769,7 @@ event_args! {
         ///
         /// This is at least one window, is multiple if the close operation was requested as group, cancelling the request
         /// cancels close for all windows.
-        pub windows: LinearSet<WindowId>,
+        pub windows: IdSet<WindowId>,
 
         ..
 
