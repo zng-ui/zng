@@ -74,10 +74,10 @@ context_var! {
 
     /// Extra space added to the viewport auto-hide rectangle.
     ///
-/// The scroll sets the viewport plus these offsets as the [`FrameBuilder::auto_hide_rect`], this value is used
-/// for optimizations from the render culling to lazy widgets.
-///
-/// By default is `500.dip().min(100.pct())`
+    /// The scroll sets the viewport plus these offsets as the [`FrameBuilder::auto_hide_rect`], this value is used
+    /// for optimizations from the render culling to lazy widgets.
+    ///
+    /// By default is `500.dip().min(100.pct())`, one full viewport extra capped at 500.
     pub static AUTO_HIDE_EXTRA_VAR: SideOffsets = 500.dip().min(100.pct());
 }
 
@@ -217,7 +217,11 @@ pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<ScrollToMod
 /// The scroll sets the viewport plus these offsets as the [`FrameBuilder::auto_hide_rect`], this value is used
 /// for optimizations from the render culling to lazy widgets.
 ///
-/// By default is `500.dip().min(100.pct())`
+/// Scrolling can use only lightweight render updates to scroll within the extra margin, so there is an exchange of
+/// performance, a larger extra space means that more widgets are rendering, but also can mean less full frame
+/// requests, if there is no other widget requesting render.
+///
+/// By default is `500.dip().min(100.pct())`, one full viewport extra capped at 500.
 #[property(CONTEXT, default(AUTO_HIDE_EXTRA_VAR))]
 pub fn auto_hide_extra(child: impl UiNode, extra: impl IntoVar<SideOffsets>) -> impl UiNode {
     with_context_var(child, AUTO_HIDE_EXTRA_VAR, extra)

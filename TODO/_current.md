@@ -1,9 +1,4 @@
 * Finish `scroll::auto_hide_extra`.
-    - Review when full render refresh is requested.
-    - Document when full render refresh is requested.
-        - Right now we document that the property can be used to avoid widgets that render outside of their bounds popping in.
-        - But we only render refresh when there is no more update possible.
-    - Review !!:
     - Merge.
 
 # Other
