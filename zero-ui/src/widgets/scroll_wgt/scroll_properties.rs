@@ -71,6 +71,14 @@ context_var! {
     pub static SCROLL_TO_FOCUSED_MODE_VAR: ScrollToMode = ScrollToMode::Minimal {
         margin: SideOffsets::new_all(0.dip())
     };
+
+    /// Extra space added to the viewport auto-hide rectangle.
+    ///
+/// The scroll sets the viewport plus these offsets as the [`FrameBuilder::auto_hide_rect`], this value is used
+/// for optimizations from the render culling to lazy widgets.
+///
+/// By default is `500.dip().min(100.pct())`
+    pub static AUTO_HIDE_EXTRA_VAR: SideOffsets = 500.dip().min(100.pct());
 }
 
 fn default_scrollbar() -> WidgetGenerator<ScrollBarArgs> {
@@ -194,7 +202,7 @@ pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling
 
 /// If the scroll defines its viewport size as the [`LayoutMetrics::viewport`] for the scroll content.
 #[property(CONTEXT, default(DEFINE_VIEWPORT_UNIT_VAR))]
-pub fn define_genport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, DEFINE_VIEWPORT_UNIT_VAR, enabled)
 }
 
@@ -202,6 +210,17 @@ pub fn define_genport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
 #[property(CONTEXT, default(SCROLL_TO_FOCUSED_MODE_VAR))]
 pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<ScrollToMode>) -> impl UiNode {
     with_context_var(child, SCROLL_TO_FOCUSED_MODE_VAR, mode)
+}
+
+/// Extra space added to the viewport auto-hide rectangle.
+///
+/// The scroll sets the viewport plus these offsets as the [`FrameBuilder::auto_hide_rect`], this value is used
+/// for optimizations from the render culling to lazy widgets.
+///
+/// By default is `500.dip().min(100.pct())`
+#[property(CONTEXT, default(AUTO_HIDE_EXTRA_VAR))]
+pub fn auto_hide_extra(child: impl UiNode, extra: impl IntoVar<SideOffsets>) -> impl UiNode {
+    with_context_var(child, AUTO_HIDE_EXTRA_VAR, extra)
 }
 
 /// Arguments for scrollbar view generators.

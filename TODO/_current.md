@@ -1,9 +1,8 @@
-* Review viewport culling range.
-    - VSCode removes elements as soon as possible.
-    - We reserve an extra viewport in all directions.
-        - We do this because some widgets may have visuals that escape their bounds.
-            - Like a big drop-shadow glow.
-    - Maybe we can adjust this better.
+* Finish `scroll::auto_hide_extra`.
+    - Review when full render refresh is requested.
+    - Document when full render refresh is requested.
+        - Right now we document that the property can be used to avoid widgets that render outside of their bounds popping in.
+        - But we only render refresh when there is no more update possible.
 
 # Other
 

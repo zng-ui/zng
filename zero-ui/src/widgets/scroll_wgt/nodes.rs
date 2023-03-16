@@ -24,6 +24,8 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         viewport_size: PxSize,
         content_size: PxSize,
         content_offset: PxVector,
+
+        auto_hide_extra: PxSideOffsets,
         last_render_offset: Cell<PxVector>,
 
         binding_key: FrameValueKey<PxTransform>,
@@ -128,6 +130,25 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 WIDGET.render();
             }
 
+            self.auto_hide_extra = LAYOUT.with_metrics(
+                |m| {
+                    m.with_viewport(viewport_size)
+                        .with_constrains(|_| PxConstrains2d::new_fill_size(viewport_size))
+                },
+                || {
+                    AUTO_HIDE_EXTRA_VAR.layout_dft(PxSideOffsets::new(
+                        viewport_size.height,
+                        viewport_size.width,
+                        viewport_size.height,
+                        viewport_size.width,
+                    ))
+                },
+            );
+            self.auto_hide_extra.top = self.auto_hide_extra.top.max(Px(0));
+            self.auto_hide_extra.right = self.auto_hide_extra.right.max(Px(0));
+            self.auto_hide_extra.bottom = self.auto_hide_extra.bottom.max(Px(0));
+            self.auto_hide_extra.left = self.auto_hide_extra.left.max(Px(0));
+
             self.info.set_viewport_size(viewport_size);
 
             self.content_size = ct_size;
@@ -147,13 +168,25 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             if content_offset != self.content_offset {
                 self.content_offset = content_offset;
 
-                // we use the viewport + 1vp of margin as the culling rect, so after some distance only updating we need to
-                // render again to load more widgets in the view-process.
+                // check if scrolled enough to need a render refresh.
                 let update_only_offset = (self.last_render_offset.get() - self.content_offset).abs();
-                if update_only_offset.y <= self.viewport_size.height / Px(2) && update_only_offset.x <= self.viewport_size.width / Px(2) {
-                    WIDGET.render_update();
+                let mut need_full_render = if update_only_offset.y < Px(0) {
+                    update_only_offset.y.abs() > self.auto_hide_extra.top
                 } else {
+                    update_only_offset.y > self.auto_hide_extra.bottom
+                };
+                if !need_full_render {
+                    need_full_render = if update_only_offset.x < Px(0) {
+                        update_only_offset.x.abs() > self.auto_hide_extra.left
+                    } else {
+                        update_only_offset.x > self.auto_hide_extra.right
+                    };
+                }
+
+                if need_full_render {
                     WIDGET.render();
+                } else {
+                    WIDGET.render_update();
                 }
             }
 
@@ -171,7 +204,11 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             self.info.set_viewport_transform(*frame.transform());
             self.last_render_offset.set(self.content_offset);
 
-            let culling_rect = PxBox::from_size(self.viewport_size).inflate(self.viewport_size.width, self.viewport_size.height);
+            let mut culling_rect = PxBox::from_size(self.viewport_size);
+            culling_rect.min.y -= self.auto_hide_extra.top;
+            culling_rect.max.x += self.auto_hide_extra.right;
+            culling_rect.max.y += self.auto_hide_extra.bottom;
+            culling_rect.min.x -= self.auto_hide_extra.left;
             let culling_rect = frame.transform().outer_transformed(culling_rect).unwrap_or(culling_rect).to_rect();
 
             frame.push_reference_frame(
@@ -202,6 +239,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         viewport_unit: PxSize::zero(),
         content_size: PxSize::zero(),
         content_offset: PxVector::zero(),
+        auto_hide_extra: PxSideOffsets::zero(),
         last_render_offset: Cell::new(PxVector::zero()),
         info: ScrollInfo::default(),
 
