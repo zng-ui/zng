@@ -1,7 +1,5 @@
-* Finish `scroll::auto_hide_extra`.
-    - Merge.
-
-# Other
+* Parallelize windows?
+    - Multiple window updates can happen in parallel.
 
 * Parallelize more methods.
     - `info`: how to share the `&mut WidgetInfoBuilder`?
@@ -19,9 +17,6 @@
         - To implement parallel we can just have multiple update builders and merge then?
             - Simpler than merging other builders.
             - Just need to figure out how to reuse then, right now we reuse alloc between updates.
-
-* Parallelize windows?
-    - Multiple window updates can happen in parallel.
 
 * Parallelize app extensions?
     - The API is careful to not change the order of updates.
