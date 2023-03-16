@@ -387,9 +387,12 @@ impl UiNode for LazyNode {
         } else if self.children.len() == 2 {
             // is inited and can deinit, check viewport on placeholder
 
+            
+            
             let intersect_mode = self.mode.with(|s| s.unwrap_intersect());
             let viewport = frame.auto_hide_rect();
             let placeholder_bounds = self.children[0].with_context(|| WIDGET.bounds().outer_bounds()).unwrap();
+            // !!: placeholder_bounds is zero because it did not render, we need to update the bounds without rendering.
 
             let in_viewport = if intersect_mode == ScrollMode::VERTICAL {
                 placeholder_bounds.min_y() < viewport.max_y() && placeholder_bounds.max_y() > viewport.min_y()
