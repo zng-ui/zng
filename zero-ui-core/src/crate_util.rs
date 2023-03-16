@@ -8,6 +8,7 @@ use std::{
     fmt,
     hash::{BuildHasher, Hasher},
     num::{NonZeroU32, NonZeroU64},
+    ops,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering},
@@ -171,6 +172,8 @@ macro_rules! unique_id {
             }
         }
         impl$(<$T $(: $($bounds)+)?>)? Eq for $Type $(<$T>)? {
+        }
+        impl$(<$T $(: $($bounds)+)?>)? $crate::private::Sealed for $Type $(<$T>)? {
         }
         impl$(<$T $(: $($bounds)+)?>)? std::hash::Hash for $Type $(<$T>)? {
             fn hash<H>(&self, state: &mut H)
@@ -403,22 +406,86 @@ pub fn un_splitmix64(z: u64) -> u64 {
     n.0
 }
 
-/// Ideal map type for key types generated using `unique_id!`.
-///
-/// Use [`id_map_new`] to instantiate in `const` contexts.
-pub type IdMap<K, V> = hashbrown::HashMap<K, V, BuildIdHasher>;
-/// Ideal set type for key types generated using `unique_id!`.
-///
-/// Use [`id_set_new`] to instantiate in `const` contexts.
-#[allow(unused)]
-pub type IdSet<K> = hashbrown::HashSet<K, BuildIdHasher>;
-
-pub const fn id_map_new<K, V>() -> IdMap<K, V> {
-    hashbrown::HashMap::with_hasher(BuildIdHasher)
+/// Map specialized for unique IDs that are already a randomized hash.
+#[derive(Clone, Debug)]
+pub struct IdMap<K, V>(hashbrown::HashMap<K, V, BuildIdHasher>);
+impl<K, V> IdMap<K, V> {
+    /// New `const` default.
+    pub const fn new() -> Self {
+        Self(hashbrown::HashMap::with_hasher(BuildIdHasher))
+    }
 }
-#[allow(unused)]
-pub const fn id_set_new<K>() -> IdSet<K> {
-    hashbrown::HashSet::with_hasher(BuildIdHasher)
+impl<K, V> Default for IdMap<K, V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<K, V> ops::Deref for IdMap<K, V> {
+    type Target = hashbrown::HashMap<K, V, BuildIdHasher>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<K, V> ops::DerefMut for IdMap<K, V> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl<K, V> IntoIterator for IdMap<K, V> {
+    type Item = (K, V);
+
+    type IntoIter = hashbrown::hash_map::IntoIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+impl<K: Eq + std::hash::Hash, V> FromIterator<(K, V)> for IdMap<K, V> {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
+/// Set specialized for unique IDs that are already a randomized hash.
+#[derive(Clone, Debug)]
+pub struct IdSet<K>(hashbrown::HashSet<K, BuildIdHasher>);
+impl<K> IdSet<K> {
+    /// New `const` default.
+    pub const fn new() -> Self {
+        Self(hashbrown::HashSet::with_hasher(BuildIdHasher))
+    }
+}
+impl<K> Default for IdSet<K> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<K> ops::Deref for IdSet<K> {
+    type Target = hashbrown::HashSet<K, BuildIdHasher>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<K> ops::DerefMut for IdSet<K> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl<K> IntoIterator for IdSet<K> {
+    type Item = K;
+
+    type IntoIter = hashbrown::hash_set::IntoIter<K>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+impl<K: Eq + std::hash::Hash> FromIterator<K> for IdSet<K> {
+    fn from_iter<T: IntoIterator<Item = K>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
 }
 
 /// Entry in [`IdMap`].
@@ -765,7 +832,10 @@ pub struct NameIdMap<I> {
     name_to_id: HashMap<Text, I>,
     id_to_name: IdMap<I, Text>,
 }
-impl<I: Copy + PartialEq + Eq + std::hash::Hash + fmt::Debug> NameIdMap<I> {
+impl<I> NameIdMap<I>
+where
+    I: Copy + PartialEq + Eq + std::hash::Hash + fmt::Debug,
+{
     pub fn new() -> Self {
         NameIdMap {
             name_to_id: HashMap::default(),

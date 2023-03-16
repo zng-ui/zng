@@ -9,7 +9,7 @@ use std::{
 use parking_lot::Mutex;
 
 use crate::{
-    crate_util::{FxEntry, FxHashMap, IdEntry, IdMap, IdSet},
+    crate_util::{FxEntry, FxHashMap, FxHashSet},
     handler::WidgetHandler,
     impl_from_and_into_var,
     text::{formatx, Text},
@@ -1508,7 +1508,7 @@ pub struct WidgetBuilder {
 
     insert_idx: u32,
     p: WidgetBuilderProperties,
-    unset: IdMap<PropertyId, Importance>,
+    unset: FxHashMap<PropertyId, Importance>,
 
     whens: Vec<WhenItemPositioned>,
     when_insert_idx: u32,
@@ -1651,12 +1651,12 @@ impl WidgetBuilder {
     pub fn push_unset(&mut self, importance: Importance, property_id: PropertyId) {
         let check;
         match self.unset.entry(property_id) {
-            IdEntry::Occupied(mut e) => {
+            FxEntry::Occupied(mut e) => {
                 let i = e.get_mut();
                 check = *i < importance;
                 *i = importance;
             }
-            IdEntry::Vacant(e) => {
+            FxEntry::Vacant(e) => {
                 check = true;
                 e.insert(importance);
             }
@@ -1838,7 +1838,7 @@ impl WidgetBuilder {
     pub fn split_off(&mut self, properties: impl IntoIterator<Item = PropertyId>, out: &mut WidgetBuilder) {
         self.split_off_impl(properties.into_iter().collect(), out)
     }
-    fn split_off_impl(&mut self, properties: IdSet<PropertyId>, out: &mut WidgetBuilder) {
+    fn split_off_impl(&mut self, properties: FxHashSet<PropertyId>, out: &mut WidgetBuilder) {
         let mut found = 0;
 
         // move properties

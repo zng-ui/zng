@@ -21,7 +21,7 @@ use crate::{
         AppExtension,
     },
     app_local,
-    crate_util::{id_map_new, IdMap},
+    crate_util::IdMap,
     event::EventUpdate,
     task::{self, fs, io::*, ui::UiTask},
     text::Text,
@@ -279,7 +279,7 @@ impl ImagesService {
             loading: vec![],
             decoding: vec![],
             download_accept: Text::empty(),
-            cache: id_map_new(),
+            cache: IdMap::new(),
             not_cached: vec![],
             render: render::ImagesRender::default(),
         }

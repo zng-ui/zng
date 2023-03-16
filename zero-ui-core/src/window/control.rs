@@ -457,7 +457,7 @@ impl HeadedCtrl {
                             (_, WindowState::Minimized) => {
                                 // minimized, minimize children.
                                 self.vars.0.children.with(|c| {
-                                    for &c in c {
+                                    for &c in c.iter() {
                                         MINIMIZE_CMD.scoped(c).notify();
                                     }
                                 });
@@ -465,7 +465,7 @@ impl HeadedCtrl {
                             (WindowState::Minimized, _) => {
                                 // restored, restore children.
                                 self.vars.0.children.with(|c| {
-                                    for &c in c {
+                                    for &c in c.iter() {
                                         RESTORE_CMD.scoped(c).notify();
                                     }
                                 });
@@ -539,7 +539,7 @@ impl HeadedCtrl {
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus == Some(WINDOW.id()) {
                 self.vars.0.children.with(|c| {
-                    for &c in c {
+                    for &c in c.iter() {
                         let _ = WINDOWS.bring_to_top(c);
                     }
                 });
@@ -548,7 +548,7 @@ impl HeadedCtrl {
                     if c.contains(&new_focus) {
                         let _ = WINDOWS.bring_to_top(WINDOW.id());
 
-                        for c in c {
+                        for c in c.iter() {
                             if *c != new_focus {
                                 let _ = WINDOWS.bring_to_top(WINDOW.id());
                             }

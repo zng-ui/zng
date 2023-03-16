@@ -730,7 +730,7 @@ event_args! {
         ..
 
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            for id in &self.targets {
+            for id in self.targets.iter() {
                 if let Some(wgt) = self.tree.get(*id) {
                     list.insert_wgt(wgt);
                 }

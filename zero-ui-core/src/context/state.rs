@@ -310,7 +310,7 @@ impl<U> BorrowMutStateMap<U> for OwnedStateMap<U> {
 pub mod state_map {
     use std::any::Any;
 
-    use crate::crate_util::{id_map_new, IdEntry, IdOccupiedEntry, IdVacantEntry};
+    use crate::crate_util::{IdEntry, IdOccupiedEntry, IdVacantEntry};
 
     use super::*;
 
@@ -321,7 +321,7 @@ pub mod state_map {
     }
     impl StateMap {
         pub(super) const fn new() -> Self {
-            StateMap { map: id_map_new() }
+            StateMap { map: AnyMap::new() }
         }
 
         pub(super) fn len(&self) -> usize {

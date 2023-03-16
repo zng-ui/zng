@@ -607,7 +607,7 @@ impl WINDOWS {
         }
 
         Self::with_detached_windows(|windows| {
-            for (_, window) in windows {
+            for (_, window) in windows.iter_mut() {
                 window.pre_event(update);
             }
         })
@@ -618,7 +618,7 @@ impl WINDOWS {
             update.fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
         Self::with_detached_windows(|windows| {
-            for (_, window) in windows {
+            for (_, window) in windows.iter_mut() {
                 window.ui_event(update);
             }
         });
@@ -644,7 +644,7 @@ impl WINDOWS {
             // finish close, this notifies  `UiNode::deinit` and drops the window
             // causing the ViewWindow to drop and close.
 
-            for w in &args.windows {
+            for w in args.windows.iter() {
                 let mut wns = WINDOWS_SV.write();
                 if let Some(w) = wns.windows.remove(w) {
                     let id = w.ctx.id();
@@ -698,7 +698,7 @@ impl WINDOWS {
         }
 
         Self::with_detached_windows(|windows| {
-            for (_, window) in windows {
+            for (_, window) in windows.iter_mut() {
                 window.update(updates);
             }
         });
@@ -766,7 +766,7 @@ impl WINDOWS {
                                 .push(r.responder.clone());
 
                             info.vars.0.children.with(|c| {
-                                for &c in c {
+                                for &c in c.iter() {
                                     if wns.windows_info.contains_key(&c) && close_wns.insert(c) {
                                         wns.close_responders
                                             .entry(c)
@@ -805,7 +805,7 @@ impl WINDOWS {
 
     pub(super) fn on_layout() {
         Self::with_detached_windows(|windows| {
-            for (_, window) in windows {
+            for (_, window) in windows.iter_mut() {
                 window.layout();
             }
         });
@@ -813,7 +813,7 @@ impl WINDOWS {
 
     pub(super) fn on_render() {
         Self::with_detached_windows(|windows| {
-            for (_, window) in windows {
+            for (_, window) in windows.iter_mut() {
                 window.render();
             }
         });

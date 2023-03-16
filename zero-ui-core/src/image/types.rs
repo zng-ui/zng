@@ -370,6 +370,7 @@ impl ImageHash {
         ImageHasher::default()
     }
 }
+impl crate::private::Sealed for ImageHash {}
 impl fmt::Debug for ImageHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {

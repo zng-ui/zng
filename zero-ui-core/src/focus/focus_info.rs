@@ -1575,7 +1575,7 @@ impl FocusTreeData {
 
         let mut alt_scopes = prev;
         if let Some(data) = new_tree.build_meta().get(&FOCUS_TREE_ID) {
-            alt_scopes.extend(&*data.alt_scopes.lock());
+            alt_scopes.extend(data.alt_scopes.lock().iter());
         }
 
         alt_scopes.retain(|id| {

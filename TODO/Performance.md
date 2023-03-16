@@ -68,5 +68,3 @@
 
 * Use `const` in our function and methods.
   - Wait until clippy has a lint for this?
-* Replace `linear_map` with something that does const init. !!:
-  - Make `MONITORS_SV` const.

@@ -25,6 +25,8 @@ mod crate_util;
 #[cfg(any(test, feature = "test_util"))]
 pub use crate_util::test_log;
 
+pub use crate_util::{IdMap, IdSet};
+
 #[doc(hidden)]
 pub use paste::paste;
 

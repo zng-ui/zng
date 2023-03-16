@@ -60,9 +60,7 @@ impl Default for LocalContext {
 impl LocalContext {
     /// New empty context.
     pub const fn new() -> Self {
-        Self {
-            data: crate::crate_util::id_map_new(),
-        }
+        Self { data: LocalData::new() }
     }
 
     pub(crate) fn start_app(id: AppId) -> AppScope {
@@ -233,7 +231,7 @@ impl LocalContext {
 }
 thread_local! {
     static LOCAL: RefCell<LocalData> = const {
-        RefCell::new(crate::crate_util::id_map_new())
+        RefCell::new(LocalData::new())
     };
 }
 

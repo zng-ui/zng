@@ -16,7 +16,7 @@ use std::{
 use crate::{
     clone_move,
     context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WIDGET, WINDOW},
-    crate_util::{id_map_new, IdEntry, IdMap, IdSet},
+    crate_util::{IdEntry, IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
     widget_info::WidgetInfoTree,
     widget_instance::WidgetId,
@@ -99,7 +99,7 @@ impl EventData {
     pub const fn new(name: &'static str) -> Self {
         EventData {
             name,
-            widget_subs: id_map_new(),
+            widget_subs: IdMap::new(),
             hooks: vec![],
         }
     }
