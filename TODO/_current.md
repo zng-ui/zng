@@ -1,7 +1,3 @@
-* Review Cargo.toml and upgrade dependencies.
-* Test all.
-* Merge.
-
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
 
