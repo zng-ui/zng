@@ -1,15 +1,15 @@
 use std::{fmt, sync::Arc, time::Duration};
 
 use crate::core::{
-    context::{context_local, with_context_local, StaticStateId},
+    context::{context_local, with_context_local_init, StaticStateId},
     task::parking_lot::Mutex,
     units::*,
     var::{animation::*, *},
     widget_info::WidgetInfo,
-    widget_instance::UiNode,
+    widget_instance::{UiNode, WidgetId},
 };
 use bitflags::bitflags;
-use zero_ui_core::var::animation::ChaseAnimation;
+use zero_ui_core::{context::WIDGET, var::animation::ChaseAnimation};
 
 use super::scroll::SMOOTH_SCROLLING_VAR;
 
@@ -86,6 +86,7 @@ context_local! {
 
 #[derive(Debug, Clone, Default)]
 struct ScrollConfig {
+    id: Option<WidgetId>,
     horizontal: Option<ChaseAnimation<Factor>>,
     vertical: Option<ChaseAnimation<Factor>>,
 }
@@ -95,11 +96,28 @@ struct ScrollConfig {
 /// Also see [`SCROLL_VERTICAL_OFFSET_VAR`] and [`SCROLL_HORIZONTAL_OFFSET_VAR`] for controlling the scroll offset.
 pub struct SCROLL;
 impl SCROLL {
+    /// Gets the ID of the scroll ancestor represented by the [`SCROLL`].
+    pub fn try_id(&self) -> Option<WidgetId> {
+        SCROLL_CONFIG.get().id
+    }
+    /// Gets the ID of the scroll ancestor represented by the [`SCROLL`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if not inside a scroll.
+    pub fn id(&self) -> WidgetId {
+        self.try_id().expect("not inside scroll")
+    }
+
     /// New node that holds data for the [`SCROLL`] context.
     ///
     /// Scroll implementers must add this node to their context.
     pub fn config_node(&self, child: impl UiNode) -> impl UiNode {
-        with_context_local(child, &SCROLL_CONFIG, ScrollConfig::default())
+        with_context_local_init(child, &SCROLL_CONFIG, || {
+            let mut cfg = ScrollConfig::default();
+            cfg.id = WIDGET.try_id();
+            cfg
+        })
     }
 
     /// Ratio of the scroll parent viewport height to its content.

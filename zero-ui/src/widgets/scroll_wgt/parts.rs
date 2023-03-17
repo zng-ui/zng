@@ -31,30 +31,33 @@ pub mod scrollbar {
         /// This sets the scrollbar alignment to fill its axis and take the cross-length from the thumb.
         pub orientation(impl IntoVar<Orientation>) = Orientation::Vertical;
 
-        on_mouse_down = hn!(|args: &zero_ui_core::mouse::MouseInputArgs|{
+        on_mouse_down = hn!(|args: &zero_ui_core::mouse::MouseInputArgs| {
             if args.button == zero_ui_core::mouse::MouseButton::Left {
-                let offset = SCROLL_VERTICAL_OFFSET_VAR.get();
-                let bounds = WIDGET.bounds().inner_bounds();
-                let offset = bounds.origin.y + bounds.size.height * offset;
+                // let offset = SCROLL_VERTICAL_OFFSET_VAR.get();
+                // let bounds = WIDGET.bounds().inner_bounds();
+                // let offset = bounds.origin.y + bounds.size.height * offset;
 
-                let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
-                let position = args.position.to_px(scale_factor.0);
+                // let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
+                // let position = args.position.to_px(scale_factor.0);
 
-                if position.y < offset  {
-                    crate::prelude::scroll::commands::PAGE_UP_CMD.scoped(WIDGET.parent_id().unwrap()).notify();
-                } else if position.y > offset {
-                    crate::prelude::scroll::commands::PAGE_DOWN_CMD.scoped(WIDGET.parent_id().unwrap()).notify();
-                }
+                // if position.y < offset  {
+                //     crate::prelude::scroll::commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify();
+                // } else if position.y > offset {
+                //     crate::prelude::scroll::commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify();
+                // }
             }
         });
     }
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
+            let orientation = wgt.capture_var_or_else(property_id!(self::orientation), || Orientation::Vertical);
+
+            // scrollbar is larger than thumb, align inserts the extra space.
             let thumb = wgt.capture_ui_node_or_else(property_id!(self::thumb_node), || NilUiNode);
+            let thumb = align(thumb, Align::FILL);
             wgt.set_child(thumb);
 
-            let orientation = wgt.capture_var_or_else(property_id!(self::orientation), || Orientation::Vertical);
             wgt.push_intrinsic(NestGroup::LAYOUT, "orientation-align", move |child| {
                 align(
                     child,
@@ -229,22 +232,21 @@ pub mod thumb {
                 self.child.measure(wm)
             }
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-                let final_size = LAYOUT.constrains().fill_size();
-
+                let bar_size = LAYOUT.constrains().fill_size();
                 let mut final_offset = PxVector::zero();
-                let (px_vp_length, final_offset_d) = match THUMB_ORIENTATION_VAR.get() {
-                    scrollbar::Orientation::Vertical => (final_size.height, &mut final_offset.y),
-                    scrollbar::Orientation::Horizontal => (final_size.width, &mut final_offset.x),
+                let (bar_length, final_d) = match THUMB_ORIENTATION_VAR.get() {
+                    scrollbar::Orientation::Vertical => (bar_size.height, &mut final_offset.y),
+                    scrollbar::Orientation::Horizontal => (bar_size.width, &mut final_offset.x),
                 };
 
                 let ratio = THUMB_VIEWPORT_RATIO_VAR.get();
-                let px_tb_length = px_vp_length * ratio;
-                *final_offset_d = (px_vp_length - px_tb_length) * THUMB_OFFSET_VAR.get();
+                let thumb_length = bar_length * ratio;
+                *final_d = (bar_length - thumb_length) * THUMB_OFFSET_VAR.get();
 
                 self.scale_factor = LAYOUT.scale_factor();
-                self.content_length = px_vp_length / ratio;
-                self.viewport_length = px_vp_length;
-                self.thumb_length = px_tb_length;
+                self.content_length = bar_length / ratio;
+                self.viewport_length = bar_length;
+                self.thumb_length = thumb_length;
 
                 wl.translate(final_offset);
 
