@@ -121,7 +121,7 @@ byteorder = "1"
 tracing = "0.1"
 rand = "0.8"
 base64 = "0.21"
-hashbrown = "0.13"
+hashbrown = { version = "0.13", features = ["rayon"] }
 sha2 = "0.10"
 fs2 = "0.4.3"
 remove_dir_all = "0.8"

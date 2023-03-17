@@ -2,6 +2,7 @@
 
 use crate::{text::Text, units::Deadline};
 use rand::Rng;
+use rayon::prelude::*;
 use rustc_hash::FxHasher;
 use std::{
     collections::{hash_map, HashMap},
@@ -441,9 +442,62 @@ impl<K, V> IntoIterator for IdMap<K, V> {
         self.0.into_iter()
     }
 }
+impl<'a, K, V> IntoIterator for &'a IdMap<K, V> {
+    type Item = (&'a K, &'a V);
+
+    type IntoIter = hashbrown::hash_map::Iter<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+impl<'a, K, V> IntoIterator for &'a mut IdMap<K, V> {
+    type Item = (&'a K, &'a mut V);
+
+    type IntoIter = hashbrown::hash_map::IterMut<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter_mut()
+    }
+}
+impl<K: Send, V: Send> IntoParallelIterator for IdMap<K, V> {
+    type Iter = hashbrown::hash_map::rayon::IntoParIter<K, V>;
+
+    type Item = (K, V);
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.0.into_par_iter()
+    }
+}
+impl<'a, K: Sync, V: Sync> IntoParallelIterator for &'a IdMap<K, V> {
+    type Iter = hashbrown::hash_map::rayon::ParIter<'a, K, V>;
+
+    type Item = (&'a K, &'a V);
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.0.par_iter()
+    }
+}
+impl<'a, K: Sync, V: Send> IntoParallelIterator for &'a mut IdMap<K, V> {
+    type Iter = hashbrown::hash_map::rayon::ParIterMut<'a, K, V>;
+
+    type Item = (&'a K, &'a mut V);
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.0.par_iter_mut()
+    }
+}
 impl<K: Eq + std::hash::Hash, V> FromIterator<(K, V)> for IdMap<K, V> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
-        Self(iter.into_iter().collect())
+        Self(FromIterator::from_iter(iter))
+    }
+}
+impl<K: Eq + std::hash::Hash + Send, V: Send> FromParallelIterator<(K, V)> for IdMap<K, V> {
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: IntoParallelIterator<Item = (K, V)>,
+    {
+        Self(FromParallelIterator::from_par_iter(par_iter))
     }
 }
 
@@ -482,9 +536,44 @@ impl<K> IntoIterator for IdSet<K> {
         self.0.into_iter()
     }
 }
+impl<'a, K> IntoIterator for &'a IdSet<K> {
+    type Item = &'a K;
+
+    type IntoIter = hashbrown::hash_set::Iter<'a, K>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+impl<K: Send> IntoParallelIterator for IdSet<K> {
+    type Iter = hashbrown::hash_set::rayon::IntoParIter<K>;
+
+    type Item = K;
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.0.into_par_iter()
+    }
+}
+impl<'a, K: Sync> IntoParallelIterator for &'a IdSet<K> {
+    type Iter = hashbrown::hash_set::rayon::ParIter<'a, K>;
+
+    type Item = &'a K;
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.0.par_iter()
+    }
+}
 impl<K: Eq + std::hash::Hash> FromIterator<K> for IdSet<K> {
     fn from_iter<T: IntoIterator<Item = K>>(iter: T) -> Self {
-        Self(iter.into_iter().collect())
+        Self(FromIterator::from_iter(iter))
+    }
+}
+impl<K: Eq + std::hash::Hash + Send> FromParallelIterator<K> for IdSet<K> {
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: IntoParallelIterator<Item = K>,
+    {
+        Self(FromParallelIterator::from_par_iter(par_iter))
     }
 }
 
