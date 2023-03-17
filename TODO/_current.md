@@ -1,3 +1,6 @@
+* Fix scrollbar click.
+    - Fix scrollbar click hit_test (`on_mouse_down` doesn't happen below the thumb)
+
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
 

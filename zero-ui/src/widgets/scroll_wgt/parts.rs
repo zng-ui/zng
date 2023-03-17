@@ -1,8 +1,12 @@
 use crate::prelude::new_widget::*;
+use crate::prelude::scroll::SCROLL_VERTICAL_OFFSET_VAR;
+use crate::properties::events::mouse::on_mouse_down;
 
 /// Scrollbar widget.
 #[widget($crate::widgets::scroll::scrollbar)]
 pub mod scrollbar {
+    use zero_ui_core::window::WINDOW_CTRL;
+
     use super::*;
 
     inherit!(widget_base::base);
@@ -26,6 +30,23 @@ pub mod scrollbar {
         ///
         /// This sets the scrollbar alignment to fill its axis and take the cross-length from the thumb.
         pub orientation(impl IntoVar<Orientation>) = Orientation::Vertical;
+
+        on_mouse_down = hn!(|args: &zero_ui_core::mouse::MouseInputArgs|{
+            if args.button == zero_ui_core::mouse::MouseButton::Left {
+                let offset = SCROLL_VERTICAL_OFFSET_VAR.get();
+                let bounds = WIDGET.bounds().inner_bounds();
+                let offset = bounds.origin.y + bounds.size.height * offset;
+
+                let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
+                let position = args.position.to_px(scale_factor.0);
+
+                if position.y < offset  {
+                    crate::prelude::scroll::commands::PAGE_UP_CMD.scoped(WIDGET.parent_id().unwrap()).notify();
+                } else if position.y > offset {
+                    crate::prelude::scroll::commands::PAGE_DOWN_CMD.scoped(WIDGET.parent_id().unwrap()).notify();
+                }
+            }
+        });
     }
 
     fn include(wgt: &mut WidgetBuilder) {
