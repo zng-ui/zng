@@ -45,8 +45,9 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.with_node_mut(1, |n| n.layout(wl));
+
             LAYOUT.with_constrains(
-                |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
+                |_| PxConstrains2d::new_exact_size(size),
                 || {
                     self.children.with_node_mut(0, |n| n.layout(wl));
                 },
@@ -241,7 +242,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.with_node_mut(0, |n| n.layout(wl));
             LAYOUT.with_constrains(
-                |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
+                |_| PxConstrains2d::new_exact_size(size),
                 || {
                     self.children.with_node_mut(1, |n| n.layout(wl));
                 },
@@ -333,7 +334,7 @@ pub fn foreground_highlight(
                 );
             }
 
-            let widths = LAYOUT.with_constrains(|c| PxConstrains2d::new_exact_size(c.fill_size_or(size)), || self.widths.layout());
+            let widths = LAYOUT.with_constrains(|_| PxConstrains2d::new_exact_size(size), || self.widths.layout());
 
             if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {
                 self.render_bounds = bounds;

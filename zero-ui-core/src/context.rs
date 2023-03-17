@@ -745,7 +745,7 @@ impl WIDGET {
         }
     }
 
-    /// Gets a string that writes a detailed path to the current widget.
+    /// Gets a text with detailed path to the current widget.
     ///
     /// This can be used to quickly identify the current widget during debug, the path printout will contain
     /// the widget types if the inspector metadata is found for the widget.
@@ -765,6 +765,29 @@ impl WIDGET {
             }
         } else if let Some(id) = self.try_id() {
             formatx!("<no-window>//{id:?}")
+        } else {
+            Text::from("<no-widget>")
+        }
+    }
+
+    /// Gets a text with a detailed widget id.
+    ///
+    /// This can be used to quickly identify the current widget during debug, the printout will contain the widget
+    /// type if the inspector metadata is found for the widget.
+    ///
+    /// This method does not panic if called outside of an widget.
+    pub fn trace_id(&self) -> Text {
+        if let Some(id) = self.try_id() {
+            if WINDOW.try_id().is_some() {
+                let tree = WINDOW.widget_tree();
+                if let Some(wgt) = tree.get(id) {
+                    wgt.trace_id()
+                } else {
+                    formatx!("{id:?}")
+                }
+            } else {
+                formatx!("{id:?}")
+            }
         } else {
             Text::from("<no-widget>")
         }

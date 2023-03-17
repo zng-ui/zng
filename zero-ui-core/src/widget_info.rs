@@ -932,7 +932,7 @@ impl<'a> WidgetInfo<'a> {
 
     /// Path details to help finding the widget during debug.
     ///
-    /// If the inspector metadata is present the widget ident is included.
+    /// If the inspector metadata is present the widget mod ident is included.
     pub fn trace_path(self) -> Text {
         let mut ws: Vec<_> = self.self_and_ancestors().collect();
         ws.reverse();
@@ -973,6 +973,33 @@ impl<'a> WidgetInfo<'a> {
         }
 
         s.into()
+    }
+
+    /// Detailed id text.
+    ///
+    /// If  the inspector metadata is present the widget mod ident is included.
+    pub fn trace_id(self) -> Text {
+        #[cfg(inspector)]
+        {
+            use crate::inspector::*;
+            if let Some(info) = self.inspector_info() {
+                let mod_path = info.builder.widget_mod().path;
+                let mod_ident = if let Some((_, ident)) = mod_path.rsplit_once(':') {
+                    ident
+                } else {
+                    mod_path
+                };
+
+                let id = self.widget_id();
+                let name = id.name();
+                if !name.is_empty() {
+                    return crate::formatx!("{mod_ident}!({name:?})");
+                } else {
+                    return crate::formatx!("{mod_ident}!({})", id.sequential());
+                }
+            }
+        }
+        crate::formatx!("{}", self.widget_id())
     }
 
     /// Full path to this widget with [`interactivity`] values.

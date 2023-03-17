@@ -1,7 +1,3 @@
-* Fix scrollbar click.
-    - Fix scrollbar click hit_test (`on_mouse_down` doesn't happen below the thumb)
-    - Scrollbar was actually just the size of thumb?
-    - Why did the background color extend to bottom?
 * Implement mouse click repeat.
     - Let widgets set their own mouse click mode?
     - WPF RepeatButton allows a config for initial delay + repeat interval.
