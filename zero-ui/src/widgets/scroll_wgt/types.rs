@@ -113,10 +113,9 @@ impl SCROLL {
     ///
     /// Scroll implementers must add this node to their context.
     pub fn config_node(&self, child: impl UiNode) -> impl UiNode {
-        with_context_local_init(child, &SCROLL_CONFIG, || {
-            let mut cfg = ScrollConfig::default();
-            cfg.id = WIDGET.try_id();
-            cfg
+        with_context_local_init(child, &SCROLL_CONFIG, || ScrollConfig {
+            id: WIDGET.try_id(),
+            ..Default::default()
         })
     }
 

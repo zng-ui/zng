@@ -1,12 +1,8 @@
 use crate::prelude::new_widget::*;
-use crate::prelude::scroll::SCROLL_VERTICAL_OFFSET_VAR;
-use crate::properties::events::mouse::on_mouse_down;
 
 /// Scrollbar widget.
 #[widget($crate::widgets::scroll::scrollbar)]
 pub mod scrollbar {
-    use zero_ui_core::window::WINDOW_CTRL;
-
     use super::*;
 
     inherit!(widget_base::base);
@@ -31,22 +27,22 @@ pub mod scrollbar {
         /// This sets the scrollbar alignment to fill its axis and take the cross-length from the thumb.
         pub orientation(impl IntoVar<Orientation>) = Orientation::Vertical;
 
-        on_mouse_down = hn!(|args: &zero_ui_core::mouse::MouseInputArgs| {
-            if args.button == zero_ui_core::mouse::MouseButton::Left {
-                // let offset = SCROLL_VERTICAL_OFFSET_VAR.get();
-                // let bounds = WIDGET.bounds().inner_bounds();
-                // let offset = bounds.origin.y + bounds.size.height * offset;
+        // on_mouse_down = hn!(|args: &zero_ui_core::mouse::MouseInputArgs| {
+        //     if args.button == zero_ui_core::mouse::MouseButton::Left {
+        //         // let offset = SCROLL_VERTICAL_OFFSET_VAR.get();
+        //         // let bounds = WIDGET.bounds().inner_bounds();
+        //         // let offset = bounds.origin.y + bounds.size.height * offset;
 
-                // let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
-                // let position = args.position.to_px(scale_factor.0);
+        //         // let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
+        //         // let position = args.position.to_px(scale_factor.0);
 
-                // if position.y < offset  {
-                //     crate::prelude::scroll::commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify();
-                // } else if position.y > offset {
-                //     crate::prelude::scroll::commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify();
-                // }
-            }
-        });
+        //         // if position.y < offset  {
+        //         //     crate::prelude::scroll::commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify();
+        //         // } else if position.y > offset {
+        //         //     crate::prelude::scroll::commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify();
+        //         // }
+        //     }
+        // });
     }
 
     fn include(wgt: &mut WidgetBuilder) {
@@ -184,24 +180,43 @@ pub mod thumb {
             fn event(&mut self, update: &mut EventUpdate) {
                 if let Some((mouse_down, start_offset)) = self.mouse_down {
                     if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-                        let offset = match THUMB_ORIENTATION_VAR.get() {
-                            scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
-                            scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
-                        } - mouse_down;
+                        let bounds = WIDGET.bounds().inner_bounds();
+                        let (mut offset, cancel_offset, bounds_min, bounds_max) = match THUMB_ORIENTATION_VAR.get() {
+                            scrollbar::Orientation::Vertical => (
+                                args.position.y.to_px(self.scale_factor.0),
+                                args.position.x.to_px(self.scale_factor.0),
+                                bounds.min_x(),
+                                bounds.max_x(),
+                            ),
+                            scrollbar::Orientation::Horizontal => (
+                                args.position.x.to_px(self.scale_factor.0),
+                                args.position.y.to_px(self.scale_factor.0),
+                                bounds.min_y(),
+                                bounds.max_y(),
+                            ),
+                        };
 
-                        let max_length = self.viewport_length - self.thumb_length;
-                        let start_offset = max_length * start_offset.0;
+                        let cancel_margin = Dip::new(40).to_px(self.scale_factor.0);
+                        let offset = if cancel_offset < bounds_min - cancel_margin || cancel_offset > bounds_max + cancel_margin {
+                            // pointer moved outside of the thumb + 40, snap back to initial
+                            start_offset
+                        } else {
+                            offset -= mouse_down;
 
-                        let offset = offset + start_offset;
-                        let offset = (offset.0 as f32 / max_length.0 as f32).clamp(0.0, 1.0);
+                            let max_length = self.viewport_length - self.thumb_length;
+                            let start_offset = max_length * start_offset.0;
 
-                        // snap to pixel
-                        let max_length = self.viewport_length - self.content_length;
-                        let offset = max_length * offset;
-                        let offset = offset.0 as f32 / max_length.0 as f32;
+                            let offset = offset + start_offset;
+                            let offset = (offset.0 as f32 / max_length.0 as f32).clamp(0.0, 1.0);
 
-                        THUMB_OFFSET_VAR.set_ne(offset.fct()).expect("ThumbOffsetVar is read-only");
+                            // snap to pixel
+                            let max_length = self.viewport_length - self.content_length;
+                            let offset = max_length * offset;
+                            let offset = offset.0 as f32 / max_length.0 as f32;
+                            offset.fct()
+                        };
 
+                        THUMB_OFFSET_VAR.set_ne(offset).expect("THUMB_OFFSET_VAR is read-only");
                         WIDGET.layout();
                     } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                         if args.is_primary() && args.is_mouse_up() {
