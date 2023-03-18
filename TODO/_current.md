@@ -1,7 +1,6 @@
 * Implement mouse click repeat.
-    - Let widgets set their own mouse click mode?
-    - WPF RepeatButton allows a config for initial delay + repeat interval.
-    - Repeat flag can integrate with gesture click event that already has one from keyboard repeat.
+    - Handle mouse capture.
+    - Review scrollbar case, another event sent on mouse up?
 
 * Parallelize windows?
     - Multiple window updates can happen in parallel.

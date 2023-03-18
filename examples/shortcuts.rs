@@ -30,7 +30,7 @@ fn app_main() {
                 shortcut_text,
                 shortcut_error,
                 |args: &zero_ui::core::gesture::ShortcutArgs, _| {
-                    if args.is_repeat {
+                    if args.repeat_count > 0 {
                         return;
                     }
                     shortcut_text.set(args.shortcut.to_text());
@@ -40,7 +40,7 @@ fn app_main() {
             .perm();
         zero_ui::core::keyboard::KEY_INPUT_EVENT
             .on_pre_event(app_hn!(shortcut_text, keypress_text, shortcut_error, |args: &KeyInputArgs, _| {
-                if args.is_repeat || args.state != KeyState::Pressed {
+                if args.repeat_count > 0 || args.state != KeyState::Pressed {
                     return;
                 }
                 let mut new_shortcut_text = "not supported";

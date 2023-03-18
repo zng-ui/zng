@@ -29,7 +29,7 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
             ),
             WidgetBorderInfo::new(),
             |builder| {
-                let mut meta = FocusInfoBuilder::get(builder);
+                let mut meta = FocusInfoBuilder::new(builder);
                 match focus {
                     FocusInfo::NotFocusable => {}
                     FocusInfo::Focusable {
@@ -115,7 +115,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
         1.fct(),
         None,
     );
-    FocusInfoBuilder::get(&mut builder)
+    FocusInfoBuilder::new(&mut builder)
         .scope(true)
         .tab_nav(TabNav::Cycle)
         .directional_nav(DirectionalNav::Cycle);

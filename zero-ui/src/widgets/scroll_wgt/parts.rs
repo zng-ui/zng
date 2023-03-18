@@ -1,5 +1,7 @@
 use crate::prelude::new_widget::*;
 
+use crate::core::mouse::{ClickMode, MouseClickArgs};
+
 /// Scrollbar widget.
 #[widget($crate::widgets::scroll::scrollbar)]
 pub mod scrollbar {
@@ -27,22 +29,31 @@ pub mod scrollbar {
         /// This sets the scrollbar alignment to fill its axis and take the cross-length from the thumb.
         pub orientation(impl IntoVar<Orientation>) = Orientation::Vertical;
 
-        // on_mouse_down = hn!(|args: &zero_ui_core::mouse::MouseInputArgs| {
-        //     if args.button == zero_ui_core::mouse::MouseButton::Left {
-        //         // let offset = SCROLL_VERTICAL_OFFSET_VAR.get();
-        //         // let bounds = WIDGET.bounds().inner_bounds();
-        //         // let offset = bounds.origin.y + bounds.size.height * offset;
+        // /// Set to repeat.
+        pub crate::properties::click_mode = ClickMode::Repeat;
 
-        //         // let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
-        //         // let position = args.position.to_px(scale_factor.0);
+        pub crate::properties::events::mouse::on_mouse_click = hn!(|args: &MouseClickArgs| {
+            use crate::widgets::scroll::*;
+            use crate::core::window::WINDOW_CTRL;
+            use std::cmp::Ordering;
 
-        //         // if position.y < offset  {
-        //         //     crate::prelude::scroll::commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify();
-        //         // } else if position.y > offset {
-        //         //     crate::prelude::scroll::commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify();
-        //         // }
-        //     }
-        // });
+            println!("!!: {:?}", (args.click_count, args.is_repeat, args.target.widget_id(), args.propagation().is_stopped()));
+
+            let offset = SCROLL_VERTICAL_OFFSET_VAR.get();
+            let bounds = WIDGET.bounds().inner_bounds();
+            let offset = bounds.origin.y + bounds.size.height * offset;
+
+            let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
+            let position = args.position.to_px(scale_factor.0);
+
+            match position.y.cmp(&offset) {
+                Ordering::Less => commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify(),
+                Ordering::Greater => commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify(),
+                Ordering::Equal => {},
+            }
+
+            args.propagation().stop();
+        });
     }
 
     fn include(wgt: &mut WidgetBuilder) {
@@ -218,9 +229,13 @@ pub mod thumb {
 
                         THUMB_OFFSET_VAR.set_ne(offset).expect("THUMB_OFFSET_VAR is read-only");
                         WIDGET.layout();
+
+                        args.propagation().stop();
                     } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                         if args.is_primary() && args.is_mouse_up() {
                             self.mouse_down = None;
+
+                            args.propagation().stop();
                         }
                     }
                 } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
@@ -230,6 +245,8 @@ pub mod thumb {
                             scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
                         };
                         self.mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
+
+                        args.propagation().stop();
                     }
                 }
                 self.child.event(update);

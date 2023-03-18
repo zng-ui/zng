@@ -1,5 +1,5 @@
 use crate::core::{
-    mouse::MOUSE_HOVERED_EVENT,
+    mouse::{ClickMode, WidgetInfoBuilderMouseExt, MOUSE_HOVERED_EVENT},
     window::{CursorIcon, WINDOW_CTRL},
 };
 use crate::prelude::new_property::*;
@@ -68,5 +68,35 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
         child,
         cursor: cursor.into_var(),
         hovered_binding: None,
+    }
+}
+
+/// Defines how click events are generated for the widget.
+///
+/// Setting this to [`ClickMode::Repeat`] will cause repeat events on press and hold gesture.
+#[property(CONTEXT, default(ClickMode::Default))]
+pub fn click_mode(child: impl UiNode, mode: impl IntoVar<ClickMode>) -> impl UiNode {
+    #[ui_node(struct ClickModeNode {
+        child: impl UiNode,
+        #[var] mode: impl Var<ClickMode>,
+    })]
+    impl UiNode for ClickModeNode {
+        fn update(&mut self, updates: &mut WidgetUpdates) {
+            self.child.update(updates);
+
+            if self.mode.is_new() {
+                WIDGET.info();
+            }
+        }
+
+        fn info(&self, info: &mut WidgetInfoBuilder) {
+            info.set_click_mode(self.mode.get());
+
+            self.child.info(info);
+        }
+    }
+    ClickModeNode {
+        child,
+        mode: mode.into_var(),
     }
 }

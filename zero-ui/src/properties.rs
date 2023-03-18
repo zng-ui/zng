@@ -25,9 +25,9 @@ mod capture;
 #[doc(inline)]
 pub use capture::*;
 
-mod cursor_;
+mod mouse;
 #[doc(inline)]
-pub use cursor_::*;
+pub use mouse::*;
 
 mod lazy_;
 #[doc(inline)]

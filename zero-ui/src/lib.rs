@@ -127,7 +127,7 @@ pub mod prelude {
         handler::*,
         image::ImageSource,
         keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
-        mouse::{ButtonState, MouseButton, MouseMoveArgs},
+        mouse::{ButtonState, ClickMode, MouseButton, MouseMoveArgs},
         render::RenderMode,
         task::{self, rayon::prelude::*},
         text::{

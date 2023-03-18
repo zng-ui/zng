@@ -1696,8 +1696,8 @@ impl FocusInfoData {
 /// [`get`]: Self::get
 pub struct FocusInfoBuilder<'a>(&'a mut WidgetInfoBuilder);
 impl<'a> FocusInfoBuilder<'a> {
-    /// Get the builder.
-    pub fn get(builder: &'a mut WidgetInfoBuilder) -> Self {
+    /// New the builder.
+    pub fn new(builder: &'a mut WidgetInfoBuilder) -> Self {
         let mut r = Self(builder);
         r.tree_data(); // ensure that build meta is allocated.
         r

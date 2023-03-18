@@ -235,7 +235,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 
         fn info(&self, info: &mut WidgetInfoBuilder) {
             if TEXT_EDITABLE_VAR.get() {
-                FocusInfoBuilder::get(info).focusable(true);
+                FocusInfoBuilder::new(info).focusable(true);
             }
             self.with(|c| c.info(info))
         }
