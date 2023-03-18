@@ -66,7 +66,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
     for mut item in input.items {
         let mut is_node = false;
 
-        if let ImplItem::Method(m) = &mut item {
+        if let ImplItem::Fn(m) = &mut item {
             // if we are in an UiNode impl
             if ui_node_path.is_some() {
                 // assume the item is a method defined in the UiNode trait.
@@ -74,7 +74,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
                 node_item_names.insert(m.sig.ident.clone());
             }
             // if we are not in an UiNode impl but a method is annotated with `#[UiNode]`.
-            else if let Some(index) = m.attrs.iter().position(|a| a.path.get_ident() == Some(&ui_node)) {
+            else if let Some(index) = m.attrs.iter().position(|a| a.path().get_ident() == Some(&ui_node)) {
                 // remove the marker attribute..
                 m.attrs.remove(index);
                 // ..and assume the item is a method defined in the UiNode trait.
@@ -179,7 +179,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
                     ),
                     {
                         match manual_impl {
-                            ImplItem::Method(mtd) => mtd.block.span(),
+                            ImplItem::Fn(mtd) => mtd.block.span(),
                             _ => non_user_error!("expected a method"),
                         }
                     },
@@ -191,14 +191,14 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
         if let Some(init_mtd) = node_items
             .iter()
             .map(|it| match it {
-                ImplItem::Method(mtd) => mtd,
+                ImplItem::Fn(mtd) => mtd,
                 _ => non_user_error!("expected a method"),
             })
             .find(|it| it.sig.ident == "init")
         {
             let mut validator = AutoSubsValidator::new();
 
-            validator.visit_impl_item_method(init_mtd);
+            validator.visit_impl_item_fn(init_mtd);
 
             if !validator.ok {
                 errors.push(
@@ -625,7 +625,7 @@ struct DelegateValidator<'a> {
 }
 impl<'a> DelegateValidator<'a> {
     fn new(manual_impl: &'a ImplItem) -> Self {
-        if let ImplItem::Method(m) = manual_impl {
+        if let ImplItem::Fn(m) = manual_impl {
             DelegateValidator {
                 ident: &m.sig.ident,
                 list_variant: ident!("{}_all", m.sig.ident),
@@ -766,7 +766,7 @@ impl ArgsNewNodeFieldKind {
         let mut rmv = None;
 
         for (i, attr) in attrs.iter().enumerate() {
-            if let Some(id) = attr.path.get_ident() {
+            if let Some(id) = attr.path().get_ident() {
                 if id == "var" {
                     r = ArgsNewNodeFieldKind::Var;
                     rmv = Some(i);

@@ -353,7 +353,7 @@ impl Attributes {
         let mut others = vec![];
 
         for attr in attrs {
-            if let Some(ident) = attr.path.get_ident() {
+            if let Some(ident) = attr.path().get_ident() {
                 if ident == "doc" {
                     docs.push(attr);
                     continue;
@@ -384,7 +384,7 @@ impl Attributes {
     pub fn tag_doc(&mut self, text: &str, help: &str) {
         let txt = format!("<strong title='{help}'><code>{text}</code></strong>  ");
         for first in self.docs.iter_mut() {
-            match syn::parse2::<DocAttr>(first.tokens.clone()) {
+            match syn::parse2::<DocAttr>(first.tokens()) {
                 Ok(doc) => {
                     let mut msg = doc.msg.value();
                     msg.insert_str(0, &txt);
@@ -532,8 +532,11 @@ impl From<OuterAttr> for Attribute {
             pound_token: s.pound_token,
             style: s.style,
             bracket_token: s.bracket_token,
-            path: s.path,
-            tokens: s.tokens,
+            meta: {
+                let path = s.path;
+                let tokens = s.tokens;
+                parse_quote!(#path #tokens)
+            },
         }
     }
 }
@@ -627,7 +630,7 @@ pub fn take_zero_ui_lints(
     let mut r = vec![];
     let mut i = 0;
     while i < attrs.len() {
-        if let Some(ident) = attrs[i].path.get_ident() {
+        if let Some(ident) = attrs[i].path().get_ident() {
             let level = if ident == "allow_" {
                 LintLevel::Allow
             } else if ident == "warn_" {
@@ -640,7 +643,7 @@ pub fn take_zero_ui_lints(
                 i += 1;
                 continue;
             };
-            if let Ok(path) = syn::parse2::<LintPath>(attrs[i].tokens.clone()) {
+            if let Ok(path) = syn::parse2::<LintPath>(attrs[i].tokens()) {
                 let path = path.path;
                 if path.segments.len() == 2 && path.segments[0].ident == "zero_ui" {
                     let attr = attrs.remove(i);
@@ -648,7 +651,7 @@ pub fn take_zero_ui_lints(
                     match level {
                         LintLevel::Warn => errors.push(
                             "cannot set zero_ui lints to warn because warning diagnostics are not stable",
-                            attr.path.span(),
+                            attr.path().span(),
                         ),
                         LintLevel::Allow if forbidden.contains(&lint_ident) => errors.push(
                             format_args!("lint `zero_ui::{lint_ident}` is `forbid` in this context"),
@@ -867,6 +870,30 @@ pub fn set_stream_span(stream: TokenStream, span: Span) -> TokenStream {
             tt
         })
         .collect()
+}
+
+pub trait AttributeExt {
+    fn tokens(&self) -> TokenStream;
+}
+impl AttributeExt for Attribute {
+    fn tokens(&self) -> TokenStream {
+        match &self.meta {
+            syn::Meta::Path(_) => quote!(),
+            syn::Meta::List(m) => {
+                let t = &m.tokens;
+                match &m.delimiter {
+                    syn::MacroDelimiter::Paren(p) => quote_spanned!(p.span.join()=> (#t)),
+                    syn::MacroDelimiter::Brace(b) => quote_spanned!(b.span.join()=> {#t}),
+                    syn::MacroDelimiter::Bracket(b) => quote_spanned!(b.span.join()=> [#t]),
+                }
+            }
+            syn::Meta::NameValue(m) => {
+                let eq = &m.eq_token;
+                let tk = &m.value;
+                quote!(#eq #tk)
+            }
+        }
+    }
 }
 
 #[cfg(test)]

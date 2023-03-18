@@ -205,7 +205,7 @@ impl WgtProperty {
                         None
                     }
                     PropertyValue::Named(brace, _) => {
-                        errors.push("expected unnamed default", brace.span);
+                        errors.push("expected unnamed default", brace.span.join());
                         None
                     }
                 },
@@ -457,7 +457,7 @@ impl Parse for PropertyValue {
                 let fields_input = fields_input.parse::<TokenStream>().unwrap();
                 let r = parse_punct_terminated2(fields_input).map_err(|e| {
                     if util::span_is_call_site(e.span()) {
-                        util::recoverable_err(fields_brace.span, e)
+                        util::recoverable_err(fields_brace.span.join(), e)
                     } else {
                         e.set_recoverable()
                     }
@@ -536,7 +536,10 @@ impl WgtWhen {
                 let attrs = parse_outer_attrs(&inner, errors);
 
                 if !(inner.peek(Ident) || inner.peek(Token![super]) || inner.peek(Token![self])) {
-                    errors.push("expected property path", if inner.is_empty() { brace.span } else { inner.span() });
+                    errors.push(
+                        "expected property path",
+                        if inner.is_empty() { brace.span.join() } else { inner.span() },
+                    );
                     while !(inner.is_empty()
                         || inner.peek(Ident)
                         || inner.peek(Token![super])
@@ -583,7 +586,7 @@ impl WgtWhen {
                     Err(e) => {
                         let (recoverable, e) = e.recoverable();
                         if util::span_is_call_site(e.span()) {
-                            errors.push(e, brace.span);
+                            errors.push(e, brace.span.join());
                         } else {
                             errors.push_syn(e);
                         }

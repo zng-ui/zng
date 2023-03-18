@@ -1656,7 +1656,7 @@ impl FocusInfoData {
 
 /// Builder for [`FocusInfo`] accessible in a [`WidgetInfoBuilder`].
 ///
-/// Use the [`get`] method to start a builder.
+/// Use the [`new`] method to start a builder.
 ///
 /// # Rules
 ///
@@ -1693,7 +1693,7 @@ impl FocusInfoData {
 /// If [`directional_nav`](Self::directional_nav) is not set but the widget is a focus scope, [`DirectionalNav::Continue`] is used.
 ///
 /// [`WidgetInfoBuilder`]: crate::widget_info::WidgetInfoBuilder
-/// [`get`]: Self::get
+/// [`new`]: Self::new
 pub struct FocusInfoBuilder<'a>(&'a mut WidgetInfoBuilder);
 impl<'a> FocusInfoBuilder<'a> {
     /// New the builder.

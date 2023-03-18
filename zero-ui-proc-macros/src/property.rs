@@ -83,9 +83,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         item.block.stmts.push(parse_quote! {
             let _ = (#(#inputs,)*);
         });
-        item.block.stmts.push(Stmt::Expr(parse_quote! {
-            #child
-        }));
+        item.block.stmts.push(Stmt::Expr(
+            parse_quote! {
+                #child
+            },
+            None,
+        ));
     }
     let item = item;
 

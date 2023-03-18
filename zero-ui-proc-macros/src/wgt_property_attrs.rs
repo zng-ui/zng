@@ -169,7 +169,7 @@ impl Parse for PropertyAttrData {
 
             let stmt = f.block.stmts.pop().unwrap_or_else(|| non_user_error!(""));
             let expr = match stmt {
-                Stmt::Expr(e) => e,
+                Stmt::Expr(e, _) => e,
                 _ => non_user_error!(""),
             };
 
