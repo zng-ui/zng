@@ -784,6 +784,7 @@ impl MouseManager {
 
         let stop_handle = EventPropagationHandle::new();
         let prev_pressed;
+        let mut prev_pressed_has_clicked = false;
 
         if state == ButtonState::Pressed {
             self.capture_count += 1;
@@ -822,7 +823,10 @@ impl MouseManager {
                 });
             }
 
-            prev_pressed = self.pressed.remove(&button).map(|i| i.path);
+            prev_pressed = self.pressed.remove(&button).map(|i| {
+                prev_pressed_has_clicked = i.repeat_count > 0;
+                i.path
+            });
         }
 
         let capture_info = if let Some((capture, mode)) = &mouse.current_capture {
@@ -934,9 +938,11 @@ impl MouseManager {
                         stop_handle,
                     } => {
                         // first click if `Pressed` and `Released` with the same button over the same widget.
+                        //   and mouse input event was not handled.
+                        //   and no press-and-hold repeat clicks have happened.
 
                         let mut is_click = false;
-                        if *btn == button && !stop_handle.is_stopped() {
+                        if *btn == button && !stop_handle.is_stopped() && !prev_pressed_has_clicked {
                             if let Some(target) = press_tgt.shared_ancestor(&target) {
                                 let target = target.into_owned();
 
@@ -1316,7 +1322,7 @@ impl AppExtension for MouseManager {
                                 *btn,
                                 self.pos,
                                 self.modifiers,
-                                NonZeroU32::new(info.repeat_count.saturating_add(1)).unwrap(),
+                                NonZeroU32::new(info.repeat_count).unwrap(),
                                 true,
                                 hit_test,
                                 info.path.clone(),

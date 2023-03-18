@@ -29,7 +29,7 @@ pub mod scrollbar {
         /// This sets the scrollbar alignment to fill its axis and take the cross-length from the thumb.
         pub orientation(impl IntoVar<Orientation>) = Orientation::Vertical;
 
-        // /// Set to repeat.
+        /// Set to repeat.
         pub crate::properties::click_mode = ClickMode::Repeat;
 
         pub crate::properties::events::mouse::on_mouse_click = hn!(|args: &MouseClickArgs| {
@@ -37,14 +37,15 @@ pub mod scrollbar {
             use crate::core::window::WINDOW_CTRL;
             use std::cmp::Ordering;
 
-            println!("!!: {:?}", (args.click_count, args.is_repeat, args.target.widget_id(), args.propagation().is_stopped()));
-
+            
             let offset = SCROLL_VERTICAL_OFFSET_VAR.get();
             let bounds = WIDGET.bounds().inner_bounds();
             let offset = bounds.origin.y + bounds.size.height * offset;
 
             let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
             let position = args.position.to_px(scale_factor.0);
+
+            println!("!!: {:?}", (args.click_count, args.is_repeat, args.target.widget_id(), position, offset));
 
             match position.y.cmp(&offset) {
                 Ordering::Less => commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify(),
