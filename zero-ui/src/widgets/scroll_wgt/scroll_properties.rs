@@ -85,7 +85,6 @@ fn default_scrollbar() -> WidgetGenerator<ScrollBarArgs> {
     wgt_gen!(|args: ScrollBarArgs| {
         scrollbar! {
             thumb_node = scrollbar::thumb! {
-                orientation = args.orientation;
                 viewport_ratio = args.viewport_ratio();
                 offset = args.offset();
             };

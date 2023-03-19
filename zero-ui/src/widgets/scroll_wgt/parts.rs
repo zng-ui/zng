@@ -29,38 +29,65 @@ pub mod scrollbar {
         /// This sets the scrollbar alignment to fill its axis and take the cross-length from the thumb.
         pub orientation(impl IntoVar<Orientation>) = Orientation::Vertical;
 
-        /// Set to repeat.
-        pub crate::properties::click_mode = ClickMode::Repeat;
-
-        pub crate::properties::events::mouse::on_mouse_click = hn!(|args: &MouseClickArgs| {
-            use crate::widgets::scroll::*;
-            use crate::core::window::WINDOW_CTRL;
+        // impl page scrolling on press-and-hold gesture.
+        crate::properties::click_mode = ClickMode::Repeat;
+        crate::properties::events::mouse::on_mouse_click = {
             use std::cmp::Ordering;
 
-            
-            let offset = SCROLL_VERTICAL_OFFSET_VAR.get();
-            let bounds = WIDGET.bounds().inner_bounds();
-            let offset = bounds.origin.y + bounds.size.height * offset;
+            let mut ongoing_direction = Ordering::Equal;
+            hn!(|args: &MouseClickArgs| {
+                use crate::widgets::scroll::*;
+                use crate::core::window::WINDOW_CTRL;
 
-            let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
-            let position = args.position.to_px(scale_factor.0);
+                let orientation = ORIENTATION_VAR.get();
+                let bounds = WIDGET.bounds().inner_bounds();
+                let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
+                let position = args.position.to_px(scale_factor.0);
 
-            println!("!!: {:?}", (args.click_count, args.is_repeat, args.target.widget_id(), position, offset));
+                let (offset, mid_pt) = match orientation {
+                    Orientation::Vertical => (
+                        bounds.origin.y + bounds.size.height * SCROLL_VERTICAL_OFFSET_VAR.get(),
+                        position.y,
+                    ),
+                    Orientation::Horizontal => (
+                        bounds.origin.x + bounds.size.width * SCROLL_HORIZONTAL_OFFSET_VAR.get(),
+                        position.x,
+                    )
+                };
 
-            match position.y.cmp(&offset) {
-                Ordering::Less => commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify(),
-                Ordering::Greater => commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify(),
-                Ordering::Equal => {},
-            }
+                let direction = mid_pt.cmp(&offset);
 
-            args.propagation().stop();
-        });
+                if args.click_count.get() == 1 {
+                    ongoing_direction = direction;
+                }
+                if ongoing_direction == direction {
+                    match orientation {
+                        Orientation::Vertical => {
+                            match direction {
+                                Ordering::Less => commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify(),
+                                Ordering::Greater => commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify(),
+                                Ordering::Equal => {},
+                            }
+                        },
+                        Orientation::Horizontal => {
+                            match direction {
+                                Ordering::Less => commands::PAGE_LEFT_CMD.scoped(SCROLL.id()).notify(),
+                                Ordering::Greater => commands::PAGE_RIGHT_CMD.scoped(SCROLL.id()).notify(),
+                                Ordering::Equal => {},
+                            }
+                        }
+                    }
+
+
+                }
+
+                args.propagation().stop();
+            })
+        };
     }
 
     fn include(wgt: &mut WidgetBuilder) {
         wgt.push_build_action(|wgt| {
-            let orientation = wgt.capture_var_or_else(property_id!(self::orientation), || Orientation::Vertical);
-
             // scrollbar is larger than thumb, align inserts the extra space.
             let thumb = wgt.capture_ui_node_or_else(property_id!(self::thumb_node), || NilUiNode);
             let thumb = align(thumb, Align::FILL);
@@ -69,13 +96,31 @@ pub mod scrollbar {
             wgt.push_intrinsic(NestGroup::LAYOUT, "orientation-align", move |child| {
                 align(
                     child,
-                    orientation.map(|o| match o {
+                    ORIENTATION_VAR.map(|o| match o {
                         Orientation::Vertical => Align::FILL_RIGHT,
                         Orientation::Horizontal => Align::FILL_BOTTOM,
                     }),
                 )
             });
+
+            let orientation = wgt.capture_var_or_else(property_id!(self::orientation), || Orientation::Vertical);
+            wgt.push_intrinsic(NestGroup::CONTEXT, "scrollbar-context", move |child| {
+                with_context_var(child, ORIENTATION_VAR, orientation)
+            });
         });
+    }
+
+    context_var! {
+        pub(super) static ORIENTATION_VAR: Orientation = Orientation::Vertical;
+    }
+
+    /// Context scrollbar info.
+    pub struct SCROLLBAR;
+    impl SCROLLBAR {
+        /// Gets the context scrollbar orientation.
+        pub fn orientation(&self) -> BoxedVar<Orientation> {
+            ORIENTATION_VAR.read_only().boxed()
+        }
     }
 
     /// Style variables and properties.
@@ -106,10 +151,9 @@ pub mod thumb {
 
     inherit!(widget_base::base);
 
-    properties! {
-        /// Scrollbar orientation.
-        pub orientation(impl IntoVar<scrollbar::Orientation>) = scrollbar::Orientation::Vertical;
+    use scrollbar::ORIENTATION_VAR;
 
+    properties! {
         /// Viewport/content ratio.
         ///
         /// This becomes the height for vertical and width for horizontal.
@@ -148,7 +192,7 @@ pub mod thumb {
         wgt.push_intrinsic(NestGroup::SIZE, "orientation-size", move |child| {
             size(
                 child,
-                merge_var!(THUMB_ORIENTATION_VAR, THUMB_VIEWPORT_RATIO_VAR, cross_length, |o, r, l| {
+                merge_var!(ORIENTATION_VAR, THUMB_VIEWPORT_RATIO_VAR, cross_length, |o, r, l| {
                     match o {
                         scrollbar::Orientation::Vertical => Size::new(l.clone(), *r),
                         scrollbar::Orientation::Horizontal => Size::new(*r, l.clone()),
@@ -159,12 +203,10 @@ pub mod thumb {
 
         wgt.push_intrinsic(NestGroup::LAYOUT, "thumb_layout", thumb_layout);
 
-        let orientation = wgt.capture_var_or_else(property_id!(self::orientation), || scrollbar::Orientation::Vertical);
         let viewport_ratio = wgt.capture_var_or_else(property_id!(self::viewport_ratio), || 1.fct());
         let offset = wgt.capture_var_or_else(property_id!(self::offset), || 0.fct());
 
         wgt.push_intrinsic(NestGroup::CONTEXT, "thumb-context", move |child| {
-            let child = with_context_var(child, THUMB_ORIENTATION_VAR, orientation);
             let child = with_context_var(child, THUMB_VIEWPORT_RATIO_VAR, viewport_ratio);
             with_context_var(child, THUMB_OFFSET_VAR, offset)
         });
@@ -193,7 +235,7 @@ pub mod thumb {
                 if let Some((mouse_down, start_offset)) = self.mouse_down {
                     if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                         let bounds = WIDGET.bounds().inner_bounds();
-                        let (mut offset, cancel_offset, bounds_min, bounds_max) = match THUMB_ORIENTATION_VAR.get() {
+                        let (mut offset, cancel_offset, bounds_min, bounds_max) = match ORIENTATION_VAR.get() {
                             scrollbar::Orientation::Vertical => (
                                 args.position.y.to_px(self.scale_factor.0),
                                 args.position.x.to_px(self.scale_factor.0),
@@ -241,7 +283,7 @@ pub mod thumb {
                     }
                 } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                     if args.is_primary() && args.is_mouse_down() {
-                        let a = match THUMB_ORIENTATION_VAR.get() {
+                        let a = match ORIENTATION_VAR.get() {
                             scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
                             scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
                         };
@@ -267,7 +309,7 @@ pub mod thumb {
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
                 let bar_size = LAYOUT.constrains().fill_size();
                 let mut final_offset = PxVector::zero();
-                let (bar_length, final_d) = match THUMB_ORIENTATION_VAR.get() {
+                let (bar_length, final_d) = match ORIENTATION_VAR.get() {
                     scrollbar::Orientation::Vertical => (bar_size.height, &mut final_offset.y),
                     scrollbar::Orientation::Horizontal => (bar_size.width, &mut final_offset.x),
                 };
@@ -298,7 +340,6 @@ pub mod thumb {
     }
 
     context_var! {
-        static THUMB_ORIENTATION_VAR: scrollbar::Orientation = scrollbar::Orientation::Vertical;
         static THUMB_VIEWPORT_RATIO_VAR: Factor = 1.fct();
         static THUMB_OFFSET_VAR: Factor = 0.fct();
     }

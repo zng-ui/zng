@@ -1,6 +1,7 @@
 * Implement mouse click repeat.
     - Handle mouse capture.
     - Review scrollbar case, another event sent on mouse up?
+    - Lower start delay?
 
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
