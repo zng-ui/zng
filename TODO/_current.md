@@ -1,7 +1,9 @@
 * Implement mouse click repeat.
-    - Handle mouse capture.
-    - Review scrollbar case, another event sent on mouse up?
-    - Lower start delay?
+    - Lower start delay.
+    - Handle child click?
+        - Clicking in the text child of a repeat button does not generate repeats.
+        - Click mode can't be inherited, scrollbar thumb is not repeat, scrollbar is.
+        - We first used path.contains to continue repeat, but removed.
 
 * Parallelize windows?
     - Multiple window updates can happen in parallel.

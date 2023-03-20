@@ -1312,9 +1312,12 @@ impl AppExtension for MouseManager {
                         // probably still valid
 
                         let hit_test = tree.root().hit_test(self.pos.to_px(tree.scale_factor().0));
-                        if hit_test.target().map(|t| t.widget_id == info.path.widget_id()).unwrap_or(false) {
-                            // still valid, !!: also allow mouse capture?
-
+                        if hit_test.target().map(|t| t.widget_id == info.path.widget_id()).unwrap_or(false)
+                            || MOUSE
+                                .current_capture()
+                                .map(|c| c.0.widget_id() == info.path.widget_id())
+                                .unwrap_or(false)
+                        {
                             // notify repeat
                             let args = MouseClickArgs::now(
                                 info.path.window_id(),

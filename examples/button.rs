@@ -33,6 +33,7 @@ fn app_main() {
                             example(),
                             disabled(),
                             image_button(),
+                            repeat_button(),
                             separator(),
                             toggle_buttons(),
                             ];
@@ -83,6 +84,18 @@ fn image_button() -> impl UiNode {
             ];
             spacing = 5;
         };
+    }
+}
+
+fn repeat_button() -> impl UiNode {
+    button! {
+        id = "repeat-btn";
+        click_mode = ClickMode::Repeat;
+        on_click = hn!(|args: &ClickArgs| {
+            println!("Clicked repeat button, is_repeat={}, click_count={}", args.is_repeat, args.click_count);
+        });
+
+        child = text!("Press Me!");
     }
 }
 
