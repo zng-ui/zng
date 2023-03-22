@@ -44,18 +44,31 @@ pub mod scrollbar {
                 let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
                 let position = args.position.to_px(scale_factor.0);
 
-                let (offset, mid_pt) = match orientation {
+                let (offset, mid_pt, mid_offset) = match orientation {
                     Orientation::Vertical => (
                         bounds.origin.y + bounds.size.height * SCROLL_VERTICAL_OFFSET_VAR.get(),
                         position.y,
+                        position.y.0 as f32 / bounds.size.height.0 as f32,
                     ),
                     Orientation::Horizontal => (
                         bounds.origin.x + bounds.size.width * SCROLL_HORIZONTAL_OFFSET_VAR.get(),
                         position.x,
+                        position.x.0 as f32 /bounds.size.width.0 as f32,
                     )
                 };
 
                 let direction = mid_pt.cmp(&offset);
+
+                // don't overshoot the pointer.
+                let clamp = match direction {
+                    Ordering::Less => (mid_offset, 1.0),
+                    Ordering::Greater => (0.0, mid_offset),
+                    Ordering::Equal => (0.0, 0.0),
+                };
+                let request = commands::ScrollRequest {
+                    clamp,
+                    ..Default::default()
+                };
 
                 if args.click_count.get() == 1 {
                     ongoing_direction = direction;
@@ -64,15 +77,15 @@ pub mod scrollbar {
                     match orientation {
                         Orientation::Vertical => {
                             match direction {
-                                Ordering::Less => commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify(),
-                                Ordering::Greater => commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify(),
+                                Ordering::Less => commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify_param(request),
+                                Ordering::Greater => commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify_param(request),
                                 Ordering::Equal => {},
                             }
                         },
                         Orientation::Horizontal => {
                             match direction {
-                                Ordering::Less => commands::PAGE_LEFT_CMD.scoped(SCROLL.id()).notify(),
-                                Ordering::Greater => commands::PAGE_RIGHT_CMD.scoped(SCROLL.id()).notify(),
+                                Ordering::Less => commands::PAGE_LEFT_CMD.scoped(SCROLL.id()).notify_param(request),
+                                Ordering::Greater => commands::PAGE_RIGHT_CMD.scoped(SCROLL.id()).notify_param(request),
                                 Ordering::Equal => {},
                             }
                         }

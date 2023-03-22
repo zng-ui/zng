@@ -202,7 +202,7 @@ impl SCROLL {
         }
     }
 
-    /// Set the [`SCROLL_VERTICAL_OFFSET_VAR`] to `offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
+    /// Set the [`SCROLL_VERTICAL_OFFSET_VAR`] to `new_offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
     /// just setting the var if smooth scrolling is disabled.
     pub fn chase_vertical<F: Into<Factor>>(&self, new_offset: F) {
         let new_offset = new_offset.into().clamp_range();
@@ -214,7 +214,7 @@ impl SCROLL {
         } else {
             SCROLL_CONFIG.with_mut(|config| match &config.vertical {
                 Some(anim) if !anim.handle.is_stopped() => {
-                    anim.add(new_offset - SCROLL_VERTICAL_OFFSET_VAR.get());
+                    anim.reset(new_offset);
                 }
                 _ => {
                     let ease = smooth.easing.clone();
@@ -225,7 +225,7 @@ impl SCROLL {
         }
     }
 
-    /// Set the [`SCROLL_HORIZONTAL_OFFSET_VAR`] to `offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
+    /// Set the [`SCROLL_HORIZONTAL_OFFSET_VAR`] to `new_offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
     /// just setting the var if smooth scrolling is disabled.
     pub fn chase_horizontal<F: Into<Factor>>(&self, new_offset: F) {
         let new_offset = new_offset.into().clamp_range();
@@ -237,7 +237,7 @@ impl SCROLL {
         } else {
             SCROLL_CONFIG.with_mut(|config| match &config.horizontal {
                 Some(anim) if !anim.handle.is_stopped() => {
-                    anim.add(new_offset - SCROLL_HORIZONTAL_OFFSET_VAR.get());
+                    anim.reset(new_offset);
                 }
                 _ => {
                     let ease = smooth.easing.clone();
