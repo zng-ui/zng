@@ -690,11 +690,11 @@ struct PressedInfo {
     timer: Option<DeadlineVar>,
 }
 impl PressedInfo {
-    fn new(path: InteractionPath, press_stop_handle: EventPropagationHandle, timer: Option<DeadlineVar>) -> Self {
+    fn new(path: InteractionPath, press_stop_handle: EventPropagationHandle, timer: Option<DeadlineVar>, repeat_count: u32) -> Self {
         Self {
             path,
             press_stop_handle,
-            repeat_count: 0,
+            repeat_count,
             timer,
         }
     }
@@ -798,15 +798,19 @@ impl MouseManager {
 
             let timer = match click_mode {
                 ClickMode::Default => None,
-                ClickMode::Repeat => {
+                ClickMode::Repeat | ClickMode::Mixed => {
                     let t = mouse.repeat_config.get().start_delay;
                     Some(TIMERS.deadline(t))
                 }
             };
+            let repeat_count = match click_mode {
+                ClickMode::Repeat => 1, // instant click on press
+                _ => 0,
+            };
 
             prev_pressed = self
                 .pressed
-                .insert(button, PressedInfo::new(target.clone(), stop_handle.clone(), timer))
+                .insert(button, PressedInfo::new(target.clone(), stop_handle.clone(), timer, repeat_count))
                 .map(|i| i.path);
         } else {
             // ButtonState::Released
@@ -838,8 +842,9 @@ impl MouseManager {
             None
         };
 
+        let now = Instant::now();
         let args = MouseInputArgs::new(
-            Instant::now(),
+            now,
             stop_handle.clone(),
             window_id,
             device_id,
@@ -858,74 +863,95 @@ impl MouseManager {
 
         match state {
             ButtonState::Pressed => {
-                // on_mouse_down
-
-                match &mut self.click_state {
-                    // maybe a click.
-                    ClickState::None => {
-                        self.click_state = ClickState::Pressed {
-                            btn: button,
-                            press_tgt: target,
-                            stop_handle,
+                'on_mouse_down: loop {
+                    break match &mut self.click_state {
+                        // maybe a click.
+                        ClickState::None => {
+                            if let ClickMode::Repeat = click_mode {
+                                // send a click immediately.
+                                let args = MouseClickArgs::new(
+                                    now,
+                                    stop_handle,
+                                    window_id,
+                                    device_id,
+                                    button,
+                                    position,
+                                    self.modifiers,
+                                    NonZeroU32::new(1).unwrap(),
+                                    true,
+                                    hits,
+                                    target.clone(),
+                                );
+                                MOUSE_CLICK_EVENT.notify(args);
+                                self.click_state = ClickState::Clicked {
+                                    start_time: now,
+                                    btn: button,
+                                    pos: position,
+                                    start_tgt: target,
+                                    count: 1,
+                                };
+                            } else {
+                                self.click_state = ClickState::Pressed {
+                                    btn: button,
+                                    press_tgt: target,
+                                    stop_handle,
+                                };
+                            }
                         }
-                    }
-                    // already clicking, maybe multi-click.
-                    ClickState::Clicked {
-                        start_time,
-                        btn,
-                        pos,
-                        start_tgt,
-                        count,
-                    } => {
-                        debug_assert!(*count >= 1);
+                        // already clicking, maybe multi-click.
+                        ClickState::Clicked {
+                            start_time,
+                            btn,
+                            pos,
+                            start_tgt,
+                            count,
+                        } => {
+                            debug_assert!(*count >= 1);
 
-                        let cfg = self.multi_click_config.get();
-                        let now = Instant::now();
+                            let cfg = self.multi_click_config.get();
 
-                        let is_multi_click =
-                            // same button
-                            *btn == button
-                            // within time window
-                            && (now - *start_time) <= cfg.time
-                            // same widget
-                            && start_tgt == &target
-                            // within distance of first click
-                            && {
-                                let dist = (*pos - self.pos).abs();
-                                dist.x <= cfg.area.width && dist.y <= cfg.area.height
-                            };
+                            let is_multi_click =
+                                // same button
+                                *btn == button
+                                // within time window
+                                && (now - *start_time) <= cfg.time
+                                // same widget
+                                && start_tgt == &target
+                                // within distance of first click
+                                && {
+                                    let dist = (*pos - self.pos).abs();
+                                    dist.x <= cfg.area.width && dist.y <= cfg.area.height
+                                };
 
-                        if is_multi_click {
-                            *count = count.saturating_add(1);
-                            *start_time = now;
+                            if is_multi_click {
+                                *count = count.saturating_add(1);
+                                *start_time = now;
 
-                            let args = MouseClickArgs::new(
-                                now,
-                                Default::default(),
-                                window_id,
-                                device_id,
-                                button,
-                                self.pos,
-                                self.modifiers,
-                                NonZeroU32::new(*count).unwrap(),
-                                false,
-                                hits,
-                                target,
-                            );
-                            MOUSE_CLICK_EVENT.notify(args);
-                        } else {
-                            // start again.
-                            self.click_state = ClickState::Pressed {
-                                btn: button,
-                                press_tgt: target,
-                                stop_handle,
-                            };
+                                let args = MouseClickArgs::new(
+                                    now,
+                                    Default::default(),
+                                    window_id,
+                                    device_id,
+                                    button,
+                                    self.pos,
+                                    self.modifiers,
+                                    NonZeroU32::new(*count).unwrap(),
+                                    false,
+                                    hits,
+                                    target,
+                                );
+                                MOUSE_CLICK_EVENT.notify(args);
+                            } else {
+                                // start again.
+                                self.click_state = ClickState::None;
+                                continue 'on_mouse_down;
+                            }
                         }
-                    }
-                    // more then one Pressed without a Released.
-                    ClickState::Pressed { .. } => {
-                        self.click_state = ClickState::None;
-                    }
+                        // more then one Pressed without a Released.
+                        ClickState::Pressed { .. } => {
+                            self.click_state = ClickState::None;
+                        }
+                    };
                 }
             }
             ButtonState::Released => {
@@ -948,7 +974,6 @@ impl MouseManager {
 
                                 is_click = true;
 
-                                let now = Instant::now();
                                 let args = MouseClickArgs::new(
                                     now,
                                     Default::default(),
@@ -1380,11 +1405,14 @@ pub enum ClickMode {
     /// the "double-click" window.
     #[default]
     Default,
-    /// Clicks happen like normal or after a button press is held for a period of time and subsequent repeat
-    /// clicks happen on an interval while the button press is held.
+    /// Click happens immediately on button down, and after a button press is held for a period of time, and subsequent
+    /// repeat clicks happens on an interval while the button press is held.
     ///
     /// The initial delay and interval can be configured in [`MOUSE.repeat_config`].
     Repeat,
+    /// Like `Repeat`, but click does not happen immediately on button down, and a click happens if pressed and released
+    /// before the repeat delay elapses, just like `Default`.
+    Mixed,
 }
 impl fmt::Debug for ClickMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1392,7 +1420,14 @@ impl fmt::Debug for ClickMode {
         match self {
             Self::Default => write!(f, "Default"),
             Self::Repeat => write!(f, "Repeat"),
+            Self::Mixed => write!(f, "Mixed"),
         }
+    }
+}
+impl ClickMode {
+    /// If this click mode will generate "repeat" clicks if the mouse is held pressed over the widget.
+    pub fn repeats_on_press(self) -> bool {
+        matches!(self, ClickMode::Repeat | ClickMode::Mixed)
     }
 }
 

@@ -95,7 +95,7 @@ fn repeat_button() -> impl UiNode {
             println!("Clicked repeat button, is_repeat={}, click_count={}", args.is_repeat, args.click_count);
         });
 
-        child = text!("Press Me!");
+        child = text!("Repeat Click!");
     }
 }
 

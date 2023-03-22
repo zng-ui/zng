@@ -90,9 +90,9 @@ pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 /// and the pointer is over the widget and the primary button is still pressed and
 /// the widget is fully [`ENABLED`].
 ///
-/// This state property does not consider mouse capture, if the pointer is captured by the widget
-/// but is not actually over the widget this is `false`, use [`is_cap_pointer_pressed`] to
-/// include the captured state.
+/// This state property only considers mouse capture for repeat [click modes](ClickMode), if the pointer is captured by a widget
+/// with [`ClickMode::Default`] and the pointer is not actually over the widget the state is `false`, use [`is_cap_pointer_pressed`] to
+/// always include the captured state.
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
@@ -142,7 +142,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
         },
         |hovered, is_down, is_captured| match WINDOW.widget_tree().get(WIDGET.id()).unwrap().click_mode() {
             ClickMode::Default => Some(hovered && is_down),
-            ClickMode::Repeat => Some(is_down || is_captured),
+            ClickMode::Repeat | ClickMode::Mixed => Some(is_down || is_captured),
         },
     )
 }

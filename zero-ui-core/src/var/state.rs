@@ -129,7 +129,7 @@ pub fn event_is_state<A: EventArgs>(
 
 /// Helper for declaring state properties that depend on two other event states.
 #[allow(clippy::too_many_arguments)]
-pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
+pub fn event_is_state2<A0, A1>(
     child: impl UiNode,
     state: impl IntoVar<bool>,
     default: bool,
@@ -140,7 +140,11 @@ pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
     default1: bool,
     on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
     merge: impl FnMut(bool, bool) -> Option<bool> + Send + 'static,
-) -> impl UiNode {
+) -> impl UiNode
+where
+    A0: EventArgs,
+    A1: EventArgs,
+{
     #[ui_node(struct EventIsState2Node<A0: EventArgs, A1: EventArgs,> {
         child: impl UiNode,
         #[event] event0: Event<A0>,
@@ -207,9 +211,9 @@ pub fn event_is_state2<A0: EventArgs, A1: EventArgs>(
     .cfg_boxed()
 }
 
-/// Helper for declaring state properties that depend on tree other event states.
+/// Helper for declaring state properties that depend on three other event states.
 #[allow(clippy::too_many_arguments)]
-pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
+pub fn event_is_state3<A0, A1, A2>(
     child: impl UiNode,
     state: impl IntoVar<bool>,
     default: bool,
@@ -223,7 +227,12 @@ pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
     default2: bool,
     on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
     merge: impl FnMut(bool, bool, bool) -> Option<bool> + Send + 'static,
-) -> impl UiNode {
+) -> impl UiNode
+where
+    A0: EventArgs,
+    A1: EventArgs,
+    A2: EventArgs,
+{
     #[ui_node(struct EventIsState3Node<A0: EventArgs, A1: EventArgs, A2: EventArgs> {
         child: impl UiNode,
         #[event] event0: Event<A0>,
@@ -296,6 +305,120 @@ pub fn event_is_state3<A0: EventArgs, A1: EventArgs, A2: EventArgs>(
         on_event2,
         partial_default: (default0, default1, default2),
         partial: (default0, default1, default2),
+        merge,
+    }
+    .cfg_boxed()
+}
+
+/// Helper for declaring state properties that depend on four other event states.
+#[allow(clippy::too_many_arguments)]
+pub fn event_is_state4<A0, A1, A2, A3>(
+    child: impl UiNode,
+    state: impl IntoVar<bool>,
+    default: bool,
+    event0: Event<A0>,
+    default0: bool,
+    on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+    event1: Event<A1>,
+    default1: bool,
+    on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+    event2: Event<A2>,
+    default2: bool,
+    on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
+    event3: Event<A3>,
+    default3: bool,
+    on_event3: impl FnMut(&A3) -> Option<bool> + Send + 'static,
+    merge: impl FnMut(bool, bool, bool, bool) -> Option<bool> + Send + 'static,
+) -> impl UiNode
+where
+    A0: EventArgs,
+    A1: EventArgs,
+    A2: EventArgs,
+    A3: EventArgs,
+{
+    #[ui_node(struct EventIsState4Node<A0: EventArgs, A1: EventArgs, A2: EventArgs, A3: EventArgs> {
+        child: impl UiNode,
+        #[event] event0: Event<A0>,
+        #[event] event1: Event<A1>,
+        #[event] event2: Event<A2>,
+        #[event] event3: Event<A3>,
+        default: bool,
+        state: impl Var<bool>,
+        on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+        on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+        on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
+        on_event3: impl FnMut(&A3) -> Option<bool> + Send + 'static,
+        partial_default: (bool, bool, bool, bool),
+        partial: (bool, bool, bool, bool),
+        merge: impl FnMut(bool, bool, bool, bool) -> Option<bool> + Send + 'static,
+    })]
+    impl UiNode for EventIsState4Node {
+        fn init(&mut self) {
+            validate_getter_var(&self.state);
+            self.auto_subs();
+
+            self.partial = self.partial_default;
+            let _ = self.state.set_ne(self.default);
+            self.child.init();
+        }
+        fn deinit(&mut self) {
+            let _ = self.state.set_ne(self.default);
+            self.child.deinit();
+        }
+        fn event(&mut self, update: &mut EventUpdate) {
+            let mut updated = false;
+            if let Some(args) = self.event0.on(update) {
+                if let Some(state) = (self.on_event0)(args) {
+                    if self.partial.0 != state {
+                        self.partial.0 = state;
+                        updated = true;
+                    }
+                }
+            } else if let Some(args) = self.event1.on(update) {
+                if let Some(state) = (self.on_event1)(args) {
+                    if self.partial.1 != state {
+                        self.partial.1 = state;
+                        updated = true;
+                    }
+                }
+            } else if let Some(args) = self.event2.on(update) {
+                if let Some(state) = (self.on_event2)(args) {
+                    if self.partial.2 != state {
+                        self.partial.2 = state;
+                        updated = true;
+                    }
+                }
+            } else if let Some(args) = self.event3.on(update) {
+                if let Some(state) = (self.on_event3)(args) {
+                    if self.partial.3 != state {
+                        self.partial.3 = state;
+                        updated = true;
+                    }
+                }
+            }
+            self.child.event(update);
+
+            if updated {
+                if let Some(value) = (self.merge)(self.partial.0, self.partial.1, self.partial.2, self.partial.3) {
+                    let _ = self.state.set_ne(value);
+                }
+            }
+        }
+    }
+    EventIsState4Node {
+        child: child.cfg_boxed(),
+        event0,
+        event1,
+        event2,
+        event3,
+        default,
+        state: state.into_var(),
+        on_event0,
+        on_event1,
+        on_event2,
+        on_event3,
+        partial_default: (default0, default1, default2, default3),
+        partial: (default0, default1, default2, default3),
         merge,
     }
     .cfg_boxed()

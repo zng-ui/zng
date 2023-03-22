@@ -1,10 +1,12 @@
 * Implement mouse click repeat.
-    - Lower start delay.
+    - Use the keyboard config for mouse repeat, until user sets it.
+        - Use the `CowVar`?
     - Handle child click?
         - Clicking in the text child of a repeat button does not generate repeats.
         - Click mode can't be inherited, scrollbar thumb is not repeat, scrollbar is.
         - We first used path.contains to continue repeat, but removed.
-    - Add `ClickMode::StartRepeat` that produces a starting click upon mouse down?
+        - If it was a context-var could speed-up `is_pressed` a bit, no need to query the tree.
+        - We can just set the click mode back to default in the scrollbar thumb..
 
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
