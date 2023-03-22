@@ -14,7 +14,7 @@ command! {
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
-    /// or a [`ScrollRequest`] that does the same.
+    /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`v_line_unit`]: fn@super::properties::v_line_unit
     pub static SCROLL_UP_CMD = {
@@ -28,7 +28,7 @@ command! {
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
-    /// or a [`ScrollRequest`] that does the same.
+    /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`v_line_unit`]: fn@super::properties::v_line_unit
     pub static SCROLL_DOWN_CMD = {
@@ -42,7 +42,7 @@ command! {
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
-    /// or a [`ScrollRequest`] that does the same.
+    /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`h_line_unit`]: fn@super::properties::h_line_unit
     pub static SCROLL_LEFT_CMD = {
@@ -56,7 +56,7 @@ command! {
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
-    /// or a [`ScrollRequest`] that does the same.
+    /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`h_line_unit`]: fn@super::properties::h_line_unit
     pub static SCROLL_RIGHT_CMD = {
@@ -71,7 +71,7 @@ command! {
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
-    /// or a [`ScrollRequest`] that does the same.
+    /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
@@ -88,7 +88,7 @@ command! {
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
-    /// or a [`ScrollRequest`] that does the same.
+    /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`v_page_unit`]: fn@super::properties::v_page_unit
     pub static PAGE_DOWN_CMD = {
@@ -102,7 +102,7 @@ command! {
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
-    /// or a [`ScrollRequest`] that does the same.
+    /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`h_line_unit`]: fn@super::properties::h_line_unit
     pub static PAGE_LEFT_CMD = {
@@ -116,7 +116,7 @@ command! {
     /// # Parameter
     ///
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
-    /// or a [`ScrollRequest`] that does the same.
+    /// or a [`ScrollRequest`] that contains more configurations.
     ///
     /// [`h_page_unit`]: fn@super::properties::h_page_unit
     pub static PAGE_RIGHT_CMD = {
@@ -175,6 +175,19 @@ pub struct ScrollRequest {
     ///
     /// [alt factor]: super::scroll::ALT_FACTOR_VAR
     pub alternate: bool,
+    /// Only scroll within this inclusive range. The range is normalized `0.0..=1.0`, the default is `(f32::MIN, f32::MAX)`.
+    ///
+    /// Note that the commands are enabled and disabled for the full range, this parameter controls
+    /// the range for the request only.
+    pub clamp: (f32, f32),
+}
+impl Default for ScrollRequest {
+    fn default() -> Self {
+        Self {
+            alternate: Default::default(),
+            clamp: (f32::MIN, f32::MAX),
+        }
+    }
 }
 impl ScrollRequest {
     /// Pack the request into a command parameter.
@@ -187,7 +200,10 @@ impl ScrollRequest {
         if let Some(req) = p.downcast_ref::<Self>() {
             Some(req.clone())
         } else {
-            p.downcast_ref::<bool>().map(|&alt| ScrollRequest { alternate: alt })
+            p.downcast_ref::<bool>().map(|&alt| ScrollRequest {
+                alternate: alt,
+                ..Default::default()
+            })
         }
     }
 
@@ -209,6 +225,7 @@ impl_from_and_into_var! {
     fn from(alternate: bool) -> ScrollRequest {
         ScrollRequest {
             alternate,
+            ..Default::default()
         }
     }
 }

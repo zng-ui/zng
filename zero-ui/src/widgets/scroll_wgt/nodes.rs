@@ -338,34 +338,38 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             if let Some(args) = SCROLL_UP_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.up, |_| {
                     let mut offset = -self.layout_line.y;
-                    if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
+                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical(offset);
+                    SCROLL.scroll_vertical_clamp(offset, args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = SCROLL_DOWN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.down, |_| {
                     let mut offset = self.layout_line.y;
-                    if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
+                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical(offset);
+                    SCROLL.scroll_vertical_clamp(offset, args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = SCROLL_LEFT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.left, |_| {
                     let mut offset = -self.layout_line.x;
-                    if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
+                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal(offset);
+                    SCROLL.scroll_horizontal_clamp(offset, args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = SCROLL_RIGHT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.right, |_| {
                     let mut offset = self.layout_line.x;
-                    if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
+                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal(offset);
+                    SCROLL.scroll_horizontal_clamp(offset, args.clamp.0, args.clamp.1);
                 });
             }
         }
@@ -460,34 +464,38 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             if let Some(args) = PAGE_UP_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.up, |_| {
                     let mut offset = -self.layout_page.y;
-                    if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
+                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical(offset);
+                    SCROLL.scroll_vertical_clamp(offset, args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = PAGE_DOWN_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.down, |_| {
                     let mut offset = self.layout_page.y;
-                    if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
+                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_vertical(offset);
+                    SCROLL.scroll_vertical_clamp(offset, args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = PAGE_LEFT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.left, |_| {
                     let mut offset = -self.layout_page.x;
-                    if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
+                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal(offset);
+                    SCROLL.scroll_horizontal_clamp(offset, args.clamp.0, args.clamp.1);
                 });
             } else if let Some(args) = PAGE_RIGHT_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.right, |_| {
                     let mut offset = self.layout_page.x;
-                    if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
+                    let args = ScrollRequest::from_args(args).unwrap_or_default();
+                    if args.alternate {
                         offset *= ALT_FACTOR_VAR.get();
                     }
-                    SCROLL.scroll_horizontal(offset);
+                    SCROLL.scroll_horizontal_clamp(offset, args.clamp.0, args.clamp.1);
                 });
             }
         }

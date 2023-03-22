@@ -154,6 +154,10 @@ impl SCROLL {
 
     /// Offset the vertical position by the given pixel `amount`.
     pub fn scroll_vertical(&self, amount: Px) {
+        self.scroll_vertical_clamp(amount, f32::MIN, f32::MAX);
+    }
+    /// Offset the vertical position by the given pixel `amount`, but clamps the final offset by the inclusive `min` and `max`.
+    pub fn scroll_vertical_clamp(&self, amount: Px, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
         let content = SCROLL_CONTENT_SIZE_VAR.get().height;
 
@@ -169,12 +173,16 @@ impl SCROLL {
 
         if new_scroll != curr_scroll {
             let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-            SCROLL.chase_vertical(new_offset.fct());
+            SCROLL.chase_vertical(new_offset.clamp(min, max).fct());
         }
     }
 
     /// Offset the horizontal position by the given pixel `amount`.
     pub fn scroll_horizontal(&self, amount: Px) {
+        self.scroll_horizontal_clamp(amount, f32::MIN, f32::MAX)
+    }
+    /// Offset the horizontal position by the given pixel `amount`, but clamps the final offset by the inclusive `min` and `max`.
+    pub fn scroll_horizontal_clamp(&self, amount: Px, min: f32, max: f32) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
         let content = SCROLL_CONTENT_SIZE_VAR.get().width;
 
@@ -190,7 +198,7 @@ impl SCROLL {
 
         if new_scroll != curr_scroll {
             let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-            SCROLL.chase_horizontal(new_offset.fct());
+            SCROLL.chase_horizontal(new_offset.clamp(min, max).fct());
         }
     }
 
