@@ -7,10 +7,10 @@ use crate::{
     context::*,
     crate_util::FxHashMap,
     event::*,
-    keyboard::{ModifiersState, MODIFIERS_CHANGED_EVENT},
+    keyboard::{ModifiersState, KEYBOARD, MODIFIERS_CHANGED_EVENT},
     timer::{DeadlineVar, TIMERS},
     units::*,
-    var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var},
+    var::{impl_from_and_into_var, var, ArcVar, BoxedVar, ReadOnlyArcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
     window::{WindowId, WINDOWS},
@@ -735,8 +735,6 @@ pub struct MouseManager {
 
     hovered: Option<InteractionPath>,
     pressed: FxHashMap<MouseButton, PressedInfo>,
-
-    multi_click_config: ArcVar<MultiClickConfig>,
 }
 impl Default for MouseManager {
     fn default() -> Self {
@@ -754,8 +752,6 @@ impl Default for MouseManager {
             pressed: FxHashMap::default(),
 
             capture_count: 0,
-
-            multi_click_config: var(MultiClickConfig::default()),
         }
     }
 }
@@ -908,7 +904,7 @@ impl MouseManager {
                         } => {
                             debug_assert!(*count >= 1);
 
-                            let cfg = self.multi_click_config.get();
+                            let cfg = mouse.multi_click_config.get();
 
                             let is_multi_click =
                                 // same button
@@ -1186,11 +1182,6 @@ impl MouseManager {
     }
 }
 impl AppExtension for MouseManager {
-    fn init(&mut self) {
-        let mut mouse = MOUSE_SV.write();
-        mouse.multi_click_config = self.multi_click_config.clone();
-    }
-
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             // update hovered
@@ -1240,10 +1231,10 @@ impl AppExtension for MouseManager {
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             self.on_window_closed(args.window_id);
         } else if let Some(args) = RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.on(update) {
-            self.multi_click_config.set_ne(args.config);
+            MOUSE_SV.read().multi_click_config.set_ne(args.config);
             self.click_state = ClickState::None;
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            self.multi_click_config.set_ne(args.multi_click_config);
+            MOUSE_SV.read().multi_click_config.set_ne(args.multi_click_config);
 
             if args.is_respawn {
                 let mut mouse = MOUSE_SV.write();
@@ -1522,8 +1513,13 @@ impl MOUSE {
         MOUSE_SV.read().multi_click_config.read_only()
     }
 
-    /// Variable that gets and sets the config for [`ClickMode::Repeat`] clicks.
-    pub fn repeat_config(&self) -> ArcVar<ButtonRepeatConfig> {
+    /// Variable that gets and sets the config for [`ClickMode::Repeat`] and [`ClickMode::Mixed`] clicks.
+    ///
+    /// Note that this variable is linked with [`KEYBOARD.repeat_config`] until it is set, so if it is never set
+    /// it will update with the keyboard value.
+    /// 
+    /// [`KEYBOARD.repeat_config`]: KEYBOARD::repeat_config
+    pub fn repeat_config(&self) -> BoxedVar<ButtonRepeatConfig> {
         MOUSE_SV.read().repeat_config.clone()
     }
 
@@ -1570,7 +1566,7 @@ app_local! {
         capture_request: None,
         release_requested: false,
         multi_click_config: var(MultiClickConfig::default()),
-        repeat_config: var(ButtonRepeatConfig::default()),
+        repeat_config: KEYBOARD.repeat_config().map(|c| ButtonRepeatConfig { start_delay: c.start_delay, interval: c.interval }).cow().boxed(),
         buttons: var(vec![]),
     };
 }
@@ -1579,7 +1575,7 @@ struct MouseService {
     capture_request: Option<(WidgetId, CaptureMode)>,
     release_requested: bool,
     multi_click_config: ArcVar<MultiClickConfig>,
-    repeat_config: ArcVar<ButtonRepeatConfig>,
+    repeat_config: BoxedVar<ButtonRepeatConfig>,
     buttons: ArcVar<Vec<MouseButton>>,
 }
 impl MouseService {

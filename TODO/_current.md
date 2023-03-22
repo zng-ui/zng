@@ -1,6 +1,4 @@
 * Implement mouse click repeat.
-    - Use the keyboard config for mouse repeat, until user sets it.
-        - Use the `CowVar`?
     - Handle child click?
         - Clicking in the text child of a repeat button does not generate repeats.
         - Click mode can't be inherited, scrollbar thumb is not repeat, scrollbar is.
