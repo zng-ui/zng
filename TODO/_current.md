@@ -1,3 +1,7 @@
+* Fix page scroll on press.
+    - Press-holding causes the thumb to overshoot the pointer.
+    - Because of the animation we are requesting too many page-up/down?
+
 * Implement mouse click repeat.
     - Improve perf of click mode getter in `is_pressed`?
         - We need to `WINDOW.widget_tree().get(WIDGET.id()).click_mode()` right now.

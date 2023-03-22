@@ -1338,7 +1338,7 @@ impl AppExtension for MouseManager {
                             match mode {
                                 CaptureMode::Window => {
                                     if let Some(t) = &target {
-                                        if t.widget_id() != cap.widget_id() {
+                                        if t.window_id() != cap.window_id() {
                                             target = None; // captured in other window, cancel repeat
                                         }
                                     } else {
