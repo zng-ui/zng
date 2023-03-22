@@ -35,6 +35,8 @@ pub mod button {
         /// If pointer interaction with other widgets is blocked while the button is pressed.
         pub crate::properties::capture_mouse = true;
 
+        pub crate::properties::click_mode;
+
         /// Button style.
         ///
         /// Set to [`vis::STYLE_VAR`] by default, setting this property directly completely replaces the button style,

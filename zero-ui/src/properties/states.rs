@@ -98,7 +98,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
 #[property(CONTEXT)]
 pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    event_is_state2(
+    event_is_state3(
         child,
         state,
         false,
@@ -129,7 +129,21 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
             }
             None
         },
-        |hovered, is_down| Some(hovered && is_down),
+        MOUSE_CAPTURE_EVENT,
+        false,
+        |cap_args| {
+            if cap_args.is_got(WIDGET.id()) {
+                Some(true)
+            } else if cap_args.is_lost(WIDGET.id()) {
+                Some(false)
+            } else {
+                None
+            }
+        },
+        |hovered, is_down, is_captured| match WINDOW.widget_tree().get(WIDGET.id()).unwrap().click_mode() {
+            ClickMode::Default => Some(hovered && is_down),
+            ClickMode::Repeat => Some(is_down || is_captured),
+        },
     )
 }
 

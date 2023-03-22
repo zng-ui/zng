@@ -4,9 +4,7 @@
         - Clicking in the text child of a repeat button does not generate repeats.
         - Click mode can't be inherited, scrollbar thumb is not repeat, scrollbar is.
         - We first used path.contains to continue repeat, but removed.
-    - `ClickMode::Repeat` and capture should cause `is_pressed` not just `is_hovered` when the pointer
-      is moved out while pressed.
-        - The is a `is_cap_pressed`, would be nice to have something automatic, just set `click_mode` and it works. 
+    - Add `ClickMode::StartRepeat` that produces a starting click upon mouse down?
 
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
