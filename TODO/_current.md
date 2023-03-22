@@ -1,10 +1,7 @@
 * Implement mouse click repeat.
-    - Handle child click?
-        - Clicking in the text child of a repeat button does not generate repeats.
-        - Click mode can't be inherited, scrollbar thumb is not repeat, scrollbar is.
-        - We first used path.contains to continue repeat, but removed.
-        - If it was a context-var could speed-up `is_pressed` a bit, no need to query the tree.
-        - We can just set the click mode back to default in the scrollbar thumb..
+    - Improve perf of click mode getter in `is_pressed`?
+        - We need to `WINDOW.widget_tree().get(WIDGET.id()).click_mode()` right now.
+        - That is two hash gets, on every mouse input targeted, not the worst but maybe can be improved.
 
 * Parallelize windows?
     - Multiple window updates can happen in parallel.

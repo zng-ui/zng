@@ -73,12 +73,13 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
 
 /// Defines how click events are generated for the widget.
 ///
-/// Setting this to [`ClickMode::Repeat`] will cause repeat events on press and hold gesture.
-#[property(CONTEXT, default(ClickMode::Default))]
-pub fn click_mode(child: impl UiNode, mode: impl IntoVar<ClickMode>) -> impl UiNode {
+/// Setting this to `None` will cause the widget to inherit the parent mode, or [`ClickMode::Default`] if
+/// no parent sets the click mode.
+#[property(CONTEXT, default(None))]
+pub fn click_mode(child: impl UiNode, mode: impl IntoVar<Option<ClickMode>>) -> impl UiNode {
     #[ui_node(struct ClickModeNode {
         child: impl UiNode,
-        #[var] mode: impl Var<ClickMode>,
+        #[var] mode: impl Var<Option<ClickMode>>,
     })]
     impl UiNode for ClickModeNode {
         fn update(&mut self, updates: &mut WidgetUpdates) {

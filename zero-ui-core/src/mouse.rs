@@ -10,7 +10,7 @@ use crate::{
     keyboard::{ModifiersState, KEYBOARD, MODIFIERS_CHANGED_EVENT},
     timer::{DeadlineVar, TIMERS},
     units::*,
-    var::{impl_from_and_into_var, var, ArcVar, BoxedVar, ReadOnlyArcVar, Var},
+    var::{impl_from_and_into_var, var, ArcVar, BoxedVar, IntoVar, ReadOnlyArcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
     widget_instance::WidgetId,
     window::{WindowId, WINDOWS},
@@ -1328,29 +1328,60 @@ impl AppExtension for MouseManager {
                         // probably still valid
 
                         let hit_test = tree.root().hit_test(self.pos.to_px(tree.scale_factor().0));
-                        if hit_test.target().map(|t| t.widget_id == info.path.widget_id()).unwrap_or(false)
-                            || MOUSE
-                                .current_capture()
-                                .map(|c| c.0.widget_id() == info.path.widget_id())
-                                .unwrap_or(false)
-                        {
-                            // notify repeat
-                            let args = MouseClickArgs::now(
-                                info.path.window_id(),
-                                dv,
-                                *btn,
-                                self.pos,
-                                self.modifiers,
-                                NonZeroU32::new(info.repeat_count).unwrap(),
-                                true,
-                                hit_test,
-                                info.path.clone(),
-                            );
-                            MOUSE_CLICK_EVENT.notify(args);
 
-                            // continue timer
-                            let t = MOUSE.repeat_config().get().interval;
-                            info.timer = Some(TIMERS.deadline(t));
+                        // get the hit target, constrained by capture
+                        let mut target = None;
+                        if let Some(hit) = hit_test.target().map(|t| tree.get(t.widget_id).unwrap()) {
+                            target = hit.path().shared_ancestor(info.path.as_path()).map(|c| c.into_owned());
+                        }
+                        if let Some((cap, mode)) = MOUSE.current_capture() {
+                            match mode {
+                                CaptureMode::Window => {
+                                    if let Some(t) = &target {
+                                        if t.widget_id() != cap.widget_id() {
+                                            target = None; // captured in other window, cancel repeat
+                                        }
+                                    } else {
+                                        // no hit, but window capture
+                                        target = Some(tree.root().path());
+                                    }
+                                }
+                                CaptureMode::Subtree => {
+                                    if let Some(t) = &target {
+                                        target = cap.shared_ancestor(t).map(|c| c.into_owned());
+                                    } else {
+                                        target = Some(cap);
+                                    }
+                                }
+                                CaptureMode::Widget => {
+                                    target = Some(cap);
+                                }
+                            }
+                        }
+
+                        if let Some(target) = target {
+                            // if still has a target
+                            if let Some(target) = tree.get(target.widget_id()).and_then(|w| w.interaction_path().unblocked()) {
+                                // and it is unblocked
+
+                                // notify repeat
+                                let args = MouseClickArgs::now(
+                                    target.window_id(),
+                                    dv,
+                                    *btn,
+                                    self.pos,
+                                    self.modifiers,
+                                    NonZeroU32::new(info.repeat_count).unwrap(),
+                                    true,
+                                    hit_test,
+                                    target,
+                                );
+                                MOUSE_CLICK_EVENT.notify(args);
+
+                                // continue timer
+                                let t = MOUSE.repeat_config().get().interval;
+                                info.timer = Some(TIMERS.deadline(t));
+                            }
                         }
                     }
                 } else {
@@ -1421,6 +1452,13 @@ impl ClickMode {
         matches!(self, ClickMode::Repeat | ClickMode::Mixed)
     }
 }
+impl IntoVar<Option<ClickMode>> for ClickMode {
+    type Var = crate::var::LocalVar<Option<ClickMode>>;
+
+    fn into_var(self) -> Self::Var {
+        Some(self).into_var()
+    }
+}
 
 /// Mouse config methods.
 pub trait WidgetInfoMouseExt {
@@ -1429,21 +1467,28 @@ pub trait WidgetInfoMouseExt {
 }
 impl<'a> WidgetInfoMouseExt for WidgetInfo<'a> {
     fn click_mode(self) -> ClickMode {
-        self.meta().get_clone(&CLICK_MODE_ID).unwrap_or(ClickMode::Default)
+        for w in self.self_and_ancestors() {
+            if let Some(m) = w.meta().get_clone(&CLICK_MODE_ID).flatten() {
+                return m;
+            }
+        }
+        ClickMode::Default
     }
 }
 
 /// Mouse config builder methods.
 pub trait WidgetInfoBuilderMouseExt {
     /// Sets the click mode of the widget.
-    fn set_click_mode(&mut self, mode: ClickMode);
+    ///
+    /// Setting this to `None` will cause the widget to inherit the click mode.
+    fn set_click_mode(&mut self, mode: Option<ClickMode>);
 }
 impl WidgetInfoBuilderMouseExt for WidgetInfoBuilder {
-    fn set_click_mode(&mut self, mode: ClickMode) {
+    fn set_click_mode(&mut self, mode: Option<ClickMode>) {
         match self.meta().entry(&CLICK_MODE_ID) {
             state_map::StateMapEntry::Occupied(mut e) => *e.get_mut() = mode,
             state_map::StateMapEntry::Vacant(e) => {
-                if mode != ClickMode::Default {
+                if mode.is_some() {
                     e.insert(mode);
                 }
             }
@@ -1451,7 +1496,7 @@ impl WidgetInfoBuilderMouseExt for WidgetInfoBuilder {
     }
 }
 
-static CLICK_MODE_ID: StaticStateId<ClickMode> = StaticStateId::new_unique();
+static CLICK_MODE_ID: StaticStateId<Option<ClickMode>> = StaticStateId::new_unique();
 
 /// Settings that define the mouse button pressed repeat.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1517,7 +1562,7 @@ impl MOUSE {
     ///
     /// Note that this variable is linked with [`KEYBOARD.repeat_config`] until it is set, so if it is never set
     /// it will update with the keyboard value.
-    /// 
+    ///
     /// [`KEYBOARD.repeat_config`]: KEYBOARD::repeat_config
     pub fn repeat_config(&self) -> BoxedVar<ButtonRepeatConfig> {
         MOUSE_SV.read().repeat_config.clone()

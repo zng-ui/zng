@@ -172,6 +172,7 @@ pub mod thumb {
         ///
         /// Blocks pointer interaction with other widgets while the thumb is pressed.
         capture_mouse = true;
+        crate::properties::click_mode = ClickMode::Default; // scrollbar sets to repeat
 
         /// When the pointer device is over this thumb.
         when *#is_hovered {
