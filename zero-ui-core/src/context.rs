@@ -800,7 +800,6 @@ impl WIDGET {
         WIDGET_CTX.get().id
     }
 
-    /* !!: after all tests and docs pass
     /// Gets the widget info.
     ///
     /// # Panics
@@ -809,7 +808,6 @@ impl WIDGET {
     pub fn info(&self) -> WidgetInfo {
         WINDOW.widget_tree().get(WIDGET.id()).expect("widget info not init")
     }
-     */
 
     /// Schedule an update for the current widget.
     ///
