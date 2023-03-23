@@ -1273,7 +1273,7 @@ impl FocusService {
             let mut retain = false;
 
             if let Some(widget) = info.get(widget_path.widget_id()) {
-                if let Some(scope) = widget.scopes().find(|s| s.info.widget_id() == scope_id) {
+                if let Some(scope) = widget.scopes().find(|s| s.info.id() == scope_id) {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                         retain = true; // retain, widget still exists in same scope and scope still is LastFocused.
 
@@ -1307,7 +1307,7 @@ impl FocusService {
                 }
             } else if let Some(parent) = info.get_or_parent(widget_path) {
                 // widget not in window anymore, but a focusable parent is..
-                if let Some(scope) = parent.scopes().find(|s| s.info.widget_id() == scope_id) {
+                if let Some(scope) = parent.scopes().find(|s| s.info.id() == scope_id) {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                         // ..and the parent is inside the scope, and the scope is still valid.
                         retain = true;
@@ -1356,7 +1356,7 @@ impl FocusService {
                 retain_alt = false; // will retain only if still valid
 
                 if let Some(widget) = info.get(widget_path.widget_id()) {
-                    if !widget.scopes().any(|s| s.info.widget_id() == scope.widget_id()) {
+                    if !widget.scopes().any(|s| s.info.id() == scope.widget_id()) {
                         retain_alt = true; // retain, widget still exists outside of the ALT scope.
 
                         let path = widget.info.interaction_path();
@@ -1367,7 +1367,7 @@ impl FocusService {
                     }
                 } else if let Some(parent) = info.get_or_parent(widget_path) {
                     // widget not in window anymore, but a focusable parent is..
-                    if !parent.scopes().any(|s| s.info.widget_id() == scope.widget_id()) {
+                    if !parent.scopes().any(|s| s.info.id() == scope.widget_id()) {
                         // ..and the parent is not inside the ALT scope.
                         retain_alt = true;
 

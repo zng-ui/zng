@@ -431,7 +431,7 @@ mod impls {
                     let mut node = self.rc.item.lock();
                     (self.delegate_deinit)(&mut node);
 
-                    WIDGET.info().layout().render();
+                    WIDGET.update_info().layout().render();
 
                     if let Some(new) = replacement {
                         *node = new;
@@ -455,7 +455,7 @@ mod impls {
                     });
                     *node = new;
 
-                    WIDGET.info().layout().render();
+                    WIDGET.update_info().layout().render();
                 }
             } else if self.take.take_on_update(updates) {
                 // request ownership.
@@ -493,7 +493,7 @@ mod impls {
                 WIDGET.with_handles(&mut self.var_handles, &mut self.event_handles, || {
                     (self.delegate_init)(&mut *self.rc.item.lock());
                 });
-                WIDGET.info().layout().render();
+                WIDGET.update_info().layout().render();
             }
         }
 

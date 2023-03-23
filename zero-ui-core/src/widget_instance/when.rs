@@ -118,7 +118,7 @@ impl WhenUiNode {
             WIDGET.with_handles(var_handles, event_handles, || child.init());
         }
 
-        WIDGET.info().layout().render();
+        WIDGET.update_info().layout().render();
     }
 }
 #[ui_node(
@@ -228,7 +228,7 @@ impl WhenUiNodeList {
         }
 
         observer.reseted();
-        WIDGET.info().layout().render();
+        WIDGET.update_info().layout().render();
     }
 }
 

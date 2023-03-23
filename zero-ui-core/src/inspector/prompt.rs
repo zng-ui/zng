@@ -69,7 +69,7 @@ impl WriteTreeState {
         if let Some(inf) = info.inspector_info() {
             wgt_name = inf.builder.widget_mod().name();
 
-            let widget_id = info.widget_id();
+            let widget_id = info.id();
             let (parent_name, parent_prop) = match info.parent_property() {
                 Some((p, _)) => (info.parent().unwrap().inspector_info().unwrap().builder.widget_mod().name(), p.name),
                 None => ("", ""),
@@ -126,7 +126,7 @@ impl WriteTreeState {
             fmt.open_widget(wgt_name, "", "");
         }
 
-        let widget_id = info.widget_id();
+        let widget_id = info.id();
 
         if info.inspect_property(property_id!(crate::widget_base::id).impl_id).is_none() {
             fmt.write_property(

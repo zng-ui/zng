@@ -124,7 +124,7 @@ impl LAYERS {
                         let anchor = self.anchor.get();
                         let querying = AtomicBool::new(false);
                         info.push_interactivity_filter(move |args| {
-                            if args.info.widget_id() == widget {
+                            if args.info.id() == widget {
                                 if querying.swap(true, Ordering::Relaxed) {
                                     return Interactivity::ENABLED; // avoid recursion.
                                 }
@@ -178,14 +178,14 @@ impl LAYERS {
                 if let Some(anchor) = self.anchor.get_new() {
                     self.anchor_info = WINDOW.widget_tree().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                     if self.mode.with(|m| m.interaction) {
-                        WIDGET.info();
+                        WIDGET.update_info();
                     }
                     WIDGET.layout().render();
                 }
                 if let Some(mode) = self.mode.get_new() {
                     if mode.interaction != self.interaction {
                         self.interaction = mode.interaction;
-                        WIDGET.info();
+                        WIDGET.update_info();
                     }
                     WIDGET.layout().render();
                 }

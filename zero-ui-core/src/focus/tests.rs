@@ -69,11 +69,7 @@ trait WidgetFocusInfoExt {
 }
 impl<'a> WidgetFocusInfoExt for WidgetFocusInfo<'a> {
     fn test_name(self) -> &'static str {
-        self.info
-            .widget_id()
-            .name()
-            .as_static_str()
-            .expect("use with `push_test_widget` only")
+        self.info.id().name().as_static_str().expect("use with `push_test_widget` only")
     }
 
     fn actual_enabled_nav(self) -> FocusNavAction {

@@ -1501,7 +1501,7 @@ impl ContentCtrl {
                 self.commands.init(&self.vars);
                 WIDGET.with_context(&self.root_ctx, || {
                     self.root.init();
-                    WIDGET.info();
+                    WIDGET.update_info();
                 });
                 self.init_state = InitState::Inited;
             }

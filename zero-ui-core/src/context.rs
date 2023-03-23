@@ -800,6 +800,15 @@ impl WIDGET {
         WIDGET_CTX.get().id
     }
 
+    /// Gets the widget info.
+    ///
+    /// # Panics
+    ///
+    /// If called before the widget info is inited in the parent window.
+    pub fn info(&self) -> WidgetInfo {
+        // WINDOW.widget_tree().get(WIDGET.id()).expect("widget info not init")
+    }
+
     /// Schedule an update for the current widget.
     ///
     /// After the current update cycle the app-extensions, parent window and widgets will update again.
@@ -818,7 +827,7 @@ impl WIDGET {
     /// Schedule an info rebuild for the current widget.
     ///
     /// After all requested updates apply the parent window and widgets will re-build the info tree.
-    pub fn info(&self) -> &Self {
+    pub fn update_info(&self) -> &Self {
         WIDGET_CTX.get().flags.lock().insert(UpdateFlags::INFO);
         self
     }
@@ -1812,9 +1821,9 @@ impl UpdateDeliveryList {
     pub fn insert_wgt(&mut self, wgt: WidgetInfo) {
         let mut any = false;
         for w in wgt.self_and_ancestors() {
-            if any || self.subscribers.contains(w.widget_id()) {
+            if any || self.subscribers.contains(w.id()) {
                 any = true;
-                self.widgets.insert(w.widget_id());
+                self.widgets.insert(w.id());
             }
         }
         if any {
@@ -1845,7 +1854,7 @@ impl UpdateDeliveryList {
             self.search.retain(|w| {
                 if let Some(w) = window.get(*w) {
                     for w in w.self_and_ancestors() {
-                        self.widgets.insert(w.widget_id());
+                        self.widgets.insert(w.id());
                     }
                     self.windows.insert(window.window_id());
                     false

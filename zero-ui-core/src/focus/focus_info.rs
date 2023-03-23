@@ -707,7 +707,7 @@ impl<'a> WidgetFocusInfo<'a> {
                         self.first_tab_descendant()
                     }
                 }
-                FocusScopeOnFocus::LastFocused => last_focused(self.info.widget_id())
+                FocusScopeOnFocus::LastFocused => last_focused(self.info.id())
                     .and_then(|path| self.info.tree().get(path.widget_id()))
                     .and_then(|w| w.as_focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets()))
                     .and_then(|f| {
@@ -1066,13 +1066,13 @@ impl<'a> WidgetFocusInfo<'a> {
         skip_self: bool,
         any: bool,
     ) -> Option<WidgetFocusInfo<'a>> {
-        let self_id = self.info.widget_id();
-        let scope_id = scope.info.widget_id();
+        let self_id = self.info.id();
+        let scope_id = scope.info.id();
 
         let filter = |w: WidgetFocusInfo<'a>| {
-            let mut up_to_scope = w.self_and_ancestors().take_while(|w| w.info.widget_id() != scope_id);
+            let mut up_to_scope = w.self_and_ancestors().take_while(|w| w.info.id() != scope_id);
             if skip_self {
-                up_to_scope.all(|w| w.info.widget_id() != self_id && !w.focus_info().skip_directional())
+                up_to_scope.all(|w| w.info.id() != self_id && !w.focus_info().skip_directional())
             } else {
                 up_to_scope.all(|w| !w.focus_info().skip_directional())
             }
@@ -1082,7 +1082,7 @@ impl<'a> WidgetFocusInfo<'a> {
             .info
             .oriented(origin, Px::MAX, orientation)
             .focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets())
-            .filter(|w| w.info.widget_id() != scope_id);
+            .filter(|w| w.info.id() != scope_id);
 
         if any {
             return oriented.find(|f| filter(*f));

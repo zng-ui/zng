@@ -86,7 +86,7 @@ pub fn click_mode(child: impl UiNode, mode: impl IntoVar<Option<ClickMode>>) -> 
             self.child.update(updates);
 
             if self.mode.is_new() {
-                WIDGET.info();
+                WIDGET.update_info();
             }
         }
 

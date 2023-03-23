@@ -192,7 +192,7 @@ impl<'a> WidgetInfoInspectorExt<'a> for WidgetInfo<'a> {
 
     fn parent_property(self) -> Option<(PropertyId, usize)> {
         self.parent()?.meta().get(&INSPECTOR_INFO_ID)?.properties().find_map(|(args, _)| {
-            let id = self.widget_id();
+            let id = self.id();
             let info = args.property();
             for (i, input) in info.inputs.iter().enumerate() {
                 match input.kind {

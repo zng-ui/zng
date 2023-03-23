@@ -520,7 +520,7 @@ impl FrameBuilder {
                     bounds.set_inner_transform(
                         bounds.inner_transform().then(&transform_patch),
                         &tree,
-                        info.widget_id(),
+                        info.id(),
                         info.parent().map(|p| p.inner_bounds()),
                     );
 
@@ -549,7 +549,7 @@ impl FrameBuilder {
                     bounds.set_inner_transform(
                         bounds.inner_transform().then(&transform_patch),
                         &tree,
-                        info.widget_id(),
+                        info.id(),
                         info.parent().map(|p| p.inner_bounds()),
                     );
                 }
@@ -1887,7 +1887,7 @@ impl FrameUpdate {
                         bounds.set_inner_transform(
                             bounds.inner_transform().then(&patch),
                             &tree,
-                            info.widget_id(),
+                            info.id(),
                             info.parent().map(|p| p.inner_bounds()),
                         );
                     }

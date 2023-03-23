@@ -637,7 +637,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                         let tree = WINDOW.widget_tree();
                         if let Some(target) = tree.get(path.widget_id()) {
                             // target exits
-                            if let Some(us) = target.ancestors().find(|w| w.widget_id() == self_id) {
+                            if let Some(us) = target.ancestors().find(|w| w.id() == self_id) {
                                 // confirmed, target is descendant
                                 if us.is_scroll() {
                                     // we are a scroll.
@@ -659,7 +659,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     let tree = WINDOW.widget_tree();
                     if let Some(target) = tree.get(request.widget_id) {
                         // target exists
-                        if let Some(us) = target.ancestors().find(|w| w.widget_id() == self_id) {
+                        if let Some(us) = target.ancestors().find(|w| w.id() == self_id) {
                             // target is descendant
                             if us.is_scroll() {
                                 // we are a scroll.

@@ -145,8 +145,8 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                                     // multiple modals, find the *top* one.
                                     let mut found = 0;
                                     for info in a.info.root().self_and_descendants() {
-                                        if mws.widgets.contains(&info.widget_id()) {
-                                            mws.last_in_tree = Some(info.widget_id());
+                                        if mws.widgets.contains(&info.id()) {
+                                            mws.last_in_tree = Some(info.id());
                                             found += 1;
                                             if found == mws.widgets.len() {
                                                 break;
@@ -159,9 +159,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
                         // filter, only allows inside self inclusive, and ancestors.
                         let modal = mws.last_in_tree.unwrap();
-                        if a.info.self_and_ancestors().any(|w| w.widget_id() == modal)
-                            || a.info.self_and_descendants().any(|w| w.widget_id() == modal)
-                        {
+                        if a.info.self_and_ancestors().any(|w| w.id() == modal) || a.info.self_and_descendants().any(|w| w.id() == modal) {
                             Interactivity::ENABLED
                         } else {
                             Interactivity::BLOCKED
@@ -202,7 +200,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
         fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.enabled.is_new() {
-                WIDGET.info();
+                WIDGET.update_info();
             }
 
             self.child.update(updates);

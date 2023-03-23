@@ -212,7 +212,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
             if let Some(target) = md.find_anchor(anchor) {
                 // scroll-to
                 for scroll in target.ancestors().filter(|&a| a.is_scroll()) {
-                    crate::widgets::scroll::commands::scroll_to(scroll.widget_id(), target.widget_id(), LINK_SCROLL_MODE_VAR.get());
+                    crate::widgets::scroll::commands::scroll_to(scroll.id(), target.id(), LINK_SCROLL_MODE_VAR.get());
                 }
 
                 // focus
@@ -222,7 +222,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
                     .find(|w| w.is_focusable())
                     .or_else(|| md.as_focus_info(false, false).self_and_ancestors().find(|w| w.is_focusable()))
                 {
-                    FOCUS.focus_widget(focus.info.widget_id(), false);
+                    FOCUS.focus_widget(focus.info.id(), false);
                 }
             }
         }
@@ -402,7 +402,7 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Text>) -> impl UiNode {
         fn update(&mut self, updates: &mut WidgetUpdates) {
             self.child.update(updates);
             if self.anchor.is_new() {
-                WIDGET.info();
+                WIDGET.update_info();
             }
         }
 

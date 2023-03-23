@@ -47,7 +47,7 @@ impl WidgetInfoBuilder {
         let used_data = used_data.unwrap_or_else(UsedWidgetInfoBuilder::fallback);
         let tree = Tree::with_capacity(
             WidgetInfoData {
-                widget_id: root_id,
+                id: root_id,
                 bounds_info: root_bounds_info,
                 border_info: root_border_info,
                 meta: Arc::new(OwnedStateMap::new()),
@@ -117,7 +117,7 @@ impl WidgetInfoBuilder {
         self.node = self
             .node(parent_node)
             .push_child(WidgetInfoData {
-                widget_id: id,
+                id,
                 bounds_info,
                 border_info,
                 meta: Arc::new(OwnedStateMap::new()),
@@ -184,7 +184,7 @@ impl WidgetInfoBuilder {
                 r
             },
             &mut |new_node| {
-                let wgt_id = new_node.value().widget_id;
+                let wgt_id = new_node.value().id;
                 if self.lookup.insert(wgt_id, new_node.id()).is_some() {
                     panic!("reused widget `{wgt_id:?}` was already pushed or reused");
                 }

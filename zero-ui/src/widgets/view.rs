@@ -145,7 +145,7 @@ where
                     self.child.deinit();
                     self.child = new_child;
                     self.child.init();
-                    WIDGET.info().layout().render();
+                    WIDGET.update_info().layout().render();
                 }
             }
             self.child.update(updates);
@@ -309,7 +309,7 @@ impl<D> WidgetGenerator<D> {
                 if gen.is_nil() {
                     if let Some(mut old) = self.child.take() {
                         old.deinit();
-                        WIDGET.info().layout().render();
+                        WIDGET.update_info().layout().render();
                     }
 
                     return;
@@ -323,13 +323,13 @@ impl<D> WidgetGenerator<D> {
                         let mut child = (self.map)(gen.generate(data));
                         child.init();
                         self.child = Some(child);
-                        WIDGET.info().layout().render();
+                        WIDGET.update_info().layout().render();
                     }
                     DataUpdate::Same => self.child.update(updates),
                     DataUpdate::None => {
                         if let Some(mut old) = self.child.take() {
                             old.deinit();
-                            WIDGET.info().layout().render();
+                            WIDGET.update_info().layout().render();
                         }
                     }
                 }

@@ -1,5 +1,4 @@
 //! Widget info tree iterators.
-
 use std::iter::FusedIterator;
 
 use super::*;
@@ -39,26 +38,26 @@ impl_from_and_into_var! {
 /// [`children`]: WidgetInfo::children
 /// [`self_and_children`]: WidgetInfo::self_and_children
 #[derive(Debug)]
-pub struct Children<'a> {
+pub struct Children {
     front_enter: bool,
-    front: Option<WidgetInfo<'a>>,
+    front: Option<WidgetInfo>,
 
     back_enter: bool,
-    back: Option<WidgetInfo<'a>>,
+    back: Option<WidgetInfo>,
 }
-impl<'a> Children<'a> {
-    pub(super) fn new(parent: WidgetInfo<'a>) -> Self {
+impl Children {
+    pub(super) fn new(parent: WidgetInfo) -> Self {
         Children {
             front_enter: true,
-            front: Some(parent),
+            front: Some(parent.clone()),
 
             back_enter: true,
             back: Some(parent),
         }
     }
 }
-impl<'a> Iterator for Children<'a> {
-    type Item = WidgetInfo<'a>;
+impl Iterator for Children {
+    type Item = WidgetInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
         if mem::take(&mut self.front_enter) {
@@ -77,7 +76,7 @@ impl<'a> Iterator for Children<'a> {
         }
     }
 }
-impl<'a> DoubleEndedIterator for Children<'a> {
+impl DoubleEndedIterator for Children {
     fn next_back(&mut self) -> Option<Self::Item> {
         if mem::take(&mut self.back_enter) {
             let next = self.back.take();
@@ -102,16 +101,16 @@ impl<'a> DoubleEndedIterator for Children<'a> {
 ///
 /// [`prev_siblings`]: WidgetInfo::prev_siblings
 /// [`self_and_prev_siblings`]: WidgetInfo::self_and_prev_siblings
-pub struct PrevSiblings<'a> {
-    node: Option<WidgetInfo<'a>>,
+pub struct PrevSiblings {
+    node: Option<WidgetInfo>,
 }
-impl<'a> PrevSiblings<'a> {
-    pub(super) fn new(node: WidgetInfo<'a>) -> Self {
+impl PrevSiblings {
+    pub(super) fn new(node: WidgetInfo) -> Self {
         Self { node: Some(node) }
     }
 }
-impl<'a> Iterator for PrevSiblings<'a> {
-    type Item = WidgetInfo<'a>;
+impl Iterator for PrevSiblings {
+    type Item = WidgetInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(n) = self.node {
@@ -129,16 +128,16 @@ impl<'a> Iterator for PrevSiblings<'a> {
 ///
 /// [`next_siblings`]: WidgetInfo::next_siblings
 /// [`self_and_next_siblings`]: WidgetInfo::self_and_next_siblings
-pub struct NextSiblings<'a> {
-    node: Option<WidgetInfo<'a>>,
+pub struct NextSiblings {
+    node: Option<WidgetInfo>,
 }
-impl<'a> NextSiblings<'a> {
-    pub(super) fn new(node: WidgetInfo<'a>) -> Self {
+impl NextSiblings {
+    pub(super) fn new(node: WidgetInfo) -> Self {
         Self { node: Some(node) }
     }
 }
-impl<'a> Iterator for NextSiblings<'a> {
-    type Item = WidgetInfo<'a>;
+impl Iterator for NextSiblings {
+    type Item = WidgetInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(n) = self.node {
@@ -156,16 +155,16 @@ impl<'a> Iterator for NextSiblings<'a> {
 ///
 /// [`ancestors`]: WidgetInfo::ancestors
 /// [`self_and_ancestors`]: WidgetInfo::self_and_ancestors
-pub struct Ancestors<'a> {
-    node: Option<WidgetInfo<'a>>,
+pub struct Ancestors {
+    node: Option<WidgetInfo>,
 }
-impl<'a> Ancestors<'a> {
-    pub(super) fn new(node: WidgetInfo<'a>) -> Self {
+impl Ancestors {
+    pub(super) fn new(node: WidgetInfo) -> Self {
         Ancestors { node: Some(node) }
     }
 }
-impl<'a> Iterator for Ancestors<'a> {
-    type Item = WidgetInfo<'a>;
+impl Iterator for Ancestors {
+    type Item = WidgetInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(n) = self.node {
@@ -184,11 +183,11 @@ mod internal {
 }
 
 /// Iterator that traverses the branches of a widget tree.
-pub trait TreeIterator<'a>: internal::InternalTreeIterator + Iterator<Item = WidgetInfo<'a>> + FusedIterator {
+pub trait TreeIterator: internal::InternalTreeIterator + Iterator<Item = WidgetInfo> + FusedIterator {
     /// Creates an iterator which uses a closure to filter items or branches at a time.
     ///
     /// See [`TreeFilter`] for details.
-    fn tree_filter<F: FnMut(WidgetInfo<'a>) -> TreeFilter>(self, filter: F) -> TreeFilterIter<'a, Self, F>
+    fn tree_filter<F: FnMut(WidgetInfo) -> TreeFilter>(self, filter: F) -> TreeFilterIter<Self, F>
     where
         Self: Sized,
     {
@@ -200,7 +199,7 @@ pub trait TreeIterator<'a>: internal::InternalTreeIterator + Iterator<Item = Wid
     }
 
     /// Gets the first item not filtered out by a [`TreeFilter`] closure.
-    fn tree_find<F: FnMut(WidgetInfo<'a>) -> TreeFilter>(self, filter: F) -> Option<WidgetInfo<'a>>
+    fn tree_find<F: FnMut(WidgetInfo) -> TreeFilter>(self, filter: F) -> Option<WidgetInfo>
     where
         Self: Sized,
     {
@@ -208,7 +207,7 @@ pub trait TreeIterator<'a>: internal::InternalTreeIterator + Iterator<Item = Wid
     }
 
     /// Check if any item is not filtered out by a [`TreeFilter`] closure.
-    fn tree_any<F: FnMut(WidgetInfo<'a>) -> TreeFilter>(self, filter: F) -> bool
+    fn tree_any<F: FnMut(WidgetInfo) -> TreeFilter>(self, filter: F) -> bool
     where
         Self: Sized,
     {
@@ -217,67 +216,62 @@ pub trait TreeIterator<'a>: internal::InternalTreeIterator + Iterator<Item = Wid
 }
 
 /// Primary implementer of [`TreeIterator`].
-pub struct TreeIter<'a> {
-    tree: &'a WidgetInfoTree,
+pub struct TreeIter {
+    tree: WidgetInfoTree,
     iter: tree::TreeIter,
 }
-impl<'a> TreeIter<'a> {
-    pub(super) fn self_and_descendants(wgt: WidgetInfo<'a>) -> Self {
+impl TreeIter {
+    pub(super) fn self_and_descendants(wgt: WidgetInfo) -> Self {
         Self {
-            tree: wgt.tree(),
+            tree: wgt.tree().clone(),
             iter: wgt.node().self_and_descendants(),
         }
     }
 
-    pub(super) fn self_and_prev_siblings_in(wgt: WidgetInfo<'a>, ancestor: WidgetInfo<'a>) -> RevTreeIter<'a> {
+    pub(super) fn self_and_prev_siblings_in(wgt: WidgetInfo, ancestor: WidgetInfo) -> RevTreeIter {
         let tree = &wgt.tree.0.tree;
         let mut iter = ancestor.node().self_and_descendants().rev(tree);
         iter.skip_to(tree, wgt.node_id);
 
         RevTreeIter { tree: wgt.tree, iter }
     }
-    pub(super) fn prev_siblings_in(wgt: WidgetInfo<'a>, ancestor: WidgetInfo<'a>) -> RevTreeIter<'a> {
+    pub(super) fn prev_siblings_in(wgt: WidgetInfo, ancestor: WidgetInfo) -> RevTreeIter {
         if let Some(wgt) = wgt.prev_sibling() {
-            Self::self_and_prev_siblings_in(wgt, ancestor)
+            return Self::self_and_prev_siblings_in(wgt, ancestor);
         } else if let Some(parent) = wgt.parent() {
-            if parent != ancestor {
-                Self::prev_siblings_in(parent, ancestor)
-            } else {
-                RevTreeIter {
-                    tree: wgt.tree,
-                    iter: tree::RevTreeIter::empty(),
-                }
+            if parent != ancestor && wgt.tree == ancestor.tree {
+                return Self::prev_siblings_in(parent, ancestor);
             }
-        } else {
-            RevTreeIter {
-                tree: wgt.tree,
-                iter: tree::RevTreeIter::empty(),
-            }
+        }
+        RevTreeIter {
+            tree: wgt.tree,
+            iter: tree::RevTreeIter::empty(),
         }
     }
 
-    pub(super) fn self_and_next_siblings_in(wgt: WidgetInfo<'a>, ancestor: WidgetInfo<'a>) -> Self {
+    pub(super) fn self_and_next_siblings_in(wgt: WidgetInfo, ancestor: WidgetInfo) -> Self {
+        if wgt.tree != ancestor.tree {
+            return TreeIter {
+                tree: wgt.tree,
+                iter: tree::TreeIter::empty(),
+            };
+        }
+
         let mut iter = ancestor.node().self_and_descendants();
         iter.skip_to(wgt.node_id);
         Self { tree: wgt.tree(), iter }
     }
-    pub(super) fn next_siblings_in(wgt: WidgetInfo<'a>, ancestor: WidgetInfo<'a>) -> Self {
+    pub(super) fn next_siblings_in(wgt: WidgetInfo, ancestor: WidgetInfo) -> Self {
         if let Some(wgt) = wgt.next_sibling() {
-            Self::self_and_next_siblings_in(wgt, ancestor)
+            return Self::self_and_next_siblings_in(wgt, ancestor);
         } else if let Some(parent) = wgt.parent() {
-            if parent != ancestor {
-                Self::next_siblings_in(parent, ancestor)
-            } else {
-                TreeIter {
-                    tree: wgt.tree,
-                    iter: tree::TreeIter::empty(),
-                }
+            if parent != ancestor && wgt.tree == ancestor.tree {
+                return Self::next_siblings_in(parent, ancestor);
             }
-        } else {
-            TreeIter {
-                tree: wgt.tree,
-                iter: tree::TreeIter::empty(),
-            }
+        }
+        TreeIter {
+            tree: wgt.tree,
+            iter: tree::TreeIter::empty(),
         }
     }
 
@@ -289,7 +283,7 @@ impl<'a> TreeIter<'a> {
     ///
     /// [`self_and_descendants`]: WidgetInfo::self_and_descendants
     /// [`descendants`]: WidgetInfo::descendants
-    pub fn tree_rev(self) -> RevTreeIter<'a>
+    pub fn tree_rev(self) -> RevTreeIter
     where
         Self: Sized,
     {
@@ -299,13 +293,13 @@ impl<'a> TreeIter<'a> {
         }
     }
 }
-impl<'a> internal::InternalTreeIterator for TreeIter<'a> {
+impl internal::InternalTreeIterator for TreeIter {
     fn skip_all(&mut self, widget: WidgetInfo) {
         self.iter.close(&self.tree.0.tree, widget.node_id)
     }
 }
-impl<'a> Iterator for TreeIter<'a> {
-    type Item = WidgetInfo<'a>;
+impl Iterator for TreeIter {
+    type Item = WidgetInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|id| WidgetInfo::new(self.tree, id))
@@ -316,55 +310,54 @@ impl<'a> Iterator for TreeIter<'a> {
         (len, Some(len))
     }
 }
-impl<'a> ExactSizeIterator for TreeIter<'a> {
+impl ExactSizeIterator for TreeIter {
     fn len(&self) -> usize {
         self.iter.len()
     }
 }
-impl<'a> FusedIterator for TreeIter<'a> {}
-impl<'a> TreeIterator<'a> for TreeIter<'a> {}
+impl FusedIterator for TreeIter {}
+impl TreeIterator for TreeIter {}
 
 /// Reversing tree iterator.
 ///
 /// This struct is created by the [`TreeIter::tree_rev`] method.
-pub struct RevTreeIter<'a> {
-    tree: &'a WidgetInfoTree,
+pub struct RevTreeIter {
+    tree: WidgetInfoTree,
     iter: tree::RevTreeIter,
 }
-impl<'a> internal::InternalTreeIterator for RevTreeIter<'a> {
+impl internal::InternalTreeIterator for RevTreeIter {
     fn skip_all(&mut self, widget: WidgetInfo) {
         self.iter.close(&self.tree.0.tree, widget.node_id);
     }
 }
-impl<'a> Iterator for RevTreeIter<'a> {
-    type Item = WidgetInfo<'a>;
+impl Iterator for RevTreeIter {
+    type Item = WidgetInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next(&self.tree.0.tree).map(|id| WidgetInfo::new(self.tree, id))
     }
 }
-impl<'a> FusedIterator for RevTreeIter<'a> {}
-impl<'a> TreeIterator<'a> for RevTreeIter<'a> {}
+impl FusedIterator for RevTreeIter {}
+impl TreeIterator for RevTreeIter {}
 
 /// Filtering tree iterator.
 ///
 /// This struct is created by the [`TreeIterator::tree_filter`] method.
-pub struct TreeFilterIter<'a, I: TreeIterator<'a>, F: FnMut(WidgetInfo<'a>) -> TreeFilter> {
-    _lt: PhantomData<&'a WidgetInfoTree>,
+pub struct TreeFilterIter<I: TreeIterator, F: FnMut(WidgetInfo) -> TreeFilter> {
     iter: I,
     filter: F,
 }
-impl<'a, I: TreeIterator<'a>, F: FnMut(WidgetInfo<'a>) -> TreeFilter> internal::InternalTreeIterator for TreeFilterIter<'a, I, F> {
+impl<I: TreeIterator, F: FnMut(WidgetInfo) -> TreeFilter> internal::InternalTreeIterator for TreeFilterIter<I, F> {
     fn skip_all(&mut self, widget: WidgetInfo) {
         self.iter.skip_all(widget)
     }
 }
-impl<'a, I, F> Iterator for TreeFilterIter<'a, I, F>
+impl<I, F> Iterator for TreeFilterIter<I, F>
 where
-    I: TreeIterator<'a>,
-    F: FnMut(WidgetInfo<'a>) -> TreeFilter,
+    I: TreeIterator,
+    F: FnMut(WidgetInfo) -> TreeFilter,
 {
-    type Item = WidgetInfo<'a>;
+    type Item = WidgetInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -386,16 +379,16 @@ where
         }
     }
 }
-impl<'a, I, F> FusedIterator for TreeFilterIter<'a, I, F>
+impl<I, F> FusedIterator for TreeFilterIter<I, F>
 where
-    I: TreeIterator<'a>,
-    F: FnMut(WidgetInfo<'a>) -> TreeFilter,
+    I: TreeIterator,
+    F: FnMut(WidgetInfo) -> TreeFilter,
 {
 }
-impl<'a, I, F> TreeIterator<'a> for TreeFilterIter<'a, I, F>
+impl<I, F> TreeIterator for TreeFilterIter<I, F>
 where
-    I: TreeIterator<'a>,
-    F: FnMut(WidgetInfo<'a>) -> TreeFilter,
+    I: TreeIterator,
+    F: FnMut(WidgetInfo) -> TreeFilter,
 {
 }
 
@@ -427,9 +420,9 @@ mod tests {
     trait WidgetInfoExt {
         fn test_name(self) -> &'static str;
     }
-    impl<'a> WidgetInfoExt for WidgetInfo<'a> {
+    impl WidgetInfoExt for WidgetInfo {
         fn test_name(self) -> &'static str {
-            self.widget_id().name().as_static_str().expect("use with `push_test_widget` only")
+            self.id().name().as_static_str().expect("use with `push_test_widget` only")
         }
     }
 
@@ -766,7 +759,7 @@ mod tests {
             .root()
             .descendants()
             .tree_filter(|w| {
-                if w.widget_id() == WidgetId::named("c-1") {
+                if w.id() == WidgetId::named("c-1") {
                     TreeFilter::Skip
                 } else {
                     TreeFilter::Include
@@ -793,7 +786,7 @@ mod tests {
             .descendants()
             .tree_rev()
             .tree_filter(|w| {
-                if w.widget_id() == WidgetId::named("c-1") {
+                if w.id() == WidgetId::named("c-1") {
                     TreeFilter::Skip
                 } else {
                     TreeFilter::Include
@@ -819,7 +812,7 @@ mod tests {
             .root()
             .descendants()
             .tree_filter(|w| {
-                if w.widget_id() == WidgetId::named("c-1") {
+                if w.id() == WidgetId::named("c-1") {
                     TreeFilter::SkipAll
                 } else {
                     TreeFilter::Include
@@ -846,7 +839,7 @@ mod tests {
             .descendants()
             .tree_rev()
             .tree_filter(|w| {
-                if w.widget_id() == WidgetId::named("c-1") {
+                if w.id() == WidgetId::named("c-1") {
                     TreeFilter::SkipAll
                 } else {
                     TreeFilter::Include
@@ -872,7 +865,7 @@ mod tests {
             .root()
             .descendants()
             .tree_filter(|w| {
-                if w.widget_id() == WidgetId::named("c-1") {
+                if w.id() == WidgetId::named("c-1") {
                     TreeFilter::SkipDescendants
                 } else {
                     TreeFilter::Include
@@ -899,7 +892,7 @@ mod tests {
             .descendants()
             .tree_rev()
             .tree_filter(|w| {
-                if w.widget_id() == WidgetId::named("c-1") {
+                if w.id() == WidgetId::named("c-1") {
                     TreeFilter::SkipDescendants
                 } else {
                     TreeFilter::Include
@@ -927,7 +920,7 @@ mod tests {
         let result: Vec<_> = item.self_and_next_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
             .descendants()
-            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
+            .skip_while(|w| w.id() != WidgetId::named("c-1-1"))
             .map(|w| w.test_name())
             .collect();
 
@@ -962,7 +955,7 @@ mod tests {
         let result: Vec<_> = item.self_and_next_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
             .descendants()
-            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
+            .skip_while(|w| w.id() != WidgetId::named("c-1-1"))
             .map(|w| w.test_name())
             .collect();
 
@@ -980,7 +973,7 @@ mod tests {
         let expected: Vec<_> = root
             .descendants()
             .tree_rev()
-            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
+            .skip_while(|w| w.id() != WidgetId::named("c-1-1"))
             .map(|w| w.test_name())
             .collect();
 
@@ -997,7 +990,7 @@ mod tests {
         let result: Vec<_> = item.next_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
             .descendants()
-            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1-0"))
+            .skip_while(|w| w.id() != WidgetId::named("c-1-1-0"))
             .skip(1)
             .map(|w| w.test_name())
             .collect();
@@ -1016,7 +1009,7 @@ mod tests {
         let expected: Vec<_> = root
             .descendants()
             .tree_rev()
-            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1-0"))
+            .skip_while(|w| w.id() != WidgetId::named("c-1-1-0"))
             .skip(1)
             .map(|w| w.test_name())
             .collect();

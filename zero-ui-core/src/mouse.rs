@@ -1779,7 +1779,7 @@ impl CaptureInfo {
                 let tree = WINDOW.widget_tree();
                 if let Some(wgt) = tree.get(WIDGET.id()) {
                     for wgt in wgt.self_and_ancestors() {
-                        if wgt.widget_id() == self.target.widget_id() {
+                        if wgt.id() == self.target.widget_id() {
                             return true;
                         }
                     }

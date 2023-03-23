@@ -105,7 +105,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
                 self.child.deinit();
                 self.generate_child();
                 self.child.init();
-                WIDGET.info().layout().render();
+                WIDGET.update_info().layout().render();
             } else {
                 self.child.update(updates);
             }

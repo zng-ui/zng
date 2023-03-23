@@ -670,7 +670,7 @@ impl WidgetBoundsInfo {
     }
 
     /// Returns `true` if a hit-test clip that affects the `child` removes the `window_point` hit on the child.
-    pub fn hit_test_clip_child(&self, child: WidgetInfo, window_point: PxPoint) -> bool {
+    pub fn hit_test_clip_child(&self, child: &WidgetInfo, window_point: PxPoint) -> bool {
         let m = self.0.lock();
         if m.hit_clips.is_hit_testable() {
             m.hit_clips
@@ -844,7 +844,7 @@ impl WidgetBorderInfo {
 }
 
 struct WidgetInfoData {
-    widget_id: WidgetId,
+    id: WidgetId,
     bounds_info: WidgetBoundsInfo,
     border_info: WidgetBorderInfo,
     meta: Arc<OwnedStateMap<WidgetInfoMeta>>,
@@ -855,7 +855,7 @@ struct WidgetInfoData {
 impl Clone for WidgetInfoData {
     fn clone(&self) -> Self {
         Self {
-            widget_id: self.widget_id,
+            id: self.id,
             bounds_info: self.bounds_info.clone(),
             border_info: self.border_info.clone(),
             meta: self.meta.clone(),
@@ -870,9 +870,7 @@ impl Clone for WidgetInfoData {
 }
 impl fmt::Debug for WidgetInfoData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("WidgetInfoData")
-            .field("widget_id", &self.widget_id)
-            .finish_non_exhaustive()
+        f.debug_struct("WidgetInfoData").field("id", &self.id).finish_non_exhaustive()
     }
 }
 #[derive(Clone)]
@@ -881,23 +879,23 @@ struct WidgetInfoCache {
 }
 
 /// Reference to a widget info in a [`WidgetInfoTree`].
-#[derive(Clone, Copy)]
-pub struct WidgetInfo<'a> {
-    tree: &'a WidgetInfoTree,
+#[derive(Clone)]
+pub struct WidgetInfo {
+    tree: WidgetInfoTree,
     node_id: tree::NodeId,
 }
-impl<'a> PartialEq for WidgetInfo<'a> {
+impl PartialEq for WidgetInfo {
     fn eq(&self, other: &Self) -> bool {
         self.node_id == other.node_id && self.tree == other.tree
     }
 }
-impl<'a> Eq for WidgetInfo<'a> {}
-impl<'a> std::hash::Hash for WidgetInfo<'a> {
+impl Eq for WidgetInfo {}
+impl std::hash::Hash for WidgetInfo {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         std::hash::Hash::hash(&self.node_id, state)
     }
 }
-impl<'a> std::fmt::Debug for WidgetInfo<'a> {
+impl std::fmt::Debug for WidgetInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WidgetInfo")
             .field("[path]", &self.path().to_string())
@@ -906,29 +904,29 @@ impl<'a> std::fmt::Debug for WidgetInfo<'a> {
     }
 }
 
-impl<'a> WidgetInfo<'a> {
-    fn new(tree: &'a WidgetInfoTree, node_id: tree::NodeId) -> Self {
+impl WidgetInfo {
+    fn new(tree: WidgetInfoTree, node_id: tree::NodeId) -> Self {
         Self { tree, node_id }
     }
 
-    fn node(&self) -> tree::NodeRef<'a, WidgetInfoData> {
+    fn node(&self) -> tree::NodeRef<WidgetInfoData> {
         self.tree.0.tree.index(self.node_id)
     }
 
-    fn info(&self) -> &'a WidgetInfoData {
+    fn info(&self) -> &WidgetInfoData {
         self.node().value()
     }
 
     /// Widget id.
-    pub fn widget_id(self) -> WidgetId {
-        self.info().widget_id
+    pub fn id(&self) -> WidgetId {
+        self.info().id
     }
 
     /// Full path to this widget.
-    pub fn path(self) -> WidgetPath {
-        let mut path: Vec<_> = self.ancestors().map(|a| a.widget_id()).collect();
+    pub fn path(&self) -> WidgetPath {
+        let mut path: Vec<_> = self.ancestors().map(|a| a.id()).collect();
         path.reverse();
-        path.push(self.widget_id());
+        path.push(self.id());
         path.shrink_to_fit();
 
         WidgetPath::new(self.tree.0.window_id, path.into())
@@ -937,7 +935,7 @@ impl<'a> WidgetInfo<'a> {
     /// Path details to help finding the widget during debug.
     ///
     /// If the inspector metadata is present the widget mod ident is included.
-    pub fn trace_path(self) -> Text {
+    pub fn trace_path(&self) -> Text {
         let mut ws: Vec<_> = self.self_and_ancestors().collect();
         ws.reverse();
 
@@ -958,7 +956,7 @@ impl<'a> WidgetInfo<'a> {
                         mod_path
                     };
 
-                    let id = w.widget_id();
+                    let id = w.id();
                     let name = id.name();
                     if !name.is_empty() {
                         let _ = write!(&mut s, "/{mod_ident}!({name:?})");
@@ -966,7 +964,7 @@ impl<'a> WidgetInfo<'a> {
                         let _ = write!(&mut s, "/{mod_ident}!({})", id.sequential());
                     }
                 } else {
-                    let _ = write!(&mut s, "/{}", w.widget_id());
+                    let _ = write!(&mut s, "/{}", w.id());
                 }
             }
 
@@ -981,8 +979,8 @@ impl<'a> WidgetInfo<'a> {
 
     /// Detailed id text.
     ///
-    /// If  the inspector metadata is present the widget mod ident is included.
-    pub fn trace_id(self) -> Text {
+    /// If the inspector metadata is present the widget mod ident is included.
+    pub fn trace_id(&self) -> Text {
         #[cfg(inspector)]
         {
             use crate::inspector::*;
@@ -994,7 +992,7 @@ impl<'a> WidgetInfo<'a> {
                     mod_path
                 };
 
-                let id = self.widget_id();
+                let id = self.id();
                 let name = id.name();
                 if !name.is_empty() {
                     return crate::formatx!("{mod_ident}!({name:?})");
@@ -1003,13 +1001,13 @@ impl<'a> WidgetInfo<'a> {
                 }
             }
         }
-        crate::formatx!("{}", self.widget_id())
+        crate::formatx!("{}", self.id())
     }
 
     /// Full path to this widget with [`interactivity`] values.
     ///
     /// [`interactivity`]: Self::interactivity
-    pub fn interaction_path(self) -> InteractionPath {
+    pub fn interaction_path(&self) -> InteractionPath {
         let mut path = vec![];
 
         let mut blocked = None;
@@ -1024,7 +1022,7 @@ impl<'a> WidgetInfo<'a> {
                 disabled = Some(path.len());
             }
 
-            path.push(w.widget_id());
+            path.push(w.id());
         }
         path.reverse();
         path.shrink_to_fit();
@@ -1048,12 +1046,12 @@ impl<'a> WidgetInfo<'a> {
     /// If `old_path` does not point to the same widget id as `self`.
     ///
     /// [`path`]: Self::path
-    pub fn new_path(self, old_path: &WidgetPath) -> Option<WidgetPath> {
-        assert_eq!(old_path.widget_id(), self.widget_id());
+    pub fn new_path(&self, old_path: &WidgetPath) -> Option<WidgetPath> {
+        assert_eq!(old_path.widget_id(), self.id());
         if self
             .ancestors()
             .zip(old_path.ancestors().iter().rev())
-            .any(|(ancestor, id)| ancestor.widget_id() != *id)
+            .any(|(ancestor, id)| ancestor.id() != *id)
         {
             Some(self.path())
         } else {
@@ -1070,14 +1068,14 @@ impl<'a> WidgetInfo<'a> {
     /// If `old_path` does not point to the same widget id as `self`.
     ///
     /// [`interaction_path`]: Self::interaction_path
-    pub fn new_interaction_path(self, old_path: &InteractionPath) -> Option<InteractionPath> {
-        assert_eq!(old_path.widget_id(), self.widget_id());
+    pub fn new_interaction_path(&self, old_path: &InteractionPath) -> Option<InteractionPath> {
+        assert_eq!(old_path.widget_id(), self.id());
 
         if self.interactivity() != old_path.interactivity()
             || self
                 .ancestors()
                 .zip(old_path.zip())
-                .any(|(anc, (id, int))| anc.widget_id() != id || anc.interactivity() != int)
+                .any(|(anc, (id, int))| anc.id() != id || anc.interactivity() != int)
         {
             Some(self.interaction_path())
         } else {
@@ -1093,7 +1091,7 @@ impl<'a> WidgetInfo<'a> {
     /// This value is updated every [`render`] without causing a tree rebuild.
     ///
     /// [`render`]: crate::widget_instance::UiNode::render
-    pub fn z_index(self) -> Option<(ZIndex, ZIndex)> {
+    pub fn z_index(&self) -> Option<(ZIndex, ZIndex)> {
         self.info().bounds_info.rendered().map(|i| (i.back, i.front))
     }
 
@@ -1105,7 +1103,7 @@ impl<'a> WidgetInfo<'a> {
     /// [`Visible`]: Visibility::Visible
     /// [`Hidden`]: Visibility::Hidden
     /// [`Collapsed`]: Visibility::Collapsed
-    pub fn visibility(self) -> Visibility {
+    pub fn visibility(&self) -> Visibility {
         match self.info().bounds_info.rendered() {
             Some(vis) => {
                 if vis.visible {
@@ -1128,7 +1126,7 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// The interactivity of a widget is the combined result of all interactivity filters applied to it and its ancestors.
     /// If a parent is blocked this is blocked, same for disabled.
-    pub fn interactivity(self) -> Interactivity {
+    pub fn interactivity(&self) -> Interactivity {
         let cached = self.info().cache.lock().interactivity;
         if let Some(cache) = cached {
             cache
@@ -1156,62 +1154,62 @@ impl<'a> WidgetInfo<'a> {
     /// All the transforms introduced by this widget, starting from the outer info.
     ///
     /// This information is up-to-date, it is updated every layout and render without causing a tree rebuild.
-    pub fn bounds_info(self) -> WidgetBoundsInfo {
+    pub fn bounds_info(&self) -> WidgetBoundsInfo {
         self.info().bounds_info.clone()
     }
 
     /// Clone a reference to the widget border and corner radius information.
     ///
     /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
-    pub fn border_info(self) -> WidgetBorderInfo {
+    pub fn border_info(&self) -> WidgetBorderInfo {
         self.info().border_info.clone()
     }
 
     /// Size of the widget outer area, not transformed.
     ///
     /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
-    pub fn outer_size(self) -> PxSize {
+    pub fn outer_size(&self) -> PxSize {
         self.info().bounds_info.outer_size()
     }
 
     /// Size of the widget inner area, not transformed.
     ///
     /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
-    pub fn inner_size(self) -> PxSize {
+    pub fn inner_size(&self) -> PxSize {
         self.info().bounds_info.inner_size()
     }
 
     /// Size of the widget child area, not transformed.
     ///
     /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
-    pub fn inner_border_size(self) -> PxSize {
+    pub fn inner_border_size(&self) -> PxSize {
         let info = self.info();
         info.border_info.inner_size(&info.bounds_info)
     }
 
     /// Gets the baseline offset up from the inner bounds bottom line.
-    pub fn baseline(self) -> Px {
+    pub fn baseline(&self) -> Px {
         self.info().bounds_info.baseline()
     }
 
     /// Widget outer transform in window space.
     ///
     /// Returns an up-to-date transform, the transform is updated every render or render update without causing a tree rebuild.
-    pub fn outer_transform(self) -> PxTransform {
+    pub fn outer_transform(&self) -> PxTransform {
         self.info().bounds_info.outer_transform()
     }
 
     /// Widget inner transform in the window space.
     ///
     /// Returns an up-to-date transform, the transform is updated every render or render update without causing a tree rebuild.
-    pub fn inner_transform(self) -> PxTransform {
+    pub fn inner_transform(&self) -> PxTransform {
         self.info().bounds_info.inner_transform()
     }
 
     /// Widget outer rectangle in the window space.
     ///
     /// Returns an up-to-date rect, the bounds are updated every render or render update without causing a tree rebuild.
-    pub fn outer_bounds(self) -> PxRect {
+    pub fn outer_bounds(&self) -> PxRect {
         let info = self.info();
         info.bounds_info.outer_bounds()
     }
@@ -1219,75 +1217,75 @@ impl<'a> WidgetInfo<'a> {
     /// Widget inner rectangle in the window space.
     ///
     /// Returns an up-to-date rect, the bounds are updated every render or render update without causing a tree rebuild.
-    pub fn inner_bounds(self) -> PxRect {
+    pub fn inner_bounds(&self) -> PxRect {
         let info = self.info();
         info.bounds_info.inner_bounds()
     }
 
     /// Widget inner bounds center in the window space.
-    pub fn center(self) -> PxPoint {
+    pub fn center(&self) -> PxPoint {
         self.inner_bounds().center()
     }
 
     /// Custom metadata associated with the widget during info build.
-    pub fn meta(self) -> StateMapRef<'a, WidgetInfoMeta> {
+    pub fn meta(&self) -> StateMapRef<WidgetInfoMeta> {
         self.info().meta.borrow()
     }
 
     /// Reference the [`WidgetInfoTree`] that owns `self`.
-    pub fn tree(self) -> &'a WidgetInfoTree {
-        self.tree
+    pub fn tree(&self) -> &WidgetInfoTree {
+        &self.tree
     }
 
     /// Reference to the root widget.
-    pub fn root(self) -> Self {
+    pub fn root(&self) -> Self {
         self.tree.root()
     }
 
     /// Reference to the widget that contains this widget.
     ///
     /// Is `None` only for [`root`](WidgetInfoTree::root).
-    pub fn parent(self) -> Option<Self> {
+    pub fn parent(&self) -> Option<Self> {
         self.node().parent().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the previous widget within the same parent.
-    pub fn prev_sibling(self) -> Option<Self> {
+    pub fn prev_sibling(&self) -> Option<Self> {
         self.node().prev_sibling().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the next widget within the same parent.
-    pub fn next_sibling(self) -> Option<Self> {
+    pub fn next_sibling(&self) -> Option<Self> {
         self.node().next_sibling().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the first widget within this widget.
-    pub fn first_child(self) -> Option<Self> {
+    pub fn first_child(&self) -> Option<Self> {
         self.node().first_child().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the last widget within this widget.
-    pub fn last_child(self) -> Option<Self> {
+    pub fn last_child(&self) -> Option<Self> {
         self.node().last_child().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// If the parent widget has multiple children.
-    pub fn has_siblings(self) -> bool {
+    pub fn has_siblings(&self) -> bool {
         self.node().has_siblings()
     }
 
     /// If the widget has at least one child.
-    pub fn has_children(self) -> bool {
+    pub fn has_children(&self) -> bool {
         self.node().has_children()
     }
 
     /// All parent children except this widget.
-    pub fn siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn siblings(&self) -> impl Iterator<Item = WidgetInfo> {
         self.prev_siblings().chain(self.next_siblings())
     }
 
     /// Iterator over the direct descendants of the widget.
-    pub fn children(self) -> iter::Children<'a> {
+    pub fn children(&self) -> iter::Children {
         let mut r = self.self_and_children();
         r.next();
         r.next_back();
@@ -1297,17 +1295,17 @@ impl<'a> WidgetInfo<'a> {
     /// Count of [`children`].
     ///
     /// [`children`]: Self::children
-    pub fn children_count(self) -> usize {
+    pub fn children_count(&self) -> usize {
         self.node().children_count()
     }
 
     /// Iterator over the widget and the direct descendants of the widget.
-    pub fn self_and_children(self) -> iter::Children<'a> {
-        iter::Children::new(self)
+    pub fn self_and_children(&self) -> iter::Children {
+        iter::Children::new(self.clone())
     }
 
     /// Iterator over all widgets contained by this widget.
-    pub fn descendants(self) -> iter::TreeIter<'a> {
+    pub fn descendants(&self) -> iter::TreeIter {
         let mut d = self.self_and_descendants();
         d.next();
         d
@@ -1316,94 +1314,94 @@ impl<'a> WidgetInfo<'a> {
     /// Total number of [`descendants`].
     ///
     /// [`descendants`]: Self::descendants
-    pub fn descendants_len(self) -> usize {
+    pub fn descendants_len(&self) -> usize {
         self.node().descendants_range().len()
     }
 
     /// Iterator over the widget and all widgets contained by it.
-    pub fn self_and_descendants(self) -> iter::TreeIter<'a> {
-        iter::TreeIter::self_and_descendants(self)
+    pub fn self_and_descendants(&self) -> iter::TreeIter {
+        iter::TreeIter::self_and_descendants(self.clone())
     }
 
     /// Iterator over parent -> grandparent -> .. -> root.
-    pub fn ancestors(self) -> iter::Ancestors<'a> {
+    pub fn ancestors(&self) -> iter::Ancestors {
         let mut r = self.self_and_ancestors();
         r.next();
         r
     }
 
     /// Create an object that can check if widgets are descendant of `self` in O(1) time.
-    pub fn descendants_range(self) -> WidgetDescendantsRange<'a> {
+    pub fn descendants_range(&self) -> WidgetDescendantsRange {
         WidgetDescendantsRange {
-            _tree: PhantomData,
+            tree: self.tree.clone(),
             range: self.node().descendants_range(),
         }
     }
 
     /// If `self` is an ancestor of `maybe_descendant`.
-    pub fn is_ancestor(self, maybe_descendant: WidgetInfo<'a>) -> bool {
+    pub fn is_ancestor(&self, maybe_descendant: &WidgetInfo) -> bool {
         self.descendants_range().contains(maybe_descendant)
     }
 
     /// If `self` is inside `maybe_ancestor`.
-    pub fn is_descendant(self, maybe_ancestor: WidgetInfo<'a>) -> bool {
+    pub fn is_descendant(&self, maybe_ancestor: &WidgetInfo) -> bool {
         maybe_ancestor.descendants_range().contains(self)
     }
 
     /// Iterator over self -> parent -> grandparent -> .. -> root.
-    pub fn self_and_ancestors(self) -> iter::Ancestors<'a> {
+    pub fn self_and_ancestors(&self) -> iter::Ancestors {
         iter::Ancestors::new(self)
     }
 
     /// Iterator over all previous widgets within the same parent.
-    pub fn prev_siblings(self) -> iter::PrevSiblings<'a> {
+    pub fn prev_siblings(&self) -> iter::PrevSiblings {
         let mut r = self.self_and_prev_siblings();
         r.next();
         r
     }
 
     /// Iterator over self and all previous widgets within the same parent.
-    pub fn self_and_prev_siblings(self) -> iter::PrevSiblings<'a> {
-        iter::PrevSiblings::new(self)
+    pub fn self_and_prev_siblings(&self) -> iter::PrevSiblings {
+        iter::PrevSiblings::new(self.clone())
     }
 
     /// Iterator over all next widgets within the same parent.
-    pub fn next_siblings(self) -> iter::NextSiblings<'a> {
+    pub fn next_siblings(&self) -> iter::NextSiblings {
         let mut r = self.self_and_next_siblings();
         r.next();
         r
     }
 
     /// Iterator over self and all next widgets within the same parent.
-    pub fn self_and_next_siblings(self) -> iter::NextSiblings<'a> {
-        iter::NextSiblings::new(self)
+    pub fn self_and_next_siblings(&self) -> iter::NextSiblings {
+        iter::NextSiblings::new(self.clone())
     }
 
     /// Iterator over all previous widgets within the same `ancestor`, including descendants of siblings.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
-    pub fn prev_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::RevTreeIter<'a> {
+    pub fn prev_siblings_in(&self, ancestor: &WidgetInfo) -> iter::RevTreeIter {
         iter::TreeIter::prev_siblings_in(self, ancestor)
     }
 
     /// Iterator over self, descendants and all previous widgets within the same `ancestor`.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
-    pub fn self_and_prev_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::RevTreeIter<'a> {
-        iter::TreeIter::self_and_prev_siblings_in(self, ancestor)
+    pub fn self_and_prev_siblings_in(&self, ancestor: &WidgetInfo) -> iter::RevTreeIter {
+        iter::TreeIter::self_and_prev_siblings_in(self.clone(), ancestor.clone())
     }
 
     /// Iterator over all next widgets within the same `ancestor`, including descendants of siblings.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
-    pub fn next_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::TreeIter<'a> {
+    pub fn next_siblings_in(&self, ancestor: &WidgetInfo) -> iter::TreeIter {
         iter::TreeIter::next_siblings_in(self, ancestor)
     }
 
     /// Iterator over self, descendants and all next widgets within the same `ancestor`.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
-    pub fn self_and_next_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::TreeIter<'a> {
+    pub fn self_and_next_siblings_in(&self, ancestor: &WidgetInfo) -> iter::TreeIter {
         iter::TreeIter::self_and_next_siblings_in(self, ancestor)
     }
 
@@ -1412,7 +1410,7 @@ impl<'a> WidgetInfo<'a> {
     /// Returns `None` if the `origin` is the center.
     ///
     /// [`center`]: Self::center
-    pub fn orientation_from(self, origin: PxPoint) -> Option<Orientation2D> {
+    pub fn orientation_from(&self, origin: PxPoint) -> Option<Orientation2D> {
         let o = self.center();
         [
             Orientation2D::Above,
@@ -1426,19 +1424,19 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Value that indicates the distance between this widget center and `origin`.
-    pub fn distance_key(self, origin: PxPoint) -> DistanceKey {
+    pub fn distance_key(&self, origin: PxPoint) -> DistanceKey {
         DistanceKey::from_points(origin, self.center())
     }
 
     /// Count of ancestors.
-    pub fn depth(self) -> usize {
+    pub fn depth(&self) -> usize {
         self.ancestors().count()
     }
 
     /// First ancestor of `self` and `other`.
     ///
     /// Returns `None` if `other` is not from the same tree.
-    pub fn shared_ancestor(self, other: Self) -> Option<WidgetInfo<'a>> {
+    pub fn shared_ancestor(&self, other: &Self) -> Option<WidgetInfo> {
         if self.tree == other.tree {
             let a = self.path();
             let b = other.path();
@@ -1454,7 +1452,7 @@ impl<'a> WidgetInfo<'a> {
     /// A hit happens if the point is inside [`inner_bounds`] and at least one hit-test shape rendered for the widget contains the point.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
-    fn hit_test_z(self, point: PxPoint) -> Option<ZIndex> {
+    fn hit_test_z(&self, point: PxPoint) -> Option<ZIndex> {
         let bounds = &self.info().bounds_info;
         if bounds.inner_bounds().contains(point) {
             let z = match bounds.hit_test_z(point) {
@@ -1474,7 +1472,7 @@ impl<'a> WidgetInfo<'a> {
                     }
 
                     parent = p.parent();
-                    child = p;
+                    child = &p;
                 }
             }
 
@@ -1485,14 +1483,14 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Returns `true` if this widget's inner bounds are fully contained by the parent inner bounds.
-    pub fn is_in_bounds(self) -> bool {
+    pub fn is_in_bounds(&self) -> bool {
         self.info().bounds_info.is_in_bounds()
     }
 
     /// Iterator over all descendants with inner bounds not fully contained by their parent inner bounds.
-    pub fn out_of_bounds(self) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn out_of_bounds(&self) -> impl Iterator<Item = WidgetInfo> {
         let range = self.descendants_range();
-        self.tree.out_of_bounds().filter(move |w| range.contains(*w))
+        self.tree.out_of_bounds().filter(move |w| range.contains(w))
     }
 
     /// Iterator over self and descendants, first all in-bounds descendants, then all out-of-bounds.
@@ -1500,7 +1498,7 @@ impl<'a> WidgetInfo<'a> {
     /// If the `filter` returns `false` the widget and all it's in-bounds descendants are skipped, otherwise they are yielded. After
     /// all in-bounds descendants reachable from `self` and filtered the iterator changes to each out-of-bounds descendants and their
     /// in-bounds descendants.
-    pub fn spatial_iter(self, filter: impl Fn(WidgetInfo<'a>) -> bool + Clone + 'a) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn spatial_iter(&self, filter: impl Fn(WidgetInfo) -> bool + Clone) -> impl Iterator<Item = WidgetInfo> {
         self.self_and_descendants()
             .tree_filter(clone_move!(filter, |w| {
                 if w.is_in_bounds() && filter(w) {
@@ -1510,9 +1508,9 @@ impl<'a> WidgetInfo<'a> {
                 }
             }))
             .chain(self.out_of_bounds().flat_map(clone_move!(filter, |w| {
-                let self_id = w.widget_id();
+                let self_id = w.id();
                 w.self_and_descendants().tree_filter(clone_move!(filter, |w| {
-                    if (w.is_in_bounds() || w.widget_id() == self_id) && filter(w) {
+                    if (w.is_in_bounds() || w.id() == self_id) && filter(w) {
                         TreeFilter::Include
                     } else {
                         TreeFilter::SkipAll
@@ -1522,37 +1520,37 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Iterator over self and all descendants with inner bounds that contain the `point`.
-    pub fn inner_contains(self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn inner_contains(&self, point: PxPoint) -> impl Iterator<Item = WidgetInfo> {
         self.spatial_iter(move |w| w.inner_bounds().contains(point))
     }
 
     /// Spatial iterator over self and descendants with inner bounds that intersects the `rect`.
-    pub fn inner_intersects(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn inner_intersects(&self, rect: PxRect) -> impl Iterator<Item = WidgetInfo> {
         let rect = rect.to_box2d();
         self.spatial_iter(move |w| w.inner_bounds().to_box2d().intersects(&rect))
     }
 
     /// Spatial iterator over self and descendants with inner bounds that fully envelops the `rect`.
-    pub fn inner_contains_rect(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn inner_contains_rect(&self, rect: PxRect) -> impl Iterator<Item = WidgetInfo> {
         let rect = rect.to_box2d();
         self.spatial_iter(move |w| w.inner_bounds().to_box2d().contains_box(&rect))
     }
 
     /// Spatial iterator over self and descendants with inner bounds that are fully inside the `rect`.
-    pub fn inner_contained(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn inner_contained(&self, rect: PxRect) -> impl Iterator<Item = WidgetInfo> {
         let rect = rect.to_box2d();
         self.spatial_iter(move |w| rect.contains_box(&w.inner_bounds().to_box2d()))
     }
 
     /// Spatial iterator over self and descendants with center point inside the `area`.
-    pub fn center_contained(&self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn center_contained(&self, area: PxRect) -> impl Iterator<Item = WidgetInfo> {
         let area = area.to_box2d();
         self.spatial_iter(move |w| w.inner_bounds().to_box2d().intersects(&area))
             .filter(move |w| area.contains(w.center()))
     }
 
     /// Spatial iterator over self and descendants with center point within the `max_radius` of the `origin`.
-    pub fn center_in_distance(&self, origin: PxPoint, max_radius: Px) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
+    pub fn center_in_distance(&self, origin: PxPoint, max_radius: Px) -> impl Iterator<Item = WidgetInfo> + '_ {
         let area = PxRect::new(origin, PxSize::splat(max_radius))
             .inflate(max_radius, max_radius)
             .to_box2d();
@@ -1564,14 +1562,14 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Gets all widgets of self and descendants hit by a `point`, sorted by z-index of the hit, front to back.
-    pub fn hit_test(self, point: PxPoint) -> HitTestInfo {
+    pub fn hit_test(&self, point: PxPoint) -> HitTestInfo {
         let _span = tracing::trace_span!("hit_test").entered();
 
         let mut hits: Vec<_> = self
             .inner_contains(point)
             .filter_map(|w| {
                 w.hit_test_z(point).map(|z| HitInfo {
-                    widget_id: w.widget_id(),
+                    widget_id: w.id(),
                     z_index: z,
                 })
             })
@@ -1592,24 +1590,24 @@ impl<'a> WidgetInfo<'a> {
     /// This method is faster than using sorting the result of [`center_in_distance`], but is slower if any point in distance is acceptable.
     ///
     /// [`center_in_distance`]: Self::center_in_distance
-    pub fn nearest(self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo<'a>> {
+    pub fn nearest(&self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo> {
         self.nearest_filtered(origin, max_radius, |_| true)
     }
 
     /// Find the widget, self or descendant, with center point nearest of `origin` within the `max_radius` and approved by the `filter` closure.
-    pub fn nearest_filtered(self, origin: PxPoint, max_radius: Px, filter: impl FnMut(WidgetInfo<'a>) -> bool) -> Option<WidgetInfo<'a>> {
+    pub fn nearest_filtered(&self, origin: PxPoint, max_radius: Px, filter: impl FnMut(WidgetInfo) -> bool) -> Option<WidgetInfo> {
         self.nearest_bounded_filtered(origin, max_radius, self.tree.spatial_bounds(), filter)
     }
 
     /// Find the widget, self or descendant, with center point nearest of `origin` within the `max_radius` and inside `bounds`;
     /// and approved by the `filter` closure.
     pub fn nearest_bounded_filtered(
-        self,
+        &self,
         origin: PxPoint,
         max_radius: Px,
         bounds: PxRect,
-        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
-    ) -> Option<WidgetInfo<'a>> {
+        mut filter: impl FnMut(WidgetInfo) -> bool,
+    ) -> Option<WidgetInfo> {
         // search quadrants of `128` -> `256` -> .. until one quadrant finds at least a widget centered in it,
         // the nearest widget centered in the smallest quadrant is selected.
         let max_quad = self.tree.spatial_bounds().intersection(&bounds)?;
@@ -1671,7 +1669,7 @@ impl<'a> WidgetInfo<'a> {
     /// on the distance to visit all widgets in the direction.
     ///
     /// [`spatial_bounds`]: WidgetInfoTree::spatial_bounds
-    pub fn oriented(self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn oriented(&self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo> {
         let distance_bounded = max_distance != Px::MAX;
         let distance_key = if distance_bounded {
             DistanceKey::from_distance(max_distance)
@@ -1699,7 +1697,7 @@ impl<'a> WidgetInfo<'a> {
     /// This method is faster than using sorting the result of [`oriented`], but is slower if any point in distance and orientation is acceptable.
     ///
     /// [`oriented`]: Self::oriented
-    pub fn nearest_oriented(self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> Option<WidgetInfo<'a>> {
+    pub fn nearest_oriented(&self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> Option<WidgetInfo> {
         self.nearest_oriented_filtered(origin, max_distance, orientation, |_| true)
     }
 
@@ -1709,12 +1707,12 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// [`oriented`]: Self::oriented
     pub fn nearest_oriented_filtered(
-        self,
+        &self,
         origin: PxPoint,
         max_distance: Px,
         orientation: Orientation2D,
-        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
-    ) -> Option<WidgetInfo<'a>> {
+        mut filter: impl FnMut(WidgetInfo) -> bool,
+    ) -> Option<WidgetInfo> {
         let mut dist = DistanceKey::from_distance(max_distance + Px(1));
         let mut nearest = None;
         let mut last_quad = euclid::Box2D::zero();
@@ -1795,13 +1793,13 @@ impl UsedWidgetInfoBuilder {
 ///
 /// See [WidgetInfoBuilder::push_interactivity_filter].
 #[derive(Debug)]
-pub struct InteractivityFilterArgs<'a> {
+pub struct InteractivityFilterArgs {
     /// Widget being filtered.
-    pub info: WidgetInfo<'a>,
+    pub info: WidgetInfo,
 }
-impl<'a> InteractivityFilterArgs<'a> {
+impl InteractivityFilterArgs {
     /// New from `info`.
-    pub fn new(info: WidgetInfo<'a>) -> Self {
+    pub fn new(info: WidgetInfo) -> Self {
         Self { info }
     }
 }
@@ -1946,23 +1944,14 @@ impl_from_and_into_var! {
 
 /// Represents the descendants of a widget, allows checking if widgets are descendant with O(1) time.
 #[derive(Clone, PartialEq, Eq)]
-pub struct WidgetDescendantsRange<'a> {
-    _tree: PhantomData<&'a WidgetInfoTree>,
+pub struct WidgetDescendantsRange {
+    tree: WidgetInfoTree,
     range: std::ops::Range<usize>,
 }
-impl<'a> WidgetDescendantsRange<'a> {
+impl WidgetDescendantsRange {
     /// If the widget is a descendant.
-    pub fn contains(&self, wgt: WidgetInfo<'a>) -> bool {
-        self.range.contains(&wgt.node_id.get())
-    }
-}
-impl<'a> Default for WidgetDescendantsRange<'a> {
-    /// Empty range.
-    fn default() -> Self {
-        Self {
-            _tree: PhantomData,
-            range: 0..0,
-        }
+    pub fn contains(&self, wgt: &WidgetInfo) -> bool {
+        self.range.contains(&wgt.node_id.get()) && self.tree == wgt.tree
     }
 }
 

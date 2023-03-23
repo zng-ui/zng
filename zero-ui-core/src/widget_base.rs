@@ -282,7 +282,7 @@ pub mod nodes {
                     }
 
                     self.child.init();
-                    WIDGET.info().layout().render();
+                    WIDGET.update_info().layout().render();
 
                     #[cfg(debug_assertions)]
                     {
@@ -300,7 +300,7 @@ pub mod nodes {
                     }
 
                     self.child.deinit();
-                    WIDGET.info().layout().render();
+                    WIDGET.update_info().layout().render();
 
                     #[cfg(debug_assertions)]
                     {
@@ -546,7 +546,7 @@ pub mod nodes {
                 } else if let Some(id) = self.child.with_context(|| WIDGET.id()) {
                     // child is a widget.
                     info.push_interactivity_filter(move |args| {
-                        if args.info.widget_id() == id {
+                        if args.info.id() == id {
                             Interactivity::BLOCKED
                         } else {
                             Interactivity::ENABLED
@@ -561,7 +561,7 @@ pub mod nodes {
                         let id = WIDGET.id();
                         info.push_interactivity_filter(move |args| {
                             if let Some(parent) = args.info.parent() {
-                                if parent.widget_id() == id {
+                                if parent.id() == id {
                                     // check child range
                                     for (i, item) in parent.children().enumerate() {
                                         if item == args.info {
@@ -584,7 +584,7 @@ pub mod nodes {
 
             fn update(&mut self, updates: &mut WidgetUpdates) {
                 if self.interactive.is_new() {
-                    WIDGET.info();
+                    WIDGET.update_info();
                 }
                 self.child.update(updates);
             }
@@ -689,7 +689,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
         fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.enabled.is_new() {
-                WIDGET.info();
+                WIDGET.update_info();
             }
             self.child.update(updates);
         }
@@ -738,7 +738,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 
         fn update(&mut self, updates: &mut WidgetUpdates) {
             if self.interactive.is_new() {
-                WIDGET.info();
+                WIDGET.update_info();
             }
             self.child.update(updates);
         }
