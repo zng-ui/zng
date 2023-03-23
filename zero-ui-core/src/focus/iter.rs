@@ -1,8 +1,6 @@
 //! Focusable info tree iterators.
 //!
 
-use std::marker::PhantomData;
-
 use super::*;
 
 use crate::widget_info::{
@@ -11,20 +9,20 @@ use crate::widget_info::{
 };
 
 /// Filter-maps an iterator of [`WidgetInfo`] to [`WidgetFocusInfo`].
-pub trait IterFocusableExt<'a, I: Iterator<Item = WidgetInfo<'a>>> {
+pub trait IterFocusableExt<I: Iterator<Item = WidgetInfo>> {
     /// Returns an iterator of only the focusable widgets.
     ///
     /// See the [`FOCUS.focus_disabled_widgets`] and [`FOCUS.focus_hidden_widgets`] config for more on the parameter.
     ///
     /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
     /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
-    fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusuable<'a, I>;
+    fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusuable<I>;
 }
-impl<'a, I> IterFocusableExt<'a, I> for I
+impl<I> IterFocusableExt<I> for I
 where
-    I: Iterator<Item = WidgetInfo<'a>>,
+    I: Iterator<Item = WidgetInfo>,
 {
-    fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusuable<'a, I> {
+    fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusuable<I> {
         IterFocusuable {
             iter: self,
             mode: FocusMode::new(focus_disabled_widgets, focus_hidden_widgets),
@@ -35,32 +33,32 @@ where
 /// Filter a widget info iterator to only focusable items.
 ///
 /// Use [`IterFocusableExt::focusable`] to create.
-pub struct IterFocusuable<'a, I: Iterator<Item = WidgetInfo<'a>>> {
+pub struct IterFocusuable<I: Iterator<Item = WidgetInfo>> {
     iter: I,
     mode: FocusMode,
 }
-impl<'a, I> Iterator for IterFocusuable<'a, I>
+impl<I> Iterator for IterFocusuable<I>
 where
-    I: Iterator<Item = WidgetInfo<'a>>,
+    I: Iterator<Item = WidgetInfo>,
 {
-    type Item = WidgetFocusInfo<'a>;
+    type Item = WidgetFocusInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
         for next in self.iter.by_ref() {
-            if let Some(next) = next.as_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
+            if let Some(next) = next.into_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
                 return Some(next);
             }
         }
         None
     }
 }
-impl<'a, I> DoubleEndedIterator for IterFocusuable<'a, I>
+impl<I> DoubleEndedIterator for IterFocusuable<I>
 where
-    I: Iterator<Item = WidgetInfo<'a>> + DoubleEndedIterator,
+    I: Iterator<Item = WidgetInfo> + DoubleEndedIterator,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         while let Some(next) = self.iter.next_back() {
-            if let Some(next) = next.as_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
+            if let Some(next) = next.into_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
                 return Some(next);
             }
         }
@@ -75,24 +73,19 @@ where
 ///
 /// [`descendants`]: WidgetFocusInfo::descendants
 /// [`self_and_descendants`]: WidgetFocusInfo::self_and_descendants
-pub struct FocusTreeIter<'a, I>
+pub struct FocusTreeIter<I>
 where
-    I: TreeIterator<'a>,
+    I: TreeIterator,
 {
-    _lt: PhantomData<&'a WidgetInfoTree>,
     iter: I,
     mode: FocusMode,
 }
-impl<'a, I> FocusTreeIter<'a, I>
+impl<I> FocusTreeIter<I>
 where
-    I: TreeIterator<'a>,
+    I: TreeIterator,
 {
     pub(super) fn new(iter: I, mode: FocusMode) -> Self {
-        Self {
-            _lt: PhantomData,
-            iter,
-            mode,
-        }
+        Self { iter, mode }
     }
 
     /// Filter out entire branches of descendants at a time.
@@ -100,14 +93,17 @@ where
     /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
     ///
     /// [`TreeFilter`]: w_iter::TreeFilter
-    pub fn tree_filter<F>(self, mut filter: F) -> FocusTreeFilterIter<'a, I, impl FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter>
+    pub fn tree_filter<F>(self, mut filter: F) -> FocusTreeFilterIter<I, impl FnMut(&WidgetInfo) -> w_iter::TreeFilter>
     where
-        F: FnMut(WidgetFocusInfo<'a>) -> w_iter::TreeFilter,
+        F: FnMut(&WidgetFocusInfo) -> w_iter::TreeFilter,
     {
         FocusTreeFilterIter {
             iter: self.iter.tree_filter(move |w| {
-                if let Some(f) = w.as_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
-                    filter(f)
+                if let Some(f) = w
+                    .clone()
+                    .into_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN))
+                {
+                    filter(&f)
                 } else {
                     w_iter::TreeFilter::Skip
                 }
@@ -121,9 +117,9 @@ where
     /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
     ///
     /// [`TreeFilter`]: w_iter::TreeFilter
-    pub fn tree_find<F>(self, filter: F) -> Option<WidgetFocusInfo<'a>>
+    pub fn tree_find<F>(self, filter: F) -> Option<WidgetFocusInfo>
     where
-        F: FnMut(WidgetFocusInfo<'a>) -> w_iter::TreeFilter,
+        F: FnMut(&WidgetFocusInfo) -> w_iter::TreeFilter,
     {
         #[allow(clippy::filter_next)]
         self.tree_filter(filter).next()
@@ -136,27 +132,27 @@ where
     /// [`TreeFilter`]: w_iter::TreeFilter
     pub fn tree_any<F>(self, filter: F) -> bool
     where
-        F: FnMut(WidgetFocusInfo<'a>) -> w_iter::TreeFilter,
+        F: FnMut(&WidgetFocusInfo) -> w_iter::TreeFilter,
     {
         self.tree_find(filter).is_some()
     }
 }
-impl<'a> FocusTreeIter<'a, w_iter::TreeIter<'a>> {
+impl FocusTreeIter<w_iter::TreeIter> {
     /// Creates a reverse tree iterator.
-    pub fn tree_rev(self) -> FocusTreeIter<'a, w_iter::RevTreeIter<'a>> {
+    pub fn tree_rev(self) -> FocusTreeIter<w_iter::RevTreeIter> {
         FocusTreeIter::new(self.iter.tree_rev(), self.mode)
     }
 }
 
-impl<'a, I> Iterator for FocusTreeIter<'a, I>
+impl<I> Iterator for FocusTreeIter<I>
 where
-    I: TreeIterator<'a>,
+    I: TreeIterator,
 {
-    type Item = WidgetFocusInfo<'a>;
+    type Item = WidgetFocusInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
         for next in self.iter.by_ref() {
-            if let Some(next) = next.as_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
+            if let Some(next) = next.into_focusable(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)) {
                 return Some(next);
             }
         }
@@ -167,24 +163,24 @@ where
 /// An iterator that filters a focusable widget tree.
 ///
 /// This `struct` is created by the [`FocusTreeIter::tree_filter`] method. See its documentation for more.
-pub struct FocusTreeFilterIter<'a, I, F>
+pub struct FocusTreeFilterIter<I, F>
 where
-    I: TreeIterator<'a>,
-    F: FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter,
+    I: TreeIterator,
+    F: FnMut(&WidgetInfo) -> w_iter::TreeFilter,
 {
-    iter: w_iter::TreeFilterIter<'a, I, F>,
+    iter: w_iter::TreeFilterIter<I, F>,
     mode: FocusMode,
 }
-impl<'a, I, F> Iterator for FocusTreeFilterIter<'a, I, F>
+impl<I, F> Iterator for FocusTreeFilterIter<I, F>
 where
-    F: FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter,
-    I: TreeIterator<'a>,
+    F: FnMut(&WidgetInfo) -> w_iter::TreeFilter,
+    I: TreeIterator,
 {
-    type Item = WidgetFocusInfo<'a>;
+    type Item = WidgetFocusInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter
             .next()
-            .map(|w| w.as_focus_info(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)))
+            .map(|w| w.into_focus_info(self.mode.contains(FocusMode::DISABLED), self.mode.contains(FocusMode::HIDDEN)))
     }
 }

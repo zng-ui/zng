@@ -1463,10 +1463,10 @@ impl IntoVar<Option<ClickMode>> for ClickMode {
 /// Mouse config methods.
 pub trait WidgetInfoMouseExt {
     /// Gets the click mode of the widget.
-    fn click_mode(self) -> ClickMode;
+    fn click_mode(&self) -> ClickMode;
 }
-impl<'a> WidgetInfoMouseExt for WidgetInfo<'a> {
-    fn click_mode(self) -> ClickMode {
+impl WidgetInfoMouseExt for WidgetInfo {
+    fn click_mode(&self) -> ClickMode {
         for w in self.self_and_ancestors() {
             if let Some(m) = w.meta().get_clone(&CLICK_MODE_ID).flatten() {
                 return m;

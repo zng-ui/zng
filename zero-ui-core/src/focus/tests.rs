@@ -63,16 +63,16 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
 }
 
 trait WidgetFocusInfoExt {
-    fn test_name(self) -> &'static str;
+    fn test_name(&self) -> &'static str;
 
-    fn actual_enabled_nav(self) -> FocusNavAction;
+    fn actual_enabled_nav(&self) -> FocusNavAction;
 }
-impl<'a> WidgetFocusInfoExt for WidgetFocusInfo<'a> {
-    fn test_name(self) -> &'static str {
-        self.info.id().name().as_static_str().expect("use with `push_test_widget` only")
+impl WidgetFocusInfoExt for WidgetFocusInfo {
+    fn test_name(&self) -> &'static str {
+        self.info().id().name().as_static_str().expect("use with `push_test_widget` only")
     }
 
-    fn actual_enabled_nav(self) -> FocusNavAction {
+    fn actual_enabled_nav(&self) -> FocusNavAction {
         let mut nav = FocusNavAction::all();
 
         nav.set(FocusNavAction::EXIT, self.parent().is_some() || self.is_alt_scope());

@@ -946,7 +946,7 @@ impl FocusService {
                 let info = WINDOWS.widget_tree(focused.path.window_id()).unwrap();
                 if let Some(widget) = info
                     .get(focused.path.widget_id())
-                    .map(|w| w.as_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
+                    .map(|w| w.into_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
                 {
                     if widget.is_focusable() {
                         // :-) probably in the same place, maybe moved inside same window.
@@ -969,7 +969,7 @@ impl FocusService {
                     for &parent in focused.path.ancestors().iter().rev() {
                         if let Some(parent) = info
                             .get(parent)
-                            .and_then(|w| w.as_focusable(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
+                            .and_then(|w| w.into_focusable(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
                         {
                             // move to nearest inside focusable parent, or parent
                             let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
@@ -1021,17 +1021,20 @@ impl FocusService {
             .widget_trees()
             .iter()
             .find_map(|info| info.get(widget_id))
-            .map(|w| w.as_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
+            .map(|w| w.into_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get()))
         {
             if w.is_focusable() {
-                target = Some((FocusedInfo::new(w), w.enabled_nav_with_frame()));
+                let enable = w.enabled_nav_with_frame();
+                target = Some((FocusedInfo::new(w), enable));
             } else if fallback_to_childs {
                 if let Some(w) = w.descendants().next() {
-                    target = Some((FocusedInfo::new(w), w.enabled_nav_with_frame()));
+                    let enable = w.enabled_nav_with_frame();
+                    target = Some((FocusedInfo::new(w), enable));
                 }
             } else if fallback_to_parents {
                 if let Some(w) = w.parent() {
-                    target = Some((FocusedInfo::new(w), w.enabled_nav_with_frame()));
+                    let enable = w.enabled_nav_with_frame();
+                    target = Some((FocusedInfo::new(w), enable));
                 }
             }
         }
@@ -1192,7 +1195,7 @@ impl FocusService {
                         widget.scopes().find(|s| s.is_alt_scope())
                     };
                     if let Some(alt_scope) = alt_scope {
-                        let scope = alt_scope.info.interaction_path();
+                        let scope = alt_scope.info().interaction_path();
                         // entered an alt_scope.
 
                         if let Some(prev) = &prev_focus {
@@ -1202,7 +1205,7 @@ impl FocusService {
                             self.alt_return_var.set(prev.clone());
                         } else if let Some(parent) = alt_scope.parent() {
                             // no previous focus, ALT parent is the return.
-                            let parent_path = parent.info.interaction_path();
+                            let parent_path = parent.info().interaction_path();
                             r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(parent_path.clone())));
                             self.alt_return = Some((scope, parent_path.clone()));
                             self.alt_return_var.set(parent_path);
@@ -1228,8 +1231,8 @@ impl FocusService {
                             .scopes()
                             .filter(|s| s.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused)
                         {
-                            let scope = scope.info.interaction_path();
-                            let path = widget.info.interaction_path();
+                            let scope = scope.info().interaction_path();
+                            let path = widget.info().interaction_path();
                             if let Some(current) = self.return_focused.get_mut(&scope.widget_id()) {
                                 if current != &path {
                                     let prev = std::mem::replace(current, path);
@@ -1273,15 +1276,15 @@ impl FocusService {
             let mut retain = false;
 
             if let Some(widget) = info.get(widget_path.widget_id()) {
-                if let Some(scope) = widget.scopes().find(|s| s.info.id() == scope_id) {
+                if let Some(scope) = widget.scopes().find(|s| s.info().id() == scope_id) {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                         retain = true; // retain, widget still exists in same scope and scope still is LastFocused.
 
-                        let path = widget.info.interaction_path();
+                        let path = widget.info().interaction_path();
                         if &path != widget_path {
                             // widget moved inside scope.
                             r.push(ReturnFocusChangedArgs::now(
-                                scope.info.interaction_path(),
+                                scope.info().interaction_path(),
                                 Some(widget_path.clone()),
                                 Some(path.clone()),
                             ));
@@ -1295,9 +1298,9 @@ impl FocusService {
                             // LastFocused goes to the first descendant as fallback.
                             retain = true;
 
-                            let path = first.info.interaction_path();
+                            let path = first.info().interaction_path();
                             r.push(ReturnFocusChangedArgs::now(
-                                scope.info.interaction_path(),
+                                scope.info().interaction_path(),
                                 Some(widget_path.clone()),
                                 Some(path.clone()),
                             ));
@@ -1307,14 +1310,14 @@ impl FocusService {
                 }
             } else if let Some(parent) = info.get_or_parent(widget_path) {
                 // widget not in window anymore, but a focusable parent is..
-                if let Some(scope) = parent.scopes().find(|s| s.info.id() == scope_id) {
+                if let Some(scope) = parent.scopes().find(|s| s.info().id() == scope_id) {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                         // ..and the parent is inside the scope, and the scope is still valid.
                         retain = true;
 
-                        let path = parent.info.interaction_path();
+                        let path = parent.info().interaction_path();
                         r.push(ReturnFocusChangedArgs::now(
-                            scope.info.interaction_path(),
+                            scope.info().interaction_path(),
                             Some(widget_path.clone()),
                             Some(path.clone()),
                         ));
@@ -1324,7 +1327,7 @@ impl FocusService {
             }
 
             if !retain {
-                let scope_path = info.get(scope_id).map(|i| i.info.interaction_path());
+                let scope_path = info.get(scope_id).map(|i| i.info().interaction_path());
 
                 if scope_path.is_some() {
                     match self.return_focused_var.entry(scope_id) {
@@ -1356,10 +1359,10 @@ impl FocusService {
                 retain_alt = false; // will retain only if still valid
 
                 if let Some(widget) = info.get(widget_path.widget_id()) {
-                    if !widget.scopes().any(|s| s.info.id() == scope.widget_id()) {
+                    if !widget.scopes().any(|s| s.info().id() == scope.widget_id()) {
                         retain_alt = true; // retain, widget still exists outside of the ALT scope.
 
-                        let path = widget.info.interaction_path();
+                        let path = widget.info().interaction_path();
                         if &path != widget_path {
                             // widget moved outside ALT scope.
                             r.push(ReturnFocusChangedArgs::now(scope.clone(), Some(widget_path.clone()), Some(path)));
@@ -1367,11 +1370,11 @@ impl FocusService {
                     }
                 } else if let Some(parent) = info.get_or_parent(widget_path) {
                     // widget not in window anymore, but a focusable parent is..
-                    if !parent.scopes().any(|s| s.info.id() == scope.widget_id()) {
+                    if !parent.scopes().any(|s| s.info().id() == scope.widget_id()) {
                         // ..and the parent is not inside the ALT scope.
                         retain_alt = true;
 
-                        let path = parent.info.interaction_path();
+                        let path = parent.info().interaction_path();
                         r.push(ReturnFocusChangedArgs::now(
                             scope.clone(),
                             Some(widget_path.clone()),
@@ -1443,9 +1446,9 @@ struct FocusedInfo {
 impl FocusedInfo {
     pub fn new(focusable: WidgetFocusInfo) -> Self {
         FocusedInfo {
-            path: focusable.info.interaction_path(),
-            bounds_info: focusable.info.bounds_info(),
-            center: focusable.info.center(),
+            path: focusable.info().interaction_path(),
+            bounds_info: focusable.info().bounds_info(),
+            center: focusable.info().center(),
         }
     }
 }
@@ -1469,11 +1472,11 @@ impl EnabledNavWithFrame {
     }
 }
 trait EnabledNavWithFrameExt {
-    fn enabled_nav_with_frame(self) -> EnabledNavWithFrame;
+    fn enabled_nav_with_frame(&self) -> EnabledNavWithFrame;
 }
-impl<'a> EnabledNavWithFrameExt for WidgetFocusInfo<'a> {
-    fn enabled_nav_with_frame(self) -> EnabledNavWithFrame {
-        let stats = self.info.tree().stats();
+impl EnabledNavWithFrameExt for WidgetFocusInfo {
+    fn enabled_nav_with_frame(&self) -> EnabledNavWithFrame {
+        let stats = self.info().tree().stats();
         EnabledNavWithFrame {
             nav: self.enabled_nav(),
             spatial_frame_id: stats.bounds_updated_frame,

@@ -211,18 +211,18 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
         if let Some(md) = tree.get(WIDGET.id()).and_then(|w| w.self_and_ancestors().find(|w| w.is_markdown())) {
             if let Some(target) = md.find_anchor(anchor) {
                 // scroll-to
-                for scroll in target.ancestors().filter(|&a| a.is_scroll()) {
+                for scroll in target.ancestors().filter(|a| a.is_scroll()) {
                     crate::widgets::scroll::commands::scroll_to(scroll.id(), target.id(), LINK_SCROLL_MODE_VAR.get());
                 }
 
                 // focus
                 if let Some(focus) = target
-                    .as_focus_info(false, false)
+                    .into_focus_info(false, false)
                     .self_and_descendants()
                     .find(|w| w.is_focusable())
-                    .or_else(|| md.as_focus_info(false, false).self_and_ancestors().find(|w| w.is_focusable()))
+                    .or_else(|| md.into_focus_info(false, false).self_and_ancestors().find(|w| w.is_focusable()))
                 {
-                    FOCUS.focus_widget(focus.info.id(), false);
+                    FOCUS.focus_widget(focus.info().id(), false);
                 }
             }
         }
@@ -418,31 +418,30 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Text>) -> impl UiNode {
 }
 
 /// Markdown extension methods for widget info.
-pub trait WidgetInfoExt<'a> {
+pub trait WidgetInfoExt {
     /// Gets the [`anchor`].
     ///
     /// [`anchor`]: fn@anchor
-    fn anchor(self) -> Option<&'a Text>;
+    fn anchor(&self) -> Option<&Text>;
 
     /// If this widget is a [`markdown!`].
     ///
     /// [`markdown!`]: mod@crate::widgets::markdown
-    #[allow(clippy::wrong_self_convention)] // WidgetInfo is a reference.
-    fn is_markdown(self) -> bool;
+    fn is_markdown(&self) -> bool;
 
     /// Find descendant tagged by the given anchor.
-    fn find_anchor(self, anchor: &str) -> Option<WidgetInfo<'a>>;
+    fn find_anchor(&self, anchor: &str) -> Option<WidgetInfo>;
 }
-impl<'a> WidgetInfoExt<'a> for WidgetInfo<'a> {
-    fn anchor(self) -> Option<&'a Text> {
+impl WidgetInfoExt for WidgetInfo {
+    fn anchor(&self) -> Option<&Text> {
         self.meta().get(&ANCHOR_ID)
     }
 
-    fn is_markdown(self) -> bool {
+    fn is_markdown(&self) -> bool {
         self.meta().contains(&MARKDOWN_INFO_ID)
     }
 
-    fn find_anchor(self, anchor: &str) -> Option<WidgetInfo<'a>> {
+    fn find_anchor(&self, anchor: &str) -> Option<WidgetInfo> {
         self.descendants().find(|d| d.anchor().map(|a| a == anchor).unwrap_or(false))
     }
 }

@@ -90,20 +90,20 @@ impl InspectorInfo {
 }
 
 /// Extensions methods for [`WidgetInfo`].
-pub trait WidgetInfoInspectorExt<'a> {
+pub trait WidgetInfoInspectorExt {
     /// Reference the builder that was used to instantiate the widget and the builder generated items.
     ///
     /// Returns `None` if not build with the `"inspector"` feature, or if the widget instance was not created using
     /// the standard builder.
-    fn inspector_info(self) -> Option<Arc<InspectorInfo>>;
+    fn inspector_info(&self) -> Option<Arc<InspectorInfo>>;
 
     /// If a [`inspector_info`] is defined for the widget.
     ///
     /// [`inspector_info`]: Self::inspector_info
-    fn can_inspect(self) -> bool;
+    fn can_inspect(&self) -> bool;
 
     /// Returns the first child that matches.
-    fn inspect_child<P: InspectWidgetPattern>(self, pattern: P) -> Option<WidgetInfo<'a>>;
+    fn inspect_child<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo>;
 
     /// Returns the first descendant that matches.
     ///
@@ -128,10 +128,10 @@ pub trait WidgetInfoInspectorExt<'a> {
     /// let exact = info.inspect_descendant(widget_mod!(crate::widgets::button));
     /// }
     /// ```
-    fn inspect_descendant<P: InspectWidgetPattern>(self, pattern: P) -> Option<WidgetInfo<'a>>;
+    fn inspect_descendant<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo>;
 
     /// Returns the first ancestor that matches.
-    fn inspect_ancestor<P: InspectWidgetPattern>(self, pattern: P) -> Option<WidgetInfo<'a>>;
+    fn inspect_ancestor<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo>;
 
     /// Search for a property set on the widget.
     ///
@@ -146,51 +146,51 @@ pub trait WidgetInfoInspectorExt<'a> {
     ///     info.inspect_property("foo")?.value(0).as_any().downcast_ref().copied()
     /// }
     /// ```
-    fn inspect_property<P: InspectPropertyPattern>(self, pattern: P) -> Option<&'a dyn PropertyArgs>;
+    fn inspect_property<P: InspectPropertyPattern>(&self, pattern: P) -> Option<&dyn PropertyArgs>;
 
     /// Gets the parent property that has this widget as an input.
     ///
     /// Returns `Some((PropertyId, member_index))`.
-    fn parent_property(self) -> Option<(PropertyId, usize)>;
+    fn parent_property(&self) -> Option<(PropertyId, usize)>;
 }
-impl<'a> WidgetInfoInspectorExt<'a> for WidgetInfo<'a> {
-    fn inspector_info(self) -> Option<Arc<InspectorInfo>> {
+impl WidgetInfoInspectorExt for WidgetInfo {
+    fn inspector_info(&self) -> Option<Arc<InspectorInfo>> {
         self.meta().get_clone(&INSPECTOR_INFO_ID)
     }
 
-    fn can_inspect(self) -> bool {
+    fn can_inspect(&self) -> bool {
         self.meta().contains(&INSPECTOR_INFO_ID)
     }
 
-    fn inspect_child<P: InspectWidgetPattern>(self, pattern: P) -> Option<WidgetInfo<'a>> {
+    fn inspect_child<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo> {
         self.children().find(|c| match c.meta().get(&INSPECTOR_INFO_ID) {
             Some(wgt) => pattern.matches(wgt),
             None => false,
         })
     }
 
-    fn inspect_descendant<P: InspectWidgetPattern>(self, pattern: P) -> Option<WidgetInfo<'a>> {
+    fn inspect_descendant<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo> {
         self.descendants().find(|c| match c.meta().get(&INSPECTOR_INFO_ID) {
             Some(info) => pattern.matches(info),
             None => false,
         })
     }
 
-    fn inspect_ancestor<P: InspectWidgetPattern>(self, pattern: P) -> Option<WidgetInfo<'a>> {
+    fn inspect_ancestor<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo> {
         self.ancestors().find(|c| match c.meta().get(&INSPECTOR_INFO_ID) {
             Some(info) => pattern.matches(info),
             None => false,
         })
     }
 
-    fn inspect_property<P: InspectPropertyPattern>(self, pattern: P) -> Option<&'a dyn PropertyArgs> {
+    fn inspect_property<P: InspectPropertyPattern>(&self, pattern: P) -> Option<&dyn PropertyArgs> {
         self.meta()
             .get(&INSPECTOR_INFO_ID)?
             .properties()
             .find_map(|(args, cap)| if pattern.matches(args, cap) { Some(args) } else { None })
     }
 
-    fn parent_property(self) -> Option<(PropertyId, usize)> {
+    fn parent_property(&self) -> Option<(PropertyId, usize)> {
         self.parent()?.meta().get(&INSPECTOR_INFO_ID)?.properties().find_map(|(args, _)| {
             let id = self.id();
             let info = args.property();

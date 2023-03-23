@@ -447,7 +447,7 @@ mod inspect {
 
                     format!("window({title})")
                 } else {
-                    let focus_info = widget.as_focus_info(true, true);
+                    let focus_info = widget.into_focus_info(true, true);
                     if focus_info.is_alt_scope() {
                         format!("{}(is_alt_scope)", wgt_mod.name())
                     } else if focus_info.is_scope() {

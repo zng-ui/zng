@@ -2,9 +2,7 @@
 
 use std::{
     borrow::Cow,
-    fmt,
-    marker::PhantomData,
-    mem, ops,
+    fmt, mem, ops,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -167,7 +165,7 @@ impl WidgetInfoTree {
 
     /// Reference to the root widget in the tree.
     pub fn root(&self) -> WidgetInfo {
-        WidgetInfo::new(self, self.0.tree.root().id())
+        WidgetInfo::new(self.clone(), self.0.tree.root().id())
     }
 
     /// All widgets including `root`.
@@ -182,7 +180,7 @@ impl WidgetInfoTree {
 
     /// Reference to the widget in the tree, if it is present.
     pub fn get(&self, widget_id: impl Into<WidgetId>) -> Option<WidgetInfo> {
-        self.0.lookup.get(&widget_id.into()).map(|i| WidgetInfo::new(self, *i))
+        self.0.lookup.get(&widget_id.into()).map(|i| WidgetInfo::new(self.clone(), *i))
     }
 
     /// If the tree contains the widget.
@@ -205,7 +203,8 @@ impl WidgetInfoTree {
     /// Iterator over all widgets with inner-bounds not fully contained by their parent inner bounds.
     pub fn out_of_bounds(&self) -> impl std::iter::ExactSizeIterator<Item = WidgetInfo> {
         let out = self.0.frame.lock().out_of_bounds.clone();
-        (0..out.len()).map(move |i| WidgetInfo::new(self, out[i]))
+        let me = self.clone();
+        (0..out.len()).map(move |i| WidgetInfo::new(me.clone(), out[i]))
     }
 
     /// Gets the bounds box that envelops all widgets, including the out-of-bounds widgets.
@@ -259,7 +258,7 @@ impl WidgetInfoTree {
 
         let mut spatial_bounds = self.root().outer_bounds().to_box2d();
         for out in frame.out_of_bounds.iter() {
-            let b = WidgetInfo::new(self, *out).inner_bounds().to_box2d();
+            let b = WidgetInfo::new(self.clone(), *out).inner_bounds().to_box2d();
             spatial_bounds.min = spatial_bounds.min.min(b.min);
             spatial_bounds.max = spatial_bounds.max.max(b.max);
         }
@@ -1137,8 +1136,9 @@ impl WidgetInfo {
             if interactivity != Interactivity::BLOCKED_DISABLED {
                 interactivity |= self.parent().map(|n| n.interactivity()).unwrap_or(Interactivity::ENABLED);
                 if interactivity != Interactivity::BLOCKED_DISABLED {
+                    let args = InteractivityFilterArgs { info: self.clone() };
                     for filter in &self.tree.0.interactivity_filters {
-                        interactivity |= filter(&InteractivityFilterArgs { info: self });
+                        interactivity |= filter(&args);
                         if interactivity == Interactivity::BLOCKED_DISABLED {
                             break;
                         }
@@ -1246,27 +1246,27 @@ impl WidgetInfo {
     ///
     /// Is `None` only for [`root`](WidgetInfoTree::root).
     pub fn parent(&self) -> Option<Self> {
-        self.node().parent().map(move |n| WidgetInfo::new(self.tree, n.id()))
+        self.node().parent().map(move |n| WidgetInfo::new(self.tree.clone(), n.id()))
     }
 
     /// Reference to the previous widget within the same parent.
     pub fn prev_sibling(&self) -> Option<Self> {
-        self.node().prev_sibling().map(move |n| WidgetInfo::new(self.tree, n.id()))
+        self.node().prev_sibling().map(move |n| WidgetInfo::new(self.tree.clone(), n.id()))
     }
 
     /// Reference to the next widget within the same parent.
     pub fn next_sibling(&self) -> Option<Self> {
-        self.node().next_sibling().map(move |n| WidgetInfo::new(self.tree, n.id()))
+        self.node().next_sibling().map(move |n| WidgetInfo::new(self.tree.clone(), n.id()))
     }
 
     /// Reference to the first widget within this widget.
     pub fn first_child(&self) -> Option<Self> {
-        self.node().first_child().map(move |n| WidgetInfo::new(self.tree, n.id()))
+        self.node().first_child().map(move |n| WidgetInfo::new(self.tree.clone(), n.id()))
     }
 
     /// Reference to the last widget within this widget.
     pub fn last_child(&self) -> Option<Self> {
-        self.node().last_child().map(move |n| WidgetInfo::new(self.tree, n.id()))
+        self.node().last_child().map(move |n| WidgetInfo::new(self.tree.clone(), n.id()))
     }
 
     /// If the parent widget has multiple children.
@@ -1333,7 +1333,7 @@ impl WidgetInfo {
     /// Create an object that can check if widgets are descendant of `self` in O(1) time.
     pub fn descendants_range(&self) -> WidgetDescendantsRange {
         WidgetDescendantsRange {
-            tree: self.tree.clone(),
+            tree: Some(self.tree.clone()),
             range: self.node().descendants_range(),
         }
     }
@@ -1350,7 +1350,7 @@ impl WidgetInfo {
 
     /// Iterator over self -> parent -> grandparent -> .. -> root.
     pub fn self_and_ancestors(&self) -> iter::Ancestors {
-        iter::Ancestors::new(self)
+        iter::Ancestors::new(self.clone())
     }
 
     /// Iterator over all previous widgets within the same parent.
@@ -1381,7 +1381,7 @@ impl WidgetInfo {
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
     pub fn prev_siblings_in(&self, ancestor: &WidgetInfo) -> iter::RevTreeIter {
-        iter::TreeIter::prev_siblings_in(self, ancestor)
+        iter::TreeIter::prev_siblings_in(self.clone(), ancestor.clone())
     }
 
     /// Iterator over self, descendants and all previous widgets within the same `ancestor`.
@@ -1395,14 +1395,14 @@ impl WidgetInfo {
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
     pub fn next_siblings_in(&self, ancestor: &WidgetInfo) -> iter::TreeIter {
-        iter::TreeIter::next_siblings_in(self, ancestor)
+        iter::TreeIter::next_siblings_in(self.clone(), ancestor.clone())
     }
 
     /// Iterator over self, descendants and all next widgets within the same `ancestor`.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
     pub fn self_and_next_siblings_in(&self, ancestor: &WidgetInfo) -> iter::TreeIter {
-        iter::TreeIter::self_and_next_siblings_in(self, ancestor)
+        iter::TreeIter::self_and_next_siblings_in(self.clone(), ancestor.clone())
     }
 
     /// The [`center`] orientation in relation to a `origin`.
@@ -1464,15 +1464,15 @@ impl WidgetInfo {
 
             if z.is_some() {
                 let mut parent = self.parent();
-                let mut child = self;
+                let mut child = self.clone();
 
                 while let Some(p) = parent {
-                    if p.info().bounds_info.hit_test_clip_child(child, point) {
+                    if p.info().bounds_info.hit_test_clip_child(&child, point) {
                         return None;
                     }
 
                     parent = p.parent();
-                    child = &p;
+                    child = p;
                 }
             }
 
@@ -1498,7 +1498,7 @@ impl WidgetInfo {
     /// If the `filter` returns `false` the widget and all it's in-bounds descendants are skipped, otherwise they are yielded. After
     /// all in-bounds descendants reachable from `self` and filtered the iterator changes to each out-of-bounds descendants and their
     /// in-bounds descendants.
-    pub fn spatial_iter(&self, filter: impl Fn(WidgetInfo) -> bool + Clone) -> impl Iterator<Item = WidgetInfo> {
+    pub fn spatial_iter(&self, filter: impl Fn(&WidgetInfo) -> bool + Clone) -> impl Iterator<Item = WidgetInfo> {
         self.self_and_descendants()
             .tree_filter(clone_move!(filter, |w| {
                 if w.is_in_bounds() && filter(w) {
@@ -1595,7 +1595,7 @@ impl WidgetInfo {
     }
 
     /// Find the widget, self or descendant, with center point nearest of `origin` within the `max_radius` and approved by the `filter` closure.
-    pub fn nearest_filtered(&self, origin: PxPoint, max_radius: Px, filter: impl FnMut(WidgetInfo) -> bool) -> Option<WidgetInfo> {
+    pub fn nearest_filtered(&self, origin: PxPoint, max_radius: Px, filter: impl FnMut(&WidgetInfo) -> bool) -> Option<WidgetInfo> {
         self.nearest_bounded_filtered(origin, max_radius, self.tree.spatial_bounds(), filter)
     }
 
@@ -1606,7 +1606,7 @@ impl WidgetInfo {
         origin: PxPoint,
         max_radius: Px,
         bounds: PxRect,
-        mut filter: impl FnMut(WidgetInfo) -> bool,
+        mut filter: impl FnMut(&WidgetInfo) -> bool,
     ) -> Option<WidgetInfo> {
         // search quadrants of `128` -> `256` -> .. until one quadrant finds at least a widget centered in it,
         // the nearest widget centered in the smallest quadrant is selected.
@@ -1627,7 +1627,7 @@ impl WidgetInfo {
         loop {
             for w in self.center_contained(search_quad) {
                 let w_dist = w.distance_key(origin);
-                if w_dist < dist && filter(w) {
+                if w_dist < dist && filter(&w) {
                     dist = w_dist;
                     nearest = Some(w);
                 }
@@ -1654,7 +1654,7 @@ impl WidgetInfo {
 
             for w in self.center_contained(quad.to_rect()) {
                 let w_dist = w.distance_key(origin);
-                if w_dist < dist && filter(w) {
+                if w_dist < dist && filter(&w) {
                     dist = w_dist;
                     nearest = Some(w);
                 }
@@ -1676,9 +1676,10 @@ impl WidgetInfo {
         } else {
             DistanceKey::NONE_MAX
         };
+        let me = self.clone();
         orientation
             .search_bounds(origin, max_distance, self.tree.spatial_bounds().to_box2d())
-            .flat_map(move |sq| self.inner_intersects(sq.to_rect()).map(move |w| (sq, w)))
+            .flat_map(move |sq| me.inner_intersects(sq.to_rect()).map(move |w| (sq, w)))
             .filter_map(move |(sq, w)| {
                 let center = w.center();
                 if sq.contains(center)
@@ -1711,7 +1712,7 @@ impl WidgetInfo {
         origin: PxPoint,
         max_distance: Px,
         orientation: Orientation2D,
-        mut filter: impl FnMut(WidgetInfo) -> bool,
+        mut filter: impl FnMut(&WidgetInfo) -> bool,
     ) -> Option<WidgetInfo> {
         let mut dist = DistanceKey::from_distance(max_distance + Px(1));
         let mut nearest = None;
@@ -1721,7 +1722,7 @@ impl WidgetInfo {
             for w in self.center_contained(search_quad.to_rect()) {
                 if orientation.is(origin, w.center()) {
                     let w_dist = w.distance_key(origin);
-                    if w_dist < dist && filter(w) {
+                    if w_dist < dist && filter(&w) {
                         dist = w_dist;
                         nearest = Some(w);
                     }
@@ -1762,7 +1763,7 @@ impl WidgetInfo {
 
             for w in self.center_contained(last_quad.to_rect()) {
                 let w_dist = w.distance_key(origin);
-                if w_dist < dist && filter(w) {
+                if w_dist < dist && filter(&w) {
                     dist = w_dist;
                     nearest = Some(w);
                 }
@@ -1943,15 +1944,15 @@ impl_from_and_into_var! {
 }
 
 /// Represents the descendants of a widget, allows checking if widgets are descendant with O(1) time.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Default)]
 pub struct WidgetDescendantsRange {
-    tree: WidgetInfoTree,
+    tree: Option<WidgetInfoTree>,
     range: std::ops::Range<usize>,
 }
 impl WidgetDescendantsRange {
     /// If the widget is a descendant.
     pub fn contains(&self, wgt: &WidgetInfo) -> bool {
-        self.range.contains(&wgt.node_id.get()) && self.tree == wgt.tree
+        self.range.contains(&wgt.node_id.get()) && self.tree.as_ref() == Some(&wgt.tree)
     }
 }
 

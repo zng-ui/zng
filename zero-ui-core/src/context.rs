@@ -800,14 +800,16 @@ impl WIDGET {
         WIDGET_CTX.get().id
     }
 
+    /* !!: after all tests and docs pass
     /// Gets the widget info.
     ///
     /// # Panics
     ///
     /// If called before the widget info is inited in the parent window.
     pub fn info(&self) -> WidgetInfo {
-        // WINDOW.widget_tree().get(WIDGET.id()).expect("widget info not init")
+        WINDOW.widget_tree().get(WIDGET.id()).expect("widget info not init")
     }
+     */
 
     /// Schedule an update for the current widget.
     ///

@@ -304,27 +304,26 @@ impl SCROLL {
 /// Scroll extensions for [`WidgetInfo`].
 pub trait WidgetInfoExt {
     /// Returns `true` if the widget is a [`scroll!`](mod@super::scroll).
-    #[allow(clippy::wrong_self_convention)] // WidgetInfo is a reference.
-    fn is_scroll(self) -> bool;
+    fn is_scroll(&self) -> bool;
 
     /// Returns a reference to the viewport bounds if the widget is a [`scroll!`](mod@super::scroll).
-    fn scroll_info(self) -> Option<ScrollInfo>;
+    fn scroll_info(&self) -> Option<ScrollInfo>;
 
     /// Gets the viewport bounds relative to the scroll widget inner bounds.
     ///
     /// The value is updated every layout and render, without requiring an info rebuild.
-    fn viewport(self) -> Option<PxRect>;
+    fn viewport(&self) -> Option<PxRect>;
 }
-impl<'a> WidgetInfoExt for WidgetInfo<'a> {
-    fn is_scroll(self) -> bool {
+impl WidgetInfoExt for WidgetInfo {
+    fn is_scroll(&self) -> bool {
         self.meta().get(&SCROLL_INFO_ID).is_some()
     }
 
-    fn scroll_info(self) -> Option<ScrollInfo> {
+    fn scroll_info(&self) -> Option<ScrollInfo> {
         self.meta().get(&SCROLL_INFO_ID).cloned()
     }
 
-    fn viewport(self) -> Option<PxRect> {
+    fn viewport(&self) -> Option<PxRect> {
         self.meta().get(&SCROLL_INFO_ID).map(|r| r.viewport())
     }
 }

@@ -353,9 +353,9 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                             let tree = WINDOW.widget_tree();
                             for w_id in target.widgets_path().iter().rev() {
                                 if let Some(w) = tree.get(*w_id) {
-                                    if let Some(w) = w.as_focusable(true, true) {
+                                    if let Some(w) = w.into_focusable(true, true) {
                                         let search_quads: Vec<_> = orientation
-                                            .search_bounds(w.info.center(), Px::MAX, tree.spatial_bounds().to_box2d())
+                                            .search_bounds(w.info().center(), Px::MAX, tree.spatial_bounds().to_box2d())
                                             .map(|q| q.to_rect())
                                             .collect();
 
