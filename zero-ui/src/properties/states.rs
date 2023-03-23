@@ -140,9 +140,23 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
                 None
             }
         },
-        |hovered, is_down, is_captured| match WINDOW.widget_tree().get(WIDGET.id()).unwrap().click_mode() {
-            ClickMode::Default => Some(hovered && is_down),
-            ClickMode::Repeat | ClickMode::Mixed => Some(is_down || is_captured),
+        {
+            let mut info_gen = 0;
+            let mut mode = ClickMode::Default;
+
+            move |hovered, is_down, is_captured| {
+                // cache mode
+                let tree = WINDOW.widget_tree();
+                if info_gen != tree.stats().generation {
+                    mode = tree.get(WIDGET.id()).unwrap().click_mode();
+                    info_gen = tree.stats().generation;
+                }
+
+                match mode {
+                    ClickMode::Default => Some(hovered && is_down),
+                    ClickMode::Repeat | ClickMode::Mixed => Some(is_down || is_captured),
+                }
+            }
         },
     )
 }

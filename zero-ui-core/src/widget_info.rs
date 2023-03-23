@@ -44,6 +44,9 @@ use self::iter::TreeIterator;
 /// The stats for a tree are available in [`WidgetInfoTree::stats`].
 #[derive(Debug, Clone)]
 pub struct WidgetInfoTreeStats {
+    /// Number of times info was rebuild for the window.
+    pub generation: u32,
+
     /// Duration of the [`UiNode::info`] call for the window content.
     ///
     /// [`UiNode::info`]: crate::widget_instance::UiNode::info
@@ -67,8 +70,9 @@ pub struct WidgetInfoTreeStats {
     pub vis_updated_frame: FrameId,
 }
 impl WidgetInfoTreeStats {
-    fn new(build_start: Instant, reused_widgets: u32) -> Self {
+    fn new(build_start: Instant, reused_widgets: u32, generation: u32) -> Self {
         Self {
+            generation,
             build_time: build_start.elapsed(),
             reused_widgets,
             last_frame: FrameId::INVALID,
@@ -140,7 +144,7 @@ impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     pub fn wgt(window_id: WindowId, root_id: WidgetId) -> Self {
         WidgetInfoBuilder::new(window_id, root_id, WidgetBoundsInfo::new(), WidgetBorderInfo::new(), 1.fct(), None)
-            .finalize()
+            .finalize(0)
             .0
     }
 

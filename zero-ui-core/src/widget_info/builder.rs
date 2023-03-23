@@ -231,7 +231,7 @@ impl WidgetInfoBuilder {
     }
 
     /// Build the info tree.
-    pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
+    pub fn finalize(mut self, generation: u32) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
         let mut node = self.tree.root_mut();
         let meta = Arc::new(self.meta);
         node.value().meta = meta;
@@ -244,7 +244,7 @@ impl WidgetInfoBuilder {
             build_meta: Arc::new(self.build_meta),
 
             frame: Mutex::new(WidgetInfoTreeFrame {
-                stats: WidgetInfoTreeStats::new(self.build_start, self.tree.len() as u32 - self.pushed_widgets),
+                stats: WidgetInfoTreeStats::new(self.build_start, self.tree.len() as u32 - self.pushed_widgets, generation),
                 stats_update: Default::default(),
                 out_of_bounds: Arc::new(self.out_of_bounds),
                 out_of_bounds_update: Default::default(),

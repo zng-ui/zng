@@ -1,7 +1,3 @@
-* Improve perf of click mode getter in `is_pressed`?
-    - We need to `WINDOW.widget_tree().get(WIDGET.id()).click_mode()` right now.
-    - That is two hash gets, on every mouse input targeted, not the worst but maybe can be improved.
-
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
 

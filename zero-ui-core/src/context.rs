@@ -53,6 +53,7 @@ struct WindowCtxData {
     frame_id: Mutex<crate::render::FrameId>,
 }
 impl WindowCtxData {
+    #[track_caller]
     fn no_context() -> Self {
         panic!("no window in context")
     }
@@ -117,6 +118,7 @@ struct WidgetCtxData {
     render_reuse: Mutex<Option<ReuseRange>>,
 }
 impl WidgetCtxData {
+    #[track_caller]
     fn no_context() -> Self {
         panic!("no widget in context")
     }
@@ -510,7 +512,7 @@ impl WINDOW {
             None,
         );
         content.info(&mut info);
-        let tree = info.finalize().0;
+        let tree = info.finalize(self.widget_tree().stats().generation.wrapping_add(1)).0;
         *WINDOW_CTX.get().widget_tree.write() = Some(tree);
         UPDATES.apply()
     }

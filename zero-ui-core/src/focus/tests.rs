@@ -179,7 +179,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
             );
         },
     );
-    builder.finalize().0
+    builder.finalize(1).0
 }
 
 #[test]
