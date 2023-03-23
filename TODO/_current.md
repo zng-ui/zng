@@ -1,6 +1,10 @@
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
     - Need to parallelize `WidgetUpdates`.
+        - That is actually `UpdateDeliveryList`.
+        - All widgets to visit are in a flat `IdMap`.
+        - That's a lot of locking.
+        - Try https://crates.io/crates/dashmap, `IdDashMap`?
 
 * Parallelize more methods.
     - `info`: how to share the `&mut WidgetInfoBuilder`?
