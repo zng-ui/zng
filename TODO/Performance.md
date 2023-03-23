@@ -42,28 +42,6 @@
 * The final executables are pretty big as well.
   - Probably a lot of type name strings?
 
-# Parallel UI
-
-* How much overhead needed to add `rayon` join support for UiNode methods?
-    * Event `propagation` becomes indeterministic?
-      - Could make event notification linear, most nodes are not visited for events.
-
-* What we want to enable:
-  - Allow background init of UI.
-    - The icon example stops responding on the first init/info/layout/render.
-    - This will require more than Send+Sync UI, the var update and services expect the entire app to work lock-step.
-      - If the background UI causes a var update it is observed in the entire app.
-      - The background UI also needs to observe app updates.
-      - Does not sound like a full background, more of a delayed render?
-  - Better performance when many UI items need to compute, if layout is invalidated for many widgets we want to use rayon join to work
-    in multiple branches of an ui_vec at the same time.
-    - Rayon join done at the widget level, `par_for_each`.
-    - Init, update, event just works.
-    - Layout just works?
-    - Render needs "nested display list", to avoid double alloc (insert).
-    - Info needs double alloc, one for the partial tree in a thread branch, other for when it is inserted in the actual tree.
-      - Probably not an issue.
-
 # Const
 
 * Use `const` in our function and methods.

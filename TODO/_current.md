@@ -1,5 +1,6 @@
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
+    - Need to parallelize `WidgetUpdates`.
 
 * Parallelize more methods.
     - `info`: how to share the `&mut WidgetInfoBuilder`?
@@ -34,11 +35,6 @@
 
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
-
-* Review `LocalContext` in disconnected parallel tasks like `task::spawn`.
-    - Need to capture the app only?
-    - It causes the values to stay shared when going out-of-context in the widget that spawned.
-    - Not a problem exactly.
 
 * Implement tracing parent propagation in `LocalContext`?
     - https://github.com/wagnerf42/diam/blob/main/src/adaptors/log.rs
