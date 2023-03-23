@@ -6,23 +6,23 @@ error: unexpected end of input, expected parentheses
   |
   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error: expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime
-  --> cases/property/defaults.rs:21:32
+error: expected `,`
+  --> cases/property/defaults.rs:21:30
    |
 21 | #[property(CONTEXT, default(a: true))]
-   |                                ^^^^
+   |                              ^
 
-error: expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime
-  --> cases/property/defaults.rs:33:32
+error: expected `,`
+  --> cases/property/defaults.rs:33:30
    |
 33 | #[property(CONTEXT, default(a: true, b: 2555, c: "ABC"))]
-   |                                ^^^^
+   |                              ^
 
-error: expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime
-  --> cases/property/defaults.rs:45:32
+error: expected `,`
+  --> cases/property/defaults.rs:45:30
    |
 45 | #[property(CONTEXT, default(a: 2555, b: true))]
-   |                                ^^^^
+   |                              ^
 
 error[E0061]: this function takes 2 arguments but 0 arguments were supplied
   --> cases/property/defaults.rs:9:21
