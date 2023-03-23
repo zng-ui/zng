@@ -172,10 +172,10 @@ impl WidgetCtx {
 
     /// Returns `true` once if a info rebuild was requested in a previous [`WIDGET.with_context`] call.
     ///
-    /// Child nodes can request updates using [`WIDGET.info`].
+    /// Child nodes can request updates using [`WIDGET.update_info`].
     ///
     /// [`WIDGET.with_context`]: WIDGET::with_context
-    /// [`WIDGET.info`]: WIDGET::info
+    /// [`WIDGET.update_info`]: WIDGET::update_info
     pub fn take_info(&self) -> bool {
         self.take_flag(UpdateFlags::INFO)
     }
