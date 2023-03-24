@@ -535,7 +535,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// [`for_each`]: UiNodeList::for_each
     fn render_all(&self, frame: &mut FrameBuilder) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-            // !!: TODO
+            // !!: TODO render
         }
         self.for_each(|_, c| {
             c.render(frame);
@@ -551,7 +551,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// [`for_each`]: UiNodeList::for_each
     fn render_update_all(&self, update: &mut FrameUpdate) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-            // !!: TODO
+            // !!: TODO render
         }
         self.for_each(|_, c| {
             c.render_update(update);
@@ -611,7 +611,7 @@ pub mod ui_node_list_default {
 
     pub fn info_all(list: &impl UiNodeList, info: &mut WidgetInfoBuilder) {
         if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INFO) {
-            // !!: TODO
+            // !!: TODO info
         }
         list.for_each(|_, c| {
             c.info(info);
@@ -635,7 +635,7 @@ pub mod ui_node_list_default {
 
     pub fn measure_all(list: &impl UiNodeList, wm: &mut WidgetMeasure) -> PxSize {
         if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-            // !!: TODO
+            // !!: TODO measure
         }
         let mut r = PxSize::zero();
         list.for_each(|_, n| {
@@ -647,7 +647,7 @@ pub mod ui_node_list_default {
 
     pub fn layout_all(list: &mut impl UiNodeList, wl: &mut WidgetLayout) -> PxSize {
         if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-            // !!: TODO
+            // !!: TODO layout
         }
         let mut r = PxSize::zero();
         list.for_each_mut(|_, n| {

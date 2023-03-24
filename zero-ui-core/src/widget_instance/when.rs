@@ -227,7 +227,7 @@ impl WhenUiNodeList {
             WIDGET.with_handles(var_handles, event_handles, || child.init_all());
         }
 
-        observer.reseted();
+        observer.reset();
         WIDGET.update_info().layout().render();
     }
 }

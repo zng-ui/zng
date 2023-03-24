@@ -1,9 +1,6 @@
-* Parallel updates.
-    - Widgets.
-        - Need to refactor list update observer?
-        - Info updates.
-            - How to share the `&mut WidgetInfoBuilder`?
-            - No `info_all`?
+* Parallel info updates.
+    - How to share the `&mut WidgetInfoBuilder`?
+    - No `UiNodeList::info_all`?
 
 * Parallel layout.
     - Widgets.

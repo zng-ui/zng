@@ -42,7 +42,10 @@ pub mod switch {
                     touched: bool,
                 }
                 impl UiNodeListObserver for TouchedIndex {
-                    fn reseted(&mut self) {
+                    fn is_reset_only(&self) -> bool {
+                        false
+                    }
+                    fn reset(&mut self) {
                         self.touched = true;
                     }
                     fn inserted(&mut self, index: usize) {

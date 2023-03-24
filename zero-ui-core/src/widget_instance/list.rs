@@ -402,16 +402,32 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     }
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        if PARALLEL_VAR.get().contains(Parallel::UPDATE) {
-            // !!: TODO
+        if observer.is_reset_only() && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
+            let (r0, r1) = task::join(
+                || {
+                    let mut r = false;
+                    self.0.update_all(updates, &mut r);
+                    r
+                },
+                || {
+                    let mut r = false;
+                    self.1.update_all(updates, &mut r);
+                    r
+                },
+            );
+
+            if r0 || r1 {
+                observer.reset();
+            }
+        } else {
+            self.0.update_all(updates, observer);
+            self.1.update_all(updates, &mut OffsetUiListObserver(self.0.len(), observer));
         }
-        self.0.update_all(updates, observer);
-        self.1.update_all(updates, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
     fn render_all(&self, frame: &mut FrameBuilder) {
         if PARALLEL_VAR.get().contains(Parallel::RENDER) {
-            // !!: TODO
+            // !!: TODO render
         }
         self.0.render_all(frame);
         self.1.render_all(frame);
@@ -419,7 +435,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
 
     fn render_update_all(&self, update: &mut FrameUpdate) {
         if PARALLEL_VAR.get().contains(Parallel::RENDER) {
-            // !!: TODO
+            // !!: TODO render
         }
         self.0.render_update_all(update);
         self.1.render_update_all(update);
@@ -905,8 +921,18 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
 ///
 /// This trait is implemented for [`bool`], if any change happens the flag is set to `true`.
 pub trait UiNodeListObserver {
+    /// If  this observer does not use the item indexes and any/all calls to observer methods can be replaced by a single
+    /// or multiple calls to [`reset`].
+    ///
+    /// This flag can be used by list implementers to enable parallel processing in more contexts, for example, chain lists cannot
+    /// parallelize because indexes of subsequent lists are dependent on indexed of previous lists, but if the observer only needs
+    /// to known that some change happened the chain list can still parallelize.
+    ///
+    /// [`reset`]: Self::reset
+    fn is_reset_only(&self) -> bool;
+
     /// Large changes made to the list.
-    fn reseted(&mut self);
+    fn reset(&mut self);
     /// Widget inserted at the `index`.
     fn inserted(&mut self, index: usize);
     /// Widget removed from the `index`.
@@ -916,7 +942,11 @@ pub trait UiNodeListObserver {
 }
 /// Does nothing.
 impl UiNodeListObserver for () {
-    fn reseted(&mut self) {}
+    fn is_reset_only(&self) -> bool {
+        true
+    }
+
+    fn reset(&mut self) {}
 
     fn inserted(&mut self, _: usize) {}
 
@@ -926,7 +956,11 @@ impl UiNodeListObserver for () {
 }
 /// Sets to `true` for any change.
 impl UiNodeListObserver for bool {
-    fn reseted(&mut self) {
+    fn is_reset_only(&self) -> bool {
+        true
+    }
+
+    fn reset(&mut self) {
         *self = true;
     }
 
@@ -948,8 +982,12 @@ impl UiNodeListObserver for bool {
 /// This type is useful for implementing [`UiNodeList`] that are composed of other lists.
 pub struct OffsetUiListObserver<'o>(pub usize, pub &'o mut dyn UiNodeListObserver);
 impl<'o> UiNodeListObserver for OffsetUiListObserver<'o> {
-    fn reseted(&mut self) {
-        self.1.reseted()
+    fn is_reset_only(&self) -> bool {
+        self.1.is_reset_only()
+    }
+
+    fn reset(&mut self) {
+        self.1.reset()
     }
 
     fn inserted(&mut self, index: usize) {
@@ -966,9 +1004,13 @@ impl<'o> UiNodeListObserver for OffsetUiListObserver<'o> {
 }
 
 impl UiNodeListObserver for (&mut dyn UiNodeListObserver, &mut dyn UiNodeListObserver) {
-    fn reseted(&mut self) {
-        self.0.reseted();
-        self.1.reseted();
+    fn is_reset_only(&self) -> bool {
+        self.0.is_reset_only() && self.1.is_reset_only()
+    }
+
+    fn reset(&mut self) {
+        self.0.reset();
+        self.1.reset();
     }
 
     fn inserted(&mut self, index: usize) {
@@ -1028,7 +1070,7 @@ impl EditableUiNodeList {
             if r.clear {
                 // if reset
                 self.clear();
-                observer.reseted();
+                observer.reset();
 
                 for (i, mut wgt) in r.insert {
                     wgt.init();
@@ -1526,14 +1568,25 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
-            // !!: TODO
-        }
-
-        let mut offset = 0;
-        for list in self {
-            list.update_all(updates, &mut OffsetUiListObserver(offset, observer));
-            offset += list.len();
+        if self.len() > 1 && observer.is_reset_only() && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
+            let r = self
+                .par_iter_mut()
+                .with_ctx()
+                .map(|l| {
+                    let mut r = false;
+                    l.update_all(updates, &mut r);
+                    r
+                })
+                .any(std::convert::identity);
+            if r {
+                observer.reset();
+            }
+        } else {
+            let mut offset = 0;
+            for list in self {
+                list.update_all(updates, &mut OffsetUiListObserver(offset, observer));
+                offset += list.len();
+            }
         }
     }
 
@@ -1549,7 +1602,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
 
     fn render_all(&self, frame: &mut FrameBuilder) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-            // !!: TODO
+            // !!: TODO render
         }
         for list in self {
             list.render_all(frame);
@@ -1558,7 +1611,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
 
     fn render_update_all(&self, update: &mut FrameUpdate) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-            // !!: TODO
+            // !!: TODO render
         }
         for list in self {
             list.render_update_all(update);
@@ -1973,10 +2026,14 @@ impl<'d, D> UiNodeListObserver for PanelObserver<'d, D>
 where
     D: PanelListData,
 {
-    fn reseted(&mut self) {
+    fn is_reset_only(&self) -> bool {
+        false
+    }
+
+    fn reset(&mut self) {
         self.changed = true;
         self.data.clear();
-        self.observer.reseted();
+        self.observer.reset();
     }
 
     fn inserted(&mut self, index: usize) {
