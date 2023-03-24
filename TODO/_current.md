@@ -2,7 +2,7 @@
     - Parallel event handling.
     - Parallelization configurable like `Parallel`.
         - But for window, `UPDATE`, `INFO`, `INIT` and `DEINIT` are  the same?
-        - `ParallelWin { UPDATE, EVENT, LAYOUT, RENDER }`.
+        - `ParallelWin { UPDATE, EVENT }`.
 
 * Parallelize more methods.
     - `info`: how to share the `&mut WidgetInfoBuilder`?

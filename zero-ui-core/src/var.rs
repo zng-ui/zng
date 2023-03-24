@@ -731,7 +731,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///             println!("init: {}", self.bar.get());
 ///         }
 ///         
-///         fn update(&mut self, updates: &mut WidgetUpdates) {
+///         fn update(&mut self, updates: &WidgetUpdates) {
 ///             self.child.update(updates);
 ///             if let Some(new) = self.bar.get_new() {
 ///                 println!("update: {new}");

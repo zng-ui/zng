@@ -180,7 +180,7 @@ pub use zero_ui_proc_macros::widget_new;
 ///     }
 ///
 ///     #[UiNode]
-///     fn update(&mut self, updates: &mut WidgetUpdates) {
+///     fn update(&mut self, updates: &WidgetUpdates) {
 ///         self.child.update(updates);
 ///         self.do_the_thing();
 ///     }
@@ -206,7 +206,7 @@ pub use zero_ui_proc_macros::widget_new;
 ///         #[var] number: impl Var<u32>,
 ///     })]
 ///     impl UiNode for MyNode {
-///         fn update(&mut self, updates: &mut WidgetUpdates) {
+///         fn update(&mut self, updates: &WidgetUpdates) {
 ///             self.child.update(updates);
 ///             if let Some(n) = self.number.get_new() {
 ///                 println!("new number: {n}");
