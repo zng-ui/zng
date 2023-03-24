@@ -1,9 +1,10 @@
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
     - Need to parallelize `WidgetUpdates`.
-        - Refactor to don't need to mutate `DeliveryList`.
+        - Refactor to not need to mutate `DeliveryList`.
         - Change windows and nodes to receive `&WidgetUpdates` only.
         - This type is already `Send+Sync` so we can just `par_iter` from there. 
+    - Fix the `attempt to subtract with overflow` panic when closing the `animation` example.
 
 * Parallelize more methods.
     - `info`: how to share the `&mut WidgetInfoBuilder`?

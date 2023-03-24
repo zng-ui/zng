@@ -106,7 +106,7 @@ impl HeadedCtrl {
         }
     }
 
-    pub fn update(&mut self, updates: &mut WidgetUpdates) {
+    pub fn update(&mut self, updates: &WidgetUpdates) {
         if self.window.is_none() && !self.waiting_view {
             // we request a view on the first layout.
             UPDATES.layout();
@@ -426,7 +426,7 @@ impl HeadedCtrl {
         self.content.window_updates()
     }
 
-    pub fn pre_event(&mut self, update: &mut EventUpdate) {
+    pub fn pre_event(&mut self, update: &EventUpdate) {
         if let Some(args) = RAW_WINDOW_CHANGED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
                 let mut state_change = None;
@@ -652,7 +652,7 @@ impl HeadedCtrl {
         self.content.pre_event(update);
     }
 
-    pub fn ui_event(&mut self, update: &mut EventUpdate) {
+    pub fn ui_event(&mut self, update: &EventUpdate) {
         self.content.ui_event(update);
     }
 
@@ -1048,7 +1048,7 @@ impl HeadlessWithRendererCtrl {
         }
     }
 
-    pub fn update(&mut self, updates: &mut WidgetUpdates) {
+    pub fn update(&mut self, updates: &WidgetUpdates) {
         if self.surface.is_some() {
             if self.vars.size().is_new()
                 || self.vars.min_size().is_new()
@@ -1076,7 +1076,7 @@ impl HeadlessWithRendererCtrl {
         self.content.window_updates()
     }
 
-    pub fn pre_event(&mut self, update: &mut EventUpdate) {
+    pub fn pre_event(&mut self, update: &EventUpdate) {
         if let Some(args) = RAW_HEADLESS_OPEN_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
                 self.waiting_view = false;
@@ -1127,7 +1127,7 @@ impl HeadlessWithRendererCtrl {
         self.headless_simulator.pre_event(update);
     }
 
-    pub fn ui_event(&mut self, update: &mut EventUpdate) {
+    pub fn ui_event(&mut self, update: &EventUpdate) {
         self.content.ui_event(update);
     }
 
@@ -1278,7 +1278,7 @@ impl HeadlessCtrl {
         }
     }
 
-    pub fn update(&mut self, updates: &mut WidgetUpdates) {
+    pub fn update(&mut self, updates: &WidgetUpdates) {
         if self.vars.size().is_new() || self.vars.min_size().is_new() || self.vars.max_size().is_new() || self.vars.auto_size().is_new() {
             self.content.layout_requested = true;
             UPDATES.layout();
@@ -1304,12 +1304,12 @@ impl HeadlessCtrl {
         self.content.window_updates()
     }
 
-    pub fn pre_event(&mut self, update: &mut EventUpdate) {
+    pub fn pre_event(&mut self, update: &EventUpdate) {
         self.content.pre_event(update);
         self.headless_simulator.pre_event(update);
     }
 
-    pub fn ui_event(&mut self, update: &mut EventUpdate) {
+    pub fn ui_event(&mut self, update: &EventUpdate) {
         self.content.ui_event(update);
     }
 
@@ -1380,7 +1380,7 @@ impl HeadlessSimulator {
         *self.is_enabled.get_or_insert_with(|| crate::app::App::window_mode().is_headless())
     }
 
-    pub fn pre_event(&mut self, update: &mut EventUpdate) {
+    pub fn pre_event(&mut self, update: &EventUpdate) {
         if self.enabled() && self.is_open && VIEW_PROCESS_INITED_EVENT.on(update).map(|a| a.is_respawn).unwrap_or(false) {
             self.is_open = false;
         }
@@ -1842,7 +1842,7 @@ impl WindowCtrl {
         })
     }
 
-    pub fn update(&mut self, updates: &mut WidgetUpdates) {
+    pub fn update(&mut self, updates: &WidgetUpdates) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.update(updates),
             WindowCtrlMode::Headless(c) => c.update(updates),
@@ -1859,7 +1859,7 @@ impl WindowCtrl {
         }
     }
 
-    pub fn pre_event(&mut self, update: &mut EventUpdate) {
+    pub fn pre_event(&mut self, update: &EventUpdate) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.pre_event(update),
             WindowCtrlMode::Headless(c) => c.pre_event(update),
@@ -1867,7 +1867,7 @@ impl WindowCtrl {
         }
     }
 
-    pub fn ui_event(&mut self, update: &mut EventUpdate) {
+    pub fn ui_event(&mut self, update: &EventUpdate) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.ui_event(update),
             WindowCtrlMode::Headless(c) => c.ui_event(update),

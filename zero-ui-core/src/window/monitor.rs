@@ -152,7 +152,7 @@ impl MonitorsService {
         }
     }
 
-    pub(super) fn on_pre_event(update: &mut EventUpdate) {
+    pub(super) fn on_pre_event(update: &EventUpdate) {
         if let Some(args) = RAW_SCALE_FACTOR_CHANGED_EVENT.on(update) {
             if let Some(m) = MONITORS_SV.read().monitors.get(&args.monitor_id) {
                 m.scale_factor.set_ne(args.scale_factor);

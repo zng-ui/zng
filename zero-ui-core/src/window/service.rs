@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::{fmt, mem};
 
 use parking_lot::Mutex;
+use rayon::prelude::*;
 
 use super::commands::WindowCommands;
 use super::*;
@@ -547,7 +548,7 @@ impl WINDOWS {
         }
     }
 
-    pub(super) fn on_pre_event(update: &mut EventUpdate) {
+    pub(super) fn on_pre_event(update: &EventUpdate) {
         if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             let mut wns = WINDOWS_SV.write();
 
@@ -620,9 +621,9 @@ impl WINDOWS {
                 .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
         Self::with_detached_windows(|windows| {
-            for (_, window) in windows.iter_mut() {
+            windows.iter_mut().for_each(|(_, window)| {
                 window.ui_event(update);
-            }
+            });
         });
     }
 
@@ -702,9 +703,9 @@ impl WINDOWS {
         }
 
         Self::with_detached_windows(|windows| {
-            for (_, window) in windows.iter_mut() {
+            windows.par_iter_mut().for_each(|(_, window)| {
                 window.update(updates);
-            }
+            });
         });
     }
 
@@ -935,15 +936,15 @@ impl AppWindow {
         }
     }
 
-    pub fn pre_event(&mut self, update: &mut EventUpdate) {
+    pub fn pre_event(&mut self, update: &EventUpdate) {
         self.ctrl_in_ctx(|ctrl| ctrl.pre_event(update))
     }
 
-    pub fn ui_event(&mut self, update: &mut EventUpdate) {
+    pub fn ui_event(&mut self, update: &EventUpdate) {
         self.ctrl_in_ctx(|ctrl| ctrl.ui_event(update))
     }
 
-    pub fn update(&mut self, updates: &mut WidgetUpdates) {
+    pub fn update(&mut self, updates: &WidgetUpdates) {
         self.ctrl_in_ctx(|ctrl| ctrl.update(updates));
     }
 
