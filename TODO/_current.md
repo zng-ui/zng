@@ -1,25 +1,24 @@
-* Parallelize windows?
-    - Parallel event handling.
-    - Parallelization configurable like `Parallel`.
-        - But for window, `UPDATE`, `INFO`, `INIT` and `DEINIT` are  the same?
-        - `ParallelWin { UPDATE, EVENT }`.
+* Parallel event handling.
+    - Need `EventArgs: Sync`?
+        - Merge and re-branch first.
+    - Windows.
+    - Widgets.
 
-* Parallelize more methods.
-    - `info`: how to share the `&mut WidgetInfoBuilder`?
-        - Or can we build in parallel and then merge?
-    - `measure` and `layout`: needs to be done in panels, also how to parallelize access to mutable associated data in `PanelList`?
-        - Also how to share the `&mut WidgetLayout`?
-    - `event` and `update`: do we need these?
-        - For rare broadcast events?
-        - How to share the distribution list?
-    - `render`: how to share the frame builder?
-        - Can we build partial frames and merge?
-    - `render_update`: do we need it?
-        - We don't have an example that generates massive updates, but it is possible.
-        - Also review if we avoid sending updates for culled widgets, we should avoid doing that.
-        - To implement parallel we can just have multiple update builders and merge then?
-            - Simpler than merging other builders.
-            - Just need to figure out how to reuse then, right now we reuse alloc between updates.
+* Parallel updates.
+    - Widgets.
+        - Need to refactor list update observer?
+        - Info updates.
+            - How to share the `&mut WidgetInfoBuilder`?
+
+* Parallel layout.
+    - Widgets.
+        - How? Depend on the panels.
+        - Can implement something quick for the default (max-child).
+        - How to share `&mut WidgetMeasure` and `&mut WidgetLayout`?
+
+* Parallel render.
+    - Widgets.
+        - How to share `&mut FrameBuilder` and `&mut FrameUpdate`?
 
 * Review if service locks are blocking parallel execution.
     - `FontFaceLoader::get_system` and `FontFace::load` are noticeable in release build traces.

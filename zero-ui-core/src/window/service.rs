@@ -32,6 +32,7 @@ app_local! {
 pub(super) struct WindowsService {
     exit_on_last_close: ArcVar<bool>,
     default_render_mode: ArcVar<RenderMode>,
+    parallel: ArcVar<ParallelWin>,
 
     windows: IdMap<WindowId, AppWindow>,
     windows_info: IdMap<WindowId, AppWindowInfo>,
@@ -49,6 +50,7 @@ impl WindowsService {
         Self {
             exit_on_last_close: var(true),
             default_render_mode: var(RenderMode::default()),
+            parallel: var(ParallelWin::default()),
             windows: IdMap::default(),
             windows_info: IdMap::default(),
             open_requests: Vec::with_capacity(1),
@@ -156,6 +158,29 @@ impl WindowsService {
     }
 }
 
+bitflags! {
+    /// Defines what parts of windows can be updated in parallel.
+    ///
+    /// See [`WINDOWS.parallel`] for more details.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub struct ParallelWin: u8 {
+        /// Windows can init, deinit, update and rebuild info in parallel.
+        const UPDATE = 0b0001;
+        /// Windows can handle event updates in parallel.
+        const EVENT = 0b0010;
+        /// Windows can layout in parallel.
+        const LAYOUT = 0b0100;
+        /// Windows with pending render or render update generate display lists in parallel.
+        const RENDER = 0b1000;
+    }
+}
+impl Default for ParallelWin {
+    /// Is all by default.
+    fn default() -> Self {
+        Self::all()
+    }
+}
+
 /// Windows service.
 ///
 /// # Provider
@@ -180,6 +205,18 @@ impl WINDOWS {
     /// a different render mode if it cannot support the requested mode.
     pub fn default_render_mode(&self) -> ArcVar<RenderMode> {
         WINDOWS_SV.read().default_render_mode.clone()
+    }
+
+    /// Defines what parts of windows can update in parallel.
+    ///
+    /// All parallel is enabled by default. See [`ParallelWin`] for details of what parts of the windows can update in parallel.
+    ///
+    /// Note that this config is for parallel execution between windows, see the [`parallel`] property for parallel execution
+    /// within windows and widgets.
+    ///
+    /// [`parallel`]: fn@crate::widget_base::parallel
+    pub fn parallel(&self) -> ArcVar<ParallelWin> {
+        WINDOWS_SV.read().parallel.clone()
     }
 
     // Requests a new window.
@@ -608,9 +645,16 @@ impl WINDOWS {
             UPDATES.update_ext();
         }
 
-        Self::with_detached_windows(|windows| {
-            for (_, window) in windows.iter_mut() {
-                window.pre_event(update);
+        Self::with_detached_windows(|windows, parallel| {
+            if windows.len() > 1 && parallel.contains(ParallelWin::EVENT) {
+                // !!: TODO, EventArgs: Sync, also don't forget the `.with_ctx()`.
+                windows.iter_mut().for_each(|(_, window)| {
+                    window.pre_event(update);
+                });
+            } else {
+                for (_, window) in windows.iter_mut() {
+                    window.pre_event(update);
+                }
             }
         })
     }
@@ -621,10 +665,17 @@ impl WINDOWS {
                 .delivery_list_mut()
                 .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
-        Self::with_detached_windows(|windows| {
-            windows.iter_mut().for_each(|(_, window)| {
-                window.ui_event(update);
-            });
+        Self::with_detached_windows(|windows, parallel| {
+            if windows.len() > 1 && parallel.contains(ParallelWin::EVENT) {
+                // !!: TODO, EventArgs: Sync
+                windows.iter_mut().for_each(|(_, window)| {
+                    window.ui_event(update);
+                });
+            } else {
+                for (_, window) in windows.iter_mut() {
+                    window.ui_event(update);
+                }
+            }
         });
     }
 
@@ -703,10 +754,16 @@ impl WINDOWS {
                 .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
 
-        Self::with_detached_windows(|windows| {
-            windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
-                window.update(updates);
-            });
+        Self::with_detached_windows(|windows, parallel| {
+            if windows.len() > 1 && parallel.contains(ParallelWin::UPDATE) {
+                windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
+                    window.update(updates);
+                });
+            } else {
+                for (_, window) in windows.iter_mut() {
+                    window.update(updates);
+                }
+            }
         });
     }
 
@@ -793,7 +850,7 @@ impl WINDOWS {
 
         // fulfill focus request
         if let Some(w_id) = focus {
-            Self::with_detached_windows(|windows| {
+            Self::with_detached_windows(|windows, _| {
                 if let Some(w) = windows.get_mut(&w_id) {
                     w.focus();
                 }
@@ -801,7 +858,7 @@ impl WINDOWS {
         }
 
         for w_id in bring_to_top {
-            Self::with_detached_windows(|windows| {
+            Self::with_detached_windows(|windows, _| {
                 if let Some(w) = windows.get_mut(&w_id) {
                     w.bring_to_top();
                 }
@@ -810,17 +867,29 @@ impl WINDOWS {
     }
 
     pub(super) fn on_layout() {
-        Self::with_detached_windows(|windows| {
-            for (_, window) in windows.iter_mut() {
-                window.layout();
+        Self::with_detached_windows(|windows, parallel| {
+            if windows.len() > 1 && parallel.contains(ParallelWin::LAYOUT) {
+                windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
+                    window.layout();
+                })
+            } else {
+                for (_, window) in windows.iter_mut() {
+                    window.layout();
+                }
             }
         });
     }
 
     pub(super) fn on_render() {
-        Self::with_detached_windows(|windows| {
-            for (_, window) in windows.iter_mut() {
-                window.render();
+        Self::with_detached_windows(|windows, parallel| {
+            if windows.len() > 1 && parallel.contains(ParallelWin::RENDER) {
+                windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
+                    window.render();
+                });
+            } else {
+                for (_, window) in windows.iter_mut() {
+                    window.render();
+                }
             }
         });
     }
@@ -829,9 +898,12 @@ impl WINDOWS {
     ///
     /// The windows map is empty for the duration of `f` and should not be used, this is for
     /// mutating the window content while still allowing it to query the `Windows::windows_info`.
-    fn with_detached_windows(f: impl FnOnce(&mut IdMap<WindowId, AppWindow>)) {
-        let mut windows = mem::take(&mut WINDOWS_SV.write().windows);
-        f(&mut windows);
+    fn with_detached_windows(f: impl FnOnce(&mut IdMap<WindowId, AppWindow>, ParallelWin)) {
+        let (mut windows, parallel) = {
+            let mut w = WINDOWS_SV.write();
+            (mem::take(&mut w.windows), w.parallel.get())
+        };
+        f(&mut windows, parallel);
         let mut wns = WINDOWS_SV.write();
         debug_assert!(wns.windows.is_empty());
         wns.windows = windows;
