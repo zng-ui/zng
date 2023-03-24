@@ -1,6 +1,5 @@
 * Parallel event handling.
     - Need `EventArgs: Sync`?
-        - Merge and re-branch first.
     - Windows.
     - Widgets.
 
