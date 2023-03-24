@@ -180,6 +180,15 @@ impl Default for ParallelWin {
         Self::all()
     }
 }
+impl_from_and_into_var! {
+    fn from(all: bool) -> ParallelWin {
+        if all {
+            ParallelWin::all()
+        } else {
+            ParallelWin::empty()
+        }
+    }
+}
 
 /// Windows service.
 ///
