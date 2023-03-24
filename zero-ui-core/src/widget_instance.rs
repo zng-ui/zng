@@ -496,10 +496,17 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let _ = observer;
-        self.for_each_mut(|_, c| {
-            c.update(updates);
-            true
-        });
+
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
+            self.par_each_mut(|_, c| {
+                c.update(updates);
+            });
+        } else {
+            self.for_each_mut(|_, c| {
+                c.update(updates);
+                true
+            });
+        }
     }
 
     /// Receive an event for the list in a context, all nodes are also notified.
@@ -527,6 +534,9 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///
     /// [`for_each`]: UiNodeList::for_each
     fn render_all(&self, frame: &mut FrameBuilder) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            // !!: TODO
+        }
         self.for_each(|_, c| {
             c.render(frame);
             true
@@ -540,6 +550,9 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///
     /// [`for_each`]: UiNodeList::for_each
     fn render_update_all(&self, update: &mut FrameUpdate) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            // !!: TODO
+        }
         self.for_each(|_, c| {
             c.render_update(update);
             true
@@ -597,6 +610,9 @@ pub mod ui_node_list_default {
     }
 
     pub fn info_all(list: &impl UiNodeList, info: &mut WidgetInfoBuilder) {
+        if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INFO) {
+            // !!: TODO
+        }
         list.for_each(|_, c| {
             c.info(info);
             true
@@ -618,6 +634,9 @@ pub mod ui_node_list_default {
     }
 
     pub fn measure_all(list: &impl UiNodeList, wm: &mut WidgetMeasure) -> PxSize {
+        if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+            // !!: TODO
+        }
         let mut r = PxSize::zero();
         list.for_each(|_, n| {
             r = r.max(n.measure(wm));
@@ -627,6 +646,9 @@ pub mod ui_node_list_default {
     }
 
     pub fn layout_all(list: &mut impl UiNodeList, wl: &mut WidgetLayout) -> PxSize {
+        if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+            // !!: TODO
+        }
         let mut r = PxSize::zero();
         list.for_each_mut(|_, n| {
             r = r.max(n.layout(wl));

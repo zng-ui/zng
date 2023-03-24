@@ -402,16 +402,25 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     }
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        if PARALLEL_VAR.get().contains(Parallel::UPDATE) {
+            // !!: TODO
+        }
         self.0.update_all(updates, observer);
         self.1.update_all(updates, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
     fn render_all(&self, frame: &mut FrameBuilder) {
+        if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            // !!: TODO
+        }
         self.0.render_all(frame);
         self.1.render_all(frame);
     }
 
     fn render_update_all(&self, update: &mut FrameUpdate) {
+        if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            // !!: TODO
+        }
         self.0.render_update_all(update);
         self.1.render_update_all(update);
     }
@@ -1517,6 +1526,10 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
+            // !!: TODO
+        }
+
         let mut offset = 0;
         for list in self {
             list.update_all(updates, &mut OffsetUiListObserver(offset, observer));
@@ -1535,12 +1548,18 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 
     fn render_all(&self, frame: &mut FrameBuilder) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            // !!: TODO
+        }
         for list in self {
             list.render_all(frame);
         }
     }
 
     fn render_update_all(&self, update: &mut FrameUpdate) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            // !!: TODO
+        }
         for list in self {
             list.render_update_all(update);
         }
