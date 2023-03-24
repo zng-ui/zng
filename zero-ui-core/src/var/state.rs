@@ -108,7 +108,7 @@ pub fn event_is_state<A: EventArgs>(
             let _ = self.state.set_ne(self.default);
             self.child.deinit();
         }
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             if let Some(args) = self.event.on(update) {
                 if let Some(state) = (self.on_event)(args) {
                     let _ = self.state.set_ne(state);
@@ -170,7 +170,7 @@ where
             let _ = self.state.set_ne(self.default);
             self.child.deinit();
         }
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             let mut updated = false;
             if let Some(args) = self.event0.on(update) {
                 if let Some(state) = (self.on_event0)(args) {
@@ -260,7 +260,7 @@ where
             let _ = self.state.set_ne(self.default);
             self.child.deinit();
         }
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             let mut updated = false;
             if let Some(args) = self.event0.on(update) {
                 if let Some(state) = (self.on_event0)(args) {
@@ -365,7 +365,7 @@ where
             let _ = self.state.set_ne(self.default);
             self.child.deinit();
         }
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             let mut updated = false;
             if let Some(args) = self.event0.on(update) {
                 if let Some(state) = (self.on_event0)(args) {
@@ -489,7 +489,7 @@ pub fn widget_state_is_state(
                 let _ = self.state.set(state);
             }
         }
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             let state = WIDGET.with_state(&mut self.predicate);
             if state != self.state.get() {
@@ -541,7 +541,7 @@ pub fn widget_state_get_state<T: VarValue>(
             }
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             let new = self.state.with(|s| WIDGET.with_state(|w| (self.get_new)(w, s)));
             if let Some(new) = new {

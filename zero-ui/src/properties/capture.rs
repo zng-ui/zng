@@ -46,7 +46,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
             self.child.init();
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                 if args.is_mouse_down() {
                     let widget_id = WIDGET.id();
@@ -65,7 +65,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
             self.child.event(update);
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if let Some(new_mode) = self.mode.get_new() {
                 let tree = WINDOW.widget_tree();
                 let widget_id = WIDGET.id();
@@ -198,7 +198,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.child.deinit()
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.enabled.is_new() {
                 WIDGET.update_info();
             }

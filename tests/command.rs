@@ -99,7 +99,7 @@ fn listener_window(focused_wgt: bool) -> Window {
             self.handle_scoped = Some(FOO_CMD.scoped(WINDOW.id()).subscribe(true));
             self.handle_scoped_wgt = Some(FOO_CMD.scoped(WIDGET.id()).subscribe(true));
         }
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             if let Some(args) = FOO_CMD.on(update) {
                 args.handle(|args| {
                     TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));

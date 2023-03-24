@@ -1031,12 +1031,12 @@ pub fn with_context_local<T: Any + Send + Sync + 'static>(
         }
 
         #[UiNode]
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.with_mut(|c| c.event(update))
         }
 
         #[UiNode]
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.with_mut(|c| c.update(updates))
         }
 
@@ -1114,12 +1114,12 @@ pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
         }
 
         #[UiNode]
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.with_mut(|c| c.event(update))
         }
 
         #[UiNode]
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.with_mut(|c| c.update(updates))
         }
 

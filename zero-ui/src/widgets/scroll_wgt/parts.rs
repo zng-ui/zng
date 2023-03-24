@@ -245,7 +245,7 @@ pub mod thumb {
                 self.child.init();
             }
 
-            fn event(&mut self, update: &mut EventUpdate) {
+            fn event(&mut self, update: &EventUpdate) {
                 if let Some((mouse_down, start_offset)) = self.mouse_down {
                     if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                         let bounds = WIDGET.bounds().inner_bounds();
@@ -309,7 +309,7 @@ pub mod thumb {
                 self.child.event(update);
             }
 
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 if THUMB_OFFSET_VAR.is_new() {
                     WIDGET.layout();
                 }

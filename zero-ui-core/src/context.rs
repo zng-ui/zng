@@ -521,7 +521,7 @@ impl WINDOW {
     ///
     /// [`with_test_context`]: Self::with_test_context
     pub fn test_event(&self, content: &mut impl UiNode, update: &mut EventUpdate) -> ContextUpdates {
-        update.fulfill_search([&WINDOW.widget_tree()].into_iter());
+        update.delivery_list_mut().fulfill_search([&WINDOW.widget_tree()].into_iter());
         content.event(update);
         UPDATES.apply()
     }
@@ -533,7 +533,7 @@ impl WINDOW {
     /// [`with_test_context`]: Self::with_test_context
     pub fn test_update(&self, content: &mut impl UiNode, updates: Option<&mut WidgetUpdates>) -> ContextUpdates {
         if let Some(updates) = updates {
-            updates.fulfill_search([&WINDOW.widget_tree()].into_iter());
+            updates.delivery_list_mut().fulfill_search([&WINDOW.widget_tree()].into_iter());
             content.update(updates)
         } else {
             let target = if let Some(content_id) = content.with_context(|| WIDGET.id()) {
@@ -545,7 +545,7 @@ impl WINDOW {
             let mut updates = WidgetUpdates::new(UpdateDeliveryList::new_any());
             updates.delivery_list.insert_path(&target);
 
-            content.update(&mut updates);
+            content.update(&updates);
         }
         UPDATES.apply()
     }
@@ -1707,32 +1707,30 @@ impl WidgetUpdates {
         &self.delivery_list
     }
 
-    /// Find all targets.
-    ///
-    /// This must be called before the first window visit, see [`UpdateDeliveryList::fulfill_search`] for details.
-    pub fn fulfill_search<'a, 'b>(&'a mut self, windows: impl Iterator<Item = &'b WidgetInfoTree>) {
-        self.delivery_list.fulfill_search(windows)
+    /// Updates delivery list.
+    pub fn delivery_list_mut(&mut self) -> &mut UpdateDeliveryList {
+        &mut self.delivery_list
     }
 
     /// Calls `handle` if the event targets the current [`WINDOW`].
-    pub fn with_window<H, R>(&mut self, handle: H) -> Option<R>
+    pub fn with_window<H, R>(&self, handle: H) -> Option<R>
     where
-        H: FnOnce(&mut Self) -> R,
+        H: FnOnce() -> R,
     {
         if self.delivery_list.enter_window(WINDOW.id()) {
-            Some(handle(self))
+            Some(handle())
         } else {
             None
         }
     }
 
     /// Calls `handle` if the event targets the current [`WIDGET`].
-    pub fn with_widget<H, R>(&mut self, handle: H) -> Option<R>
+    pub fn with_widget<H, R>(&self, handle: H) -> Option<R>
     where
-        H: FnOnce(&mut Self) -> R,
+        H: FnOnce() -> R,
     {
         if self.delivery_list.enter_widget(WIDGET.id()) {
-            Some(handle(self))
+            Some(handle())
         } else {
             None
         }
@@ -1818,7 +1816,7 @@ impl UpdateDeliveryList {
     }
 
     /// Insert the ancestors of `wgt` and `wgt` up-to the inner most that is included in the subscribers.
-    pub fn insert_wgt(&mut self, wgt: WidgetInfo) {
+    pub fn insert_wgt(&mut self, wgt: &WidgetInfo) {
         let mut any = false;
         for w in wgt.self_and_ancestors() {
             if any || self.subscribers.contains(w.id()) {
@@ -1844,7 +1842,7 @@ impl UpdateDeliveryList {
     }
 
     /// If the the list has pending widgets that must be found before delivery can start.
-    pub fn has_pending_search(&self) -> bool {
+    pub fn has_pending_search(&mut self) -> bool {
         !self.search.is_empty()
     }
 
@@ -1866,25 +1864,6 @@ impl UpdateDeliveryList {
         self.search.clear();
     }
 
-    /// Returns `true` if the window is on the list.
-    ///
-    /// The window is removed from the list.
-    pub fn enter_window(&mut self, window_id: WindowId) -> bool {
-        self.windows.remove(&window_id)
-    }
-
-    /// Returns `true` if the widget is on the list.
-    ///
-    /// The widget is removed from the list.
-    pub fn enter_widget(&mut self, widget_id: WidgetId) -> bool {
-        self.widgets.remove(&widget_id)
-    }
-
-    /// Returns `true` if has entered all widgets on the list.
-    pub fn is_done(&self) -> bool {
-        self.widgets.is_empty() && self.search.is_empty()
-    }
-
     /// Copy windows, widgets and search from `other`, trusting that all values are allowed.
     fn extend_unchecked(&mut self, other: UpdateDeliveryList) {
         self.windows.extend(other.windows);
@@ -1892,22 +1871,22 @@ impl UpdateDeliveryList {
         self.search.extend(other.search)
     }
 
-    pub(crate) fn clear(&mut self) {
-        self.widgets.clear();
-        self.windows.clear();
-        self.search.clear();
+    /// Returns `true` if the window is on the list.
+    pub fn enter_window(&self, window_id: WindowId) -> bool {
+        self.windows.contains(&window_id)
+    }
+
+    /// Returns `true` if the widget is on the list.
+    pub fn enter_widget(&self, widget_id: WidgetId) -> bool {
+        self.widgets.contains(&widget_id)
     }
 
     /// Windows in the delivery list.
-    ///
-    /// Note that each window that is visited is removed from the list.
     pub fn windows(&self) -> &IdSet<WindowId> {
         &self.windows
     }
 
-    /// Found widgets in the delivery list, can be targets of ancestors of targets.
-    ///
-    /// Note that each widget that is visited is removed from the list.
+    /// Found widgets in the delivery list, can be targets or ancestors of targets.
     pub fn widgets(&self) -> &IdSet<WidgetId> {
         &self.widgets
     }
@@ -1917,7 +1896,7 @@ impl UpdateDeliveryList {
     /// Each window searches for these widgets and adds then to the [`widgets`] list.
     ///
     /// [`widgets`]: Self::widgets
-    pub fn search_widgets(&self) -> &IdSet<WidgetId> {
+    pub fn search_widgets(&mut self) -> &IdSet<WidgetId> {
         &self.search
     }
 }

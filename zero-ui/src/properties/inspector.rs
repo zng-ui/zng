@@ -129,7 +129,7 @@ fn show_widget_tree(
         cancel_space: SpatialFrameId,
     })]
     impl UiNode for RenderWidgetTreeNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.mode.is_new() {
                 WIDGET.render();
             }
@@ -222,7 +222,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             self.child.deinit();
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                 if self.valid && self.enabled.get() {
                     let factor = WINDOW_CTRL.vars().scale_factor().get();
@@ -267,7 +267,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             self.child.event(update);
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if let Some(enabled) = self.enabled.get_new() {
                 if enabled && self.valid {
                     let id = WIDGET.id();
@@ -344,7 +344,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
             self.child.deinit();
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             if self.valid {
                 if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                     if let Some(orientation) = self.orientation.get() {
@@ -382,7 +382,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
             self.child.event(update);
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.valid {
                 if let Some(ori) = self.orientation.get_new() {
                     self.search_quads.clear();

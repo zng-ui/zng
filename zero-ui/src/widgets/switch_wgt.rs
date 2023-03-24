@@ -30,7 +30,7 @@ pub mod switch {
         delegate_list_mut = &mut self.options,
     )]
     impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.index.is_new() {
                 WIDGET.layout().render();
                 self.collapse = true;

@@ -465,7 +465,7 @@ mod context {
                 self.handler.event(&());
             }
 
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 self.child.update(updates);
                 self.handler.update();
             }

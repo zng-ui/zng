@@ -203,13 +203,13 @@ pub trait UiNode: Any + Send {
     ///
     /// [`Event::on`]: crate::event::Event::on
     /// [`Event`]: crate::event::Event
-    fn event(&mut self, update: &mut EventUpdate);
+    fn event(&mut self, update: &EventUpdate);
 
     /// Called every time an update is requested.
     ///
     /// An update can be requested using the context [`WIDGET`], after each request, they also happen
     /// when variables update and any other context or service structure that can be observed updates.
-    fn update(&mut self, updates: &mut WidgetUpdates);
+    fn update(&mut self, updates: &WidgetUpdates);
 
     /// Compute the widget size given the contextual layout metrics.
     ///
@@ -494,7 +494,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// The behavior of some list implementations depend on this call, using [`for_each_mut`] to update nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
-    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let _ = observer;
         self.for_each_mut(|_, c| {
             c.update(updates);
@@ -507,7 +507,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// The behavior of some list implementations depend on this call, using [`for_each_mut`] to notify nodes is an error.
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
-    fn event_all(&mut self, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &EventUpdate) {
         self.for_each_mut(|_, c| {
             c.event(update);
             true
@@ -597,11 +597,11 @@ pub mod ui_node_list_default {
         });
     }
 
-    pub fn event_all(list: &mut impl UiNodeList, update: &mut EventUpdate) {
+    pub fn event_all(list: &mut impl UiNodeList, update: &EventUpdate) {
         list.event_all(update);
     }
 
-    pub fn update_all(list: &mut impl UiNodeList, updates: &mut WidgetUpdates) {
+    pub fn update_all(list: &mut impl UiNodeList, updates: &WidgetUpdates) {
         let mut changed = false;
 
         list.update_all(updates, &mut changed);
@@ -643,8 +643,8 @@ pub trait UiNodeBoxed: Any + Send {
     fn info_boxed(&self, info: &mut WidgetInfoBuilder);
     fn init_boxed(&mut self);
     fn deinit_boxed(&mut self);
-    fn update_boxed(&mut self, updates: &mut WidgetUpdates);
-    fn event_boxed(&mut self, update: &mut EventUpdate);
+    fn update_boxed(&mut self, updates: &WidgetUpdates);
+    fn event_boxed(&mut self, update: &EventUpdate);
     fn measure_boxed(&self, wm: &mut WidgetMeasure) -> PxSize;
     fn layout_boxed(&mut self, wl: &mut WidgetLayout) -> PxSize;
     fn render_boxed(&self, frame: &mut FrameBuilder);
@@ -673,11 +673,11 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.deinit();
     }
 
-    fn update_boxed(&mut self, updates: &mut WidgetUpdates) {
+    fn update_boxed(&mut self, updates: &WidgetUpdates) {
         self.update(updates);
     }
 
-    fn event_boxed(&mut self, update: &mut EventUpdate) {
+    fn event_boxed(&mut self, update: &EventUpdate) {
         self.event(update);
     }
 
@@ -738,8 +738,8 @@ pub trait UiNodeListBoxed: Any + Send {
     fn drain_into_boxed(&mut self, vec: &mut Vec<BoxedUiNode>);
     fn init_all_boxed(&mut self);
     fn deinit_all_boxed(&mut self);
-    fn event_all_boxed(&mut self, update: &mut EventUpdate);
-    fn update_all_boxed(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver);
+    fn event_all_boxed(&mut self, update: &EventUpdate);
+    fn update_all_boxed(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver);
     fn render_all_boxed(&self, frame: &mut FrameBuilder);
     fn render_update_all_boxed(&self, update: &mut FrameUpdate);
     fn actual_type_id_boxed(&self) -> TypeId;
@@ -788,11 +788,11 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
         self.deinit_all();
     }
 
-    fn event_all_boxed(&mut self, update: &mut EventUpdate) {
+    fn event_all_boxed(&mut self, update: &EventUpdate) {
         self.event_all(update);
     }
 
-    fn update_all_boxed(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all_boxed(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.update_all(updates, observer);
     }
 
@@ -840,11 +840,11 @@ impl UiNode for BoxedUiNode {
         self.as_mut().deinit_boxed();
     }
 
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         self.as_mut().update_boxed(updates);
     }
 
-    fn event(&mut self, update: &mut EventUpdate) {
+    fn event(&mut self, update: &EventUpdate) {
         self.as_mut().event_boxed(update);
     }
 
@@ -984,11 +984,11 @@ impl UiNodeList for BoxedUiNodeList {
         self.as_mut().deinit_all_boxed();
     }
 
-    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.as_mut().update_all_boxed(updates, observer);
     }
 
-    fn event_all(&mut self, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &EventUpdate) {
         self.as_mut().event_all_boxed(update);
     }
 
@@ -1034,13 +1034,13 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn event(&mut self, update: &mut EventUpdate) {
+    fn event(&mut self, update: &EventUpdate) {
         if let Some(node) = self {
             node.event(update);
         }
     }
 
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         if let Some(node) = self {
             node.update(updates);
         }
@@ -1236,11 +1236,11 @@ impl<U: UiNode> UiNode for Mutex<U> {
         self.lock().info(info)
     }
 
-    fn event(&mut self, update: &mut EventUpdate) {
+    fn event(&mut self, update: &EventUpdate) {
         self.get_mut().event(update)
     }
 
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         self.get_mut().update(updates)
     }
 
@@ -1350,11 +1350,11 @@ impl<L: UiNodeList> UiNodeList for Mutex<L> {
         self.get_mut().deinit_all()
     }
 
-    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.get_mut().update_all(updates, observer)
     }
 
-    fn event_all(&mut self, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &EventUpdate) {
         self.get_mut().event_all(update)
     }
 

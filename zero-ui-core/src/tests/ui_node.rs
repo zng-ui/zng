@@ -90,14 +90,14 @@ pub fn allow_missing_delegate() {
     #[ui_node(struct Node1 { child: impl UiNode })]
     impl UiNode for Node1 {
         #[allow_(zero_ui::missing_delegate)]
-        fn update(&mut self, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &WidgetUpdates) {
             // self.child.update(updates);
         }
     }
     #[ui_node(struct Node2 { child: impl UiNode })]
     #[allow_(zero_ui::missing_delegate)]
     impl UiNode for Node2 {
-        fn update(&mut self, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &WidgetUpdates) {
             // self.child.update(updates);
         }
     }
@@ -136,7 +136,6 @@ pub fn default_no_child() {
 
     WINDOW.with_test_context(|| {
         let wu = WINDOW.test_init(&mut wgt);
-        assert!(wu.update_widgets.delivery_list().is_done());
         assert!(wu.layout);
         assert!(wu.render);
 
@@ -144,7 +143,6 @@ pub fn default_no_child() {
         assert!(!wu.has_updates());
 
         let wu = WINDOW.test_deinit(&mut wgt);
-        assert!(wu.update_widgets.delivery_list().is_done());
         assert!(wu.layout);
         assert!(wu.render);
 
@@ -281,11 +279,11 @@ mod util {
             self.test_trace("deinit");
         }
 
-        fn update(&mut self, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &WidgetUpdates) {
             self.test_trace("update");
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.test_trace("event");
 
             if RENDER_UPDATE_EVENT.has(update) {

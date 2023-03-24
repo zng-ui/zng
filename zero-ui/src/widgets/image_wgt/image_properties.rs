@@ -338,7 +338,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
             self.child.init();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
                 if let Some(error) = new_img.error() {
                     if self.error != error {
@@ -389,7 +389,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
             self.child.init();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
                 if new_img.is_loaded() {
                     self.handler.event(&ImageLoadArgs {});
@@ -424,7 +424,7 @@ pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWi
             self.child.init();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.block.is_some() && !CONTEXT_IMAGE_VAR.with(Image::is_loading) {
                 self.block = None;
             }

@@ -8,7 +8,7 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
         final_size: PxSize,
     })]
     impl UiNode for FloodNode {
-        fn update(&mut self, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &WidgetUpdates) {
             if self.color.is_new() {
                 WIDGET.render_update();
             }

@@ -15,7 +15,7 @@ impl<C: UiNode> UiNode for Node1<C> {
         self.child.init();
     }
 
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         let _ = updates;
         // does not call self.child.update(updates);
     }

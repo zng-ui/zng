@@ -570,7 +570,7 @@ where
             WIDGET.set_state(self.id, (self.default)());
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             if let Some(v) = self.value.get_new() {
                 WIDGET.set_state(self.id, v);
@@ -634,7 +634,7 @@ where
             WIDGET.set_state(self.id, (self.default)());
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             self.value.with_new(|v| {
                 WIDGET.with_state_mut(|mut s| {

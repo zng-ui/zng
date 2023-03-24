@@ -866,7 +866,7 @@ impl GridNode {
     }
 
     #[UiNode]
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         if self.spacing.is_new() {
             WIDGET.layout();
         }

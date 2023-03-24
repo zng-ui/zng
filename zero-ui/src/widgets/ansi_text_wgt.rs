@@ -661,7 +661,7 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
         }
 
         #[UiNode]
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             use ansi_gen::*;
 
             if self.txt.is_new()

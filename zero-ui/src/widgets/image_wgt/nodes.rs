@@ -70,7 +70,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             self.ctx_binding = None;
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if let Some(mut source) = self.source.get_new() {
                 // source update:
 
@@ -291,7 +291,7 @@ pub fn image_presenter() -> impl UiNode {
             self.requested_layout = true;
         }
 
-        fn update(&mut self, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &WidgetUpdates) {
             if let Some(img) = CONTEXT_IMAGE_VAR.get_new() {
                 let img_size = img.size();
                 if self.img_size != img_size {

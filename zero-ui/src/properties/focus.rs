@@ -12,7 +12,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
         #[var] focusable: impl Var<bool>,
     })]
     impl UiNode for FocusableNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.focusable.is_new() {
                 WIDGET.update_info();
             }
@@ -38,7 +38,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
         #[var] tab_index: impl Var<TabIndex>,
     })]
     impl UiNode for TabIndexNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.tab_index.is_new() {
                 WIDGET.update_info();
             }
@@ -83,7 +83,7 @@ pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl
     is_alt: bool,
 })]
 impl UiNode for FocusScopeNode {
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         if self.is_focus_scope.is_new() {
             WIDGET.update_info();
         }
@@ -110,7 +110,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
         #[var] behavior: impl Var<FocusScopeOnFocus>,
     })]
     impl UiNode for FocusScopeBehaviorNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.behavior.is_new() {
                 WIDGET.update_info();
             }
@@ -137,7 +137,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
         #[var] tab_nav: impl Var<TabNav>,
     })]
     impl UiNode for TabNavNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.tab_nav.is_new() {
                 WIDGET.update_info();
             }
@@ -163,7 +163,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
         #[var] directional_nav: impl Var<DirectionalNav>,
     })]
     impl UiNode for DirectionalNavNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.directional_nav.is_new() {
                 WIDGET.update_info();
             }
@@ -197,7 +197,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
             self.handle = Some(GESTURES.focus_shortcut(s, WIDGET.id()));
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
 
             if let Some(s) = self.shortcuts.get_new() {
@@ -222,7 +222,7 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
         #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for SkipDirectionalNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.enabled.is_new() {
                 WIDGET.update_info();
             }

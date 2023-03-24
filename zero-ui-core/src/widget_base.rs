@@ -189,7 +189,7 @@ pub mod nodes {
                 self.child.init();
             }
 
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 if HitTestMode::var().is_new() {
                     WIDGET.layout();
                 }
@@ -332,7 +332,7 @@ pub mod nodes {
                 }
             }
 
-            fn event(&mut self, update: &mut EventUpdate) {
+            fn event(&mut self, update: &EventUpdate) {
                 if self.ctx.take_reinit() {
                     self.deinit();
                     self.init();
@@ -344,7 +344,7 @@ pub mod nodes {
                         tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event().name(), WIDGET.id());
                     }
 
-                    update.with_widget(|update| {
+                    update.with_widget(|| {
                         self.child.event(update);
                     });
                 });
@@ -355,7 +355,7 @@ pub mod nodes {
                 }
             }
 
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 if self.ctx.take_reinit() {
                     self.deinit();
                     self.init();
@@ -368,7 +368,7 @@ pub mod nodes {
                         tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", WIDGET.id());
                     }
 
-                    updates.with_widget(|updates| {
+                    updates.with_widget(|| {
                         self.child.update(updates);
                     });
                 });
@@ -582,7 +582,7 @@ pub mod nodes {
                 }
             }
 
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 if self.interactive.is_new() {
                     WIDGET.update_info();
                 }
@@ -687,7 +687,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.child.info(info);
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.enabled.is_new() {
                 WIDGET.update_info();
             }
@@ -736,7 +736,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
             self.child.info(info);
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.interactive.is_new() {
                 WIDGET.update_info();
             }
@@ -814,7 +814,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.child.init();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if let Some(vis) = self.visibility.get_new() {
                 use Visibility::*;
                 match (self.prev_vis, vis) {
@@ -999,7 +999,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
             self.child.init();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if HitTestMode::var().is_new() {
                 WIDGET.render();
             }
@@ -1085,7 +1085,7 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
         #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for CanAutoHideNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if let Some(new) = self.enabled.get_new() {
                 if WIDGET.bounds().can_auto_hide() != new {
                     WIDGET.layout().render();

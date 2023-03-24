@@ -68,7 +68,7 @@ pub mod rule_line {
         bounds: PxSize,
     })]
     impl UiNode for LineNode {
-        fn update(&mut self, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &WidgetUpdates) {
             if self.stroke_thickness.is_new() || self.length.is_new() || self.orientation.is_new() {
                 WIDGET.layout();
             }

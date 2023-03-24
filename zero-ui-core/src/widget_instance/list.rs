@@ -392,12 +392,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         }
     }
 
-    fn event_all(&mut self, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &EventUpdate) {
         self.0.event_all(update);
         self.1.event_all(update);
     }
 
-    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.0.update_all(updates, observer);
         self.1.update_all(updates, &mut OffsetUiListObserver(self.0.len(), observer));
     }
@@ -623,11 +623,11 @@ where
         self.invalidate_sort();
     }
 
-    fn event_all(&mut self, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &EventUpdate) {
         self.list.event_all(update);
     }
 
-    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut changed = false;
         let (_, resort) = SortingListParent::with(|| self.list.update_all(updates, &mut (observer, &mut changed as _)));
         if changed || resort {
@@ -862,7 +862,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
             self.child.init();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.valid {
                 if let Some(i) = self.index.get_new() {
                     Z_INDEX_CTX.with_mut(|z_ctx| {
@@ -1214,7 +1214,7 @@ impl UiNodeList for EditableUiNodeList {
         self.vec.deinit_all();
     }
 
-    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.fullfill_requests(observer);
         self.vec.update_all(updates, observer);
     }
@@ -1512,7 +1512,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
         }
     }
 
-    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut offset = 0;
         for list in self {
             list.update_all(updates, &mut OffsetUiListObserver(offset, observer));
@@ -1520,7 +1520,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
         }
     }
 
-    fn event_all(&mut self, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &EventUpdate) {
         for list in self {
             list.event_all(update);
         }
@@ -1830,11 +1830,11 @@ where
         self.list.deinit_all();
     }
 
-    fn event_all(&mut self, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &EventUpdate) {
         self.list.event_all(update);
     }
 
-    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut observer = PanelObserver {
             changed: false,
             data: &mut self.data,

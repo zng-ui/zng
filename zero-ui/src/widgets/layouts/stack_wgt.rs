@@ -145,7 +145,7 @@ pub mod stack {
     #[var] spacing: impl Var<Length>,
 })]
 impl UiNode for LazyStackNode {
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         if self.children_len.is_new() || self.direction.is_new() || self.spacing.is_new() {
             WIDGET.layout();
         }
@@ -212,7 +212,7 @@ impl UiNode for LazyStackNode {
 })]
 impl StackNode {
     #[UiNode]
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         let mut changed = false;
         self.children.update_all(updates, &mut changed);
 
@@ -533,7 +533,7 @@ pub fn stack_nodes_layout_by(
         constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + Send + 'static,
     })]
     impl UiNode for StackNodesFillNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.index.is_new() {
                 WIDGET.layout();
             }

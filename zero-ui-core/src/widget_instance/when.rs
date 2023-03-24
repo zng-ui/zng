@@ -146,12 +146,12 @@ impl UiNode for WhenUiNode {
         event_handles.clear();
     }
 
-    fn event(&mut self, update: &mut EventUpdate) {
+    fn event(&mut self, update: &EventUpdate) {
         let (child, var_handles, event_handles) = self.child_mut_with_handles();
         WIDGET.with_handles(var_handles, event_handles, || child.event(update));
     }
 
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         let mut any = false;
         for (i, (c, _)) in self.conditions.iter().enumerate() {
             if i < self.current {
@@ -307,7 +307,7 @@ impl UiNodeList for WhenUiNodeList {
         event_handles.clear();
     }
 
-    fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let mut any = false;
         for (i, (c, _)) in self.conditions.iter().enumerate() {
             if i < self.current {
@@ -342,7 +342,7 @@ impl UiNodeList for WhenUiNodeList {
         WIDGET.with_handles(var_handles, event_handles, || children.update_all(updates, observer));
     }
 
-    fn event_all(&mut self, update: &mut EventUpdate) {
+    fn event_all(&mut self, update: &EventUpdate) {
         let (children, var_handles, event_handles) = self.children_mut_with_handles();
         WIDGET.with_handles(var_handles, event_handles, || {
             children.event_all(update);

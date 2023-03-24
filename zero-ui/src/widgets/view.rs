@@ -139,7 +139,7 @@ where
             self.child.init();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.data.is_new() {
                 if let View::Update(new_child) = (self.presenter)(&self.data) {
                     self.child.deinit();
@@ -303,7 +303,7 @@ impl<D> WidgetGenerator<D> {
             fn deinit(&mut self) {
                 self.child.deinit();
             }
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 let gen = self.gen.get();
 
                 if gen.is_nil() {

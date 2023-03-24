@@ -51,12 +51,12 @@ where
         self.node.deinit();
     }
 
-    fn event(&mut self, update: &mut EventUpdate) {
+    fn event(&mut self, update: &EventUpdate) {
         let _span = (self.enter_mtd)("event");
         self.node.event(update);
     }
 
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         let _span = (self.enter_mtd)("update");
         self.node.update(updates);
     }

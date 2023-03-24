@@ -96,7 +96,7 @@ pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSp
         #[var] size: impl Var<Size>
     })]
     impl UiNode for InlineSizeNode {
-        fn update(&mut self, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &WidgetUpdates) {
             if self.size.is_new() {
                 UPDATES.layout();
             }
@@ -125,7 +125,7 @@ pub fn lazy_sample(children_len: impl IntoVar<usize>, spacing: impl IntoVar<Grid
         #[var] spacing: impl Var<GridSpacing>,
     })]
     impl UiNode for LazyWrapNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.children_len.is_new() || self.spacing.is_new() {
                 WIDGET.layout();
             }
@@ -156,7 +156,7 @@ pub fn lazy_sample(children_len: impl IntoVar<usize>, spacing: impl IntoVar<Grid
     layout: Mutex<InlineLayout>
 })]
 impl UiNode for WrapNode {
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         let mut any = false;
         self.children.update_all(updates, &mut any);
 

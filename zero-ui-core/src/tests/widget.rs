@@ -1528,7 +1528,7 @@ pub mod util {
         }
 
         #[UiNode]
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             self.update_state();
         }
@@ -1566,7 +1566,7 @@ pub mod util {
             self.auto_subs();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             if let Some(trace) = self.trace.get_new() {
                 WIDGET.with_state_mut(|mut s| {

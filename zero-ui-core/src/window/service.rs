@@ -614,8 +614,10 @@ impl WINDOWS {
     }
 
     pub(super) fn on_ui_event(update: &mut EventUpdate) {
-        if update.delivery_list().has_pending_search() {
-            update.fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
+        if update.delivery_list_mut().has_pending_search() {
+            update
+                .delivery_list_mut()
+                .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
         Self::with_detached_windows(|windows| {
             for (_, window) in windows.iter_mut() {
@@ -693,8 +695,10 @@ impl WINDOWS {
     pub(super) fn on_ui_update(updates: &mut WidgetUpdates) {
         Self::fullfill_requests();
 
-        if updates.delivery_list().has_pending_search() {
-            updates.fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
+        if updates.delivery_list_mut().has_pending_search() {
+            updates
+                .delivery_list_mut()
+                .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
 
         Self::with_detached_windows(|windows| {

@@ -46,7 +46,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             self.child.info(builder);
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
 
             if self.mode.is_new() || SCROLL_VERTICAL_OFFSET_VAR.is_new() || SCROLL_HORIZONTAL_OFFSET_VAR.is_new() {
@@ -317,7 +317,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             self.right = CommandHandle::dummy();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
 
             self.up.set_enabled(SCROLL.can_scroll_up());
@@ -330,7 +330,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.child.event(update);
 
             let scope = WIDGET.id();
@@ -443,7 +443,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             self.right = CommandHandle::dummy();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
 
             self.up.set_enabled(SCROLL.can_scroll_up());
@@ -456,7 +456,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.child.event(update);
 
             let scope = WIDGET.id();
@@ -564,7 +564,7 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             self.rightmost = CommandHandle::dummy();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
 
             self.top.set_enabled(SCROLL.can_scroll_up());
@@ -573,7 +573,7 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             self.rightmost.set_enabled(SCROLL.can_scroll_right());
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.child.event(update);
 
             let scope = WIDGET.id();
@@ -628,7 +628,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             self.child.deinit();
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             let self_id = WIDGET.id();
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if let Some(path) = &args.new_focus {
@@ -790,7 +790,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
             self.child.deinit();
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             if let Some(args) = MOUSE_WHEEL_EVENT.on(update) {
                 if let Some(delta) = args.scroll_delta(ALT_FACTOR_VAR.get()) {
                     args.handle(|_| {

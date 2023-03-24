@@ -214,7 +214,7 @@ pub mod prelude {
     ///     #[var] value: impl Var<bool>,
     /// })]
     /// impl UiNode for MyPropertyNode {
-    ///     fn update(&mut self, updates: &mut WidgetUpdates) {
+    ///     fn update(&mut self, updates: &WidgetUpdates) {
     ///         self.child.update(updates);
     ///         if let Some(new_value) = self.value.get_new() {
     ///             // ..

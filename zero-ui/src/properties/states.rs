@@ -220,7 +220,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
             let _ = self.state.set_ne(false);
             self.child.deinit();
         }
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             if let Some(args) = CLICK_EVENT.on(update) {
                 if args.shortcut().is_some() && args.is_enabled(WIDGET.id()) {
                     // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
@@ -241,7 +241,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
             }
             self.child.event(update);
         }
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
 
             if let Some(timer) = &self.shortcut_press {

@@ -247,7 +247,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             *self.resolved.get_mut() = None;
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             if let Some(args) = CHAR_INPUT_EVENT.on(update) {
                 if !args.propagation().is_stopped()
                     && self.text.capabilities().contains(VarCapabilities::MODIFY)
@@ -304,7 +304,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             self.with_mut(|c| c.event(update))
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             let r = self.resolved.get_mut().as_mut().unwrap();
 
             // update `r.text`, affects layout.
@@ -734,7 +734,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         #[UiNode]
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if FONT_SIZE_VAR.is_new() || FONT_VARIATIONS_VAR.is_new() {
                 self.txt.get_mut().pending.insert(Layout::RESHAPE);
                 WIDGET.layout();
@@ -954,7 +954,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
     impl UiNode for RenderUnderlineNode {
         // subscriptions are handled by the `resolve_text` node.
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if UNDERLINE_STYLE_VAR.is_new() || UNDERLINE_COLOR_VAR.is_new() {
                 WIDGET.render();
             }
@@ -999,7 +999,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
     })]
     impl UiNode for RenderStrikethroughsNode {
         // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if STRIKETHROUGH_STYLE_VAR.is_new() || STRIKETHROUGH_COLOR_VAR.is_new() {
                 WIDGET.render();
             }
@@ -1043,7 +1043,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
     })]
     impl UiNode for RenderOverlineNode {
         // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if OVERLINE_STYLE_VAR.is_new() || OVERLINE_COLOR_VAR.is_new() {
                 WIDGET.render();
             }
@@ -1101,7 +1101,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             self.child.init();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             let color = if TEXT_EDITABLE_VAR.get() {
                 let mut c = CARET_COLOR_VAR.get();
                 c.alpha *= ResolvedText::get().caret_opacity.get().0;
@@ -1178,7 +1178,7 @@ pub fn render_text() -> impl UiNode {
         }
 
         // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &WidgetUpdates) {
             if FONT_AA_VAR.is_new() {
                 WIDGET.render();
             } else if TEXT_COLOR_VAR.is_new() {

@@ -91,7 +91,7 @@ pub fn node() -> impl UiNode {
             self.colors = [c0.into(), c1.into()];
         }
 
-        fn update(&mut self, _: &mut WidgetUpdates) {
+        fn update(&mut self, _: &WidgetUpdates) {
             if let Some((c0, c1)) = COLORS_VAR.get_new() {
                 self.colors = [c0.into(), c1.into()];
                 WIDGET.render();

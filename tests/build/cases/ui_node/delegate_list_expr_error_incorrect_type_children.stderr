@@ -63,7 +63,7 @@ error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is no
 note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::update_all`
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
-  |     pub fn update_all(list: &mut impl UiNodeList, updates: &mut WidgetUpdates) {
+  |     pub fn update_all(list: &mut impl UiNodeList, updates: &WidgetUpdates) {
   |                                       ^^^^^^^^^^ required by this bound in `update_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
@@ -80,7 +80,7 @@ error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is no
 note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::event_all`
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
-  |     pub fn event_all(list: &mut impl UiNodeList, update: &mut EventUpdate) {
+  |     pub fn event_all(list: &mut impl UiNodeList, update: &EventUpdate) {
   |                                      ^^^^^^^^^^ required by this bound in `event_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied

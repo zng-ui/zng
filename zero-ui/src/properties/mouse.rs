@@ -37,7 +37,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
             self.child.deinit();
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.child.event(update);
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 let is_over = args.target.as_ref().map(|t| t.as_path().contains(WIDGET.id())).unwrap_or(false);
@@ -82,7 +82,7 @@ pub fn click_mode(child: impl UiNode, mode: impl IntoVar<Option<ClickMode>>) -> 
         #[var] mode: impl Var<Option<ClickMode>>,
     })]
     impl UiNode for ClickModeNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
 
             if self.mode.is_new() {

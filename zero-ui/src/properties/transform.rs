@@ -18,7 +18,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         binding_key: FrameValueKey<PxTransform>,
     })]
     impl UiNode for TransformNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             if self.transform.is_new() {
                 WIDGET.layout();

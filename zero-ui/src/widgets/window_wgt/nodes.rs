@@ -54,7 +54,7 @@ impl LAYERS {
                 self.widget.init();
             }
 
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 if let Some(index) = self.layer.get_new() {
                     self.widget.with_context(|| {
                         WIDGET.set_state(&LAYER_INDEX_ID, index);
@@ -162,7 +162,7 @@ impl LAYERS {
                 self.corner_radius_ctx_handle = None;
             }
 
-            fn event(&mut self, update: &mut EventUpdate) {
+            fn event(&mut self, update: &EventUpdate) {
                 if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
                     if args.window_id == WINDOW.id() {
                         self.anchor_info = WINDOW
@@ -174,7 +174,7 @@ impl LAYERS {
                 self.widget.event(update);
             }
 
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 if let Some(anchor) = self.anchor.get_new() {
                     self.anchor_info = WINDOW.widget_tree().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                     if self.mode.with(|m| m.interaction) {
@@ -446,7 +446,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             self.children.init_all();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             let mut changed = false;
 
             self.children.update_all(updates, &mut changed);

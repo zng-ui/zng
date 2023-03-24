@@ -129,7 +129,7 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
         #[var] clear_color: impl Var<Rgba>,
     })]
     impl UiNode for ClearColorNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.clear_color.is_new() {
                 WIDGET.render_update();
             }
@@ -285,14 +285,14 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             self.child.deinit();
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.child.event(update);
             if WINDOW_LOAD_EVENT.has(update) {
                 self.task = Task::None;
             }
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if let Task::Read { rsp, .. } = &mut self.task {
                 if let Some(rsp) = rsp.rsp() {
                     if let Some(s) = rsp {

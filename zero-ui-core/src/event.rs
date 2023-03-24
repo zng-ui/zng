@@ -18,7 +18,6 @@ use crate::{
     context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WIDGET, WINDOW},
     crate_util::{IdEntry, IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
-    widget_info::WidgetInfoTree,
     widget_instance::WidgetId,
 };
 
@@ -489,44 +488,39 @@ impl EventUpdate {
         &self.delivery_list
     }
 
+    /// The update delivery list.
+    pub fn delivery_list_mut(&mut self) -> &mut UpdateDeliveryList {
+        &mut self.delivery_list
+    }
+
     /// The update args.
     pub fn args(&self) -> &dyn AnyEventArgs {
         &*self.args
     }
 
-    /// Find all targets.
-    ///
-    /// This must be called before the first window visit, see [`UpdateDeliveryList::fulfill_search`] for details.
-    pub fn fulfill_search<'a, 'b>(&'a mut self, windows: impl Iterator<Item = &'b WidgetInfoTree>) {
-        self.delivery_list.fulfill_search(windows)
-    }
-
     /// Calls `handle` if the event targets the window.
-    pub fn with_window<H, R>(&mut self, handle: H) -> Option<R>
+    pub fn with_window<H, R>(&self, handle: H) -> Option<R>
     where
-        H: FnOnce(&mut Self) -> R,
+        H: FnOnce() -> R,
     {
         if self.delivery_list.enter_window(WINDOW.id()) {
-            Some(handle(self))
+            Some(handle())
         } else {
             None
         }
     }
 
     /// Calls `handle` if the event targets the widget and propagation is not stopped.
-    pub fn with_widget<H: FnOnce(&mut Self) -> R, R>(&mut self, handle: H) -> Option<R> {
+    pub fn with_widget<H, R>(&self, handle: H) -> Option<R>
+    where
+        H: FnOnce() -> R,
+    {
         if self.delivery_list.enter_widget(WIDGET.id()) {
-            let stop = self.args.propagation().is_stopped();
-
-            let r = if stop { None } else { Some(handle(self)) };
-
-            if stop || self.args.propagation().is_stopped() {
-                self.pre_actions.clear();
-                self.pos_actions.clear();
-                self.delivery_list.clear();
+            if self.args.propagation().is_stopped() {
+                None
+            } else {
+                Some(handle())
             }
-
-            r
         } else {
             None
         }

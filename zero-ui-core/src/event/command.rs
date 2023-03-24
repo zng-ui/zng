@@ -310,7 +310,7 @@ impl Command {
     }
 
     /// Returns `true` if the update is for this command and scope.
-    pub fn has(&self, update: &mut EventUpdate) -> bool {
+    pub fn has(&self, update: &EventUpdate) -> bool {
         self.on(update).is_some()
     }
 
@@ -327,7 +327,7 @@ impl Command {
     }
 
     /// Calls `handler` if the update is for this event and propagation is not stopped, after the handler is called propagation is stopped.
-    pub fn handle<R>(&self, update: &mut EventUpdate, handler: impl FnOnce(&CommandArgs) -> R) -> Option<R> {
+    pub fn handle<R>(&self, update: &EventUpdate, handler: impl FnOnce(&CommandArgs) -> R) -> Option<R> {
         if let Some(args) = self.on(update) {
             args.handle(handler)
         } else {
@@ -1101,7 +1101,7 @@ where
             self.handle = None;
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.child.event(update);
 
             if let Some(args) = self.command.expect("OnCommandNode not initialized").on_unhandled(update) {
@@ -1109,7 +1109,7 @@ where
             }
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
 
             self.handler.update();
@@ -1163,14 +1163,14 @@ where
             self.command = Some(command);
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             if let Some(args) = self.command.expect("OnPreCommandNode not initialized").on_unhandled(update) {
                 self.handler.event(args);
             }
             self.child.event(update);
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.handler.update();
 
             if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").get_new() {

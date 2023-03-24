@@ -98,7 +98,7 @@ pub mod toggle_properties {
                 self.child.deinit();
             }
 
-            fn event(&mut self, update: &mut EventUpdate) {
+            fn event(&mut self, update: &EventUpdate) {
                 self.child.event(update);
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
@@ -162,7 +162,7 @@ pub mod toggle_properties {
                 self.click_handle = None;
             }
 
-            fn event(&mut self, update: &mut EventUpdate) {
+            fn event(&mut self, update: &EventUpdate) {
                 self.child.event(update);
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
@@ -385,7 +385,7 @@ pub mod toggle_properties {
             }
 
             #[UiNode]
-            fn event(&mut self, update: &mut EventUpdate) {
+            fn event(&mut self, update: &EventUpdate) {
                 self.child.event(update);
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary() && !args.propagation().is_stopped() && args.is_enabled(WIDGET.id()) {
@@ -405,7 +405,7 @@ pub mod toggle_properties {
             }
 
             #[UiNode]
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 let selected = self.value.with_new(|new| {
                     // auto select new.
                     let selected = if self.checked.get() == Some(true) && SELECT_ON_NEW_VAR.get() {

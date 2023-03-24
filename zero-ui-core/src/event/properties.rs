@@ -180,7 +180,7 @@ where
         handler: impl WidgetHandler<A>,
     })]
     impl UiNode for OnEventNode {
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.child.event(update);
             if let Some(args) = self.event.on(update) {
                 if !args.propagation().is_stopped() && (self.filter)(args) {
@@ -189,7 +189,7 @@ where
             }
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             self.handler.update();
         }
@@ -246,7 +246,7 @@ where
         handler: impl WidgetHandler<A>,
     })]
     impl UiNode for OnPreviewEventNode {
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             if let Some(args) = self.event.on(update) {
                 if !args.propagation().is_stopped() && (self.filter)(args) {
                     self.handler.event(args);
@@ -255,7 +255,7 @@ where
             self.child.event(update);
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.handler.update();
             self.child.update(updates);
         }

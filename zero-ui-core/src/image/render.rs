@@ -149,7 +149,7 @@ impl ImageManager {
     }
 
     /// AppExtension::event_preview
-    pub(super) fn event_preview_render(&mut self, update: &mut EventUpdate) {
+    pub(super) fn event_preview_render(&mut self, update: &EventUpdate) {
         if let Some(args) = FRAME_IMAGE_READY_EVENT.on(update) {
             if let Some(img) = &args.frame_image {
                 let imgs = IMAGES_SV.read();

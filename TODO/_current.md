@@ -1,10 +1,9 @@
 * Parallelize windows?
     - Multiple window updates can happen in parallel.
     - Need to parallelize `WidgetUpdates`.
-        - That is actually `UpdateDeliveryList`.
-        - All widgets to visit are in a flat `IdMap`.
-        - That's a lot of locking.
-        - Try https://crates.io/crates/dashmap, `IdDashMap`?
+        - Refactor to don't need to mutate `DeliveryList`.
+        - Change windows and nodes to receive `&WidgetUpdates` only.
+        - This type is already `Send+Sync` so we can just `par_iter` from there. 
 
 * Parallelize more methods.
     - `info`: how to share the `&mut WidgetInfoBuilder`?
@@ -22,17 +21,6 @@
         - To implement parallel we can just have multiple update builders and merge then?
             - Simpler than merging other builders.
             - Just need to figure out how to reuse then, right now we reuse alloc between updates.
-
-* Parallelize app extensions?
-    - The API is careful to not change the order of updates.
-    - Maybe extensions can provide their own `Parallel` selection.
-        - No if an extension depends on updating after the other the first extension could enable parallel and break this.
-    - Maybe extensions can list their dependencies?
-        - This requires dynamic code to create lists that must update linearly.
-        - Right now we use generics in release builds to create zero-cost dispatch.
-    - Do we have extensions that depend on running after others?
-        - With multiple priority update methods maybe we don't need it.
-        - Review this.
 
 * Review if service locks are blocking parallel execution.
     - `FontFaceLoader::get_system` and `FontFace::load` are noticeable in release build traces.

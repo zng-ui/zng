@@ -347,9 +347,9 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init
 
         [fn deinit(&mut self) { }]
 
-        [fn update(&mut self, updates: &mut #crate_::context::WidgetUpdates) { }]
+        [fn update(&mut self, updates: &#crate_::context::WidgetUpdates) { }]
 
-        [fn event(&mut self, update: &mut #crate_::event::EventUpdate) { }]
+        [fn event(&mut self, update: &#crate_::event::EventUpdate) { }]
 
         [fn measure(&self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
             #crate_::context::LAYOUT.constrains().fill_size()
@@ -398,12 +398,12 @@ fn delegate_absents(
             #crate_::widget_instance::UiNode::deinit(#deref_mut);
         }]
 
-        [fn update(&mut self, updates: &mut #crate_::context::WidgetUpdates) {
+        [fn update(&mut self, updates: &#crate_::context::WidgetUpdates) {
             let mut #child_mut = {#borrow_mut};
             #crate_::widget_instance::UiNode::update(#deref_mut, updates);
         }]
 
-        [fn event(&mut self, update: &mut #crate_::event::EventUpdate) {
+        [fn event(&mut self, update: &#crate_::event::EventUpdate) {
             let mut #child_mut = {#borrow_mut};
             #crate_::widget_instance::UiNode::event(#deref_mut, update);
         }]
@@ -462,12 +462,12 @@ fn delegate_list_absents(
             #crate_::widget_instance::ui_node_list_default::deinit_all(#deref_mut);
         }]
 
-        [fn update(&mut self, updates: &mut #crate_::context::WidgetUpdates) {
+        [fn update(&mut self, updates: &#crate_::context::WidgetUpdates) {
             let #children_mut = {#borrow_mut};
             #crate_::widget_instance::ui_node_list_default::update_all(#deref_mut, updates);
         }]
 
-        [fn event(&mut self, update: &mut #crate_::event::EventUpdate) {
+        [fn event(&mut self, update: &#crate_::event::EventUpdate) {
             let #children_mut = {#borrow_mut};
             #crate_::widget_instance::ui_node_list_default::event_all(#deref_mut, update);
         }]

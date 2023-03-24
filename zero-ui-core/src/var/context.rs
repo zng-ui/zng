@@ -450,12 +450,12 @@ mod helpers {
             }
 
             #[UiNode]
-            fn event(&mut self, update: &mut crate::event::EventUpdate) {
+            fn event(&mut self, update: &crate::event::EventUpdate) {
                 self.with_mut(|c| c.event(update))
             }
 
             #[UiNode]
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 self.with_mut(|c| c.update(updates))
             }
 
@@ -539,12 +539,12 @@ mod helpers {
             }
 
             #[UiNode]
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 self.with_mut(|c| c.update(updates));
             }
 
             #[UiNode]
-            fn event(&mut self, update: &mut EventUpdate) {
+            fn event(&mut self, update: &EventUpdate) {
                 self.with_mut(|c| c.event(update));
             }
 
@@ -614,12 +614,12 @@ mod helpers {
             }
 
             #[UiNode]
-            fn update(&mut self, updates: &mut WidgetUpdates) {
+            fn update(&mut self, updates: &WidgetUpdates) {
                 self.with_mut(|c| c.update(updates));
             }
 
             #[UiNode]
-            fn event(&mut self, update: &mut EventUpdate) {
+            fn event(&mut self, update: &EventUpdate) {
                 self.with_mut(|c| c.event(update));
             }
 

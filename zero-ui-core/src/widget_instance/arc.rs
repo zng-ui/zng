@@ -324,12 +324,12 @@ mod impls {
             false
         }
 
-        fn take_on_event(&mut self, update: &mut EventUpdate) -> bool {
+        fn take_on_event(&mut self, update: &EventUpdate) -> bool {
             let _ = update;
             false
         }
 
-        fn take_on_update(&mut self, updates: &mut WidgetUpdates) -> bool {
+        fn take_on_update(&mut self, updates: &WidgetUpdates) -> bool {
             let _ = updates;
             false
         }
@@ -344,7 +344,7 @@ mod impls {
             self.var.get()
         }
 
-        fn take_on_update(&mut self, _: &mut WidgetUpdates) -> bool {
+        fn take_on_update(&mut self, _: &WidgetUpdates) -> bool {
             self.var.get_new().unwrap_or(false)
         }
     }
@@ -360,7 +360,7 @@ mod impls {
             self.take_on_init
         }
 
-        fn take_on_event(&mut self, update: &mut EventUpdate) -> bool {
+        fn take_on_event(&mut self, update: &EventUpdate) -> bool {
             if let Some(args) = self.event.on(update) {
                 (self.filter)(args)
             } else {
@@ -410,14 +410,14 @@ mod impls {
             self.event_handles.clear();
         }
 
-        fn on_event(&mut self, update: &mut EventUpdate) {
+        fn on_event(&mut self, update: &EventUpdate) {
             if !self.is_owner() && self.take.take_on_event(update) {
                 // request ownership.
                 self.take();
             }
         }
 
-        fn on_update(&mut self, updates: &mut WidgetUpdates) {
+        fn on_update(&mut self, updates: &WidgetUpdates) {
             if self.is_owner() {
                 let mut slots = self.rc.slots.lock();
                 if let Some((_, id)) = slots.move_request {
@@ -540,12 +540,12 @@ mod impls {
             self.delegate_owned(|n| n.info(info));
         }
 
-        fn event(&mut self, update: &mut EventUpdate) {
+        fn event(&mut self, update: &EventUpdate) {
             self.on_event(update);
             self.delegate_owned_mut_with_handles(|n| n.event(update));
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.on_update(updates);
             self.delegate_owned_mut_with_handles(|n| n.update(updates));
         }
@@ -645,12 +645,12 @@ mod impls {
             // delegation done in the handler
         }
 
-        fn event_all(&mut self, update: &mut EventUpdate) {
+        fn event_all(&mut self, update: &EventUpdate) {
             self.on_event(update);
             self.delegate_owned_mut_with_handles(|l| l.event_all(update));
         }
 
-        fn update_all(&mut self, updates: &mut WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
             self.on_update(updates);
             let _ = observer;
             self.delegate_owned_mut_with_handles(|l| l.update_all(updates, observer));

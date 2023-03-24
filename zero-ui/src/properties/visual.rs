@@ -300,7 +300,7 @@ pub fn foreground_highlight(
         render_radius: PxCornerRadius,
     })]
     impl UiNode for ForegroundHighlightNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.offsets.is_new() || self.widths.is_new() {
                 WIDGET.layout();
             } else if self.sides.is_new() {
@@ -459,7 +459,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         corners: PxCornerRadius,
     })]
     impl UiNode for ClipToBoundsNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.clip.is_new() {
                 WIDGET.layout().render();
             }
@@ -573,7 +573,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
         #[var] mode: impl Var<InlineMode>,
     })]
     impl UiNode for InlineNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             if self.mode.is_new() {
                 WIDGET.layout();

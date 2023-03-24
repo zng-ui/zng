@@ -49,7 +49,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         #[var] margin: impl Var<SideOffsets>,
     })]
     impl UiNode for MarginNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.margin.is_new() {
                 WIDGET.layout();
             }
@@ -111,7 +111,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
         #[var] alignment: impl Var<Align>,
     })]
     impl UiNode for AlignNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.alignment.is_new() {
                 WIDGET.layout();
             }
@@ -177,7 +177,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
         #[var] offset: impl Var<Vector>,
     })]
     impl UiNode for OffsetNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.offset.is_new() {
                 WIDGET.layout();
             }
@@ -235,7 +235,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
         #[var] x: impl Var<Length>,
     })]
     impl UiNode for XNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.x.is_new() {
                 WIDGET.layout();
             }
@@ -290,7 +290,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
         #[var] y: impl Var<Length>,
     })]
     impl UiNode for YNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.y.is_new() {
                 WIDGET.layout();
             }
@@ -354,7 +354,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
         #[var] min_size: impl Var<Size>,
     })]
     impl UiNode for MinSizeNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.min_size.is_new() {
                 WIDGET.layout();
             }
@@ -420,7 +420,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
         #[var] min_width: impl Var<Length>,
     })]
     impl UiNode for MinWidthNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.min_width.is_new() {
                 WIDGET.layout();
             }
@@ -488,7 +488,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
         #[var] min_height: impl Var<Length>,
     })]
     impl UiNode for MinHeightNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.min_height.is_new() {
                 WIDGET.layout();
             }
@@ -557,7 +557,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
         #[var] max_size: impl Var<Size>,
     })]
     impl UiNode for MaxSizeNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.max_size.is_new() {
                 WIDGET.layout();
             }
@@ -623,7 +623,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
         #[var] max_width: impl Var<Length>,
     })]
     impl UiNode for MaxWidthNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.max_width.is_new() {
                 WIDGET.layout();
             }
@@ -693,7 +693,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
         #[var] max_height: impl Var<Length>,
     })]
     impl UiNode for MaxHeightNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.max_height.is_new() {
                 WIDGET.layout();
             }
@@ -774,7 +774,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             self.size.with(|l| WIDGET_SIZE.set(l));
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             self.size.with_new(|s| {
                 WIDGET_SIZE.set(s);
@@ -846,7 +846,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
             self.width.with(|s| WIDGET_SIZE.set_width(s));
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             self.width.with_new(|w| {
                 WIDGET_SIZE.set_width(w);
@@ -920,7 +920,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
             self.height.with(|s| WIDGET_SIZE.set_height(s));
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             self.height.with_new(|h| {
                 WIDGET_SIZE.set_height(h);
@@ -972,7 +972,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
         #[var] baseline: impl Var<Length>,
     })]
     impl UiNode for BaselineNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             if self.baseline.is_new() {
                 WIDGET.layout();
             }
@@ -1192,7 +1192,7 @@ pub fn child_insert(
         offset: PxVector,
     })]
     impl UiNode for ChildInsertNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.children.update_all(updates, &mut ());
             if self.place.is_new() || self.spacing.is_new() {
                 WIDGET.layout();

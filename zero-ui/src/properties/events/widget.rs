@@ -53,7 +53,7 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
             self.handler.event(&OnInitArgs { count: self.count });
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             self.handler.update();
         }
@@ -92,7 +92,7 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
             self.child.init();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.handler.update();
             self.child.update(updates);
         }
@@ -132,7 +132,7 @@ pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>)
             WIDGET.update();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
 
             if mem::take(&mut self.pending) {
@@ -177,7 +177,7 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs>) 
         count: usize,
     })]
     impl UiNode for OnUpdateNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
 
             self.count = self.count.wrapping_add(1);
@@ -208,7 +208,7 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArg
         count: usize,
     })]
     impl UiNode for OnPreviewUpdateNode {
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.count = self.count.wrapping_add(1);
             self.handler.update();
             self.handler.event(&OnUpdateArgs { count: self.count });
@@ -261,7 +261,7 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs>) 
             self.handler.event(&OnDeinitArgs { count: self.count });
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             self.handler.update();
         }
@@ -303,7 +303,7 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
             self.child.deinit();
         }
 
-        fn update(&mut self, updates: &mut WidgetUpdates) {
+        fn update(&mut self, updates: &WidgetUpdates) {
             self.handler.update();
             self.child.update(updates);
         }

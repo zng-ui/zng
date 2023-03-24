@@ -145,7 +145,7 @@ impl UiNode for ClickShortcutNode {
         self.handle = Some(GESTURES.click_shortcut(s, self.kind, WIDGET.id()));
     }
 
-    fn update(&mut self, updates: &mut WidgetUpdates) {
+    fn update(&mut self, updates: &WidgetUpdates) {
         self.child.update(updates);
 
         if let Some(s) = self.shortcuts.get_new() {

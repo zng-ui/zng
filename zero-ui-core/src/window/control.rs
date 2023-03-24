@@ -1479,14 +1479,14 @@ impl ContentCtrl {
         }
     }
 
-    pub fn update(&mut self, updates: &mut WidgetUpdates) {
+    pub fn update(&mut self, updates: &WidgetUpdates) {
         match self.init_state {
             InitState::Inited => {
                 self.commands.update(&self.vars);
 
-                updates.with_window(|updates| {
+                updates.with_window(|| {
                     WIDGET.with_context(&self.root_ctx, || {
-                        updates.with_widget(|updates| {
+                        updates.with_widget(|| {
                             self.root.update(updates);
                         });
                     });
@@ -1555,7 +1555,7 @@ impl ContentCtrl {
         }
     }
 
-    pub fn pre_event(&mut self, update: &mut EventUpdate) {
+    pub fn pre_event(&mut self, update: &EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
                 self.is_rendering = false;
@@ -1583,12 +1583,12 @@ impl ContentCtrl {
         }
     }
 
-    pub fn ui_event(&mut self, update: &mut EventUpdate) {
+    pub fn ui_event(&mut self, update: &EventUpdate) {
         debug_assert!(matches!(self.init_state, InitState::Inited));
 
-        update.with_window(|update| {
+        update.with_window(|| {
             WIDGET.with_context(&self.root_ctx, || {
-                update.with_widget(|update| {
+                update.with_widget(|| {
                     self.root.event(update);
                 })
             });
