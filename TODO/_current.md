@@ -21,8 +21,6 @@
 * Implement tracing parent propagation in `LocalContext`?
     - https://github.com/wagnerf42/diam/blob/main/src/adaptors/log.rs
 
-* Continue "#Parallel UI" in `./Performance.md`.
-
 * Window without child does not open.
     - No layout request?
 
