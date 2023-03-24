@@ -393,8 +393,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     }
 
     fn event_all(&mut self, update: &EventUpdate) {
-        self.0.event_all(update);
-        self.1.event_all(update);
+        if PARALLEL_VAR.get().contains(Parallel::EVENT) {
+            task::join(|| self.0.event_all(update), || self.1.event_all(update));
+        } else {
+            self.0.event_all(update);
+            self.1.event_all(update);
+        }
     }
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
@@ -1493,7 +1497,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 
     fn init_all(&mut self) {
-        if PARALLEL_VAR.get().contains(Parallel::INIT) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INIT) {
             self.par_iter_mut().with_ctx().for_each(|l| l.init_all());
         } else {
             for l in self {
@@ -1503,7 +1507,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 
     fn deinit_all(&mut self) {
-        if PARALLEL_VAR.get().contains(Parallel::DEINIT) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::DEINIT) {
             self.par_iter_mut().with_ctx().for_each(|l| l.deinit_all());
         } else {
             for list in self {
@@ -1521,8 +1525,12 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 
     fn event_all(&mut self, update: &EventUpdate) {
-        for list in self {
-            list.event_all(update);
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::EVENT) {
+            self.par_iter_mut().with_ctx().for_each(|l| l.event_all(update));
+        } else {
+            for list in self {
+                list.event_all(update);
+            }
         }
     }
 

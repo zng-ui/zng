@@ -459,7 +459,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn init_all(&mut self) {
-        if PARALLEL_VAR.get().contains(Parallel::INIT) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INIT) {
             self.par_each_mut(|_, c| {
                 c.init();
             });
@@ -477,7 +477,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn deinit_all(&mut self) {
-        if PARALLEL_VAR.get().contains(Parallel::DEINIT) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::DEINIT) {
             self.par_each_mut(|_, c| {
                 c.deinit();
             });
@@ -508,10 +508,16 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn event_all(&mut self, update: &EventUpdate) {
-        self.for_each_mut(|_, c| {
-            c.event(update);
-            true
-        })
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::EVENT) {
+            self.par_each_mut(|_, c| {
+                c.event(update);
+            });
+        } else {
+            self.for_each_mut(|_, c| {
+                c.event(update);
+                true
+            });
+        }
     }
 
     /// Render all nodes.

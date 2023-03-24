@@ -656,8 +656,7 @@ impl WINDOWS {
 
         Self::with_detached_windows(|windows, parallel| {
             if windows.len() > 1 && parallel.contains(ParallelWin::EVENT) {
-                // !!: TODO, EventArgs: Sync, also don't forget the `.with_ctx()`.
-                windows.iter_mut().for_each(|(_, window)| {
+                windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
                     window.pre_event(update);
                 });
             } else {
@@ -676,8 +675,7 @@ impl WINDOWS {
         }
         Self::with_detached_windows(|windows, parallel| {
             if windows.len() > 1 && parallel.contains(ParallelWin::EVENT) {
-                // !!: TODO, EventArgs: Sync
-                windows.iter_mut().for_each(|(_, window)| {
+                windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
                     window.ui_event(update);
                 });
             } else {

@@ -200,8 +200,8 @@ impl<A: EventArgs> Event<A> {
             event: self.as_any(),
             delivery_list,
             args: Box::new(args),
-            pre_actions: vec![],
-            pos_actions: vec![],
+            pre_actions: Mutex::new(vec![]),
+            pos_actions: Mutex::new(vec![]),
         }
     }
 
@@ -474,8 +474,9 @@ pub struct EventUpdate {
     event: AnyEvent,
     args: Box<dyn AnyEventArgs>,
     delivery_list: UpdateDeliveryList,
-    pre_actions: Vec<Box<dyn FnOnce(&EventUpdate) + Send>>,
-    pos_actions: Vec<Box<dyn FnOnce(&EventUpdate) + Send>>,
+    // never locked, only used to get `Sync`.
+    pre_actions: Mutex<Vec<Box<dyn FnOnce(&EventUpdate) + Send>>>,
+    pos_actions: Mutex<Vec<Box<dyn FnOnce(&EventUpdate) + Send>>>,
 }
 impl EventUpdate {
     /// The event.
@@ -528,21 +529,21 @@ impl EventUpdate {
 
     fn push_once_action(&mut self, action: Box<dyn FnOnce(&EventUpdate) + Send>, is_preview: bool) {
         if is_preview {
-            self.pre_actions.push(action);
+            self.pre_actions.get_mut().push(action);
         } else {
-            self.pos_actions.push(action);
+            self.pos_actions.get_mut().push(action);
         }
     }
 
     pub(crate) fn call_pre_actions(&mut self) {
-        let actions = mem::take(&mut self.pre_actions);
+        let actions = mem::take(self.pre_actions.get_mut());
         for action in actions {
             action(self)
         }
     }
 
     pub(crate) fn call_pos_actions(&mut self) {
-        let actions = mem::take(&mut self.pos_actions);
+        let actions = mem::take(self.pos_actions.get_mut());
         for action in actions {
             action(self)
         }
