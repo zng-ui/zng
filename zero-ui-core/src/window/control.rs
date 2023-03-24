@@ -1488,6 +1488,7 @@ impl ContentCtrl {
                     WIDGET.with_context(&self.root_ctx, || {
                         updates.with_widget(|| {
                             self.root.update(updates);
+                            WIDGET.update_info().layout().render();
                         });
                     });
                 });
