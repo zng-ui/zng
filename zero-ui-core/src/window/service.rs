@@ -20,6 +20,7 @@ use crate::crate_util::{IdMap, IdSet};
 use crate::event::{AnyEventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
+use crate::task::ParallelIteratorExt;
 use crate::timer::{DeadlineHandle, TIMERS};
 use crate::widget_info::WidgetInfoTree;
 use crate::{app_local, var::*};
@@ -703,7 +704,7 @@ impl WINDOWS {
         }
 
         Self::with_detached_windows(|windows| {
-            windows.par_iter_mut().for_each(|(_, window)| {
+            windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
                 window.update(updates);
             });
         });
