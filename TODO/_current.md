@@ -7,6 +7,8 @@
         - How? Depend on the panels.
         - Can implement something quick for the default (max-child).
         - How to share `&mut WidgetMeasure` and `&mut WidgetLayout`?
+            - Don't need to?
+            - For measure at least it would be an error to share?
 
 * Parallel render.
     - Widgets.

@@ -634,9 +634,12 @@ pub mod ui_node_list_default {
     }
 
     pub fn measure_all(list: &impl UiNodeList, wm: &mut WidgetMeasure) -> PxSize {
-        // if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-        //     todo!("parallel measure")
-        // }
+        if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+            list.par_each(|_, n| {
+                // !!: TODO: how to aggregate par_each.
+                let size = n.measure(&mut WidgetMeasure::new());
+            });
+        }
         let mut r = PxSize::zero();
         list.for_each(|_, n| {
             r = r.max(n.measure(wm));
