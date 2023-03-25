@@ -1344,6 +1344,8 @@ impl GridNode {
         });
         // layout and translate cells
         let cells_offset = columns.len() + rows.len();
+
+        let info = &info;
         cells.for_each_mut(|i, cell, o| {
             let cell_info = cell::CellInfo::get_wgt(cell).actual(i, info.columns.len());
 

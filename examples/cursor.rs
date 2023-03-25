@@ -30,7 +30,7 @@ fn app_main() {
                     auto_grow_gen = wgt_gen!(|_| grid::row!(1.lft()));
                     cells = demos;
                 },
-                center(cursor_demo(None)),
+                cursor_demo(None),
             ])
         }
     })
@@ -41,6 +41,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         cursor = icon.map(|i| i.0);
 
         size = (150, 80);
+        align = Align::CENTER;
 
         margin = 1;
         background_color = color_scheme_map(colors::BLACK, colors::WHITE);
