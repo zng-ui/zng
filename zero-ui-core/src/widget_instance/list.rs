@@ -126,6 +126,41 @@ impl UiNodeList for Vec<BoxedUiNode> {
         self.par_iter_mut().enumerate().with_ctx().for_each(|(i, n)| f(i, n));
     }
 
+    fn par_each_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        tracing::warn!("`par_each_fold` fallback to `for_each`, use a `Sync` list like `PanelList` to use `par_each` in parallel");
+
+        let mut res = Some(identity());
+        self.for_each(|i, n| {
+            let b = f(i, n);
+            let a = res.take().unwrap();
+            let r = fold(a, b);
+            res = Some(r);
+            true
+        });
+        res.unwrap()
+    }
+
+    fn par_each_mut_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        self.par_iter_mut()
+            .enumerate()
+            .with_ctx()
+            .map(|(i, n)| f(i, n))
+            .fold(&identity, &fold)
+            .reduce(&identity, &fold)
+    }
+
     fn len(&self) -> usize {
         Vec::len(self)
     }
@@ -251,6 +286,26 @@ impl UiNodeList for UiNodeVec {
         self.0.par_each_mut(f)
     }
 
+    fn par_each_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        self.0.par_each_fold(f, identity, fold)
+    }
+
+    fn par_each_mut_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        self.0.par_each_mut_fold(f, identity, fold)
+    }
+
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -359,6 +414,34 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     {
         let offset = self.0.len();
         task::join(|| self.0.par_each_mut(&f), || self.1.par_each_mut(|i, n| f(i + offset, n)));
+    }
+
+    fn par_each_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        let offset = self.0.len();
+        let a = self.0.par_each_fold(&f, &identity, &fold);
+        let b = self.1.par_each_fold(|i, n| f(i + offset, n), &identity, &fold);
+        fold(a, b)
+    }
+
+    fn par_each_mut_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        let offset = self.0.len();
+        let (a, b) = task::join(
+            || self.0.par_each_mut_fold(&f, &identity, &fold),
+            || self.1.par_each_mut_fold(|i, n| f(i + offset, n), &identity, &fold),
+        );
+        fold(a, b)
     }
 
     fn len(&self) -> usize {
@@ -625,6 +708,42 @@ where
             f(i, n);
             true
         })
+    }
+
+    fn par_each_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        let mut res = Some(identity());
+        self.for_each(|i, n| {
+            let b = f(i, n);
+            let a = res.take().unwrap();
+            let r = fold(a, b);
+            res = Some(r);
+            true
+        });
+        res.unwrap()
+    }
+
+    fn par_each_mut_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        let mut res = Some(identity());
+        self.for_each_mut(|i, n| {
+            let b = f(i, n);
+            let a = res.take().unwrap();
+            let r = fold(a, b);
+            res = Some(r);
+            true
+        });
+        res.unwrap()
     }
 
     fn len(&self) -> usize {
@@ -1247,6 +1366,26 @@ impl UiNodeList for EditableUiNodeList {
         self.vec.par_each_mut(f)
     }
 
+    fn par_each_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        self.vec.par_each_fold(f, identity, fold)
+    }
+
+    fn par_each_mut_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        self.vec.par_each_mut_fold(f, identity, fold)
+    }
+
     fn len(&self) -> usize {
         self.vec.len()
     }
@@ -1527,6 +1666,58 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
                 offset += len;
             }
         });
+    }
+
+    fn par_each_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        let mut offset = 0;
+        let mut res = Some(identity());
+        for list in self {
+            let b = list.par_each_fold(|i, n| f(i + offset, n), &identity, &fold);
+            let a = res.take().unwrap();
+            let r = fold(a, b);
+            res = Some(r);
+            offset += list.len();
+        }
+        res.unwrap()
+    }
+
+    fn par_each_mut_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        let mut offset = 0;
+        let mut res = Some(identity());
+        for list in self.chunks_mut(2) {
+            let b = if list.len() == 2 {
+                let mut pair = list.iter_mut();
+                let a = pair.next().unwrap();
+                let b = pair.next().unwrap();
+                let offset_b = offset + a.len();
+                let (a, b) = task::join(
+                    || a.par_each_mut_fold(|i, n| f(i + offset, n), &identity, &fold),
+                    || b.par_each_mut_fold(|i, n| f(i + offset_b, n), &identity, &fold),
+                );
+                fold(a, b)
+            } else {
+                list[0].par_each_mut_fold(|i, n| f(i + offset, n), &identity, &fold)
+            };
+
+            let a = res.take().unwrap();
+            let r = fold(a, b);
+            res = Some(r);
+
+            offset += list.iter().map(|l| l.len()).sum::<usize>();
+        }
+        res.unwrap()
     }
 
     fn len(&self) -> usize {
@@ -1882,6 +2073,26 @@ where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
         self.list.par_each_mut(f)
+    }
+
+    fn par_each_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        self.list.par_each_fold(f, identity, fold)
+    }
+
+    fn par_each_mut_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        self.list.par_each_mut_fold(f, identity, fold)
     }
 
     fn len(&self) -> usize {
