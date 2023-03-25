@@ -1548,6 +1548,106 @@ impl<L: UiNodeList> UiNodeList for Mutex<L> {
         self.lock().render_update_all(update)
     }
 }
+impl<L: UiNodeList> UiNodeList for std::sync::Mutex<L> {
+    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&BoxedUiNode) -> R,
+    {
+        self.lock().unwrap().with_node(index, f)
+    }
+
+    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
+        self.get_mut().unwrap().with_node_mut(index, f)
+    }
+
+    fn for_each<F>(&self, f: F)
+    where
+        F: FnMut(usize, &BoxedUiNode) -> bool,
+    {
+        self.lock().unwrap().for_each(f)
+    }
+
+    fn for_each_mut<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode) -> bool,
+    {
+        self.get_mut().unwrap().for_each_mut(f)
+    }
+
+    fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+    {
+        // in case `L` is not `Sync`
+        self.lock().unwrap().par_each_mut(move |i, n| f(i, n))
+    }
+
+    fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        self.get_mut().unwrap().par_each_mut(f)
+    }
+
+    fn par_each_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        self.lock().unwrap().par_each_mut_fold(move |i, n| f(i, n), identity, fold)
+    }
+
+    fn par_each_mut_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    where
+        T: Send,
+        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
+        I: Fn() -> T + Send + Sync,
+        O: Fn(T, T) -> T + Send + Sync,
+    {
+        self.get_mut().unwrap().par_each_mut_fold(f, identity, fold)
+    }
+
+    fn len(&self) -> usize {
+        self.lock().unwrap().len()
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        Box::new(self)
+    }
+
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        self.get_mut().unwrap().drain_into(vec)
+    }
+
+    fn init_all(&mut self) {
+        self.get_mut().unwrap().init_all()
+    }
+
+    fn deinit_all(&mut self) {
+        self.get_mut().unwrap().deinit_all()
+    }
+
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.get_mut().unwrap().update_all(updates, observer)
+    }
+
+    fn event_all(&mut self, update: &EventUpdate) {
+        self.get_mut().unwrap().event_all(update)
+    }
+
+    fn render_all(&self, frame: &mut FrameBuilder) {
+        self.lock().unwrap().render_all(frame)
+    }
+
+    fn render_update_all(&self, update: &mut FrameUpdate) {
+        self.lock().unwrap().render_update_all(update)
+    }
+}
 
 #[cfg(test)]
 mod tests {

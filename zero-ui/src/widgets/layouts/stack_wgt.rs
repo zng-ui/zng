@@ -1,6 +1,7 @@
 use crate::prelude::new_widget::*;
 
 mod direction;
+use crate::core::task::parking_lot::Mutex;
 use direction::*;
 
 /// Stack layout.
@@ -513,7 +514,11 @@ pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
     })]
     impl StackNodesNode {}
 
-    StackNodesNode { children: nodes }.cfg_boxed()
+    StackNodesNode {
+        // Mutex to enable parallel measure
+        children: Mutex::new(nodes),
+    }
+    .cfg_boxed()
 }
 
 /// Creates a node that updates the `nodes` in the logical order they appear, renders then on on top of the other from back(0) to front(len-1),
@@ -550,28 +555,27 @@ pub fn stack_nodes_layout_by(
                     len,
                     WIDGET.id()
                 );
-                let mut size = PxSize::zero();
-                self.children.for_each(|_, n| {
-                    let s = n.measure(wm);
-                    size = size.max(s);
-                    true
-                });
-                size
+
+                self.children.measure_each(wm, |_, n, wm| n.measure(wm), PxSize::max)
             } else {
-                let mut size = self.children.with_node(index, |n| n.measure(wm));
-                let constrains = (self.constrains)(LAYOUT.metrics().peek(|m| m.constrains()), index, size);
+                let index_size = self.children.with_node(index, |n| n.measure(wm));
+                let constrains = (self.constrains)(LAYOUT.metrics().peek(|m| m.constrains()), index, index_size);
                 LAYOUT.with_constrains(
                     |_| constrains,
                     || {
-                        self.children.for_each(|i, n| {
-                            if i != index {
-                                size = size.max(n.measure(wm));
-                            }
-                            true
-                        });
+                        self.children.measure_each(
+                            wm,
+                            |i, n, wm| {
+                                if i != index {
+                                    n.measure(wm)
+                                } else {
+                                    index_size
+                                }
+                            },
+                            PxSize::max,
+                        )
                     },
-                );
-                size
+                )
             }
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -584,34 +588,32 @@ pub fn stack_nodes_layout_by(
                     len,
                     WIDGET.id()
                 );
-                let mut size = PxSize::zero();
-                self.children.for_each_mut(|_, n| {
-                    let s = n.layout(wl);
-                    size = size.max(s);
-                    true
-                });
-                size
+
+                self.children.layout_each(wl, |_, n, wl| n.layout(wl), PxSize::max)
             } else {
-                let mut size = self.children.with_node_mut(index, |n| n.layout(wl));
-                let constrains = (self.constrains)(LAYOUT.metrics().peek(|m| m.constrains()), index, size);
+                let index_size = self.children.with_node_mut(index, |n| n.layout(wl));
+                let constrains = (self.constrains)(LAYOUT.metrics().peek(|m| m.constrains()), index, index_size);
                 LAYOUT.with_constrains(
                     |_| constrains,
                     || {
-                        self.children.for_each_mut(|i, n| {
-                            if i != index {
-                                let s = n.layout(wl);
-                                size = size.max(s);
-                            }
-                            true
-                        });
+                        self.children.layout_each(
+                            wl,
+                            |i, n, wl| {
+                                if i != index {
+                                    n.layout(wl)
+                                } else {
+                                    index_size
+                                }
+                            },
+                            PxSize::max,
+                        )
                     },
-                );
-                size
+                )
             }
         }
     }
     StackNodesFillNode {
-        children: nodes,
+        children: Mutex::new(nodes),
         index: index.into_var(),
         constrains,
     }

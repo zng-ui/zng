@@ -1487,7 +1487,7 @@ impl ContentCtrl {
                 updates.with_window(|| {
                     WIDGET.with_context(&self.root_ctx, || {
                         updates.with_widget(|| {
-                            self.root.update(updates);                            
+                            self.root.update(updates);
                         });
                     });
                 });
