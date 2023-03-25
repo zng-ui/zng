@@ -824,6 +824,18 @@ pub trait UiNodeListBoxed: Any + Send {
     fn for_each_mut_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode) -> bool);
     fn par_each_boxed(&self, f: &(dyn Fn(usize, &BoxedUiNode) + Send + Sync));
     fn par_each_mut_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync));
+    fn measure_each_boxed(
+        &self,
+        wm: &mut WidgetMeasure,
+        measure: &(dyn Fn(usize, &BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync),
+    ) -> PxSize;
+    fn layout_each_boxed(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: &(dyn Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync),
+    ) -> PxSize;
     fn len_boxed(&self) -> usize;
     fn drain_into_boxed(&mut self, vec: &mut Vec<BoxedUiNode>);
     fn init_all_boxed(&mut self);
@@ -860,6 +872,24 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
 
     fn par_each_mut_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync)) {
         self.par_each_mut(f)
+    }
+
+    fn measure_each_boxed(
+        &self,
+        wm: &mut WidgetMeasure,
+        measure: &(dyn Fn(usize, &BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync),
+    ) -> PxSize {
+        self.measure_each(wm, measure, fold_size)
+    }
+
+    fn layout_each_boxed(
+        &mut self,
+        wl: &mut WidgetLayout,
+        layout: &(dyn Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync),
+        fold_size: &(dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync),
+    ) -> PxSize {
+        self.layout_each(wl, layout, fold_size)
     }
 
     fn len_boxed(&self) -> usize {
@@ -1132,6 +1162,22 @@ impl UiNodeList for BoxedUiNodeList {
 
     fn render_update_all(&self, update: &mut FrameUpdate) {
         self.as_ref().render_update_all_boxed(update);
+    }
+
+    fn measure_each<F, S>(&self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
+    where
+        F: Fn(usize, &BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
+        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+    {
+        self.as_ref().measure_each_boxed(wm, &measure, &fold_size)
+    }
+
+    fn layout_each<F, S>(&mut self, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
+    where
+        F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
+        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+    {
+        self.as_mut().layout_each_boxed(wl, &layout, &fold_size)
     }
 
     fn as_any(&self) -> &dyn Any

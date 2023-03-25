@@ -1,5 +1,4 @@
-* Review boxed `par_each_fold`, can we avoid the lock?
-    - All panel widgets will end-up with a boxed list because they are captured from properties.
+* Try to fix image white flashes again.
 
 * Parallel layout for more panels.
     - `stack!`.
