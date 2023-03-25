@@ -1,9 +1,5 @@
 //! Layout widgets.
 
-mod align;
-#[doc(inline)]
-pub use align::center;
-
 mod grid_wgt;
 #[doc(inline)]
 pub use grid_wgt::grid;

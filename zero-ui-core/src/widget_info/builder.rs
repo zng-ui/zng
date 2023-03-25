@@ -797,6 +797,7 @@ impl WidgetLayout {
     /// Panics if called outside of the [child] scope.
     ///
     /// [child]: Self::with_child
+    /// [`finish_par`]: Self::finish_par
     pub fn start_par(&self) -> ParWidgetLayout {
         assert_eq!(
             self.nest_group,
