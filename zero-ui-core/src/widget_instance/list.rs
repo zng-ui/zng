@@ -1822,7 +1822,7 @@ where
     D: PanelListData,
 {
     list: Mutex<BoxedUiNodeList>, // Mutex to ensure `par_each` is actually parallel
-    data: Vec<D>,
+    data: Vec<Mutex<D>>,          // Mutex to implement `par_each_mut`.
 
     offset_key: FrameValueKey<PxTransform>,
 
@@ -1835,6 +1835,7 @@ impl PanelList<DefaultPanelListData> {
         Self::new_custom(list)
     }
 }
+
 impl<D> PanelList<D>
 where
     D: PanelListData,
@@ -1855,7 +1856,7 @@ where
     }
 
     /// Into list and associated data.
-    pub fn into_parts(self) -> (BoxedUiNodeList, Vec<D>, FrameValueKey<PxTransform>) {
+    pub fn into_parts(self) -> (BoxedUiNodeList, Vec<Mutex<D>>, FrameValueKey<PxTransform>) {
         (self.list.into_inner(), self.data, self.offset_key)
     }
 
@@ -1864,7 +1865,7 @@ where
     /// # Panics
     ///
     /// Panics if the `list` and `data` don't have the same length.
-    pub fn from_parts(list: BoxedUiNodeList, data: Vec<D>, offset_key: FrameValueKey<PxTransform>) -> Self {
+    pub fn from_parts(list: BoxedUiNodeList, data: Vec<Mutex<D>>, offset_key: FrameValueKey<PxTransform>) -> Self {
         assert_eq!(list.len(), data.len());
         Self {
             list: Mutex::new(list),
@@ -1880,8 +1881,8 @@ where
     where
         F: FnOnce(&BoxedUiNode, &D) -> R,
     {
-        let data = &self.data[index];
-        self.list.with_node(index, move |n| f(n, data))
+        let data = self.data(index);
+        self.list.with_node(index, move |n| f(n, &data))
     }
 
     /// Visit the specific node, panic if `index` is out of bounds.
@@ -1889,25 +1890,61 @@ where
     where
         F: FnOnce(&mut BoxedUiNode, &mut D) -> R,
     {
-        let data = &mut self.data[index];
+        let data = self.data[index].get_mut();
         self.list.with_node_mut(index, move |n| f(n, data))
     }
 
-    /// Calls `f` for each node in the list with the index, return `true` to continue iterating, return `false` to stop.
+    /// Calls `f` for each node in the list with the index and associated data,
+    /// return `true` to continue iterating, return `false` to stop.
     pub fn for_each<F>(&self, mut f: F)
     where
         F: FnMut(usize, &BoxedUiNode, &D) -> bool,
     {
-        self.list.for_each(move |i, n| f(i, n, &self.data[i]))
+        self.list.for_each(move |i, n| f(i, n, &self.data(i)))
     }
 
-    /// Calls `f` for each node in the list with the index, return `true` to continue iterating, return `false` to stop.
+    /// Calls `f` for each node in the list with the index and associated data,
+    /// return `true` to continue iterating, return `false` to stop.
     pub fn for_each_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(usize, &mut BoxedUiNode, &mut D) -> bool,
     {
         let data = &mut self.data;
-        self.list.for_each_mut(move |i, n| f(i, n, &mut data[i]))
+        self.list.for_each_mut(move |i, n| f(i, n, data[i].get_mut()))
+    }
+
+    /// Calls `f` for each node in the list with the index and associated data in parallel,
+    /// return `true` to continue iterating, return `false` to stop.
+    pub fn par_each<F>(&self, f: F)
+    where
+        F: Fn(usize, &BoxedUiNode, &D) + Send + Sync,
+        D: Sync,
+    {
+        let data = &self.data;
+        self.list.par_each(|i, n| {
+            f(
+                i,
+                n,
+                &data[i].try_lock().unwrap_or_else(|| panic!("data for `{i}` is already locked")),
+            )
+        })
+    }
+
+    /// Calls `f` for each node in the list with the index and associated data in parallel,
+    /// return `true` to continue iterating, return `false` to stop.
+    pub fn par_each_mut<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode, &mut D) + Send + Sync,
+        D: Sync,
+    {
+        let data = &self.data;
+        self.list.par_each_mut(|i, n| {
+            f(
+                i,
+                n,
+                &mut data[i].try_lock().unwrap_or_else(|| panic!("data for `{i}` is already locked")),
+            )
+        })
     }
 
     /// Iterate over the list in the Z order.
@@ -1924,7 +1961,7 @@ where
             } else {
                 for &index in self.z_map.borrow().iter() {
                     let index = index as usize;
-                    if !self.list.with_node(index, |node| f(index, node, &self.data[index])) {
+                    if !self.list.with_node(index, |node| f(index, node, &self.data(index))) {
                         break;
                     }
                 }
@@ -1943,7 +1980,7 @@ where
 
             for &index in self.z_map.borrow().iter() {
                 let index = index as usize;
-                let data = &mut self.data[index];
+                let data = self.data[index].get_mut();
                 if !self.list.with_node_mut(index, |node| f(index, node, data)) {
                     break;
                 }
@@ -2013,13 +2050,19 @@ where
     }
 
     /// Reference the associated data.
-    pub fn data(&self) -> &[D] {
-        &self.data
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `index` is already in use.
+    pub fn data(&self, index: usize) -> parking_lot::MutexGuard<D> {
+        self.data[index]
+            .try_lock()
+            .unwrap_or_else(|| panic!("data for `{index}` is already locked"))
     }
 
     /// Mutable reference the associated data.
-    pub fn data_mut(&mut self) -> &mut [D] {
-        &mut self.data
+    pub fn data_mut(&mut self, index: usize) -> &mut D {
+        self.data[index].get_mut()
     }
 
     /// Key used to define reference frames for each item.
@@ -2230,7 +2273,7 @@ where
     D: PanelListData,
 {
     changed: bool,
-    data: &'d mut Vec<D>,
+    data: &'d mut Vec<Mutex<D>>,
     observer: &'d mut dyn UiNodeListObserver,
 }
 impl<'d, D> UiNodeListObserver for PanelObserver<'d, D>
