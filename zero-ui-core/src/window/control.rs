@@ -1487,8 +1487,7 @@ impl ContentCtrl {
                 updates.with_window(|| {
                     WIDGET.with_context(&self.root_ctx, || {
                         updates.with_widget(|| {
-                            self.root.update(updates);
-                            WIDGET.update_info().layout().render();
+                            self.root.update(updates);                            
                         });
                     });
                 });
@@ -1502,7 +1501,8 @@ impl ContentCtrl {
                 self.commands.init(&self.vars);
                 WIDGET.with_context(&self.root_ctx, || {
                     self.root.init();
-                    WIDGET.update_info();
+                    // requests info, layout and render just in case `root` is a blank.
+                    WIDGET.update_info().layout().render();
                 });
                 self.init_state = InitState::Inited;
             }
