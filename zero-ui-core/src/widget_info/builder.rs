@@ -731,6 +731,39 @@ impl WidgetMeasure {
     }
 }
 
+/// Parallel [`WidgetLayout`].
+///
+/// See [`WidgetLayout::start_par`].
+#[must_use = "must be folded back to `WidgetLayout`"]
+pub struct ParWidgetLayout {
+    wl: Option<WidgetLayout>,
+}
+impl ParWidgetLayout {
+    /// Merge `self` and `other`.
+    pub fn fold(mut self, other: Self) -> Self {
+        let mut a = self.wl.take().expect("parallel layout already finished");
+        a.finish_par(other);
+        Self { wl: Some(a) }
+    }
+}
+impl ops::Deref for ParWidgetLayout {
+    type Target = WidgetLayout;
+
+    fn deref(&self) -> &Self::Target {
+        self.wl.as_ref().expect("parallel layout already finished")
+    }
+}
+impl ops::DerefMut for ParWidgetLayout {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.wl.as_mut().expect("parallel layout already finished")
+    }
+}
+impl Drop for ParWidgetLayout {
+    fn drop(&mut self) {
+        assert!(self.wl.is_none(), "parallel layout not folded back to `WidgetLayout::finish_par`")
+    }
+}
+
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
     pass_id: LayoutPassId,
@@ -752,6 +785,43 @@ impl WidgetLayout {
             child_count: None,
         }
         .with_widget(false, layout)
+    }
+
+    /// Start a parallel layout.
+    ///
+    /// Returns an instance that can be used to acquire multiple mutable [`WidgetLayout`] during layout.
+    /// The [`finish_par`] instance must be called after the parallel processing is done.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called outside of the [child] scope.
+    ///
+    /// [child]: Self::with_child
+    pub fn start_par(&self) -> ParWidgetLayout {
+        assert_eq!(
+            self.nest_group,
+            LayoutNestGroup::Child,
+            "cannot start parallel layout outside child scope"
+        );
+        ParWidgetLayout {
+            wl: Some(WidgetLayout {
+                pass_id: self.pass_id,
+                bounds: self.bounds.clone(),
+                nest_group: LayoutNestGroup::Child,
+                inline: None,
+                child_count: None,
+            }),
+        }
+    }
+
+    /// Collect the parallel changes back.
+    pub fn finish_par(&mut self, mut par: ParWidgetLayout) {
+        let folded = par.wl.take().expect("parallel layout already finished");
+        assert_eq!(self.pass_id, folded.pass_id);
+        assert_eq!(self.bounds, folded.bounds);
+
+        let count = self.child_count.unwrap_or(0) + folded.child_count.unwrap_or(0);
+        self.child_count = Some(count);
     }
 
     /// Defines a widget scope, translations inside `layout` target the widget's inner offset.
@@ -1043,7 +1113,7 @@ impl WidgetLayout {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum LayoutNestGroup {
     /// Inside widget, outside `BORDER`.
     Inner,

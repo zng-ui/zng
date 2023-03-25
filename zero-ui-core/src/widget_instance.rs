@@ -551,6 +551,60 @@ pub trait UiNodeList: UiNodeListBoxed {
         }
     }
 
+    /// Call `measure` for each node and combines the final size using `fold_size`.
+    ///
+    /// The call to `measure` can be parallel if [`Parallel::LAYOUT`] is enabled.
+    fn measure_each<F, S>(&self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
+    where
+        F: Fn(usize, &BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
+        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+    {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+            self.par_each_fold(|i, n| measure(i, n, &mut WidgetMeasure::new()), PxSize::zero, fold_size)
+        } else {
+            let mut size = PxSize::zero();
+            self.for_each(|i, n| {
+                let b = measure(i, n, wm);
+                size = fold_size(size, b);
+                true
+            });
+            size
+        }
+    }
+
+    /// Call `layout` for each node and combines the final size using `fold_size`.
+    ///
+    /// The call to `layout` can be parallel if [`Parallel::LAYOUT`] is enabled.
+    fn layout_each<F, S>(&mut self, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
+    where
+        F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
+        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+    {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
+            // fold a tuple of `(wl, size)`
+            let swl = &wl;
+            let (pwl, size) = self.par_each_mut_fold(
+                move |i, n| {
+                    let mut pwl = swl.start_par();
+                    let size = layout(i, n, &mut pwl);
+                    (pwl, size)
+                },
+                || (swl.start_par(), PxSize::zero()),
+                move |(awl, asize), (bwl, bsize)| (awl.fold(bwl), fold_size(asize, bsize)),
+            );
+            wl.finish_par(pwl);
+            size
+        } else {
+            let mut size = PxSize::zero();
+            self.for_each_mut(|i, n| {
+                let b = layout(i, n, wl);
+                size = fold_size(size, b);
+                true
+            });
+            size
+        }
+    }
+
     /// Render all nodes.
     ///
     /// The correct behavior of some list implementations depend on this call, using [`for_each`] to render nodes can
@@ -658,28 +712,11 @@ pub mod ui_node_list_default {
     }
 
     pub fn measure_all(list: &impl UiNodeList, wm: &mut WidgetMeasure) -> PxSize {
-        if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-            list.par_each_fold(|_, n| n.measure(&mut WidgetMeasure::new()), PxSize::zero, PxSize::max)
-        } else {
-            let mut r = PxSize::zero();
-            list.for_each(|_, n| {
-                r = r.max(n.measure(wm));
-                true
-            });
-            r
-        }
+        list.measure_each(wm, |_, n, wm| n.measure(wm), PxSize::max)
     }
 
     pub fn layout_all(list: &mut impl UiNodeList, wl: &mut WidgetLayout) -> PxSize {
-        // if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-        //     todo!("parallel layout")
-        // }
-        let mut r = PxSize::zero();
-        list.for_each_mut(|_, n| {
-            r = r.max(n.layout(wl));
-            true
-        });
-        r
+        list.layout_each(wl, |_, n, wl| n.layout(wl), PxSize::max)
     }
 
     pub fn render_all(list: &impl UiNodeList, frame: &mut FrameBuilder) {

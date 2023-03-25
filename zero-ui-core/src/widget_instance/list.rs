@@ -112,7 +112,7 @@ impl UiNodeList for Vec<BoxedUiNode> {
     where
         F: Fn(usize, &BoxedUiNode) + Send + Sync,
     {
-        tracing::warn!("`par_each` fallback to `for_each`, use a `Sync` list like `PanelList` to use `par_each` in parallel");
+        tracing::trace!("`par_each` fallback to `for_each`, use a `Sync` list like `PanelList` to use `par_each` in parallel");
         self.for_each(|i, n| {
             f(i, n);
             true
@@ -133,7 +133,7 @@ impl UiNodeList for Vec<BoxedUiNode> {
         I: Fn() -> T + Send + Sync,
         O: Fn(T, T) -> T + Send + Sync,
     {
-        tracing::warn!("`par_each_fold` fallback to `for_each`, use a `Sync` list like `PanelList` to use `par_each` in parallel");
+        tracing::trace!("`par_each_fold` fallback to `for_each`, use a `Sync` list like `PanelList` to use `par_each` in parallel");
 
         let mut res = Some(identity());
         self.for_each(|i, n| {

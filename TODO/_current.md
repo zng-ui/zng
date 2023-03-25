@@ -3,12 +3,8 @@
     - No `UiNodeList::info_all`?
 
 * Parallel layout.
-    - Widgets.
-        - How? Depend on the panels.
-        - Can implement something quick for the default (max-child).
-        - How to share `&mut WidgetMeasure` and `&mut WidgetLayout`?
-            - Don't need to?
-            - For measure at least it would be an error to share?
+    - Default implemented, and `measure_each` + `layout_each` helpers.
+    - Implement for more panels.
 
 * Parallel render.
     - Widgets.

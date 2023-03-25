@@ -349,6 +349,12 @@ pub struct WidgetRenderInfo {
 /// [`WIDGET`]: crate::context::WIDGET
 #[derive(Default, Clone, Debug)]
 pub struct WidgetBoundsInfo(Arc<Mutex<WidgetBoundsData>>);
+impl PartialEq for WidgetBoundsInfo {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for WidgetBoundsInfo {}
 impl WidgetBoundsInfo {
     /// New default.
     pub fn new() -> Self {
