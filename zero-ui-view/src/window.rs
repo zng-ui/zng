@@ -130,26 +130,13 @@ impl Window {
             }
         }
 
-        if let WindowState::Normal | WindowState::Minimized = s.state {
-            winit = winit
-                .with_decorations(s.chrome_visible)
-                // we wait for the first frame to show the window,
-                // so that there is no white frame when it's opening.
-                //
-                // unless its "kiosk" mode.
-                .with_visible(req.kiosk);
-        } else {
-            // Maximized/Fullscreen Flickering Workaround Part 1
+        winit = winit
+            .with_decorations(s.chrome_visible)
+            // we wait for the first frame to show the window,
+            // so that there is no white frame when it's opening.
             //
-            // We can't start maximized or fullscreen with visible=false because
-            // that causes a white rectangle over a black background to flash on open.
-            // The white rectangle is probably the window in Normal mode, not sure if its caused by winit or glutin.
-            //
-            // For some reason disabling the window chrome, then enabling it again after opening the window removes
-            // the white rectangle, the black background still flashes when transparent=false, but at least its just
-            // a solid fill.
-            winit = winit.with_decorations(false);
-        }
+            // unless its "kiosk" mode.
+            .with_visible(req.kiosk);
 
         winit = match s.state {
             WindowState::Normal | WindowState::Minimized => winit,
@@ -290,16 +277,6 @@ impl Window {
 
         if req.always_on_top {
             win.set_always_on_top(true);
-        }
-
-        // Maximized/Fullscreen Flickering Workaround Part 2
-        if win.state.state != WindowState::Normal && win.state.state != WindowState::Minimized {
-            win.window.set_decorations(win.state.chrome_visible);
-            let _ = win.set_state(win.state.clone());
-
-            // Prevents a false resize event that would have blocked
-            // the process while waiting a second frame.
-            win.prev_size = win.window.inner_size().to_px();
         }
 
         if win.state.state == WindowState::Normal && req.default_position {

@@ -1,5 +1,3 @@
-* Try to fix image white flashes again.
-
 * Parallel layout for more panels.
     - `stack!`.
         - Detect `StackDirection` full horizontal/vertical and implement parallel only for these?
