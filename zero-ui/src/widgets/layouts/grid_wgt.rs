@@ -1020,7 +1020,8 @@ impl GridNode {
 
                     row.height = row.height.max(size.height);
                 }
-                true
+
+                true //continue;
             });
         }
 
@@ -1330,58 +1331,70 @@ impl GridNode {
         let cells = children.next().unwrap();
         let cells: &mut PanelList = cells.as_any_mut().downcast_mut().unwrap();
 
+        let info = &info;
+
         // layout columns
-        columns.for_each_mut(|ci, col| {
-            let info = info.columns[ci];
-            LAYOUT.with_constrains(|c| c.with_exact(info.width, grid_size.height), || col.layout(wl));
-            true
-        });
+        columns.layout_each(
+            wl,
+            |ci, col, wl| {
+                let info = info.columns[ci];
+                LAYOUT.with_constrains(|c| c.with_exact(info.width, grid_size.height), || col.layout(wl))
+            },
+            |_, _| PxSize::zero(),
+        );
         // layout rows
-        rows.for_each_mut(|ri, row| {
-            let info = info.rows[ri];
-            LAYOUT.with_constrains(|c| c.with_exact(grid_size.width, info.height), || row.layout(wl));
-            true
-        });
+        rows.layout_each(
+            wl,
+            |ri, row, wl| {
+                let info = info.rows[ri];
+                LAYOUT.with_constrains(|c| c.with_exact(grid_size.width, info.height), || row.layout(wl))
+            },
+            |_, _| PxSize::zero(),
+        );
         // layout and translate cells
         let cells_offset = columns.len() + rows.len();
 
-        let info = &info;
-        cells.for_each_mut(|i, cell, o| {
-            let cell_info = cell::CellInfo::get_wgt(cell).actual(i, info.columns.len());
+        cells.layout_each(
+            wl,
+            |i, cell, o, wl| {
+                let cell_info = cell::CellInfo::get_wgt(cell).actual(i, info.columns.len());
 
-            if cell_info.column >= info.columns.len() || cell_info.row >= info.rows.len() {
-                wl.collapse_child(cells_offset + i);
-                return true;
-            }
-
-            let cell_offset = PxVector::new(info.columns[cell_info.column].x, info.rows[cell_info.row].y);
-            let mut cell_size = PxSize::zero();
-
-            for col in cell_info.column..(cell_info.column + cell_info.column_span).min(info.columns.len()) {
-                if info.columns[col].width != Px(0) {
-                    cell_size.width += info.columns[col].width + spacing.column;
+                if cell_info.column >= info.columns.len() || cell_info.row >= info.rows.len() {
+                    wl.collapse_child(cells_offset + i);
+                    return PxSize::zero(); // continue;
                 }
-            }
-            cell_size.width -= spacing.column;
 
-            for row in cell_info.row..(cell_info.row + cell_info.row_span).min(info.rows.len()) {
-                if info.rows[row].height != Px(0) {
-                    cell_size.height += info.rows[row].height + spacing.row;
+                let cell_offset = PxVector::new(info.columns[cell_info.column].x, info.rows[cell_info.row].y);
+                let mut cell_size = PxSize::zero();
+
+                for col in cell_info.column..(cell_info.column + cell_info.column_span).min(info.columns.len()) {
+                    if info.columns[col].width != Px(0) {
+                        cell_size.width += info.columns[col].width + spacing.column;
+                    }
                 }
-            }
-            cell_size.height -= spacing.row;
+                cell_size.width -= spacing.column;
 
-            if cell_size.is_empty() {
-                wl.collapse_child(cells_offset + i);
-                return true;
-            }
+                for row in cell_info.row..(cell_info.row + cell_info.row_span).min(info.rows.len()) {
+                    if info.rows[row].height != Px(0) {
+                        cell_size.height += info.rows[row].height + spacing.row;
+                    }
+                }
+                cell_size.height -= spacing.row;
 
-            let (_, define_ref_frame) = LAYOUT.with_constrains(|c| c.with_exact_size(cell_size), || wl.with_child(|wl| cell.layout(wl)));
-            o.child_offset = cell_offset;
-            o.define_reference_frame = define_ref_frame;
+                if cell_size.is_empty() {
+                    wl.collapse_child(cells_offset + i);
+                    return PxSize::zero(); // continue;
+                }
 
-            true
-        });
+                let (_, define_ref_frame) =
+                    LAYOUT.with_constrains(|c| c.with_exact_size(cell_size), || wl.with_child(|wl| cell.layout(wl)));
+                o.child_offset = cell_offset;
+                o.define_reference_frame = define_ref_frame;
+
+                cell_size
+            },
+            |_, _| PxSize::zero(),
+        );
 
         constrains.fill_size_or(grid_size)
     }

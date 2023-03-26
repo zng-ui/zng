@@ -1947,6 +1947,52 @@ where
         })
     }
 
+    /// Call `measure` for each node and combines the final size using `fold_size`.
+    ///
+    /// The call to `measure` can be parallel if [`Parallel::LAYOUT`] is enabled, the inputs are the child index, node, data and the [`WidgetMeasure`].
+    pub fn measure_each<F, S>(&self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
+    where
+        F: Fn(usize, &BoxedUiNode, &D, &mut WidgetMeasure) -> PxSize + Send + Sync,
+        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+    {
+        let data = &self.data;
+        self.list.measure_each(
+            wm,
+            |i, n, wm| {
+                measure(
+                    i,
+                    n,
+                    &data[i].try_lock().unwrap_or_else(|| panic!("data for `{i}` is already locked")),
+                    wm,
+                )
+            },
+            fold_size,
+        )
+    }
+
+    /// Call `layout` for each node and combines the final size using `fold_size`.
+    ///
+    /// The call to `layout` can be parallel if [`Parallel::LAYOUT`] is enabled, the inputs are the child index, node, data and the [`WidgetLayout`].
+    pub fn layout_each<F, S>(&mut self, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
+    where
+        F: Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetLayout) -> PxSize + Send + Sync,
+        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+    {
+        let data = &self.data;
+        self.list.layout_each(
+            wl,
+            |i, n, wl| {
+                layout(
+                    i,
+                    n,
+                    &mut data[i].try_lock().unwrap_or_else(|| panic!("data for `{i}` is already locked")),
+                    wl,
+                )
+            },
+            fold_size,
+        )
+    }
+
     /// Iterate over the list in the Z order.
     pub fn for_each_z_sorted(&self, mut f: impl FnMut(usize, &BoxedUiNode, &D) -> bool) {
         if self.z_naturally_sorted.get() {
