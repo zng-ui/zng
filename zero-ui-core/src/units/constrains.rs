@@ -270,11 +270,21 @@ impl_from_and_into_var! {
 }
 impl fmt::Debug for PxConstrains {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PxConstrains")
-            .field("max", &self.max())
-            .field("min", &self.min)
-            .field("fill", &self.fill)
-            .finish()
+        if f.alternate() {
+            f.debug_struct("PxConstrains")
+                .field("max", &self.max())
+                .field("min", &self.min)
+                .field("fill", &self.fill)
+                .finish()
+        } else if self.is_exact() {
+            write!(f, "exact({})", self.min)
+        } else if self.is_unbounded() {
+            write!(f, "min({})", self.min)
+        } else if self.fill {
+            write!(f, "fill({}, {})", self.min, self.max)
+        } else {
+            write!(f, "range({}, {})", self.min, self.max)
+        }
     }
 }
 impl Default for PxConstrains {
