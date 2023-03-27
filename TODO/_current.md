@@ -1,9 +1,4 @@
 * Parallel layout for more panels.
-    - `stack!`.
-        - Detect `StackDirection` full horizontal/vertical and implement parallel only for these?
-        - Could do one parallel layout pass and one offset pass.
-            - Don't need to store anything, can use the bounds info?
-            - No, may contain nodes that are not full widgets.
     - `wrap!`.
         - Can't measure in parallel, mutated row, constrains of each item affected by previous item.
         - Can sort bidi in parallel? Yes, but right now we reuse heap work memory `bidi_levels` and others.

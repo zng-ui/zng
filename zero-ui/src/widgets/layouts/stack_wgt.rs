@@ -247,10 +247,27 @@ impl StackNode {
                     .with_new_min(Px(0), Px(0))
             },
             || {
+                // parallel measure full widgets first
+                self.children.measure_each(
+                    wm,
+                    |_, c, _, wm| {
+                        if c.is_widget() {
+                            c.measure(wm)
+                        } else {
+                            PxSize::zero()
+                        }
+                    },
+                    |_, _| PxSize::zero(),
+                );
+
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
                 self.children.for_each(|_, c, _| {
-                    let size = c.measure(wm);
+                    // already parallel measured widgets, only measure other nodes.
+                    let size = match c.with_context(|| WIDGET.bounds().measure_outer_size()) {
+                        Some(wgt_size) => wgt_size,
+                        None => c.measure(wm),
+                    };
                     if size.is_empty() {
                         return true; // continue, skip collapsed
                     }
@@ -294,10 +311,34 @@ impl StackNode {
                     .with_new_min(Px(0), Px(0))
             },
             || {
+                // parallel layout widgets
+                self.children.layout_each(
+                    wl,
+                    |_, c, o, wl| {
+                        if c.is_widget() {
+                            let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
+                            debug_assert!(!define_ref_frame); // is widget, should define own frame.
+                            o.define_reference_frame = define_ref_frame;
+                            size
+                        } else {
+                            PxSize::zero()
+                        }
+                    },
+                    |_, _| PxSize::zero(),
+                );
+
+                // layout other nodes and position everything.
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
                 self.children.for_each_mut(|_, c, o| {
-                    let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
+                    let size = match c.with_context(|| WIDGET.bounds().outer_size()) {
+                        Some(wgt_size) => wgt_size,
+                        None => {
+                            let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
+                            o.define_reference_frame = define_ref_frame;
+                            size
+                        }
+                    };
 
                     if size.is_empty() {
                         o.child_offset = PxVector::zero();
@@ -307,7 +348,6 @@ impl StackNode {
 
                     let offset = direction.layout(item_rect, size) + child_spacing;
                     o.child_offset = offset;
-                    o.define_reference_frame = define_ref_frame;
 
                     item_rect.origin = offset.to_point();
                     item_rect.size = size;
@@ -317,7 +357,7 @@ impl StackNode {
                     item_bounds.max = item_bounds.max.max(item_box.max);
                     child_spacing = spacing;
 
-                    true
+                    true //continue
                 });
             },
         );
@@ -397,18 +437,15 @@ impl StackNode {
 
         // find largest child, the others will fill to its size.
         if need_measure {
-            LAYOUT.with_constrains(
+            let max_items = LAYOUT.with_constrains(
                 move |_| measure_constrains.with_new_min(Px(0), Px(0)),
                 || {
-                    self.children.for_each(|_, c, _| {
-                        let size = c.measure(&mut WidgetMeasure::new());
-                        max_size = max_size.max(size);
-                        true
-                    });
+                    self.children
+                        .measure_each(&mut WidgetMeasure::new(), |_, c, _, wm| c.measure(wm), PxSize::max)
                 },
             );
 
-            max_size = constrains.clamp_size(max_size);
+            max_size = constrains.clamp_size(max_size.max(max_items));
         }
 
         max_size
