@@ -2,6 +2,7 @@
 
 use std::{fmt, mem, sync::Arc, task::Waker};
 
+use atomic::Atomic;
 use parking_lot::{Mutex, RwLock};
 
 mod state;
@@ -1020,6 +1021,7 @@ impl WIDGET {
 
 context_local! {
     static LAYOUT_CTX: LayoutCtx = LayoutCtx::no_context();
+    static METRICS_USED_CTX: Atomic<LayoutMask> = Atomic::new(LayoutMask::empty());
 }
 
 struct LayoutCtx {
@@ -1056,6 +1058,29 @@ impl LAYOUT {
     pub fn with_metrics<R>(&self, metrics: impl FnOnce(LayoutMetrics) -> LayoutMetrics, f: impl FnOnce() -> R) -> R {
         let new = metrics(self.metrics());
         self.with_context(new, f)
+    }
+
+    /// Capture all layout metrics used in `f`.
+    ///
+    /// Note that the captured mask is not propagated to the current context, you can use [`register_metrics_use`] to propagate
+    /// the returned mask.
+    ///
+    /// [`register_metrics_use`]: Self::register_metrics_use
+    pub fn capture_metrics_use<R>(&self, f: impl FnOnce() -> R) -> (LayoutMask, R) {
+        METRICS_USED_CTX.with_context_value(Atomic::new(LayoutMask::empty()), || {
+            let r = f();
+            let uses = METRICS_USED_CTX.get().load(atomic::Ordering::Relaxed);
+            (uses, r)
+        })
+    }
+
+    /// Register that the node layout depends on these contextual values.
+    ///
+    /// Note that the value methods already register by the [`LayoutMetrics`] getter methods.
+    pub fn register_metrics_use(&self, uses: LayoutMask) {
+        let ctx = METRICS_USED_CTX.get();
+        let m = ctx.load(atomic::Ordering::Relaxed);
+        ctx.store(m | uses, atomic::Ordering::Relaxed);
     }
 
     /// Current size constrains.
@@ -2107,8 +2132,6 @@ impl std::hash::Hash for LayoutMetricsSnapshot {
 /// Layout metrics in a [`LAYOUT`] context.
 #[derive(Debug, Clone)]
 pub struct LayoutMetrics {
-    use_mask: Arc<Mutex<LayoutMask>>,
-
     s: LayoutMetricsSnapshot,
 }
 impl LayoutMetrics {
@@ -2120,7 +2143,6 @@ impl LayoutMetrics {
     /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
     pub fn new(scale_factor: Factor, viewport: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
-            use_mask: Arc::new(Mutex::new(LayoutMask::empty())),
             s: LayoutMetricsSnapshot {
                 constrains: PxConstrains2d::new_fill_size(viewport),
                 inline_constrains: None,
@@ -2135,34 +2157,9 @@ impl LayoutMetrics {
         }
     }
 
-    /// What metrics where requested so far in the widget or descendants.
-    pub fn metrics_used(&self) -> LayoutMask {
-        *self.use_mask.lock()
-    }
-
-    /// Register that the node layout depends on these contextual values.
-    ///
-    /// Note that the value methods already register use when they are used.
-    pub fn register_use(&self, mask: LayoutMask) {
-        let mut m = self.use_mask.lock();
-        *m |= mask;
-    }
-
-    /// Get metrics without registering use.
-    ///
-    /// The `req` closure is called to get a value, then the [`metrics_used`] is undone to the previous state.
-    ///
-    /// [`metrics_used`]: Self::metrics_used
-    pub fn peek<R>(&self, req: impl FnOnce(&Self) -> R) -> R {
-        let m = *self.use_mask.lock();
-        let r = req(self);
-        *self.use_mask.lock() = m;
-        r
-    }
-
     /// Current size constrains.
     pub fn constrains(&self) -> PxConstrains2d {
-        self.register_use(LayoutMask::CONSTRAINS);
+        LAYOUT.register_metrics_use(LayoutMask::CONSTRAINS);
         self.s.constrains
     }
 
@@ -2170,31 +2167,31 @@ impl LayoutMetrics {
     ///
     /// Only present if the parent widget supports inline.
     pub fn inline_constrains(&self) -> Option<InlineConstrains> {
-        self.register_use(LayoutMask::CONSTRAINS);
+        LAYOUT.register_metrics_use(LayoutMask::CONSTRAINS);
         self.s.inline_constrains.clone()
     }
 
     /// Gets the inline or text flow direction.
     pub fn direction(&self) -> LayoutDirection {
-        self.register_use(LayoutMask::DIRECTION);
+        LAYOUT.register_metrics_use(LayoutMask::DIRECTION);
         self.s.direction
     }
 
     /// Current computed font size.
     pub fn font_size(&self) -> Px {
-        self.register_use(LayoutMask::FONT_SIZE);
+        LAYOUT.register_metrics_use(LayoutMask::FONT_SIZE);
         self.s.font_size
     }
 
     /// Computed font size at the root widget.
     pub fn root_font_size(&self) -> Px {
-        self.register_use(LayoutMask::ROOT_FONT_SIZE);
+        LAYOUT.register_metrics_use(LayoutMask::ROOT_FONT_SIZE);
         self.s.root_font_size
     }
 
     /// Pixel scale factor.
     pub fn scale_factor(&self) -> Factor {
-        self.register_use(LayoutMask::SCALE_FACTOR);
+        LAYOUT.register_metrics_use(LayoutMask::SCALE_FACTOR);
         self.s.scale_factor
     }
 
@@ -2203,7 +2200,7 @@ impl LayoutMetrics {
     /// This is usually the window content area size, but can be the scroll viewport size or any other
     /// value depending on the implementation of the context widgets.
     pub fn viewport(&self) -> PxSize {
-        self.register_use(LayoutMask::VIEWPORT);
+        LAYOUT.register_metrics_use(LayoutMask::VIEWPORT);
         self.s.viewport
     }
 
@@ -2239,7 +2236,7 @@ impl LayoutMetrics {
 
     /// Computed leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
     pub fn leftover(&self) -> euclid::Size2D<Option<Px>, ()> {
-        self.register_use(LayoutMask::LEFTOVER);
+        LAYOUT.register_metrics_use(LayoutMask::LEFTOVER);
         self.s.leftover
     }
 
@@ -2312,17 +2309,6 @@ impl LayoutMetrics {
     /// [snapshot]: LayoutMetricsSnapshot
     pub fn snapshot(&self) -> LayoutMetricsSnapshot {
         self.s.clone()
-    }
-
-    pub(crate) fn enter_widget_ctx(&self) -> LayoutMask {
-        mem::replace(&mut *self.use_mask.lock(), LayoutMask::empty())
-    }
-
-    pub(crate) fn exit_widget_ctx(&self, parent_use: LayoutMask) -> LayoutMask {
-        let mut use_mask = self.use_mask.lock();
-        let wgt_use = *use_mask;
-        *use_mask = parent_use | wgt_use;
-        wgt_use
     }
 }
 

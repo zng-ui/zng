@@ -596,7 +596,7 @@ pub fn stack_nodes_layout_by(
                 self.children.measure_each(wm, |_, n, wm| n.measure(wm), PxSize::max)
             } else {
                 let index_size = self.children.with_node(index, |n| n.measure(wm));
-                let constrains = (self.constrains)(LAYOUT.metrics().peek(|m| m.constrains()), index, index_size);
+                let constrains = (self.constrains)(LAYOUT.metrics().constrains(), index, index_size);
                 LAYOUT.with_constrains(
                     |_| constrains,
                     || {
@@ -629,7 +629,7 @@ pub fn stack_nodes_layout_by(
                 self.children.layout_each(wl, |_, n, wl| n.layout(wl), PxSize::max)
             } else {
                 let index_size = self.children.with_node_mut(index, |n| n.layout(wl));
-                let constrains = (self.constrains)(LAYOUT.metrics().peek(|m| m.constrains()), index, index_size);
+                let constrains = (self.constrains)(LAYOUT.metrics().constrains(), index, index_size);
                 LAYOUT.with_constrains(
                     |_| constrains,
                     || {

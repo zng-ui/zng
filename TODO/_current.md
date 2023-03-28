@@ -1,5 +1,3 @@
-* Text example with parallel enabled gets incorrect layout after hovering over some texts.
-
 * Parallel layout for more panels.
     - `wrap!`.
         - Can't measure in parallel, mutated row, constrains of each item affected by previous item.

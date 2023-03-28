@@ -698,20 +698,19 @@ impl WidgetMeasure {
                 }
 
                 if reused {
+                    // LAYOUT.register_metrics_use(measure_uses); // measure does not propagate uses.
                     return bounds.measure_outer_size();
                 }
             }
         }
 
         let parent_inline = self.inline.take();
-        let parent_uses = metrics.enter_widget_ctx();
         if LAYOUT.inline_constrains().is_some() {
             self.inline = Some(Default::default());
         }
 
-        let size = measure(self);
+        let (measure_uses, size) = LAYOUT.capture_metrics_use(|| measure(self));
 
-        let measure_uses = metrics.exit_widget_ctx(parent_uses);
         bounds.set_measure_metrics(Some(snap), measure_uses);
         bounds.set_measure_outer_size(size);
 
@@ -844,7 +843,7 @@ impl WidgetLayout {
         if reuse {
             let uses = bounds.metrics_used();
             if bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false) {
-                metrics.register_use(uses);
+                LAYOUT.register_metrics_use(uses); // propagate to parent
                 return bounds.outer_size();
             }
         }
@@ -873,13 +872,10 @@ impl WidgetLayout {
         self.bounds.set_inner_offset_baseline(false);
         self.bounds.set_can_auto_hide(true);
 
-        let parent_uses = metrics.enter_widget_ctx();
-
         // layout
-        let size = layout(self);
+        let (uses, size) = LAYOUT.capture_metrics_use(|| layout(self));
 
-        let uses = metrics.exit_widget_ctx(parent_uses);
-
+        LAYOUT.register_metrics_use(uses);
         self.bounds.set_outer_size(size);
         self.bounds.set_metrics(Some(snap), uses);
         if let Some(inline) = &mut self.inline {
