@@ -655,7 +655,7 @@ impl super::Layout1d for Length {
         match self {
             Default => LayoutMask::DEFAULT_VALUE,
             Dip(_) => LayoutMask::SCALE_FACTOR,
-            Px(_) => LayoutMask::NONE,
+            Px(_) => LayoutMask::empty(),
             Pt(_) => LayoutMask::SCALE_FACTOR,
             Relative(_) => LayoutMask::CONSTRAINS,
             Leftover(_) => LayoutMask::LEFTOVER,
@@ -666,7 +666,7 @@ impl super::Layout1d for Length {
             ViewportMin(_) => LayoutMask::VIEWPORT,
             ViewportMax(_) => LayoutMask::VIEWPORT,
             DipF32(_) => LayoutMask::SCALE_FACTOR,
-            PxF32(_) => LayoutMask::NONE,
+            PxF32(_) => LayoutMask::empty(),
             Expr(e) => e.affect_mask(),
         }
     }
@@ -676,9 +676,6 @@ bitflags! {
     /// Mask of values that can affect the [`Length::layout`] operation.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct LayoutMask: u32 {
-        /// Represents no value dependency or change.
-        const NONE = 0;
-
         /// The `default_value`.
         const DEFAULT_VALUE = 1 << 31;
         /// The [`LayoutMetrics::constrains`] and [`LayoutMetrics::inline_constrains`].
@@ -701,9 +698,9 @@ bitflags! {
     }
 }
 impl Default for LayoutMask {
-    /// `NONE`.
+    /// Empty.
     fn default() -> Self {
-        LayoutMask::NONE
+        LayoutMask::empty()
     }
 }
 

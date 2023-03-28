@@ -2120,7 +2120,7 @@ impl LayoutMetrics {
     /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
     pub fn new(scale_factor: Factor, viewport: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
-            use_mask: Arc::new(Mutex::new(LayoutMask::NONE)),
+            use_mask: Arc::new(Mutex::new(LayoutMask::empty())),
             s: LayoutMetricsSnapshot {
                 constrains: PxConstrains2d::new_fill_size(viewport),
                 inline_constrains: None,
@@ -2315,7 +2315,7 @@ impl LayoutMetrics {
     }
 
     pub(crate) fn enter_widget_ctx(&self) -> LayoutMask {
-        mem::replace(&mut *self.use_mask.lock(), LayoutMask::NONE)
+        mem::replace(&mut *self.use_mask.lock(), LayoutMask::empty())
     }
 
     pub(crate) fn exit_widget_ctx(&self, parent_use: LayoutMask) -> LayoutMask {

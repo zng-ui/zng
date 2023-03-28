@@ -1009,8 +1009,8 @@ impl WidgetLayout {
                 info.bounds_info.set_can_auto_hide(true);
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
-                info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
-                info.bounds_info.set_metrics(None, LayoutMask::NONE);
+                info.bounds_info.set_measure_metrics(None, LayoutMask::empty());
+                info.bounds_info.set_metrics(None, LayoutMask::empty());
                 info.bounds_info.set_is_collapsed(true);
                 info.bounds_info.set_rendered(None, &tree);
             }
@@ -1040,8 +1040,8 @@ impl WidgetLayout {
                 info.bounds_info.set_can_auto_hide(true);
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
-                info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
-                info.bounds_info.set_metrics(None, LayoutMask::NONE);
+                info.bounds_info.set_measure_metrics(None, LayoutMask::empty());
+                info.bounds_info.set_metrics(None, LayoutMask::empty());
                 info.bounds_info.set_is_collapsed(true);
             }
         } else {
@@ -1071,8 +1071,8 @@ impl WidgetLayout {
                     info.bounds_info.set_can_auto_hide(true);
                     info.bounds_info.set_inner_offset(PxVector::zero());
                     info.bounds_info.set_child_offset(PxVector::zero());
-                    info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
-                    info.bounds_info.set_metrics(None, LayoutMask::NONE);
+                    info.bounds_info.set_measure_metrics(None, LayoutMask::empty());
+                    info.bounds_info.set_metrics(None, LayoutMask::empty());
                     info.bounds_info.set_is_collapsed(true);
                 }
             } else {
