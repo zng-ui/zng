@@ -95,6 +95,7 @@ pulldown-cmark = "0.9"
 html-escape = "0.2"
 take_mut = "0.2"
 path-absolutize = "3"
+atomic = "0.5"
 
 [dev-dependencies]
 pretty_assertions = "1"

@@ -193,41 +193,6 @@ impl LocalContext {
 
         f()
     }
-
-    fn with_mut<T, R>(local: &'static ContextLocal<T>, f: impl FnOnce(&mut T) -> R) -> R
-    where
-        T: Clone,
-        T: Send + Sync + 'static,
-    {
-        let local = local.data.read();
-        LOCAL.with(|l| {
-            let key = (local.key)();
-            let value = l.borrow_mut().remove(&key);
-            if let Some(mut value) = value {
-                match Arc::get_mut(&mut value) {
-                    Some(val) => {
-                        // can reuse
-                        let r = f(val.downcast_mut::<T>().unwrap());
-                        l.borrow_mut().insert(key, value);
-                        r
-                    }
-                    None => {
-                        // cannot reuse, clone
-                        let mut val = value.as_ref().downcast_ref::<T>().unwrap().clone();
-                        let r = f(&mut val);
-                        l.borrow_mut().insert(key, Arc::new(val));
-                        r
-                    }
-                }
-            } else {
-                // no value, init default
-                let mut val = (local.default_init)();
-                let r = f(&mut val);
-                l.borrow_mut().insert(key, Arc::new(val));
-                r
-            }
-        })
-    }
 }
 thread_local! {
     static LOCAL: RefCell<LocalData> = const {
@@ -847,22 +812,6 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
                 }
             },
         }
-    }
-
-    /// Calls `f` with a mutable reference to the value in context.
-    ///
-    /// The value is cloned only if it is shared, during the call to `f` the value is removed from the context, the value
-    /// is re-inserted in the context after `f`.
-    pub fn with_mut<R>(&'static self, f: impl FnOnce(&mut T) -> R) -> R
-    where
-        T: Clone,
-    {
-        LocalContext::with_mut(self, f)
-    }
-
-    /// Inserts or replaces the value in context.
-    pub fn set(&'static self, value: Arc<T>) {
-        LocalContext::set(self.key(), value);
     }
 }
 

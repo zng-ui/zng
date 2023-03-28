@@ -84,11 +84,11 @@ context_local! {
     static SCROLL_CONFIG: ScrollConfig = ScrollConfig::default();
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 struct ScrollConfig {
     id: Option<WidgetId>,
-    horizontal: Option<ChaseAnimation<Factor>>,
-    vertical: Option<ChaseAnimation<Factor>>,
+    horizontal: Mutex<Option<ChaseAnimation<Factor>>>,
+    vertical: Mutex<Option<ChaseAnimation<Factor>>>,
 }
 
 /// Controls the parent scroll.
@@ -212,16 +212,18 @@ impl SCROLL {
         if smooth.is_disabled() {
             let _ = SCROLL_VERTICAL_OFFSET_VAR.set(new_offset);
         } else {
-            SCROLL_CONFIG.with_mut(|config| match &config.vertical {
+            let config = SCROLL_CONFIG.get();
+            let mut vertical = config.vertical.lock();
+            match &*vertical {
                 Some(anim) if !anim.handle.is_stopped() => {
                     anim.reset(new_offset);
                 }
                 _ => {
                     let ease = smooth.easing.clone();
                     let anim = SCROLL_VERTICAL_OFFSET_VAR.chase_bounded(new_offset, smooth.duration, move |t| ease(t), 0.fct()..=1.fct());
-                    config.vertical = Some(anim);
+                    *vertical = Some(anim);
                 }
-            });
+            }
         }
     }
 
@@ -235,16 +237,18 @@ impl SCROLL {
         if smooth.is_disabled() {
             let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(new_offset);
         } else {
-            SCROLL_CONFIG.with_mut(|config| match &config.horizontal {
+            let config = SCROLL_CONFIG.get();
+            let mut horizontal = config.horizontal.lock();
+            match &*horizontal {
                 Some(anim) if !anim.handle.is_stopped() => {
                     anim.reset(new_offset);
                 }
                 _ => {
                     let ease = smooth.easing.clone();
                     let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase_bounded(new_offset, smooth.duration, move |t| ease(t), 0.fct()..=1.fct());
-                    config.horizontal = Some(anim);
+                    *horizontal = Some(anim);
                 }
-            });
+            }
         }
     }
 

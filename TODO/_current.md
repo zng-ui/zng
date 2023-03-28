@@ -1,3 +1,5 @@
+* Text example with parallel enabled gets incorrect layout after hovering over some texts.
+
 * Parallel layout for more panels.
     - `wrap!`.
         - Can't measure in parallel, mutated row, constrains of each item affected by previous item.
@@ -19,7 +21,7 @@
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
 
-* Review all other `for_each_mut` and `fot` usages, replace with parallel when possible.
+* Review all other `for_each_mut` and `for` usages, replace with parallel when possible.
 
 * Implement tracing parent propagation in `LocalContext`?
     - https://github.com/wagnerf42/diam/blob/main/src/adaptors/log.rs

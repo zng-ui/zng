@@ -6,6 +6,7 @@ use std::{
     sync::Arc,
 };
 
+use atomic::{Atomic, Ordering};
 use font_features::FontVariations;
 
 use super::text_properties::*;
@@ -18,7 +19,6 @@ use crate::core::{
 use crate::prelude::new_widget::*;
 
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
-#[derive(Clone)]
 pub struct ResolvedText {
     /// Text transformed, white space corrected and segmented.
     pub text: SegmentedText,
@@ -37,7 +37,19 @@ pub struct ResolvedText {
     pub caret_opacity: ReadOnlyArcVar<Factor>,
 
     /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
-    baseline: Px,
+    baseline: Atomic<Px>,
+}
+impl Clone for ResolvedText {
+    fn clone(&self) -> Self {
+        Self {
+            text: self.text.clone(),
+            faces: self.faces.clone(),
+            synthesis: self.synthesis,
+            reshape: self.reshape,
+            caret_opacity: self.caret_opacity.clone(),
+            baseline: Atomic::new(self.baseline.load(Ordering::Relaxed)),
+        }
+    }
 }
 impl ResolvedText {
     fn no_context() -> Self {
@@ -221,7 +233,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 faces,
                 text: SegmentedText::new(text, DIRECTION_VAR.get()),
                 reshape: false,
-                baseline: Px(0),
+                baseline: Atomic::new(Px(0)),
                 caret_opacity,
             });
 
@@ -433,7 +445,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             metrics.constrains().fill_or_exact()
         }
 
-        fn layout(&mut self, metrics: &LayoutMetrics, t: &mut ResolvedText, is_measure: bool) -> PxSize {
+        fn layout(&mut self, metrics: &LayoutMetrics, t: &ResolvedText, is_measure: bool) -> PxSize {
             if t.reshape {
                 self.pending.insert(Layout::RESHAPE);
             }
@@ -626,7 +638,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         metrics.direction(),
                     );
                     r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
-                    t.baseline = r.shaped_text.baseline();
+                    t.baseline.store(r.shaped_text.baseline(), Ordering::Relaxed);
                 }
                 if self.pending.contains(Layout::OVERLINE) {
                     if r.overline_thickness > Px(0) {
@@ -688,13 +700,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
         fn ensure_layout_for_render(&mut self) {
             if self.txt_is_measured {
-                RESOLVED_TEXT.with_mut(|t| {
-                    let metrics = self.last_layout.0.clone();
-                    self.shaping_args.inline_constrains = self.last_layout.1;
-                    LAYOUT.with_context(metrics.clone(), || {
-                        self.layout(&metrics, t, false);
-                    });
+                let metrics = self.last_layout.0.clone();
+                self.shaping_args.inline_constrains = self.last_layout.1;
+                LAYOUT.with_context(metrics.clone(), || {
+                    self.layout(&metrics, &RESOLVED_TEXT.get(), false);
                 });
+
                 debug_assert!(!self.txt_is_measured);
             }
         }
@@ -822,7 +833,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             if let Some(size) = txt.measure(&metrics) {
                 size
             } else {
-                let size = RESOLVED_TEXT.with_mut(|t| txt.layout(&metrics, t, true));
+                let size = txt.layout(&metrics, &RESOLVED_TEXT.get(), true);
 
                 if let (Some(inline), Some(l)) = (wm.inline(), txt.txt.as_ref()) {
                     if let Some(first_line) = l.shaped_text.first_line() {
@@ -869,7 +880,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let txt = self.txt.get_mut();
 
             let metrics = LAYOUT.metrics();
-            let size = RESOLVED_TEXT.with_mut(|t| txt.layout(&metrics, t, false));
+            let resolved_txt = RESOLVED_TEXT.get();
+            let size = txt.layout(&metrics, &resolved_txt, false);
 
             if txt.pending != Layout::empty() {
                 WIDGET.render();
@@ -905,7 +917,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            let baseline = RESOLVED_TEXT.with_mut(|t| t.baseline);
+            let baseline = resolved_txt.baseline.load(Ordering::Relaxed);
             wl.set_baseline(baseline);
 
             LAYOUT.with_constrains(

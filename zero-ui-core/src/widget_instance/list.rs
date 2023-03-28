@@ -2,7 +2,10 @@ use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
     mem, ops,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering::Relaxed},
+        Arc,
+    },
 };
 
 use crate::{
@@ -535,20 +538,18 @@ impl SortingListParent {
 
     /// Calls [`SortingList::invalidate_sort`] on the parent list.
     pub fn invalidate_sort() {
-        SORTING_LIST_PARENT.with_mut(|s| {
-            *s = true;
-        })
+        SORTING_LIST_PARENT.get().store(true, Relaxed)
     }
 
     fn with<R>(action: impl FnOnce() -> R) -> (R, bool) {
-        SORTING_LIST_PARENT.with_context_value(false, || {
+        SORTING_LIST_PARENT.with_context_value(AtomicBool::new(false), || {
             let r = action();
-            (r, SORTING_LIST_PARENT.get_clone())
+            (r, SORTING_LIST_PARENT.get().load(Relaxed))
         })
     }
 }
 context_local! {
-    static SORTING_LIST_PARENT: bool = false;
+    static SORTING_LIST_PARENT: AtomicBool = AtomicBool::new(false);
 }
 
 /// Represents a sorted view into an [`UiNodeList`] that is not changed.
@@ -788,12 +789,12 @@ where
     }
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Debug)]
 struct ZIndexCtx {
     // used in `z_index` to validate that it will have an effect.
     panel_id: Option<WidgetId>,
     // set by `z_index` to signal a z-resort is needed.
-    resort: bool,
+    resort: AtomicBool,
 }
 
 context_local! {
@@ -811,11 +812,11 @@ impl Z_INDEX {
     fn with(&self, panel_id: WidgetId, action: impl FnOnce()) -> bool {
         let ctx = ZIndexCtx {
             panel_id: Some(panel_id),
-            resort: false,
+            resort: AtomicBool::new(false),
         };
         Z_INDEX_CTX.with_context_value(ctx, || {
             action();
-            Z_INDEX_CTX.get_clone().resort
+            Z_INDEX_CTX.get().resort.load(Relaxed)
         })
     }
 
@@ -988,7 +989,9 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     })]
     impl UiNode for ZIndexNode {
         fn init(&mut self) {
-            Z_INDEX_CTX.with_mut(|z_ctx| {
+            {
+                let z_ctx = Z_INDEX_CTX.get();
+
                 if z_ctx.panel_id != WIDGET.parent_id() || z_ctx.panel_id.is_none() {
                     tracing::error!(
                         "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
@@ -1001,11 +1004,11 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
 
                     let index = self.index.get();
                     if index != ZIndex::DEFAULT {
-                        z_ctx.resort = true;
+                        z_ctx.resort.store(true, Relaxed);
                         WIDGET.set_state(&Z_INDEX_ID, self.index.get());
                     }
                 }
-            });
+            }
 
             self.child.init();
         }
@@ -1013,10 +1016,10 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
         fn update(&mut self, updates: &WidgetUpdates) {
             if self.valid {
                 if let Some(i) = self.index.get_new() {
-                    Z_INDEX_CTX.with_mut(|z_ctx| {
-                        debug_assert_eq!(z_ctx.panel_id, WIDGET.parent_id());
-                        z_ctx.resort = true;
-                    });
+                    let z_ctx = Z_INDEX_CTX.get();
+                    debug_assert_eq!(z_ctx.panel_id, WIDGET.parent_id());
+                    z_ctx.resort.store(true, Relaxed);
+
                     WIDGET.set_state(&Z_INDEX_ID, i);
                 }
             }
