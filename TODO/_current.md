@@ -15,20 +15,17 @@
 
 * Review if service locks are blocking parallel execution.
     - `FontFaceLoader::get_system` and `FontFace::load` are noticeable in release build traces.
-    - They are, and because the service is write-locked a single font loading can block all other already loaded accesses.
-    - Need to refactor the service, multiple locks?
-        - Everything is still locked if any font needs to load.
-    - Firefox just locks a map too.
-        - But font load is a "runnable".
-    - If we change the font query to return a `ResponseVar`:
-        - Will cause more updates as fonts load.
-            - Can "batch" font loads, like all requests in the same update cycle load together?
-        - Text node need to wait.
-            - Layout can't return zero, but size will probably change.
-            - Estimate monospace size?
-        - Text nodes can hold a window load handle too, this avoids the user every seeing blank spots.
-        - Font list is a list of response-vars?
-        - Can support web fonts like this, with a download like image service.
+    - Refactor `FONTS.list/find` to only use read lock, until cache miss, then retry with write lock.
+    - Allow multiple fonts to load at the same time, somehow.
+        - Could return `ResponseVar<Font>` for get and `ResponseVar<FontList>`.
+            - The font list one updates multiple times as fonts in the list load.
+            - How does `text!` layout work when there is not font loaded yet?
+                - Also we can end-up using more resources shaping text for fallback fonts that are only used one frame.
+                - Can just await the full `FontList` result, we just want to unblock the UI threads.
+        - Could have a *loading lock* placeholder in the cache entries that are already loading in other threads.
+            - This keeps the cache map mostly unlocked.
+            - But in practice every UI thread that misses cache will lock.
+        - At least `FONTS.list` should load in parallel.
 
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
