@@ -794,7 +794,7 @@ impl crate::render::Font for Font {
     }
 }
 
-/// A list of [`FontFaceRef`] resolved from a [`FontName`] list, plus the [fallback](GenericFonts::fallback) font.
+/// A list of [`FontFace`] resolved from a [`FontName`] list, plus the [fallback](GenericFonts::fallback) font.
 ///
 /// Glyphs that are not resolved by the first font fallback to the second font and so on.
 #[derive(Debug, Clone)]
@@ -894,7 +894,7 @@ impl std::ops::Index<usize> for FontFaceList {
     }
 }
 
-/// A list of [`FontRef`] created from a [`FontFaceList`].
+/// A list of [`Font`] created from a [`FontFaceList`].
 #[derive(Debug, Clone)]
 pub struct FontList {
     fonts: Box<[Font]>,

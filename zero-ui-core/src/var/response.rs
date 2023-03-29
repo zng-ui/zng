@@ -30,6 +30,15 @@ pub enum Response<T: VarValue> {
     /// Responder has set the response.
     Done(T),
 }
+impl<T: VarValue> Response<T> {
+    /// Gets the response if done.
+    pub fn done(&self) -> Option<&T> {
+        match self {
+            Response::Waiting => None,
+            Response::Done(r) => Some(r),
+        }
+    }
+}
 impl<T: VarValue> fmt::Debug for Response<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
@@ -46,6 +55,14 @@ impl<T: VarValue> fmt::Debug for Response<T> {
                 }
                 Response::Done(v) => fmt::Debug::fmt(v, f),
             }
+        }
+    }
+}
+impl<T: VarValue> From<Response<T>> for Option<T> {
+    fn from(value: Response<T>) -> Self {
+        match value {
+            Response::Waiting => None,
+            Response::Done(r) => Some(r),
         }
     }
 }
@@ -80,8 +97,6 @@ impl<T: VarValue> ResponseVar<T> {
     }
 
     /// Returns a future that awaits until a response is received.
-    ///
-    /// Note that you must call [`rsp`] after this to get the response.
     ///
     /// [`rsp`]: Self::rsp
     pub async fn wait_done(&self) {

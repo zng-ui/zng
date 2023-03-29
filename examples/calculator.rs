@@ -236,24 +236,28 @@ impl Calculator {
 fn set_fallback_font() {
     use zero_ui::core::text::*;
 
-    let und = lang!(und);
-    if FONTS
-        .list(
-            &FontNames::system_ui(&und),
-            FontStyle::Normal,
-            FontWeight::NORMAL,
-            FontStretch::NORMAL,
-            &und,
-        )
-        .iter()
-        .all(|f| f.font_kit().glyph_for_char('⌫').is_none())
-    {
-        // OS UI and fallback fonts do not support `⌫`, load custom font that does.
+    task::spawn(async {
+        let und = lang!(und);
+        if FONTS
+            .list(
+                &FontNames::system_ui(&und),
+                FontStyle::Normal,
+                FontWeight::NORMAL,
+                FontStretch::NORMAL,
+                &und,
+            )
+            .wait_rsp()
+            .await
+            .iter()
+            .all(|f| f.font_kit().glyph_for_char('⌫').is_none())
+        {
+            // OS UI and fallback fonts do not support `⌫`, load custom font that does.
 
-        static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
-        let fallback = zero_ui::core::text::CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
+            static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
+            let fallback = zero_ui::core::text::CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
 
-        FONTS.register(fallback).unwrap();
-        FONTS.generics().set_fallback(und, "fallback");
-    }
+            FONTS.register(fallback).unwrap();
+            FONTS.generics().set_fallback(und, "fallback");
+        }
+    });
 }

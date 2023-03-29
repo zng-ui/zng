@@ -260,13 +260,18 @@ fn defaults() -> impl UiNode {
     fn demo(title: &str, font_family: impl Into<FontNames>) -> impl UiNode {
         let font_family = font_family.into();
 
-        let font = FONTS.list(
-            &font_family,
-            FontStyle::Normal,
-            FontWeight::NORMAL,
-            FontStretch::NORMAL,
-            &lang!(und),
-        );
+        let font_name = FONTS
+            .list(
+                &font_family,
+                FontStyle::Normal,
+                FontWeight::NORMAL,
+                FontStretch::NORMAL,
+                &lang!(und),
+            )
+            .map(|f| match f.done() {
+                Some(f) => f.best().family_name().to_text(),
+                None => Text::empty(),
+            });
 
         stack! {
             direction = StackDirection::left_to_right();
@@ -278,7 +283,7 @@ fn defaults() -> impl UiNode {
                     formatx!("{title}: ")
                 }),
                 text! {
-                    txt = font.best().display_name().to_text();
+                    txt = font_name;
                     font_family;
                 }
             ];
