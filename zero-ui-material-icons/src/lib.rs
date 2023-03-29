@@ -15,7 +15,7 @@ use std::{fmt, mem};
 use zero_ui::{
     core::{
         app::AppExtension,
-        impl_from_and_into_var,
+        impl_from_and_into_var, task,
         text::{CustomFont, FontDataRef, FontName, FONTS},
     },
     widgets::icon::GlyphIcon,
@@ -41,7 +41,8 @@ impl MaterialFonts {
 
         for (name, bytes) in sets {
             let font = CustomFont::from_bytes(name, FontDataRef::from_static(bytes), 0);
-            FONTS.register(font).unwrap();
+            // memory font loads instantly.
+            task::block_on(FONTS.register(font)).unwrap();
         }
     }
 }

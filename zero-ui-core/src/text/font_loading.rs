@@ -24,8 +24,9 @@ use crate::{
     context::UPDATES,
     crate_util::FxHashMap,
     event::{event, event_args, EventUpdate},
+    task,
     units::*,
-    var::{response_done_var, var, ArcVar, ResponseVar, Var},
+    var::{response_done_var, var, AnyVar, ArcVar, ResponseVar, Var},
 };
 
 event! {
@@ -187,9 +188,8 @@ impl FONTS {
     /// If the font loads correctly a [`FONT_CHANGED_EVENT`] notification is scheduled.
     /// Fonts sourced from a file are not monitored for changes, you can *reload* the font
     /// by calling `register` again with the same font name.
-    pub fn register(&self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
-        let mut ft = FONTS_SV.write();
-        ft.loader.register(custom_font)?;
+    pub async fn register(&self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
+        FontFaceLoader::register(custom_font).await?;
         GENERIC_FONTS_SV.write().notify(FontChange::CustomFonts);
         Ok(())
     }
@@ -215,7 +215,12 @@ impl FONTS {
         stretch: FontStretch,
         lang: &Lang,
     ) -> ResponseVar<FontFaceList> {
-        response_done_var(FONTS_SV.write().loader.get_list(families, style, weight, stretch, lang))
+        // try with shared lock
+        if let Some(cached) = FONTS_SV.read().loader.try_list(families, style, weight, stretch, lang) {
+            return cached;
+        }
+        // begin load with exclusive lock (cache is tried again in `load`)
+        FONTS_SV.write().loader.load_list(families, style, weight, stretch, lang)
     }
 
     /// Find a single font face that best matches the query.
@@ -227,7 +232,12 @@ impl FONTS {
         stretch: FontStretch,
         lang: &Lang,
     ) -> ResponseVar<Option<FontFace>> {
-        response_done_var(FONTS_SV.write().loader.get(family, style, weight, stretch, lang))
+        // try with shared lock
+        if let Some(cached) = FONTS_SV.read().loader.try_cached(family, style, weight, stretch, lang) {
+            return cached;
+        }
+        // begin load with exclusive lock (cache is tried again in `load`)
+        FONTS_SV.write().loader.load(family, style, weight, stretch, lang)
     }
 
     /// Find a single font face with all normal properties.
@@ -394,13 +404,13 @@ impl FontFace {
         self.0.data.is_empty()
     }
 
-    fn load_custom(custom_font: CustomFont, loader: &mut FontFaceLoader) -> Result<Self, FontLoadingError> {
+    async fn load_custom(custom_font: CustomFont) -> Result<Self, FontLoadingError> {
         let bytes;
         let face_index;
 
         match custom_font.source {
             FontSource::File(path, index) => {
-                bytes = FontDataRef(Arc::new(std::fs::read(path)?));
+                bytes = FontDataRef(Arc::new(task::wait(|| std::fs::read(path)).await?));
                 face_index = index;
             }
             FontSource::Memory(arc, index) => {
@@ -408,26 +418,30 @@ impl FontFace {
                 face_index = index;
             }
             FontSource::Alias(other_font) => {
-                let other_font = loader
-                    .get_resolved(&other_font, custom_font.style, custom_font.weight, custom_font.stretch)
-                    .ok_or(FontLoadingError::NoSuchFontInCollection)?;
-                return Ok(FontFace(Arc::new(LoadedFontFace {
-                    data: other_font.0.data.clone(),
-                    face: harfbuzz_rs::Face::new(other_font.0.data.clone(), other_font.0.face_index).to_shared(),
-                    face_index: other_font.0.face_index,
-                    display_name: custom_font.name.clone(),
-                    family_name: custom_font.name,
-                    postscript_name: None,
-                    properties: other_font.0.properties,
-                    is_monospace: other_font.0.is_monospace,
-                    metrics: other_font.0.metrics.clone(),
-                    m: Mutex::new(FontFaceMut {
-                        font_kit: other_font.0.m.lock().font_kit.clone(),
-                        instances: Default::default(),
-                        render_keys: Default::default(),
-                        unregistered: Default::default(),
-                    }),
-                })));
+                let result = FONTS_SV
+                    .write()
+                    .loader
+                    .load_resolved(&other_font, custom_font.style, custom_font.weight, custom_font.stretch);
+                return match result.wait_into_rsp().await {
+                    Some(other_font) => Ok(FontFace(Arc::new(LoadedFontFace {
+                        data: other_font.0.data.clone(),
+                        face: harfbuzz_rs::Face::new(other_font.0.data.clone(), other_font.0.face_index).to_shared(),
+                        face_index: other_font.0.face_index,
+                        display_name: custom_font.name.clone(),
+                        family_name: custom_font.name,
+                        postscript_name: None,
+                        properties: other_font.0.properties,
+                        is_monospace: other_font.0.is_monospace,
+                        metrics: other_font.0.metrics.clone(),
+                        m: Mutex::new(FontFaceMut {
+                            font_kit: other_font.0.m.lock().font_kit.clone(),
+                            instances: Default::default(),
+                            render_keys: Default::default(),
+                            unregistered: Default::default(),
+                        }),
+                    }))),
+                    None => Err(FontLoadingError::NoSuchFontInCollection),
+                };
             }
         }
 
@@ -1055,30 +1069,22 @@ impl<I: SliceIndex<[Font]>> std::ops::Index<I> for FontList {
 struct FontFaceLoader {
     custom_fonts: HashMap<FontName, Vec<FontFace>>,
     system_fonts_cache: HashMap<FontName, Vec<SystemFontFace>>,
-    #[cfg(debug_assertions)]
-    not_found_names: crate::crate_util::FxHashSet<FontName>,
 }
 struct SystemFontFace {
     properties: (FontStyle, FontWeight, FontStretch),
-    result: Option<FontFace>,
+    result: ResponseVar<Option<FontFace>>,
 }
 impl FontFaceLoader {
     fn new() -> Self {
         FontFaceLoader {
             custom_fonts: HashMap::new(),
             system_fonts_cache: HashMap::new(),
-            #[cfg(debug_assertions)]
-            not_found_names: crate::crate_util::FxHashSet::default(),
         }
     }
 
     fn on_view_process_respawn(&mut self) {
-        let sys_fonts = self
-            .system_fonts_cache
-            .values()
-            .flatten()
-            .filter_map(|f| if let Some(face) = &f.result { Some(face) } else { None });
-        for face in self.custom_fonts.values().flatten().chain(sys_fonts) {
+        let sys_fonts = self.system_fonts_cache.values().flatten().filter_map(|f| f.result.rsp().flatten());
+        for face in self.custom_fonts.values().flatten().cloned().chain(sys_fonts) {
             let mut m = face.0.m.lock();
             m.render_keys.clear();
             for inst in m.instances.values() {
@@ -1090,26 +1096,39 @@ impl FontFaceLoader {
     fn on_refresh(&mut self) {
         for (_, sys_family) in self.system_fonts_cache.drain() {
             for sys_font in sys_family {
-                if let Some(ref_) = &sys_font.result {
-                    ref_.on_refresh();
-                }
+                sys_font.result.with(|r| {
+                    if let Some(Some(face)) = r.done() {
+                        face.on_refresh();
+                    }
+                });
             }
         }
     }
     fn on_prune(&mut self) {
         self.system_fonts_cache.retain(|_, v| {
-            v.retain(|sff| match &sff.result {
-                Some(font_face) => Arc::strong_count(&font_face.0) > 1,
-                None => true,
+            v.retain(|sff| {
+                if sff.result.strong_count() == 1 {
+                    sff.result.with(|r| {
+                        match r.done() {
+                            Some(Some(face)) => Arc::strong_count(&face.0) > 1, // face shared
+                            Some(None) => false,                                // loading for no one
+                            None => true,                                       // retain not found
+                        }
+                    })
+                } else {
+                    // response var shared
+                    true
+                }
             });
             !v.is_empty()
         });
     }
 
-    fn register(&mut self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
-        let face = FontFace::load_custom(custom_font, self)?;
+    async fn register(custom_font: CustomFont) -> Result<(), FontLoadingError> {
+        let face = FontFace::load_custom(custom_font).await?;
 
-        let family = self.custom_fonts.entry(face.0.family_name.clone()).or_default();
+        let mut fonts = FONTS_SV.write();
+        let family = fonts.loader.custom_fonts.entry(face.0.family_name.clone()).or_default();
 
         let existing = family.iter().position(|f| f.0.properties == face.0.properties);
 
@@ -1135,105 +1154,233 @@ impl FontFaceLoader {
         }
     }
 
-    fn get_list(&mut self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch, lang: &Lang) -> FontFaceList {
+    fn try_list(
+        &self,
+        families: &[FontName],
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        lang: &Lang,
+    ) -> Option<ResponseVar<FontFaceList>> {
         let mut used = HashSet::with_capacity(families.len());
-        let mut r = Vec::with_capacity(families.len() + 1);
-        r.extend(families.iter().filter_map(|name| {
-            if used.insert(name) {
-                self.get(name, style, weight, stretch, lang)
-            } else {
-                None
-            }
-        }));
+
+        let mut list = Vec::with_capacity(families.len() + 1);
+        let mut pending = vec![];
+
         let fallback = GenericFonts {}.fallback(lang);
+        for name in families.iter().chain([&fallback]) {
+            if !used.insert(name) {
+                continue;
+            }
 
-        if !used.contains(&fallback) {
-            if let Some(fallback) = self.get(&fallback, style, weight, stretch, lang) {
-                r.push(fallback);
+            let face = self.try_cached(name, style, weight, stretch, lang)?;
+
+            if face.is_done() {
+                if let Some(face) = face.into_rsp().unwrap() {
+                    list.push(face);
+                }
+            } else {
+                pending.push((list.len(), face));
             }
         }
 
-        if r.is_empty() {
-            tracing::error!("failed to load fallback font");
-            r.push(FontFace::empty());
-        }
-
-        FontFaceList {
-            fonts: r.into_boxed_slice(),
-            requested_style: style,
-            requested_weight: weight,
-            requested_stretch: stretch,
-        }
-    }
-
-    fn get(&mut self, font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch, lang: &Lang) -> Option<FontFace> {
-        let resolved = GenericFonts {}.resolve(font_name, lang);
-        let font_name = resolved.as_ref().unwrap_or(font_name);
-        self.get_resolved(font_name, style, weight, stretch)
-    }
-
-    /// Get a `font_name` that already resolved generic names.
-    fn get_resolved(&mut self, font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFace> {
-        if let Some(custom_family) = self.custom_fonts.get(font_name) {
-            return Some(Self::match_custom(custom_family, style, weight, stretch));
-        }
-
-        if let Some(cached_sys_family) = self.system_fonts_cache.get(font_name) {
-            for sys_face in cached_sys_family.iter() {
-                if sys_face.properties == (style, weight, stretch) {
-                    return sys_face.result.clone();
-                }
+        if pending.is_empty() {
+            if list.is_empty() {
+                list.push(FontFace::empty());
+            } else {
+                return Some(response_done_var(FontFaceList {
+                    fonts: list.into_boxed_slice(),
+                    requested_style: style,
+                    requested_weight: weight,
+                    requested_stretch: stretch,
+                }));
             }
         }
 
-        let handle = self.get_system(font_name, style, weight, stretch);
-
-        let sys_family = self
-            .system_fonts_cache
-            .entry(font_name.clone())
-            .or_insert_with(|| Vec::with_capacity(1));
-
-        if let Some(handle) = handle {
-            match FontFace::load(handle) {
-                Ok(f) => {
-                    sys_family.push(SystemFontFace {
-                        properties: (style, weight, stretch),
-                        result: Some(f.clone()),
-                    });
-                    return Some(f); // new match
-                }
-                Err(FontLoadingError::UnknownFormat) => {
-                    sys_family.push(SystemFontFace {
-                        properties: (style, weight, stretch),
-                        result: None,
-                    });
-                }
-                Err(e) => {
-                    tracing::error!(target: "font_loading", "failed to load system font, {e}\nquery: {:?}", (font_name, style, weight, stretch));
+        Some(task::respond(async move {
+            for (i, pending) in pending.into_iter().rev() {
+                if let Some(rsp) = pending.wait_into_rsp().await {
+                    list.insert(i, rsp);
                 }
             }
-        } else {
-            sys_family.push(SystemFontFace {
-                properties: (style, weight, stretch),
-                result: None,
-            });
-        }
 
-        #[cfg(debug_assertions)]
-        if self.not_found_names.insert(font_name.clone()) {
-            tracing::warn!(r#"font "{font_name}" not found"#);
-        }
+            if list.is_empty() {
+                list.push(FontFace::empty());
+            }
 
-        None // no new match
+            FontFaceList {
+                fonts: list.into_boxed_slice(),
+                requested_style: style,
+                requested_weight: weight,
+                requested_stretch: stretch,
+            }
+        }))
     }
 
-    fn get_system(
+    fn load_list(
+        &mut self,
+        families: &[FontName],
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        lang: &Lang,
+    ) -> ResponseVar<FontFaceList> {
+        let mut used = HashSet::with_capacity(families.len());
+
+        let mut list = Vec::with_capacity(families.len() + 1);
+        let mut pending = vec![];
+
+        let fallback = GenericFonts {}.fallback(lang);
+        for name in families.iter().chain([&fallback]) {
+            if !used.insert(name) {
+                continue;
+            }
+
+            let face = self.load(name, style, weight, stretch, lang);
+            if face.is_done() {
+                if let Some(face) = face.into_rsp().unwrap() {
+                    list.push(face);
+                }
+            } else {
+                pending.push((list.len(), face));
+            }
+        }
+
+        if pending.is_empty() {
+            if list.is_empty() {
+                tracing::error!(target: "font_loading", "failed to load fallback font");
+                list.push(FontFace::empty());
+            } else {
+                return response_done_var(FontFaceList {
+                    fonts: list.into_boxed_slice(),
+                    requested_style: style,
+                    requested_weight: weight,
+                    requested_stretch: stretch,
+                });
+            }
+        }
+
+        task::respond(async move {
+            for (i, pending) in pending.into_iter().rev() {
+                if let Some(rsp) = pending.wait_into_rsp().await {
+                    list.insert(i, rsp);
+                }
+            }
+
+            if list.is_empty() {
+                tracing::error!(target: "font_loading", "failed to load fallback font");
+                list.push(FontFace::empty());
+            }
+
+            FontFaceList {
+                fonts: list.into_boxed_slice(),
+                requested_style: style,
+                requested_weight: weight,
+                requested_stretch: stretch,
+            }
+        })
+    }
+
+    fn try_cached(
         &self,
         font_name: &FontName,
         style: FontStyle,
         weight: FontWeight,
         stretch: FontStretch,
-    ) -> Option<font_kit::handle::Handle> {
+        lang: &Lang,
+    ) -> Option<ResponseVar<Option<FontFace>>> {
+        let resolved = GenericFonts {}.resolve(font_name, lang);
+        let font_name = resolved.as_ref().unwrap_or(font_name);
+        self.try_resolved(font_name, style, weight, stretch)
+    }
+
+    /// Try cached again, otherwise begins loading and inserts the response in the cache.
+    fn load(
+        &mut self,
+        font_name: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        lang: &Lang,
+    ) -> ResponseVar<Option<FontFace>> {
+        let resolved = GenericFonts {}.resolve(font_name, lang);
+        let font_name = resolved.as_ref().unwrap_or(font_name);
+        self.load_resolved(font_name, style, weight, stretch)
+    }
+
+    /// Get a `font_name` that already resolved generic names if it is already in cache.
+    fn try_resolved(
+        &self,
+        font_name: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+    ) -> Option<ResponseVar<Option<FontFace>>> {
+        if let Some(custom_family) = self.custom_fonts.get(font_name) {
+            let custom = Self::match_custom(custom_family, style, weight, stretch);
+            return Some(response_done_var(Some(custom)));
+        }
+
+        if let Some(cached_sys_family) = self.system_fonts_cache.get(font_name) {
+            for sys_face in cached_sys_family.iter() {
+                if sys_face.properties == (style, weight, stretch) {
+                    return Some(sys_face.result.clone());
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Load a `font_name` that already resolved generic names.
+    fn load_resolved(
+        &mut self,
+        font_name: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+    ) -> ResponseVar<Option<FontFace>> {
+        if let Some(cached) = self.try_resolved(font_name, style, weight, stretch) {
+            return cached;
+        }
+
+        let result = task::respond(task::wait(clone_move!(font_name, || {
+            let handle = match Self::get_system(&font_name, style, weight, stretch) {
+                Some(h) => h,
+                None => {
+                    #[cfg(debug_assertions)]
+                    static NOT_FOUND: Mutex<crate::crate_util::FxHashSet<FontName>> = Mutex::new(crate::crate_util::fx_set_new());
+
+                    #[cfg(debug_assertions)]
+                    if NOT_FOUND.lock().insert(font_name.clone()) {
+                        tracing::warn!(r#"font "{font_name}" not found"#);
+                    }
+
+                    return None;
+                }
+            };
+            match FontFace::load(handle) {
+                Ok(f) => Some(f),
+                Err(FontLoadingError::UnknownFormat) => None,
+                Err(e) => {
+                    tracing::error!(target: "font_loading", "failed to load system font, {e}\nquery: {:?}", (font_name, style, weight, stretch));
+                    None
+                }
+            }
+        })));
+
+        self.system_fonts_cache
+            .entry(font_name.clone())
+            .or_insert_with(|| Vec::with_capacity(1))
+            .push(SystemFontFace {
+                properties: (style, weight, stretch),
+                result: result.clone(),
+            });
+
+        result
+    }
+
+    fn get_system(font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<font_kit::handle::Handle> {
         let _span = tracing::trace_span!("FontFaceLoader::get_system").entered();
         let family_name = font_kit::family_name::FamilyName::from(font_name.clone());
         match font_kit::source::SystemSource::new()

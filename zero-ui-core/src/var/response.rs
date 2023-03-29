@@ -20,8 +20,8 @@ pub type ResponderVar<T> = ArcVar<Response<T>>;
 /// Variable used to listen to a one time signal that an UI operation has completed.
 ///
 /// Use [`response_var`] or [`response_done_var`] to init.
-pub type ResponseVar<T> = types::ReadOnlyVar<Response<T>, ArcVar<Response<T>>>;
 
+pub type ResponseVar<T> = types::ReadOnlyVar<Response<T>, ArcVar<Response<T>>>;
 /// Raw value in a [`ResponseVar`] or [`ResponseSender`].
 #[derive(Clone, Copy)]
 pub enum Response<T: VarValue> {
@@ -116,6 +116,14 @@ impl<T: VarValue> ResponseVar<T> {
         self.rsp().unwrap()
     }
 
+    /// Returns a future that awaits until a response is received and then returns it.
+    ///
+    /// Will clone the value if the variable is shared.
+    pub async fn wait_into_rsp(self) -> T {
+        self.wait_done().await;
+        self.into_rsp().unwrap()
+    }
+
     /// Returns a future that awaits until a response is received.
     ///
     /// [`rsp`]: Self::rsp
@@ -128,6 +136,13 @@ impl<T: VarValue> ResponseVar<T> {
     /// Clone the response, if present and new.
     pub fn rsp_new(&self) -> Option<T> {
         self.with_new_rsp(Clone::clone)
+    }
+
+    /// Into response, if received.
+    ///
+    /// Clones if the variable is has more than one strong reference.
+    pub fn into_rsp(self) -> Option<T> {
+        self.into_value().into()
     }
 
     /// Add a `handler` that is called once when the response is received,

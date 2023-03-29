@@ -1,7 +1,8 @@
-* Implement async response font loading.
 * Review !!: TODO.
 * Test all.
 * Merge.
+
+* Refactor text shaping cache to avoid write locks.
 
 * Parallel layout for more panels.
     - `wrap!`.
