@@ -160,6 +160,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     struct ResolveTextNode<C, T> {
         child: C,
         text: T,
+        faces: Option<(VarHandle, ResponseVar<FontFaceList>)>,
         resolved: Mutex<Option<ResolvedText>>,
         event_handles: EventHandles,
         caret_opacity_handle: Option<VarHandle>,
@@ -214,7 +215,14 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let weight = FONT_WEIGHT_VAR.get();
 
             let faces = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
-            let faces = faces.rsp().unwrap(); // !!: TODO
+
+            let faces = if faces.is_done() {
+                faces.rsp().unwrap()
+            } else {
+                self.faces = Some((faces.subscribe(WIDGET.id()), faces));
+                // !!: get a window load handle too.
+                FontFaceList::empty()
+            };
 
             let text = self.text.get();
             let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
@@ -256,6 +264,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         fn deinit(&mut self) {
             self.event_handles.clear();
             self.caret_opacity_handle = None;
+            self.faces = None;
             self.with_mut(|c| c.deinit());
             *self.resolved.get_mut() = None;
         }
@@ -303,16 +312,21 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 let weight = FONT_WEIGHT_VAR.get();
 
                 let faces = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
-                let faces = faces.rsp().unwrap(); // !!: TODO
 
-                let r = self.resolved.get_mut().as_mut().unwrap();
+                if faces.is_done() {
+                    let faces = faces.rsp().unwrap();
 
-                if r.faces != faces {
-                    r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight);
-                    r.faces = faces;
+                    let r = self.resolved.get_mut().as_mut().unwrap();
 
-                    r.reshape = true;
-                    WIDGET.layout();
+                    if r.faces != faces {
+                        r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight);
+                        r.faces = faces;
+
+                        r.reshape = true;
+                        WIDGET.layout();
+                    }
+                } else {
+                    self.faces = Some((faces.subscribe(WIDGET.id()), faces));
                 }
             }
             self.with_mut(|c| c.event(update))
@@ -346,14 +360,19 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 let weight = FONT_WEIGHT_VAR.get();
 
                 let faces = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
-                let faces = faces.rsp().unwrap(); // !!: TODO
 
-                if r.faces != faces {
-                    r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight);
-                    r.faces = faces;
+                if faces.is_done() {
+                    let faces = faces.rsp().unwrap();
 
-                    r.reshape = true;
-                    WIDGET.layout();
+                    if r.faces != faces {
+                        r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight);
+                        r.faces = faces;
+
+                        r.reshape = true;
+                        WIDGET.layout();
+                    }
+                } else {
+                    self.faces = Some((faces.subscribe(WIDGET.id()), faces));
                 }
             }
 
@@ -376,12 +395,27 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                     if FOCUS.focused().get().map(|p| p.widget_id()) == Some(id) {
                         let new_animation = KEYBOARD.caret_animation();
                         self.caret_opacity_handle = Some(new_animation.subscribe(id));
-                        self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
+                        r.caret_opacity = new_animation;
                     }
                 } else {
                     self.event_handles.clear();
                     self.caret_opacity_handle = None;
-                    self.resolved.get_mut().as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
+                    r.caret_opacity = var(0.fct()).read_only();
+                }
+            }
+
+            if let Some((_, faces)) = &self.faces {
+                if faces.is_done() {
+                    let faces = faces.rsp().unwrap();
+                    self.faces = None;
+
+                    if r.faces != faces {
+                        r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
+                        r.faces = faces;
+
+                        r.reshape = true;
+                        WIDGET.layout();
+                    }
                 }
             }
 
@@ -408,6 +442,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     ResolveTextNode {
         child: child.cfg_boxed(),
         text: text.into_var(),
+        faces: None,
         resolved: Mutex::new(None),
         event_handles: EventHandles::default(),
         caret_opacity_handle: None,

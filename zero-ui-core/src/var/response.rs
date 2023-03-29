@@ -31,6 +31,16 @@ pub enum Response<T: VarValue> {
     Done(T),
 }
 impl<T: VarValue> Response<T> {
+    /// Has response.
+    pub fn is_done(&self) -> bool {
+        matches!(self, Response::Done(_))
+    }
+
+    /// Does not have response.
+    pub fn is_waiting(&self) -> bool {
+        matches!(self, Response::Waiting)
+    }
+
     /// Gets the response if done.
     pub fn done(&self) -> Option<&T> {
         match self {
@@ -85,6 +95,16 @@ impl<T: VarValue> ResponseVar<T> {
         .flatten()
     }
 
+    /// If the response is received.
+    pub fn is_done(&self) -> bool {
+        self.with(Response::is_done)
+    }
+
+    /// If the response is not received yet.
+    pub fn is_waiting(&self) -> bool {
+        self.with(Response::is_waiting)
+    }
+
     /// Clone the response value, if present.
     pub fn rsp(&self) -> Option<T> {
         self.with_rsp(Clone::clone)
@@ -100,7 +120,7 @@ impl<T: VarValue> ResponseVar<T> {
     ///
     /// [`rsp`]: Self::rsp
     pub async fn wait_done(&self) {
-        while self.with_rsp(|_| false).unwrap_or(true) {
+        while !self.is_done() {
             self.wait_new().await;
         }
     }
@@ -110,26 +130,18 @@ impl<T: VarValue> ResponseVar<T> {
         self.with_new_rsp(Clone::clone)
     }
 
-    /// If the variable contains a response.
-    pub fn responded(&self) -> bool {
-        self.with(|value| match value {
-            Response::Waiting => false,
-            Response::Done(_) => true,
-        })
-    }
-
     /// Add a `handler` that is called once when the response is received,
     /// the handler is called before all other UI updates.
     ///
-    /// The handle is not called if already [`responded`], in this case a dummy handle is returned.
+    /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
     ///
     /// [touched]: Var::touch
-    /// [`responded`]: Self::responded
+    /// [`is_done`]: Self::is_done
     pub fn on_pre_rsp<H>(&self, mut handler: H) -> VarHandle
     where
         H: AppHandler<T>,
     {
-        if self.responded() {
+        if self.is_done() {
             return VarHandle::dummy();
         }
 
@@ -149,15 +161,15 @@ impl<T: VarValue> ResponseVar<T> {
     /// Add a `handler` that is called once when the response is received,
     /// the handler is called after all other UI updates.
     ///
-    /// The handle is not called if already [`responded`], in this case a dummy handle is returned.
+    /// The handle is not called if already [`is_done`], in this case a dummy handle is returned.
     ///
     /// [touched]: Var::touch
-    /// [`responded`]: Self::responded
+    /// [`is_done`]: Self::is_done
     pub fn on_rsp<H>(&self, mut handler: H) -> VarHandle
     where
         H: AppHandler<T>,
     {
-        if self.responded() {
+        if self.is_done() {
             return VarHandle::dummy();
         }
 

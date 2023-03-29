@@ -352,6 +352,48 @@ impl PartialEq for FontFace {
 }
 impl Eq for FontFace {}
 impl FontFace {
+    /// New empty font face.
+    pub fn empty() -> Self {
+        FontFace(Arc::new(LoadedFontFace {
+            data: FontDataRef::from_static(&[]),
+            face: harfbuzz_rs::Face::empty().to_shared(),
+            face_index: 0,
+            display_name: FontName::from("<empty>"),
+            family_name: FontName::from("<empty>"),
+            postscript_name: None,
+            is_monospace: true,
+            properties: font_kit::properties::Properties {
+                style: FontStyle::Normal,
+                weight: FontWeight::NORMAL,
+                stretch: FontStretch::NORMAL,
+            },
+            // values copied from a monospace font
+            metrics: FontFaceMetrics {
+                units_per_em: 1000,
+                ascent: 900.0,
+                descent: -245.0,
+                line_gap: 0.0,
+                underline_position: -120.0,
+                underline_thickness: 45.0,
+                cap_height: 720.0,
+                x_height: 550.0,
+                // `xMin`/`xMax`/`yMin`/`yMax`
+                bounding_box: euclid::rect(-1740.0, 654.0, -240.0, 985.0),
+            },
+            m: Mutex::new(FontFaceMut {
+                font_kit: FontKitCache::default(),
+                instances: FxHashMap::default(),
+                render_keys: vec![],
+                unregistered: false,
+            }),
+        }))
+    }
+
+    /// Is empty font face.
+    pub fn is_empty(&self) -> bool {
+        self.0.data.is_empty()
+    }
+
     fn load_custom(custom_font: CustomFont, loader: &mut FontFaceLoader) -> Result<Self, FontLoadingError> {
         let bytes;
         let face_index;
@@ -806,6 +848,16 @@ pub struct FontFaceList {
 }
 #[allow(clippy::len_without_is_empty)] // is never empty.
 impl FontFaceList {
+    /// New list with only the [`FontFace::empty`].
+    pub fn empty() -> Self {
+        Self {
+            fonts: Box::new([FontFace::empty()]),
+            requested_style: FontStyle::Normal,
+            requested_weight: FontWeight::NORMAL,
+            requested_stretch: FontStretch::NORMAL,
+        }
+    }
+
     /// Style requested in the query that generated this font face list.
     pub fn requested_style(&self) -> FontStyle {
         self.requested_style
@@ -1102,7 +1154,8 @@ impl FontFaceLoader {
         }
 
         if r.is_empty() {
-            panic!("failed to load fallback font");
+            tracing::error!("failed to load fallback font");
+            r.push(FontFace::empty());
         }
 
         FontFaceList {

@@ -1,3 +1,8 @@
+* Implement async response font loading.
+* Review !!: TODO.
+* Test all.
+* Merge.
+
 * Parallel layout for more panels.
     - `wrap!`.
         - Can't measure in parallel, mutated row, constrains of each item affected by previous item.
@@ -12,17 +17,6 @@
 * Parallel render.
     - Widgets.
         - How to share `&mut FrameBuilder` and `&mut FrameUpdate`?
-
-* Review if service locks are blocking parallel execution.
-    - `FontFaceLoader::get_system` and `FontFace::load` are noticeable in release build traces.
-    - Refactor `FONTS.list/find` to only use read lock, until cache miss, then retry with write lock.
-    - Allow multiple fonts to load at the same time, somehow.
-        - Could return `ResponseVar<Font>` for get and `ResponseVar<FontList>`.
-            - The font list one updates multiple times as fonts in the list load.
-            - How does `text!` layout work when there is not font loaded yet?
-                - Also we can end-up using more resources shaping text for fallback fonts that are only used one frame.
-                - Can just await the full `FontList` result, we just want to unblock the UI threads.
-            - Implement a `FONTS.default_list()` that returns a `FontFaceList` with just a default fallback font?
 
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.
