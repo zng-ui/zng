@@ -22,10 +22,7 @@
             - How does `text!` layout work when there is not font loaded yet?
                 - Also we can end-up using more resources shaping text for fallback fonts that are only used one frame.
                 - Can just await the full `FontList` result, we just want to unblock the UI threads.
-        - Could have a *loading lock* placeholder in the cache entries that are already loading in other threads.
-            - This keeps the cache map mostly unlocked.
-            - But in practice every UI thread that misses cache will lock.
-        - At least `FONTS.list` should load in parallel.
+            - Implement a `FONTS.default_list()` that returns a `FontFaceList` with just a default fallback font?
 
 * Review ugly layout API.
     - Stuff like `LAYOUT.with_inline_measure(|| multiple nested LAYOUT methods)`.

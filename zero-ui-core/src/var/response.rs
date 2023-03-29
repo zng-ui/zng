@@ -73,12 +73,18 @@ impl<T: VarValue> ResponseVar<T> {
         self.with_rsp(Clone::clone)
     }
 
+    /// Returns a future that awaits until a response is received and then returns a clone.
+    pub async fn wait_rsp(&self) -> T {
+        self.wait_done().await;
+        self.rsp().unwrap()
+    }
+
     /// Returns a future that awaits until a response is received.
     ///
     /// Note that you must call [`rsp`] after this to get the response.
     ///
     /// [`rsp`]: Self::rsp
-    pub async fn wait_rsp(&self) {
+    pub async fn wait_done(&self) {
         while self.with_rsp(|_| false).unwrap_or(true) {
             self.wait_new().await;
         }

@@ -2442,9 +2442,21 @@ mod tests {
     use crate::{app::App, context::LayoutDirection, text::*};
 
     fn test_font() -> Font {
-        let _app = App::default().run_headless(false);
-        let font = FONTS.normal(&FontName::sans_serif(), &lang!(und)).unwrap().sized(Px(20), vec![]);
-        drop(_app);
+        let mut app = App::default().run_headless(false);
+        let font = app
+            .block_on_fut(
+                async {
+                    FONTS
+                        .normal(&FontName::sans_serif(), &lang!(und))
+                        .wait_rsp()
+                        .await
+                        .unwrap()
+                        .sized(Px(20), vec![])
+                },
+                5.secs(),
+            )
+            .unwrap();
+        drop(app);
         font
     }
 
@@ -2535,21 +2547,30 @@ mod tests {
 
     #[test]
     fn font_fallback_issue() {
-        let _app = App::default().run_headless(false);
-        let font = FONTS
-            .list(
-                &[FontName::new("Consolas"), FontName::monospace()],
-                FontStyle::Normal,
-                FontWeight::NORMAL,
-                FontStretch::NORMAL,
-                &lang!(und),
-            )
-            .sized(Px(20), vec![]);
-        let config = TextShapingArgs::default();
+        let mut app = App::default().run_headless(false);
+        app.block_on_fut(
+            async {
+                let font = FONTS
+                    .list(
+                        &[FontName::new("Consolas"), FontName::monospace()],
+                        FontStyle::Normal,
+                        FontWeight::NORMAL,
+                        FontStretch::NORMAL,
+                        &lang!(und),
+                    )
+                    .wait_rsp()
+                    .await
+                    .sized(Px(20), vec![]);
 
-        let txt_seg = SegmentedText::new("النص ثنائي الاتجاه (بالإنجليزية:Bi", LayoutDirection::RTL);
-        let txt_shape = font.shape_text(&txt_seg, &config);
+                let config = TextShapingArgs::default();
 
-        let _ok = (txt_seg, txt_shape);
+                let txt_seg = SegmentedText::new("النص ثنائي الاتجاه (بالإنجليزية:Bi", LayoutDirection::RTL);
+                let txt_shape = font.shape_text(&txt_seg, &config);
+
+                let _ok = (txt_seg, txt_shape);
+            },
+            5.secs(),
+        )
+        .unwrap()
     }
 }

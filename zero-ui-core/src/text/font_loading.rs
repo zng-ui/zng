@@ -25,7 +25,7 @@ use crate::{
     crate_util::FxHashMap,
     event::{event, event_args, EventUpdate},
     units::*,
-    var::{var, ArcVar, Var},
+    var::{response_done_var, var, ArcVar, ResponseVar, Var},
 };
 
 event! {
@@ -207,27 +207,41 @@ impl FONTS {
     }
 
     /// Gets a font list that best matches the query.
-    pub fn list(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch, lang: &Lang) -> FontFaceList {
-        FONTS_SV.write().loader.get_list(families, style, weight, stretch, lang)
+    pub fn list(
+        &self,
+        families: &[FontName],
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        lang: &Lang,
+    ) -> ResponseVar<FontFaceList> {
+        response_done_var(FONTS_SV.write().loader.get_list(families, style, weight, stretch, lang))
     }
 
     /// Find a single font face that best matches the query.
-    pub fn find(&self, family: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch, lang: &Lang) -> Option<FontFace> {
-        FONTS_SV.write().loader.get(family, style, weight, stretch, lang)
+    pub fn find(
+        &self,
+        family: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        lang: &Lang,
+    ) -> ResponseVar<Option<FontFace>> {
+        response_done_var(FONTS_SV.write().loader.get(family, style, weight, stretch, lang))
     }
 
     /// Find a single font face with all normal properties.
-    pub fn normal(&self, family: &FontName, lang: &Lang) -> Option<FontFace> {
+    pub fn normal(&self, family: &FontName, lang: &Lang) -> ResponseVar<Option<FontFace>> {
         self.find(family, FontStyle::Normal, FontWeight::NORMAL, FontStretch::NORMAL, lang)
     }
 
     /// Find a single font face with italic italic style and normal weight and stretch.
-    pub fn italic(&self, family: &FontName, lang: &Lang) -> Option<FontFace> {
+    pub fn italic(&self, family: &FontName, lang: &Lang) -> ResponseVar<Option<FontFace>> {
         self.find(family, FontStyle::Italic, FontWeight::NORMAL, FontStretch::NORMAL, lang)
     }
 
     /// Find a single font face with bold weight and normal style and stretch.
-    pub fn bold(&self, family: &FontName, lang: &Lang) -> Option<FontFace> {
+    pub fn bold(&self, family: &FontName, lang: &Lang) -> ResponseVar<Option<FontFace>> {
         self.find(family, FontStyle::Normal, FontWeight::BOLD, FontStretch::NORMAL, lang)
     }
 

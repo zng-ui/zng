@@ -214,6 +214,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let weight = FONT_WEIGHT_VAR.get();
 
             let faces = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
+            let faces = faces.rsp().unwrap(); // !!: TODO
 
             let text = self.text.get();
             let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
@@ -302,6 +303,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 let weight = FONT_WEIGHT_VAR.get();
 
                 let faces = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
+                let faces = faces.rsp().unwrap(); // !!: TODO
 
                 let r = self.resolved.get_mut().as_mut().unwrap();
 
@@ -344,6 +346,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 let weight = FONT_WEIGHT_VAR.get();
 
                 let faces = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
+                let faces = faces.rsp().unwrap(); // !!: TODO
 
                 if r.faces != faces {
                     r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight);
