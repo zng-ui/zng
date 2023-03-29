@@ -5,8 +5,8 @@ use std::{
 };
 
 use super::{
-    font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, InternedStr, Lang,
-    LineBreak, SegmentedText, Text, TextSegment, TextSegmentKind, WordBreak,
+    font_features::RFontFeatures, lang, Font, FontList, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, InternedStr, Lang, LineBreak,
+    SegmentedText, Text, TextSegment, TextSegmentKind, WordBreak,
 };
 use crate::{
     context::{InlineConstrainsLayout, InlineConstrainsMeasure, LayoutDirection},
@@ -116,13 +116,13 @@ struct LineRange {
 /// Defines the font of a range of glyphs in a [`ShapedText`].
 #[derive(Clone)]
 struct FontRange {
-    font: FontRef,
+    font: Font,
     /// Exclusive glyph range end.
     end: usize,
 }
 impl PartialEq for FontRange {
     fn eq(&self, other: &Self) -> bool {
-        self.font.ptr_eq(&other.font) && self.end == other.end
+        self.font == other.font && self.end == other.end
     }
 }
 impl fmt::Debug for FontRange {
@@ -226,7 +226,7 @@ impl LineRangeVec {
 struct FontRangeVec(Vec<FontRange>);
 impl FontRangeVec {
     /// Iter glyph ranges.
-    fn iter_glyphs(&self) -> impl Iterator<Item = (&FontRef, IndexRange)> + '_ {
+    fn iter_glyphs(&self) -> impl Iterator<Item = (&Font, IndexRange)> + '_ {
         let mut start = 0;
         self.0.iter().map(move |f| {
             let r = IndexRange(start, f.end);
@@ -236,7 +236,7 @@ impl FontRangeVec {
     }
 
     /// Iter glyph ranges clipped by `glyphs_range`.
-    fn iter_glyphs_clip(&self, glyphs_range: IndexRange) -> impl Iterator<Item = (&FontRef, IndexRange)> + '_ {
+    fn iter_glyphs_clip(&self, glyphs_range: IndexRange) -> impl Iterator<Item = (&Font, IndexRange)> + '_ {
         let mut start = glyphs_range.start();
         let end = glyphs_range.end();
         let first_font = self.0.iter().position(|f| f.end > start).unwrap().saturating_sub(1);
@@ -255,7 +255,7 @@ impl FontRangeVec {
     }
 
     /// Returns a reference to the font.
-    fn font(&self, index: usize) -> &FontRef {
+    fn font(&self, index: usize) -> &Font {
         &self.0[index].font
     }
 }
@@ -303,17 +303,17 @@ pub struct ShapedText {
 }
 impl ShapedText {
     /// New empty text.
-    pub fn new(font: &FontRef) -> Self {
+    pub fn new(font: &Font) -> Self {
         font.shape_text(&SegmentedText::new("", LayoutDirection::LTR), &TextShapingArgs::default())
     }
 
     /// Glyphs by font.
-    pub fn glyphs(&self) -> impl Iterator<Item = (&FontRef, &[GlyphInstance])> {
+    pub fn glyphs(&self) -> impl Iterator<Item = (&Font, &[GlyphInstance])> {
         self.fonts.iter_glyphs().map(move |(f, r)| (f, &self.glyphs[r.iter()]))
     }
 
     /// Glyphs by font in the range.
-    fn glyphs_range(&self, range: IndexRange) -> impl Iterator<Item = (&FontRef, &[GlyphInstance])> {
+    fn glyphs_range(&self, range: IndexRange) -> impl Iterator<Item = (&Font, &[GlyphInstance])> {
         self.fonts.iter_glyphs_clip(range).map(|(f, r)| (f, &self.glyphs[r.iter()]))
     }
 
@@ -322,7 +322,7 @@ impl ShapedText {
         &self,
         line_index: usize,
         glyph_range: IndexRange,
-    ) -> impl Iterator<Item = (&FontRef, impl Iterator<Item = (GlyphInstance, f32)> + '_)> + '_ {
+    ) -> impl Iterator<Item = (&Font, impl Iterator<Item = (GlyphInstance, f32)> + '_)> + '_ {
         let mut start = glyph_range.start();
         let segs_range = self.lines.segs(line_index);
         let line_end = self.segments.glyphs_range(segs_range).end();
@@ -892,16 +892,16 @@ trait FontListRef {
         seg: &str,
         word_ctx_key: &WordContextKey,
         features: &[harfbuzz_rs::Feature],
-        out: impl FnOnce(&ShapedSegmentData, &FontRef) -> R,
+        out: impl FnOnce(&ShapedSegmentData, &Font) -> R,
     ) -> R;
 }
-impl FontListRef for [FontRef] {
+impl FontListRef for [Font] {
     fn shape_segment<R>(
         &self,
         seg: &str,
         word_ctx_key: &WordContextKey,
         features: &[harfbuzz_rs::Feature],
-        out: impl FnOnce(&ShapedSegmentData, &FontRef) -> R,
+        out: impl FnOnce(&ShapedSegmentData, &Font) -> R,
     ) -> R {
         let mut out = Some(out);
         let last = self.len() - 1;
@@ -930,7 +930,7 @@ struct ShapedTextBuilder {
     letter_spacing: f32,
     max_width: f32,
     break_words: bool,
-    hyphen_glyphs: (ShapedSegmentData, FontRef),
+    hyphen_glyphs: (ShapedSegmentData, Font),
     tab_x_advance: f32,
     tab_index: u32,
     hyphens: Hyphens,
@@ -953,7 +953,7 @@ impl ShapedTextBuilder {
         }
     }
 
-    fn shape_text(fonts: &[FontRef], text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
+    fn shape_text(fonts: &[Font], text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         let mut t = Self {
             out: ShapedText {
                 glyphs: Default::default(),
@@ -1072,7 +1072,7 @@ impl ShapedTextBuilder {
         t.out
     }
 
-    fn push_text(&mut self, fonts: &[FontRef], features: &RFontFeatures, word_ctx_key: &mut WordContextKey, text: &SegmentedText) {
+    fn push_text(&mut self, fonts: &[Font], features: &RFontFeatures, word_ctx_key: &mut WordContextKey, text: &SegmentedText) {
         for (seg, info) in text.iter() {
             word_ctx_key.direction = info.direction();
             let max_width = self.actual_max_width();
@@ -1180,7 +1180,7 @@ impl ShapedTextBuilder {
         &mut self,
         word_ctx_key: &WordContextKey,
         seg: &str,
-        font: &FontRef,
+        font: &Font,
         shaped_seg: &ShapedSegmentData,
         info: TextSegment,
         text: &SegmentedText,
@@ -1196,7 +1196,7 @@ impl ShapedTextBuilder {
     fn push_hyphenate_pt(
         &mut self,
         split_points: &[usize],
-        font: &FontRef,
+        font: &Font,
         shaped_seg: &ShapedSegmentData,
         seg: &str,
         info: TextSegment,
@@ -1464,9 +1464,9 @@ impl ShapedTextBuilder {
         }
     }
 
-    fn push_font(&mut self, font: &FontRef) {
+    fn push_font(&mut self, font: &Font) {
         if let Some(last) = self.out.fonts.0.last_mut() {
-            if last.font.ptr_eq(font) {
+            if &last.font == font {
                 last.end = self.out.glyphs.len();
                 return;
             } else if last.end == self.out.glyphs.len() {
@@ -1611,13 +1611,13 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Glyphs in the line.
-    pub fn glyphs(&self) -> impl Iterator<Item = (&'a FontRef, &'a [GlyphInstance])> + 'a {
+    pub fn glyphs(&self) -> impl Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a {
         let r = self.glyphs_range();
         self.text.glyphs_range(r)
     }
 
     /// Glyphs in the line paired with the *x-advance* to the next glyph or the end of the line.
-    pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a FontRef, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
+    pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a Font, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
         let r = self.glyphs_range();
         self.text.glyphs_with_x_advance_range(self.index, r)
     }
@@ -1781,13 +1781,13 @@ impl<'a> ShapedSegment<'a> {
     }
 
     /// Glyphs in the word or space.
-    pub fn glyphs(&self) -> impl Iterator<Item = (&'a FontRef, &'a [GlyphInstance])> {
+    pub fn glyphs(&self) -> impl Iterator<Item = (&'a Font, &'a [GlyphInstance])> {
         let r = self.glyph_range();
         self.text.glyphs_range(r)
     }
 
     /// Glyphs in the word or space, paired with the *x-advance* to then next glyph or line end.
-    pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a FontRef, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
+    pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a Font, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
         let r = self.glyph_range();
         self.text.glyphs_with_x_advance_range(self.line_index, r)
     }
@@ -1872,7 +1872,7 @@ impl<'a> ShapedSegment<'a> {
             min_width: Px,
 
             iter: I,
-            resume: Option<(&'a FontRef, J)>,
+            resume: Option<(&'a Font, J)>,
             x: f32,
             width: f32,
         }
@@ -1891,7 +1891,7 @@ impl<'a> ShapedSegment<'a> {
         }
         impl<'a, I, J> Iterator for UnderlineSkipGlyphs<'a, I, J>
         where
-            I: Iterator<Item = (&'a FontRef, J)>,
+            I: Iterator<Item = (&'a Font, J)>,
             J: Iterator<Item = (GlyphInstance, f32)>,
         {
             type Item = (PxPoint, Px);
@@ -2146,7 +2146,7 @@ impl Font {
             let seg = self.shape_segment_no_cache(seg, word_ctx_key, features);
             out(&seg)
         } else if let Some(small) = Self::to_small_word(seg) {
-            let mut m = self.m.lock();
+            let mut m = self.0.m.lock();
             let cache = &mut m.small_word_cache;
 
             if cache.len() > WORD_CACHE_MAX_ENTRIES {
@@ -2176,7 +2176,7 @@ impl Font {
 
             out(seg)
         } else {
-            let mut m = self.m.lock();
+            let mut m = self.0.m.lock();
             let cache = &mut m.word_cache;
 
             if cache.len() > WORD_CACHE_MAX_ENTRIES {
@@ -2210,7 +2210,7 @@ impl Font {
 
     /// Glyph index for the space `' '` character.
     pub fn space_index(&self) -> GlyphIndex {
-        self.font.get_nominal_glyph(' ').unwrap_or(0)
+        self.0.font.get_nominal_glyph(' ').unwrap_or(0)
     }
 
     /// Returns the horizontal advance of the space `' '` character.
@@ -2248,7 +2248,7 @@ impl Font {
     }
 
     /// Calculates a [`ShapedText`].
-    pub fn shape_text(self: &FontRef, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
+    pub fn shape_text(self: &Font, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         ShapedTextBuilder::shape_text(&[self.clone()], text, config)
     }
 
@@ -2441,7 +2441,7 @@ impl FontList {
 mod tests {
     use crate::{app::App, context::LayoutDirection, text::*};
 
-    fn test_font() -> FontRef {
+    fn test_font() -> Font {
         let _app = App::default().run_headless(false);
         let font = FONTS.normal(&FontName::sans_serif(), &lang!(und)).unwrap().sized(Px(20), vec![]);
         drop(_app);

@@ -7,7 +7,7 @@ edition = "2021"
 [dev-dependencies]
 mexprp = { version = "0.3", default-features = false }
 tracing = "0.1"
-lipsum = "0.8.0"
+lipsum = "0.9.0"
 
 zero-ui = { path = "../zero-ui", features = ["hyphenation_embed_all", "inspector", "deadlock_detection"] } # , "deadlock_detection"
 zero-ui-material-icons = { path = "../zero-ui-material-icons" }
