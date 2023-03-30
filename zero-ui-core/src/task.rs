@@ -162,7 +162,7 @@ use crate::{
     context::LocalContext,
     crate_util::{panic_str, PanicResult},
     units::Deadline,
-    var::{response_channel, ResponseVar, VarValue},
+    var::{response_var, ResponseVar, VarValue},
 };
 
 #[doc(no_inline)]
@@ -209,17 +209,17 @@ pub use rayon_ctx::*;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{task::{self, rayon::iter::*}, var::{ResponseVar, response_channel}};
+/// # use zero_ui_core::{task::{self, rayon::iter::*}, var::{ResponseVar, response_var}};
 /// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # impl SomeStruct {
 /// fn on_event(&mut self) {
-///     let (sender, response) = response_channel();
+///     let (responder, response) = response_var();
 ///     self.sum_response = response;
 ///
 ///     task::spawn(async move {
 ///         let r = (0..1000).into_par_iter().map(|i| i * i).sum();
 ///
-///         sender.send_response(r);
+///         responder.respond(r);
 ///     });
 /// }
 ///
@@ -231,11 +231,10 @@ pub use rayon_ctx::*;
 /// # }
 /// ```
 ///
-/// The example uses the `rayon` parallel iterator to compute a result and uses a [`response_channel`] to send the result to the UI.
+/// The example uses the `rayon` parallel iterator to compute a result and uses a [`response_var`] to send the result to the UI.
 ///
 /// Note that this function is the most basic way to spawn a parallel task where you must setup channels to the rest of the app yourself,
-/// you can use [`respond`] to avoid having to manually create a response channel, or [`run`] to `.await`
-/// the result.
+/// you can use [`respond`] to avoid having to manually set a response, or [`run`] to `.await` the result.
 ///
 /// # Panic Handling
 ///
@@ -554,7 +553,7 @@ where
 ///
 /// The [`run`] documentation explains how `task` is *parallel* and *async*. The `task` starts executing immediately.
 ///
-/// This is just a helper method that creates a [`response_channel`] and awaits for the `task` in a [`spawn`] runner.
+/// This is just a helper method that creates a [`response_var`] and awaits for the `task` in a [`spawn`] runner.
 ///
 /// # Examples
 ///
@@ -595,15 +594,11 @@ where
     R: VarValue + Send + 'static,
     F: Future<Output = R> + Send + 'static,
 {
-    // !!: replace with var directly
-    let (sender, response) = response_channel();
+    let (responder, response) = response_var();
 
     spawn(async move {
         let r = task.await;
-        match sender.send_response(r) {
-            Ok(()) => {}
-            Err(e) => tracing::error!("failed to respond, {e}"),
-        }
+        responder.respond(r);
     });
 
     response
