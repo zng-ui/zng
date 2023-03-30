@@ -852,6 +852,10 @@ impl Font {
     }
 }
 impl crate::render::Font for Font {
+    fn is_empty_fallback(&self) -> bool {
+        self.face().is_empty()
+    }
+
     fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> (wr::FontInstanceKey, wr::FontInstanceFlags) {
         self.render_font(renderer, synthesis)
     }
@@ -1352,7 +1356,7 @@ impl FontFaceLoader {
         }
 
         let result = task::wait_respond(clone_move!(font_name, || {
-            // std::thread::sleep(1.secs()); // !!: TODO
+            std::thread::sleep(1.secs()); // !!: TODO
             let handle = match Self::get_system(&font_name, style, weight, stretch) {
                 Some(h) => h,
                 None => {

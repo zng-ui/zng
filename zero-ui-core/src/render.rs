@@ -34,6 +34,9 @@ use zero_ui_view_api::{
 /// [`FontManager`]: crate::text::FontManager
 /// [`Font`]: crate::text::Font
 pub trait Font {
+    /// Gets if the font is the fallback that does not have any glyph.
+    fn is_empty_fallback(&self) -> bool;
+
     /// Gets the instance key in the `renderer` namespace.
     ///
     /// The font configuration must be provided by `self`, except the `synthesis` that is used in the font instance.
@@ -1020,7 +1023,7 @@ impl FrameBuilder {
         expect_inner!(self.push_text);
 
         if let Some(r) = &self.renderer {
-            if !glyphs.is_empty() && self.visible {
+            if !glyphs.is_empty() && self.visible && !font.is_empty_fallback() {
                 let (instance_key, flags) = font.instance_key(r, synthesis);
 
                 let opts = GlyphOptions {
