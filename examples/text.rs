@@ -21,6 +21,7 @@ fn app_main() {
         let fs = var(Length::Pt(11.0));
 
         window! {
+            zero_ui::core::widget_base::parallel = false;
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             child = z_stack(ui_vec![
                 stack! {

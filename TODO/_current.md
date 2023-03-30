@@ -1,7 +1,9 @@
-* Sometimes font does not update from fallback.
-    - Node does not receive update for font var changing to done.
-        - Notified while window init?
+* Font list task awaits for each font var to be "done", but the done future awaits `is_new`, and that only works per cycle of UI, but we
+    are in a wait or spawn thread.
+
 * Don't render text with empty font.
+* Hold window load handle until all fonts requested on init load?
+    - Holding a handle for each text seems to much.
 * Markdown example, slow scroll wheel and a lazy error.
     - Error is new, not in master.
 

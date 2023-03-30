@@ -591,7 +591,7 @@ where
 /// [`resume_unwind`]: panic::resume_unwind
 pub fn respond<R, F>(task: F) -> ResponseVar<R>
 where
-    R: VarValue + Send + 'static,
+    R: VarValue,
     F: Future<Output = R> + Send + 'static,
 {
     let (responder, response) = response_var();
@@ -694,6 +694,20 @@ where
             tracing::error!("parallel `spawn_wait` task panicked: {}", panic_str(&p))
         }
     });
+}
+
+/// Like [`wait`] but sets a response var.
+pub fn wait_respond<R, F>(task: F) -> ResponseVar<R>
+where
+    R: VarValue,
+    F: FnOnce() -> R + Send + 'static,
+{
+    let (responder, response) = response_var();
+    spawn_wait(move || {
+        let r = task();
+        responder.respond(r);
+    });
+    response
 }
 
 /// Blocks the thread until the `task` future finishes.

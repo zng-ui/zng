@@ -1351,7 +1351,8 @@ impl FontFaceLoader {
             return cached;
         }
 
-        let result = task::respond(task::wait(clone_move!(font_name, || {
+        let result = task::wait_respond(clone_move!(font_name, || {
+            // std::thread::sleep(1.secs()); // !!: TODO
             let handle = match Self::get_system(&font_name, style, weight, stretch) {
                 Some(h) => h,
                 None => {
@@ -1374,7 +1375,7 @@ impl FontFaceLoader {
                     None
                 }
             }
-        })));
+        }));
 
         self.system_fonts_cache
             .entry(font_name.clone())

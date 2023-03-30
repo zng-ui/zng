@@ -220,7 +220,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 faces.into_rsp().unwrap()
             } else {
                 self.faces = Some((faces.subscribe(WIDGET.id()), faces));
-                // !!: get a window load handle too.
                 FontFaceList::empty()
             };
 

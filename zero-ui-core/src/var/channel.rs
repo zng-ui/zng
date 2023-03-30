@@ -13,22 +13,22 @@ use super::*;
 /// A variable update receiver that can be used from any thread and without access to [`VARS`].
 ///
 /// Use [`Var::receiver`] to create a receiver, drop to stop listening.
-pub struct VarReceiver<T: VarValue + Send> {
+pub struct VarReceiver<T: VarValue> {
     receiver: flume::Receiver<T>,
 }
-impl<T: VarValue + Send> Clone for VarReceiver<T> {
+impl<T: VarValue> Clone for VarReceiver<T> {
     fn clone(&self) -> Self {
         VarReceiver {
             receiver: self.receiver.clone(),
         }
     }
 }
-impl<T: VarValue + Send> fmt::Debug for VarReceiver<T> {
+impl<T: VarValue> fmt::Debug for VarReceiver<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "VarReceiver")
     }
 }
-impl<T: VarValue + Send> VarReceiver<T> {
+impl<T: VarValue> VarReceiver<T> {
     /// New from `source`.
     pub fn new(source: &impl Var<T>, send_current: bool) -> VarReceiver<T> {
         let (sender, receiver) = flume::unbounded();
@@ -97,12 +97,12 @@ impl<T: VarValue + Send> VarReceiver<T> {
         self.receiver.try_iter()
     }
 }
-impl<T: VarValue + Send> From<VarReceiver<T>> for flume::Receiver<T> {
+impl<T: VarValue> From<VarReceiver<T>> for flume::Receiver<T> {
     fn from(e: VarReceiver<T>) -> Self {
         e.receiver
     }
 }
-impl<'a, T: VarValue + Send> IntoIterator for &'a VarReceiver<T> {
+impl<'a, T: VarValue> IntoIterator for &'a VarReceiver<T> {
     type Item = T;
 
     type IntoIter = flume::Iter<'a, T>;
@@ -111,7 +111,7 @@ impl<'a, T: VarValue + Send> IntoIterator for &'a VarReceiver<T> {
         self.receiver.iter()
     }
 }
-impl<T: VarValue + Send> IntoIterator for VarReceiver<T> {
+impl<T: VarValue> IntoIterator for VarReceiver<T> {
     type Item = T;
 
     type IntoIter = flume::IntoIter<T>;
@@ -126,12 +126,12 @@ impl<T: VarValue + Send> IntoIterator for VarReceiver<T> {
 /// Use [`Var::sender`] to create a sender, drop to stop holding the paired variable in the UI thread.
 pub struct VarSender<T>
 where
-    T: VarValue + Send,
+    T: VarValue,
 {
     wake: AppEventSender,
     sender: flume::Sender<T>,
 }
-impl<T: VarValue + Send> Clone for VarSender<T> {
+impl<T: VarValue> Clone for VarSender<T> {
     fn clone(&self) -> Self {
         VarSender {
             wake: self.wake.clone(),
@@ -139,7 +139,7 @@ impl<T: VarValue + Send> Clone for VarSender<T> {
         }
     }
 }
-impl<T: VarValue + Send> fmt::Debug for VarSender<T> {
+impl<T: VarValue> fmt::Debug for VarSender<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "VarSender")
     }
@@ -147,7 +147,7 @@ impl<T: VarValue + Send> fmt::Debug for VarSender<T> {
 
 impl<T> VarSender<T>
 where
-    T: VarValue + Send,
+    T: VarValue,
 {
     /// New sender that sets `target`.
     pub fn new(target: &impl Var<T>) -> Self {
@@ -272,7 +272,7 @@ where
 ///
 /// Use [`response_channel`] to init.
 pub type ResponseSender<T> = VarSender<Response<T>>;
-impl<T: VarValue + Send> ResponseSender<T> {
+impl<T: VarValue> ResponseSender<T> {
     /// Send the one time response.
     pub fn send_response(&self, response: T) -> Result<(), AppDisconnected<T>> {
         self.send(Response::Done(response)).map_err(|e| {
@@ -286,7 +286,7 @@ impl<T: VarValue + Send> ResponseSender<T> {
 }
 
 /// New paired [`ResponseSender`] and [`ResponseVar`] in the waiting state.
-pub fn response_channel<T: VarValue + Send>() -> (ResponseSender<T>, ResponseVar<T>) {
+pub fn response_channel<T: VarValue>() -> (ResponseSender<T>, ResponseVar<T>) {
     let (responder, response) = response_var();
     (responder.sender(), response)
 }
