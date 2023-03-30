@@ -483,7 +483,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     fn modify_importance(&self) -> usize;
 
     /// Setups a callback for just after the variable value update is applied, the closure runs in the root app context, just like
-    /// the `modify` closure.
+    /// the `modify` closure. The closure can returns if it is retained after each call.
     ///
     /// Variables store a weak[^1] reference to the callback if they have the `MODIFY` or `CAPS_CHANGE` capabilities, otherwise
     /// the callback is discarded and [`VarHandle::dummy`] returned.
@@ -910,12 +910,13 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The returned variable can still update if `self` is modified, but it does not have the `MODIFY` capability.
     fn read_only(&self) -> Self::ReadOnly;
 
-    /// Create a future that awaits for [`is_new`] to be `true`.
+    /// Create a future that awaits for the [`VarUpdateId`] to change.
     ///
-    /// The future can only be used in app bound async code, it can be reused.
+    /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only in UI bound threads,
+    /// but the future can be awaited in any thread.
     ///
     /// [`is_new`]: AnyVar::is_new
-    fn wait_is_new(&self) -> types::WaitIsNewFut<T, Self> {
+    fn wait_is_new(&self) -> types::WaitIsNewFut<Self> {
         types::WaitIsNewFut::new(self)
     }
 
@@ -924,7 +925,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The future can only be used in app bound async code, it can be reused.
     ///
     /// [`is_animating`]: AnyVar::is_animating
-    fn wait_animation(&self) -> types::WaitIsNotAnimatingFut<T, Self> {
+    fn wait_animation(&self) -> types::WaitIsNotAnimatingFut<Self> {
         types::WaitIsNotAnimatingFut::new(self)
     }
 
@@ -1010,11 +1011,13 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.is_new() && self.get_ne(value)
     }
 
-    /// Create a future that awaits and yields [`get_new`].
+    /// Create a future that awaits until the [`VarUpdateId`] changes and yields [`get`].
     ///
-    /// The future can only be used in app bound async code, it can be reused.
+    /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only in UI bound threads,
+    /// but the future can be awaited in any thread.
     ///
-    /// [`get_new`]: Var::get_new
+    /// [`get`]: Var::get
+    /// [`is_new`]: AnyVar::is_new
     fn wait_new(&self) -> types::WaitNewFut<T, Self> {
         types::WaitNewFut::new(self)
     }

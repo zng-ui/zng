@@ -1,6 +1,3 @@
-* Font list task awaits for each font var to be "done", but the done future awaits `is_new`, and that only works per cycle of UI, but we
-    are in a wait or spawn thread.
-
 * Don't render text with empty font.
 * Hold window load handle until all fonts requested on init load?
     - Holding a handle for each text seems to much.
