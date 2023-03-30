@@ -4,7 +4,7 @@ error: expected square brackets
 10 |         #![allow(inner_attribute)]
    |          ^
 
-error: expected path
+error: expected identifier
   --> cases/widget/malformed_property_attribute.rs:11:11
    |
 11 |         #[!foo]

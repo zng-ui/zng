@@ -18,6 +18,7 @@ use std::{mem, thread};
 use crate::app::HeadlessApp;
 use crate::context::{UPDATES, WIDGET};
 use crate::crate_util::{Handle, WeakHandle};
+use crate::task;
 use crate::task::ui::UiTask;
 
 /// Represents a handler in a widget context.
@@ -1708,7 +1709,6 @@ impl HeadlessApp {
 
         if !pending.is_empty() {
             let start_time = Instant::now();
-            #[allow(clippy::blocks_in_if_conditions)] // false positive, see https://github.com/rust-lang/rust-clippy/issues/7580
             while {
                 pending.retain(|h| h());
                 !pending.is_empty()
@@ -1738,26 +1738,38 @@ impl HeadlessApp {
 
     /// Polls a `future` and updates the app repeatedly until it completes or the `timeout` is reached.
     pub fn block_on_fut<F: Future>(&mut self, future: F, timeout: Duration) -> Result<F::Output, String> {
+        let future = task::with_deadline(future, timeout);
+        let mut future = std::pin::pin!(future);
+
         let waker = UPDATES.waker(vec![]);
         let mut cx = std::task::Context::from_waker(&waker);
-        let start_time = Instant::now();
-        let mut future = std::pin::pin!(future);
+
         loop {
-            if start_time.elapsed() >= timeout {
-                return Err(format!("reached timeout `{timeout:?}`"));
-            }
-            match future.as_mut().poll(&mut cx) {
-                std::task::Poll::Ready(r) => {
-                    return Ok(r);
-                }
-                std::task::Poll::Pending => match self.update(false) {
-                    crate::app::ControlFlow::Poll => continue,
-                    crate::app::ControlFlow::Wait => {
-                        thread::yield_now();
-                        continue;
+            let mut fut_poll = future.as_mut().poll(&mut cx);
+            let flow = self.update_observe(
+                || {
+                    if fut_poll.is_pending() {
+                        fut_poll = future.as_mut().poll(&mut cx);
                     }
-                    crate::app::ControlFlow::Exit => return Err("app exited".to_owned()),
                 },
+                true,
+            );
+
+            match fut_poll {
+                std::task::Poll::Ready(r) => match r {
+                    Ok(r) => return Ok(r),
+                    Err(e) => return Err(e.to_string()),
+                },
+                std::task::Poll::Pending => {}
+            }
+
+            match flow {
+                crate::app::ControlFlow::Poll => continue,
+                crate::app::ControlFlow::Wait => {
+                    thread::yield_now();
+                    continue;
+                }
+                crate::app::ControlFlow::Exit => return Err("app exited".to_owned()),
             }
         }
     }

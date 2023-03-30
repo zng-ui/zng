@@ -1,9 +1,9 @@
 error: auto impl delegates call to `update`, but this manual impl does not
        `#[deny_(zero_ui::missing_delegate)]` is on
-  --> cases/ui_node/missing_matching_delegate_child.rs:18:55
+  --> cases/ui_node/missing_matching_delegate_child.rs:18:51
    |
 18 |       fn update(&mut self, updates: &WidgetUpdates) {
-   |  _______________________________________________________^
+   |  ___________________________________________________^
 19 | |         let _ = updates;
 20 | |         // does not call self.child.update(updates);
 21 | |     }

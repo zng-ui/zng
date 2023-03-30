@@ -595,11 +595,15 @@ where
     R: VarValue + Send + 'static,
     F: Future<Output = R> + Send + 'static,
 {
+    // !!: replace with var directly
     let (sender, response) = response_channel();
 
     spawn(async move {
         let r = task.await;
-        let _ = sender.send_response(r);
+        match sender.send_response(r) {
+            Ok(()) => {}
+            Err(e) => tracing::error!("failed to respond, {e}"),
+        }
     });
 
     response
