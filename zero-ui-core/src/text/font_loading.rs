@@ -1356,7 +1356,6 @@ impl FontFaceLoader {
         }
 
         let result = task::wait_respond(clone_move!(font_name, || {
-            std::thread::sleep(1.secs()); // !!: TODO
             let handle = match Self::get_system(&font_name, style, weight, stretch) {
                 Some(h) => h,
                 None => {

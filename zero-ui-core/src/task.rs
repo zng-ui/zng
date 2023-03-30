@@ -255,7 +255,7 @@ where
 {
     type Fut = Pin<Box<dyn Future<Output = ()> + Send>>;
 
-    // A future that is its own waker that polls inside the rayon primary thread-pool.
+    // A future that is its own waker that polls inside rayon spawn tasks.
     struct RayonTask {
         ctx: LocalContext,
         fut: Mutex<Option<Fut>>,
@@ -267,11 +267,13 @@ where
                 let mut task = self.fut.lock();
                 if let Some(mut t) = task.take() {
                     let waker = self.clone().into();
-                    let mut cx = std::task::Context::from_waker(&waker);
 
+                    // load app context
                     self.ctx.clone().with_context(move || {
                         let r = panic::catch_unwind(panic::AssertUnwindSafe(move || {
-                            if t.as_mut().poll(&mut cx).is_pending() {
+                            // poll future
+                            if t.as_mut().poll(&mut std::task::Context::from_waker(&waker)).is_pending() {
+                                // not done
                                 *task = Some(t);
                             }
                         }));
