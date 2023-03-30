@@ -2160,7 +2160,7 @@ impl Font {
         features: &[harfbuzz_rs::Feature],
         out: impl FnOnce(&ShapedSegmentData) -> R,
     ) -> R {
-        if !(1..=WORD_CACHE_MAX_LEN).contains(&seg.len()) {
+        if !(1..=WORD_CACHE_MAX_LEN).contains(&seg.len()) || self.face().is_empty() {
             let seg = self.shape_segment_no_cache(seg, word_ctx_key, features);
             out(&seg)
         } else if let Some(small) = Self::to_small_word(seg) {
