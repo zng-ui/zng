@@ -759,7 +759,9 @@ impl ops::DerefMut for ParWidgetLayout {
 }
 impl Drop for ParWidgetLayout {
     fn drop(&mut self) {
-        assert!(self.wl.is_none(), "parallel layout not folded back to `WidgetLayout::finish_par`")
+        if self.wl.is_some() {
+            tracing::error!("parallel layout not folded back to `WidgetLayout::finish_par`")
+        }
     }
 }
 

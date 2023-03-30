@@ -292,7 +292,7 @@ impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
             underline_thickness: m.underline_thickness,
             cap_height: m.cap_height,
             x_height: m.x_height,
-            bounding_box: euclid::rect(
+            bounds: euclid::rect(
                 m.bounding_box.origin_x(),
                 m.bounding_box.origin_y(),
                 m.bounding_box.width(),
@@ -379,16 +379,16 @@ impl FontFace {
             },
             // values copied from a monospace font
             metrics: FontFaceMetrics {
-                units_per_em: 1000,
-                ascent: 900.0,
-                descent: -245.0,
+                units_per_em: 2048,
+                ascent: 1616.0,
+                descent: -432.0,
                 line_gap: 0.0,
-                underline_position: -120.0,
-                underline_thickness: 45.0,
-                cap_height: 720.0,
-                x_height: 550.0,
+                underline_position: -205.0,
+                underline_thickness: 102.0,
+                cap_height: 1616.0,
+                x_height: 1616.0,
                 // `xMin`/`xMax`/`yMin`/`yMax`
-                bounding_box: euclid::rect(-1740.0, 654.0, -240.0, 985.0),
+                bounds: euclid::Box2D::new(euclid::point2(0.0, -432.0), euclid::point2(1291.0, 1616.0)).to_rect(),
             },
             m: Mutex::new(FontFaceMut {
                 font_kit: FontKitCache::default(),
@@ -584,19 +584,26 @@ impl FontFace {
 
     /// Get the `font_kit` loaded in the current thread, or loads it.
     ///
-    /// Loads from the cached [`bytes`], unfortunately the font itself is `!Send`, to a different instance is generated
-    /// for each thread.
+    /// Loads from the cached [`bytes`], unfortunately the font itself is `!Send`,
+    /// so a different instance is generated each call.
     ///
+    /// Returns `None` if [`is_empty`].
+    ///
+    /// [`is_empty`]: Self::is_empty
     /// [`bytes`]: Self::bytes
-    pub fn font_kit(&self) -> Rc<font_kit::font::Font> {
-        self.0.m.lock().font_kit.get_or_init(|| {
-            font_kit::handle::Handle::Memory {
-                bytes: Arc::clone(&self.0.data.0),
-                font_index: self.0.face_index,
-            }
-            .load()
-            .unwrap()
-        })
+    pub fn font_kit(&self) -> Option<Rc<font_kit::font::Font>> {
+        if self.is_empty() {
+            None
+        } else {
+            Some(self.0.m.lock().font_kit.get_or_init(|| {
+                font_kit::handle::Handle::Memory {
+                    bytes: Arc::clone(&self.0.data.0),
+                    font_index: self.0.face_index,
+                }
+                .load()
+                .unwrap()
+            }))
+        }
     }
 
     /// Reference the font file bytes.

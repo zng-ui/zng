@@ -217,7 +217,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let faces = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
 
             let faces = if faces.is_done() {
-                faces.rsp().unwrap()
+                faces.into_rsp().unwrap()
             } else {
                 self.faces = Some((faces.subscribe(WIDGET.id()), faces));
                 // !!: get a window load handle too.

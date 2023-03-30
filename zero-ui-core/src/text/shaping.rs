@@ -2106,27 +2106,45 @@ impl Font {
 
         let mut w_x_advance = 0.0;
         let mut w_y_advance = 0.0;
-        let glyphs: Vec<_> = buffer
-            .get_glyph_infos()
-            .iter()
-            .zip(buffer.get_glyph_positions())
-            .map(|(i, p)| {
-                let x_offset = to_layout(p.x_offset);
-                let y_offset = -to_layout(p.y_offset);
-                let x_advance = to_layout(p.x_advance);
-                let y_advance = to_layout(p.y_advance);
 
-                let point = (w_x_advance + x_offset, w_y_advance + y_offset);
-                w_x_advance += x_advance;
-                w_y_advance += y_advance;
+        let glyphs: Vec<_> = if self.face().is_empty() {
+            let advance = self.metrics().bounds.width().0 as f32;
+            buffer
+                .get_glyph_infos()
+                .iter()
+                .map(|i| {
+                    let g = ShapedGlyph {
+                        index: 0,
+                        cluster: i.cluster,
+                        point: (w_x_advance, 0.0),
+                    };
+                    w_x_advance += advance;
+                    g
+                })
+                .collect()
+        } else {
+            buffer
+                .get_glyph_infos()
+                .iter()
+                .zip(buffer.get_glyph_positions())
+                .map(|(i, p)| {
+                    let x_offset = to_layout(p.x_offset);
+                    let y_offset = -to_layout(p.y_offset);
+                    let x_advance = to_layout(p.x_advance);
+                    let y_advance = to_layout(p.y_advance);
 
-                ShapedGlyph {
-                    index: i.codepoint,
-                    cluster: i.cluster,
-                    point,
-                }
-            })
-            .collect();
+                    let point = (w_x_advance + x_offset, w_y_advance + y_offset);
+                    w_x_advance += x_advance;
+                    w_y_advance += y_advance;
+
+                    ShapedGlyph {
+                        index: i.codepoint,
+                        cluster: i.cluster,
+                        point,
+                    }
+                })
+                .collect()
+        };
 
         ShapedSegmentData {
             glyphs,
@@ -2235,6 +2253,7 @@ impl Font {
     pub fn advance(&self, index: GlyphIndex) -> Result<LayoutVector2D, GlyphLoadingError> {
         self.face()
             .font_kit()
+            .ok_or(GlyphLoadingError::NoSuchGlyph)?
             .advance(index)
             .map(|v| LayoutVector2D::new(v.x(), v.y()) * self.metrics().size_scale)
     }
@@ -2243,6 +2262,7 @@ impl Font {
     pub fn origin(&self, index: GlyphIndex) -> Result<LayoutVector2D, GlyphLoadingError> {
         self.face()
             .font_kit()
+            .ok_or(GlyphLoadingError::NoSuchGlyph)?
             .origin(index)
             .map(|v| LayoutVector2D::new(v.x(), v.y()) * self.metrics().size_scale)
     }
@@ -2305,6 +2325,7 @@ impl Font {
 
         self.face()
             .font_kit()
+            .ok_or(GlyphLoadingError::NoSuchGlyph)?
             .outline(glyph_id, hinting_options, &mut AdapterSink { sink, scale })
     }
 
@@ -2312,7 +2333,11 @@ impl Font {
     ///
     /// The rectangle origin is the bottom-left of the bounds relative to the baseline.
     pub fn typographic_bounds(&self, glyph_id: GlyphIndex) -> Result<euclid::Rect<f32, Px>, GlyphLoadingError> {
-        let rect = self.face().font_kit().typographic_bounds(glyph_id)?;
+        let rect = self
+            .face()
+            .font_kit()
+            .ok_or(GlyphLoadingError::NoSuchGlyph)?
+            .typographic_bounds(glyph_id)?;
 
         let scale = self.metrics().size_scale;
         let bounds = euclid::rect::<f32, Px>(

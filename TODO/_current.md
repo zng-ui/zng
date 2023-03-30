@@ -1,10 +1,9 @@
-* Border example did not render some of the text one time.
-* Image example, some titles text look shaped wrong.
-    - Text example same error as image, some text looking like all glyphs are in the same place.
-    - No error after running the examples again.
-    - Maybe simulate slow font load?
+* Sometimes font does not update from fallback.
+    - Node does not receive update for font var changing to done.
+        - Notified while window init?
+* Don't render text with empty font.
 * Markdown example, slow scroll wheel and a lazy error.
-* Scroll example does not look right.
+    - Error is new, not in master.
 
 * Review !!: TODO.
 * Test all.

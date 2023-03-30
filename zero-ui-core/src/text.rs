@@ -429,7 +429,7 @@ pub struct FontFaceMetrics {
     /// A rectangle that surrounds all bounding boxes of all glyphs, in font units.
     ///
     /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
-    pub bounding_box: euclid::Rect<f32, ()>,
+    pub bounds: euclid::Rect<f32, ()>,
 }
 impl FontFaceMetrics {
     /// Compute [`FontMetrics`] given a font size in pixels.
@@ -445,8 +445,8 @@ impl FontFaceMetrics {
             underline_thickness: s(self.underline_thickness),
             cap_height: s(self.cap_height),
             x_height: (s(self.x_height)),
-            bounding_box: {
-                let b = self.bounding_box;
+            bounds: {
+                let b = self.bounds;
                 PxRect::new(
                     PxPoint::new(s(b.origin.x), s(b.origin.y)),
                     PxSize::new(s(b.size.width), s(b.size.height)),
@@ -494,7 +494,7 @@ pub struct FontMetrics {
     /// A rectangle that surrounds all bounding boxes of all glyphs, in pixels.
     ///
     /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
-    pub bounding_box: PxRect,
+    pub bounds: PxRect,
 }
 impl FontMetrics {
     /// The font line height.
