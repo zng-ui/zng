@@ -1,3 +1,11 @@
+* Border example did not render some of the text one time.
+* Image example, some titles text look shaped wrong.
+    - Text example same error as image, some text looking like all glyphs are in the same place.
+    - No error after running the examples again.
+    - Maybe simulate slow font load?
+* Markdown example, slow scroll wheel and a lazy error.
+* Scroll example does not look right.
+
 * Review !!: TODO.
 * Test all.
 * Merge.
