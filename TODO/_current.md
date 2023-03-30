@@ -1,6 +1,11 @@
+* Text has rendered default font again..
+* 
+* Scrolling markdown with wheel causes errors prints and some text to render with default font.
+
 * Don't render text with empty font.
 * Hold window load handle until all fonts requested on init load?
     - Holding a handle for each text seems to much.
+    - Headless example panics cause multiple frames requested, see if this fixes it.
 * Markdown example, slow scroll wheel and a lazy error.
     - Error is new, not in master.
 
