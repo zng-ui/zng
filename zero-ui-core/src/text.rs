@@ -725,6 +725,9 @@ impl_from_and_into_var! {
     fn from(s: Cow<'static, str>) -> FontName {
         FontName::new(s)
     }
+    fn from(f: FontName) -> Text {
+        f.into_text()
+    }
 }
 impl fmt::Display for FontName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
