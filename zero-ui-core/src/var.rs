@@ -583,7 +583,11 @@ impl<'a> PartialEq for VarPtr<'a> {
 }
 impl<'a> fmt::Debug for VarPtr<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("VarPtr").field(&self.eq).finish()
+        if f.alternate() {
+            f.debug_tuple("VarPtr").field(&self.eq).finish()
+        } else {
+            fmt::Debug::fmt(&self.eq, f)
+        }
     }
 }
 
