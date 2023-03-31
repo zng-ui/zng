@@ -15,6 +15,7 @@ use crate::core::{
     keyboard::{CHAR_INPUT_EVENT, KEYBOARD},
     task::parking_lot::Mutex,
     text::*,
+    window::{WindowLoadingHandle, WINDOW_CTRL},
 };
 use crate::prelude::new_widget::*;
 
@@ -157,10 +158,24 @@ context_local! {
 ///
 /// This node also subscribes to all the text context vars so other `text!` properties don't need to.
 pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
+    struct LoadingFontFaceList {
+        _var_handle: VarHandle,
+        result: ResponseVar<FontFaceList>,
+        _loading: Option<WindowLoadingHandle>,
+    }
+    impl LoadingFontFaceList {
+        fn new(face: ResponseVar<FontFaceList>) -> Self {
+            Self {
+                _var_handle: face.subscribe(WIDGET.id()),
+                result: face,
+                _loading: WINDOW_CTRL.loading_handle(1.secs()),
+            }
+        }
+    }
     struct ResolveTextNode<C, T> {
         child: C,
         text: T,
-        faces: Option<(VarHandle, ResponseVar<FontFaceList>)>,
+        faces: Option<LoadingFontFaceList>,
         resolved: Mutex<Option<ResolvedText>>,
         event_handles: EventHandles,
         caret_opacity_handle: Option<VarHandle>,
@@ -219,7 +234,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             let faces = if faces.is_done() {
                 faces.into_rsp().unwrap()
             } else {
-                self.faces = Some((faces.subscribe(WIDGET.id()), faces));
+                self.faces = Some(LoadingFontFaceList::new(faces));
                 FontFaceList::empty()
             };
 
@@ -325,7 +340,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                         WIDGET.layout();
                     }
                 } else {
-                    self.faces = Some((faces.subscribe(WIDGET.id()), faces));
+                    self.faces = Some(LoadingFontFaceList::new(faces));
                 }
             }
             self.with_mut(|c| c.event(update))
@@ -371,7 +386,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                         WIDGET.layout();
                     }
                 } else {
-                    self.faces = Some((faces.subscribe(WIDGET.id()), faces));
+                    self.faces = Some(LoadingFontFaceList::new(faces));
                 }
             }
 
@@ -403,11 +418,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 }
             }
 
-            if let Some((_, faces)) = &self.faces {
-                if faces.is_done() {
-                    let faces = faces.rsp().unwrap();
-                    self.faces = None;
-
+            if let Some(f) = self.faces.take() {
+                if f.result.is_done() {
+                    let faces = f.result.into_rsp().unwrap();
                     if r.faces != faces {
                         r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
                         r.faces = faces;
@@ -415,6 +428,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                         r.reshape = true;
                         WIDGET.layout();
                     }
+                } else {
+                    self.faces = Some(f);
                 }
             }
 
