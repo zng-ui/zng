@@ -1080,16 +1080,23 @@ impl<I: SliceIndex<[Font]>> std::ops::Index<I> for FontList {
 struct FontFaceLoader {
     custom_fonts: HashMap<FontName, Vec<FontFace>>,
     system_fonts_cache: HashMap<FontName, Vec<SystemFontFace>>,
+    list_cache: HashMap<Box<[FontName]>, Vec<FontFaceListQuery>>,
 }
 struct SystemFontFace {
     properties: (FontStyle, FontWeight, FontStretch),
     result: ResponseVar<Option<FontFace>>,
+}
+struct FontFaceListQuery {
+    properties: (FontStyle, FontWeight, FontStretch),
+    lang: Lang,
+    result: ResponseVar<FontFaceList>,
 }
 impl FontFaceLoader {
     fn new() -> Self {
         FontFaceLoader {
             custom_fonts: HashMap::new(),
             system_fonts_cache: HashMap::new(),
+            list_cache: HashMap::new(),
         }
     }
 
@@ -1133,6 +1140,8 @@ impl FontFaceLoader {
             });
             !v.is_empty()
         });
+
+        self.list_cache.clear();
     }
 
     async fn register(custom_font: CustomFont) -> Result<(), FontLoadingError> {
@@ -1173,59 +1182,14 @@ impl FontFaceLoader {
         stretch: FontStretch,
         lang: &Lang,
     ) -> Option<ResponseVar<FontFaceList>> {
-        let mut used = HashSet::with_capacity(families.len());
-
-        let mut list = Vec::with_capacity(families.len() + 1);
-        let mut pending = vec![];
-
-        let fallback = GenericFonts {}.fallback(lang);
-        for name in families.iter().chain([&fallback]) {
-            if !used.insert(name) {
-                continue;
-            }
-
-            let face = self.try_cached(name, style, weight, stretch, lang)?;
-
-            if face.is_done() {
-                if let Some(face) = face.into_rsp().unwrap() {
-                    list.push(face);
-                }
-            } else {
-                pending.push((list.len(), face));
-            }
-        }
-
-        if pending.is_empty() {
-            if list.is_empty() {
-                list.push(FontFace::empty());
-            } else {
-                return Some(response_done_var(FontFaceList {
-                    fonts: list.into_boxed_slice(),
-                    requested_style: style,
-                    requested_weight: weight,
-                    requested_stretch: stretch,
-                }));
-            }
-        }
-
-        Some(task::respond(async move {
-            for (i, pending) in pending.into_iter().rev() {
-                if let Some(rsp) = pending.wait_into_rsp().await {
-                    list.insert(i, rsp);
+        if let Some(queries) = self.list_cache.get(families) {
+            for q in queries {
+                if q.properties == (style, weight, stretch) && &q.lang == lang {
+                    return Some(q.result.clone());
                 }
             }
-
-            if list.is_empty() {
-                list.push(FontFace::empty());
-            }
-
-            FontFaceList {
-                fonts: list.into_boxed_slice(),
-                requested_style: style,
-                requested_weight: weight,
-                requested_stretch: stretch,
-            }
-        }))
+        }
+        None
     }
 
     fn load_list(
@@ -1236,6 +1200,10 @@ impl FontFaceLoader {
         stretch: FontStretch,
         lang: &Lang,
     ) -> ResponseVar<FontFaceList> {
+        if let Some(r) = self.try_list(families, style, weight, stretch, lang) {
+            return r;
+        }
+
         let mut used = HashSet::with_capacity(families.len());
 
         let mut list = Vec::with_capacity(families.len() + 1);
@@ -1271,7 +1239,7 @@ impl FontFaceLoader {
             }
         }
 
-        task::respond(async move {
+        let r = task::respond(async move {
             for (i, pending) in pending.into_iter().rev() {
                 if let Some(rsp) = pending.wait_into_rsp().await {
                     list.insert(i, rsp);
@@ -1289,7 +1257,18 @@ impl FontFaceLoader {
                 requested_weight: weight,
                 requested_stretch: stretch,
             }
-        })
+        });
+
+        self.list_cache
+            .entry(families.iter().cloned().collect())
+            .or_insert_with(|| Vec::with_capacity(1))
+            .push(FontFaceListQuery {
+                properties: (style, weight, stretch),
+                lang: lang.clone(),
+                result: r.clone(),
+            });
+
+        r
     }
 
     fn try_cached(

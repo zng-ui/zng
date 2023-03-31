@@ -1,7 +1,3 @@
-* Text has rendered default font again..
-    - Same error, list never finishes.
-    - Test timeout panic only happened two times, wrong render happens more often.
-
 * Scrolling markdown with wheel causes errors prints and some text to render with default font.
 
 * Hold window load handle until all fonts requested on init load?
