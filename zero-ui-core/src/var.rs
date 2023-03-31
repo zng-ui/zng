@@ -916,10 +916,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Create a future that awaits for the [`VarUpdateId`] to change.
     ///
-    /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only in UI bound threads,
-    /// but the future can be awaited in any thread.
+    /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only in [`UiTask`] updated
+    /// by the UI tree, but the future will elapse in any thread when the variable updates after the future is instantiated.
     ///
+    /// Note that outside of the UI tree there is no variable synchronization across multiple var method calls, so
+    /// a sequence of `get(); wait_is_new().await; get();` can miss a value between `get` and `wait_is_new`.
+    ///
+    /// [`get`]: Var::get
     /// [`is_new`]: AnyVar::is_new
+    /// [`UiTask`]: crate::task::ui::UiTask
     fn wait_is_new(&self) -> types::WaitIsNewFut<Self> {
         types::WaitIsNewFut::new(self)
     }
@@ -1017,11 +1022,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Create a future that awaits until the [`VarUpdateId`] changes and yields [`get`].
     ///
-    /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only in UI bound threads,
-    /// but the future can be awaited in any thread.
+    /// The future can be reused. Note that [`is_new`] will be `true` when the future elapses only in [`UiTask`] updated
+    /// by the UI tree, but the future will elapse in any thread when the variable updates after the future is instantiated.
+    ///
+    /// Note that outside of the UI tree there is no variable synchronization across multiple var method calls, so
+    /// a sequence of `get(); wait_new().await; get();` can miss a value between `get` and `wait_new`.
     ///
     /// [`get`]: Var::get
     /// [`is_new`]: AnyVar::is_new
+    /// [`UiTask`]: crate::task::ui::UiTask
     fn wait_new(&self) -> types::WaitNewFut<T, Self> {
         types::WaitNewFut::new(self)
     }

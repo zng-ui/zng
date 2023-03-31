@@ -129,7 +129,11 @@ impl<T: VarValue> ResponseVar<T> {
     /// [`rsp`]: Self::rsp
     pub async fn wait_done(&self) {
         while !self.is_done() {
-            self.wait_new().await;
+            let w = self.wait_is_new();
+            if self.is_done() {
+                break;
+            }
+            w.await;
         }
     }
 
