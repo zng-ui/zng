@@ -255,7 +255,7 @@ async fn set_fallback_font() {
         static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
         let fallback = zero_ui::core::text::CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
 
-        FONTS.register(fallback).await.unwrap();
+        FONTS.register(fallback).wait_rsp().await.unwrap();
         FONTS.generics().set_fallback(und, "fallback");
     }
 }

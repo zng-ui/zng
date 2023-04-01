@@ -162,7 +162,7 @@ use crate::{
     context::LocalContext,
     crate_util::{panic_str, PanicResult},
     units::Deadline,
-    var::{response_var, ResponseVar, VarValue},
+    var::{response_done_var, response_var, ResponseVar, VarValue},
 };
 
 #[doc(no_inline)]
@@ -253,49 +253,93 @@ pub fn spawn<F>(task: F)
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    type Fut = Pin<Box<dyn Future<Output = ()> + Send>>;
-
-    // A future that is its own waker that polls inside rayon spawn tasks.
-    struct RayonTask {
-        ctx: LocalContext,
-        fut: Mutex<Option<Fut>>,
-    }
-    impl RayonTask {
-        fn poll(self: Arc<RayonTask>) {
-            rayon::spawn(move || {
-                // this `Option<Fut>` dance is used to avoid a `poll` after `Ready` or panic.
-                let mut task = self.fut.lock();
-                if let Some(mut t) = task.take() {
-                    let waker = self.clone().into();
-
-                    // load app context
-                    self.ctx.clone().with_context(move || {
-                        let r = panic::catch_unwind(panic::AssertUnwindSafe(move || {
-                            // poll future
-                            if t.as_mut().poll(&mut std::task::Context::from_waker(&waker)).is_pending() {
-                                // not done
-                                *task = Some(t);
-                            }
-                        }));
-                        if let Err(p) = r {
-                            tracing::error!("panic in `task::spawn`: {}", panic_str(&p));
-                        }
-                    });
-                }
-            })
-        }
-    }
-    impl std::task::Wake for RayonTask {
-        fn wake(self: Arc<Self>) {
-            self.poll()
-        }
-    }
-
     Arc::new(RayonTask {
         ctx: LocalContext::capture(),
         fut: Mutex::new(Some(Box::pin(task))),
     })
     .poll()
+}
+
+/// Polls the `task` once immediately on the calling thread, if the `task` is pending, continues execution in [`spawn`].
+pub fn poll_spawn<F>(task: F)
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    struct PollRayonTask {
+        fut: Mutex<Option<(RayonSpawnFut, Option<LocalContext>)>>,
+    }
+    impl PollRayonTask {
+        // start task in calling thread
+        fn poll(self: Arc<Self>) {
+            let mut task = self.fut.lock();
+            let (mut t, _) = task.take().unwrap();
+
+            let waker = self.clone().into();
+
+            match t.as_mut().poll(&mut std::task::Context::from_waker(&waker)) {
+                Poll::Ready(()) => {}
+                Poll::Pending => {
+                    let ctx = LocalContext::capture();
+                    *task = Some((t, Some(ctx)));
+                }
+            }
+        }
+    }
+    impl std::task::Wake for PollRayonTask {
+        fn wake(self: Arc<Self>) {
+            // continue task in spawn threads
+            if let Some((task, Some(ctx))) = self.fut.lock().take() {
+                Arc::new(RayonTask {
+                    ctx,
+                    fut: Mutex::new(Some(Box::pin(task))),
+                })
+                .poll();
+            }
+        }
+    }
+
+    Arc::new(PollRayonTask {
+        fut: Mutex::new(Some((Box::pin(task), None))),
+    })
+    .poll()
+}
+
+type RayonSpawnFut = Pin<Box<dyn Future<Output = ()> + Send>>;
+
+// A future that is its own waker that polls inside rayon spawn tasks.
+struct RayonTask {
+    ctx: LocalContext,
+    fut: Mutex<Option<RayonSpawnFut>>,
+}
+impl RayonTask {
+    fn poll(self: Arc<Self>) {
+        rayon::spawn(move || {
+            // this `Option<Fut>` dance is used to avoid a `poll` after `Ready` or panic.
+            let mut task = self.fut.lock();
+            if let Some(mut t) = task.take() {
+                let waker = self.clone().into();
+
+                // load app context
+                self.ctx.clone().with_context(move || {
+                    let r = panic::catch_unwind(panic::AssertUnwindSafe(move || {
+                        // poll future
+                        if t.as_mut().poll(&mut std::task::Context::from_waker(&waker)).is_pending() {
+                            // not done
+                            *task = Some(t);
+                        }
+                    }));
+                    if let Err(p) = r {
+                        tracing::error!("panic in `task::spawn`: {}", panic_str(&p));
+                    }
+                });
+            }
+        })
+    }
+}
+impl std::task::Wake for RayonTask {
+    fn wake(self: Arc<Self>) {
+        self.poll()
+    }
 }
 
 /// Rayon join with thread context.
@@ -606,6 +650,39 @@ where
     response
 }
 
+/// Polls the `task` once immediately on the calling thread, if the `task` is ready returns the response already set,
+/// if the `task` is pending continues execution like [`respond`].
+pub fn poll_respond<R, F>(task: F) -> ResponseVar<R>
+where
+    R: VarValue,
+    F: Future<Output = R> + Send + 'static,
+{
+    enum QuickResponse<R: VarValue> {
+        Quick(Option<R>),
+        Response(crate::var::ResponderVar<R>),
+    }
+
+    let q = Arc::new(Mutex::new(QuickResponse::Quick(None)));
+    poll_spawn(async_clone_move!(q, {
+        let rsp = task.await;
+
+        match &mut *q.lock() {
+            QuickResponse::Quick(q) => *q = Some(rsp),
+            QuickResponse::Response(r) => r.respond(rsp),
+        }
+    }));
+
+    let mut q = q.lock();
+    match &mut *q {
+        QuickResponse::Quick(q) if q.is_some() => response_done_var(q.take().unwrap()),
+        _ => {
+            let (responder, response) = response_var();
+            *q = QuickResponse::Response(responder);
+            response
+        }
+    }
+}
+
 /// Create a parallel `task` that blocks awaiting for an IO operation, the `task` starts on the first `.await`.
 ///
 /// # Parallel
@@ -763,7 +840,7 @@ where
     use std::pin::pin;
 
     let mut task = pin!(task);
-    block_on(poll_fn(|cx| match task.as_mut().poll(cx) {
+    block_on(future_fn(|cx| match task.as_mut().poll(cx) {
         Poll::Ready(r) => Poll::Ready(r),
         Poll::Pending => {
             cx.waker().wake_by_ref();
@@ -891,7 +968,7 @@ pub async fn deadline(deadline: impl Into<Deadline>) {
 /// use std::task::Poll;
 ///
 /// async fn ready_some<R>(mut closure: impl FnMut() -> Option<R>) -> R {
-///     task::poll_fn(|cx| {
+///     task::future_fn(|cx| {
 ///         match closure() {
 ///             Some(r) => Poll::Ready(r),
 ///             None => Poll::Pending
@@ -899,7 +976,7 @@ pub async fn deadline(deadline: impl Into<Deadline>) {
 ///     }).await
 /// }
 /// ```
-pub async fn poll_fn<T, F>(fn_: F) -> T
+pub async fn future_fn<T, F>(fn_: F) -> T
 where
     F: FnMut(&mut std::task::Context) -> Poll<T>,
 {
@@ -1041,7 +1118,7 @@ macro_rules! __all {
     ($($ident:ident: $fut:expr;)+) => {
         {
             $(let mut $ident = (Some($fut), None);)+
-            $crate::task::poll_fn(move |cx| {
+            $crate::task::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
 
@@ -1178,7 +1255,7 @@ macro_rules! __any {
     ($($ident:ident: $fut:expr;)+) => {
         {
             $(let mut $ident = $fut;)+
-            $crate::task::poll_fn(move |cx| {
+            $crate::task::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
                 $(
@@ -1309,7 +1386,7 @@ macro_rules! __any_ok {
     ($($ident:ident: $fut: expr;)+) => {
         {
             $(let mut $ident = (Some($fut), None);)+
-            $crate::task::poll_fn(move |cx| {
+            $crate::task::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
 
@@ -1454,7 +1531,7 @@ macro_rules! __any_some {
     ($($ident:ident: $fut: expr;)+) => {
         {
             $(let mut $ident = Some($fut);)+
-            $crate::task::poll_fn(move |cx| {
+            $crate::task::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
 
@@ -1613,7 +1690,7 @@ macro_rules! __all_ok {
         {
             $(let mut $ident = (Some($fut), None);)+
 
-            $crate::task::poll_fn(move |cx| {
+            $crate::task::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
 
@@ -1772,7 +1849,7 @@ macro_rules! __all_some {
     ($($ident:ident: $fut: expr;)+) => {
         {
             $(let mut $ident = (Some($fut), None);)+
-            $crate::task::poll_fn(move |cx| {
+            $crate::task::future_fn(move |cx| {
                 use std::task::Poll;
                 use std::future::Future;
 

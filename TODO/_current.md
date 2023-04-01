@@ -1,6 +1,3 @@
-* Refactor `FONTS.register` to return a response var.
-    - response vars can be plugged into an UI more easily then a raw future, and can be awaited just as easy as a future.
-
 * Tests fail some times in `LAYOUT_TEXT.with_context_opt(&mut self.txt.lock().txt, || f(&self.child))` in `LayoutTextNode::with` in `render`.
     - This error was observed before async window init.
 

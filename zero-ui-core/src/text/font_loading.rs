@@ -188,10 +188,15 @@ impl FONTS {
     /// If the font loads correctly a [`FONT_CHANGED_EVENT`] notification is scheduled.
     /// Fonts sourced from a file are not monitored for changes, you can *reload* the font
     /// by calling `register` again with the same font name.
-    pub async fn register(&self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
-        FontFaceLoader::register(custom_font).await?;
-        GENERIC_FONTS_SV.write().notify(FontChange::CustomFonts);
-        Ok(())
+    ///
+    /// The returned response is already set if the font is [`CustomFont::from_bytes`] or [`CustomFont::from_other`] and the other
+    /// is already loaded, otherwise the returned response will update once when the font finishes loading.
+    pub fn register(&self, custom_font: CustomFont) -> ResponseVar<Result<(), Arc<FontLoadingError>>> {
+        task::poll_respond(async move {
+            FontFaceLoader::register(custom_font).await.map_err(Arc::new)?;
+            GENERIC_FONTS_SV.write().notify(FontChange::CustomFonts);
+            Ok(())
+        })
     }
 
     /// Removes a custom font family. If the font faces are not in use it is also unloaded.
