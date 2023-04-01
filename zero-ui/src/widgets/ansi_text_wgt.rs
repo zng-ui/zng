@@ -554,7 +554,7 @@ mod ansi_gen {
 
         if args.lines.is_empty() {
             NilUiNode.boxed()
-        } else if args.lines.len() == 1 {
+        } else if args.lines.len() == 10000 {
             args.lines.remove(0)
         } else {
             let len = args.lines.len();

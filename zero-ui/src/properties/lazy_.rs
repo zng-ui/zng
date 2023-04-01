@@ -240,7 +240,8 @@ impl UiNode for LazyNode {
                 if let Some(lazy_inline) = lazy_inline {
                     fn validate<T: PartialEq + fmt::Debug>(actual: T, lazy: T, name: &'static str) {
                         if actual != lazy {
-                            tracing::error!(
+                            tracing::debug!(
+                                target: "lazy",
                                 "widget `{}` measure inline {name} `{actual:?}` not equal to lazy `{lazy:?}`",
                                 WIDGET.id()
                             );
@@ -258,11 +259,11 @@ impl UiNode for LazyNode {
 
                     intersect_mode = ScrollMode::ALL;
                 } else {
-                    tracing::error!("widget `{}` measure inlined, but lazy did not inline", WIDGET.id());
+                    tracing::debug!(target: "lazy", "widget `{}` measure inlined, but lazy did not inline", WIDGET.id());
                 }
             } else {
                 if lazy_inline.is_some() {
-                    tracing::error!("widget `{}` measure did not inline, but lazy did", WIDGET.id());
+                    tracing::debug!(target: "lazy", "widget `{}` measure did not inline, but lazy did", WIDGET.id());
                 }
 
                 intersect_mode = self.mode.with(|s| s.unwrap_intersect());
@@ -270,14 +271,16 @@ impl UiNode for LazyNode {
 
             if intersect_mode == ScrollMode::ALL {
                 if lazy_size != actual_size {
-                    tracing::error!(
+                    tracing::debug!(
+                        target: "lazy",
                         "widget `{}` measure size `{actual_size:?}` not equal to lazy size `{lazy_size:?}`",
                         WIDGET.id()
                     );
                 }
             } else if intersect_mode == ScrollMode::VERTICAL {
                 if lazy_size.height != actual_size.height {
-                    tracing::error!(
+                    tracing::debug!(
+                        target: "lazy",
                         "widget `{}` measure height `{:?}` not equal to lazy height `{:?}`",
                         WIDGET.id(),
                         actual_size.height,
@@ -288,7 +291,8 @@ impl UiNode for LazyNode {
                 size.width = actual_size.width;
             } else if intersect_mode == ScrollMode::HORIZONTAL {
                 if lazy_size.width != actual_size.width {
-                    tracing::error!(
+                    tracing::debug!(
+                        target: "lazy",
                         "widget `{}` measure width `{:?}` not equal to lazy width `{:?}`",
                         WIDGET.id(),
                         actual_size.width,
@@ -317,13 +321,13 @@ impl UiNode for LazyNode {
             let lazy_inlined = self.children[0].with_context(|| WIDGET.bounds().inline().is_some()).unwrap();
             if wl.inline().is_some() {
                 if !lazy_inlined {
-                    tracing::error!("widget `{}` inlined, but lazy did not inline", WIDGET.id());
+                    tracing::debug!(target: "lazy", "widget `{}` inlined, but lazy did not inline", WIDGET.id());
                 } else {
                     intersect_mode = ScrollMode::ALL;
                 }
             } else {
                 if lazy_inlined {
-                    tracing::error!("widget `{}` layout did not inline, but lazy did", WIDGET.id());
+                    tracing::debug!(target: "lazy", "widget `{}` layout did not inline, but lazy did", WIDGET.id());
                 }
 
                 intersect_mode = self.mode.with(|s| s.unwrap_intersect());
@@ -331,14 +335,16 @@ impl UiNode for LazyNode {
 
             if intersect_mode == ScrollMode::ALL {
                 if lazy_size != actual_size {
-                    tracing::error!(
+                    tracing::debug!(
+                        target: "lazy",
                         "widget `{}` layout size `{actual_size:?}` not equal to lazy size `{lazy_size:?}`",
                         WIDGET.id()
                     );
                 }
             } else if intersect_mode == ScrollMode::VERTICAL {
                 if lazy_size.height != actual_size.height {
-                    tracing::error!(
+                    tracing::debug!(
+                        target: "lazy",
                         "widget `{}` layout height `{:?}` not equal to lazy height `{:?}`",
                         WIDGET.id(),
                         actual_size.height,
@@ -349,7 +355,8 @@ impl UiNode for LazyNode {
                 size.width = actual_size.width;
             } else if intersect_mode == ScrollMode::HORIZONTAL {
                 if lazy_size.width != actual_size.width {
-                    tracing::error!(
+                    tracing::debug!(
+                        target: "lazy",
                         "widget `{}` layout width `{:?}` not equal to lazy width `{:?}`",
                         WIDGET.id(),
                         actual_size.width,

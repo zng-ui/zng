@@ -1,7 +1,4 @@
-* Markdown example, slow scroll wheel and a lazy error.
-    - Error is new, not in master.
-    - Narrowed it down to the lazy `stack!` of the `ansi_text!` using ctrl+shift+i
-        - The lazy height appears correct (18px * 3 = 54px)
+* Implement `FONTS.preload` that is blocking and loads a font list in memory.
 
 * Grouped window loading handle, right now every text takes one, could be something like `FONTS.is_loading` used
   directly in window.
