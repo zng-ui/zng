@@ -115,7 +115,7 @@ pub trait AppRunWindowExt {
     /// # use zero_ui_core::context::WINDOW;
     /// # use zero_ui_core::window::WINDOWS;
     /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
-    /// App::default().run(|| {
+    /// App::default().run(async {
     ///     WINDOWS.open(|| {
     ///         println!("starting app with window {:?}", WINDOW.id());
     ///         window! {
@@ -131,7 +131,7 @@ pub trait AppRunWindowExt {
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     fn run_window(self, new_window: impl FnOnce() -> Window + Send + 'static) {
-        self.run(|| {
+        self.run(async move {
             WINDOWS.open(new_window);
         })
     }

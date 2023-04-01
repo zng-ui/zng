@@ -25,19 +25,17 @@ impl<R: fmt::Debug> fmt::Debug for UiTaskState<R> {
     }
 }
 
-/// Represents a [`Future`] running in the UI thread.
+/// Represents a [`Future`] running in sync with the UI.
 ///
 /// The future [`Waker`], wakes the app event loop and causes an update, in an update handler
-/// [`update`] must be called, if this task waked the app the future is polled once, in widgets [`subscribe`] also
-/// must be called to register the waker update slot.
+/// of the task owner [`update`] is called, if this task waked the app the future is polled once.
 ///
 /// [`Waker`]: std::task::Waker
 /// [`update`]: UiTask::update
-/// [`subscribe`]: UiTask::update
 #[derive(Debug)]
 pub struct UiTask<R>(UiTaskState<R>);
 impl<R> UiTask<R> {
-    /// Create a app thread bound future executor.
+    /// Create a UI bound future executor.
     ///
     /// The `task` is inert and must be polled using [`update`] to start, and it must be polled every
     /// [`UiNode::update`] after that, in widgets the `target` can be set so that the update requests are received.
@@ -45,7 +43,6 @@ impl<R> UiTask<R> {
     /// [`update`]: UiTask::update
     /// [`UiNode::update`]: crate::widget_instance::UiNode::update
     /// [`UiNode::info`]: crate::widget_instance::UiNode::info
-    /// [`subscribe`]: Self::subscribe
     pub fn new<F>(target: Option<WidgetId>, task: F) -> Self
     where
         F: Future<Output = R> + Send + 'static,

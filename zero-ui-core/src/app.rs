@@ -881,13 +881,26 @@ impl<E: AppExtension> AppExtended<E> {
         self
     }
 
-    /// Runs the application calling `start` once at the beginning.
+    /// Starts the app, then starts polling `start` to run.
     ///
     /// This method only returns when the app has exited.
-    pub fn run(mut self, start: impl FnOnce()) {
+    ///
+    /// The `start` task runs in a [`UiTask`] in the app context, note that it only needs to start the app, usually
+    /// by opening a window, the app will keep running after `start` is finished.
+    pub fn run(mut self, start: impl Future<Output = ()> + Send + 'static) {
         let app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
 
-        start();
+        let mut start = UiTask::new(None, start);
+        if start.update().is_none() {
+            // is actually async
+            UPDATES
+                .on_pre_update(app_hn!(|_, handle| {
+                    if start.update().is_some() {
+                        handle.unsubscribe();
+                    }
+                }))
+                .perm();
+        }
 
         app.run_headed();
     }
