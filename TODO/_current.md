@@ -1,8 +1,3 @@
-* Refactor app `WINDOWS.open` to take in a future.
-    - Requests need to be inserted back when not done in one poll?
-        - No, need a new partial window thing, because we need the `WINDOW` context to run the future inside.
-    - Focus requests on async windows also need to be refactored.
-
 * Refactor `FONTS.register` to return a response var.
     - response vars can be plugged into an UI more easily then a raw future, and can be awaited just as easy as a future.
 
