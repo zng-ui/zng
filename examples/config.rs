@@ -19,7 +19,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|| {
+    App::default().run_window(async {
         CONFIG.load(ConfigFile::new("target/tmp/example.config.json"));
         // CONFIG.remove("old.key");
 

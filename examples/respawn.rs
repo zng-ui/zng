@@ -7,7 +7,7 @@ use zero_ui::prelude::*;
 fn main() {
     examples_util::print_info();
     zero_ui_view::init();
-    App::default().run_window(|| {
+    App::default().run_window(async {
         window! {
             title = "View-Process Respawn Example";
             icon = WindowIcon::render(icon);

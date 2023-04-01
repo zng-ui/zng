@@ -15,6 +15,8 @@ pub use vars::*;
 mod service;
 pub use service::*;
 
+use std::future::Future;
+
 pub mod commands;
 
 use crate::{
@@ -89,7 +91,7 @@ impl AppExtension for WindowManager {
 pub trait AppRunWindowExt {
     /// Runs the application event loop and requests a new window.
     ///
-    /// The `new_window` closure runs inside the [`WINDOW`] context of the new window.
+    /// The `new_window` future runs inside the [`WINDOW`] context of the new window, the window opens after the future returns it.
     ///
     /// This method only returns when the app has exited.
     ///
@@ -100,7 +102,7 @@ pub trait AppRunWindowExt {
     /// # use zero_ui_core::context::WINDOW;
     /// # use zero_ui_core::window::AppRunWindowExt;
     /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
-    /// App::default().run_window(|| {
+    /// App::default().run_window(async {
     ///     println!("starting app with window {:?}", WINDOW.id());
     ///     window! {
     ///         title = "Window 1";
@@ -116,7 +118,7 @@ pub trait AppRunWindowExt {
     /// # use zero_ui_core::window::WINDOWS;
     /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
     /// App::default().run(async {
-    ///     WINDOWS.open(|| {
+    ///     WINDOWS.open(async {
     ///         println!("starting app with window {:?}", WINDOW.id());
     ///         window! {
     ///             title = "Window 1";
@@ -127,10 +129,15 @@ pub trait AppRunWindowExt {
     /// ```
     ///
     /// [`WINDOW`]: crate::context::WINDOW
-    fn run_window(self, new_window: impl FnOnce() -> Window + Send + 'static);
+    fn run_window<F>(self, new_window: F)
+    where
+        F: Future<Output = Window> + Send + 'static;
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
-    fn run_window(self, new_window: impl FnOnce() -> Window + Send + 'static) {
+    fn run_window<F>(self, new_window: F)
+    where
+        F: Future<Output = Window> + Send + 'static,
+    {
         self.run(async move {
             WINDOWS.open(new_window);
         })
@@ -149,7 +156,9 @@ pub trait HeadlessAppWindowExt {
     /// Returns the [`WindowId`] of the new window.
     ///
     /// [`WINDOW`]: crate::context::WINDOW
-    fn open_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static) -> WindowId;
+    fn open_window<F>(&mut self, new_window: F) -> WindowId
+    where
+        F: Future<Output = Window> + Send + 'static;
 
     /// Cause the headless window to think it is focused in the screen.
     fn focus_window(&mut self, window_id: WindowId);
@@ -165,10 +174,15 @@ pub trait HeadlessAppWindowExt {
     fn close_window(&mut self, window_id: WindowId) -> bool;
 
     /// Open a new headless window and update the app until the window closes.
-    fn run_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static);
+    fn run_window<F>(&mut self, new_window: F)
+    where
+        F: Send + Future<Output = Window> + 'static;
 }
 impl HeadlessAppWindowExt for HeadlessApp {
-    fn open_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static) -> WindowId {
+    fn open_window<F>(&mut self, new_window: F) -> WindowId
+    where
+        F: Future<Output = Window> + Send + 'static,
+    {
         let response = WINDOWS.open(new_window);
         self.run_task(async move {
             response.wait_rsp().await;
@@ -218,7 +232,10 @@ impl HeadlessAppWindowExt for HeadlessApp {
         closed
     }
 
-    fn run_window(&mut self, new_window: impl FnOnce() -> Window + Send + 'static) {
+    fn run_window<F>(&mut self, new_window: F)
+    where
+        F: Future<Output = Window> + Send + 'static,
+    {
         let window_id = self.open_window(new_window);
         while WINDOWS.is_open(window_id) {
             if let ControlFlow::Exit = self.update(true) {

@@ -20,7 +20,7 @@ fn headless_example() {
     // open headless with renderer flag, this causes the view-process to start.
     let mut app = App::default().run_headless(true);
 
-    app.run_window(|| {
+    app.run_window(async {
         window! {
             // the window content is the image.
             child = image();

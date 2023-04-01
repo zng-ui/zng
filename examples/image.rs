@@ -21,7 +21,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|| {
+    App::default().run_window(async {
         // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
         // in here and overridden for each image with the "img_limits" property.
         IMAGES.limits().modify(|l| {
@@ -248,7 +248,7 @@ fn large_image() -> impl UiNode {
     button! {
         child = text!("Large Image (205MB download)");
         on_click = hn!(|_| {
-            WINDOWS.open(||img_window(
+            WINDOWS.open(async {img_window(
                 "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
                 image! {
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
@@ -258,7 +258,7 @@ fn large_image() -> impl UiNode {
                         tracing::error!(target: "unexpected", "{}", args.error);
                     })
                 }
-            ));
+            )});
         });
     }
 }
@@ -267,20 +267,22 @@ fn panorama_image() -> impl UiNode {
     button! {
         child = text!("Panorama Image (100MB download)");
         on_click = hn!(|_| {
-            WINDOWS.open(||img_window(
-                "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
-                scroll! {
-                    mode = ScrollMode::HORIZONTAL;
-                    child = image! {
-                        img_fit = ImageFit::Fill;
-                        source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
-                        img_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
-                        on_error = hn!(|args: &ImageErrorArgs| {
-                            tracing::error!(target: "unexpected", "{}", args.error);
-                        });
-                    };
-                }
-            ));
+            WINDOWS.open(async {
+                img_window(
+                    "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
+                    scroll! {
+                        mode = ScrollMode::HORIZONTAL;
+                        child = image! {
+                            img_fit = ImageFit::Fill;
+                            source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
+                            img_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
+                            on_error = hn!(|args: &ImageErrorArgs| {
+                                tracing::error!(target: "unexpected", "{}", args.error);
+                            });
+                        };
+                    }
+                )
+            });
         });
     }
 }
@@ -292,30 +294,32 @@ fn block_window_load_image() -> impl UiNode {
         enabled = enabled.clone();
         on_click = hn!(|_| {
             enabled.set(false);
-            WINDOWS.open(clone_move!(enabled, || img_window! {
-                title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
-                state = WindowState::Normal;
+            WINDOWS.open(async_clone_move!(enabled, {
+                img_window! {
+                    title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
+                    state = WindowState::Normal;
 
-                child = scroll! {
-                    child = image! {
+                    child = scroll! {
+                        child = image! {
 
-                        // block window load until the image is ready to present or 5 minutes have elapsed.
-                        // usually you want to set a shorter deadline, `true` converts to 1 second.
-                        img_block_window_load = 5.minutes();
+                            // block window load until the image is ready to present or 5 minutes have elapsed.
+                            // usually you want to set a shorter deadline, `true` converts to 1 second.
+                            img_block_window_load = 5.minutes();
 
-                        img_fit = ImageFit::Fill;
-                        source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
-                        img_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
+                            img_fit = ImageFit::Fill;
+                            source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
+                            img_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
 
-                        on_error = hn!(|args: &ImageErrorArgs| {
-                            tracing::error!(target: "unexpected", "{}", args.error);
-                        });
-                    }
-                };
+                            on_error = hn!(|args: &ImageErrorArgs| {
+                                tracing::error!(target: "unexpected", "{}", args.error);
+                            });
+                        }
+                    };
 
-                on_load = hn!(enabled, |_| {
-                    enabled.set(true);
-                });
+                    on_load = hn!(enabled, |_| {
+                        enabled.set(true);
+                    });
+                }
             }));
         });
     }

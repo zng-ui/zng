@@ -12,7 +12,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|| {
+    App::default().run_window(async {
         window! {
             title = "Gradient Example";
             auto_size = true;

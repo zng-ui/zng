@@ -121,7 +121,7 @@ impl ImageManager {
         for req in images.render.requests.drain(..) {
             if let Some(img) = req.image.upgrade() {
                 WINDOWS.open_headless(
-                    move || {
+                    async move {
                         let ctx = ImageRenderCtx::new();
                         let retain = ctx.retain.clone();
                         WINDOW.set_state(&IMAGE_RENDER_ID, ctx);

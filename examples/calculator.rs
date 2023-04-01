@@ -17,8 +17,8 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|| {
-        set_fallback_font();
+    App::default().run_window(async {
+        set_fallback_font().await;
 
         let calc = var(Calculator::default());
         window! {
@@ -233,31 +233,29 @@ impl Calculator {
 }
 
 /// set custom fallback font for the ⌫ symbol.
-fn set_fallback_font() {
+async fn set_fallback_font() {
     use zero_ui::core::text::*;
+    let und = lang!(und);
 
-    task::spawn(async {
-        let und = lang!(und);
-        if FONTS
-            .list(
-                &FontNames::system_ui(&und),
-                FontStyle::Normal,
-                FontWeight::NORMAL,
-                FontStretch::NORMAL,
-                &und,
-            )
-            .wait_rsp()
-            .await
-            .iter()
-            .all(|f| f.font_kit().unwrap().glyph_for_char('⌫').is_none())
-        {
-            // OS UI and fallback fonts do not support `⌫`, load custom font that does.
+    if FONTS
+        .list(
+            &FontNames::system_ui(&und),
+            FontStyle::Normal,
+            FontWeight::NORMAL,
+            FontStretch::NORMAL,
+            &und,
+        )
+        .wait_rsp()
+        .await
+        .iter()
+        .all(|f| f.font_kit().unwrap().glyph_for_char('⌫').is_none())
+    {
+        // OS UI and fallback fonts do not support `⌫`, load custom font that does.
 
-            static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
-            let fallback = zero_ui::core::text::CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
+        static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
+        let fallback = zero_ui::core::text::CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
 
-            FONTS.register(fallback).await.unwrap();
-            FONTS.generics().set_fallback(und, "fallback");
-        }
-    });
+        FONTS.register(fallback).await.unwrap();
+        FONTS.generics().set_fallback(und, "fallback");
+    }
 }

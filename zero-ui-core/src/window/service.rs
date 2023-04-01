@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::sync::Arc;
 use std::{fmt, mem};
 
@@ -20,6 +21,7 @@ use crate::crate_util::{IdMap, IdSet};
 use crate::event::{AnyEventArgs, EventUpdate};
 use crate::image::{Image, ImageVar};
 use crate::render::RenderMode;
+use crate::task::ui::UiTask;
 use crate::task::ParallelIteratorExt;
 use crate::timer::{DeadlineHandle, TIMERS};
 use crate::widget_info::WidgetInfoTree;
@@ -64,16 +66,11 @@ impl WindowsService {
         }
     }
 
-    fn open_impl(
-        &mut self,
-        id: WindowId,
-        new_window: impl FnOnce() -> Window + Send + 'static,
-        force_headless: Option<WindowMode>,
-    ) -> ResponseVar<WindowOpenArgs> {
+    fn open_impl(&mut self, id: WindowId, new_window: UiTask<Window>, force_headless: Option<WindowMode>) -> ResponseVar<WindowOpenArgs> {
         let (responder, response) = response_var();
         let request = OpenWindowRequest {
             id,
-            new: Mutex::new(Box::new(new_window)),
+            new: Mutex::new(new_window),
             force_headless,
             responder,
             loading_handle: WindowLoading::new(),
@@ -230,16 +227,18 @@ impl WINDOWS {
 
     // Requests a new window.
     ///
-    /// The `new_window` closure runs inside the new [`WINDOW`] context.
+    /// The `new_window` future runs in a [`UiTask`] inside the new [`WINDOW`] context.
     ///
     /// Returns a response variable that will update once when the window is opened, note that while the `window_id` is
     /// available in the `new_window` argument already, the window is only available in this service after
     /// the returned variable updates.
     ///
-    /// An update cycle is processed between the call to `new_window` and the window init, this means that you
+    /// An update cycle is processed between the end of `new_window` and the window init, this means that you
     /// can use the context [`WINDOW`] to set variables that will be read on init with the new value.
-    pub fn open(&self, new_window: impl FnOnce() -> Window + Send + 'static) -> ResponseVar<WindowOpenArgs> {
-        WINDOWS_SV.write().open_impl(WindowId::new_unique(), new_window, None)
+    pub fn open(&self, new_window: impl Future<Output = Window> + Send + 'static) -> ResponseVar<WindowOpenArgs> {
+        WINDOWS_SV
+            .write()
+            .open_impl(WindowId::new_unique(), UiTask::new(None, new_window), None)
     }
 
     /// Requests a new window with pre-defined ID.
@@ -250,11 +249,11 @@ impl WINDOWS {
     pub fn open_id(
         &self,
         window_id: impl Into<WindowId>,
-        new_window: impl FnOnce() -> Window + Send + 'static,
+        new_window: impl Future<Output = Window> + Send + 'static,
     ) -> ResponseVar<WindowOpenArgs> {
         let window_id = window_id.into();
         self.assert_id_unused(window_id);
-        WINDOWS_SV.write().open_impl(window_id, new_window, None)
+        WINDOWS_SV.write().open_impl(window_id, UiTask::new(None, new_window), None)
     }
 
     /// Requests a new headless window.
@@ -265,10 +264,14 @@ impl WINDOWS {
     /// creates headless windows even in a headed app.
     ///
     /// [`open`]: WINDOWS::open
-    pub fn open_headless(&self, new_window: impl FnOnce() -> Window + Send + 'static, with_renderer: bool) -> ResponseVar<WindowOpenArgs> {
+    pub fn open_headless(
+        &self,
+        new_window: impl Future<Output = Window> + Send + 'static,
+        with_renderer: bool,
+    ) -> ResponseVar<WindowOpenArgs> {
         WINDOWS_SV.write().open_impl(
             WindowId::new_unique(),
-            new_window,
+            UiTask::new(None, new_window),
             Some(if with_renderer {
                 WindowMode::HeadlessWithRenderer
             } else {
@@ -285,14 +288,14 @@ impl WINDOWS {
     pub fn open_headless_id(
         &self,
         window_id: impl Into<WindowId>,
-        new_window: impl FnOnce() -> Window + Send + 'static,
+        new_window: impl Future<Output = Window> + Send + 'static,
         with_renderer: bool,
     ) -> ResponseVar<WindowOpenArgs> {
         let window_id = window_id.into();
         self.assert_id_unused(window_id);
         WINDOWS_SV.write().open_impl(
             window_id,
-            new_window,
+            UiTask::new(None, new_window),
             Some(if with_renderer {
                 WindowMode::HeadlessWithRenderer
             } else {
@@ -504,7 +507,7 @@ impl WINDOWS {
     pub fn focus_or_open(
         &self,
         window_id: impl Into<WindowId>,
-        open: impl FnOnce() -> Window + Send + 'static,
+        open: impl Future<Output = Window> + Send + 'static,
     ) -> Option<ResponseVar<WindowOpenArgs>> {
         let window_id = window_id.into();
         if self.focus(window_id).is_ok() {
@@ -947,7 +950,7 @@ impl AppWindowInfo {
 }
 struct OpenWindowRequest {
     id: WindowId,
-    new: Mutex<Box<dyn FnOnce() -> Window + Send>>, // never locked, makes `OpenWindowRequest: Sync`
+    new: Mutex<UiTask<Window>>, // never locked, makes `OpenWindowRequest: Sync`
     force_headless: Option<WindowMode>,
     responder: ResponderVar<WindowOpenArgs>,
     loading_handle: WindowLoading,
@@ -967,7 +970,7 @@ impl AppWindow {
         id: WindowId,
         mode: WindowMode,
         color_scheme: ColorScheme,
-        new: Box<dyn FnOnce() -> Window>,
+        mut new: UiTask<Window>,
         loading: WindowLoading,
     ) -> (Self, AppWindowInfo) {
         let primary_scale_factor = MONITORS
@@ -980,7 +983,10 @@ impl AppWindow {
         let vars = WindowVars::new(WINDOWS_SV.read().default_render_mode.get(), primary_scale_factor, color_scheme);
         ctx.with_state(|s| s.borrow_mut().set(&WINDOW_VARS_ID, vars.clone()));
 
-        let window = WINDOW.with_context(&ctx, new);
+        let window = WINDOW.with_context(&ctx, || {
+            new.update();
+            new.into_result().unwrap_or_else(|_| panic!("!!: TODO, actual async"))
+        });
 
         ctx.set_widget_tree(WidgetInfoTree::wgt(id, window.id));
 

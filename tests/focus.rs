@@ -1646,7 +1646,7 @@ impl<E: AppExtension> TestAppBuilder<E> {
             (a, b)
         };
 
-        let window_id = app.open_window(move || window);
+        let window_id = app.open_window(async move { window });
         TestApp {
             app,
             window_id,
@@ -1680,7 +1680,7 @@ impl TestApp {
     }
 
     pub fn open_window(&mut self, child: impl UiNode) -> WindowId {
-        let id = self.app.open_window(|| {
+        let id = self.app.open_window(async {
             window! {
                 child
             }

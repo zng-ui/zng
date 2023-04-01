@@ -12,7 +12,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|| {
+    App::default().run_window(async {
         let count = TIMERS.interval(1.secs(), false).map(move |t| {
             let count = 10 - t.count();
             if count == 0 {

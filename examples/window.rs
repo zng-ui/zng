@@ -19,10 +19,10 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(main_window);
+    App::default().run_window(main_window());
 }
 
-fn main_window() -> Window {
+async fn main_window() -> Window {
     // WINDOWS.exit_on_last_close().set(false);
 
     let window_vars = WINDOW_CTRL.vars();
@@ -181,7 +181,8 @@ fn screenshot() -> impl UiNode {
                 enabled.set(false);
 
                 println!("taking `screenshot.png` using a new headless window ..");
-                WINDOWS.open_headless(clone_move!(enabled, || window! {
+                WINDOWS.open_headless(async_clone_move!(enabled, {
+                    window! {
                         size = (500, 400);
                         background_color = colors::DARK_GREEN;
                         font_size = 72;
@@ -199,7 +200,8 @@ fn screenshot() -> impl UiNode {
                             WINDOW_CTRL.close();
                             enabled.set(true);
                         });
-                    }),
+                    }
+                }),
                     true
                 );
             });
@@ -404,16 +406,18 @@ fn misc() -> impl UiNode {
                         child_count += 1;
 
                         let parent = WINDOW.id();
-                        WINDOWS.open(move || window! {
-                            title = formatx!("Window Example - Child {child_count}");
-                            size = (400, 300);
-                            parent;
-                            child_align = Align::CENTER;
-                            start_position = StartPosition::CenterParent;
-                            child = text! {
-                                txt = formatx!("Child {child_count}");
-                                font_size = 20;
-                            };
+                        WINDOWS.open(async move {
+                            window! {
+                                title = formatx!("Window Example - Child {child_count}");
+                                size = (400, 300);
+                                parent;
+                                child_align = Align::CENTER;
+                                start_position = StartPosition::CenterParent;
+                                child = text! {
+                                    txt = formatx!("Child {child_count}");
+                                    font_size = 20;
+                                };
+                            }
                         });
                     })
                 }
@@ -426,14 +430,16 @@ fn misc() -> impl UiNode {
                     on_click = hn!(|_| {
                         other_count += 1;
 
-                        WINDOWS.open(move || window! {
-                            title = formatx!("Window Example - Other {other_count}");
-                            size = (400, 300);
-                            child_align = Align::CENTER;
-                            child = text! {
-                                txt = formatx!("Other {other_count}");
-                                font_size = 20;
-                            };
+                        WINDOWS.open(async move {
+                            window! {
+                                title = formatx!("Window Example - Other {other_count}");
+                                size = (400, 300);
+                                child_align = Align::CENTER;
+                                child = text! {
+                                    txt = formatx!("Other {other_count}");
+                                    font_size = 20;
+                                };
+                            }
                         });
                     })
                 }

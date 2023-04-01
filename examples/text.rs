@@ -17,7 +17,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|| {
+    App::default().run_window(async {
         let fs = var(Length::Pt(11.0));
 
         window! {
