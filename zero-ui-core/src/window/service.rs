@@ -38,12 +38,19 @@ pub(super) struct WindowsService {
 
     windows: IdMap<WindowId, AppWindow>,
     windows_info: IdMap<WindowId, AppWindowInfo>,
+
+    open_loading: IdMap<WindowId, WindowLoading>,
     open_requests: Vec<OpenWindowRequest>,
+    open_tasks: Vec<AppWindowTask>,
+
     close_requests: Vec<CloseWindowRequest>,
     close_responders: IdMap<WindowId, Vec<ResponderVar<CloseWindowResult>>>,
+
     focus_request: Option<WindowId>,
     bring_to_top_requests: Vec<WindowId>,
+
     frame_images: Vec<ArcVar<Image>>,
+
     loading_deadline: Option<DeadlineHandle>,
     latest_color_scheme: ColorScheme,
 }
@@ -55,6 +62,8 @@ impl WindowsService {
             parallel: var(ParallelWin::default()),
             windows: IdMap::default(),
             windows_info: IdMap::default(),
+            open_loading: IdMap::new(),
+            open_tasks: vec![],
             open_requests: Vec::with_capacity(1),
             close_responders: IdMap::default(),
             close_requests: vec![],
@@ -73,9 +82,9 @@ impl WindowsService {
             new: Mutex::new(new_window),
             force_headless,
             responder,
-            loading_handle: WindowLoading::new(),
         };
         self.open_requests.push(request);
+        self.open_loading.insert(id, WindowLoading::new());
         UPDATES.update_ext();
 
         response
@@ -92,9 +101,9 @@ impl WindowsService {
 
             // drop timer to nearest deadline, will recreate in the next update.
             self.loading_deadline = None;
-        } else if let Some(request) = self.open_requests.iter_mut().find(|r| r.id == window_id) {
+        } else if let Some(h) = self.open_loading.get_mut(&window_id) {
             // window not opened yet
-            handle = Some(request.loading_handle.new_handle(UPDATES.sender(), deadline));
+            handle = Some(h.new_handle(UPDATES.sender(), deadline));
         }
 
         handle
@@ -145,9 +154,18 @@ impl WindowsService {
         }
     }
 
-    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<CloseWindowRequest>, Option<WindowId>, Vec<WindowId>) {
+    fn take_requests(
+        &mut self,
+    ) -> (
+        Vec<OpenWindowRequest>,
+        Vec<AppWindowTask>,
+        Vec<CloseWindowRequest>,
+        Option<WindowId>,
+        Vec<WindowId>,
+    ) {
         (
             mem::take(&mut self.open_requests),
+            mem::take(&mut self.open_tasks),
             mem::take(&mut self.close_requests),
             self.focus_request.take(),
             mem::take(&mut self.bring_to_top_requests),
@@ -307,7 +325,7 @@ impl WINDOWS {
     #[track_caller]
     fn assert_id_unused(&self, id: WindowId) {
         let w = WINDOWS_SV.read();
-        if w.windows_info.contains_key(&id) || w.open_requests.iter().any(|r| r.id == id) {
+        if w.windows_info.contains_key(&id) || w.open_loading.contains_key(&id) {
             panic!("window id `{id:?}` is already in use")
         }
     }
@@ -435,7 +453,7 @@ impl WINDOWS {
         let w = WINDOWS_SV.read();
         if let Some(w) = w.windows_info.get(&window_id) {
             Ok(w.is_focused)
-        } else if w.open_requests.iter().any(|r| r.id == window_id) {
+        } else if w.open_loading.contains_key(&window_id) {
             Ok(false)
         } else {
             Err(WindowNotFound(window_id))
@@ -467,12 +485,20 @@ impl WINDOWS {
         WINDOWS_SV.read().windows_info.contains_key(&window_id.into())
     }
 
-    /// Returns `true` if a pending window open request is associated with the ID.
+    /// Returns `true` if a pending window open request or awaiting open task is associated with the ID.
     ///
-    /// Window open requests are processed after each update.
-    pub fn is_open_request(&self, window_id: impl Into<WindowId>) -> bool {
+    /// Window open requests start polling after each update.
+    pub fn is_opening(&self, window_id: impl Into<WindowId>) -> bool {
         let window_id = window_id.into();
-        WINDOWS_SV.read().open_requests.iter().any(|r| r.id == window_id)
+        let sv = WINDOWS_SV.read();
+        sv.open_loading.contains_key(&window_id)
+    }
+
+    /// Returns `true` if the window is not open or has not finished loading.
+    pub fn is_loading(&self, window_id: impl Into<WindowId>) -> bool {
+        let window_id = window_id.into();
+        let sv = WINDOWS_SV.read();
+        sv.open_loading.contains_key(&window_id) || sv.windows_info.get(&window_id).map(|i| i.is_loaded).unwrap_or(false)
     }
 
     /// Returns `true` if the window is open and loaded.
@@ -513,8 +539,12 @@ impl WINDOWS {
         if self.focus(window_id).is_ok() {
             None
         } else {
-            let r = self.open_id(window_id, open);
-            WINDOWS_SV.write().focus_request = Some(window_id);
+            let r = self.open_id(window_id, async move {
+                let w = open.await;
+                // keep the request as close to the actual open as possible
+                WINDOWS.focus(WINDOW.id()).unwrap();
+                w
+            });
             Some(r)
         }
     }
@@ -738,6 +768,7 @@ impl WINDOWS {
                     .open_requests
                     .iter()
                     .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
+                && !wns.open_tasks.iter().any(|t| matches!(t.mode, WindowMode::Headed))
             {
                 // fulfill `exit_on_last_close`
                 APP_PROCESS.exit();
@@ -787,7 +818,7 @@ impl WINDOWS {
             return;
         }
 
-        let ((open, close, focus, bring_to_top), color_scheme) = {
+        let ((open, mut open_tasks, close, focus, bring_to_top), color_scheme) = {
             let mut wns = WINDOWS_SV.write();
             (wns.take_requests(), wns.latest_color_scheme)
         };
@@ -804,20 +835,41 @@ impl WINDOWS {
                 (mode, _) => mode,
             };
 
-            let (window, info) = AppWindow::new(r.id, window_mode, color_scheme, r.new.into_inner(), r.loading_handle);
+            let task = AppWindowTask::new(r.id, window_mode, color_scheme, r.new.into_inner(), r.responder);
+            open_tasks.push(task);
+        }
 
-            let args = WindowOpenArgs::now(window.ctx.id());
-            {
-                let mut wns = WINDOWS_SV.write();
-                if wns.windows.insert(window.ctx.id(), window).is_some() {
-                    // id conflict resolved on request.
-                    unreachable!();
+        // update open tasks.
+        let mut any_ready = false;
+        for task in &mut open_tasks {
+            let ready = task.update();
+            any_ready |= ready;
+        }
+        if any_ready {
+            let mut wns = WINDOWS_SV.write();
+            for mut task in open_tasks {
+                if task.is_ready() {
+                    let window_id = task.ctx.id();
+                    let (window, info, responder) = task.finish(wns.open_loading.remove(&window_id).unwrap());
+
+                    let args = WindowOpenArgs::now(window_id);
+                    if wns.windows.insert(window_id, window).is_some() {
+                        // id conflict resolved on request.
+                        unreachable!();
+                    }
+                    wns.windows_info.insert(info.id, info);
+
+                    responder.respond(args.clone());
+                    WINDOW_OPEN_EVENT.notify(args);
+                } else {
+                    let mut wns = WINDOWS_SV.write();
+                    wns.open_tasks.push(task);
                 }
-                wns.windows_info.insert(info.id, info);
             }
-
-            r.responder.respond(args.clone());
-            WINDOW_OPEN_EVENT.notify(args);
+        } else {
+            let mut wns = WINDOWS_SV.write();
+            debug_assert!(wns.open_tasks.is_empty());
+            wns.open_tasks = open_tasks;
         }
 
         // notify close requests, the request is fulfilled or canceled
@@ -953,26 +1005,26 @@ struct OpenWindowRequest {
     new: Mutex<UiTask<Window>>, // never locked, makes `OpenWindowRequest: Sync`
     force_headless: Option<WindowMode>,
     responder: ResponderVar<WindowOpenArgs>,
-    loading_handle: WindowLoading,
 }
 struct CloseWindowRequest {
     responder: ResponderVar<CloseWindowResult>,
     windows: IdSet<WindowId>,
 }
 
-/// Window context owner.
-struct AppWindow {
-    ctrl: Mutex<WindowCtrl>, // never locked, makes `AppWindow: Sync`.
-    pub(super) ctx: WindowCtx,
+struct AppWindowTask {
+    ctx: WindowCtx,
+    mode: WindowMode,
+    task: Mutex<UiTask<Window>>, // never locked, used to make `AppWindowTask: Sync`
+    responder: ResponderVar<WindowOpenArgs>,
 }
-impl AppWindow {
-    pub fn new(
+impl AppWindowTask {
+    fn new(
         id: WindowId,
         mode: WindowMode,
         color_scheme: ColorScheme,
-        mut new: UiTask<Window>,
-        loading: WindowLoading,
-    ) -> (Self, AppWindowInfo) {
+        new: UiTask<Window>,
+        responder: ResponderVar<WindowOpenArgs>,
+    ) -> Self {
         let primary_scale_factor = MONITORS
             .primary_monitor()
             .map(|m| m.scale_factor().get())
@@ -983,12 +1035,34 @@ impl AppWindow {
         let vars = WindowVars::new(WINDOWS_SV.read().default_render_mode.get(), primary_scale_factor, color_scheme);
         ctx.with_state(|s| s.borrow_mut().set(&WINDOW_VARS_ID, vars.clone()));
 
-        let window = WINDOW.with_context(&ctx, || {
-            new.update();
-            new.into_result().unwrap_or_else(|_| panic!("!!: TODO, actual async"))
+        Self {
+            ctx,
+            mode,
+            responder,
+            task: Mutex::new(new),
+        }
+    }
+
+    fn is_ready(&mut self) -> bool {
+        self.task.get_mut().is_ready()
+    }
+
+    fn update(&mut self) -> bool {
+        WINDOW.with_context(&self.ctx, || {
+            self.task.get_mut().update();
         });
+        self.task.get_mut().is_ready()
+    }
+
+    fn finish(self, loading: WindowLoading) -> (AppWindow, AppWindowInfo, ResponderVar<WindowOpenArgs>) {
+        let window = self.task.into_inner().into_result().unwrap_or_else(|_| panic!());
+        let mut ctx = self.ctx;
+        let mode = self.mode;
+        let id = ctx.id();
 
         ctx.set_widget_tree(WidgetInfoTree::wgt(id, window.id));
+
+        let vars = ctx.with_state(|s| s.borrow().get_clone(&WINDOW_VARS_ID)).unwrap();
 
         if window.kiosk {
             vars.chrome().set_ne(WindowChrome::None);
@@ -1003,15 +1077,22 @@ impl AppWindow {
         let root_id = window.id;
         let ctrl = WindowCtrl::new(&vars, commands, mode, window);
 
-        let window = Self {
+        let window = AppWindow {
             ctrl: Mutex::new(ctrl),
             ctx,
         };
         let info = AppWindowInfo::new(id, root_id, mode, vars, loading);
 
-        (window, info)
+        (window, info, self.responder)
     }
+}
 
+/// Window context owner.
+struct AppWindow {
+    ctrl: Mutex<WindowCtrl>, // never locked, makes `AppWindow: Sync`.
+    ctx: WindowCtx,
+}
+impl AppWindow {
     fn ctrl_in_ctx(&mut self, action: impl FnOnce(&mut WindowCtrl)) {
         let info_update = WINDOW.with_context(&self.ctx, || {
             action(self.ctrl.get_mut());
