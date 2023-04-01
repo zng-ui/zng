@@ -1,13 +1,4 @@
-* Implement `FONTS.preload` that is blocking or async (but not response) and loads a font list in memory.
-    - Needs to block inside an app cycle without deadlocking awaiting `ResponseVar` update.
-
-* Grouped window loading handle, right now every text takes one, could be something like `FONTS.is_loading` used
-  directly in window.
-
-* Review !!: TODO.
-* Test all.
-* Merge.
-
+* Refactor app `run`, `run_window` and `WINDOWS.open` to take in a future.
 * Refactor text shaping cache to avoid write locks.
 
 * Parallel layout for more panels.
