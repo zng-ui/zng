@@ -234,7 +234,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                     let tree = WINDOW.widget_tree();
                     let _ = tree
                         .root()
-                        .spatial_iter(clone_move!(fails, hits, |w| {
+                        .spatial_iter(clmv!(fails, hits, |w| {
                             let bounds = w.inner_bounds();
                             let hit = bounds.contains(pt);
                             if hit {

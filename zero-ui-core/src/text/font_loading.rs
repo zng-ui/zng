@@ -1339,7 +1339,7 @@ impl FontFaceLoader {
             return cached;
         }
 
-        let result = task::wait_respond(clone_move!(font_name, || {
+        let result = task::wait_respond(clmv!(font_name, || {
             let handle = match Self::get_system(&font_name, style, weight, stretch) {
                 Some(h) => h,
                 None => {

@@ -181,7 +181,7 @@ fn screenshot() -> impl UiNode {
                 enabled.set(false);
 
                 println!("taking `screenshot.png` using a new headless window ..");
-                WINDOWS.open_headless(async_clone_move!(enabled, {
+                WINDOWS.open_headless(async_clmv!(enabled, {
                     window! {
                         size = (500, 400);
                         background_color = colors::DARK_GREEN;

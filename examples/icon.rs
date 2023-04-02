@@ -166,7 +166,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                             direction = StackDirection::left_to_right();
                             spacing = 5;
                             children_align = Align::TOP_LEFT;
-                            children = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
+                            children = [64, 48, 32, 24, 16].into_iter().map(clmv!(ico, |size| {
                                 stack! {
                                     direction = StackDirection::top_to_bottom();
                                     spacing = 3;
@@ -193,7 +193,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                             direction = StackDirection::left_to_right();
                             spacing = 5;
                             children_align = Align::TOP_LEFT;
-                            children = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
+                            children = [64, 48, 32, 24, 16].into_iter().map(clmv!(ico, |size| {
                                 stack! {
                                     direction = StackDirection::top_to_bottom();
                                     spacing = 3;

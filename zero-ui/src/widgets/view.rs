@@ -358,7 +358,7 @@ pub enum DataUpdate<D> {
 
 /// <span data-del-macro-root></span> Declares a widget generator closure.
 ///
-/// The output type is a [`WidgetGenerator`], the closure is [`clone_move!`].
+/// The output type is a [`WidgetGenerator`], the closure is [`clmv!`].
 ///
 /// # Examples
 ///
@@ -380,11 +380,11 @@ pub enum DataUpdate<D> {
 /// ```
 ///
 /// [`WidgetGenerator`]: crate::widgets::WidgetGenerator
-/// [`clone_move!`]: crate::core::clone_move
+/// [`clmv!`]: crate::core::clmv
 #[macro_export]
 macro_rules! wgt_gen {
     ($($tt:tt)+) => {
-        $crate::widgets::WidgetGenerator::new($crate::core::clone_move! {
+        $crate::widgets::WidgetGenerator::new($crate::core::clmv! {
             $($tt)+
         })
     }

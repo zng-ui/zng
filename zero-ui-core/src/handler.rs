@@ -7,7 +7,7 @@
 //!
 //! Macros are provided for declaring the various flavors of handlers, [`hn!`], [`hn_once!`], [`async_hn!`], [`async_hn_once!`]
 //! for widget contexts and [`app_hn!`], [`app_hn_once!`], [`async_app_hn!`], [`async_app_hn_once!`] for the app context. These
-//! macros also build on top of the primitive macros [`clone_move!`], [`async_clone_move_fn!`] and [`async_clone_move_fn_once!`] to
+//! macros also build on top of the primitive macros [`clmv!`], [`async_clmv_fn!`] and [`async_clmv_fn_once!`] to
 //! provide a very easy way to *clone-move* captured variables into the handler.
 
 use std::any::Any;
@@ -128,7 +128,7 @@ where
 
 ///<span data-del-macro-root></span> Declare a mutable *clone-move* event handler.
 ///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clone_move!`] so
+/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clmv!`] so
 /// the input is the same syntax.
 ///
 /// # Examples
@@ -162,7 +162,7 @@ where
 /// # on_click }
 /// ```
 ///
-/// Internally the [`clone_move!`] macro is used so you can *clone-move* variables into the handler.
+/// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
 /// # use zero_ui_core::gesture::ClickArgs;
@@ -187,11 +187,11 @@ where
 /// ```
 ///
 /// In the example above only a clone of `foo` is moved into the handler. Note that handlers always capture by move, if `foo` was not
-/// listed in the *clone-move* section it would not be available after the handler is created. See [`clone_move!`] for details.
+/// listed in the *clone-move* section it would not be available after the handler is created. See [`clmv!`] for details.
 #[macro_export]
 macro_rules! hn {
     ($($tt:tt)+) => {
-        $crate::handler::hn($crate::clone_move!{ $($tt)+ })
+        $crate::handler::hn($crate::clmv!{ $($tt)+ })
     }
 }
 #[doc(inline)]
@@ -236,7 +236,7 @@ where
 
 ///<span data-del-macro-root></span> Declare a *clone-move* event handler that is only called once.
 ///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clone_move!`] so
+/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clmv!`] so
 /// the input is the same syntax.
 ///
 /// # Examples
@@ -280,7 +280,7 @@ where
 #[macro_export]
 macro_rules! hn_once {
     ($($tt:tt)+) => {
-        $crate::handler::hn_once($crate::clone_move! { $($tt)+ })
+        $crate::handler::hn_once($crate::clmv! { $($tt)+ })
     }
 }
 #[doc(inline)]
@@ -342,7 +342,7 @@ where
 
 ///<span data-del-macro-root></span> Declare an async *clone-move* event handler.
 ///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clone_move_fn!`] so
+/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clmv_fn!`] so
 /// the input is the same syntax.
 ///
 /// # Examples
@@ -385,7 +385,7 @@ where
 /// # on_click }
 /// ```
 ///
-/// Internally the [`async_clone_move_fn!`] macro is used so you can *clone-move* variables into the handler.
+/// Internally the [`async_clmv_fn!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
 /// # use zero_ui_core::gesture::ClickArgs;
@@ -419,7 +419,7 @@ where
 /// ```
 ///
 /// In the example above only a clone of `enabled` is moved into the handler. Note that handlers always capture by move, if `enabled` was not
-/// listed in the *clone-move* section it would not be available after the handler is created. See [`async_clone_move_fn!`] for details.
+/// listed in the *clone-move* section it would not be available after the handler is created. See [`async_clmv_fn!`] for details.
 ///
 /// The example also demonstrates a common pattern with async handlers, most events are only raised when the widget is enabled, so you can
 /// disable the widget while the async task is running. This way you don't block the UI running a task but the user cannot spawn a second
@@ -434,7 +434,7 @@ where
 #[macro_export]
 macro_rules! async_hn {
     ($($tt:tt)+) => {
-        $crate::handler::async_hn($crate::async_clone_move_fn! { $($tt)+ })
+        $crate::handler::async_hn($crate::async_clmv_fn! { $($tt)+ })
     }
 }
 #[doc(inline)]
@@ -510,7 +510,7 @@ where
 
 ///<span data-del-macro-root></span> Declare an async *clone-move* event handler that is only called once.
 ///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clone_move_fn_once!`] so
+/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clmv_fn_once!`] so
 /// the input is the same syntax.
 ///
 /// # Examples
@@ -565,7 +565,7 @@ where
 #[macro_export]
 macro_rules! async_hn_once {
     ($($tt:tt)+) => {
-        $crate::handler::async_hn_once($crate::async_clone_move_fn_once! { $($tt)+ })
+        $crate::handler::async_hn_once($crate::async_clmv_fn_once! { $($tt)+ })
     }
 }
 #[doc(inline)]
@@ -694,7 +694,7 @@ where
 
 ///<span data-del-macro-root></span> Declare a mutable *clone-move* app event handler.
 ///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clone_move!`] so
+/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clmv!`] so
 /// the input is the same syntax.
 ///
 /// # Examples
@@ -730,7 +730,7 @@ where
 /// # }
 /// ```
 ///
-/// Internally the [`clone_move!`] macro is used so you can *clone-move* variables into the handler.
+/// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
 /// # use zero_ui_core::gesture::{CLICK_EVENT, ClickArgs};
@@ -752,11 +752,11 @@ where
 /// ```
 ///
 /// In the example above only a clone of `foo` is moved into the handler. Note that handlers always capture by move, if `foo` was not
-/// listed in the *clone-move* section it would not be available after the handler is created. See [`clone_move!`] for details.
+/// listed in the *clone-move* section it would not be available after the handler is created. See [`clmv!`] for details.
 #[macro_export]
 macro_rules! app_hn {
     ($($tt:tt)+) => {
-        $crate::handler::app_hn($crate::clone_move!{ $($tt)+ })
+        $crate::handler::app_hn($crate::clmv!{ $($tt)+ })
     }
 }
 #[doc(inline)]
@@ -803,7 +803,7 @@ where
 
 ///<span data-del-macro-root></span> Declare a *clone-move* app event handler that is only called once.
 ///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clone_move!`] so
+/// The macro input is a closure with optional *clone-move* variables, internally it uses [`clmv!`] so
 /// the input is the same syntax.
 ///
 /// # Examples
@@ -847,7 +847,7 @@ where
 #[macro_export]
 macro_rules! app_hn_once {
     ($($tt:tt)+) => {
-        $crate::handler::app_hn_once($crate::clone_move! { $($tt)+ })
+        $crate::handler::app_hn_once($crate::clmv! { $($tt)+ })
     }
 }
 #[doc(inline)]
@@ -916,7 +916,7 @@ where
 
 ///<span data-del-macro-root></span> Declare an async *clone-move* app event handler.
 ///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clone_move_fn!`] so
+/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clmv_fn!`] so
 /// the input is the same syntax.
 ///
 /// The handler generates a future for each event, the future is polled immediately if it does not finish it is scheduled
@@ -970,7 +970,7 @@ where
 /// # }
 /// ```
 ///
-/// Internally the [`async_clone_move_fn!`] macro is used so you can *clone-move* variables into the handler.
+/// Internally the [`async_clmv_fn!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
 /// # use zero_ui_core::gesture::{ClickArgs, CLICK_EVENT};
@@ -999,7 +999,7 @@ where
 /// ```
 ///
 /// In the example above only a clone of `status` is moved into the handler. Note that handlers always capture by move, if `status` was not
-/// listed in the *clone-move* section it would not be available after the handler is created. See [`async_clone_move_fn!`] for details.
+/// listed in the *clone-move* section it would not be available after the handler is created. See [`async_clmv_fn!`] for details.
 ///
 /// ## Futures and Clone-Move
 ///
@@ -1010,7 +1010,7 @@ where
 #[macro_export]
 macro_rules! async_app_hn {
     ($($tt:tt)+) => {
-        $crate::handler::async_app_hn($crate::async_clone_move_fn! { $($tt)+ })
+        $crate::handler::async_app_hn($crate::async_clmv_fn! { $($tt)+ })
     }
 }
 #[doc(inline)]
@@ -1085,7 +1085,7 @@ where
 
 ///<span data-del-macro-root></span> Declare an async *clone-move* app event handler that is only called once.
 ///
-/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clone_move_fn_once!`] so
+/// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clmv_fn_once!`] so
 /// the input is the same syntax.
 ///
 /// # Examples
@@ -1140,13 +1140,13 @@ where
 #[macro_export]
 macro_rules! async_app_hn_once {
     ($($tt:tt)+) => {
-        $crate::handler::async_app_hn_once($crate::async_clone_move_fn_once! { $($tt)+ })
+        $crate::handler::async_app_hn_once($crate::async_clmv_fn_once! { $($tt)+ })
     }
 }
 #[doc(inline)]
 pub use crate::async_app_hn_once;
 
-///<span data-del-macro-root></span> Cloning closure.
+///<span data-del-macro-root></span> Clone move closure.
 ///
 /// A common pattern when creating `'static` closures is to capture clones by `move`, this way the closure is `'static`
 /// and the cloned values are still available after creating the closure. This macro facilitates this pattern.
@@ -1156,13 +1156,13 @@ pub use crate::async_app_hn_once;
 /// In the example `bar` was *clone-moved* into the `'static` closure given to `foo`.
 ///
 /// ```
-/// # use zero_ui_core::handler::clone_move;
+/// # use zero_ui_core::handler::clmv;
 /// fn foo(mut f: impl FnMut(bool) + 'static) {
 ///     f(true);
 /// }
 ///
 /// let bar = "Cool!".to_owned();
-/// foo(clone_move!(bar, |p| {
+/// foo(clmv!(bar, |p| {
 ///     if p { println!("cloned: {bar}") }
 /// }));
 ///
@@ -1172,7 +1172,7 @@ pub use crate::async_app_hn_once;
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui_core::handler::clone_move;
+/// # use zero_ui_core::handler::clmv;
 /// # fn foo(mut f: impl FnMut(bool) + 'static) {
 /// #     f(true);
 /// # }
@@ -1192,14 +1192,14 @@ pub use crate::async_app_hn_once;
 /// variables cloned to achieve these effects.
 ///
 /// ```
-/// # use zero_ui_core::handler::clone_move;
+/// # use zero_ui_core::handler::clmv;
 /// # use std::sync::Arc;
 /// fn foo(mut f: impl FnMut(bool) + 'static) {
 ///     f(true);
 /// }
 ///
 /// let bar = Arc::new("Cool!".to_string());
-/// foo(clone_move!(mut *bar, |p| {
+/// foo(clmv!(mut *bar, |p| {
 ///     bar.push_str("!");
 ///     if p { println!("cloned String not Arc: {bar}") }
 /// }));
@@ -1210,7 +1210,7 @@ pub use crate::async_app_hn_once;
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui_core::handler::clone_move;
+/// # use zero_ui_core::handler::clmv;
 /// # use std::sync::Arc;
 /// # fn foo(mut f: impl FnMut(bool) + 'static) {
 /// #     f(true);
@@ -1228,19 +1228,19 @@ pub use crate::async_app_hn_once;
 ///
 /// # Async
 ///
-/// See [`async_clone_move_fn!`](macro@crate::async_clone_move_fn) for creating `async` closures.
+/// See [`async_clmv_fn!`] for creating `async` closures or [`async_clmv!`] for creating clone move futures.
 #[macro_export]
-macro_rules! clone_move {
-    ($($tt:tt)+) => { $crate::__clone_move! { [][][] $($tt)+ } }
+macro_rules! clmv {
+    ($($tt:tt)+) => { $crate::__clmv! { [][][] $($tt)+ } }
 }
 #[doc(inline)]
-pub use crate::clone_move;
+pub use crate::clmv;
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __clone_move {
+macro_rules! __clmv {
     // match start of mut var
     ([$($done:tt)*][][] mut $($rest:tt)+) => {
-        $crate::__clone_move! {
+        $crate::__clmv! {
             [$($done)*]
             [mut]
             []
@@ -1250,7 +1250,7 @@ macro_rules! __clone_move {
 
     // match one var deref (*)
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] * $($rest:tt)+) => {
-        $crate::__clone_move! {
+        $crate::__clmv! {
             [$($done)*]
             [$($mut)?]
             [$($deref)* *]
@@ -1260,7 +1260,7 @@ macro_rules! __clone_move {
 
     // match end of a variable
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] $var:ident, $($rest:tt)+) => {
-        $crate::__clone_move! {
+        $crate::__clmv! {
             [
                 $($done)*
                 let $($mut)? $var = ( $($deref)* $var ).clone();
@@ -1288,22 +1288,106 @@ macro_rules! __clone_move {
     };
 }
 
-/// <span data-del-macro-root></span> Cloning async move block.
+/// <span data-del-macro-root></span> Async clone move block.
+///
+/// This macro is similar to [`clmv!`], but creates a future instead of a closure.
+///
+/// A common pattern when creating `'static` futures is to capture clones by `move`, this way the future is `'static`
+/// and the cloned values are still available after creating the future. This macro facilitates this pattern.
+///
+/// # Examples
+///
+/// In the example `bar` was *clone-moved* into the `'static` future given to `foo`.
+///
+/// ```
+/// # use std::future::Future;
+/// # use zero_ui_core::{handler::async_clmv, task::deadline, units::*};
+/// async fn foo(mut f: impl Future<Output=()> + 'static) {
+///     f.await;
+/// }
+///
+/// let bar = "Cool!".to_owned();
+/// foo(async_clmv!(bar, {
+///     deadline(100.ms()).await;
+///     println!("cloned: {bar}")
+/// }));
+///
+/// println!("original: {bar}");
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use std::future::Future;
+/// # use zero_ui_core::{handler::async_clmv, task::deadline, units::*};
+/// # async fn foo(mut f: impl Future<Output=()> + 'static) {
+/// #     f.await;
+/// # }
+/// # let bar = "Cool!".to_owned();
+/// foo({
+///     let bar = bar.clone();
+///     async move {
+///         deadline(100.ms()).await;
+///         println!("cloned: {bar}")
+///     }
+/// });
+/// # println!("original: {bar}");
+/// ```
+///
+/// # Other Patterns
+///
+/// Sometimes you want to clone an *inner deref* of the value, or you want the clone to be `mut`, you can annotate the
+/// variables cloned to achieve these effects.
+///
+/// ```
+/// # use std::{future::Future, sync::Arc};
+/// # use zero_ui_core::{handler::async_clmv, task::deadline, units::*};
+/// async fn foo(mut f: impl Future<Output=()> + 'static) {
+///     f.await;
+/// }
+///
+/// let bar = Arc::new("Cool!".to_string());
+/// foo(async_clmv!(mut *bar, {
+///     bar.push_str("!");
+///     println!("cloned String not Arc: {bar}");
+/// }));
+///
+/// println!("original: {bar}");
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use std::{future::Future, sync::Arc};
+/// # use zero_ui_core::{handler::async_clmv, task::deadline, units::*};
+/// # async fn foo(mut f: impl Future<Output=()> + 'static) {
+/// #     f.await;
+/// # }
+/// # let bar = Arc::new("Cool!".to_string());
+/// foo({
+///     let mut bar = (*bar).clone();
+///     async move {
+///         bar.push_str("!");
+///         println!("cloned String not Arc: {bar}")
+///     }
+/// });
+/// # println!("original: {bar}");
+/// ```
 #[macro_export]
-macro_rules! async_clone_move {
+macro_rules! async_clmv {
     ($($tt:tt)+) => {
-        $crate::__async_clone_move! { [][][] $($tt)+ }
+        $crate::__async_clmv! { [][][] $($tt)+ }
     }
 }
 #[doc(inline)]
-pub use crate::async_clone_move;
+pub use crate::async_clmv;
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __async_clone_move {
+macro_rules! __async_clmv {
     // match start of mut var
     ([$($done:tt)*][][] mut $($rest:tt)+) => {
-        $crate::__async_clone_move! {
+        $crate::__async_clmv! {
             [$($done)*]
             [mut]
             []
@@ -1313,7 +1397,7 @@ macro_rules! __async_clone_move {
 
     // match one var deref (*)
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] * $($rest:tt)+) => {
-        $crate::__async_clone_move! {
+        $crate::__async_clmv! {
             [$($done)*]
             [$($mut)?]
             [$($deref)* *]
@@ -1323,7 +1407,7 @@ macro_rules! __async_clone_move {
 
     // match end of a variable
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] $var:ident, $($rest:tt)+) => {
-        $crate::__async_clone_move! {
+        $crate::__async_clmv! {
             [
                 $($done)*
                 let $($mut)? $var = ( $($deref)* $var ).clone();
@@ -1343,9 +1427,9 @@ macro_rules! __async_clone_move {
     };
 }
 
-///<span data-del-macro-root></span> Cloning async closure.
+///<span data-del-macro-root></span> Async clone move closure.
 ///
-/// This macro syntax is exactly the same as [`clone_move!`](macro@crate::clone_move), but it expands to an *async closure* that
+/// This macro syntax is exactly the same as [`clmv!`](macro@crate::clmv), but it expands to an *async closure* that
 /// captures a clone of zero or more variables and moves another clone of these variables into the returned future for each call.
 ///
 /// # Examples
@@ -1353,14 +1437,14 @@ macro_rules! __async_clone_move {
 /// In the example `bar` is cloned into the closure and then it is cloned again for each future generated by the closure.
 ///
 /// ```
-/// # use zero_ui_core::handler::async_clone_move_fn;
+/// # use zero_ui_core::handler::async_clmv_fn;
 /// # use std::future::Future;
 /// async fn foo<F: Future<Output=()>, H:  FnMut(bool) -> F + 'static>(mut f: H) {
 ///     f(true).await;
 /// }
 ///
 /// let bar = "Cool!".to_owned();
-/// foo(async_clone_move_fn!(bar, |p| {
+/// foo(async_clmv_fn!(bar, |p| {
 ///     std::future::ready(()).await;
 ///     if p { println!("cloned: {bar}") }
 /// }));
@@ -1371,7 +1455,7 @@ macro_rules! __async_clone_move {
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui_core::handler::async_clone_move_fn;
+/// # use zero_ui_core::handler::async_clmv_fn;
 /// # use std::future::Future;
 /// # async fn foo<F: Future<Output=()>, H:  FnMut(bool) -> F + 'static>(mut f: H) {
 /// #     f(true).await;
@@ -1390,17 +1474,17 @@ macro_rules! __async_clone_move {
 /// # println!("original: {bar}");
 /// ```
 #[macro_export]
-macro_rules! async_clone_move_fn {
-    ($($tt:tt)+) => { $crate::__async_clone_move_fn! { [{}{}][][] $($tt)+ } }
+macro_rules! async_clmv_fn {
+    ($($tt:tt)+) => { $crate::__async_clmv_fn! { [{}{}][][] $($tt)+ } }
 }
 #[doc(inline)]
-pub use crate::async_clone_move_fn;
+pub use crate::async_clmv_fn;
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __async_clone_move_fn {
+macro_rules! __async_clmv_fn {
     // match start of mut var
     ([$($done:tt)*][][] mut $($rest:tt)+) => {
-        $crate::__async_clone_move_fn! {
+        $crate::__async_clmv_fn! {
             [$($done)*]
             [mut]
             []
@@ -1410,7 +1494,7 @@ macro_rules! __async_clone_move_fn {
 
     // match one var deref (*)
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] * $($rest:tt)+) => {
-        $crate::__async_clone_move_fn! {
+        $crate::__async_clmv_fn! {
             [$($done)*]
             [$($mut)?]
             [$($deref)* *]
@@ -1420,7 +1504,7 @@ macro_rules! __async_clone_move_fn {
 
     // match end of a variable
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] $var:ident, $($rest:tt)+) => {
-        $crate::__async_clone_move_fn! {
+        $crate::__async_clmv_fn! {
             @var
             [$($done)*]
             [$($mut)?]
@@ -1432,7 +1516,7 @@ macro_rules! __async_clone_move_fn {
 
     // include one var
     (@var [ { $($closure_clones:tt)* }{ $($async_clones:tt)* } ][$($mut:tt)?][$($deref:tt)*] $var:ident, $($rest:tt)+) => {
-        $crate::__async_clone_move_fn! {
+        $crate::__async_clmv_fn! {
             [
                 {
                     $($closure_clones)*
@@ -1451,7 +1535,7 @@ macro_rules! __async_clone_move_fn {
 
     // match start of closure inputs
     ([$($done:tt)*][][] | $($rest:tt)+) => {
-        $crate::__async_clone_move_fn! {
+        $crate::__async_clmv_fn! {
             @args
             [$($done)*]
             []
@@ -1511,7 +1595,7 @@ macro_rules! __async_clone_move_fn {
 
     // match a token in closure inputs
     (@args [$($done:tt)*] [$($args:tt)*] $arg_tt:tt $($rest:tt)+) => {
-        $crate::__async_clone_move_fn! {
+        $crate::__async_clmv_fn! {
             @args
             [$($done)*]
             [$($args)* $arg_tt]
@@ -1520,9 +1604,9 @@ macro_rules! __async_clone_move_fn {
     };
 }
 
-///<span data-del-macro-root></span> Cloning async closure that can only be called once.
+///<span data-del-macro-root></span> Async clone move closure closure that can only be called once.
 ///
-/// This macro syntax is exactly the same as [`async_clone_move_fn!`](macro@crate::async_clone_move_fn), but it does not clone variables
+/// This macro syntax is exactly the same as [`async_clmv_fn!`](macro@crate::async_clmv_fn), but it does not clone variables
 /// again inside the call to move to the returned future. Because if moves the captured variables to the closure returned `Future`
 /// it can only be `FnOnce`.
 ///
@@ -1531,14 +1615,14 @@ macro_rules! __async_clone_move_fn {
 /// In the example `bar` is cloned into the closure and then moved to the future generated by the closure.
 ///
 /// ```
-/// # use zero_ui_core::handler::async_clone_move_fn;
+/// # use zero_ui_core::handler::async_clmv_fn;
 /// # use std::future::Future;
 /// async fn foo<F: Future<Output=()>, H:  FnOnce(bool) -> F + 'static>(mut f: H) {
 ///     f(true).await;
 /// }
 ///
 /// let bar = "Cool!".to_owned();
-/// foo(async_clone_move_fn!(bar, |p| {
+/// foo(async_clmv_fn!(bar, |p| {
 ///     std::future::ready(()).await;
 ///     if p { println!("cloned: {bar}") }
 /// }));
@@ -1549,7 +1633,7 @@ macro_rules! __async_clone_move_fn {
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui_core::handler::async_clone_move_fn;
+/// # use zero_ui_core::handler::async_clmv_fn;
 /// # use std::future::Future;
 /// # async fn foo<F: Future<Output=()>, H:  FnOnce(bool) -> F + 'static>(mut f: H) {
 /// #     f(true).await;
@@ -1565,17 +1649,17 @@ macro_rules! __async_clone_move_fn {
 /// # println!("original: {bar}");
 /// ```
 #[macro_export]
-macro_rules! async_clone_move_fn_once {
-    ($($tt:tt)+) => { $crate::__async_clone_move_fn_once! { [][][] $($tt)+ } }
+macro_rules! async_clmv_fn_once {
+    ($($tt:tt)+) => { $crate::__async_clmv_fn_once! { [][][] $($tt)+ } }
 }
 #[doc(inline)]
-pub use crate::async_clone_move_fn_once;
+pub use crate::async_clmv_fn_once;
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __async_clone_move_fn_once {
+macro_rules! __async_clmv_fn_once {
     // match start of mut var
     ([$($done:tt)*][][] mut $($rest:tt)+) => {
-        $crate::__async_clone_move_fn_once! {
+        $crate::__async_clmv_fn_once! {
             [$($done)*]
             [mut]
             []
@@ -1585,7 +1669,7 @@ macro_rules! __async_clone_move_fn_once {
 
     // match one var deref (*)
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] * $($rest:tt)+) => {
-        $crate::__async_clone_move_fn_once! {
+        $crate::__async_clmv_fn_once! {
             [$($done)*]
             [$($mut)?]
             [$($deref)* *]
@@ -1595,7 +1679,7 @@ macro_rules! __async_clone_move_fn_once {
 
     // match end of a variable
     ([$($done:tt)*][$($mut:tt)?][$($deref:tt)*] $var:ident, $($rest:tt)+) => {
-        $crate::__async_clone_move_fn_once! {
+        $crate::__async_clmv_fn_once! {
             [
                 $($done)*
                 let $($mut)? $var = ( $($deref)* $var ).clone();
@@ -1608,7 +1692,7 @@ macro_rules! __async_clone_move_fn_once {
 
     // match start of closure inputs
     ([$($done:tt)*][][] | $($rest:tt)+) => {
-        $crate::__async_clone_move_fn_once! {
+        $crate::__async_clmv_fn_once! {
             @args
             [$($done)*]
             []
@@ -1664,7 +1748,7 @@ macro_rules! __async_clone_move_fn_once {
 
     // match a token in closure inputs
     (@args [$($done:tt)*] [$($args:tt)*] $arg_tt:tt $($rest:tt)+) => {
-        $crate::__async_clone_move_fn_once! {
+        $crate::__async_clmv_fn_once! {
             @args
             [$($done)*]
             [$($args)* $arg_tt]
@@ -1809,17 +1893,17 @@ const DOC_TEST_BLOCK_ON_TIMEOUT: Duration = Duration::from_secs(5);
 #[cfg(test)]
 #[allow(dead_code)]
 #[allow(clippy::ptr_arg)]
-mod async_clone_move_fn_tests {
+mod async_clmv_fn_tests {
     // if it build it passes
 
     use std::{future::ready, sync::Arc};
 
     fn no_clones_no_input() {
-        let _ = async_clone_move_fn!(|| ready(true).await);
+        let _ = async_clmv_fn!(|| ready(true).await);
     }
 
     fn one_clone_no_input(a: &String) {
-        let _ = async_clone_move_fn!(a, || {
+        let _ = async_clmv_fn!(a, || {
             let _: String = a;
             ready(true).await
         });
@@ -1827,7 +1911,7 @@ mod async_clone_move_fn_tests {
     }
 
     fn one_clone_with_derefs_no_input(a: &Arc<String>) {
-        let _ = async_clone_move_fn!(**a, || {
+        let _ = async_clmv_fn!(**a, || {
             let _: String = a;
             ready(true).await
         });
@@ -1835,7 +1919,7 @@ mod async_clone_move_fn_tests {
     }
 
     fn two_derefs_no_input(a: &String, b: Arc<String>) {
-        let _ = async_clone_move_fn!(a, b, || {
+        let _ = async_clmv_fn!(a, b, || {
             let _: String = a;
             let _: Arc<String> = b;
             ready(true).await
@@ -1844,7 +1928,7 @@ mod async_clone_move_fn_tests {
     }
 
     fn one_input(a: &String) {
-        let _ = async_clone_move_fn!(a, |_args: u32| {
+        let _ = async_clmv_fn!(a, |_args: u32| {
             let _: String = a;
             ready(true).await
         });
@@ -1852,7 +1936,7 @@ mod async_clone_move_fn_tests {
     }
 
     fn two_inputs(a: &String) {
-        let _ = async_clone_move_fn!(a, |_b: u32, _c: Box<dyn std::fmt::Debug>| {
+        let _ = async_clmv_fn!(a, |_b: u32, _c: Box<dyn std::fmt::Debug>| {
             let _: String = a;
             ready(true).await
         });
@@ -1863,17 +1947,17 @@ mod async_clone_move_fn_tests {
 #[cfg(test)]
 #[allow(dead_code)]
 #[allow(clippy::ptr_arg)]
-mod async_clone_move_fn_once_tests {
+mod async_clmv_fn_once_tests {
     // if it build it passes
 
     use std::{future::ready, sync::Arc};
 
     fn no_clones_no_input() {
-        let _ = async_clone_move_fn_once!(|| ready(true).await);
+        let _ = async_clmv_fn_once!(|| ready(true).await);
     }
 
     fn one_clone_no_input(a: &String) {
-        let _ = async_clone_move_fn_once!(a, || {
+        let _ = async_clmv_fn_once!(a, || {
             let _: String = a;
             ready(true).await
         });
@@ -1881,7 +1965,7 @@ mod async_clone_move_fn_once_tests {
     }
 
     fn one_clone_with_derefs_no_input(a: &Arc<String>) {
-        let _ = async_clone_move_fn_once!(**a, || {
+        let _ = async_clmv_fn_once!(**a, || {
             let _: String = a;
             ready(true).await
         });
@@ -1889,7 +1973,7 @@ mod async_clone_move_fn_once_tests {
     }
 
     fn two_derefs_no_input(a: &String, b: Arc<String>) {
-        let _ = async_clone_move_fn_once!(a, b, || {
+        let _ = async_clmv_fn_once!(a, b, || {
             let _: String = a;
             let _: Arc<String> = b;
             ready(true).await
@@ -1898,7 +1982,7 @@ mod async_clone_move_fn_once_tests {
     }
 
     fn one_input(a: &String) {
-        let _ = async_clone_move_fn_once!(a, |_args: u32| {
+        let _ = async_clmv_fn_once!(a, |_args: u32| {
             let _: String = a;
             ready(true).await
         });
@@ -1906,7 +1990,7 @@ mod async_clone_move_fn_once_tests {
     }
 
     fn two_inputs(a: &String) {
-        let _ = async_clone_move_fn_once!(a, |_b: u32, _c: Box<dyn std::fmt::Debug>| {
+        let _ = async_clmv_fn_once!(a, |_b: u32, _c: Box<dyn std::fmt::Debug>| {
             let _: String = a;
             ready(true).await
         });

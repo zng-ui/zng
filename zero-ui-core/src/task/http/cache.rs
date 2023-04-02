@@ -746,7 +746,7 @@ mod tests {
 
         let policy = CachePolicy::new(&request.req, &response.0);
 
-        async_test(async_clone_move!(key, {
+        async_test(async_clmv!(key, {
             let (_, body) = response.into_parts();
 
             let mut body = test.set(&key, policy, body).await.unwrap();
@@ -781,7 +781,7 @@ mod tests {
         let response = Response::new(StatusCode::OK, headers, Body::from_reader(task::io::Cursor::new("test content.")));
         let policy = CachePolicy::new(&request.req, &response.0);
 
-        let r_policy = async_test(async_clone_move!(policy, {
+        let r_policy = async_test(async_clmv!(policy, {
             let mut body = test.set(&key, policy, response.into_parts().1).await.unwrap();
             Body::bytes(&mut body).await.unwrap();
 
@@ -809,7 +809,7 @@ mod tests {
         let response = Response::new(StatusCode::OK, headers, body);
         let policy = CachePolicy::new(&request.req, &response.0);
 
-        async_test(async_clone_move!(key, {
+        async_test(async_clmv!(key, {
             let mut body = test.set(&key, policy, response.into_parts().1).await.unwrap();
             Body::bytes(&mut body).await.unwrap();
 

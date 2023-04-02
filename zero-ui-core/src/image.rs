@@ -529,7 +529,7 @@ impl ImagesService {
             }
             ImageSource::Render(rfn, args) => {
                 let img = self.new_cache_image(key, mode, limits.max_decoded_size);
-                self.render_img(clone_move!(rfn, || rfn(&args.unwrap_or_default())), &img);
+                self.render_img(clmv!(rfn, || rfn(&args.unwrap_or_default())), &img);
                 img.read_only()
             }
             ImageSource::Image(_) => unreachable!(),

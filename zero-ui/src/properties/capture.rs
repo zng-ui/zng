@@ -130,7 +130,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                 if insert_filter {
                     // just registered and we are the first, insert the filter:
 
-                    info.push_interactivity_filter(clone_move!(mws, |a| {
+                    info.push_interactivity_filter(clmv!(mws, |a| {
                         let mut mws = mws.lock();
 
                         // caches the top-most modal.

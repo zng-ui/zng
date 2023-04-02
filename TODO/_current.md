@@ -1,10 +1,3 @@
-* Shorter name for `async_clone_move!`?
-    * `ac_move!(foo, { })`.
-    * `c_move!(foo, || { })`.
-    OR
-    * `clone_move!(foo, async { })`. // async
-    * `clone_movd!(foo, || { })`. // closure
-
 * Refactor text shaping cache to avoid write locks.
 
 * Parallel layout for more panels.

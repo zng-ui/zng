@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{app::LoopTimer, clone_move, crate_util};
+use crate::{app::LoopTimer, clmv, crate_util};
 
 use super::*;
 
@@ -687,7 +687,7 @@ pub(super) fn var_animate<T: VarValue>(
                     }
 
                     // try update
-                    let r = target.modify(clone_move!(animate, args, |value| {
+                    let r = target.modify(clmv!(animate, args, |value| {
                         (animate.lock())(&args, value);
                     }));
 
@@ -719,7 +719,7 @@ pub(super) fn var_sequence<T: VarValue, V: Var<T>>(
             let (handle, handle_hook) = VarHandle::new(Box::new(|_| true));
 
             let wk_target = target.downgrade();
-            let controller = OnStopController(clone_move!(animate, wk_target, || {
+            let controller = OnStopController(clmv!(animate, wk_target, || {
                 if let Some(target) = wk_target.upgrade() {
                     if target.modify_importance() <= VARS.current_modify().importance()
                         && handle_hook.is_alive()
@@ -976,7 +976,7 @@ where
     let next_target = Arc::new(Mutex::new(ChaseMsg::None));
     let mut transition = Transition::new(from, first_target);
 
-    let anim = clone_move!(next_target, |args: &Animation, value: &mut Cow<T>| {
+    let anim = clmv!(next_target, |args: &Animation, value: &mut Cow<T>| {
         let step = easing(args.elapsed_stop(duration));
         match mem::take(&mut *next_target.lock()) {
             ChaseMsg::Add(inc) => {
@@ -1026,7 +1026,7 @@ where
 
     let next_target = Arc::new(Mutex::new(ChaseMsg::None));
 
-    let anim = clone_move!(next_target, |args: &Animation, value: &mut Cow<T>| {
+    let anim = clmv!(next_target, |args: &Animation, value: &mut Cow<T>| {
         let mut time = args.elapsed_stop(duration);
         let mut step = easing(time);
         match mem::take(&mut *next_target.lock()) {

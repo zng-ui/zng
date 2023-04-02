@@ -1506,16 +1506,16 @@ impl WidgetInfo {
     /// in-bounds descendants.
     pub fn spatial_iter(&self, filter: impl Fn(&WidgetInfo) -> bool + Clone) -> impl Iterator<Item = WidgetInfo> {
         self.self_and_descendants()
-            .tree_filter(clone_move!(filter, |w| {
+            .tree_filter(clmv!(filter, |w| {
                 if w.is_in_bounds() && filter(w) {
                     TreeFilter::Include
                 } else {
                     TreeFilter::SkipAll
                 }
             }))
-            .chain(self.out_of_bounds().flat_map(clone_move!(filter, |w| {
+            .chain(self.out_of_bounds().flat_map(clmv!(filter, |w| {
                 let self_id = w.id();
-                w.self_and_descendants().tree_filter(clone_move!(filter, |w| {
+                w.self_and_descendants().tree_filter(clmv!(filter, |w| {
                     if (w.is_in_bounds() || w.id() == self_id) && filter(w) {
                         TreeFilter::Include
                     } else {

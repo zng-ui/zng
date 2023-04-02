@@ -181,7 +181,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
     let size = (64, 64);
     ImageSource::render_node(
         RenderMode::Software,
-        clone_move!(size, |_| {
+        clmv!(size, |_| {
             let mut children = ui_vec![];
             let color_t = animation::Transition::new(FROM_COLOR, TO_COLOR);
             let fps_f = FPS as f32;

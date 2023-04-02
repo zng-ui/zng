@@ -150,7 +150,7 @@ impl VARS {
     /// fn animate_text(text: &impl Var<Text>, completed: &impl Var<bool>) {
     ///     let transition = animation::Transition::new(0u8, 100);
     ///     let mut prev_value = 101;
-    ///     VARS.animate(clone_move!(text, completed, |animation| {
+    ///     VARS.animate(clmv!(text, completed, |animation| {
     ///         let step = easing::expo(animation.elapsed_stop(1.secs()));
     ///         let value = transition.sample(step);
     ///         if value != prev_value {

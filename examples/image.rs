@@ -294,7 +294,7 @@ fn block_window_load_image() -> impl UiNode {
         enabled = enabled.clone();
         on_click = hn!(|_| {
             enabled.set(false);
-            WINDOWS.open(async_clone_move!(enabled, {
+            WINDOWS.open(async_clmv!(enabled, {
                 img_window! {
                     title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
                     state = WindowState::Normal;

@@ -171,7 +171,7 @@ pub use rayon;
 #[doc(no_inline)]
 pub use async_fs as fs;
 
-pub use crate::handler::async_clone_move;
+pub use crate::handler::async_clmv;
 
 pub mod channel;
 pub mod io;
@@ -663,7 +663,7 @@ where
     }
 
     let q = Arc::new(Mutex::new(QuickResponse::Quick(None)));
-    poll_spawn(async_clone_move!(q, {
+    poll_spawn(async_clmv!(q, {
         let rsp = task.await;
 
         match &mut *q.lock() {
@@ -1896,7 +1896,7 @@ macro_rules! __all_some {
 ///
 /// let signal = SignalOnce::default();
 ///
-/// task::spawn(async_clone_move!(signal, {
+/// task::spawn(async_clmv!(signal, {
 ///     signal.await;
 ///     println!("After Signal!");
 /// }));

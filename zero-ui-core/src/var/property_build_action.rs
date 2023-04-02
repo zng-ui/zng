@@ -59,8 +59,8 @@ macro_rules! impl_easing_property_inputs {
                     vec![]
                 } else {
                     vec![
-                        Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone(), &a.when_conditions_data)))),
-                        $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone(), &a.when_conditions_data)))),)*
+                        Box::new(PropertyBuildAction::<$T0>::new(clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone(), &a.when_conditions_data)))),
+                        $(Box::new(PropertyBuildAction::<$T>::new(clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, duration, easing.clone(), &a.when_conditions_data)))),)*
                     ]
                 }
             }
@@ -73,8 +73,8 @@ macro_rules! impl_easing_property_inputs {
                         || {
                             let easing = Arc::new($crate::var::animation::easing::linear) as EasingFn;
                             vec![
-                                Box::new(PropertyBuildAction::<$T0>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, 0.ms(), easing.clone(), &a.when_conditions_data)))),
-                                $(Box::new(PropertyBuildAction::<$T>::new(clone_move!(easing, |a| easing_property_input_Transitionable::easing(a.input, 0.ms(), easing.clone(), &a.when_conditions_data)))),)*
+                                Box::new(PropertyBuildAction::<$T0>::new(clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, 0.ms(), easing.clone(), &a.when_conditions_data)))),
+                                $(Box::new(PropertyBuildAction::<$T>::new(clmv!(easing, |a| easing_property_input_Transitionable::easing(a.input, 0.ms(), easing.clone(), &a.when_conditions_data)))),)*
                             ]
                         }
                     )

@@ -14,7 +14,7 @@ use std::{
 };
 
 use crate::{
-    clone_move,
+    clmv,
     context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WIDGET, WINDOW},
     crate_util::{IdEntry, IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
@@ -310,7 +310,7 @@ impl<A: EventArgs> Event<A> {
 
             let handle = inner_handle.downgrade();
             update.push_once_action(
-                Box::new(clone_move!(handler, |update| {
+                Box::new(clmv!(handler, |update| {
                     let args = update.args().as_any().downcast_ref::<A>().unwrap();
                     if !args.propagation().is_stopped() {
                         handler.lock().event(

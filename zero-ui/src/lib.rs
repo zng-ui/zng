@@ -115,9 +115,9 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::core::{
         app::App,
-        async_clone_move,
+        async_clmv,
         border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
-        clone_move,
+        clmv,
         color::{self, color_scheme_map, colors, filters, hex, hsl, hsla, rgb, rgba, ColorScheme, Rgba},
         context::{LayoutDirection, WIDGET, WINDOW},
         event::{AnyEventArgs, Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, EVENTS},

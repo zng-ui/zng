@@ -356,13 +356,13 @@ impl fmt::Debug for StyleGenerator {
 
 /// <span data-del-macro-root></span> Declares a style generator closure.
 ///
-/// The output type is a [`StyleGenerator`], the closure is [`clone_move!`].
+/// The output type is a [`StyleGenerator`], the closure is [`clmv!`].
 ///
-/// [`clone_move!`]: crate::core::clone_move
+/// [`clmv!`]: crate::core::clmv
 #[macro_export]
 macro_rules! style_gen {
     ($($tt:tt)+) => {
-        $crate::widgets::style::StyleGenerator::new($crate::core::clone_move! {
+        $crate::widgets::style::StyleGenerator::new($crate::core::clmv! {
             $($tt)+
         })
     }

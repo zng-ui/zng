@@ -19,7 +19,7 @@ pub(super) fn inspect_node(
     can_inspect: impl crate::core::var::IntoVar<bool>,
 ) -> impl crate::core::widget_instance::UiNode {
     use crate::core::{
-        handler::{async_clone_move, hn},
+        handler::{async_clmv, hn},
         inspector::prompt::WriteTreeState,
         text::Text,
         var::var,
@@ -52,7 +52,7 @@ pub(super) fn inspect_node(
 
                 WINDOWS.focus_or_open(
                     inspector,
-                    async_clone_move!(inspector_text, { inspector_window::new(inspected, inspector_text) }),
+                    async_clmv!(inspector_text, { inspector_window::new(inspected, inspector_text) }),
                 );
             }
         }),
