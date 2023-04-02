@@ -16,7 +16,9 @@ use crate::{
 use std::{marker::PhantomData, mem};
 
 use webrender_api::{FontRenderMode, PipelineId};
-pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
+pub use zero_ui_view_api::{
+    webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, RendererDebug, ReuseRange,
+};
 use zero_ui_view_api::{
     webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, MixBlendMode, SpatialTreeItemKey},
     DisplayList, ReuseStart,

@@ -7,7 +7,7 @@ use crate::{
     context::WINDOW,
     crate_util::IdSet,
     image::Image,
-    render::RenderMode,
+    render::{RenderMode, RendererDebug},
     text::{Text, ToText},
     units::*,
     var::*,
@@ -64,6 +64,8 @@ pub(super) struct WindowVarsData {
 
     frame_capture_mode: ArcVar<FrameCaptureMode>,
     pub(super) render_mode: ArcVar<RenderMode>,
+
+    renderer_debug: ArcVar<RendererDebug>,
 }
 
 /// Controls properties of an open window using variables.
@@ -133,6 +135,8 @@ impl WindowVars {
 
             frame_capture_mode: var(FrameCaptureMode::Sporadic),
             render_mode: var(default_render_mode),
+
+            renderer_debug: var(RendererDebug::disabled()),
         });
         Self(vars)
     }
@@ -592,6 +596,11 @@ impl WindowVars {
     /// [`default_render_mode`]: crate::window::WINDOWS::default_render_mode
     pub fn render_mode(&self) -> ReadOnlyArcVar<RenderMode> {
         self.0.render_mode.read_only()
+    }
+
+    /// Renderer debug flags and profiler UI.
+    pub fn renderer_debug(&self) -> ArcVar<RendererDebug> {
+        self.0.renderer_debug.clone()
     }
 }
 

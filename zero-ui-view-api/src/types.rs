@@ -1294,6 +1294,59 @@ impl std::error::Error for ViewProcessOffline {}
 /// View Process IPC result.
 pub(crate) type VpResult<T> = std::result::Result<T, ViewProcessOffline>;
 
+/// Webrender renderer debug flags and profiler UI.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RendererDebug {
+    /// Debug flags.
+    pub flags: DebugFlags,
+    /// Profiler UI rendered when [`DebugFlags::PROFILER_DBG`] is set.
+    ///
+    /// # Syntax
+    ///
+    /// Comma-separated list of of tokens with trailing and leading spaces trimmed.
+    /// Each tokens can be:
+    /// - A counter name with an optional prefix. The name corresponds to the displayed name.
+    ///   - By default (no prefix) the counter is shown as average + max over half a second.
+    ///   - With a '#' prefix the counter is shown as a graph.
+    ///   - With a '*' prefix the counter is shown as a change indicator.
+    ///   - Some special counters such as GPU time queries have specific visualizations ignoring prefixes.
+    /// - A preset name to append the preset to the UI.
+    /// - An empty token to insert a bit of vertical space.
+    /// - A '|' token to start a new column.
+    /// - A '_' token to start a new row.
+    ///
+    /// # Preset & Counter Names
+    ///
+    /// * `"Default"`: `"FPS,|,Slow indicators,_,Time graphs,|,Frame times, ,Transaction times, ,Frame stats, ,Memory, ,Interners,_,GPU time queries,_,Paint phase graph"`
+    /// * `"Compact"`: `"FPS, ,Frame times, ,Frame stats"`
+    ///
+    /// See the `webrender/src/profiler.rs` file for more details and more counter names.
+    pub profiler_ui: String,
+}
+impl Default for RendererDebug {
+    /// Disabled
+    fn default() -> Self {
+        Self::disabled()
+    }
+}
+impl RendererDebug {
+    /// Default mode, no debugging enabled.
+    pub fn disabled() -> Self {
+        Self {
+            flags: DebugFlags::empty(),
+            profiler_ui: String::new(),
+        }
+    }
+
+    /// Enable profiler UI rendering.
+    pub fn profiler(ui: impl Into<String>) -> Self {
+        Self {
+            flags: DebugFlags::PROFILER_DBG,
+            profiler_ui: ui.into(),
+        }
+    }
+}
+
 /// Data for rendering a new frame.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrameRequest {
@@ -1463,6 +1516,9 @@ pub struct WindowRequest {
 
     /// Render mode preference for this window.
     pub render_mode: RenderMode,
+
+    /// Renderer debug flags and UI.
+    pub renderer_debug: RendererDebug,
 
     /// Focus request indicator on init.
     pub focus_indicator: Option<FocusIndicator>,
@@ -1653,6 +1709,9 @@ pub struct HeadlessRequest {
 
     /// Render mode preference for this headless surface.
     pub render_mode: RenderMode,
+
+    /// Renderer debug flags and UI.
+    pub renderer_debug: RendererDebug,
 }
 
 /// Information about a monitor screen.

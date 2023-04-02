@@ -15,7 +15,7 @@ use winit::{
 };
 use zero_ui_view_api::{
     units::*, ColorScheme, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId,
-    ImageLoadedData, RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
+    ImageLoadedData, RenderMode, RendererDebug, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -221,6 +221,8 @@ impl Window {
             // best for GL
             upload_method: UploadMethod::PixelBuffer(VertexUsageHint::Dynamic),
 
+            debug_flags: req.renderer_debug.flags,
+
             //panic_on_gl_error: true,
             ..Default::default()
         };
@@ -228,6 +230,8 @@ impl Window {
         let (mut renderer, sender) =
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
+
+        renderer.set_profiler_ui(&req.renderer_debug.profiler_ui);
 
         let api = sender.create_api();
         let document_id = api.add_document(device_size);
@@ -1000,6 +1004,11 @@ impl Window {
 
     pub fn set_capture_mode(&mut self, enabled: bool) {
         self.capture_mode = enabled;
+    }
+
+    pub fn set_renderer_debug(&mut self, dbg: RendererDebug) {
+        self.api.set_debug_flags(dbg.flags);
+        self.renderer.as_mut().unwrap().set_profiler_ui(&dbg.profiler_ui);
     }
 
     /// Start rendering a new frame.

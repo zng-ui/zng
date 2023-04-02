@@ -90,6 +90,8 @@ set_properties! {
     color_scheme: Option<ColorScheme>,
 
     frame_capture_mode: FrameCaptureMode,
+
+    renderer_debug: RendererDebug,
 }
 
 macro_rules! map_properties {

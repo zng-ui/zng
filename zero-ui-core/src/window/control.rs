@@ -416,6 +416,12 @@ impl HeadedCtrl {
                     .unwrap_or_default();
                 self.vars.0.actual_color_scheme.set_ne(scheme);
             }
+
+            if let Some(dbg) = self.vars.renderer_debug().get_new() {
+                if let Some(view) = &self.window {
+                    let _ = view.renderer().set_debug(dbg);
+                }
+            }
         }
 
         self.content.update(updates);
@@ -793,6 +799,7 @@ impl HeadedCtrl {
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
+            renderer_debug: self.vars.renderer_debug().get(),
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
@@ -888,6 +895,7 @@ impl HeadedCtrl {
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
+            renderer_debug: self.vars.renderer_debug().get(),
 
             focus: WINDOWS.is_focused(WINDOW.id()).unwrap_or(false),
             focus_indicator: self.vars.focus_indicator().get(),
@@ -1067,6 +1075,11 @@ impl HeadlessWithRendererCtrl {
         if update_parent(&mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
             self.var_bindings = update_headless_vars(self.headless_monitor.scale_factor, &self.vars);
         }
+        if let Some(dbg) = self.vars.renderer_debug().get_new() {
+            if let Some(view) = &self.surface {
+                let _ = view.renderer().set_debug(dbg);
+            }
+        }
 
         self.content.update(updates);
     }
@@ -1174,6 +1187,7 @@ impl HeadlessWithRendererCtrl {
                 scale_factor: scale_factor.0,
                 size,
                 render_mode,
+                renderer_debug: self.vars.renderer_debug().get(),
             });
 
             match r {

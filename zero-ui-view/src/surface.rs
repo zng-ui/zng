@@ -12,7 +12,7 @@ use webrender::{
 };
 use zero_ui_view_api::{
     units::*, DisplayListCache, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, RenderMode,
-    ViewProcessGen, WindowId,
+    RendererDebug, ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -81,6 +81,8 @@ impl Surface {
             clear_caches_with_quads: !context.is_software(),
             enable_gpu_markers: !context.is_software(),
 
+            debug_flags: cfg.renderer_debug.flags,
+
             //panic_on_gl_error: true,
             ..Default::default()
         };
@@ -90,6 +92,8 @@ impl Surface {
         let (mut renderer, sender) =
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
+
+        renderer.set_profiler_ui(&cfg.renderer_debug.profiler_ui);
 
         let api = sender.create_api();
         let document_id = api.add_document(device_size);
@@ -201,6 +205,11 @@ impl Surface {
             let rect = PxRect::from_size(self.size.to_px(self.scale_factor)).to_wr_device();
             txn.set_document_view(rect);
         }
+    }
+
+    pub fn set_renderer_debug(&mut self, dbg: RendererDebug) {
+        self.api.set_debug_flags(dbg.flags);
+        self.renderer.as_mut().unwrap().set_profiler_ui(&dbg.profiler_ui);
     }
 
     pub fn render(&mut self, frame: FrameRequest) {

@@ -450,6 +450,9 @@ declare_api! {
     /// Update the current frame and re-render it.
     pub fn render_update(&mut self, id: WindowId, frame: FrameUpdateRequest);
 
+    /// Update the webrender debug flags and profiler UI.
+    pub fn set_renderer_debug(&mut self, id: WindowId, dbg: RendererDebug);
+
     /// Used for testing respawn.
     #[cfg(debug_assertions)]
     pub fn crash(&mut self);

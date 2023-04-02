@@ -1109,6 +1109,15 @@ impl ViewRenderer {
         }
     }
 
+    /// Set the renderer debug flags and UI.
+    pub fn set_debug(&self, dbg: crate::render::RendererDebug) -> Result<()> {
+        if let Some(w) = self.0.upgrade() {
+            w.call(|id, p| p.set_renderer_debug(id, dbg))
+        } else {
+            Err(ViewProcessOffline)
+        }
+    }
+
     /// Render a new frame.
     pub fn render(&self, frame: FrameRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewRenderer.render").entered();

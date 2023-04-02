@@ -1339,6 +1339,7 @@ impl Api for App {
                 scale_factor: 1.0,
                 size: config.state.restore_rect.size,
                 render_mode: config.render_mode,
+                renderer_debug: config.renderer_debug,
             });
             let msg = WindowOpenData {
                 id_namespace: data.id_namespace,
@@ -1584,6 +1585,10 @@ impl Api for App {
 
     fn render_update(&mut self, id: WindowId, frame: FrameUpdateRequest) {
         with_window_or_surface!(self, id, |w| w.render_update(frame), || ())
+    }
+
+    fn set_renderer_debug(&mut self, id: WindowId, dbg: RendererDebug) {
+        with_window_or_surface!(self, id, |w| w.set_renderer_debug(dbg), || ())
     }
 
     #[cfg(debug_assertions)]
