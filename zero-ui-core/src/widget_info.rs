@@ -975,7 +975,7 @@ impl WidgetInfo {
 
             #[cfg(not(inspector))]
             {
-                let _ = write!(&mut s, "/{}", w.widget_id());
+                let _ = write!(&mut s, "/{}", w.id());
             }
         }
 
