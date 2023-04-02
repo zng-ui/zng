@@ -153,7 +153,7 @@ pub trait HeadlessAppWindowExt {
     ///
     /// The `new_window` runs inside the [`WINDOW`] context of the new window.
     ///
-    /// Returns the [`WindowId`] of the new window.
+    /// Returns the [`WindowId`] of the new window after the window is open and loaded and has generated one frame.
     ///
     /// [`WINDOW`]: crate::context::WINDOW
     fn open_window<F>(&mut self, new_window: F) -> WindowId
@@ -185,8 +185,16 @@ impl HeadlessAppWindowExt for HeadlessApp {
     {
         let response = WINDOWS.open(new_window);
         self.run_task(async move {
-            response.wait_rsp().await;
-            response.rsp().unwrap().window_id
+            let window_id = response.wait_rsp().await.window_id;
+            if !WINDOWS.is_loaded(window_id) {
+                let rcv = FRAME_IMAGE_READY_EVENT.receiver();
+                while let Ok(args) = rcv.recv_async().await {
+                    if args.window_id == window_id {
+                        break;
+                    }
+                }
+            }
+            window_id
         })
         .unwrap()
     }

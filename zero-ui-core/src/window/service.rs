@@ -249,10 +249,12 @@ impl WINDOWS {
     ///
     /// Returns a response variable that will update once when the window is opened, note that while the `window_id` is
     /// available in the `new_window` argument already, the window is only available in this service after
-    /// the returned variable updates.
+    /// the returned variable updates. Also note that the window might not be fully [loaded] yet.
     ///
     /// An update cycle is processed between the end of `new_window` and the window init, this means that you
     /// can use the context [`WINDOW`] to set variables that will be read on init with the new value.
+    ///
+    /// [loaded]: Self::is_loaded
     pub fn open(&self, new_window: impl Future<Output = Window> + Send + 'static) -> ResponseVar<WindowOpenArgs> {
         WINDOWS_SV
             .write()

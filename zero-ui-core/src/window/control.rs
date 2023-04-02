@@ -1732,6 +1732,9 @@ impl ContentCtrl {
                     });
 
                     self.is_rendering = true;
+                } else {
+                    // simulate frame in headless
+                    FRAME_IMAGE_READY_EVENT.notify(FrameImageReadyArgs::now(WINDOW.id(), self.frame_id, None));
                 }
             }
 
@@ -1784,6 +1787,9 @@ impl ContentCtrl {
                     });
 
                     self.is_rendering = true;
+                } else {
+                    // simulate frame in headless
+                    FRAME_IMAGE_READY_EVENT.notify(FrameImageReadyArgs::now(WINDOW.id(), self.frame_id, None));
                 }
             }
             RenderUpdate::None => {

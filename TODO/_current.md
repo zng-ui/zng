@@ -1,6 +1,3 @@
-* Headless window without renderer now implements load handles.
-    - This breaks many tests, because text nodes hold a load handle now.
-
 * Shorter name for `async_clone_move!`?
     * `ac_move!(foo, { })`.
     * `c_move!(foo, || { })`.

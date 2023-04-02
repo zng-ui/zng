@@ -30,7 +30,7 @@ Then create your first window:
 use zero_ui::prelude::*;
 
 fn run() {
-    App::default().run_window(|| {
+    App::default().run_window(async {
         let size = var_from((800, 600));
         window! {
             title = size.map(|s: &Size| formatx!("Button Example - {}", s));

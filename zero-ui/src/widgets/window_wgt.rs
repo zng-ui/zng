@@ -16,7 +16,7 @@ pub mod window_properties;
 /// ```no_run
 /// use zero_ui::prelude::*;
 ///
-/// App::default().run_window(|| {
+/// App::default().run_window(async {
 ///     window! {
 ///         title = "Window 1";
 ///         child = text!("Window 1");
