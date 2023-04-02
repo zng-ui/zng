@@ -1346,6 +1346,12 @@ impl HeadlessCtrl {
         if matches!(self.content.render_requested, RenderUpdate::None) {
             return;
         }
+
+        // layout and render cannot happen yet
+        if !WINDOWS.try_load(WINDOW.id()) {
+            return;
+        }
+
         let fct = self.vars.0.scale_factor.get();
         self.content.render(None, fct, None);
     }
