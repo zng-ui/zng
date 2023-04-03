@@ -359,9 +359,14 @@ pub mod img_window {
     inherit!(window);
 
     properties! {
+        // renderer_debug = {
+        //     use zero_ui::core::render::webrender_api::DebugFlags;
+        //     DebugFlags::TEXTURE_CACHE_DBG |  DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
+        // };
+        // render_mode = RenderMode::Software;
+
         child_align = Align::CENTER;
 
-        // render_mode = RenderMode::Software;
 
         state = WindowState::Maximized;
         window::size = (1140, 770);// restore size

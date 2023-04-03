@@ -1345,6 +1345,38 @@ impl RendererDebug {
             profiler_ui: ui.into(),
         }
     }
+
+    /// Custom flags with no UI string.
+    pub fn flags(flags: DebugFlags) -> Self {
+        Self {
+            flags,
+            profiler_ui: String::new(),
+        }
+    }
+}
+impl From<bool> for RendererDebug {
+    fn from(profiler_default: bool) -> Self {
+        if profiler_default {
+            Self::profiler("Default")
+        } else {
+            Self::disabled()
+        }
+    }
+}
+impl<'a> From<&'a str> for RendererDebug {
+    fn from(profiler: &'a str) -> Self {
+        Self::profiler(profiler)
+    }
+}
+impl From<String> for RendererDebug {
+    fn from(profiler: String) -> Self {
+        Self::profiler(profiler)
+    }
+}
+impl From<DebugFlags> for RendererDebug {
+    fn from(flags: DebugFlags) -> Self {
+        Self::flags(flags)
+    }
 }
 
 /// Data for rendering a new frame.

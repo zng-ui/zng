@@ -2365,3 +2365,37 @@ impl_from_and_into_var! {
         if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
     }
 }
+
+impl_from_and_into_var! {
+    fn from(profiler: crate::text::Text) -> RendererDebug {
+        RendererDebug::profiler(profiler)
+    }
+}
+impl var::IntoVar<RendererDebug> for bool {
+    type Var = var::LocalVar<RendererDebug>;
+
+    fn into_var(self) -> Self::Var {
+        var::LocalVar(self.into())
+    }
+}
+impl<'a> var::IntoVar<RendererDebug> for &'a str {
+    type Var = var::LocalVar<RendererDebug>;
+
+    fn into_var(self) -> Self::Var {
+        var::LocalVar(self.into())
+    }
+}
+impl var::IntoVar<RendererDebug> for String {
+    type Var = var::LocalVar<RendererDebug>;
+
+    fn into_var(self) -> Self::Var {
+        var::LocalVar(self.into())
+    }
+}
+impl var::IntoVar<RendererDebug> for webrender_api::DebugFlags {
+    type Var = var::LocalVar<RendererDebug>;
+
+    fn into_var(self) -> Self::Var {
+        var::LocalVar(self.into())
+    }
+}
