@@ -249,10 +249,11 @@ fn large_image() -> impl UiNode {
         child = text!("Large Image (205MB download)");
         on_click = hn!(|_| {
             WINDOWS.open(async {img_window(
-                "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
+                "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB, downscale to fit 8,000 × 8,000",
                 image! {
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-                    img_limits = Some(ImageLimits::none().with_max_encoded_size(300.megabytes()).with_max_decoded_size(3.gigabytes()));
+                    img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
+                    img_downscale = Px(8000);
 
                     on_error = hn!(|args: &ImageErrorArgs| {
                         tracing::error!(target: "unexpected", "{}", args.error);
@@ -275,7 +276,7 @@ fn panorama_image() -> impl UiNode {
                         child = image! {
                             img_fit = ImageFit::Fill;
                             source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
-                            img_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
+                            img_limits = Some(ImageLimits::none().with_max_encoded_len(130.megabytes()).with_max_decoded_len(1.gigabytes()));
                             on_error = hn!(|args: &ImageErrorArgs| {
                                 tracing::error!(target: "unexpected", "{}", args.error);
                             });
@@ -308,7 +309,7 @@ fn block_window_load_image() -> impl UiNode {
 
                             img_fit = ImageFit::Fill;
                             source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
-                            img_limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
+                            img_limits = Some(ImageLimits::none().with_max_encoded_len(130.megabytes()).with_max_decoded_len(1.gigabytes()));
 
                             on_error = hn!(|args: &ImageErrorArgs| {
                                 tracing::error!(target: "unexpected", "{}", args.error);
@@ -359,10 +360,11 @@ pub mod img_window {
     inherit!(window);
 
     properties! {
-        // renderer_debug = {
-        //     use zero_ui::core::render::webrender_api::DebugFlags;
-        //     DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
-        // };
+        renderer_debug = {
+            use zero_ui::core::render::webrender_api::DebugFlags;
+            DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
+        };
+
         // render_mode = RenderMode::Software;
 
         child_align = Align::CENTER;

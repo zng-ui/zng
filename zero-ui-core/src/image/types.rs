@@ -21,7 +21,7 @@ use crate::{
     window::{FrameCaptureMode, Window, WindowId, WINDOW_CTRL},
 };
 
-pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
+pub use crate::app::view_process::{ImageDataFormat, ImageDownscale, ImagePpi};
 
 /// A custom proxy in [`IMAGES`].
 ///
@@ -30,8 +30,8 @@ pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
 /// [`IMAGES`]: super::IMAGES
 pub trait ImageCacheProxy: Send + Sync {
     /// Intercept a get request.
-    fn get(&mut self, key: &ImageHash, source: &ImageSource, mode: ImageCacheMode) -> ProxyGetResult {
-        let _ = (key, source, mode);
+    fn get(&mut self, key: &ImageHash, source: &ImageSource, mode: ImageCacheMode, downscale: Option<ImageDownscale>) -> ProxyGetResult {
+        let _ = (key, source, mode, downscale);
         ProxyGetResult::None
     }
 
@@ -988,11 +988,11 @@ pub struct ImageLimits {
     /// loaded bytes are dropped.
     ///
     /// The default is `100mb`.
-    pub max_encoded_size: ByteLength,
+    pub max_encoded_len: ByteLength,
     /// Maximum decoded file size allowed.
     ///
     /// An error is returned if the decoded image memory would surpass the `width * height * 4`
-    pub max_decoded_size: ByteLength,
+    pub max_decoded_len: ByteLength,
 
     /// Filter for [`ImageSource::Read`] paths.
     ///
@@ -1007,27 +1007,27 @@ impl ImageLimits {
     /// No size limits, allow all paths and URIs.
     pub fn none() -> Self {
         ImageLimits {
-            max_encoded_size: ByteLength::MAX,
-            max_decoded_size: ByteLength::MAX,
+            max_encoded_len: ByteLength::MAX,
+            max_decoded_len: ByteLength::MAX,
             allow_path: PathFilter::AllowAll,
             #[cfg(http)]
             allow_uri: UriFilter::AllowAll,
         }
     }
 
-    /// Set the [`max_encoded_size`].
+    /// Set the [`max_encoded_len`].
     ///
-    /// [`max_encoded_size`]: Self::max_encoded_size
-    pub fn with_max_encoded_size(mut self, max_encoded_size: impl Into<ByteLength>) -> Self {
-        self.max_encoded_size = max_encoded_size.into();
+    /// [`max_encoded_len`]: Self::max_encoded_len
+    pub fn with_max_encoded_len(mut self, max_encoded_size: impl Into<ByteLength>) -> Self {
+        self.max_encoded_len = max_encoded_size.into();
         self
     }
 
-    /// Set the [`max_decoded_size`].
+    /// Set the [`max_decoded_len`].
     ///
-    /// [`max_decoded_size`]: Self::max_encoded_size
-    pub fn with_max_decoded_size(mut self, max_decoded_size: impl Into<ByteLength>) -> Self {
-        self.max_decoded_size = max_decoded_size.into();
+    /// [`max_decoded_len`]: Self::max_encoded_len
+    pub fn with_max_decoded_len(mut self, max_decoded_size: impl Into<ByteLength>) -> Self {
+        self.max_decoded_len = max_decoded_size.into();
         self
     }
 
@@ -1054,8 +1054,8 @@ impl Default for ImageLimits {
     /// Allows all paths, blocks all URIs.
     fn default() -> Self {
         Self {
-            max_encoded_size: 100.megabytes(),
-            max_decoded_size: 4096.megabytes(),
+            max_encoded_len: 100.megabytes(),
+            max_decoded_len: 4096.megabytes(),
             allow_path: PathFilter::AllowAll,
             #[cfg(http)]
             allow_uri: UriFilter::BlockAll,
@@ -1070,3 +1070,28 @@ impl IntoVar<Option<ImageLimits>> for ImageLimits {
     }
 }
 impl IntoValue<Option<ImageLimits>> for ImageLimits {}
+
+impl IntoVar<Option<ImageDownscale>> for ImageDownscale {
+    type Var = LocalVar<Option<ImageDownscale>>;
+
+    fn into_var(self) -> Self::Var {
+        LocalVar(Some(self))
+    }
+}
+impl IntoValue<Option<ImageDownscale>> for ImageDownscale {}
+impl IntoVar<Option<ImageDownscale>> for PxSize {
+    type Var = LocalVar<Option<ImageDownscale>>;
+
+    /// Fit
+    fn into_var(self) -> Self::Var {
+        LocalVar(Some(self.into()))
+    }
+}
+impl IntoVar<Option<ImageDownscale>> for Px {
+    type Var = LocalVar<Option<ImageDownscale>>;
+
+    /// Fit
+    fn into_var(self) -> Self::Var {
+        LocalVar(Some(self.into()))
+    }
+}

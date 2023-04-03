@@ -3,9 +3,9 @@
 use std::mem;
 
 use super::image_properties::{
-    ImageErrorArgs, ImageFit, ImageLoadingArgs, IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_ERROR_GEN_VAR, IMAGE_FIT_VAR,
-    IMAGE_LIMITS_VAR, IMAGE_LOADING_GEN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_FACTOR_VAR, IMAGE_SCALE_PPI_VAR,
-    IMAGE_SCALE_VAR,
+    ImageErrorArgs, ImageFit, ImageLoadingArgs, IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_GEN_VAR,
+    IMAGE_FIT_VAR, IMAGE_LIMITS_VAR, IMAGE_LOADING_GEN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_FACTOR_VAR,
+    IMAGE_SCALE_PPI_VAR, IMAGE_SCALE_VAR,
 };
 use crate::core::image::*;
 
@@ -50,12 +50,13 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 ImageCacheMode::Ignore
             };
             let limits = IMAGE_LIMITS_VAR.get();
+            let downscale = IMAGE_DOWNSCALE_VAR.get();
 
             let mut source = self.source.get();
             if let ImageSource::Render(_, args) = &mut source {
                 *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
             }
-            self.img = IMAGES.image(source, mode, limits);
+            self.img = IMAGES.image(source, mode, limits, downscale);
 
             self.ctx_img.set(self.img.get());
             self.ctx_binding = Some(self.img.bind(&self.ctx_img));
@@ -84,8 +85,9 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     ImageCacheMode::Ignore
                 };
                 let limits = IMAGE_LIMITS_VAR.get();
+                let downscale = IMAGE_DOWNSCALE_VAR.get();
 
-                self.img = IMAGES.image(source, mode, limits);
+                self.img = IMAGES.image(source, mode, limits, downscale);
 
                 self.ctx_img.set(self.img.get());
                 self.ctx_binding = Some(self.img.bind(&self.ctx_img));
@@ -103,7 +105,8 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
                         let source = self.source.get();
                         let limits = IMAGE_LIMITS_VAR.get();
-                        IMAGES.image(source, ImageCacheMode::Cache, limits)
+                        let downscale = IMAGE_DOWNSCALE_VAR.get();
+                        IMAGES.image(source, ImageCacheMode::Cache, limits, downscale)
                     };
 
                     self.ctx_img.set(self.img.get());

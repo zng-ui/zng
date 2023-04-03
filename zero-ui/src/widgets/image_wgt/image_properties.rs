@@ -1,7 +1,7 @@
 use super::*;
 use std::fmt;
 
-pub use crate::core::image::ImageLimits;
+pub use crate::core::image::{ImageDownscale, ImageLimits};
 pub use crate::core::render::ImageRendering;
 use crate::core::window::{WindowLoadingHandle, WINDOW_CTRL};
 use crate::widgets::window::nodes::BlockWindowLoad;
@@ -67,8 +67,13 @@ context_var! {
 
     /// Custom image load and decode limits.
     ///
-    /// Set to `None` to use the [`Images::limits`].
+    /// Set to `None` to use the [`IMAGES::limits`].
     pub static IMAGE_LIMITS_VAR: Option<ImageLimits> = None;
+
+    /// Custom resize applied during image decode.
+    ///
+    /// Is `None` by default.
+    pub static IMAGE_DOWNSCALE_VAR: Option<ImageDownscale> = None;
 
     /// The image layout mode.
     ///
@@ -250,10 +255,28 @@ pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
 ///
 /// If not set or set to `None` the [`IMAGES.limits`] is used.
 ///
+/// See also [`img_downscale`] for a way to still display unexpected large images.
+///
 /// [`IMAGES.limits`]: crate::core::image::IMAGES::limits
+/// [`img_downscale`]: fn@img_downscale
 #[property(CONTEXT, default(IMAGE_LIMITS_VAR))]
 pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
     with_context_var(child, IMAGE_LIMITS_VAR, limits)
+}
+
+/// Custom pixel resize applied during image load/decode.
+///
+/// Note that this resize affects the image actual pixel size directly when it is loading to force the image pixels to be within an expected size.
+/// This property primary use is as error recover before the [`img_limits`] error happens, you set the limits to the size that should not even
+/// be processed and set this property to the maximum size expected.
+///
+/// Updating the value after an image is already loaded will not resize/reload it, use the widget size and other properties to efficiently resize
+/// an image on screen.
+///
+/// [`IMAGES.limits`]: crate::core::image::IMAGES::limits
+#[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR))]
+pub fn img_downscale(child: impl UiNode, limits: impl IntoVar<Option<ImageDownscale>>) -> impl UiNode {
+    with_context_var(child, IMAGE_DOWNSCALE_VAR, limits)
 }
 
 /// If the [`CONTEXT_IMAGE_VAR`] is an error.

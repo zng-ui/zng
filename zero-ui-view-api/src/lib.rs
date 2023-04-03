@@ -331,25 +331,25 @@ declare_api! {
     /// The image is decoded asynchronously, the events [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`]
     /// or [`Event::ImageLoadError`] will be send when the image is ready for use or failed.
     ///
-    /// The `data` handle must contain the full image data already, it will be dropped after the image finishes decoding.
+    /// The [`ImageRequest::data`] handle must contain the full image data already, it will be dropped after the image finishes decoding.
     ///
     /// Images are shared between renderers, to use an image in a window you must first call [`use_image`]
     /// this will register the image data with the renderer.
     ///
     /// [`use_image`]: Api::use_image
-    pub fn add_image(&mut self, format: ImageDataFormat, data: IpcBytes, max_decoded_size: u64) -> ImageId;
+    pub fn add_image(&mut self, request: ImageRequest<IpcBytes>) -> ImageId;
 
     /// Cache an image from data that has not fully loaded.
     ///
     /// If the view-process implementation supports **progressive decoding** it will start decoding the image
     /// as more data is received, otherwise it will collect all data first and then [`add_image`]. Each
-    /// `data` package is the continuation of the previous call, send an empty package to indicate finish.
+    /// [`ImageRequest::`data`] package is the continuation of the previous call, send an empty package to indicate finish.
     ///
     /// The events [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] or [`Event::ImageLoadError`] will
     /// be send while decoding.
     ///
     /// [`add_image`]: Api::add_image
-    pub fn add_image_pro(&mut self, format: ImageDataFormat, data: IpcBytesReceiver, max_decoded_size: u64) -> ImageId;
+    pub fn add_image_pro(&mut self, request: ImageRequest<IpcBytesReceiver>) -> ImageId;
 
     /// Remove an image from cache.
     ///

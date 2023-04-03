@@ -1859,6 +1859,51 @@ impl Default for AnimationsConfig {
     }
 }
 
+/// Represent a image load/decode request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImageRequest<D> {
+    /// Image data format.
+    pub format: ImageDataFormat,
+    /// Image data.
+    ///
+    /// Bytes layout depends on the `format`, data structure is [`IpcBytes`] or [`IpcBytesReceiver`] in the view API.
+    ///
+    /// [`IpcBytesReceiver`]: crate::IpcBytesReceiver
+    pub data: D,
+    /// Maximum allowed decoded size.
+    ///
+    /// View-process will avoid decoding and return an error if the image decoded to BGRA (4 bytes) exceeds this size.
+    /// This limit applies to the image before the `resize_to_fit`.
+    pub max_decoded_len: u64,
+    /// A size constrains to apply after the image is decoded. The image is resized so both dimensions fit inside
+    /// the constrains, the image aspect ratio is preserved.
+    pub downscale: Option<ImageDownscale>,
+}
+
+/// Defines how an image is downscaled after decoding.
+///
+/// The image aspect ratio is preserved in both modes, the image is not upsized, if it already fits the size
+/// constrains if will not be resized.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum ImageDownscale {
+    /// Image is downscaled so that both dimensions fit inside the size.
+    Fit(PxSize),
+    /// Image is downscaled so that at least one dimension fits inside the size.
+    Fill(PxSize),
+}
+impl From<PxSize> for ImageDownscale {
+    /// Fit
+    fn from(fit: PxSize) -> Self {
+        ImageDownscale::Fit(fit)
+    }
+}
+impl From<Px> for ImageDownscale {
+    /// Fit splat
+    fn from(fit: Px) -> Self {
+        ImageDownscale::Fit(PxSize::splat(fit))
+    }
+}
+
 /// Format of the image bytes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ImageDataFormat {

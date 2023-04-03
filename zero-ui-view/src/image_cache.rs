@@ -4,7 +4,7 @@ use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use winit::window::Icon;
 use zero_ui_view_api::{
     units::{Px, PxSize},
-    Event, ImageDataFormat, ImageId, ImageLoadedData, ImagePpi, IpcBytes, IpcBytesReceiver,
+    Event, ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -40,7 +40,15 @@ impl ImageCache {
         }
     }
 
-    pub fn add(&mut self, format: ImageDataFormat, data: IpcBytes, max_decoded_size: u64) -> ImageId {
+    pub fn add(
+        &mut self,
+        ImageRequest {
+            format,
+            data,
+            max_decoded_len,
+            downscale,
+        }: ImageRequest<IpcBytes>,
+    ) -> ImageId {
         let id = self.generate_image_id();
 
         let app_sender = self.app_sender.clone();
@@ -60,10 +68,10 @@ impl ImageCache {
                 }
                 fmt => match Self::get_format_and_size(&fmt, &data[..]) {
                     Ok((fmt, size)) => {
-                        let decoded_size = size.width.0 as u64 * size.height.0 as u64 * 4;
-                        if decoded_size > max_decoded_size {
+                        let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
+                        if decoded_len > max_decoded_len {
                             Err(format!(
-                                "image {size:?} needs to allocate {decoded_size} bytes, but max allowed size is {max_decoded_size} bytes",
+                                "image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",
                             ))
                         } else {
                             let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded {
@@ -71,7 +79,7 @@ impl ImageCache {
                                 size,
                                 ppi: None,
                             }));
-                            match Self::image_decode(&data[..], fmt) {
+                            match Self::image_decode(&data[..], fmt, downscale) {
                                 Ok(img) => Ok(Self::convert_decoded(img)),
                                 Err(e) => Err(e.to_string()),
                             }
@@ -100,7 +108,15 @@ impl ImageCache {
         id
     }
 
-    pub fn add_pro(&mut self, format: ImageDataFormat, data: IpcBytesReceiver, max_decoded_size: u64) -> ImageId {
+    pub fn add_pro(
+        &mut self,
+        ImageRequest {
+            format,
+            data,
+            max_decoded_len,
+            downscale,
+        }: ImageRequest<IpcBytesReceiver>,
+    ) -> ImageId {
         let id = self.generate_image_id();
         let app_sender = self.app_sender.clone();
         rayon::spawn(move || {
@@ -137,10 +153,10 @@ impl ImageCache {
                                     .ok()
                                     .map(|(w, h)| PxSize::new(Px(w as i32), Px(h as i32)));
                                 if let Some(s) = size {
-                                    let decoded_size = s.width.0 as u64 * s.height.0 as u64 * 4;
-                                    if decoded_size > max_decoded_size {
+                                    let decoded_len = s.width.0 as u64 * s.height.0 as u64 * 4;
+                                    if decoded_len > max_decoded_len {
                                         let error = format!(
-                                            "image {size:?} needs to allocate {decoded_size} bytes, but max allowed size is {max_decoded_size} bytes",
+                                            "image {size:?} needs to allocate {decoded_len} bytes, but max allowed size is {max_decoded_len} bytes",
                                         );
                                         let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError { image: id, error }));
                                         return;
@@ -159,7 +175,7 @@ impl ImageCache {
             }
 
             if let Some(fmt) = format {
-                match Self::image_decode(&full[..], fmt) {
+                match Self::image_decode(&full[..], fmt, downscale) {
                     Ok(img) => {
                         let (bgra8, size, ppi, opaque) = Self::convert_decoded(img);
                         let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData {
@@ -258,16 +274,26 @@ impl ImageCache {
         }
     }
 
-    fn image_decode(buf: &[u8], format: image::ImageFormat) -> image::ImageResult<image::DynamicImage> {
+    fn image_decode(buf: &[u8], format: image::ImageFormat, downscale: Option<ImageDownscale>) -> image::ImageResult<image::DynamicImage> {
         // we can't use `image::load_from_memory_with_format` directly because it does not allow `Limits` config.
 
         use image::{codecs::*, DynamicImage, ImageFormat::*};
 
         let buf = std::io::Cursor::new(buf);
 
-        match format {
+        let mut image = match format {
             Png => DynamicImage::from_decoder(png::PngDecoder::with_limits(buf, image::io::Limits::no_limits())?),
-            Jpeg => DynamicImage::from_decoder(jpeg::JpegDecoder::new(buf)?),
+            Jpeg => {
+                let mut decoder = jpeg::JpegDecoder::new(buf)?;
+                if let Some(s) = downscale {
+                    let s = match s {
+                        ImageDownscale::Fit(s) => s,
+                        ImageDownscale::Fill(s) => s,
+                    };
+                    decoder.scale(s.width.0 as u16, s.height.0 as u16)?;
+                }
+                DynamicImage::from_decoder(decoder)
+            }
             Gif => DynamicImage::from_decoder(gif::GifDecoder::new(buf)?),
             WebP => DynamicImage::from_decoder(webp::WebPDecoder::new(buf)?),
             Pnm => DynamicImage::from_decoder(pnm::PnmDecoder::new(buf)?),
@@ -280,7 +306,29 @@ impl ImageCache {
             Farbfeld => DynamicImage::from_decoder(farbfeld::FarbfeldDecoder::new(buf)?),
             Qoi => DynamicImage::from_decoder(qoi::QoiDecoder::new(buf)?),
             _ => image::load_from_memory_with_format(buf.into_inner(), format),
+        }?;
+
+        if let Some(s) = downscale {
+            let (img_w, img_h) = (image.width(), image.height());
+            match s {
+                ImageDownscale::Fit(s) => {
+                    let w = img_w.min(s.width.0 as u32);
+                    let h = img_h.min(s.height.0 as u32);
+                    if w != img_w || h != img_h {
+                        image = image.resize(w, h, image::imageops::FilterType::Triangle);
+                    }
+                }
+                ImageDownscale::Fill(s) => {
+                    let w = img_w.min(s.width.0 as u32);
+                    let h = img_h.min(s.height.0 as u32);
+                    if w != img_w && h != img_h {
+                        image = image.resize_to_fill(w, h, image::imageops::FilterType::Triangle);
+                    }
+                }
+            }
         }
+
+        Ok(image)
     }
 
     fn convert_decoded(image: image::DynamicImage) -> RawLoadedImg {
@@ -642,7 +690,7 @@ mod external {
 
             self.locked = Some(img); // keep alive just in case the image is removed mid-use?
             ExternalImage {
-                uv: TexelRect::new(0.0, 0.0, 1.0, 1.0),
+                uv: TexelRect::invalid(), // `RawData` does not use `uv`.
                 source: ExternalImageSource::RawData(&self.locked.as_ref().unwrap().bgra8[..]),
             }
         }
@@ -730,7 +778,7 @@ mod capture {
     };
     use zero_ui_view_api::{
         units::{Px, PxRect, PxSize, PxToWr, WrToPx},
-        Event, FrameId, ImageDataFormat, ImageId, ImageLoadedData, IpcBytes, WindowId,
+        Event, FrameId, ImageDataFormat, ImageId, ImageLoadedData, ImageRequest, IpcBytes, WindowId,
     };
 
     use crate::{
@@ -831,14 +879,15 @@ mod capture {
                 let data = IpcBytes::from_vec(buf);
                 let ppi = 96.0 * scale_factor;
                 let ppi = Some((ppi, ppi));
-                let id = self.add(
-                    ImageDataFormat::Bgra8 {
+                let id = self.add(ImageRequest {
+                    format: ImageDataFormat::Bgra8 {
                         size: PxSize::new(Px(s.width), Px(s.height)),
                         ppi,
                     },
-                    data.clone(),
-                    u64::MAX,
-                );
+                    data: data.clone(),
+                    max_decoded_len: u64::MAX,
+                    downscale: None,
+                });
 
                 let size = s.to_px();
 

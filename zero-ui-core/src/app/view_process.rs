@@ -19,8 +19,8 @@ use zero_ui_view_api::webrender_api::{
 };
 pub use zero_ui_view_api::{
     bytes_channel, AnimationsConfig, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest,
-    FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo,
-    RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
+    FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
+    IpcBytesSender, MonitorInfo, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
 };
 use zero_ui_view_api::{
     Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
@@ -271,10 +271,10 @@ impl ViewProcess {
     ///
     /// This function returns immediately, the [`ViewImage`] will update when
     /// [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
-    pub fn add_image(&self, format: ImageDataFormat, data: IpcBytes, max_decoded_size: u64) -> Result<ViewImage> {
+    pub fn add_image(&self, request: ImageRequest<IpcBytes>) -> Result<ViewImage> {
         let app = self.req();
         let mut app = app.lock();
-        let id = app.process.add_image(format, data, max_decoded_size)?;
+        let id = app.process.add_image(request)?;
         let img = ViewImage(Arc::new(Mutex::new(ImageConnection {
             id,
             generation: app.process.generation(),
@@ -296,10 +296,10 @@ impl ViewProcess {
     /// This function returns immediately, the [`ViewImage`] will update when
     /// [`Event::ImageMetadataLoaded`], [`Event::ImagePartiallyLoaded`],
     /// [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
-    pub fn add_image_pro(&self, format: ImageDataFormat, data: IpcBytesReceiver, max_decoded_size: u64) -> Result<ViewImage> {
+    pub fn add_image_pro(&self, request: ImageRequest<IpcBytesReceiver>) -> Result<ViewImage> {
         let app = self.req();
         let mut app = app.lock();
-        let id = app.process.add_image_pro(format, data, max_decoded_size)?;
+        let id = app.process.add_image_pro(request)?;
         let img = ViewImage(Arc::new(Mutex::new(ImageConnection {
             id,
             generation: app.process.generation(),

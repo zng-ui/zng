@@ -1504,12 +1504,12 @@ impl Api for App {
         image_cache::ENCODERS.iter().map(|&s| s.to_owned()).collect()
     }
 
-    fn add_image(&mut self, format: ImageDataFormat, data: IpcBytes, max_decoded_size: u64) -> ImageId {
-        self.image_cache.add(format, data, max_decoded_size)
+    fn add_image(&mut self, request: ImageRequest<IpcBytes>) -> ImageId {
+        self.image_cache.add(request)
     }
 
-    fn add_image_pro(&mut self, format: ImageDataFormat, data: IpcBytesReceiver, max_decoded_size: u64) -> ImageId {
-        self.image_cache.add_pro(format, data, max_decoded_size)
+    fn add_image_pro(&mut self, request: ImageRequest<IpcBytesReceiver>) -> ImageId {
+        self.image_cache.add_pro(request)
     }
 
     fn forget_image(&mut self, id: ImageId) {

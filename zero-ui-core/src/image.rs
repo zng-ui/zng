@@ -17,7 +17,7 @@ use zero_ui_view_api::IpcBytes;
 use crate::{
     app::{
         raw_events::{RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
-        view_process::{ViewImage, ViewProcess, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
+        view_process::{ImageRequest, ViewImage, ViewProcess, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
         AppExtension,
     },
     app_local,
@@ -67,7 +67,7 @@ impl AppExtension for ImageManager {
             if let Some(var) = images
                 .decoding
                 .iter()
-                .map(|(_, _, v)| v)
+                .map(|t| &t.image)
                 .find(|v| v.with(|img| img.view.get().unwrap() == &args.image))
             {
                 var.touch();
@@ -82,11 +82,11 @@ impl AppExtension for ImageManager {
             if let Some(i) = images
                 .decoding
                 .iter()
-                .position(|(_, _, v)| v.with(|img| img.view.get().unwrap() == image))
+                .position(|t| t.image.with(|img| img.view.get().unwrap() == image))
             {
-                let (_, _, var) = images.decoding.swap_remove(i);
-                var.touch();
-                var.with(|img| img.done_signal.set());
+                let ImageDecodingTask { image, .. } = images.decoding.swap_remove(i);
+                image.touch();
+                image.with(|img| img.done_signal.set());
             }
         } else if let Some(args) = RAW_IMAGE_LOAD_ERROR_EVENT.on(update) {
             let image = &args.image;
@@ -98,11 +98,11 @@ impl AppExtension for ImageManager {
             if let Some(i) = images
                 .decoding
                 .iter()
-                .position(|(_, _, v)| v.with(|img| img.view.get().unwrap() == image))
+                .position(|t| t.image.with(|img| img.view.get().unwrap() == image))
             {
-                let (_, _, var) = images.decoding.swap_remove(i);
-                var.touch();
-                var.with(|img| {
+                let ImageDecodingTask { image, .. } = images.decoding.swap_remove(i);
+                image.touch();
+                image.with(|img| {
                     img.done_signal.set();
 
                     if let Some(k) = &img.cache_key {
@@ -125,11 +125,16 @@ impl AppExtension for ImageManager {
             images.download_accept.clear();
             let vp = images.view.as_mut().unwrap();
             let decoding_interrupted = mem::take(&mut images.decoding);
-            for (img_var, max_decoded_size) in images
+            for (img_var, max_decoded_len, downscale) in images
                 .cache
                 .values()
-                .map(|e| (e.img.clone(), e.max_decoded_size))
-                .chain(images.not_cached.iter().filter_map(|(v, m)| v.upgrade().map(|v| (v, *m))))
+                .map(|e| (e.image.clone(), e.max_decoded_len, e.downscale))
+                .chain(
+                    images
+                        .not_cached
+                        .iter()
+                        .filter_map(|e| e.image.upgrade().map(|v| (v, e.max_decoded_len, e.downscale))),
+                )
             {
                 let img = img_var.get();
 
@@ -140,18 +145,25 @@ impl AppExtension for ImageManager {
                     if let Some(e) = view.error() {
                         // respawned, but image was an error.
                         img_var.set(Image::dummy(Some(e.to_owned())));
-                    } else if let Some((img_format, data, _)) =
-                        decoding_interrupted.iter().find(|(_, _, v)| v.with(|img| img.view() == Some(view)))
-                    {
+                    } else if let Some(task) = decoding_interrupted.iter().find(|e| e.image.with(|img| img.view() == Some(view))) {
                         // respawned, but image was decoding, need to restart decode.
 
-                        match vp.add_image(img_format.clone(), data.clone(), max_decoded_size.0 as u64) {
+                        match vp.add_image(ImageRequest {
+                            format: task.format.clone(),
+                            data: task.data.clone(),
+                            max_decoded_len: max_decoded_len.0 as u64,
+                            downscale,
+                        }) {
                             Ok(img) => {
                                 img_var.set(Image::new(img));
                             }
                             Err(ViewProcessOffline) => { /*will receive another event.*/ }
                         }
-                        images.decoding.push((img_format.clone(), data.clone(), img_var));
+                        images.decoding.push(ImageDecodingTask {
+                            format: task.format.clone(),
+                            data: task.data.clone(),
+                            image: img_var,
+                        });
                     } else {
                         // respawned and image was loaded.
 
@@ -161,14 +173,23 @@ impl AppExtension for ImageManager {
                         };
 
                         let data = view.bgra8().unwrap();
-                        let img = match vp.add_image(img_format.clone(), data.clone(), max_decoded_size.0 as u64) {
+                        let img = match vp.add_image(ImageRequest {
+                            format: img_format.clone(),
+                            data: data.clone(),
+                            max_decoded_len: max_decoded_len.0 as u64,
+                            downscale,
+                        }) {
                             Ok(img) => img,
                             Err(ViewProcessOffline) => return, // we will receive another event.
                         };
 
                         img_var.set(Image::new(img));
 
-                        images.decoding.push((img_format, data, img_var));
+                        images.decoding.push(ImageDecodingTask {
+                            format: img_format,
+                            data,
+                            image: img_var,
+                        });
                     }
                 } // else { *is loading, will continue normally in self.update_preview()* }
             }
@@ -186,20 +207,25 @@ impl AppExtension for ImageManager {
         let decoding = &mut images.decoding;
         let mut loading = Vec::with_capacity(images.loading.len());
 
-        for (task, var, max_decoded_size) in mem::take(&mut images.loading) {
-            task.lock().update();
-            match task.into_inner().into_result() {
+        for t in mem::take(&mut images.loading) {
+            t.task.lock().update();
+            match t.task.into_inner().into_result() {
                 Ok(d) => {
                     match d.r {
                         Ok(data) => {
                             if let Some(vp) = view {
                                 // success and we have a view-process.
-                                match vp.add_image(d.format.clone(), data.clone(), max_decoded_size.0 as u64) {
+                                match vp.add_image(ImageRequest {
+                                    format: d.format.clone(),
+                                    data: data.clone(),
+                                    max_decoded_len: t.max_decoded_len.0 as u64,
+                                    downscale: t.downscale,
+                                }) {
                                     Ok(img) => {
                                         // request sent, add to `decoding` will receive
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
                                         // when done.
-                                        var.modify(move |v| {
+                                        t.image.modify(move |v| {
                                             v.to_mut().view.set(img).unwrap();
                                         });
                                     }
@@ -207,11 +233,15 @@ impl AppExtension for ImageManager {
                                         // will recover in ViewProcessInitedEvent
                                     }
                                 }
-                                decoding.push((d.format, data, var));
+                                decoding.push(ImageDecodingTask {
+                                    format: d.format,
+                                    data,
+                                    image: t.image,
+                                });
                             } else {
                                 // success, but we are only doing `load_in_headless` validation.
                                 let img = ViewImage::dummy(None);
-                                var.modify(move |v| {
+                                t.image.modify(move |v| {
                                     let v = v.to_mut();
                                     v.view.set(img).unwrap();
                                     v.done_signal.set();
@@ -222,14 +252,14 @@ impl AppExtension for ImageManager {
                             tracing::error!("load error: {e:?}");
                             // load error.
                             let img = ViewImage::dummy(Some(e));
-                            var.modify(move |v| {
+                            t.image.modify(move |v| {
                                 let v = v.to_mut();
                                 v.view.set(img).unwrap();
                                 v.done_signal.set();
                             });
 
                             // flag error for user retry
-                            if let Some(k) = &var.with(|img| img.cache_key) {
+                            if let Some(k) = &t.image.with(|img| img.cache_key) {
                                 if let Some(e) = images.cache.get(k) {
                                     e.error.store(true, Ordering::Relaxed);
                                 }
@@ -238,7 +268,12 @@ impl AppExtension for ImageManager {
                     }
                 }
                 Err(task) => {
-                    loading.push((Mutex::new(task), var, max_decoded_size));
+                    loading.push(ImageLoadingTask {
+                        task: Mutex::new(task),
+                        image: t.image,
+                        max_decoded_len: t.max_decoded_len,
+                        downscale: t.downscale,
+                    });
                 }
             }
         }
@@ -254,6 +289,32 @@ app_local! {
     static IMAGES_SV: ImagesService = ImagesService::new();
 }
 
+struct ImageLoadingTask {
+    task: Mutex<UiTask<ImageData>>,
+    image: ArcVar<Image>,
+    max_decoded_len: ByteLength,
+    downscale: Option<ImageDownscale>,
+}
+
+struct ImageDecodingTask {
+    format: ImageDataFormat,
+    data: IpcBytes,
+    image: ArcVar<Image>,
+}
+
+struct CacheEntry {
+    image: ArcVar<Image>,
+    error: AtomicBool,
+    max_decoded_len: ByteLength,
+    downscale: Option<ImageDownscale>,
+}
+
+struct NotCachedEntry {
+    image: WeakArcVar<Image>,
+    max_decoded_len: ByteLength,
+    downscale: Option<ImageDownscale>,
+}
+
 struct ImagesService {
     load_in_headless: ArcVar<bool>,
     limits: ArcVar<ImageLimits>,
@@ -262,10 +323,10 @@ struct ImagesService {
     download_accept: Text,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
 
-    loading: Vec<(Mutex<UiTask<ImageData>>, ArcVar<Image>, ByteLength)>,
-    decoding: Vec<(ImageDataFormat, IpcBytes, ArcVar<Image>)>,
+    loading: Vec<ImageLoadingTask>,
+    decoding: Vec<ImageDecodingTask>,
     cache: IdMap<ImageHash, CacheEntry>,
-    not_cached: Vec<(WeakArcVar<Image>, ByteLength)>,
+    not_cached: Vec<NotCachedEntry>,
 
     render: render::ImagesRender,
 }
@@ -289,30 +350,33 @@ impl ImagesService {
         self.view = view;
     }
 
-    fn register(&mut self, key: ImageHash, image: ViewImage) -> Option<ImageVar> {
+    fn register(&mut self, key: ImageHash, image: ViewImage, downscale: Option<ImageDownscale>) -> Option<ImageVar> {
         let limits = self.limits.get();
         let limits = ImageLimits {
-            max_encoded_size: limits.max_encoded_size,
-            max_decoded_size: limits.max_decoded_size.max(image.bgra8().map(|b| b.len()).unwrap_or(0).bytes()),
+            max_encoded_len: limits.max_encoded_len,
+            max_decoded_len: limits.max_decoded_len.max(image.bgra8().map(|b| b.len()).unwrap_or(0).bytes()),
             allow_path: PathFilter::BlockAll,
             #[cfg(http)]
             allow_uri: UriFilter::BlockAll,
         };
         let entry = CacheEntry {
             error: AtomicBool::new(image.is_error()),
-            img: var(Image::new(image)),
-            max_decoded_size: limits.max_decoded_size,
+            image: var(Image::new(image)),
+            max_decoded_len: limits.max_decoded_len,
+            downscale,
         };
-        self.cache.insert(key, entry).map(|v| v.img.read_only())
+        self.cache.insert(key, entry).map(|v| v.image.read_only())
     }
 
     fn detach(&mut self, image: ImageVar) -> ImageVar {
         if let Some(key) = &image.with(|i| i.cache_key) {
             let decoded_size = image.with(|img| img.bgra8().map(|b| b.len()).unwrap_or(0).bytes());
-            let mut max_decoded_size = self.limits.with(|l| l.max_decoded_size.max(decoded_size));
+            let mut max_decoded_len = self.limits.with(|l| l.max_decoded_len.max(decoded_size));
+            let mut downscale = None;
 
             if let Some(e) = self.cache.get(key) {
-                max_decoded_size = e.max_decoded_size;
+                max_decoded_len = e.max_decoded_len;
+                downscale = e.downscale;
 
                 // is cached, `clean` if is only external reference.
                 if image.strong_count() == 2 {
@@ -324,7 +388,11 @@ impl ImagesService {
             let mut img = image.into_value();
             img.cache_key = None;
             let img = var(img);
-            self.not_cached.push((img.downgrade(), max_decoded_size));
+            self.not_cached.push(NotCachedEntry {
+                image: img.downgrade(),
+                max_decoded_len,
+                downscale,
+            });
             img.read_only()
         } else {
             // already not cached
@@ -344,14 +412,20 @@ impl ImagesService {
         self.proxied_remove(key, purge)
     }
     fn proxied_remove(&mut self, key: &ImageHash, purge: bool) -> bool {
-        if purge || self.cache.get(key).map(|v| v.img.strong_count() > 1).unwrap_or(false) {
+        if purge || self.cache.get(key).map(|v| v.image.strong_count() > 1).unwrap_or(false) {
             self.cache.remove(key).is_some()
         } else {
             false
         }
     }
 
-    fn proxy_then_get(&mut self, source: ImageSource, mode: ImageCacheMode, limits: ImageLimits) -> ImageVar {
+    fn proxy_then_get(
+        &mut self,
+        source: ImageSource,
+        mode: ImageCacheMode,
+        limits: ImageLimits,
+        downscale: Option<ImageDownscale>,
+    ) -> ImageVar {
         let source = match source {
             ImageSource::Read(path) => {
                 let path = crate::crate_util::absolute_path(&path, || env::current_dir().expect("could not access current dir"), true);
@@ -377,26 +451,33 @@ impl ImagesService {
 
         let key = source.hash128().unwrap();
         for proxy in &mut self.proxies {
-            let r = proxy.get(&key, &source, mode);
+            let r = proxy.get(&key, &source, mode, downscale);
             match r {
                 ProxyGetResult::None => continue,
-                ProxyGetResult::Cache(source, mode) => return self.proxied_get(key, source, mode, limits),
+                ProxyGetResult::Cache(source, mode) => return self.proxied_get(key, source, mode, limits, downscale),
                 ProxyGetResult::Image(img) => return img,
             }
         }
-        self.proxied_get(key, source, mode, limits)
+        self.proxied_get(key, source, mode, limits, downscale)
     }
-    fn proxied_get(&mut self, key: ImageHash, source: ImageSource, mode: ImageCacheMode, limits: ImageLimits) -> ImageVar {
+    fn proxied_get(
+        &mut self,
+        key: ImageHash,
+        source: ImageSource,
+        mode: ImageCacheMode,
+        limits: ImageLimits,
+        downscale: Option<ImageDownscale>,
+    ) -> ImageVar {
         match mode {
             ImageCacheMode::Cache => {
                 if let Some(v) = self.cache.get(&key) {
-                    return v.img.read_only();
+                    return v.image.read_only();
                 }
             }
             ImageCacheMode::Retry => {
                 if let Some(e) = self.cache.get(&key) {
                     if !e.error.load(Ordering::Relaxed) {
-                        return e.img.read_only();
+                        return e.image.read_only();
                     }
                 }
             }
@@ -410,21 +491,23 @@ impl ImagesService {
             self.cache.insert(
                 key,
                 CacheEntry {
-                    img: dummy.clone(),
+                    image: dummy.clone(),
                     error: AtomicBool::new(false),
-                    max_decoded_size: limits.max_decoded_size,
+                    max_decoded_len: limits.max_decoded_len,
+                    downscale,
                 },
             );
             return dummy.read_only();
         }
 
-        let max_encoded_size = limits.max_encoded_size;
+        let max_encoded_size = limits.max_encoded_len;
 
         match source {
             ImageSource::Read(path) => self.load_task(
                 key,
                 mode,
-                limits.max_decoded_size,
+                limits.max_decoded_len,
+                downscale,
                 task::run(async move {
                     let mut r = ImageData {
                         format: path
@@ -472,7 +555,8 @@ impl ImagesService {
                 self.load_task(
                     key,
                     mode,
-                    limits.max_decoded_size,
+                    limits.max_decoded_len,
+                    downscale,
                     task::run(async move {
                         let mut r = ImageData {
                             format: ImageDataFormat::Unknown,
@@ -518,17 +602,17 @@ impl ImagesService {
                     format: fmt,
                     r: Ok(IpcBytes::from_slice(bytes)),
                 };
-                self.load_task(key, mode, limits.max_decoded_size, async { r })
+                self.load_task(key, mode, limits.max_decoded_len, downscale, async { r })
             }
             ImageSource::Data(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
                     r: Ok(IpcBytes::from_slice(&bytes)),
                 };
-                self.load_task(key, mode, limits.max_decoded_size, async { r })
+                self.load_task(key, mode, limits.max_decoded_len, downscale, async { r })
             }
             ImageSource::Render(rfn, args) => {
-                let img = self.new_cache_image(key, mode, limits.max_decoded_size);
+                let img = self.new_cache_image(key, mode, limits.max_decoded_len, downscale);
                 self.render_img(clmv!(rfn, || rfn(&args.unwrap_or_default())), &img);
                 img.read_only()
             }
@@ -561,35 +645,47 @@ impl ImagesService {
 
     fn cleanup_not_cached(&mut self, force: bool) {
         if force || self.not_cached.len() > 1000 {
-            self.not_cached.retain(|c| c.0.strong_count() > 0);
+            self.not_cached.retain(|c| c.image.strong_count() > 0);
         }
     }
 
-    fn new_cache_image(&mut self, key: ImageHash, mode: ImageCacheMode, max_decoded_size: ByteLength) -> ArcVar<Image> {
+    fn new_cache_image(
+        &mut self,
+        key: ImageHash,
+        mode: ImageCacheMode,
+        max_decoded_len: ByteLength,
+        downscale: Option<ImageDownscale>,
+    ) -> ArcVar<Image> {
         self.cleanup_not_cached(false);
 
         if let ImageCacheMode::Reload = mode {
             self.cache
                 .entry(key)
                 .or_insert_with(|| CacheEntry {
-                    img: var(Image::new_none(Some(key))),
+                    image: var(Image::new_none(Some(key))),
                     error: AtomicBool::new(false),
-                    max_decoded_size,
+                    max_decoded_len,
+                    downscale,
                 })
-                .img
+                .image
                 .clone()
         } else if let ImageCacheMode::Ignore = mode {
             let img = var(Image::new_none(None));
-            self.not_cached.push((img.downgrade(), max_decoded_size));
+            self.not_cached.push(NotCachedEntry {
+                image: img.downgrade(),
+                max_decoded_len,
+                downscale,
+            });
             img
         } else {
             let img = var(Image::new_none(Some(key)));
             self.cache.insert(
                 key,
                 CacheEntry {
-                    img: img.clone(),
+                    image: img.clone(),
                     error: AtomicBool::new(false),
-                    max_decoded_size,
+                    max_decoded_len,
+                    downscale,
                 },
             );
             img
@@ -601,15 +697,21 @@ impl ImagesService {
         &mut self,
         key: ImageHash,
         mode: ImageCacheMode,
-        max_decoded_size: ByteLength,
+        max_decoded_len: ByteLength,
+        downscale: Option<ImageDownscale>,
         fetch_bytes: impl Future<Output = ImageData> + Send + 'static,
     ) -> ImageVar {
-        let img = self.new_cache_image(key, mode, max_decoded_size);
+        let img = self.new_cache_image(key, mode, max_decoded_len, downscale);
+        let r = img.read_only();
 
-        let task = UiTask::new(None, fetch_bytes);
-        self.loading.push((Mutex::new(task), img.clone(), max_decoded_size));
+        self.loading.push(ImageLoadingTask {
+            task: Mutex::new(UiTask::new(None, fetch_bytes)),
+            image: img,
+            max_decoded_len,
+            downscale,
+        });
 
-        img.read_only()
+        r
     }
 }
 
@@ -620,11 +722,6 @@ impl ImagesService {
 ///
 /// [`load_in_headless`]: IMAGES::load_in_headless
 pub struct IMAGES;
-struct CacheEntry {
-    img: ArcVar<Image>,
-    error: AtomicBool,
-    max_decoded_size: ByteLength,
-}
 impl IMAGES {
     /// If should still download/read image bytes in headless/renderless mode.
     ///
@@ -697,32 +794,40 @@ impl IMAGES {
 
     /// Get a cached image or add it to the cache.
     pub fn cache(&self, source: impl Into<ImageSource>) -> ImageVar {
-        self.image(source, ImageCacheMode::Cache, None)
+        self.image(source, ImageCacheMode::Cache, None, None)
     }
 
     /// Get a cached image or add it to the cache or retry if the cached image is an error.
     pub fn retry(&self, source: impl Into<ImageSource>) -> ImageVar {
-        self.image(source, ImageCacheMode::Retry, None)
+        self.image(source, ImageCacheMode::Retry, None, None)
     }
 
     /// Load an image, if it was already cached update the cached image with the reloaded data.
     pub fn reload(&self, source: impl Into<ImageSource>) -> ImageVar {
-        self.image(source, ImageCacheMode::Reload, None)
+        self.image(source, ImageCacheMode::Reload, None, None)
     }
 
     /// Get or load an image.
     ///
     /// If `limits` is `None` the [`IMAGES.limits`] is used.
-    pub fn image(&self, source: impl Into<ImageSource>, cache_mode: impl Into<ImageCacheMode>, limits: Option<ImageLimits>) -> ImageVar {
+    pub fn image(
+        &self,
+        source: impl Into<ImageSource>,
+        cache_mode: impl Into<ImageCacheMode>,
+        limits: Option<ImageLimits>,
+        downscale: Option<ImageDownscale>,
+    ) -> ImageVar {
         let limits = limits.unwrap_or_else(|| IMAGES_SV.read().limits.get());
-        IMAGES_SV.write().proxy_then_get(source.into(), cache_mode.into(), limits)
+        IMAGES_SV
+            .write()
+            .proxy_then_get(source.into(), cache_mode.into(), limits, downscale)
     }
 
     /// Associate the `image` with the `key` in the cache.
     ///
     /// Returns `Some(previous)` if the `key` was already associated with an image.
     pub fn register(&self, key: ImageHash, image: ViewImage) -> Option<ImageVar> {
-        IMAGES_SV.write().register(key, image)
+        IMAGES_SV.write().register(key, image, None)
     }
 
     /// Remove the image from the cache, if it is only held by the cache.
@@ -776,7 +881,7 @@ impl IMAGES {
     pub fn clean_all(&self) {
         let mut img = IMAGES_SV.write();
         img.proxies.iter_mut().for_each(|p| p.clear(false));
-        img.cache.retain(|_, v| v.img.strong_count() > 1);
+        img.cache.retain(|_, v| v.image.strong_count() > 1);
     }
 
     /// Clear all cached images, including images that are still referenced outside of the cache.
