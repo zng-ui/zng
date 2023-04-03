@@ -71,7 +71,7 @@ impl ImageCache {
                                 size,
                                 ppi: None,
                             }));
-                            match image::load_from_memory_with_format(&data[..], fmt) {
+                            match Self::image_decode(&data[..], fmt) {
                                 Ok(img) => Ok(Self::convert_decoded(img)),
                                 Err(e) => Err(e.to_string()),
                             }
@@ -159,7 +159,7 @@ impl ImageCache {
             }
 
             if let Some(fmt) = format {
-                match image::load_from_memory_with_format(&full[..], fmt) {
+                match Self::image_decode(&full[..], fmt) {
                     Ok(img) => {
                         let (bgra8, size, ppi, opaque) = Self::convert_decoded(img);
                         let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData {
@@ -255,6 +255,31 @@ impl ImageCache {
                 Ok((fmt, PxSize::new(Px(w as i32), Px(h as i32))))
             }
             None => Err("unknown format".to_string()),
+        }
+    }
+
+    fn image_decode(buf: &[u8], format: image::ImageFormat) -> image::ImageResult<image::DynamicImage> {
+        // we can't use `image::load_from_memory_with_format` directly because it does not allow `Limits` config.
+
+        use image::{codecs::*, DynamicImage, ImageFormat::*};
+
+        let buf = std::io::Cursor::new(buf);
+
+        match format {
+            Png => DynamicImage::from_decoder(png::PngDecoder::with_limits(buf, image::io::Limits::no_limits())?),
+            Jpeg => DynamicImage::from_decoder(jpeg::JpegDecoder::new(buf)?),
+            Gif => DynamicImage::from_decoder(gif::GifDecoder::new(buf)?),
+            WebP => DynamicImage::from_decoder(webp::WebPDecoder::new(buf)?),
+            Pnm => DynamicImage::from_decoder(pnm::PnmDecoder::new(buf)?),
+            Tiff => DynamicImage::from_decoder(tiff::TiffDecoder::new(buf)?),
+            Tga => DynamicImage::from_decoder(tga::TgaDecoder::new(buf)?),
+            Dds => DynamicImage::from_decoder(dds::DdsDecoder::new(buf)?),
+            Bmp => DynamicImage::from_decoder(bmp::BmpDecoder::new(buf)?),
+            Ico => DynamicImage::from_decoder(ico::IcoDecoder::new(buf)?),
+            OpenExr => DynamicImage::from_decoder(openexr::OpenExrDecoder::new(buf)?),
+            Farbfeld => DynamicImage::from_decoder(farbfeld::FarbfeldDecoder::new(buf)?),
+            Qoi => DynamicImage::from_decoder(qoi::QoiDecoder::new(buf)?),
+            _ => image::load_from_memory_with_format(buf.into_inner(), format),
         }
     }
 

@@ -6,11 +6,11 @@ use zero_ui::{
     core::image::{ImageLimits, IMAGES},
     prelude::*,
 };
-use zero_ui_view_prebuilt as zero_ui_view;
+// use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();
-    zero_ui_view::init();
+    // zero_ui_view::init();
 
     // let rec = examples_util::record_profile("image");
 
@@ -361,7 +361,7 @@ pub mod img_window {
     properties! {
         // renderer_debug = {
         //     use zero_ui::core::render::webrender_api::DebugFlags;
-        //     DebugFlags::TEXTURE_CACHE_DBG |  DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
+        //     DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
         // };
         // render_mode = RenderMode::Software;
 
