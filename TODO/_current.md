@@ -1,3 +1,5 @@
+* Implement image icon for `image` example.
+
 * Refactor text shaping cache to avoid write locks.
 
 * Parallel layout for more panels.
