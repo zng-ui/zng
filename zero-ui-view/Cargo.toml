@@ -80,7 +80,7 @@ rayon = "1"
 backtrace = "0.3"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.45.0"
+version = "0.45.0" # matches winit
 features = [
     "Win32_UI_Shell", 
     "Win32_System_Com",
