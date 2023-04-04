@@ -1,7 +1,3 @@
-* Fix image Fill in unbounded contexts.
-    - See the "Qingming Festival" example.
-    - This happened after change to image widget to fill all available space if aligned to FILL.
-
 * Refactor text shaping cache to avoid write locks.
 
 * Parallel layout for more panels.

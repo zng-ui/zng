@@ -171,6 +171,10 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
                 source = "examples/res/image/zdenek-machacek-unsplash.jpg";
                 size = (200, 100);
                 img_fit = fit;
+                border = {
+                    widths: 1,
+                    sides: colors::BLUE.with_alpha(30.pct()),
+                }
             }
         ]
     }
