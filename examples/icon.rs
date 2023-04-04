@@ -44,12 +44,14 @@ fn icons() -> impl UiNode {
         }
     }
     fn show_font(icons: Vec<MaterialIcon>) -> impl UiNode {
+        let _scope = tracing::error_span!("show_font").entered();
         wrap! {
             spacing = 5;
             icon::vis::ico_size = 48;
             children = {
-                let x = icons
-                .chunks(100)
+                let mut r = vec![];
+                icons
+                .par_chunks(100)
                 .map(|c| wrap! { // segment into multiple inlined lazy inited `wrap!` for better performance.
                     spacing = 5;
                     lazy = {
@@ -58,12 +60,16 @@ fn icons() -> impl UiNode {
                             wrap::lazy_size(len, 5, (80, 80))
                         }))
                     };
-                    children = c.iter()
+                    children = {
+                        let mut r = vec![];
+                        c.par_iter()
                                 .map(|i| icon_btn(i.clone()).boxed())
-                                .collect::<Vec<_>>();
+                                .collect_into_vec(&mut r);
+                        r
+                    };
                 }.boxed())
-                .collect::<Vec<_>>();
-                x
+                .collect_into_vec(&mut r);
+                r
             },
         }
     }
