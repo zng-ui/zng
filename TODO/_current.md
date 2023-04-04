@@ -1,5 +1,6 @@
-* Implement loading thumbnail sample in image example.
-    - https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg
+* Fix image Fill in unbounded contexts.
+    - See the "Qingming Festival" example.
+    - This happened after change to image widget to fill all available space if aligned to FILL.
 
 * Refactor text shaping cache to avoid write locks.
 

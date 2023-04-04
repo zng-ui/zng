@@ -248,18 +248,33 @@ fn large_image() -> impl UiNode {
     button! {
         child = text!("Large Image (205MB download)");
         on_click = hn!(|_| {
-            WINDOWS.open(async {img_window(
-                "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB, downscale to fit 8,000 × 8,000",
-                image! {
-                    source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-                    img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
-                    img_downscale = Px(8000);
-
-                    on_error = hn!(|args: &ImageErrorArgs| {
-                        tracing::error!(target: "unexpected", "{}", args.error);
-                    })
+            WINDOWS.open(async {
+                img_window! {
+                    title = "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB, downscale to fit 8,000 × 8,000";
+                    child_align = Align::FILL;
+                    child = image! {
+                        source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
+                        img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
+                        img_downscale = Px(8000);
+    
+                        on_error = hn!(|args: &ImageErrorArgs| {
+                            tracing::error!(target: "unexpected", "{}", args.error);
+                        });
+    
+                        img_loading_gen = wgt_gen!(|_| {
+                            // thumbnail
+                            stack! {
+                                children = ui_vec![
+                                    image! {
+                                        source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
+                                    },
+                                    img_window::loading(),
+                                ];
+                            }
+                        });
+                    }
                 }
-            )});
+            });
         });
     }
 }
@@ -379,29 +394,7 @@ pub mod img_window {
         color_scheme = ColorScheme::Dark;
 
         // content shown by all images when loading.
-        img_loading_gen = wgt_gen!(|_| {
-            let mut dots_count = 3;
-            let msg = TIMERS.interval(300.ms(), false).map(move |_| {
-                dots_count += 1;
-                if dots_count == 8 {
-                    dots_count = 0;
-                }
-                formatx!("loading{:.^dots_count$}", "")
-            });
-
-            center_viewport(text! {
-                txt = msg;
-                txt_color = loading_color();
-                margin = 8;
-                super::width = 80;
-                font_style = FontStyle::Italic;
-                drop_shadow = {
-                    offset: (0, 0),
-                    blur_radius: 4,
-                    color: loading_color().darken(5.pct()),
-                };
-            })
-        });
+        img_loading_gen = wgt_gen!(|_| loading());
 
         // content shown by all images that failed to load.
         img_error_gen = wgt_gen!(|args: ImageErrorArgs| {
@@ -428,6 +421,30 @@ pub mod img_window {
 
     fn error_color() -> Rgba {
         colors::RED
+    }
+
+    pub fn loading() -> impl UiNode {
+        let mut dots_count = 3;
+        let msg = TIMERS.interval(300.ms(), false).map(move |_| {
+            dots_count += 1;
+            if dots_count == 8 {
+                dots_count = 0;
+            }
+            formatx!("loading{:.^dots_count$}", "")
+        });
+
+        center_viewport(text! {
+            txt = msg;
+            txt_color = loading_color();
+            margin = 8;
+            super::width = 80;
+            font_style = FontStyle::Italic;
+            drop_shadow = {
+                offset: (0, 0),
+                blur_radius: 4,
+                color: loading_color().darken(5.pct()),
+            };
+        })
     }
 }
 fn img_window(title: impl IntoVar<Text>, child: impl UiNode) -> Window {

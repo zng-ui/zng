@@ -393,7 +393,8 @@ pub fn image_presenter() -> impl UiNode {
             let mut align = IMAGE_ALIGN_VAR.get();
 
             let min_size = metrics.constrains().clamp_size(render_clip.size);
-            let wgt_size = metrics.constrains().with_min_size(min_size).fill_ratio(render_clip.size);
+            let img_constrains = metrics.constrains().with_min_size(min_size);
+            let wgt_size = img_constrains.fill_size_or(render_clip.size);
 
             let mut fit = IMAGE_FIT_VAR.get();
             if let ImageFit::ScaleDown = fit {
