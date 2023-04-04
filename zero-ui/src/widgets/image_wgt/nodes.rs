@@ -43,6 +43,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
     impl UiNode for ImageSourceNode {
         fn init(&mut self) {
             self.auto_subs();
+            WIDGET.sub_var(&IMAGE_CACHE_VAR).sub_var(&IMAGE_DOWNSCALE_VAR);
 
             let mode = if IMAGE_CACHE_VAR.get() {
                 ImageCacheMode::Cache
@@ -72,8 +73,10 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         }
 
         fn update(&mut self, updates: &WidgetUpdates) {
-            if let Some(mut source) = self.source.get_new() {
+            if self.source.is_new() || IMAGE_DOWNSCALE_VAR.is_new() {
                 // source update:
+
+                let mut source = self.source.get();
 
                 if let ImageSource::Render(_, args) = &mut source {
                     *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });

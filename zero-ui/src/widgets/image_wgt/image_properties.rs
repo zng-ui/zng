@@ -270,13 +270,15 @@ pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>)
 /// This property primary use is as error recover before the [`img_limits`] error happens, you set the limits to the size that should not even
 /// be processed and set this property to the maximum size expected.
 ///
-/// Updating the value after an image is already loaded will not resize/reload it, use the widget size and other properties to efficiently resize
-/// an image on screen.
+/// Changing this value after an image is already loaded or loading will cause the image to reload, image cache allocates different
+/// entries for different downscale values, this means that this property should never be used for responsive resize,use the widget
+/// size and other properties to efficiently resize an image on screen.
 ///
 /// [`IMAGES.limits`]: crate::core::image::IMAGES::limits
+/// [`img_limits`]: fn@img_limits
 #[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR))]
-pub fn img_downscale(child: impl UiNode, limits: impl IntoVar<Option<ImageDownscale>>) -> impl UiNode {
-    with_context_var(child, IMAGE_DOWNSCALE_VAR, limits)
+pub fn img_downscale(child: impl UiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> impl UiNode {
+    with_context_var(child, IMAGE_DOWNSCALE_VAR, downscale)
 }
 
 /// If the [`CONTEXT_IMAGE_VAR`] is an error.

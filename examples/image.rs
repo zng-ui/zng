@@ -373,6 +373,7 @@ pub mod img_window {
         state = WindowState::Maximized;
         window::size = (1140, 770);// restore size
 
+        window::icon = "examples/res/image/RGB8.png";
         background = checkerboard!();
 
         color_scheme = ColorScheme::Dark;

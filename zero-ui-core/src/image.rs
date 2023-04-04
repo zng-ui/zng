@@ -449,12 +449,14 @@ impl ImagesService {
             source => source,
         };
 
-        let key = source.hash128().unwrap();
+        let key = source.hash128(downscale).unwrap();
         for proxy in &mut self.proxies {
             let r = proxy.get(&key, &source, mode, downscale);
             match r {
                 ProxyGetResult::None => continue,
-                ProxyGetResult::Cache(source, mode) => return self.proxied_get(key, source, mode, limits, downscale),
+                ProxyGetResult::Cache(source, mode, downscale) => {
+                    return self.proxied_get(source.hash128(downscale).unwrap(), source, mode, limits, downscale)
+                }
                 ProxyGetResult::Image(img) => return img,
             }
         }

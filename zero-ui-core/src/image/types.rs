@@ -52,7 +52,7 @@ pub enum ProxyGetResult {
     /// The cache checks other proxies and fulfills the request if no proxy intercepts.
     None,
     /// Load and cache using the replacement source.
-    Cache(ImageSource, ImageCacheMode),
+    Cache(ImageSource, ImageCacheMode, Option<ImageDownscale>),
     /// Return the image instead of hitting the cache.
     Image(ImageVar),
 }
@@ -580,26 +580,44 @@ impl ImageSource {
     /// Returns the image hash, unless the source is [`Image`].
     ///
     /// [`Image`]: Self::Image
-    pub fn hash128(&self) -> Option<ImageHash> {
+    pub fn hash128(&self, downscale: Option<ImageDownscale>) -> Option<ImageHash> {
         match self {
-            ImageSource::Read(p) => Some(Self::hash128_read(p)),
+            ImageSource::Read(p) => Some(Self::hash128_read(p, downscale)),
             #[cfg(http)]
-            ImageSource::Download(u, a) => Some(Self::hash128_download(u, a)),
-            ImageSource::Static(h, _, _) => Some(*h),
-            ImageSource::Data(h, _, _) => Some(*h),
-            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args)),
+            ImageSource::Download(u, a) => Some(Self::hash128_download(u, a, downscale)),
+            ImageSource::Static(h, _, _) => Some(Self::hash128_data(*h, downscale)),
+            ImageSource::Data(h, _, _) => Some(Self::hash128_data(*h, downscale)),
+            ImageSource::Render(rfn, args) => Some(Self::hash128_render(rfn, args, downscale)),
             ImageSource::Image(_) => None,
+        }
+    }
+
+    /// Compute hash for a borrowed [`Static`] or [`Data`] image.
+    ///
+    /// [`Static`]: Self::Static
+    /// [`Data`]: Self::Data
+    pub fn hash128_data(data_hash: ImageHash, downscale: Option<ImageDownscale>) -> ImageHash {
+        match downscale {
+            Some(s) => {
+                use std::hash::Hash;
+                let mut h = ImageHash::hasher();
+                data_hash.0.hash(&mut h);
+                s.hash(&mut h);
+                h.finish()
+            }
+            None => data_hash,
         }
     }
 
     /// Compute hash for a borrowed [`Read`] path.
     ///
     /// [`Read`]: Self::Read
-    pub fn hash128_read(path: &Path) -> ImageHash {
+    pub fn hash128_read(path: &Path, downscale: Option<ImageDownscale>) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         0u8.hash(&mut h);
         path.hash(&mut h);
+        downscale.hash(&mut h);
         h.finish()
     }
 
@@ -607,12 +625,13 @@ impl ImageSource {
     ///
     /// [`Download`]: Self::Download
     #[cfg(http)]
-    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Text>) -> ImageHash {
+    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Text>, downscale: Option<ImageDownscale>) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         1u8.hash(&mut h);
         uri.hash(&mut h);
         accept.hash(&mut h);
+        downscale.hash(&mut h);
         h.finish()
     }
 
@@ -621,12 +640,13 @@ impl ImageSource {
     /// Pointer equality is used to identify the node closure.
     ///
     /// [`Render`]: Self::Render
-    pub fn hash128_render(rfn: &RenderFn, args: &Option<ImageRenderArgs>) -> ImageHash {
+    pub fn hash128_render(rfn: &RenderFn, args: &Option<ImageRenderArgs>, downscale: Option<ImageDownscale>) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         2u8.hash(&mut h);
         (Arc::as_ptr(rfn) as usize).hash(&mut h);
         args.hash(&mut h);
+        downscale.hash(&mut h);
         h.finish()
     }
 }
