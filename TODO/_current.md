@@ -1,5 +1,3 @@
-* Try word shape cache without string interning.
-
 * Parallel layout for more panels.
     - `wrap!`.
         - Can't measure in parallel, mutated row, constrains of each item affected by previous item.

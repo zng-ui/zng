@@ -12,7 +12,7 @@ use parking_lot::{Mutex, RwLock};
 
 use super::{
     font_features::RFontVariations, font_kit_cache::FontKitCache, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle,
-    FontSynthesis, FontWeight, InternedStr, Lang, LangMap, ShapedSegmentData, WordCacheKey,
+    FontSynthesis, FontWeight, Lang, LangMap, ShapedSegmentData, WordCacheKey,
 };
 use crate::{
     app::{
@@ -723,7 +723,7 @@ pub(super) struct LoadedFont {
     metrics: FontMetrics,
     render_keys: Mutex<Vec<RenderFont>>,
     pub(super) small_word_cache: RwLock<FxHashMap<WordCacheKey<[u8; Font::SMALL_WORD_LEN]>, ShapedSegmentData>>,
-    pub(super) word_cache: RwLock<hashbrown::HashMap<WordCacheKey<InternedStr>, ShapedSegmentData>>,
+    pub(super) word_cache: RwLock<hashbrown::HashMap<WordCacheKey<String>, ShapedSegmentData>>,
 }
 impl fmt::Debug for Font {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

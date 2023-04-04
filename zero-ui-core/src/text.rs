@@ -5,8 +5,6 @@ use crate::units::*;
 use crate::var::animation::Transitionable;
 use crate::var::impl_from_and_into_var;
 use derive_more as dm;
-use parking_lot::Mutex;
-use std::collections::HashSet;
 use std::hash::Hash;
 use std::{
     borrow::Cow,
@@ -1029,91 +1027,6 @@ impl<const N: usize> IntoVar<FontNames> for [Text; N] {
     }
 }
 
-static INTERN_POOL: Mutex<Option<HashSet<InternedStrEntry>>> = parking_lot::const_mutex(None);
-
-// `InternedStr` in `INTERN_POOL`
-// * Can use `InternedStr` to avoid deadlock in `drop` impl.
-// * Need a type that implements `Borrow<str>` so can't use `Arc<String>`.
-struct InternedStrEntry(Arc<String>);
-impl Hash for InternedStrEntry {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.as_str().hash(state);
-    }
-}
-impl PartialEq for InternedStrEntry {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-impl Eq for InternedStrEntry {}
-impl std::borrow::Borrow<str> for InternedStrEntry {
-    fn borrow(&self) -> &str {
-        &self.0
-    }
-}
-
-/// A reference-counted shared string.
-///
-/// # Equality
-///
-/// Equality is defined by the string buffer, a [`InternedStr`] has the same hash as a `&str`.
-#[derive(Clone)]
-pub struct InternedStr(Arc<String>);
-impl InternedStr {
-    /// Gets a reference to the string `s` in the interning pool.
-    /// The string is inserted only if it is not present.
-    pub fn get_or_insert(s: impl AsRef<str> + Into<String>) -> Self {
-        let mut map = INTERN_POOL.lock();
-        let map = map.get_or_insert_with(HashSet::default);
-        if let Some(r) = map.get(s.as_ref()) {
-            InternedStr(r.0.clone())
-        } else {
-            let s = Arc::new(s.into());
-            map.insert(InternedStrEntry(Arc::clone(&s)));
-            InternedStr(s)
-        }
-    }
-
-    /// Reference the string.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Intern the string for the duration of the process.
-    pub fn perm(&self) {
-        let leak = Arc::clone(&self.0);
-        let _ = Arc::into_raw(leak);
-    }
-}
-impl Hash for InternedStr {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.as_str().hash(state);
-    }
-}
-impl PartialEq for InternedStr {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-impl Eq for InternedStr {}
-impl AsRef<str> for InternedStr {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-impl std::borrow::Borrow<str> for InternedStr {
-    fn borrow(&self) -> &str {
-        &self.0
-    }
-}
-impl Drop for InternedStr {
-    fn drop(&mut self) {
-        if Arc::strong_count(&self.0) == 2 {
-            INTERN_POOL.lock().as_mut().unwrap().remove(self.as_str());
-        }
-    }
-}
-
 const INLINE_MAX: usize = mem::size_of::<usize>() * 3;
 
 fn inline_to_str(d: &[u8; INLINE_MAX]) -> &str {
@@ -1134,7 +1047,6 @@ fn str_to_inline(s: &str) -> [u8; INLINE_MAX] {
 enum TextData {
     Static(&'static str),
     Inline([u8; INLINE_MAX]),
-    Interned(InternedStr, usize, usize),
     Owned(String),
 }
 impl fmt::Debug for TextData {
@@ -1143,7 +1055,6 @@ impl fmt::Debug for TextData {
             match self {
                 Self::Static(s) => write!(f, "Static({s:?})"),
                 Self::Inline(d) => write!(f, "Inline({:?})", inline_to_str(d)),
-                Self::Interned(s, _, _) => write!(f, "Interned({:?})", s.as_ref()),
                 Self::Owned(s) => write!(f, "Owned({s:?})"),
             }
         } else {
@@ -1174,13 +1085,12 @@ impl Deref for TextData {
         match self {
             TextData::Static(s) => s,
             TextData::Inline(d) => inline_to_str(d),
-            TextData::Interned(entry, start, len) => &entry.as_ref()[*start..*len],
             TextData::Owned(s) => s,
         }
     }
 }
 
-/// Text string type, can be owned, static, inlined or interned.
+/// Text string type, can be owned, static or inlined.
 ///
 /// Note that this type dereferences to [`str`] so you can use all methods
 /// of that type also. For mutation you can call [`to_mut`]
@@ -1211,48 +1121,9 @@ impl Text {
 
         Text(TextData::Inline(str_to_inline(s)))
     }
-
-    /// New text that is a interned string or a more efficient representation.
-    ///
-    /// If `s` byte length is larger then the `size_of::<String>()` the string is lookup
-    /// or inserted into the interned string cache.
-    pub fn get_interned(s: impl AsRef<str> + Into<String>) -> Text {
-        let len = s.as_ref().len();
-        if len == 0 {
-            Text(TextData::Static(""))
-        } else if len <= INLINE_MAX {
-            Text(TextData::Inline(str_to_inline(s.as_ref())))
-        } else {
-            Text(TextData::Interned(InternedStr::get_or_insert(s), 0, len))
-        }
-    }
-
     /// New empty text.
     pub const fn empty() -> Text {
         Self::from_static("")
-    }
-
-    /// Returns a clone of `self` that is not owned.
-    pub fn to_interned(&self) -> Text {
-        self.clone().into_intern()
-    }
-
-    /// Returns a clone of `self` that is not owned.
-    pub fn into_intern(self) -> Text {
-        let data = match self.0 {
-            TextData::Owned(s) => {
-                let len = s.len();
-                if len == 0 {
-                    TextData::Static("")
-                } else if len <= INLINE_MAX {
-                    TextData::Inline(str_to_inline(&s))
-                } else {
-                    TextData::Interned(InternedStr::get_or_insert(s), 0, len)
-                }
-            }
-            d => d,
-        };
-        Text(data)
     }
 
     /// If the text is an owned [`String`].
@@ -1268,7 +1139,6 @@ impl Text {
             TextData::Owned(s) => TextData::Owned(s),
             TextData::Static(s) => TextData::Owned(s.to_owned()),
             TextData::Inline(d) => TextData::Owned(inline_to_str(&d).to_owned()),
-            TextData::Interned(a, s, l) => TextData::Owned(a.as_ref()[s..l].to_owned()),
         };
 
         if let TextData::Owned(s) = &mut self.0 {
@@ -1286,7 +1156,6 @@ impl Text {
             TextData::Owned(s) => s,
             TextData::Static(s) => s.to_owned(),
             TextData::Inline(d) => inline_to_str(&d).to_owned(),
-            TextData::Interned(a, s, l) => a.as_ref()[s..l].to_owned(),
         }
     }
 
@@ -1329,18 +1198,6 @@ impl Text {
                     None
                 }
             }
-            TextData::Interned(a, s, l) => {
-                let s = &a.as_ref()[*s..*l];
-                if let Some((i, c)) = s.char_indices().last() {
-                    *l = i;
-                    if i <= INLINE_MAX {
-                        self.0 = TextData::Inline(str_to_inline(&s[..i]));
-                    }
-                    Some(c)
-                } else {
-                    None
-                }
-            }
         }
     }
 
@@ -1368,20 +1225,6 @@ impl Text {
                     if new_len < s.len() {
                         assert!(s.is_char_boundary(new_len));
                         d[new_len..].iter_mut().for_each(|b| *b = b'\0');
-                    }
-                }
-            }
-            TextData::Interned(a, s, l) => {
-                if new_len == 0 {
-                    self.0 = TextData::Static("")
-                } else {
-                    let s = &a.as_ref()[*s..*l];
-                    assert!(s.is_char_boundary(new_len));
-
-                    if new_len > INLINE_MAX {
-                        *l = new_len;
-                    } else {
-                        self.0 = TextData::Inline(str_to_inline(&s[..new_len]));
                     }
                 }
             }
@@ -1421,31 +1264,6 @@ impl Text {
                     self.0 = TextData::Static("");
                 } else {
                     *d = str_to_inline(&s[..at]);
-                }
-
-                r
-            }
-            TextData::Interned(a, s, l) => {
-                let s = &a.as_ref()[*s..*l];
-                assert!(s.is_char_boundary(at));
-
-                let a_len = at;
-                let b_len = s.len() - at;
-
-                let r = Text(if b_len == 0 {
-                    TextData::Static("")
-                } else if b_len <= INLINE_MAX {
-                    TextData::Inline(str_to_inline(&s[at..]))
-                } else {
-                    TextData::Interned(a.clone(), at, b_len)
-                });
-
-                if a_len == 0 {
-                    self.0 = TextData::Static("");
-                } else if a_len <= INLINE_MAX {
-                    self.0 = TextData::Inline(str_to_inline(&s[..at]));
-                } else {
-                    *l = a_len;
                 }
 
                 r
@@ -1501,7 +1319,6 @@ impl_from_and_into_var! {
             TextData::Static(s) => Cow::Borrowed(s),
             TextData::Owned(s) => Cow::Owned(s),
             TextData::Inline(d) => Cow::Owned(inline_to_str(&d).to_owned()),
-            TextData::Interned(a, s, l) => Cow::Owned(a.as_ref()[s..l].to_owned()),
         }
     }
     fn from(t: Text) -> std::path::PathBuf {

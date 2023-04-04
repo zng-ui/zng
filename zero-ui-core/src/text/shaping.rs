@@ -5,8 +5,8 @@ use std::{
 };
 
 use super::{
-    font_features::RFontFeatures, lang, Font, FontList, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, InternedStr, Lang, LineBreak,
-    SegmentedText, Text, TextSegment, TextSegmentKind, WordBreak,
+    font_features::RFontFeatures, lang, Font, FontList, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, Lang, LineBreak, SegmentedText,
+    Text, TextSegment, TextSegmentKind, WordBreak,
 };
 use crate::{
     context::{InlineConstrainsLayout, InlineConstrainsMeasure, LayoutDirection},
@@ -2215,7 +2215,7 @@ impl Font {
             drop(cache);
 
             // shape and cache, can end-up shaping the same word here, but that is better then write locking
-            let string = InternedStr::get_or_insert(seg);
+            let string = seg.to_owned();
             let seg = self.shape_segment_no_cache(seg, word_ctx_key, features);
             let key = WordCacheKey {
                 string,
