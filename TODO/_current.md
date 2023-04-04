@@ -1,4 +1,4 @@
-* Refactor text shaping cache to avoid write locks.
+* Try word shape cache without string interning.
 
 * Parallel layout for more panels.
     - `wrap!`.

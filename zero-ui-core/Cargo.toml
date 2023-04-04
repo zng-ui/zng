@@ -128,7 +128,7 @@ remove_dir_all = "0.8"
 async-trait = "0.1"
 async-recursion = "1"
 pretty-type-name = "1"
-num_enum = "0.5"
+num_enum = "0.6"
 take_mut = "0.2"
 smallvec = { version = "1", features = ["const_new"] }
 const-random = "0.1.15"

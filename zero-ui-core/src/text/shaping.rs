@@ -2164,12 +2164,8 @@ impl Font {
             let seg = self.shape_segment_no_cache(seg, word_ctx_key, features);
             out(&seg)
         } else if let Some(small) = Self::to_small_word(seg) {
-            let mut cache = self.0.small_word_cache.lock();
-
-            if cache.len() > WORD_CACHE_MAX_ENTRIES {
-                cache.clear();
-            }
-
+            // try cached
+            let cache = self.0.small_word_cache.read();
             let mut hasher = cache.hasher().build_hasher();
             WordCacheKeyRef {
                 string: &small,
@@ -2178,27 +2174,30 @@ impl Font {
             .hash(&mut hasher);
             let hash = hasher.finish();
 
-            let seg = cache
-                .raw_entry_mut()
+            if let Some((_, seg)) = cache
+                .raw_entry()
                 .from_hash(hash, |e| e.string == small && &e.ctx_key == word_ctx_key)
-                .or_insert_with(|| {
-                    let key = WordCacheKey {
-                        string: small,
-                        ctx_key: word_ctx_key.clone(),
-                    };
-                    let value = self.shape_segment_no_cache(seg, word_ctx_key, features);
-                    (key, value)
-                })
-                .1;
+            {
+                return out(seg);
+            }
+            drop(cache);
 
-            out(seg)
-        } else {
-            let mut cache = self.0.word_cache.lock();
-
+            // shape and cache, can end-up shaping the same word here, but that is better then write locking
+            let seg = self.shape_segment_no_cache(seg, word_ctx_key, features);
+            let key = WordCacheKey {
+                string: small,
+                ctx_key: word_ctx_key.clone(),
+            };
+            let r = out(&seg);
+            let mut cache = self.0.small_word_cache.write();
             if cache.len() > WORD_CACHE_MAX_ENTRIES {
                 cache.clear();
             }
-
+            cache.insert(key, seg);
+            r
+        } else {
+            // try cached
+            let cache = self.0.word_cache.read();
             let mut hasher = cache.hasher().build_hasher();
             WordCacheKeyRef {
                 string: &seg,
@@ -2207,20 +2206,28 @@ impl Font {
             .hash(&mut hasher);
             let hash = hasher.finish();
 
-            let seg = cache
-                .raw_entry_mut()
+            if let Some((_, seg)) = cache
+                .raw_entry()
                 .from_hash(hash, |e| e.string.as_str() == seg && &e.ctx_key == word_ctx_key)
-                .or_insert_with(|| {
-                    let key = WordCacheKey {
-                        string: InternedStr::get_or_insert(seg),
-                        ctx_key: word_ctx_key.clone(),
-                    };
-                    let value = self.shape_segment_no_cache(seg, word_ctx_key, features);
-                    (key, value)
-                })
-                .1;
+            {
+                return out(seg);
+            }
+            drop(cache);
 
-            out(seg)
+            // shape and cache, can end-up shaping the same word here, but that is better then write locking
+            let string = InternedStr::get_or_insert(seg);
+            let seg = self.shape_segment_no_cache(seg, word_ctx_key, features);
+            let key = WordCacheKey {
+                string,
+                ctx_key: word_ctx_key.clone(),
+            };
+            let r = out(&seg);
+            let mut cache = self.0.word_cache.write();
+            if cache.len() > WORD_CACHE_MAX_ENTRIES {
+                cache.clear();
+            }
+            cache.insert(key, seg);
+            r
         }
     }
 

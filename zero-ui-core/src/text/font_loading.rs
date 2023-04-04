@@ -8,7 +8,7 @@ use std::{
 };
 
 use font_kit::properties::Weight;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 use super::{
     font_features::RFontVariations, font_kit_cache::FontKitCache, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle,
@@ -722,8 +722,8 @@ pub(super) struct LoadedFont {
     variations: RFontVariations,
     metrics: FontMetrics,
     render_keys: Mutex<Vec<RenderFont>>,
-    pub(super) small_word_cache: Mutex<FxHashMap<WordCacheKey<[u8; Font::SMALL_WORD_LEN]>, ShapedSegmentData>>,
-    pub(super) word_cache: Mutex<hashbrown::HashMap<WordCacheKey<InternedStr>, ShapedSegmentData>>,
+    pub(super) small_word_cache: RwLock<FxHashMap<WordCacheKey<[u8; Font::SMALL_WORD_LEN]>, ShapedSegmentData>>,
+    pub(super) word_cache: RwLock<hashbrown::HashMap<WordCacheKey<InternedStr>, ShapedSegmentData>>,
 }
 impl fmt::Debug for Font {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -732,8 +732,8 @@ impl fmt::Debug for Font {
             .field("size", &self.0.size)
             .field("metrics", &self.0.metrics)
             .field("render_keys.len()", &self.0.render_keys.lock().len())
-            .field("small_word_cache.len()", &self.0.small_word_cache.lock().len())
-            .field("word_cache.len()", &self.0.word_cache.lock().len())
+            .field("small_word_cache.len()", &self.0.small_word_cache.read().len())
+            .field("word_cache.len()", &self.0.word_cache.read().len())
             .finish()
     }
 }
@@ -770,8 +770,8 @@ impl Font {
             size,
             variations,
             render_keys: Mutex::new(vec![]),
-            small_word_cache: Mutex::default(),
-            word_cache: Mutex::default(),
+            small_word_cache: RwLock::default(),
+            word_cache: RwLock::default(),
         }))
     }
 
