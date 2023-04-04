@@ -721,13 +721,9 @@ pub(super) struct LoadedFont {
     size: Px,
     variations: RFontVariations,
     metrics: FontMetrics,
-    pub(super) m: Mutex<FontMut>,
-}
-#[derive(Default)]
-pub(super) struct FontMut {
-    render_keys: Vec<RenderFont>,
-    pub(super) small_word_cache: FxHashMap<WordCacheKey<[u8; Font::SMALL_WORD_LEN]>, ShapedSegmentData>,
-    pub(super) word_cache: hashbrown::HashMap<WordCacheKey<InternedStr>, ShapedSegmentData>,
+    render_keys: Mutex<Vec<RenderFont>>,
+    pub(super) small_word_cache: Mutex<FxHashMap<WordCacheKey<[u8; Font::SMALL_WORD_LEN]>, ShapedSegmentData>>,
+    pub(super) word_cache: Mutex<hashbrown::HashMap<WordCacheKey<InternedStr>, ShapedSegmentData>>,
 }
 impl fmt::Debug for Font {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -735,9 +731,9 @@ impl fmt::Debug for Font {
             .field("face", &self.0.face)
             .field("size", &self.0.size)
             .field("metrics", &self.0.metrics)
-            .field("render_keys.len()", &self.0.m.lock().render_keys.len())
-            .field("small_word_cache.len()", &self.0.m.lock().small_word_cache.len())
-            .field("word_cache.len()", &self.0.m.lock().word_cache.len())
+            .field("render_keys.len()", &self.0.render_keys.lock().len())
+            .field("small_word_cache.len()", &self.0.small_word_cache.lock().len())
+            .field("word_cache.len()", &self.0.word_cache.lock().len())
             .finish()
     }
 }
@@ -773,7 +769,9 @@ impl Font {
             face,
             size,
             variations,
-            m: Default::default(),
+            render_keys: Mutex::new(vec![]),
+            small_word_cache: Mutex::default(),
+            word_cache: Mutex::default(),
         }))
     }
 
@@ -789,8 +787,8 @@ impl Font {
                 return (Self::DUMMY_FONT_KEY, wr::FontInstanceFlags::empty());
             }
         };
-        let mut m = self.0.m.lock();
-        for r in m.render_keys.iter() {
+        let mut render_keys = self.0.render_keys.lock();
+        for r in render_keys.iter() {
             if r.key.0 == namespace && r.synthesis == synthesis {
                 return (r.key, r.flags);
             }
@@ -826,7 +824,7 @@ impl Font {
             }
         };
 
-        m.render_keys.push(RenderFont::new(renderer, synthesis, key, flags));
+        render_keys.push(RenderFont::new(renderer, synthesis, key, flags));
 
         (key, flags)
     }
@@ -1111,7 +1109,7 @@ impl FontFaceLoader {
             let mut m = face.0.m.lock();
             m.render_keys.clear();
             for inst in m.instances.values() {
-                inst.0.m.lock().render_keys.clear();
+                inst.0.render_keys.lock().clear();
             }
         }
     }

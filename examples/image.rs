@@ -260,11 +260,11 @@ fn large_image() -> impl UiNode {
                         source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
                         img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
                         img_downscale = Px(8000);
-    
+
                         on_error = hn!(|args: &ImageErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
                         });
-    
+
                         img_loading_gen = wgt_gen!(|_| {
                             // thumbnail
                             stack! {
