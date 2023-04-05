@@ -586,31 +586,23 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let dft_tab_len = space_len * 3;
 
             let (letter_spacing, word_spacing, tab_length) = {
-                LAYOUT.with_constrains(
-                    |_| PxConstrains2d::new_exact(space_len, space_len),
-                    || {
-                        (
-                            LETTER_SPACING_VAR.layout_x(),
-                            WORD_SPACING_VAR.layout_x(),
-                            TAB_LENGTH_VAR.layout_dft_x(dft_tab_len),
-                        )
-                    },
-                )
+                LAYOUT.with_constrains(PxConstrains2d::new_exact(space_len, space_len), || {
+                    (
+                        LETTER_SPACING_VAR.layout_x(),
+                        WORD_SPACING_VAR.layout_x(),
+                        TAB_LENGTH_VAR.layout_dft_x(dft_tab_len),
+                    )
+                })
             };
 
             let dft_line_height = font.metrics().line_height();
             let line_height = {
-                LAYOUT.with_constrains(
-                    |_| PxConstrains2d::new_exact(dft_line_height, dft_line_height),
-                    || LINE_HEIGHT_VAR.layout_dft_y(dft_line_height),
-                )
+                LAYOUT.with_constrains(PxConstrains2d::new_exact(dft_line_height, dft_line_height), || {
+                    LINE_HEIGHT_VAR.layout_dft_y(dft_line_height)
+                })
             };
-            let line_spacing = {
-                LAYOUT.with_constrains(
-                    |_| PxConstrains2d::new_exact(line_height, line_height),
-                    || LINE_SPACING_VAR.layout_y(),
-                )
-            };
+            let line_spacing =
+                { LAYOUT.with_constrains(PxConstrains2d::new_exact(line_height, line_height), || LINE_SPACING_VAR.layout_y()) };
 
             if !self.pending.contains(Layout::RESHAPE)
                 && (letter_spacing != self.shaping_args.letter_spacing
@@ -633,16 +625,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             let dft_thickness = font.metrics().underline_thickness;
             let (overline, strikethrough, underline) = {
-                LAYOUT.with_constrains(
-                    |_| PxConstrains2d::new_exact(line_height, line_height),
-                    || {
-                        (
-                            OVERLINE_THICKNESS_VAR.layout_dft_y(dft_thickness),
-                            STRIKETHROUGH_THICKNESS_VAR.layout_dft_y(dft_thickness),
-                            UNDERLINE_THICKNESS_VAR.layout_dft_y(dft_thickness),
-                        )
-                    },
-                )
+                LAYOUT.with_constrains(PxConstrains2d::new_exact(line_height, line_height), || {
+                    (
+                        OVERLINE_THICKNESS_VAR.layout_dft_y(dft_thickness),
+                        STRIKETHROUGH_THICKNESS_VAR.layout_dft_y(dft_thickness),
+                        UNDERLINE_THICKNESS_VAR.layout_dft_y(dft_thickness),
+                    )
+                })
             };
 
             if !self.pending.contains(Layout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
@@ -972,12 +961,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let baseline = resolved_txt.baseline.load(Ordering::Relaxed);
             wl.set_baseline(baseline);
 
-            LAYOUT.with_constrains(
-                |_| PxConstrains2d::new_fill_size(size),
-                || {
-                    self.with_mut(|c| c.layout(wl));
-                },
-            );
+            LAYOUT.with_constrains(PxConstrains2d::new_fill_size(size), || {
+                self.with_mut(|c| c.layout(wl));
+            });
 
             size
         }

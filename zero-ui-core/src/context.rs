@@ -557,7 +557,10 @@ impl WINDOW {
     pub fn test_layout(&self, content: &mut impl UiNode, constrains: Option<PxConstrains2d>) -> (PxSize, ContextUpdates) {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
         let viewport = self.test_window_size();
-        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|c| constrains.unwrap_or(c));
+        let mut metrics = LayoutMetrics::new(1.fct(), viewport, font_size);
+        if let Some(c) = constrains {
+            metrics = metrics.with_constrains(c);
+        }
         let size = LAYOUT.with_context(metrics, || {
             crate::widget_info::WidgetLayout::with_root_widget(0, |wl| content.layout(wl))
         });
@@ -578,14 +581,14 @@ impl WINDOW {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
         let viewport = self.test_window_size();
 
-        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|_| measure_constrains.0);
+        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(measure_constrains.0);
         let measure_size = LAYOUT.with_context(metrics, || {
-            LAYOUT.with_inline_measure(&mut WidgetMeasure::new(), |_| Some(measure_constrains.1), |wm| content.measure(wm))
+            LAYOUT.with_inline_measure(&mut WidgetMeasure::new(), Some(measure_constrains.1), |wm| content.measure(wm))
         });
-        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(|_| layout_constrains.0);
+        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(layout_constrains.0);
         let layout_size = LAYOUT.with_context(metrics, || {
             crate::widget_info::WidgetLayout::with_root_widget(0, |wl| {
-                LAYOUT.with_inline_layout(|_| Some(layout_constrains.1), || content.layout(wl))
+                LAYOUT.with_inline_layout(Some(layout_constrains.1), || content.layout(wl))
             })
         });
 
@@ -1054,12 +1057,6 @@ impl LAYOUT {
         LAYOUT_CTX.get().metrics.clone()
     }
 
-    /// Calls `metrics` to generate new metrics that are used during the call to `f`.
-    pub fn with_metrics<R>(&self, metrics: impl FnOnce(LayoutMetrics) -> LayoutMetrics, f: impl FnOnce() -> R) -> R {
-        let new = metrics(self.metrics());
-        self.with_context(new, f)
-    }
-
     /// Capture all layout metrics used in `f`.
     ///
     /// Note that the captured mask is not propagated to the current context, you can use [`register_metrics_use`] to propagate
@@ -1098,34 +1095,30 @@ impl LAYOUT {
         }
     }
 
-    /// Calls `constrains` to generate new constrains that are used during the call to  `f`.
-    pub fn with_constrains<R>(&self, constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d, f: impl FnOnce() -> R) -> R {
-        self.with_metrics(|m| m.with_constrains(constrains), f)
+    /// Calls `f` with the `constrains` in context.
+    pub fn with_constrains<R>(&self, constrains: PxConstrains2d, f: impl FnOnce() -> R) -> R {
+        self.with_context(self.metrics().with_constrains(constrains), f)
     }
 
-    /// Calls `constrains` to generate new constrains for the given axis that are used during the call to  `f`.
-    pub fn with_constrains_for<R>(&self, x_axis: bool, constrains: impl FnOnce(PxConstrains) -> PxConstrains, f: impl FnOnce() -> R) -> R {
-        self.with_constrains(
-            move |mut c| {
-                if x_axis {
-                    c.x = constrains(c.x);
-                } else {
-                    c.y = constrains(c.y);
-                }
-                c
-            },
-            f,
-        )
+    /// Calls `f` with the `constrains` in context..
+    pub fn with_constrains_for<R>(&self, x_axis: bool, constrains: PxConstrains, f: impl FnOnce() -> R) -> R {
+        let mut c = self.constrains();
+        if x_axis {
+            c.x = constrains;
+        } else {
+            c.y = constrains;
+        }
+        self.with_constrains(c, f)
     }
 
     /// Runs a function `f` in a context that has its max size subtracted by `removed` and its final size added by `removed`.
     pub fn with_sub_size(&self, removed: PxSize, f: impl FnOnce() -> PxSize) -> PxSize {
-        self.with_constrains(|c| c.with_less_size(removed), f) + removed
+        self.with_constrains(self.constrains().with_less_size(removed), f) + removed
     }
 
     /// Runs a function `f` in a layout context that has its max size added by `added` and its final size subtracted by `added`.
     pub fn with_add_size(&self, added: PxSize, f: impl FnOnce() -> PxSize) -> PxSize {
-        self.with_constrains(|c| c.with_more_size(added), f) - added
+        self.with_constrains(self.constrains().with_more_size(added), f) - added
     }
 
     /// Current inline constrains.
@@ -1135,48 +1128,33 @@ impl LAYOUT {
 
     /// Calls `f` with `inline_constrains` in the context.
     pub fn with_inline_constrains<R>(&self, inline_constrains: Option<InlineConstrains>, f: impl FnOnce() -> R) -> R {
-        self.with_metrics(|m| m.with_inline_constrains(inline_constrains), f)
+        self.with_context(self.metrics().with_inline_constrains(inline_constrains), f)
     }
 
-    /// Runs a function `f` in a measure context that has a new or modified inline constrain.
-    ///
-    /// The `inline_constrains` closure is called to produce the new constrains, the input is the current constrains.
-    /// If it returns `None` inline is disabled for the widget.
+    /// Runs a function `f` in a measure context that has a new inline constrains.
     ///
     /// Note that panels implementing inline layout should prefer using [`measure_inline`] instead of this method.
     ///
     /// [`measure_inline`]: Self::measure_inline
-
     pub fn with_inline_measure<R>(
         &self,
         wm: &mut WidgetMeasure,
-        inline_constrains: impl FnOnce(Option<InlineConstrainsMeasure>) -> Option<InlineConstrainsMeasure>,
+        inline_constrains: Option<InlineConstrainsMeasure>,
         f: impl FnOnce(&mut WidgetMeasure) -> R,
     ) -> R {
-        let inline_constrains = inline_constrains(self.inline_constrains().map(InlineConstrains::measure)).map(InlineConstrains::Measure);
         if inline_constrains.is_none() {
             wm.disable_inline();
         }
-
-        self.with_inline_constrains(inline_constrains, || f(wm))
+        self.with_inline_constrains(inline_constrains.map(InlineConstrains::Measure), || f(wm))
     }
 
-    /// Runs a function `f` in a measure context that has a new or modified inline constrain.
-    ///
-    /// The `inline_constrains` closure is called to produce the new constrains, the input is the current constrains.
-    /// If it returns `None` inline is disabled for the widget.
+    /// Runs a function `f` in a measure context that has a new inline constrain.
     ///
     /// Note that panels implementing inline layout should prefer using [`layout_inline`] instead of this method.
     ///
     /// [`layout_inline`]: Self::layout_inline
-
-    pub fn with_inline_layout<R>(
-        &self,
-        inline_constrains: impl FnOnce(Option<InlineConstrainsLayout>) -> Option<InlineConstrainsLayout>,
-        f: impl FnOnce() -> R,
-    ) -> R {
-        let inline_constrains = inline_constrains(self.inline_constrains().map(InlineConstrains::layout)).map(InlineConstrains::Layout);
-        self.with_inline_constrains(inline_constrains, f)
+    pub fn with_inline_layout<R>(&self, inline_constrains: Option<InlineConstrainsLayout>, f: impl FnOnce() -> R) -> R {
+        self.with_inline_constrains(inline_constrains.map(InlineConstrains::Layout), f)
     }
 
     /// Measure the child in a new inline context.
@@ -1224,7 +1202,7 @@ impl LAYOUT {
 
     /// Calls `f` with `font_size` in the context.
     pub fn with_font_size<R>(&self, font_size: Px, f: impl FnOnce() -> R) -> R {
-        self.with_metrics(|m| m.with_font_size(font_size), f)
+        self.with_context(self.metrics().with_font_size(font_size), f)
     }
 
     /// Current viewport size.
@@ -1254,7 +1232,7 @@ impl LAYOUT {
 
     /// Calls `f` with `viewport` in the context.
     pub fn with_viewport<R>(&self, viewport: PxSize, f: impl FnOnce() -> R) -> R {
-        self.with_metrics(|m| m.with_viewport(viewport), f)
+        self.with_context(self.metrics().with_viewport(viewport), f)
     }
 
     /// Current scale factor.
@@ -1264,7 +1242,7 @@ impl LAYOUT {
 
     /// Calls `f` with `scale_factor` in the context.
     pub fn with_scale_factor<R>(&self, scale_factor: Factor, f: impl FnOnce() -> R) -> R {
-        self.with_metrics(|m| m.with_scale_factor(scale_factor), f)
+        self.with_context(self.metrics().with_scale_factor(scale_factor), f)
     }
 
     /// Current screen PPI.
@@ -1274,7 +1252,7 @@ impl LAYOUT {
 
     /// Calls `f` with `screen_ppi` in the context.
     pub fn with_screen_ppi<R>(&self, screen_ppi: f32, f: impl FnOnce() -> R) -> R {
-        self.with_metrics(|m| m.with_screen_ppi(screen_ppi), f)
+        self.with_context(self.metrics().with_screen_ppi(screen_ppi), f)
     }
 
     /// Current layout direction.
@@ -1284,7 +1262,7 @@ impl LAYOUT {
 
     /// Calls `f` with `direction` in the context.
     pub fn with_direction<R>(&self, direction: LayoutDirection, f: impl FnOnce() -> R) -> R {
-        self.with_metrics(|m| m.with_direction(direction), f)
+        self.with_context(self.metrics().with_direction(direction), f)
     }
 
     /// Context leftover length for the widget, given the [`Length::Leftover`] value it communicated to the parent.
@@ -1308,7 +1286,7 @@ impl LAYOUT {
     ///
     /// [`leftover`]: Self::leftover
     pub fn with_leftover<R>(&self, width: Option<Px>, height: Option<Px>, f: impl FnOnce() -> R) -> R {
-        self.with_metrics(|m| m.with_leftover(width, height), f)
+        self.with_context(self.metrics().with_leftover(width, height), f)
     }
 }
 
@@ -2240,11 +2218,11 @@ impl LayoutMetrics {
         self.s.leftover
     }
 
-    /// Sets the [`constrains`] to the value returned by `constrains`. The closure input is the current constrains.
+    /// Sets the [`constrains`] to `constrains`.
     ///
     /// [`constrains`]: Self::constrains
-    pub fn with_constrains(mut self, constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d) -> Self {
-        self.s.constrains = constrains(self.s.constrains);
+    pub fn with_constrains(mut self, constrains: PxConstrains2d) -> Self {
+        self.s.constrains = constrains;
         self
     }
 

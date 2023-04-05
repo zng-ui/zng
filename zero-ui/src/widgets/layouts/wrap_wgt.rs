@@ -545,204 +545,199 @@ impl InlineLayout {
             inline.rows.clear();
         }
 
-        LAYOUT.with_constrains(
-            |_| child_constrains,
-            || {
-                let mut row = first;
-                let mut row_segs = &self.rows[0].item_segs;
-                let mut row_advance = Px(0);
-                let mut next_row_i = 1;
-                let mut row_segs_i_start = 0;
+        LAYOUT.with_constrains(child_constrains, || {
+            let mut row = first;
+            let mut row_segs = &self.rows[0].item_segs;
+            let mut row_advance = Px(0);
+            let mut next_row_i = 1;
+            let mut row_segs_i_start = 0;
 
-                children.for_each_mut(|i, child, o| {
-                    if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
+            children.for_each_mut(|i, child, o| {
+                if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
+                    // new row
+                    if let Some(inline) = wl.inline() {
+                        inline.rows.push(row);
+                    }
+                    if next_row_i == self.rows.len() - 1 {
+                        row = last;
+                    } else {
+                        row.origin.y += row.size.height + spacing.row;
+                        if next_row_i == 1 {
+                            // clear first row
+                            row.origin.y += mid;
+                        }
+
+                        row.size = self.rows[next_row_i].size;
+                        row.origin.x = (panel_width - row.size.width) * child_align_x;
+                    }
+                    row_segs = &self.rows[next_row_i].item_segs;
+                    row_segs_i_start = self.rows[next_row_i].first_child;
+                    next_row_i += 1;
+                    row_advance = Px(0);
+                }
+
+                let (bidi_x, bidi_width, bidi_segs) = if self.has_bidi_inline {
+                    row_segs[i - row_segs_i_start].x_width_segs()
+                } else {
+                    (Px(0), Px(0), self.bidi_default_segs.clone())
+                };
+
+                let child_inline = child.with_context(|| WIDGET.bounds().measure_inline()).flatten();
+                if let Some(child_inline) = child_inline {
+                    let child_desired_size = child.with_context(|| WIDGET.bounds().measure_outer_size()).unwrap_or_default();
+                    if child_desired_size.is_empty() {
+                        // collapsed, continue.
+                        wl.collapse_child(i);
+                        return true;
+                    }
+
+                    let mut child_first = PxRect::from_size(child_inline.first);
+                    let mut child_mid = Px(0);
+                    let mut child_last = PxRect::from_size(child_inline.last);
+
+                    if child_inline.last_wrapped {
+                        // child wraps
+                        debug_assert_eq!(self.rows[next_row_i].first_child, i + 1);
+
+                        child_first.origin.x = row.origin.x + row_advance;
+                        if let LayoutDirection::RTL = direction {
+                            child_first.origin.x -= row_advance;
+                        }
+                        child_first.origin.y += (row.size.height - child_first.size.height) * child_align_y;
+                        child_mid = (row.size.height - child_first.size.height).max(Px(0));
+                        child_last.origin.y = child_desired_size.height - child_last.size.height;
+
+                        if self.has_bidi_inline {
+                            child_first.origin.x = row.origin.x + bidi_x;
+                            child_first.size.width = bidi_width;
+                        }
+
+                        let next_row = if next_row_i == self.rows.len() - 1 {
+                            last
+                        } else {
+                            let mut r = row;
+                            r.origin.y += child_last.origin.y;
+                            r.size = self.rows[next_row_i].size;
+                            r.origin.x = (panel_width - r.size.width) * child_align_x;
+                            r
+                        };
+                        child_last.origin.x = next_row.origin.x;
+                        if let LayoutDirection::RTL = direction {
+                            child_last.origin.x += next_row.size.width - child_last.size.width;
+                        }
+                        child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
+
+                        let (last_bidi_x, last_bidi_width, last_bidi_segs) = if self.has_bidi_inline {
+                            self.rows[next_row_i].item_segs[0].x_width_segs()
+                        } else {
+                            (Px(0), Px(0), self.bidi_default_segs.clone())
+                        };
+
+                        if self.has_bidi_inline {
+                            child_last.origin.x = next_row.origin.x + last_bidi_x;
+                            child_last.size.width = last_bidi_width;
+                        }
+
+                        let (_, define_ref_frame) =
+                            LAYOUT.layout_inline(child_first, child_mid, child_last, bidi_segs, last_bidi_segs, || {
+                                wl.with_child(|wl| child.layout(wl))
+                            });
+                        o.child_offset = PxVector::new(Px(0), row.origin.y);
+                        o.define_reference_frame = define_ref_frame;
+
                         // new row
                         if let Some(inline) = wl.inline() {
                             inline.rows.push(row);
-                        }
-                        if next_row_i == self.rows.len() - 1 {
-                            row = last;
-                        } else {
-                            row.origin.y += row.size.height + spacing.row;
-                            if next_row_i == 1 {
-                                // clear first row
-                                row.origin.y += mid;
-                            }
-
-                            row.size = self.rows[next_row_i].size;
-                            row.origin.x = (panel_width - row.size.width) * child_align_x;
-                        }
-                        row_segs = &self.rows[next_row_i].item_segs;
-                        row_segs_i_start = self.rows[next_row_i].first_child;
-                        next_row_i += 1;
-                        row_advance = Px(0);
-                    }
-
-                    let (bidi_x, bidi_width, bidi_segs) = if self.has_bidi_inline {
-                        row_segs[i - row_segs_i_start].x_width_segs()
-                    } else {
-                        (Px(0), Px(0), self.bidi_default_segs.clone())
-                    };
-
-                    let child_inline = child.with_context(|| WIDGET.bounds().measure_inline()).flatten();
-                    if let Some(child_inline) = child_inline {
-                        let child_desired_size = child.with_context(|| WIDGET.bounds().measure_outer_size()).unwrap_or_default();
-                        if child_desired_size.is_empty() {
-                            // collapsed, continue.
-                            wl.collapse_child(i);
-                            return true;
-                        }
-
-                        let mut child_first = PxRect::from_size(child_inline.first);
-                        let mut child_mid = Px(0);
-                        let mut child_last = PxRect::from_size(child_inline.last);
-
-                        if child_inline.last_wrapped {
-                            // child wraps
-                            debug_assert_eq!(self.rows[next_row_i].first_child, i + 1);
-
-                            child_first.origin.x = row.origin.x + row_advance;
-                            if let LayoutDirection::RTL = direction {
-                                child_first.origin.x -= row_advance;
-                            }
-                            child_first.origin.y += (row.size.height - child_first.size.height) * child_align_y;
-                            child_mid = (row.size.height - child_first.size.height).max(Px(0));
-                            child_last.origin.y = child_desired_size.height - child_last.size.height;
-
-                            if self.has_bidi_inline {
-                                child_first.origin.x = row.origin.x + bidi_x;
-                                child_first.size.width = bidi_width;
-                            }
-
-                            let next_row = if next_row_i == self.rows.len() - 1 {
-                                last
-                            } else {
-                                let mut r = row;
-                                r.origin.y += child_last.origin.y;
-                                r.size = self.rows[next_row_i].size;
-                                r.origin.x = (panel_width - r.size.width) * child_align_x;
-                                r
-                            };
-                            child_last.origin.x = next_row.origin.x;
-                            if let LayoutDirection::RTL = direction {
-                                child_last.origin.x += next_row.size.width - child_last.size.width;
-                            }
-                            child_last.origin.y += (next_row.size.height - child_last.size.height) * child_align_y;
-
-                            let (last_bidi_x, last_bidi_width, last_bidi_segs) = if self.has_bidi_inline {
-                                self.rows[next_row_i].item_segs[0].x_width_segs()
-                            } else {
-                                (Px(0), Px(0), self.bidi_default_segs.clone())
-                            };
-
-                            if self.has_bidi_inline {
-                                child_last.origin.x = next_row.origin.x + last_bidi_x;
-                                child_last.size.width = last_bidi_width;
-                            }
-
-                            let (_, define_ref_frame) =
-                                LAYOUT.layout_inline(child_first, child_mid, child_last, bidi_segs, last_bidi_segs, || {
-                                    wl.with_child(|wl| child.layout(wl))
-                                });
-                            o.child_offset = PxVector::new(Px(0), row.origin.y);
-                            o.define_reference_frame = define_ref_frame;
-
-                            // new row
-                            if let Some(inline) = wl.inline() {
-                                inline.rows.push(row);
-                                child.with_context(|| {
-                                    if let Some(inner) = WIDGET.bounds().inline() {
-                                        if inner.rows.len() >= 3 {
-                                            inline.rows.extend(inner.rows[1..inner.rows.len() - 1].iter().map(|r| {
-                                                let mut r = *r;
-                                                r.origin.y += row.origin.y;
-                                                r
-                                            }));
-                                        }
-                                    } else {
-                                        tracing::error!("child inlined in measure, but not in layout")
+                            child.with_context(|| {
+                                if let Some(inner) = WIDGET.bounds().inline() {
+                                    if inner.rows.len() >= 3 {
+                                        inline.rows.extend(inner.rows[1..inner.rows.len() - 1].iter().map(|r| {
+                                            let mut r = *r;
+                                            r.origin.y += row.origin.y;
+                                            r
+                                        }));
                                     }
-                                });
-                            }
-                            row = next_row;
-                            row_advance = child_last.size.width + spacing.column;
-                            row_segs = &self.rows[next_row_i].item_segs;
-                            row_segs_i_start = self.rows[next_row_i].first_child - 1; // next row first item is also this widget
-                            debug_assert_eq!(row_segs_i_start, i);
-                            next_row_i += 1;
-                        } else {
-                            // child inlined, but fits in the row
-
-                            let mut offset = PxVector::new(row_advance, Px(0));
-                            if let LayoutDirection::RTL = direction {
-                                offset.x = row.size.width - child_last.size.width - offset.x;
-                            }
-                            offset.y = (row.size.height - child_inline.first.height) * child_align_y;
-
-                            let mut max_size = child_inline.first;
-
-                            if self.has_bidi_inline {
-                                max_size.width = bidi_width;
-                                child_first.size.width = bidi_width;
-                                child_last.size.width = bidi_width;
-                            }
-
-                            let (_, define_ref_frame) = LAYOUT.with_constrains(
-                                |_| child_constrains.with_fill(false, false).with_max_size(max_size),
-                                || {
-                                    LAYOUT.layout_inline(child_first, child_mid, child_last, bidi_segs.clone(), bidi_segs, || {
-                                        wl.with_child(|wl| child.layout(wl))
-                                    })
-                                },
-                            );
-                            o.child_offset = row.origin.to_vector() + offset;
-                            if self.has_bidi_inline {
-                                o.child_offset.x = row.origin.x + bidi_x;
-                            }
-                            o.define_reference_frame = define_ref_frame;
-
-                            row_advance += child_last.size.width + spacing.column;
+                                } else {
+                                    tracing::error!("child inlined in measure, but not in layout")
+                                }
+                            });
                         }
+                        row = next_row;
+                        row_advance = child_last.size.width + spacing.column;
+                        row_segs = &self.rows[next_row_i].item_segs;
+                        row_segs_i_start = self.rows[next_row_i].first_child - 1; // next row first item is also this widget
+                        debug_assert_eq!(row_segs_i_start, i);
+                        next_row_i += 1;
                     } else {
-                        // inline block
-                        let max_width = if self.has_bidi_inline {
-                            bidi_width
-                        } else {
-                            row.size.width - row_advance
-                        };
-                        let (size, define_ref_frame) = LAYOUT.with_constrains(
-                            |_| child_constrains.with_fill(false, false).with_max(max_width, row.size.height),
-                            || LAYOUT.with_inline_layout(|_| None, || wl.with_child(|wl| child.layout(wl))),
-                        );
-                        if size.is_empty() {
-                            // collapsed, continue.
-                            o.child_offset = PxVector::zero();
-                            o.define_reference_frame = false;
-                            return true;
-                        }
+                        // child inlined, but fits in the row
 
                         let mut offset = PxVector::new(row_advance, Px(0));
                         if let LayoutDirection::RTL = direction {
-                            offset.x = row.size.width - size.width - offset.x;
+                            offset.x = row.size.width - child_last.size.width - offset.x;
                         }
-                        offset.y = (row.size.height - size.height) * child_align_y;
+                        offset.y = (row.size.height - child_inline.first.height) * child_align_y;
+
+                        let mut max_size = child_inline.first;
+
+                        if self.has_bidi_inline {
+                            max_size.width = bidi_width;
+                            child_first.size.width = bidi_width;
+                            child_last.size.width = bidi_width;
+                        }
+
+                        let (_, define_ref_frame) =
+                            LAYOUT.with_constrains(child_constrains.with_fill(false, false).with_max_size(max_size), || {
+                                LAYOUT.layout_inline(child_first, child_mid, child_last, bidi_segs.clone(), bidi_segs, || {
+                                    wl.with_child(|wl| child.layout(wl))
+                                })
+                            });
                         o.child_offset = row.origin.to_vector() + offset;
                         if self.has_bidi_inline {
                             o.child_offset.x = row.origin.x + bidi_x;
                         }
                         o.define_reference_frame = define_ref_frame;
-                        row_advance += size.width + spacing.column;
+
+                        row_advance += child_last.size.width + spacing.column;
+                    }
+                } else {
+                    // inline block
+                    let max_width = if self.has_bidi_inline {
+                        bidi_width
+                    } else {
+                        row.size.width - row_advance
+                    };
+                    let (size, define_ref_frame) = LAYOUT.with_constrains(
+                        child_constrains.with_fill(false, false).with_max(max_width, row.size.height),
+                        || LAYOUT.with_inline_layout(None, || wl.with_child(|wl| child.layout(wl))),
+                    );
+                    if size.is_empty() {
+                        // collapsed, continue.
+                        o.child_offset = PxVector::zero();
+                        o.define_reference_frame = false;
+                        return true;
                     }
 
-                    true
-                });
-
-                if let Some(inline) = wl.inline() {
-                    // last row
-                    inline.rows.push(row);
+                    let mut offset = PxVector::new(row_advance, Px(0));
+                    if let LayoutDirection::RTL = direction {
+                        offset.x = row.size.width - size.width - offset.x;
+                    }
+                    offset.y = (row.size.height - size.height) * child_align_y;
+                    o.child_offset = row.origin.to_vector() + offset;
+                    if self.has_bidi_inline {
+                        o.child_offset.x = row.origin.x + bidi_x;
+                    }
+                    o.define_reference_frame = define_ref_frame;
+                    row_advance += size.width + spacing.column;
                 }
-            },
-        );
+
+                true
+            });
+
+            if let Some(inline) = wl.inline() {
+                // last row
+                inline.rows.push(row);
+            }
+        });
 
         constrains.clamp_size(PxSize::new(panel_width, panel_height))
     }
@@ -763,91 +758,49 @@ impl InlineLayout {
             .with_fill_x(child_align.is_fill_x())
             .with_max_x(child_inline_constrain);
         let mut row = self.rows.new_item();
-        LAYOUT.with_constrains(
-            |_| child_constrains,
-            || {
-                children.for_each(|i, child, _| {
-                    let mut inline_constrain = child_inline_constrain;
-                    let mut wrap_clear_min = Px(0);
-                    if self.rows.is_empty() && !self.first_wrapped {
-                        if let Some(InlineConstrains::Measure(InlineConstrainsMeasure {
-                            first_max, mid_clear_min, ..
-                        })) = inline_constrains
-                        {
-                            inline_constrain = first_max;
-                            wrap_clear_min = mid_clear_min;
-                        }
+        LAYOUT.with_constrains(child_constrains, || {
+            children.for_each(|i, child, _| {
+                let mut inline_constrain = child_inline_constrain;
+                let mut wrap_clear_min = Px(0);
+                if self.rows.is_empty() && !self.first_wrapped {
+                    if let Some(InlineConstrains::Measure(InlineConstrainsMeasure {
+                        first_max, mid_clear_min, ..
+                    })) = inline_constrains
+                    {
+                        inline_constrain = first_max;
+                        wrap_clear_min = mid_clear_min;
                     }
-                    if inline_constrain < Px::MAX {
-                        inline_constrain -= row.size.width;
+                }
+                if inline_constrain < Px::MAX {
+                    inline_constrain -= row.size.width;
+                }
+
+                let (inline, size) = LAYOUT.measure_inline(inline_constrain, row.size.height - spacing.row, child);
+
+                if size.is_empty() {
+                    row.item_segs.push(ItemSegsInfo::new_collapsed());
+                    // collapsed, continue.
+                    return true;
+                }
+
+                if let Some(inline) = inline {
+                    if !self.has_bidi_inline {
+                        self.has_bidi_inline =
+                            inline
+                                .first_segs
+                                .iter()
+                                .chain(inline.last_segs.iter())
+                                .any(|s| match s.kind.strong_direction() {
+                                    Some(d) => d != direction,
+                                    None => false,
+                                });
                     }
 
-                    let (inline, size) = LAYOUT.measure_inline(inline_constrain, row.size.height - spacing.row, child);
+                    // item mid-rows can be wider
+                    self.desired_size.width = self.desired_size.width.max(size.width);
 
-                    if size.is_empty() {
-                        row.item_segs.push(ItemSegsInfo::new_collapsed());
-                        // collapsed, continue.
-                        return true;
-                    }
-
-                    if let Some(inline) = inline {
-                        if !self.has_bidi_inline {
-                            self.has_bidi_inline =
-                                inline
-                                    .first_segs
-                                    .iter()
-                                    .chain(inline.last_segs.iter())
-                                    .any(|s| match s.kind.strong_direction() {
-                                        Some(d) => d != direction,
-                                        None => false,
-                                    });
-                        }
-
-                        // item mid-rows can be wider
-                        self.desired_size.width = self.desired_size.width.max(size.width);
-
-                        if inline.first_wrapped {
-                            // wrap by us, detected by child
-                            if row.size.is_empty() {
-                                debug_assert!(self.rows.is_empty());
-                                self.first_wrapped = true;
-                            } else {
-                                row.size.width -= spacing.column;
-                                row.size.width = row.size.width.max(Px(0));
-                                self.desired_size.width = self.desired_size.width.max(row.size.width);
-                                self.desired_size.height += row.size.height + spacing.row;
-
-                                self.rows.push_renew(&mut row);
-                            }
-
-                            row.size = inline.first;
-                            row.first_child = i;
-                        } else {
-                            row.size.width += inline.first.width;
-                            row.size.height = row.size.height.max(inline.first.height);
-                        }
-                        row.item_segs.push(ItemSegsInfo::new_inlined(inline.first_segs.clone()));
-
-                        if inline.last_wrapped {
-                            // wrap by child
-                            self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += size.height - inline.first.height;
-
-                            self.rows.push_renew(&mut row);
-                            row.size = inline.last;
-                            row.size.width += spacing.column;
-                            row.first_child = i + 1;
-                            row.item_segs.push(ItemSegsInfo::new_inlined(inline.last_segs));
-                        } else {
-                            // child inlined, but fit in row
-                            row.size.width += spacing.column;
-                        }
-                    } else if size.width <= inline_constrain {
-                        row.size.width += size.width + spacing.column;
-                        row.size.height = row.size.height.max(size.height);
-                        row.item_segs.push(ItemSegsInfo::new_block(size.width));
-                    } else {
-                        // wrap by us
+                    if inline.first_wrapped {
+                        // wrap by us, detected by child
                         if row.size.is_empty() {
                             debug_assert!(self.rows.is_empty());
                             self.first_wrapped = true;
@@ -855,20 +808,59 @@ impl InlineLayout {
                             row.size.width -= spacing.column;
                             row.size.width = row.size.width.max(Px(0));
                             self.desired_size.width = self.desired_size.width.max(row.size.width);
-                            self.desired_size.height += row.size.height.max(wrap_clear_min) + spacing.row;
+                            self.desired_size.height += row.size.height + spacing.row;
+
                             self.rows.push_renew(&mut row);
                         }
 
-                        row.size = size;
-                        row.size.width += spacing.column;
+                        row.size = inline.first;
                         row.first_child = i;
-                        row.item_segs.push(ItemSegsInfo::new_block(size.width));
+                    } else {
+                        row.size.width += inline.first.width;
+                        row.size.height = row.size.height.max(inline.first.height);
+                    }
+                    row.item_segs.push(ItemSegsInfo::new_inlined(inline.first_segs.clone()));
+
+                    if inline.last_wrapped {
+                        // wrap by child
+                        self.desired_size.width = self.desired_size.width.max(row.size.width);
+                        self.desired_size.height += size.height - inline.first.height;
+
+                        self.rows.push_renew(&mut row);
+                        row.size = inline.last;
+                        row.size.width += spacing.column;
+                        row.first_child = i + 1;
+                        row.item_segs.push(ItemSegsInfo::new_inlined(inline.last_segs));
+                    } else {
+                        // child inlined, but fit in row
+                        row.size.width += spacing.column;
+                    }
+                } else if size.width <= inline_constrain {
+                    row.size.width += size.width + spacing.column;
+                    row.size.height = row.size.height.max(size.height);
+                    row.item_segs.push(ItemSegsInfo::new_block(size.width));
+                } else {
+                    // wrap by us
+                    if row.size.is_empty() {
+                        debug_assert!(self.rows.is_empty());
+                        self.first_wrapped = true;
+                    } else {
+                        row.size.width -= spacing.column;
+                        row.size.width = row.size.width.max(Px(0));
+                        self.desired_size.width = self.desired_size.width.max(row.size.width);
+                        self.desired_size.height += row.size.height.max(wrap_clear_min) + spacing.row;
+                        self.rows.push_renew(&mut row);
                     }
 
-                    true
-                });
-            },
-        );
+                    row.size = size;
+                    row.size.width += spacing.column;
+                    row.first_child = i;
+                    row.item_segs.push(ItemSegsInfo::new_block(size.width));
+                }
+
+                true
+            });
+        });
 
         // last row
         row.size.width -= spacing.column;

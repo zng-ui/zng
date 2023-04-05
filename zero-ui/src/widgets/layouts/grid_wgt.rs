@@ -969,6 +969,7 @@ impl GridNode {
         //  - For `leftover` columns&rows when the grid with no fill or exact size, to get the `1.lft()` length.
         let columns_len = info.columns.len();
         if has_default || (fill_x.is_none() && has_leftover_cols) || (fill_y.is_none() && has_leftover_rows) {
+            let c = LAYOUT.constrains();
             cells.for_each(|i, cell| {
                 let cell_info = cell::CellInfo::get_wgt(cell);
                 if cell_info.column_span > 1 || cell_info.row_span > 1 {
@@ -990,33 +991,33 @@ impl GridNode {
                 if col_is_default {
                     if row_is_default {
                         // (default, default)
-                        let size = LAYOUT.with_constrains(|c| c.with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constrains(c.with_fill(false, false), || cell.measure(wm));
 
                         col.width = col.width.max(size.width);
                         row.height = row.height.max(size.height);
                     } else if row_is_exact {
                         // (default, exact)
-                        let size = LAYOUT.with_constrains(|c| c.with_exact_y(row.height).with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constrains(c.with_exact_y(row.height).with_fill(false, false), || cell.measure(wm));
 
                         col.width = col.width.max(size.width);
                     } else {
                         debug_assert!(row_is_leftover);
                         // (default, leftover)
-                        let size = LAYOUT.with_constrains(|c| c.with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constrains(c.with_fill(false, false), || cell.measure(wm));
 
                         col.width = col.width.max(size.width);
                     }
                 } else if col_is_exact {
                     if row_is_default {
                         // (exact, default)
-                        let size = LAYOUT.with_constrains(|c| c.with_exact_x(col.width).with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constrains(c.with_exact_x(col.width).with_fill(false, false), || cell.measure(wm));
 
                         row.height = row.height.max(size.height);
                     }
                 } else if row_is_default {
                     debug_assert!(col_is_leftover);
                     // (leftover, default)
-                    let size = LAYOUT.with_constrains(|c| c.with_fill(false, false), || cell.measure(wm));
+                    let size = LAYOUT.with_constrains(c.with_fill(false, false), || cell.measure(wm));
 
                     row.height = row.height.max(size.height);
                 }
@@ -1115,10 +1116,9 @@ impl GridNode {
                     col.width = Px(width as i32);
 
                     if i < view_columns_len {
-                        let size = LAYOUT.with_constrains(
-                            |c| c.with_fill_x(true).with_max_x(col.width),
-                            || columns.with_node(i, |col| col.measure(wm)),
-                        );
+                        let size = LAYOUT.with_constrains(LAYOUT.constrains().with_fill_x(true).with_max_x(col.width), || {
+                            columns.with_node(i, |col| col.measure(wm))
+                        });
 
                         if col.width != size.width {
                             // reached a max/min, convert this column to "exact" and remove it from
@@ -1245,10 +1245,9 @@ impl GridNode {
                     row.height = Px(height as i32);
 
                     if i < view_rows_len {
-                        let size = LAYOUT.with_constrains(
-                            |c| c.with_fill_y(true).with_max_y(row.height),
-                            || rows.with_node(i, |row| row.measure(wm)),
-                        );
+                        let size = LAYOUT.with_constrains(LAYOUT.constrains().with_fill_y(true).with_max_y(row.height), || {
+                            rows.with_node(i, |row| row.measure(wm))
+                        });
 
                         if row.height != size.height {
                             // reached a max/min, convert this row to "exact" and remove it from
@@ -1317,7 +1316,7 @@ impl GridNode {
     #[UiNode]
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
         let (spacing, grid_size) = self.layout_info(&mut WidgetMeasure::new());
-        let constrains = LAYOUT.constrains();
+        let c = LAYOUT.constrains();
 
         let info = self.info.get_mut();
         if info.is_collapse() {
@@ -1338,7 +1337,7 @@ impl GridNode {
             wl,
             |ci, col, wl| {
                 let info = info.columns[ci];
-                LAYOUT.with_constrains(|c| c.with_exact(info.width, grid_size.height), || col.layout(wl))
+                LAYOUT.with_constrains(c.with_exact(info.width, grid_size.height), || col.layout(wl))
             },
             |_, _| PxSize::zero(),
         );
@@ -1347,7 +1346,7 @@ impl GridNode {
             wl,
             |ri, row, wl| {
                 let info = info.rows[ri];
-                LAYOUT.with_constrains(|c| c.with_exact(grid_size.width, info.height), || row.layout(wl))
+                LAYOUT.with_constrains(c.with_exact(grid_size.width, info.height), || row.layout(wl))
             },
             |_, _| PxSize::zero(),
         );
@@ -1386,8 +1385,7 @@ impl GridNode {
                     return PxSize::zero(); // continue;
                 }
 
-                let (_, define_ref_frame) =
-                    LAYOUT.with_constrains(|c| c.with_exact_size(cell_size), || wl.with_child(|wl| cell.layout(wl)));
+                let (_, define_ref_frame) = LAYOUT.with_constrains(c.with_exact_size(cell_size), || wl.with_child(|wl| cell.layout(wl)));
                 o.child_offset = cell_offset;
                 o.define_reference_frame = define_ref_frame;
 
@@ -1396,7 +1394,7 @@ impl GridNode {
             |_, _| PxSize::zero(),
         );
 
-        constrains.fill_size_or(grid_size)
+        c.fill_size_or(grid_size)
     }
 
     #[UiNode]

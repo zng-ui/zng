@@ -208,10 +208,9 @@ impl GradientRadius {
             }
         };
 
-        LAYOUT.with_constrains(
-            |_| PxConstrains2d::new_exact(length, length),
-            || self.radii.layout_dft(PxSize::splat(length)),
-        )
+        LAYOUT.with_constrains(PxConstrains2d::new_exact(length, length), || {
+            self.radii.layout_dft(PxSize::splat(length))
+        })
     }
 }
 impl_from_and_into_var! {
@@ -973,7 +972,7 @@ impl GradientStops {
                 if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
                     let mut offset = LAYOUT.with_constrains_for(
                         x_axis,
-                        |c| c.with_new_max(Px(length as i32)).with_fill(true),
+                        LAYOUT.constrains_for(x_axis).with_new_max(Px(length as i32)).with_fill(true),
                         || offset.layout_f32(x_axis),
                     );
                     if is_positional(offset) {

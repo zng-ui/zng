@@ -69,7 +69,8 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 && constrains.max_size() == Some(viewport_unit); // that is not just min size.
 
             let ct_size = LAYOUT.with_constrains(
-                |mut c| {
+                {
+                    let mut c = constrains;
                     c = c.with_min_size(viewport_unit);
                     if mode.contains(ScrollMode::VERTICAL) {
                         c = c.with_unbounded_y();
@@ -101,7 +102,8 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 && constrains.max_size() == Some(viewport_unit); // that is not just min size.
 
             let ct_size = LAYOUT.with_constrains(
-                |mut c| {
+                {
+                    let mut c = constrains;
                     c = c.with_min_size(viewport_unit);
                     if mode.contains(ScrollMode::VERTICAL) {
                         c = c.with_unbounded_y();
@@ -130,20 +132,16 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 WIDGET.render();
             }
 
-            self.auto_hide_extra = LAYOUT.with_metrics(
-                |m| {
-                    m.with_viewport(viewport_size)
-                        .with_constrains(|_| PxConstrains2d::new_fill_size(viewport_size))
-                },
-                || {
+            self.auto_hide_extra = LAYOUT.with_viewport(viewport_size, || {
+                LAYOUT.with_constrains(PxConstrains2d::new_fill_size(viewport_size), || {
                     AUTO_HIDE_EXTRA_VAR.layout_dft(PxSideOffsets::new(
                         viewport_size.height,
                         viewport_size.width,
                         viewport_size.height,
                         viewport_size.width,
                     ))
-                },
-            );
+                })
+            });
             self.auto_hide_extra.top = self.auto_hide_extra.top.max(Px(0));
             self.auto_hide_extra.right = self.auto_hide_extra.right.max(Px(0));
             self.auto_hide_extra.bottom = self.auto_hide_extra.bottom.max(Px(0));
@@ -381,15 +379,12 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             let r = self.child.layout(wl);
 
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
-            LAYOUT.with_constrains(
-                |_| PxConstrains2d::new_fill_size(viewport),
-                || {
-                    self.layout_line = PxVector::new(
-                        HORIZONTAL_LINE_UNIT_VAR.layout_dft_x(Px(20)),
-                        VERTICAL_LINE_UNIT_VAR.layout_dft_y(Px(20)),
-                    );
-                },
-            );
+            LAYOUT.with_constrains(PxConstrains2d::new_fill_size(viewport), || {
+                self.layout_line = PxVector::new(
+                    HORIZONTAL_LINE_UNIT_VAR.layout_dft_x(Px(20)),
+                    VERTICAL_LINE_UNIT_VAR.layout_dft_y(Px(20)),
+                );
+            });
 
             r
         }
@@ -507,15 +502,12 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             let r = self.child.layout(wl);
 
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
-            LAYOUT.with_constrains(
-                |_| PxConstrains2d::new_fill_size(viewport),
-                || {
-                    self.layout_page = PxVector::new(
-                        HORIZONTAL_PAGE_UNIT_VAR.layout_dft_x(Px(20)),
-                        VERTICAL_PAGE_UNIT_VAR.layout_dft_y(Px(20)),
-                    );
-                },
-            );
+            LAYOUT.with_constrains(PxConstrains2d::new_fill_size(viewport), || {
+                self.layout_page = PxVector::new(
+                    HORIZONTAL_PAGE_UNIT_VAR.layout_dft_x(Px(20)),
+                    VERTICAL_PAGE_UNIT_VAR.layout_dft_y(Px(20)),
+                );
+            });
 
             r
         }
@@ -693,7 +685,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     let target_bounds = bounds.inner_bounds();
                     match mode {
                         ScrollToMode::Minimal { margin } => {
-                            let margin = LAYOUT.with_constrains(|_| PxConstrains2d::new_fill_size(target_bounds.size), || margin.layout());
+                            let margin = LAYOUT.with_constrains(PxConstrains2d::new_fill_size(target_bounds.size), || margin.layout());
                             let mut target_bounds = target_bounds;
                             target_bounds.origin.x -= margin.left;
                             target_bounds.origin.y -= margin.top;
@@ -736,16 +728,14 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             scroll_point,
                         } => {
                             let default = (target_bounds.size / Px(2)).to_vector().to_point();
-                            let widget_point = LAYOUT.with_constrains(
-                                |_| PxConstrains2d::new_fill_size(target_bounds.size),
-                                || widget_point.layout_dft(default),
-                            );
+                            let widget_point = LAYOUT.with_constrains(PxConstrains2d::new_fill_size(target_bounds.size), || {
+                                widget_point.layout_dft(default)
+                            });
 
                             let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
-                            let scroll_point = LAYOUT.with_constrains(
-                                |_| PxConstrains2d::new_fill_size(viewport_bounds.size),
-                                || scroll_point.layout_dft(default),
-                            );
+                            let scroll_point = LAYOUT.with_constrains(PxConstrains2d::new_fill_size(viewport_bounds.size), || {
+                                scroll_point.layout_dft(default)
+                            });
 
                             let widget_point = widget_point + target_bounds.origin.to_vector();
                             let scroll_point = scroll_point + viewport_bounds.origin.to_vector();
@@ -820,20 +810,17 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
 
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
 
-            LAYOUT.with_constrains(
-                |_| PxConstrains2d::new_fill_size(viewport),
-                || {
-                    let offset = self.offset.layout_dft(viewport.to_vector());
-                    self.offset = Vector::zero();
+            LAYOUT.with_constrains(PxConstrains2d::new_fill_size(viewport), || {
+                let offset = self.offset.layout_dft(viewport.to_vector());
+                self.offset = Vector::zero();
 
-                    if offset.y != Px(0) {
-                        SCROLL.scroll_vertical(offset.y);
-                    }
-                    if offset.x != Px(0) {
-                        SCROLL.scroll_horizontal(offset.x);
-                    }
-                },
-            );
+                if offset.y != Px(0) {
+                    SCROLL.scroll_vertical(offset.y);
+                }
+                if offset.x != Px(0) {
+                    SCROLL.scroll_horizontal(offset.x);
+                }
+            });
 
             r
         }

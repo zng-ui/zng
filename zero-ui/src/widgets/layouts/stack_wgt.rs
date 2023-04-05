@@ -240,12 +240,10 @@ impl StackNode {
         // layout children, size, raw position + spacing only.
         let mut item_bounds = euclid::Box2D::zero();
         LAYOUT.with_constrains(
-            move |_| {
-                constrains
-                    .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
-                    .with_max_size(max_size)
-                    .with_new_min(Px(0), Px(0))
-            },
+            constrains
+                .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
+                .with_max_size(max_size)
+                .with_new_min(Px(0), Px(0)),
             || {
                 // parallel measure full widgets first
                 self.children.measure_each(
@@ -304,12 +302,10 @@ impl StackNode {
         // layout children, size, raw position + spacing only.
         let mut item_bounds = euclid::Box2D::zero();
         LAYOUT.with_constrains(
-            move |_| {
-                constrains
-                    .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
-                    .with_max_size(max_size)
-                    .with_new_min(Px(0), Px(0))
-            },
+            constrains
+                .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
+                .with_max_size(max_size)
+                .with_new_min(Px(0), Px(0)),
             || {
                 // parallel layout widgets
                 self.children.layout_each(
@@ -437,13 +433,10 @@ impl StackNode {
 
         // find largest child, the others will fill to its size.
         if need_measure {
-            let max_items = LAYOUT.with_constrains(
-                move |_| measure_constrains.with_new_min(Px(0), Px(0)),
-                || {
-                    self.children
-                        .measure_each(&mut WidgetMeasure::new(), |_, c, _, wm| c.measure(wm), PxSize::max)
-                },
-            );
+            let max_items = LAYOUT.with_constrains(measure_constrains.with_new_min(Px(0), Px(0)), || {
+                self.children
+                    .measure_each(&mut WidgetMeasure::new(), |_, c, _, wm| c.measure(wm), PxSize::max)
+            });
 
             max_size = constrains.clamp_size(max_size.max(max_items));
         }
@@ -597,22 +590,19 @@ pub fn stack_nodes_layout_by(
             } else {
                 let index_size = self.children.with_node(index, |n| n.measure(wm));
                 let constrains = (self.constrains)(LAYOUT.metrics().constrains(), index, index_size);
-                LAYOUT.with_constrains(
-                    |_| constrains,
-                    || {
-                        self.children.measure_each(
-                            wm,
-                            |i, n, wm| {
-                                if i != index {
-                                    n.measure(wm)
-                                } else {
-                                    index_size
-                                }
-                            },
-                            PxSize::max,
-                        )
-                    },
-                )
+                LAYOUT.with_constrains(constrains, || {
+                    self.children.measure_each(
+                        wm,
+                        |i, n, wm| {
+                            if i != index {
+                                n.measure(wm)
+                            } else {
+                                index_size
+                            }
+                        },
+                        PxSize::max,
+                    )
+                })
             }
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -630,22 +620,19 @@ pub fn stack_nodes_layout_by(
             } else {
                 let index_size = self.children.with_node_mut(index, |n| n.layout(wl));
                 let constrains = (self.constrains)(LAYOUT.metrics().constrains(), index, index_size);
-                LAYOUT.with_constrains(
-                    |_| constrains,
-                    || {
-                        self.children.layout_each(
-                            wl,
-                            |i, n, wl| {
-                                if i != index {
-                                    n.layout(wl)
-                                } else {
-                                    index_size
-                                }
-                            },
-                            PxSize::max,
-                        )
-                    },
-                )
+                LAYOUT.with_constrains(constrains, || {
+                    self.children.layout_each(
+                        wl,
+                        |i, n, wl| {
+                            if i != index {
+                                n.layout(wl)
+                            } else {
+                                index_size
+                            }
+                        },
+                        PxSize::max,
+                    )
+                })
             }
         }
     }

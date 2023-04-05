@@ -46,12 +46,9 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.with_node_mut(1, |n| n.layout(wl));
 
-            LAYOUT.with_constrains(
-                |_| PxConstrains2d::new_exact_size(size),
-                || {
-                    self.children.with_node_mut(0, |n| n.layout(wl));
-                },
-            );
+            LAYOUT.with_constrains(PxConstrains2d::new_exact_size(size), || {
+                self.children.with_node_mut(0, |n| n.layout(wl));
+            });
             size
         }
     }
@@ -241,12 +238,9 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.with_node_mut(0, |n| n.layout(wl));
-            LAYOUT.with_constrains(
-                |_| PxConstrains2d::new_exact_size(size),
-                || {
-                    self.children.with_node_mut(1, |n| n.layout(wl));
-                },
-            );
+            LAYOUT.with_constrains(PxConstrains2d::new_exact_size(size), || {
+                self.children.with_node_mut(1, |n| n.layout(wl));
+            });
             size
         }
     }
@@ -334,7 +328,7 @@ pub fn foreground_highlight(
                 );
             }
 
-            let widths = LAYOUT.with_constrains(|_| PxConstrains2d::new_exact_size(size), || self.widths.layout());
+            let widths = LAYOUT.with_constrains(PxConstrains2d::new_exact_size(size), || self.widths.layout());
 
             if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {
                 self.render_bounds = bounds;
@@ -591,7 +585,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                         //     first_max: LAYOUT.constrains().x.max_or(Px::MAX),
                         //     mid_clear_min: Px(0),
                         // };
-                        // LAYOUT.with_inline_measure(wm, move |_| Some(c), |wm| self.child.measure(wm))
+                        // LAYOUT.with_inline_measure(wm, Some(c), |wm| self.child.measure(wm))
                     } else {
                         // already enabled by parent
                         self.child.measure(wm)
@@ -599,7 +593,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                 }
                 InlineMode::Block => {
                     // disable inline, method also disables in `WidgetMeasure`
-                    LAYOUT.with_inline_measure(wm, |_| None, |wm| self.child.measure(wm))
+                    LAYOUT.with_inline_measure(wm, None, |wm| self.child.measure(wm))
                 }
             }
         }

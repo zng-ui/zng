@@ -539,13 +539,10 @@ mod tests {
             let r = l.layout_y();
             assert_eq!(r.0, 100);
 
-            LAYOUT.with_constrains(
-                |c| c.with_new_max_x(Px(550)),
-                || {
-                    let r = l.layout_x();
-                    assert_eq!(r.0, 500);
-                },
-            );
+            LAYOUT.with_constrains(LAYOUT.constrains().with_new_max_x(Px(550)), || {
+                let r = l.layout_x();
+                assert_eq!(r.0, 500);
+            });
         });
     }
 

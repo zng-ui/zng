@@ -795,10 +795,9 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 WIDGET.render();
             }
 
-            let (_, define_ref_frame) = LAYOUT.with_constrains(
-                |_| PxConstrains2d::new_exact_size(fill_bounds),
-                || wl.with_child(|wl| self.child.layout(wl)),
-            );
+            let (_, define_ref_frame) = LAYOUT.with_constrains(PxConstrains2d::new_exact_size(fill_bounds), || {
+                wl.with_child(|wl| self.child.layout(wl))
+            });
             if self.define_ref_frame != define_ref_frame {
                 self.define_ref_frame = define_ref_frame;
                 WIDGET.render();
@@ -899,11 +898,9 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             let offsets = self.offsets.layout();
             BORDER.measure_with_border(offsets, || {
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                LAYOUT.with_inline_measure(
-                    wm,
-                    |_| None,
-                    |wm| LAYOUT.with_sub_size(taken_size, || self.children.with_node(0, |n| n.measure(wm))),
-                )
+                LAYOUT.with_inline_measure(wm, None, |wm| {
+                    LAYOUT.with_sub_size(taken_size, || self.children.with_node(0, |n| n.measure(wm)))
+                })
             })
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -935,14 +932,11 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 self.border_rect.size = LAYOUT.with_sub_size(taken_size, || self.children.with_node_mut(0, |n| n.layout(wl)));
 
                 // layout border visual
-                LAYOUT.with_constrains(
-                    |_| PxConstrains2d::new_exact_size(self.border_rect.size),
-                    || {
-                        BORDER.with_border_layout(self.border_rect, offsets, || {
-                            self.children.with_node_mut(1, |n| n.layout(wl));
-                        });
-                    },
-                );
+                LAYOUT.with_constrains(PxConstrains2d::new_exact_size(self.border_rect.size), || {
+                    BORDER.with_border_layout(self.border_rect, offsets, || {
+                        self.children.with_node_mut(1, |n| n.layout(wl));
+                    });
+                });
             });
 
             self.border_rect.size

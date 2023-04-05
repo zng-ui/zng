@@ -112,36 +112,32 @@ pub mod scroll {
             }
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
                 // scrollbars
+                let c = LAYOUT.constrains();
                 {
-                    self.joiner.width = LAYOUT.with_constrains(
-                        |c| c.with_min_x(Px(0)).with_fill(false, true),
-                        || self.children.with_node(1, |n| n.measure(&mut WidgetMeasure::new())).width,
-                    );
-                    self.joiner.height = LAYOUT.with_constrains(
-                        |c| c.with_min_y(Px(0)).with_fill(true, false),
-                        || self.children.with_node(2, |n| n.measure(&mut WidgetMeasure::new())).height,
-                    );
+                    self.joiner.width = LAYOUT.with_constrains(c.with_min_x(Px(0)).with_fill(false, true), || {
+                        self.children.with_node(1, |n| n.measure(&mut WidgetMeasure::new())).width
+                    });
+                    self.joiner.height = LAYOUT.with_constrains(c.with_min_y(Px(0)).with_fill(true, false), || {
+                        self.children.with_node(2, |n| n.measure(&mut WidgetMeasure::new())).height
+                    });
                 }
-                self.joiner.width = LAYOUT.with_constrains(
-                    |c| c.with_min_x(Px(0)).with_fill(false, true).with_less_y(self.joiner.height),
-                    || self.children.with_node_mut(1, |n| n.layout(wl)).width,
-                );
-                self.joiner.height = LAYOUT.with_constrains(
-                    |c| c.with_min_y(Px(0)).with_fill(true, false).with_less_x(self.joiner.width),
-                    || self.children.with_node_mut(2, |n| n.layout(wl)).height,
-                );
+                self.joiner.width = LAYOUT
+                    .with_constrains(c.with_min_x(Px(0)).with_fill(false, true).with_less_y(self.joiner.height), || {
+                        self.children.with_node_mut(1, |n| n.layout(wl)).width
+                    });
+                self.joiner.height = LAYOUT
+                    .with_constrains(c.with_min_y(Px(0)).with_fill(true, false).with_less_x(self.joiner.width), || {
+                        self.children.with_node_mut(2, |n| n.layout(wl)).height
+                    });
 
                 // joiner
-                let _ = LAYOUT.with_constrains(
-                    |_| PxConstrains2d::new_fill_size(self.joiner),
-                    || self.children.with_node_mut(3, |n| n.layout(wl)),
-                );
+                let _ = LAYOUT.with_constrains(PxConstrains2d::new_fill_size(self.joiner), || {
+                    self.children.with_node_mut(3, |n| n.layout(wl))
+                });
 
                 // viewport
-                let mut viewport = LAYOUT.with_constrains(
-                    |c| c.with_less_size(self.joiner),
-                    || self.children.with_node_mut(0, |n| n.layout(wl)),
-                );
+                let mut viewport =
+                    LAYOUT.with_constrains(c.with_less_size(self.joiner), || self.children.with_node_mut(0, |n| n.layout(wl)));
 
                 // arrange
                 let final_size = viewport + self.joiner;

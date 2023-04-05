@@ -176,8 +176,9 @@ impl StackDirection {
         self.layout_resolved_rtl(prev_item, next_item)
     }
     pub(crate) fn layout_resolved_rtl(&self, prev_item: PxRect, next_item: PxSize) -> PxVector {
-        let place = LAYOUT.with_constrains(|c| c.with_exact_size(prev_item.size), || self.place.layout());
-        let origin = LAYOUT.with_constrains(|c| c.with_exact_size(next_item), || self.origin.layout());
+        let c = LAYOUT.constrains();
+        let place = LAYOUT.with_constrains(c.with_exact_size(prev_item.size), || self.place.layout());
+        let origin = LAYOUT.with_constrains(c.with_exact_size(next_item), || self.origin.layout());
         prev_item.origin.to_vector() + place.to_vector() - origin.to_vector()
     }
 

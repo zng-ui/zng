@@ -198,9 +198,9 @@ impl LAYERS {
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
                         return LAYOUT.with_constrains(
-                            |c| match mode.size {
+                            match mode.size {
                                 AnchorSize::Unbounded => PxConstrains2d::new_unbounded(),
-                                AnchorSize::Window => c,
+                                AnchorSize::Window => LAYOUT.constrains(),
                                 AnchorSize::InnerSize => PxConstrains2d::new_exact_size(bounds.inner_size()),
                                 AnchorSize::InnerBorder => PxConstrains2d::new_exact_size(border.inner_size(bounds)),
                                 AnchorSize::OuterSize => PxConstrains2d::new_exact_size(bounds.outer_size()),
@@ -221,21 +221,21 @@ impl LAYERS {
 
                         self.offset_point = match &mode.transform {
                             AnchorTransform::InnerOffset(p) => {
-                                LAYOUT.with_constrains(|_| PxConstrains2d::new_exact_size(bounds.inner_size()), || p.layout())
+                                LAYOUT.with_constrains(PxConstrains2d::new_exact_size(bounds.inner_size()), || p.layout())
                             }
                             AnchorTransform::InnerBorderOffset(p) => {
-                                LAYOUT.with_constrains(|_| PxConstrains2d::new_exact_size(border.inner_size(bounds)), || p.layout())
+                                LAYOUT.with_constrains(PxConstrains2d::new_exact_size(border.inner_size(bounds)), || p.layout())
                             }
                             AnchorTransform::OuterOffset(p) => {
-                                LAYOUT.with_constrains(|_| PxConstrains2d::new_exact_size(bounds.outer_size()), || p.layout())
+                                LAYOUT.with_constrains(PxConstrains2d::new_exact_size(bounds.outer_size()), || p.layout())
                             }
                             _ => PxPoint::zero(),
                         };
 
                         return LAYOUT.with_constrains(
-                            |c| match mode.size {
+                            match mode.size {
                                 AnchorSize::Unbounded => PxConstrains2d::new_unbounded(),
-                                AnchorSize::Window => c,
+                                AnchorSize::Window => LAYOUT.constrains(),
                                 AnchorSize::InnerSize => PxConstrains2d::new_exact_size(bounds.inner_size()),
                                 AnchorSize::InnerBorder => PxConstrains2d::new_exact_size(border.inner_size(bounds)),
                                 AnchorSize::OuterSize => PxConstrains2d::new_exact_size(bounds.outer_size()),
