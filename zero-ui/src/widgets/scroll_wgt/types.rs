@@ -167,14 +167,8 @@ impl SCROLL {
             return;
         }
 
-        let curr_scroll_fct = SCROLL_VERTICAL_OFFSET_VAR.get();
-        let curr_scroll = max_scroll * curr_scroll_fct;
-        let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
-
-        if new_scroll != curr_scroll {
-            let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-            SCROLL.chase_vertical(new_offset.clamp(min, max).fct());
-        }
+        let amount = amount.0 as f32 / max_scroll.0 as f32;
+        SCROLL.chase_vertical(|f| (f.0 + amount).clamp(min, max).fct());
     }
 
     /// Offset the horizontal position by the given pixel `amount`.
@@ -192,60 +186,74 @@ impl SCROLL {
             return;
         }
 
-        let curr_scroll_fct = SCROLL_HORIZONTAL_OFFSET_VAR.get();
-        let curr_scroll = max_scroll * curr_scroll_fct;
-        let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
-
-        if new_scroll != curr_scroll {
-            let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-            SCROLL.chase_horizontal(new_offset.clamp(min, max).fct());
-        }
+        let amount = amount.0 as f32 / max_scroll.0 as f32;
+        SCROLL.chase_horizontal(|f| (f.0 + amount).clamp(min, max).fct());
     }
 
-    /// Set the [`SCROLL_VERTICAL_OFFSET_VAR`] to `new_offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
-    /// just setting the var if smooth scrolling is disabled.
-    pub fn chase_vertical<F: Into<Factor>>(&self, new_offset: F) {
-        let new_offset = new_offset.into().clamp_range();
-
-        //smooth scrolling
+    /// Set the [`SCROLL_VERTICAL_OFFSET_VAR`] to a new offset derived from the last set offset, blending into the active smooth
+    /// scrolling chase animation, or starting a new one, or just setting the var if smooth scrolling is disabled.
+    pub fn chase_vertical(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
+        #[cfg(dyn_closure)]
+        let modify_offset: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_offset);
+        self.chase_vertical_impl(modify_offset);
+    }
+    fn chase_vertical_impl(&self, new_offset: impl FnOnce(Factor) -> Factor) {
         let smooth = SMOOTH_SCROLLING_VAR.get();
-        if smooth.is_disabled() {
-            let _ = SCROLL_VERTICAL_OFFSET_VAR.set(new_offset);
-        } else {
-            let config = SCROLL_CONFIG.get();
-            let mut vertical = config.vertical.lock();
-            match &*vertical {
-                Some(anim) if !anim.handle.is_stopped() => {
-                    anim.reset(new_offset);
+        let config = SCROLL_CONFIG.get();
+        let mut vertical = config.vertical.lock();
+        match &mut *vertical {
+            Some(t) => {
+                if smooth.is_disabled() {
+                    let t = new_offset(*t.target()).clamp_range();
+                    let _ = SCROLL_VERTICAL_OFFSET_VAR.set(t);
+                    *vertical = None;
+                } else {
+                    let easing = smooth.easing.clone();
+                    t.modify(|f| *f = new_offset(*f).clamp_range(), smooth.duration, move |t| easing(t));
                 }
-                _ => {
+            }
+            None => {
+                let t = new_offset(SCROLL_VERTICAL_OFFSET_VAR.get()).clamp_range();
+                if smooth.is_disabled() {
+                    let _ = SCROLL_VERTICAL_OFFSET_VAR.set(t);
+                } else {
                     let ease = smooth.easing.clone();
-                    let anim = SCROLL_VERTICAL_OFFSET_VAR.chase_bounded(new_offset, smooth.duration, move |t| ease(t), 0.fct()..=1.fct());
+                    let anim = SCROLL_VERTICAL_OFFSET_VAR.chase(t, smooth.duration, move |t| ease(t));
                     *vertical = Some(anim);
                 }
             }
         }
     }
 
-    /// Set the [`SCROLL_HORIZONTAL_OFFSET_VAR`] to `new_offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
-    /// just setting the var if smooth scrolling is disabled.
-    pub fn chase_horizontal<F: Into<Factor>>(&self, new_offset: F) {
-        let new_offset = new_offset.into().clamp_range();
-
-        //smooth scrolling
+    /// Set the [`SCROLL_HORIZONTAL_OFFSET_VAR`] to a new offset derived from the last set offset, blending into the active smooth
+    /// scrolling chase animation, or starting a new one, or just setting the var if smooth scrolling is disabled.
+    pub fn chase_horizontal(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
+        #[cfg(dyn_closure)]
+        let modify_offset: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_offset);
+        self.chase_horizontal_impl(modify_offset);
+    }
+    fn chase_horizontal_impl(&self, new_offset: impl FnOnce(Factor) -> Factor) {
         let smooth = SMOOTH_SCROLLING_VAR.get();
-        if smooth.is_disabled() {
-            let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(new_offset);
-        } else {
-            let config = SCROLL_CONFIG.get();
-            let mut horizontal = config.horizontal.lock();
-            match &*horizontal {
-                Some(anim) if !anim.handle.is_stopped() => {
-                    anim.reset(new_offset);
+        let config = SCROLL_CONFIG.get();
+        let mut horizontal = config.horizontal.lock();
+        match &mut *horizontal {
+            Some(t) => {
+                if smooth.is_disabled() {
+                    let t = new_offset(*t.target()).clamp_range();
+                    let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(t);
+                    *horizontal = None;
+                } else {
+                    let easing = smooth.easing.clone();
+                    t.modify(|f| *f = new_offset(*f).clamp_range(), smooth.duration, move |t| easing(t));
                 }
-                _ => {
+            }
+            None => {
+                let t = new_offset(SCROLL_HORIZONTAL_OFFSET_VAR.get()).clamp_range();
+                if smooth.is_disabled() {
+                    let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(t);
+                } else {
                     let ease = smooth.easing.clone();
-                    let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase_bounded(new_offset, smooth.duration, move |t| ease(t), 0.fct()..=1.fct());
+                    let anim = SCROLL_HORIZONTAL_OFFSET_VAR.chase(t, smooth.duration, move |t| ease(t));
                     *horizontal = Some(anim);
                 }
             }

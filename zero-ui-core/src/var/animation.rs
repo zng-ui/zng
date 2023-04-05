@@ -931,155 +931,62 @@ where
     }
 }
 
-/// Represents a running chase animation created by [`Var::chase`] or other *chase* animation methods.
-#[derive(Clone, Debug)]
-pub struct ChaseAnimation<T> {
-    /// Underlying animation handle.
-    pub handle: AnimationHandle,
-    pub(super) next_target: Arc<Mutex<ChaseMsg<T>>>,
+/// Represents the editable final value of a [`Var::chase`] animation.
+pub struct ChaseAnimation<T: VarValue + animation::Transitionable> {
+    target: T,
+    var: BoxedVar<T>,
+    handle: animation::AnimationHandle,
 }
-impl<T: VarValue> ChaseAnimation<T> {
-    /// Sets a new target value for the easing animation and restarts the time.
-    ///
-    /// The animation will update to lerp between the current variable value to the `new_target`.
-    pub fn reset(&self, new_target: T) {
-        *self.next_target.lock() = ChaseMsg::Replace(new_target);
+impl<T> fmt::Debug for ChaseAnimation<T>
+where
+    T: VarValue + animation::Transitionable,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ChaseAnimation")
+            .field("target", &self.target)
+            .finish_non_exhaustive()
+    }
+}
+impl<T> ChaseAnimation<T>
+where
+    T: VarValue + animation::Transitionable,
+{
+    /// Current animation target.
+    pub fn target(&self) -> &T {
+        &self.target
     }
 
-    /// Adds `increment` to the current target value for the easing animation and restarts the time.
-    pub fn add(&self, increment: T) {
-        *self.next_target.lock() = ChaseMsg::Add(increment);
+    /// Modify the chase target, replaces the animation with a new one from the current value to the modified target.
+    pub fn modify(&mut self, modify: impl FnOnce(&mut T), duration: Duration, easing: impl Fn(EasingTime) -> EasingStep + Send + 'static) {
+        if self.handle.is_stopped() {
+            // re-sync target
+            self.target = self.var.get();
+        }
+        modify(&mut self.target);
+        self.handle = self.var.ease(self.target.clone(), duration, easing);
     }
-}
-#[derive(Debug)]
-pub(super) enum ChaseMsg<T> {
-    None,
-    Replace(T),
-    Add(T),
-}
-impl<T> Default for ChaseMsg<T> {
-    fn default() -> Self {
-        Self::None
+
+    /// Replace the chase target, replaces the animation with a new one from the current value to the modified target.
+    pub fn set(&mut self, value: impl Into<T>, duration: Duration, easing: impl Fn(EasingTime) -> EasingStep + Send + 'static) {
+        self.target = value.into();
+        self.handle = self.var.ease(self.target.clone(), duration, easing);
     }
 }
 
 pub(super) fn var_chase<T>(
-    from: T,
+    var: BoxedVar<T>,
     first_target: T,
     duration: Duration,
-    easing: impl Fn(EasingTime) -> EasingStep + 'static,
-) -> (impl FnMut(&Animation, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
+    easing: impl Fn(EasingTime) -> EasingStep + Send + 'static,
+) -> ChaseAnimation<T>
 where
     T: VarValue + animation::Transitionable,
 {
-    let mut prev_step = 0.fct();
-    let next_target = Arc::new(Mutex::new(ChaseMsg::None));
-    let mut transition = Transition::new(from, first_target);
-
-    let anim = clmv!(next_target, |args: &Animation, value: &mut Cow<T>| {
-        let step = easing(args.elapsed_stop(duration));
-        match mem::take(&mut *next_target.lock()) {
-            ChaseMsg::Add(inc) => {
-                args.restart();
-                let from = transition.sample(step);
-                transition.from = from;
-                transition.to.chase(inc);
-                if step != prev_step {
-                    prev_step = step;
-                    *value = Cow::Owned(transition.from.clone());
-                }
-            }
-            ChaseMsg::Replace(new_target) => {
-                args.restart();
-                let from = transition.sample(step);
-                transition = Transition::new(from.clone(), new_target);
-                if step != prev_step {
-                    prev_step = step;
-                    *value = Cow::Owned(from);
-                }
-            }
-            ChaseMsg::None => {
-                if step != prev_step {
-                    prev_step = step;
-                    *value = Cow::Owned(transition.sample(step));
-                }
-            }
-        }
-    });
-
-    (anim, next_target)
-}
-
-pub(super) fn var_chase_bounded<T>(
-    from: T,
-    first_target: T,
-    duration: Duration,
-    easing: impl Fn(EasingTime) -> EasingStep + 'static,
-    bounds: ops::RangeInclusive<T>,
-) -> (impl FnMut(&Animation, &mut Cow<T>) + 'static, Arc<Mutex<ChaseMsg<T>>>)
-where
-    T: VarValue + animation::Transitionable + std::cmp::PartialOrd<T>,
-{
-    let mut prev_step = 0.fct();
-    let mut check_linear = !bounds.contains(&first_target);
-    let mut transition = Transition::new(from, first_target);
-
-    let next_target = Arc::new(Mutex::new(ChaseMsg::None));
-
-    let anim = clmv!(next_target, |args: &Animation, value: &mut Cow<T>| {
-        let mut time = args.elapsed_stop(duration);
-        let mut step = easing(time);
-        match mem::take(&mut *next_target.lock()) {
-            ChaseMsg::Add(inc) => {
-                args.restart();
-
-                let from = transition.sample(step);
-                transition.from = from;
-                transition.to.chase(inc);
-
-                check_linear = !bounds.contains(&transition.to);
-
-                step = 0.fct();
-                prev_step = 1.fct();
-                time = EasingTime::start();
-            }
-            ChaseMsg::Replace(new_target) => {
-                args.restart();
-                let from = transition.sample(step);
-
-                check_linear = !bounds.contains(&new_target);
-
-                transition = Transition::new(from, new_target);
-
-                step = 0.fct();
-                prev_step = 1.fct();
-                time = EasingTime::start();
-            }
-            ChaseMsg::None => {
-                // normal execution
-            }
-        }
-
-        if step != prev_step {
-            prev_step = step;
-
-            if check_linear {
-                let linear_sample = transition.sample(time.fct());
-                if &linear_sample > bounds.end() {
-                    args.stop();
-                    *value = Cow::Owned(bounds.end().clone());
-                    return;
-                } else if &linear_sample < bounds.start() {
-                    args.stop();
-                    *value = Cow::Owned(bounds.start().clone());
-                    return;
-                }
-            }
-            *value = Cow::Owned(transition.sample(step));
-        }
-    });
-
-    (anim, next_target)
+    ChaseAnimation {
+        handle: var.ease(first_target.clone(), duration, easing),
+        target: first_target,
+        var,
+    }
 }
 
 /// Represents the current *modify* operation when it is applying.

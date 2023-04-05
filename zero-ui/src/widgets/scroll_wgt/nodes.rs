@@ -580,19 +580,19 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
 
             if let Some(args) = SCROLL_TO_TOP_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.top, |_| {
-                    SCROLL.chase_vertical(0.fct());
+                    SCROLL.chase_vertical(|_| 0.fct());
                 });
             } else if let Some(args) = SCROLL_TO_BOTTOM_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.bottom, |_| {
-                    SCROLL.chase_vertical(1.fct());
+                    SCROLL.chase_vertical(|_| 1.fct());
                 });
             } else if let Some(args) = SCROLL_TO_LEFTMOST_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.leftmost, |_| {
-                    SCROLL.chase_horizontal(0.fct());
+                    SCROLL.chase_horizontal(|_| 0.fct());
                 });
             } else if let Some(args) = SCROLL_TO_RIGHTMOST_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&self.rightmost, |_| {
-                    SCROLL.chase_horizontal(1.fct());
+                    SCROLL.chase_horizontal(|_| 1.fct());
                 });
             } else {
             }

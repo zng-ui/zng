@@ -5,7 +5,6 @@ use std::{
     borrow::Cow,
     fmt,
     marker::PhantomData,
-    ops,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -1788,29 +1787,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         F: Fn(EasingTime) -> EasingStep + Send + 'static,
         T: animation::Transitionable,
     {
-        let (anim, next_target) = animation::var_chase(self.get(), first_target.into(), duration, easing);
-        let handle = self.animate(anim);
-        animation::ChaseAnimation { handle, next_target }
-    }
-
-    /// Starts a [`chase`] animation that eases to a target value, but does not escape `bounds`.
-    ///
-    /// [`chase`]: Var::chase
-    fn chase_bounded<N, F>(
-        &self,
-        first_target: N,
-        duration: Duration,
-        easing: F,
-        bounds: ops::RangeInclusive<T>,
-    ) -> animation::ChaseAnimation<T>
-    where
-        N: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + Send + 'static,
-        T: animation::Transitionable + std::cmp::PartialOrd<T>,
-    {
-        let (anim, next_target) = animation::var_chase_bounded(self.get(), first_target.into(), duration, easing, bounds);
-        let handle = self.animate(anim);
-        animation::ChaseAnimation { handle, next_target }
+        animation::var_chase(self.clone().boxed(), first_target.into(), duration, easing)
     }
 
     /// Create a vars that [`ease`] to each new value of `self`.
