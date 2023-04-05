@@ -173,8 +173,8 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
                 img_fit = fit;
                 border = {
                     widths: 1,
-                    sides: colors::BLUE.with_alpha(30.pct()),
-                }
+                    sides: BorderSides::dashed(colors::GRAY),
+                };
             }
         ]
     }
