@@ -1,5 +1,3 @@
-* Is something to remove the inline context during layout needed?
-
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?
     - No `UiNodeList::info_all`?
