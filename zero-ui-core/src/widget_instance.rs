@@ -223,16 +223,16 @@ pub trait UiNode: Any + Send {
     ///
     /// # Returns
     ///
-    /// Returns the computed node size, this will probably influencing the actual constrains that will be used
+    /// Returns the computed node size, this will probably influencing the actual constraints that will be used
     /// on a subsequent [`layout`] call.
     ///
     /// [`layout`]: Self::layout
     fn measure(&self, wm: &mut WidgetMeasure) -> PxSize;
 
-    /// Called every time a layout update is requested or the constrains used have changed.
+    /// Called every time a layout update is requested or the constraints used have changed.
     ///
-    /// Implementers must try to fit their size inside the [`constrains`] as best as it can and return an accurate final size. If
-    /// the size breaks the constrains the widget may end-up clipped.
+    /// Implementers must try to fit their size inside the [`constraints`] as best as it can and return an accurate final size. If
+    /// the size breaks the constraints the widget may end-up clipped.
     ///
     /// # Arguments
     ///
@@ -244,7 +244,7 @@ pub trait UiNode: Any + Send {
     ///
     /// Returns the computed node size, this will end-up influencing the size of the widget inner or outer bounds.
     ///
-    /// [`constrains`]: LayoutMetrics::constrains
+    /// [`constraints`]: LayoutMetrics::constraints
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize;
 
     /// Called every time a new frame must be rendered.
@@ -1418,11 +1418,11 @@ pub struct NilUiNode;
 #[ui_node(none)]
 impl UiNode for NilUiNode {
     fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-        LAYOUT.constrains().min_size()
+        LAYOUT.constraints().min_size()
     }
 
     fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-        LAYOUT.constrains().min_size()
+        LAYOUT.constraints().min_size()
     }
 }
 

@@ -43,7 +43,7 @@ impl Filter {
     /// Most filters convert one-to-one, effects that have a [`Length`] value use the
     /// layout context to calculate relative values.
     ///
-    /// Relative blur radius lengths are calculated using the `constrains().fill_size().width` value.
+    /// Relative blur radius lengths are calculated using the `constraints().fill_size().width` value.
     ///
     /// [`LAYOUT`]: crate::context::LAYOUT
     pub fn layout(&self) -> RenderFilter {

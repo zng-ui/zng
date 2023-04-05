@@ -188,11 +188,11 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
         |view| with_context_local(view, &IN_ERROR_VIEW, true),
     );
 
-    stack_nodes_layout_by(ui_vec![view, child], 1, |constrains, _, img_size| {
+    stack_nodes_layout_by(ui_vec![view, child], 1, |constraints, _, img_size| {
         if img_size == PxSize::zero() {
-            constrains
+            constraints
         } else {
-            PxConstrains2d::new_fill_size(img_size)
+            PxConstraints2d::new_fill_size(img_size)
         }
     })
 }
@@ -245,11 +245,11 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
         |view| with_context_local(view, &IN_LOADING_VIEW, true),
     );
 
-    stack_nodes_layout_by(ui_vec![view, child], 1, |constrains, _, img_size| {
+    stack_nodes_layout_by(ui_vec![view, child], 1, |constraints, _, img_size| {
         if img_size == PxSize::zero() {
-            constrains
+            constraints
         } else {
-            PxConstrains2d::new_fill_size(img_size)
+            PxConstraints2d::new_fill_size(img_size)
         }
     })
 }
@@ -342,16 +342,16 @@ pub fn image_presenter() -> impl UiNode {
             }
 
             let img_rect = PxRect::from_size(self.img_size);
-            let crop = LAYOUT.with_constrains(PxConstrains2d::new_fill_size(self.img_size), || {
+            let crop = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.img_size), || {
                 let mut r = IMAGE_CROP_VAR.get();
                 r.replace_default(&img_rect.into());
                 r.layout()
             });
             let render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
 
-            let min_size = metrics.constrains().clamp_size(render_clip.size);
-            let wgt_ratio = metrics.constrains().with_min_size(min_size).fill_ratio(render_clip.size);
-            metrics.constrains().fill_size_or(wgt_ratio)
+            let min_size = metrics.constraints().clamp_size(render_clip.size);
+            let wgt_ratio = metrics.constraints().with_min_size(min_size).fill_ratio(render_clip.size);
+            metrics.constraints().fill_size_or(wgt_ratio)
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
             // Part 1 - Scale & Crop
@@ -374,7 +374,7 @@ pub fn image_presenter() -> impl UiNode {
 
             // crop is relative to the unscaled pixel size, then applied scaled as the clip.
             let img_rect = PxRect::from_size(self.img_size);
-            let crop = LAYOUT.with_constrains(PxConstrains2d::new_fill_size(self.img_size), || {
+            let crop = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.img_size), || {
                 let mut r = IMAGE_CROP_VAR.get();
                 r.replace_default(&img_rect.into());
                 r.layout()
@@ -383,13 +383,13 @@ pub fn image_presenter() -> impl UiNode {
             let mut render_offset = -render_clip.origin.to_vector();
 
             // Part 2 - Fit, Align & Clip
-            // - Fit the cropped and scaled image to the constrains, add a bounds clip to the crop clip.
+            // - Fit the cropped and scaled image to the constraints, add a bounds clip to the crop clip.
 
             let mut align = IMAGE_ALIGN_VAR.get();
 
-            let min_size = metrics.constrains().clamp_size(render_clip.size);
-            let wgt_ratio = metrics.constrains().with_min_size(min_size).fill_ratio(render_clip.size);
-            let wgt_size = metrics.constrains().fill_size_or(wgt_ratio);
+            let min_size = metrics.constraints().clamp_size(render_clip.size);
+            let wgt_ratio = metrics.constraints().with_min_size(min_size).fill_ratio(render_clip.size);
+            let wgt_size = metrics.constraints().fill_size_or(wgt_ratio);
 
             let mut fit = IMAGE_FIT_VAR.get();
             if let ImageFit::ScaleDown = fit {
@@ -455,7 +455,7 @@ pub fn image_presenter() -> impl UiNode {
             }
 
             // Part 3 - Custom Offset and Update
-            let offset = LAYOUT.with_constrains(PxConstrains2d::new_fill_size(wgt_size), || IMAGE_OFFSET_VAR.layout());
+            let offset = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(wgt_size), || IMAGE_OFFSET_VAR.layout());
             if offset != PxVector::zero() {
                 render_offset += offset;
 

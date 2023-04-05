@@ -9,7 +9,7 @@ use super::{
     Text, TextSegment, TextSegmentKind, WordBreak,
 };
 use crate::{
-    context::{InlineConstrainsLayout, InlineConstrainsMeasure, LayoutDirection},
+    context::{InlineConstraintsLayout, InlineConstraintsMeasure, LayoutDirection},
     crate_util::{f32_cmp, IndexRange},
     text::BidiLevel,
     units::*,
@@ -53,8 +53,8 @@ pub struct TextShapingArgs {
     /// Width of the TAB character.
     pub tab_x_advance: Px,
 
-    /// Inline constrains for initial text shaping and wrap.
-    pub inline_constrains: Option<InlineConstrainsMeasure>,
+    /// Inline constraints for initial text shaping and wrap.
+    pub inline_constraints: Option<InlineConstraintsMeasure>,
 
     /// Finalized font features.
     pub font_features: RFontFeatures,
@@ -90,7 +90,7 @@ impl Default for TextShapingArgs {
             ignore_ligatures: false,
             disable_kerning: false,
             tab_x_advance: Px(0),
-            inline_constrains: None,
+            inline_constraints: None,
             font_features: RFontFeatures::default(),
             max_width: Px::MAX,
             line_break: Default::default(),
@@ -452,15 +452,15 @@ impl ShapedText {
     /// Reshape text lines.
     ///
     /// Reshape text lines without re-wrapping, this is more efficient then fully reshaping every glyph, but may
-    /// cause overflow if called with constrains incompatible with the ones used during the full text shaping.
+    /// cause overflow if called with constraints incompatible with the ones used during the full text shaping.
     ///
     /// The general process of shaping text is to generate a shaped-text without align during *measure*, and then reuse
     /// this shaped text every layout that does not invalidate any property that affects the text wrap.
     #[allow(clippy::too_many_arguments)]
     pub fn reshape_lines(
         &mut self,
-        constrains: PxConstrains2d,
-        inline_constrains: Option<InlineConstrainsLayout>,
+        constraints: PxConstraints2d,
+        inline_constraints: Option<InlineConstraintsLayout>,
         align: Align,
         line_height: Px,
         line_spacing: Px,
@@ -468,17 +468,17 @@ impl ShapedText {
     ) {
         self.reshape_line_height_and_spacing(line_height, line_spacing);
 
-        let is_inlined = inline_constrains.is_some();
+        let is_inlined = inline_constraints.is_some();
 
         let align_x = align.x(direction);
         let align_y = if is_inlined { 0.fct() } else { align.y() };
 
-        let (first, mid, last, first_segs, last_segs) = if let Some(l) = &inline_constrains {
+        let (first, mid, last, first_segs, last_segs) = if let Some(l) = &inline_constraints {
             (l.first, l.mid_clear, l.last, &*l.first_segs, &*l.last_segs)
         } else {
             // calculate our own first & last
             let block_size = self.block_size();
-            let align_size = constrains.fill_size_or(block_size);
+            let align_size = constraints.fill_size_or(block_size);
 
             let mut first = PxRect::from_size(self.first_line().map(|l| l.rect().size).unwrap_or_default());
             let mut last = PxRect::from_size(self.last_line().map(|l| l.rect().size).unwrap_or_default());
@@ -576,7 +576,7 @@ impl ShapedText {
         self.last_line = last;
 
         let block_size = self.block_size();
-        let align_size = constrains.fill_size_or(block_size);
+        let align_size = constraints.fill_size_or(block_size);
 
         if self.lines.0.len() > 2 {
             // has mid-lines
@@ -687,7 +687,7 @@ impl ShapedText {
     /// Restore text to initial shape.
     pub fn clear_reshape(&mut self) {
         self.reshape_lines(
-            PxConstrains2d::new_fill_size(self.align_size()),
+            PxConstraints2d::new_fill_size(self.align_size()),
             None,
             Align::TOP_LEFT,
             self.orig_line_height,
@@ -977,7 +977,7 @@ impl ShapedTextBuilder {
                 align: Align::TOP_LEFT,
                 direction: LayoutDirection::LTR,
                 first_wrapped: false,
-                is_inlined: config.inline_constrains.is_some(),
+                is_inlined: config.inline_constraints.is_some(),
                 first_line: PxRect::zero(),
                 mid_clear: Px(0),
                 mid_size: PxSize::zero(),
@@ -1029,7 +1029,7 @@ impl ShapedTextBuilder {
 
         t.origin = euclid::point2::<_, ()>(0.0, baseline.0 as f32 + center_height);
         t.max_line_x = 0.0;
-        if let Some(inline) = config.inline_constrains {
+        if let Some(inline) = config.inline_constraints {
             t.first_line_max = inline.first_max.0 as f32;
             t.mid_clear_min = inline.mid_clear_min.0 as f32;
             t.allow_first_wrap = true;
@@ -2517,7 +2517,7 @@ mod tests {
 
         assert_eq!(from, test.line_spacing());
         test.reshape_lines(
-            PxConstrains2d::new_fill_size(test.align_size()),
+            PxConstraints2d::new_fill_size(test.align_size()),
             None,
             test.align(),
             test.line_height(),
@@ -2559,7 +2559,7 @@ mod tests {
 
         assert_eq!(from, test.line_height());
         test.reshape_lines(
-            PxConstrains2d::new_fill_size(test.align_size()),
+            PxConstraints2d::new_fill_size(test.align_size()),
             None,
             test.align(),
             to,

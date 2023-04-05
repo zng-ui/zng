@@ -154,8 +154,8 @@ impl UiNode for LazyStackNode {
     }
 
     fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-        let constrains = LAYOUT.constrains();
-        if let Some(known) = constrains.fill_or_exact() {
+        let constraints = LAYOUT.constraints();
+        if let Some(known) = constraints.fill_or_exact() {
             return known;
         }
 
@@ -195,7 +195,7 @@ impl UiNode for LazyStackNode {
             item_bounds.size()
         };
 
-        constrains.fill_size_or(desired_size)
+        constraints.fill_size_or(desired_size)
     }
 
     #[allow_(zero_ui::missing_delegate)]
@@ -225,8 +225,8 @@ impl StackNode {
     #[UiNode]
     fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
         let metrics = LAYOUT.metrics();
-        let constrains = metrics.constrains();
-        if let Some(known) = constrains.fill_or_exact() {
+        let constraints = metrics.constraints();
+        if let Some(known) = constraints.fill_or_exact() {
             return known;
         }
 
@@ -239,8 +239,8 @@ impl StackNode {
 
         // layout children, size, raw position + spacing only.
         let mut item_bounds = euclid::Box2D::zero();
-        LAYOUT.with_constrains(
-            constrains
+        LAYOUT.with_constraints(
+            constraints
                 .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
                 .with_max_size(max_size)
                 .with_new_min(Px(0), Px(0)),
@@ -285,13 +285,13 @@ impl StackNode {
             },
         );
 
-        constrains.fill_size_or(item_bounds.size())
+        constraints.fill_size_or(item_bounds.size())
     }
 
     #[UiNode]
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
         let metrics = LAYOUT.metrics();
-        let constrains = metrics.constrains();
+        let constraints = metrics.constraints();
         let direction = self.direction.get();
         let children_align = self.children_align.get();
         let child_align = direction.filter_align(children_align);
@@ -301,8 +301,8 @@ impl StackNode {
 
         // layout children, size, raw position + spacing only.
         let mut item_bounds = euclid::Box2D::zero();
-        LAYOUT.with_constrains(
-            constrains
+        LAYOUT.with_constraints(
+            constraints
                 .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
                 .with_max_size(max_size)
                 .with_new_min(Px(0), Px(0)),
@@ -361,7 +361,7 @@ impl StackNode {
         // final position, align child inside item_bounds and item_bounds in the panel area.
         let child_align = child_align.xy(LAYOUT.direction());
         let items_size = item_bounds.size();
-        let panel_size = constrains.fill_size_or(items_size);
+        let panel_size = constraints.fill_size_or(items_size);
         let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(LAYOUT.direction());
         let align_baseline = children_align.is_baseline();
 
@@ -395,17 +395,17 @@ impl StackNode {
 
     /// Max size to layout each child with.
     fn child_max_size(&self, child_align: Align) -> PxSize {
-        let constrains = LAYOUT.constrains();
+        let constraints = LAYOUT.constraints();
 
         // need measure when children fill, but the panel does not.
         let mut need_measure = false;
         let mut max_size = PxSize::zero();
-        let mut measure_constrains = constrains;
-        match (constrains.x.fill_or_exact(), constrains.y.fill_or_exact()) {
+        let mut measure_constraints = constraints;
+        match (constraints.x.fill_or_exact(), constraints.y.fill_or_exact()) {
             (None, None) => {
                 need_measure = child_align.is_fill_x() || child_align.is_fill_y();
                 if !need_measure {
-                    max_size = constrains.max_size().unwrap_or_else(|| PxSize::new(Px::MAX, Px::MAX));
+                    max_size = constraints.max_size().unwrap_or_else(|| PxSize::new(Px::MAX, Px::MAX));
                 }
             }
             (None, Some(h)) => {
@@ -413,7 +413,7 @@ impl StackNode {
                 need_measure = child_align.is_fill_x();
 
                 if need_measure {
-                    measure_constrains = constrains.with_fill_x(false);
+                    measure_constraints = constraints.with_fill_x(false);
                 } else {
                     max_size.width = Px::MAX;
                 }
@@ -423,7 +423,7 @@ impl StackNode {
                 need_measure = child_align.is_fill_y();
 
                 if need_measure {
-                    measure_constrains = constrains.with_fill_y(false);
+                    measure_constraints = constraints.with_fill_y(false);
                 } else {
                     max_size.height = Px::MAX;
                 }
@@ -433,12 +433,12 @@ impl StackNode {
 
         // find largest child, the others will fill to its size.
         if need_measure {
-            let max_items = LAYOUT.with_constrains(measure_constrains.with_new_min(Px(0), Px(0)), || {
+            let max_items = LAYOUT.with_constraints(measure_constraints.with_new_min(Px(0), Px(0)), || {
                 self.children
                     .measure_each(&mut WidgetMeasure::new(), |_, c, _, wm| c.measure(wm), PxSize::max)
             });
 
-            max_size = constrains.clamp_size(max_size.max(max_items));
+            max_size = constraints.clamp_size(max_size.max(max_items));
         }
 
         max_size
@@ -531,7 +531,7 @@ pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
 
 /// Creates a node that updates and layouts the `nodes` in the logical order they appear in the list
 /// and renders then on on top of the other from back(0) to front(len-1). The layout size is the largest item width and height,
-/// the parent constrains are used for the layout of each item.
+/// the parent constraints are used for the layout of each item.
 ///
 /// This is the most simple *z-stack* implementation possible, it is a building block useful for quickly declaring
 /// overlaying effects composed of multiple nodes, it does not do any alignment layout or z-sorting render,
@@ -552,7 +552,7 @@ pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
 }
 
 /// Creates a node that updates the `nodes` in the logical order they appear, renders then on on top of the other from back(0) to front(len-1),
-/// but layouts the `index` item first and uses its size to get `constrains` for the other items.
+/// but layouts the `index` item first and uses its size to get `constraints` for the other items.
 ///
 /// The layout size is the largest item width and height.
 ///
@@ -560,12 +560,12 @@ pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
 pub fn stack_nodes_layout_by(
     nodes: impl UiNodeList,
     index: impl IntoVar<usize>,
-    constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + Send + 'static,
+    constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
 ) -> impl UiNode {
     #[ui_node(struct StackNodesFillNode {
         children: impl UiNodeList,
         #[var] index: impl Var<usize>,
-        constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + Send + 'static,
+        constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
     })]
     impl UiNode for StackNodesFillNode {
         fn update(&mut self, updates: &WidgetUpdates) {
@@ -589,8 +589,8 @@ pub fn stack_nodes_layout_by(
                 self.children.measure_each(wm, |_, n, wm| n.measure(wm), PxSize::max)
             } else {
                 let index_size = self.children.with_node(index, |n| n.measure(wm));
-                let constrains = (self.constrains)(LAYOUT.metrics().constrains(), index, index_size);
-                LAYOUT.with_constrains(constrains, || {
+                let constraints = (self.constraints)(LAYOUT.metrics().constraints(), index, index_size);
+                LAYOUT.with_constraints(constraints, || {
                     self.children.measure_each(
                         wm,
                         |i, n, wm| {
@@ -619,8 +619,8 @@ pub fn stack_nodes_layout_by(
                 self.children.layout_each(wl, |_, n, wl| n.layout(wl), PxSize::max)
             } else {
                 let index_size = self.children.with_node_mut(index, |n| n.layout(wl));
-                let constrains = (self.constrains)(LAYOUT.metrics().constrains(), index, index_size);
-                LAYOUT.with_constrains(constrains, || {
+                let constraints = (self.constraints)(LAYOUT.metrics().constraints(), index, index_size);
+                LAYOUT.with_constraints(constraints, || {
                     self.children.layout_each(
                         wl,
                         |i, n, wl| {
@@ -639,7 +639,7 @@ pub fn stack_nodes_layout_by(
     StackNodesFillNode {
         children: Mutex::new(nodes),
         index: index.into_var(),
-        constrains,
+        constraints,
     }
     .cfg_boxed()
 }

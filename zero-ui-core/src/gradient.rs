@@ -171,7 +171,7 @@ impl GradientRadius {
 
     /// Compute the radius in the current [`LAYOUT`] context.
     pub fn layout(&self, center: PxPoint) -> PxSize {
-        let size = LAYOUT.constrains().fill_size();
+        let size = LAYOUT.constraints().fill_size();
 
         let length = match self.base {
             GradientRadiusBase::ClosestSide => center
@@ -208,7 +208,7 @@ impl GradientRadius {
             }
         };
 
-        LAYOUT.with_constrains(PxConstrains2d::new_exact(length, length), || {
+        LAYOUT.with_constraints(PxConstraints2d::new_exact(length, length), || {
             self.radii.layout_dft(PxSize::splat(length))
         })
     }
@@ -317,7 +317,7 @@ impl Layout2d for LinearGradientAxis {
                 let dir_x = rad.0.sin();
                 let dir_y = -rad.0.cos();
 
-                let av = LAYOUT.constrains().fill_size();
+                let av = LAYOUT.constraints().fill_size();
                 let av_width = av.width.0 as f32;
                 let av_height = av.height.0 as f32;
 
@@ -863,7 +863,7 @@ impl GradientStops {
         let mut l_end = line.end.to_wr();
 
         let v = l_end - l_start;
-        let v = v / LAYOUT.constrains_for(x_axis).fill().to_wr().get();
+        let v = v / LAYOUT.constraints_for(x_axis).fill().to_wr().get();
 
         l_end = l_start + v * end_offset;
         l_start += v * start_offset;
@@ -950,7 +950,7 @@ impl GradientStops {
 
         let mut stop = self.end.layout(x_axis); // 1
         if is_positional(stop.offset) {
-            stop.offset = LAYOUT.constrains_for(x_axis).fill().to_wr().get();
+            stop.offset = LAYOUT.constraints_for(x_axis).fill().to_wr().get();
         }
         if stop.offset < prev_offset {
             stop.offset = prev_offset; // 2
@@ -970,9 +970,9 @@ impl GradientStops {
             let length = after.offset - prev.offset;
             if length > 0.00001 {
                 if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
-                    let mut offset = LAYOUT.with_constrains_for(
+                    let mut offset = LAYOUT.with_constraints_for(
                         x_axis,
-                        LAYOUT.constrains_for(x_axis).with_new_max(Px(length as i32)).with_fill(true),
+                        LAYOUT.constraints_for(x_axis).with_new_max(Px(length as i32)).with_fill(true),
                         || offset.layout_f32(x_axis),
                     );
                     if is_positional(offset) {

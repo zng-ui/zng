@@ -40,18 +40,18 @@ pub fn linear_gradient_ext(
         }
 
         fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constrains().fill_size()
+            LAYOUT.constraints().fill_size()
         }
 
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constrains().fill_size();
+            let final_size = LAYOUT.constraints().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
                 self.render_line = self.axis.layout();
 
                 let length = self.render_line.length();
 
-                LAYOUT.with_constrains(LAYOUT.constrains().with_new_exact_x(length), || {
+                LAYOUT.with_constraints(LAYOUT.constraints().with_new_exact_x(length), || {
                     self.stops
                         .with(|s| s.layout_linear(true, self.extend_mode.get(), &mut self.render_line, &mut self.render_stops))
                 });
@@ -119,10 +119,10 @@ pub fn linear_gradient_full(
         }
 
         fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constrains().fill_size()
+            LAYOUT.constraints().fill_size()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let c = LAYOUT.constrains();
+            let c = LAYOUT.constraints();
             let final_size = c.fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
@@ -130,10 +130,10 @@ pub fn linear_gradient_full(
                 self.final_tile_size = self.tile_size.layout_dft(self.final_size);
                 self.final_tile_spacing = self.tile_spacing.layout_dft(self.final_size);
 
-                self.final_line = LAYOUT.with_constrains(c.with_exact_size(self.final_tile_size), || self.axis.layout());
+                self.final_line = LAYOUT.with_constraints(c.with_exact_size(self.final_tile_size), || self.axis.layout());
 
                 let length = self.final_line.length();
-                LAYOUT.with_constrains(c.with_new_exact_x(length), || {
+                LAYOUT.with_constraints(c.with_new_exact_x(length), || {
                     self.stops
                         .with(|s| s.layout_linear(true, self.extend_mode.get(), &mut self.final_line, &mut self.final_stops))
                 });
@@ -225,21 +225,21 @@ pub fn radial_gradient_ext(
         }
 
         fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constrains().fill_size()
+            LAYOUT.constraints().fill_size()
         }
 
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constrains().fill_size();
+            let final_size = LAYOUT.constraints().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
-                LAYOUT.with_constrains(PxConstrains2d::new_fill_size(self.final_size), || {
+                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.final_size), || {
                     self.render_center = self.center.layout_dft(self.final_size.to_vector().to_point() * 0.5.fct());
                     self.render_radius = self.radius.get().layout(self.render_center);
                 });
 
-                LAYOUT.with_constrains(
+                LAYOUT.with_constraints(
                     LAYOUT
-                        .constrains()
+                        .constraints()
                         .with_exact_x(self.render_radius.width.max(self.render_radius.height)),
                     || {
                         self.stops
@@ -315,25 +315,25 @@ pub fn radial_gradient_full(
         }
 
         fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constrains().fill_size()
+            LAYOUT.constraints().fill_size()
         }
 
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constrains().fill_size();
+            let final_size = LAYOUT.constraints().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
 
                 self.final_tile_size = self.tile_size.layout_dft(self.final_size);
                 self.final_tile_spacing = self.tile_spacing.layout_dft(self.final_size);
 
-                LAYOUT.with_constrains(PxConstrains2d::new_fill_size(self.final_tile_size), || {
+                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.final_tile_size), || {
                     // self.final_tile_size.to_vector().to_point() * 0.5.fct()
                     self.render_radius = self.radius.get().layout(self.render_center);
                 });
 
-                LAYOUT.with_constrains(
+                LAYOUT.with_constraints(
                     LAYOUT
-                        .constrains()
+                        .constraints()
                         .with_exact_x(self.render_radius.width.max(self.render_radius.height)),
                     || {
                         self.stops
@@ -423,14 +423,14 @@ pub fn conic_gradient_ext(
         }
 
         fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constrains().fill_size()
+            LAYOUT.constraints().fill_size()
         }
 
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constrains().fill_size();
+            let final_size = LAYOUT.constraints().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
-                LAYOUT.with_constrains(PxConstrains2d::new_fill_size(self.final_size), || {
+                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.final_size), || {
                     self.render_center = self.center.layout_dft(self.final_size.to_vector().to_point() * 0.5.fct());
                 });
 
@@ -439,7 +439,7 @@ pub fn conic_gradient_ext(
                     let b = self.final_size.height.0 as f32;
                     std::f32::consts::PI * 2.0 * ((a * a + b * b) / 2.0).sqrt()
                 } as _);
-                LAYOUT.with_constrains(LAYOUT.constrains().with_exact_x(perimeter), || {
+                LAYOUT.with_constraints(LAYOUT.constraints().with_exact_x(perimeter), || {
                     self.stops
                         .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.render_stops))
                 });
@@ -504,18 +504,18 @@ pub fn conic_gradient_full(
         }
 
         fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constrains().fill_size()
+            LAYOUT.constraints().fill_size()
         }
 
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constrains().fill_size();
+            let final_size = LAYOUT.constraints().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
 
                 self.final_tile_size = self.tile_size.layout_dft(self.final_size);
                 self.final_tile_spacing = self.tile_spacing.layout_dft(self.final_size);
 
-                LAYOUT.with_constrains(PxConstrains2d::new_fill_size(self.final_tile_size), || {
+                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.final_tile_size), || {
                     self.render_center = self
                         .center
                         .get()
@@ -527,7 +527,7 @@ pub fn conic_gradient_full(
                     let b = self.final_tile_size.height.0 as f32;
                     std::f32::consts::PI * 2.0 * ((a * a + b * b) / 2.0).sqrt()
                 } as _);
-                LAYOUT.with_constrains(LAYOUT.constrains().with_exact_x(perimeter), || {
+                LAYOUT.with_constraints(LAYOUT.constraints().with_exact_x(perimeter), || {
                     self.stops
                         .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.render_stops))
                 });

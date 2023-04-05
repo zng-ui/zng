@@ -292,9 +292,9 @@ impl Hash for InlineSegment {
 
 /// Represents an [`InlineSegment`] positioned by the inlining parent.
 ///
-/// See [`InlineConstrainsLayout::first_segs`] for more details.
+/// See [`InlineConstraintsLayout::first_segs`] for more details.
 ///
-/// [`InlineConstrainsLayout::first_segs`]: crate::context::InlineConstrainsLayout::first_segs
+/// [`InlineConstraintsLayout::first_segs`]: crate::context::InlineConstraintsLayout::first_segs
 #[derive(Clone, Copy, Debug)]
 pub struct InlineSegmentPos {
     /// Seg offset to the right from the row origin, in pixels.
@@ -320,7 +320,7 @@ pub struct WidgetInlineMeasure {
     /// In left-to-right direction the origin is `top_left`, in right-to-left direction the origin is `top_right - first.width`.
     pub first: PxSize,
 
-    /// Indicates that `first` starts in the next row, not in the *current* row defined by the inline constrains.
+    /// Indicates that `first` starts in the next row, not in the *current* row defined by the inline constraints.
     pub first_wrapped: bool,
 
     /// Inline segments in the first row.
@@ -705,7 +705,7 @@ impl WidgetMeasure {
         }
 
         let parent_inline = self.inline.take();
-        if LAYOUT.inline_constrains().is_some() {
+        if LAYOUT.inline_constraints().is_some() {
             self.inline = Some(Default::default());
         }
 
@@ -852,7 +852,7 @@ impl WidgetLayout {
 
         let parent_child_count = self.child_count.take();
         let parent_inline = self.inline.take();
-        if LAYOUT.inline_constrains().is_some() && bounds.measure_inline().is_some() {
+        if LAYOUT.inline_constraints().is_some() && bounds.measure_inline().is_some() {
             // inline enabled by parent and widget
             self.inline = bounds.take_inline();
             if let Some(inline) = self.inline.as_mut() {
@@ -988,7 +988,7 @@ impl WidgetLayout {
     /// Collapse the layout of `self` and descendants, the size and offsets are set to zero.
     ///
     /// Nodes that set the visibility to the equivalent of [`Collapsed`] must skip layout and return [`PxSize::zero`] as
-    /// the the size, ignoring the min-size constrains, and call this method to update all the descendant
+    /// the the size, ignoring the min-size constraints, and call this method to update all the descendant
     /// bounds information to be a zero-sized point.
     ///
     /// Note that the widget will automatically not be rendered when collapsed.
@@ -1102,11 +1102,11 @@ impl WidgetLayout {
     /// The rows and negative space are already reset when widget layout started, and the inner size will be updated when
     /// the widget layout ends, the inline layout node only needs to push rows.
     ///
-    /// When this is `Some(_)` the [`LayoutMetrics::inline_constrains`] is also `Some(_)`.
+    /// When this is `Some(_)` the [`LayoutMetrics::inline_constraints`] is also `Some(_)`.
     ///
     /// See [`WidgetInlineInfo`] for more details.
     ///
-    /// [`LayoutMetrics::inline_constrains`]: crate::context::LayoutMetrics::inline_constrains
+    /// [`LayoutMetrics::inline_constraints`]: crate::context::LayoutMetrics::inline_constraints
     pub fn inline(&mut self) -> Option<&mut WidgetInlineInfo> {
         self.inline.as_mut()
     }

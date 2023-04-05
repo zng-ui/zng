@@ -1875,15 +1875,15 @@ pub struct ImageRequest<D> {
     /// View-process will avoid decoding and return an error if the image decoded to BGRA (4 bytes) exceeds this size.
     /// This limit applies to the image before the `resize_to_fit`.
     pub max_decoded_len: u64,
-    /// A size constrains to apply after the image is decoded. The image is resized so both dimensions fit inside
-    /// the constrains, the image aspect ratio is preserved.
+    /// A size constraints to apply after the image is decoded. The image is resized so both dimensions fit inside
+    /// the constraints, the image aspect ratio is preserved.
     pub downscale: Option<ImageDownscale>,
 }
 
 /// Defines how an image is downscaled after decoding.
 ///
 /// The image aspect ratio is preserved in both modes, the image is not upsized, if it already fits the size
-/// constrains if will not be resized.
+/// constraints if will not be resized.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ImageDownscale {
     /// Image is downscaled so that both dimensions fit inside the size.

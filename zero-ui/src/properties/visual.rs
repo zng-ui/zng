@@ -46,7 +46,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.with_node_mut(1, |n| n.layout(wl));
 
-            LAYOUT.with_constrains(PxConstrains2d::new_exact_size(size), || {
+            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
                 self.children.with_node_mut(0, |n| n.layout(wl));
             });
             size
@@ -238,7 +238,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.with_node_mut(0, |n| n.layout(wl));
-            LAYOUT.with_constrains(PxConstrains2d::new_exact_size(size), || {
+            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
                 self.children.with_node_mut(1, |n| n.layout(wl));
             });
             size
@@ -328,7 +328,7 @@ pub fn foreground_highlight(
                 );
             }
 
-            let widths = LAYOUT.with_constrains(PxConstrains2d::new_exact_size(size), || self.widths.layout());
+            let widths = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || self.widths.layout());
 
             if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {
                 self.render_bounds = bounds;
@@ -578,11 +578,11 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
             match self.mode.get() {
                 InlineMode::Allow => self.child.measure(wm),
                 InlineMode::Inline => {
-                    if LAYOUT.inline_constrains().is_none() {
+                    if LAYOUT.inline_constraints().is_none() {
                         // create an inline context
                         todo!("enable in `WidgetMeasure`");
-                        // let c = InlineConstrainsMeasure {
-                        //     first_max: LAYOUT.constrains().x.max_or(Px::MAX),
+                        // let c = InlineConstraintsMeasure {
+                        //     first_max: LAYOUT.constraints().x.max_or(Px::MAX),
                         //     mid_clear_min: Px(0),
                         // };
                         // LAYOUT.with_inline_measure(wm, Some(c), |wm| self.child.measure(wm))
@@ -602,8 +602,8 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
             match self.mode.get() {
                 InlineMode::Allow => self.child.layout(wl),
                 InlineMode::Inline => {
-                    if LAYOUT.inline_constrains().is_none() {
-                        todo!("compute constrains, enable in `WidgetLayout`")
+                    if LAYOUT.inline_constraints().is_none() {
+                        todo!("compute constraints, enable in `WidgetLayout`")
                     } else {
                         // already enabled by parent
                         self.child.layout(wl)

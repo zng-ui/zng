@@ -102,10 +102,10 @@ pub fn node() -> impl UiNode {
         }
 
         fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constrains().fill_size()
+            LAYOUT.constraints().fill_size()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            self.final_size = LAYOUT.constrains().fill_size();
+            self.final_size = LAYOUT.constraints().fill_size();
 
             let tile_size = SIZE_VAR.layout_dft(PxSize::splat(Px(4)));
 

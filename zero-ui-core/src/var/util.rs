@@ -9,7 +9,7 @@
 /// type is selected for variables.
 ///
 /// Optionally you can declare generics using the pattern `fn from<const N: usize>(t: &'static [T; N]) -> U`
-/// with multiple generic types and constrains, but not `where` constrains. You can also destruct the input
+/// with multiple generic types and constraints, but not `where` constraints. You can also destruct the input
 /// if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern matching in
 /// the input is supported.
 ///

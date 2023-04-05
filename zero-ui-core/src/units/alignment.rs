@@ -5,7 +5,7 @@ use std::{
 
 use crate::{context::LayoutDirection, impl_from_and_into_var, widget_info::WidgetLayout};
 
-use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrains2d, PxSize, PxVector};
+use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstraints2d, PxSize, PxVector};
 
 /// `x` and `y` alignment.
 ///
@@ -131,35 +131,35 @@ impl Align {
         }
     }
 
-    /// Constrains that must be used to layout a child node with the alignment.
-    pub fn child_constrains(self, parent_constrains: PxConstrains2d) -> PxConstrains2d {
+    /// Constraints that must be used to layout a child node with the alignment.
+    pub fn child_constraints(self, parent_constraints: PxConstraints2d) -> PxConstraints2d {
         // FILL is the *default* property value, so it must behave the same way as if the alignment was not applied.
-        parent_constrains
+        parent_constraints
             .with_new_min(
-                if self.is_fill_x() { parent_constrains.x.min() } else { Px(0) },
-                if self.is_fill_y() { parent_constrains.y.min() } else { Px(0) },
+                if self.is_fill_x() { parent_constraints.x.min() } else { Px(0) },
+                if self.is_fill_y() { parent_constraints.y.min() } else { Px(0) },
             )
             .with_fill_and(self.is_fill_x(), self.is_fill_y())
     }
 
-    /// Computes the size returned by [`layout`] for the given child size and constrains.
+    /// Computes the size returned by [`layout`] for the given child size and constraints.
     ///
     /// [`layout`]: Self::layout
-    pub fn measure(self, child_size: PxSize, parent_constrains: PxConstrains2d) -> PxSize {
-        let size = parent_constrains.fill_size().max(child_size);
-        parent_constrains.clamp_size(size)
+    pub fn measure(self, child_size: PxSize, parent_constraints: PxConstraints2d) -> PxSize {
+        let size = parent_constraints.fill_size().max(child_size);
+        parent_constraints.clamp_size(size)
     }
 
     /// Applies the alignment transform to `wl` and returns the size of the parent align node.
     pub fn layout(
         self,
         child_size: PxSize,
-        parent_constrains: PxConstrains2d,
+        parent_constraints: PxConstraints2d,
         direction: LayoutDirection,
         wl: &mut WidgetLayout,
     ) -> PxSize {
-        let size = parent_constrains.fill_size().max(child_size);
-        let size = parent_constrains.clamp_size(size);
+        let size = parent_constraints.fill_size().max(child_size);
+        let size = parent_constraints.clamp_size(size);
 
         let mut offset = PxVector::zero();
         if !self.is_fill_x() {

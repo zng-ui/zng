@@ -14,10 +14,10 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
             }
         }
         fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constrains().fill_size()
+            LAYOUT.constraints().fill_size()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constrains().fill_size();
+            let final_size = LAYOUT.constraints().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
                 WIDGET.render();

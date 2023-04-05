@@ -55,22 +55,22 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         }
 
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let constrains = LAYOUT.constrains();
-            if constrains.is_fill_max().all() {
-                return constrains.fill_size();
+            let constraints = LAYOUT.constraints();
+            if constraints.is_fill_max().all() {
+                return constraints.fill_size();
             }
 
             let mode = self.mode.get();
 
-            let viewport_unit = constrains.fill_size();
+            let viewport_unit = constraints.fill_size();
             let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.get() // requested
                 && viewport_unit.width > Px(0) // and has fill-size
                 && viewport_unit.height > Px(0)
-                && constrains.max_size() == Some(viewport_unit); // that is not just min size.
+                && constraints.max_size() == Some(viewport_unit); // that is not just min size.
 
-            let ct_size = LAYOUT.with_constrains(
+            let ct_size = LAYOUT.with_constraints(
                 {
-                    let mut c = constrains;
+                    let mut c = constraints;
                     c = c.with_min_size(viewport_unit);
                     if mode.contains(ScrollMode::VERTICAL) {
                         c = c.with_unbounded_y();
@@ -89,21 +89,21 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 },
             );
 
-            constrains.fill_size_or(ct_size)
+            constraints.fill_size_or(ct_size)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let mode = self.mode.get();
 
-            let constrains = LAYOUT.constrains();
-            let viewport_unit = constrains.fill_size();
+            let constraints = LAYOUT.constraints();
+            let viewport_unit = constraints.fill_size();
             let define_vp_unit = DEFINE_VIEWPORT_UNIT_VAR.get() // requested
                 && viewport_unit.width > Px(0) // and has fill-size
                 && viewport_unit.height > Px(0)
-                && constrains.max_size() == Some(viewport_unit); // that is not just min size.
+                && constraints.max_size() == Some(viewport_unit); // that is not just min size.
 
-            let ct_size = LAYOUT.with_constrains(
+            let ct_size = LAYOUT.with_constraints(
                 {
-                    let mut c = constrains;
+                    let mut c = constraints;
                     c = c.with_min_size(viewport_unit);
                     if mode.contains(ScrollMode::VERTICAL) {
                         c = c.with_unbounded_y();
@@ -125,7 +125,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 },
             );
 
-            let viewport_size = constrains.fill_size_or(ct_size);
+            let viewport_size = constraints.fill_size_or(ct_size);
             if self.viewport_size != viewport_size {
                 self.viewport_size = viewport_size;
                 SCROLL_VIEWPORT_SIZE_VAR.set(viewport_size).unwrap();
@@ -133,7 +133,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             }
 
             self.auto_hide_extra = LAYOUT.with_viewport(viewport_size, || {
-                LAYOUT.with_constrains(PxConstrains2d::new_fill_size(viewport_size), || {
+                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport_size), || {
                     AUTO_HIDE_EXTRA_VAR.layout_dft(PxSideOffsets::new(
                         viewport_size.height,
                         viewport_size.width,
@@ -379,7 +379,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             let r = self.child.layout(wl);
 
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
-            LAYOUT.with_constrains(PxConstrains2d::new_fill_size(viewport), || {
+            LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport), || {
                 self.layout_line = PxVector::new(
                     HORIZONTAL_LINE_UNIT_VAR.layout_dft_x(Px(20)),
                     VERTICAL_LINE_UNIT_VAR.layout_dft_y(Px(20)),
@@ -502,7 +502,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             let r = self.child.layout(wl);
 
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
-            LAYOUT.with_constrains(PxConstrains2d::new_fill_size(viewport), || {
+            LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport), || {
                 self.layout_page = PxVector::new(
                     HORIZONTAL_PAGE_UNIT_VAR.layout_dft_x(Px(20)),
                     VERTICAL_PAGE_UNIT_VAR.layout_dft_y(Px(20)),
@@ -685,7 +685,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                     let target_bounds = bounds.inner_bounds();
                     match mode {
                         ScrollToMode::Minimal { margin } => {
-                            let margin = LAYOUT.with_constrains(PxConstrains2d::new_fill_size(target_bounds.size), || margin.layout());
+                            let margin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(target_bounds.size), || margin.layout());
                             let mut target_bounds = target_bounds;
                             target_bounds.origin.x -= margin.left;
                             target_bounds.origin.y -= margin.top;
@@ -728,12 +728,12 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             scroll_point,
                         } => {
                             let default = (target_bounds.size / Px(2)).to_vector().to_point();
-                            let widget_point = LAYOUT.with_constrains(PxConstrains2d::new_fill_size(target_bounds.size), || {
+                            let widget_point = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(target_bounds.size), || {
                                 widget_point.layout_dft(default)
                             });
 
                             let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
-                            let scroll_point = LAYOUT.with_constrains(PxConstrains2d::new_fill_size(viewport_bounds.size), || {
+                            let scroll_point = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport_bounds.size), || {
                                 scroll_point.layout_dft(default)
                             });
 
@@ -810,7 +810,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
 
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
 
-            LAYOUT.with_constrains(PxConstrains2d::new_fill_size(viewport), || {
+            LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport), || {
                 let offset = self.offset.layout_dft(viewport.to_vector());
                 self.offset = Vector::zero();
 

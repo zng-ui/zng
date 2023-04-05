@@ -157,16 +157,16 @@ pub fn default_no_child() {
         })
         .unwrap();
 
-        let constrains = PxConstrains2d::new_unbounded()
+        let constraints = PxConstraints2d::new_unbounded()
             .with_min(Px(1), Px(8))
             .with_max(Px(100), Px(800))
             .with_fill(true, true);
-        let (desired_size, _) = WINDOW.test_layout(&mut wgt, Some(constrains));
-        assert_eq!(desired_size, constrains.max_size().unwrap());
+        let (desired_size, _) = WINDOW.test_layout(&mut wgt, Some(constraints));
+        assert_eq!(desired_size, constraints.max_size().unwrap());
 
-        let constrains = constrains.with_fill(false, false);
-        let (desired_size, _) = WINDOW.test_layout(&mut wgt, Some(constrains));
-        assert_eq!(desired_size, constrains.min_size());
+        let constraints = constraints.with_fill(false, false);
+        let (desired_size, _) = WINDOW.test_layout(&mut wgt, Some(constraints));
+        assert_eq!(desired_size, constraints.min_size());
 
         WINDOW.test_render(&wgt);
         let (update, _) = WINDOW.test_render_update(&wgt);

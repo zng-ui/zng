@@ -554,12 +554,12 @@ impl WINDOW {
     /// Call inside [`with_test_context`] to layout the `content` as a child of the test window root.
     ///
     /// [`with_test_context`]: Self::with_test_context
-    pub fn test_layout(&self, content: &mut impl UiNode, constrains: Option<PxConstrains2d>) -> (PxSize, ContextUpdates) {
+    pub fn test_layout(&self, content: &mut impl UiNode, constraints: Option<PxConstraints2d>) -> (PxSize, ContextUpdates) {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
         let viewport = self.test_window_size();
         let mut metrics = LayoutMetrics::new(1.fct(), viewport, font_size);
-        if let Some(c) = constrains {
-            metrics = metrics.with_constrains(c);
+        if let Some(c) = constraints {
+            metrics = metrics.with_constraints(c);
         }
         let size = LAYOUT.with_context(metrics, || {
             crate::widget_info::WidgetLayout::with_root_widget(0, |wl| content.layout(wl))
@@ -575,20 +575,20 @@ impl WINDOW {
     pub fn test_layout_inline(
         &self,
         content: &mut impl UiNode,
-        measure_constrains: (PxConstrains2d, InlineConstrainsMeasure),
-        layout_constrains: (PxConstrains2d, InlineConstrainsLayout),
+        measure_constraints: (PxConstraints2d, InlineConstraintsMeasure),
+        layout_constraints: (PxConstraints2d, InlineConstraintsLayout),
     ) -> ((PxSize, PxSize), ContextUpdates) {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
         let viewport = self.test_window_size();
 
-        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(measure_constrains.0);
+        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constraints(measure_constraints.0);
         let measure_size = LAYOUT.with_context(metrics, || {
-            LAYOUT.with_inline_measure(&mut WidgetMeasure::new(), Some(measure_constrains.1), |wm| content.measure(wm))
+            LAYOUT.with_inline_measure(&mut WidgetMeasure::new(), Some(measure_constraints.1), |wm| content.measure(wm))
         });
-        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constrains(layout_constrains.0);
+        let metrics = LayoutMetrics::new(1.fct(), viewport, font_size).with_constraints(layout_constraints.0);
         let layout_size = LAYOUT.with_context(metrics, || {
             crate::widget_info::WidgetLayout::with_root_widget(0, |wl| {
-                LAYOUT.with_inline_layout(Some(layout_constrains.1), || content.layout(wl))
+                LAYOUT.with_inline_layout(Some(layout_constraints.1), || content.layout(wl))
             })
         });
 
@@ -1080,14 +1080,14 @@ impl LAYOUT {
         ctx.store(m | uses, atomic::Ordering::Relaxed);
     }
 
-    /// Current size constrains.
-    pub fn constrains(&self) -> PxConstrains2d {
-        LAYOUT_CTX.get().metrics.constrains()
+    /// Current size constraints.
+    pub fn constraints(&self) -> PxConstraints2d {
+        LAYOUT_CTX.get().metrics.constraints()
     }
 
-    /// Current length constrains for the given axis.
-    pub fn constrains_for(&self, x_axis: bool) -> PxConstrains {
-        let c = self.constrains();
+    /// Current length constraints for the given axis.
+    pub fn constraints_for(&self, x_axis: bool) -> PxConstraints {
+        let c = self.constraints();
         if x_axis {
             c.x
         } else {
@@ -1095,43 +1095,43 @@ impl LAYOUT {
         }
     }
 
-    /// Calls `f` with the `constrains` in context.
-    pub fn with_constrains<R>(&self, constrains: PxConstrains2d, f: impl FnOnce() -> R) -> R {
-        self.with_context(self.metrics().with_constrains(constrains), f)
+    /// Calls `f` with the `constraints` in context.
+    pub fn with_constraints<R>(&self, constraints: PxConstraints2d, f: impl FnOnce() -> R) -> R {
+        self.with_context(self.metrics().with_constraints(constraints), f)
     }
 
-    /// Calls `f` with the `constrains` in context..
-    pub fn with_constrains_for<R>(&self, x_axis: bool, constrains: PxConstrains, f: impl FnOnce() -> R) -> R {
-        let mut c = self.constrains();
+    /// Calls `f` with the `constraints` in context..
+    pub fn with_constraints_for<R>(&self, x_axis: bool, constraints: PxConstraints, f: impl FnOnce() -> R) -> R {
+        let mut c = self.constraints();
         if x_axis {
-            c.x = constrains;
+            c.x = constraints;
         } else {
-            c.y = constrains;
+            c.y = constraints;
         }
-        self.with_constrains(c, f)
+        self.with_constraints(c, f)
     }
 
     /// Runs a function `f` in a context that has its max size subtracted by `removed` and its final size added by `removed`.
     pub fn with_sub_size(&self, removed: PxSize, f: impl FnOnce() -> PxSize) -> PxSize {
-        self.with_constrains(self.constrains().with_less_size(removed), f) + removed
+        self.with_constraints(self.constraints().with_less_size(removed), f) + removed
     }
 
     /// Runs a function `f` in a layout context that has its max size added by `added` and its final size subtracted by `added`.
     pub fn with_add_size(&self, added: PxSize, f: impl FnOnce() -> PxSize) -> PxSize {
-        self.with_constrains(self.constrains().with_more_size(added), f) - added
+        self.with_constraints(self.constraints().with_more_size(added), f) - added
     }
 
-    /// Current inline constrains.
-    pub fn inline_constrains(&self) -> Option<InlineConstrains> {
-        LAYOUT_CTX.get().metrics.inline_constrains()
+    /// Current inline constraints.
+    pub fn inline_constraints(&self) -> Option<InlineConstraints> {
+        LAYOUT_CTX.get().metrics.inline_constraints()
     }
 
-    /// Calls `f` with `inline_constrains` in the context.
-    pub fn with_inline_constrains<R>(&self, inline_constrains: Option<InlineConstrains>, f: impl FnOnce() -> R) -> R {
-        self.with_context(self.metrics().with_inline_constrains(inline_constrains), f)
+    /// Calls `f` with `inline_constraints` in the context.
+    pub fn with_inline_constraints<R>(&self, inline_constraints: Option<InlineConstraints>, f: impl FnOnce() -> R) -> R {
+        self.with_context(self.metrics().with_inline_constraints(inline_constraints), f)
     }
 
-    /// Runs a function `f` in a measure context that has a new inline constrains.
+    /// Runs a function `f` in a measure context that has a new inline constraints.
     ///
     /// Note that panels implementing inline layout should prefer using [`measure_inline`] instead of this method.
     ///
@@ -1139,13 +1139,13 @@ impl LAYOUT {
     pub fn with_inline_measure<R>(
         &self,
         wm: &mut WidgetMeasure,
-        inline_constrains: Option<InlineConstrainsMeasure>,
+        inline_constraints: Option<InlineConstraintsMeasure>,
         f: impl FnOnce(&mut WidgetMeasure) -> R,
     ) -> R {
-        if inline_constrains.is_none() {
+        if inline_constraints.is_none() {
             wm.disable_inline();
         }
-        self.with_inline_constrains(inline_constrains.map(InlineConstrains::Measure), || f(wm))
+        self.with_inline_constraints(inline_constraints.map(InlineConstraints::Measure), || f(wm))
     }
 
     /// Runs a function `f` in a measure context that has a new inline constrain.
@@ -1153,8 +1153,8 @@ impl LAYOUT {
     /// Note that panels implementing inline layout should prefer using [`layout_inline`] instead of this method.
     ///
     /// [`layout_inline`]: Self::layout_inline
-    pub fn with_inline_layout<R>(&self, inline_constrains: Option<InlineConstrainsLayout>, f: impl FnOnce() -> R) -> R {
-        self.with_inline_constrains(inline_constrains.map(InlineConstrains::Layout), f)
+    pub fn with_inline_layout<R>(&self, inline_constraints: Option<InlineConstraintsLayout>, f: impl FnOnce() -> R) -> R {
+        self.with_inline_constraints(inline_constraints.map(InlineConstraints::Layout), f)
     }
 
     /// Measure the child in a new inline context.
@@ -1164,8 +1164,8 @@ impl LAYOUT {
     /// Returns the measured inline data and the desired size, or `None` and the desired size if the
     /// widget does not support measure. Note that the measured data is also updated in [`WidgetBoundsInfo::measure_inline`].
     pub fn measure_inline(&self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
-        let constrains = InlineConstrains::Measure(InlineConstrainsMeasure { first_max, mid_clear_min });
-        let size = self.with_inline_constrains(Some(constrains), || child.measure(&mut WidgetMeasure::new()));
+        let constraints = InlineConstraints::Measure(InlineConstraintsMeasure { first_max, mid_clear_min });
+        let size = self.with_inline_constraints(Some(constraints), || child.measure(&mut WidgetMeasure::new()));
         let inline = child.with_context(|| WIDGET.bounds().measure_inline()).flatten();
         (inline, size)
     }
@@ -1180,14 +1180,14 @@ impl LAYOUT {
         last_segs: Arc<Vec<InlineSegmentPos>>,
         f: impl FnOnce() -> R,
     ) -> R {
-        let constrains = InlineConstrains::Layout(InlineConstrainsLayout {
+        let constraints = InlineConstraints::Layout(InlineConstraintsLayout {
             first,
             mid_clear,
             last,
             first_segs,
             last_segs,
         });
-        self.with_inline_constrains(Some(constrains), f)
+        self.with_inline_constraints(Some(constraints), f)
     }
 
     /// Root font size.
@@ -1962,11 +1962,11 @@ impl std::ops::BitOr for ContextUpdates {
     }
 }
 
-/// Constrains for inline measure.
+/// Constraints for inline measure.
 ///
-/// See [`InlineConstrains`] for more details.
+/// See [`InlineConstraints`] for more details.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
-pub struct InlineConstrainsMeasure {
+pub struct InlineConstraintsMeasure {
     /// Available space on the first row.
     pub first_max: Px,
     /// Current height of the row in the parent. If the widget wraps and defines the first
@@ -1976,11 +1976,11 @@ pub struct InlineConstrainsMeasure {
     pub mid_clear_min: Px,
 }
 
-/// Constrains for inline layout.
+/// Constraints for inline layout.
 ///
-/// See [`InlineConstrains`] for more details.
+/// See [`InlineConstraints`] for more details.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
-pub struct InlineConstrainsLayout {
+pub struct InlineConstraintsLayout {
     /// First row rect, defined by the parent.
     pub first: PxRect,
     /// Extra space in-between the first row and the mid-rows that must be offset to clear the other segments in the row.
@@ -1994,20 +1994,20 @@ pub struct InlineConstrainsLayout {
     pub last_segs: Arc<Vec<InlineSegmentPos>>,
 }
 
-/// Constrains for inline measure or layout.
+/// Constraints for inline measure or layout.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum InlineConstrains {
-    /// Constrains for the measure pass.
-    Measure(InlineConstrainsMeasure),
-    /// Constrains the layout pass.
-    Layout(InlineConstrainsLayout),
+pub enum InlineConstraints {
+    /// Constraints for the measure pass.
+    Measure(InlineConstraintsMeasure),
+    /// Constraints the layout pass.
+    Layout(InlineConstraintsLayout),
 }
-impl InlineConstrains {
+impl InlineConstraints {
     /// Get the `Measure` data or default.
-    pub fn measure(self) -> InlineConstrainsMeasure {
+    pub fn measure(self) -> InlineConstraintsMeasure {
         match self {
-            InlineConstrains::Measure(m) => m,
-            InlineConstrains::Layout(l) => InlineConstrainsMeasure {
+            InlineConstraints::Measure(m) => m,
+            InlineConstraints::Layout(l) => InlineConstraintsMeasure {
                 first_max: l.first.width(),
                 mid_clear_min: l.mid_clear,
             },
@@ -2015,10 +2015,10 @@ impl InlineConstrains {
     }
 
     /// Get the `Layout` data or default.
-    pub fn layout(self) -> InlineConstrainsLayout {
+    pub fn layout(self) -> InlineConstraintsLayout {
         match self {
-            InlineConstrains::Layout(m) => m,
-            InlineConstrains::Measure(_) => Default::default(),
+            InlineConstraints::Layout(m) => m,
+            InlineConstraints::Measure(_) => Default::default(),
         }
     }
 }
@@ -2029,15 +2029,15 @@ impl InlineConstrains {
 /// get the metrics used during the last layout of a widget using the [`WidgetBoundsInfo::metrics`] method.
 #[derive(Clone, Debug)]
 pub struct LayoutMetricsSnapshot {
-    /// The [`constrains`].
+    /// The [`constraints`].
     ///
-    /// [`constrains`]: LayoutMetrics::constrains
-    pub constrains: PxConstrains2d,
+    /// [`constraints`]: LayoutMetrics::constraints
+    pub constraints: PxConstraints2d,
 
-    /// The [`inline_constrains`].
+    /// The [`inline_constraints`].
     ///
-    /// [`inline_constrains`]: LayoutMetrics::inline_constrains
-    pub inline_constrains: Option<InlineConstrains>,
+    /// [`inline_constraints`]: LayoutMetrics::inline_constraints
+    pub inline_constraints: Option<InlineConstraints>,
 
     /// The [`font_size`].
     ///
@@ -2074,7 +2074,7 @@ impl LayoutMetricsSnapshot {
     /// Gets if all of the fields in `mask` are equal between `self` and `other`.
     pub fn masked_eq(&self, other: &Self, mask: LayoutMask) -> bool {
         (!mask.contains(LayoutMask::CONSTRAINS)
-            || (self.constrains == other.constrains && self.inline_constrains == other.inline_constrains))
+            || (self.constraints == other.constraints && self.inline_constraints == other.inline_constraints))
             && (!mask.contains(LayoutMask::FONT_SIZE) || self.font_size == other.font_size)
             && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
             && (!mask.contains(LayoutMask::SCALE_FACTOR) || self.scale_factor == other.scale_factor)
@@ -2086,8 +2086,8 @@ impl LayoutMetricsSnapshot {
 }
 impl PartialEq for LayoutMetricsSnapshot {
     fn eq(&self, other: &Self) -> bool {
-        self.constrains == other.constrains
-            && self.inline_constrains == other.inline_constrains
+        self.constraints == other.constraints
+            && self.inline_constraints == other.inline_constraints
             && self.font_size == other.font_size
             && self.root_font_size == other.root_font_size
             && self.scale_factor == other.scale_factor
@@ -2097,8 +2097,8 @@ impl PartialEq for LayoutMetricsSnapshot {
 }
 impl std::hash::Hash for LayoutMetricsSnapshot {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.constrains.hash(state);
-        self.inline_constrains.hash(state);
+        self.constraints.hash(state);
+        self.inline_constraints.hash(state);
         self.font_size.hash(state);
         self.root_font_size.hash(state);
         self.scale_factor.hash(state);
@@ -2122,8 +2122,8 @@ impl LayoutMetrics {
     pub fn new(scale_factor: Factor, viewport: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
             s: LayoutMetricsSnapshot {
-                constrains: PxConstrains2d::new_fill_size(viewport),
-                inline_constrains: None,
+                constraints: PxConstraints2d::new_fill_size(viewport),
+                inline_constraints: None,
                 font_size,
                 root_font_size: font_size,
                 scale_factor,
@@ -2135,18 +2135,18 @@ impl LayoutMetrics {
         }
     }
 
-    /// Current size constrains.
-    pub fn constrains(&self) -> PxConstrains2d {
+    /// Current size constraints.
+    pub fn constraints(&self) -> PxConstraints2d {
         LAYOUT.register_metrics_use(LayoutMask::CONSTRAINS);
-        self.s.constrains
+        self.s.constraints
     }
 
-    /// Current inline constrains.
+    /// Current inline constraints.
     ///
     /// Only present if the parent widget supports inline.
-    pub fn inline_constrains(&self) -> Option<InlineConstrains> {
+    pub fn inline_constraints(&self) -> Option<InlineConstraints> {
         LAYOUT.register_metrics_use(LayoutMask::CONSTRAINS);
-        self.s.inline_constrains.clone()
+        self.s.inline_constraints.clone()
     }
 
     /// Gets the inline or text flow direction.
@@ -2218,19 +2218,19 @@ impl LayoutMetrics {
         self.s.leftover
     }
 
-    /// Sets the [`constrains`] to `constrains`.
+    /// Sets the [`constraints`] to `constraints`.
     ///
-    /// [`constrains`]: Self::constrains
-    pub fn with_constrains(mut self, constrains: PxConstrains2d) -> Self {
-        self.s.constrains = constrains;
+    /// [`constraints`]: Self::constraints
+    pub fn with_constraints(mut self, constraints: PxConstraints2d) -> Self {
+        self.s.constraints = constraints;
         self
     }
 
-    /// Set the [`inline_constrains`].
+    /// Set the [`inline_constraints`].
     ///
-    /// [`inline_constrains`]: Self::inline_constrains
-    pub fn with_inline_constrains(mut self, inline_constrains: Option<InlineConstrains>) -> Self {
-        self.s.inline_constrains = inline_constrains;
+    /// [`inline_constraints`]: Self::inline_constraints
+    pub fn with_inline_constraints(mut self, inline_constraints: Option<InlineConstraints>) -> Self {
+        self.s.inline_constraints = inline_constraints;
         self
     }
 

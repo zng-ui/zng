@@ -1667,7 +1667,7 @@ impl ContentCtrl {
         WIDGET.with_context(&self.root_ctx, || {
             let metrics = LayoutMetrics::new(scale_factor, viewport_size, root_font_size).with_screen_ppi(screen_ppi);
             LAYOUT.with_context(metrics, || {
-                let mut root_cons = LAYOUT.constrains();
+                let mut root_cons = LAYOUT.constraints();
                 if !skip_auto_size {
                     if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                         root_cons = root_cons.with_unbounded_x();
@@ -1676,7 +1676,7 @@ impl ContentCtrl {
                         root_cons = root_cons.with_unbounded_y();
                     }
                 }
-                let desired_size = LAYOUT.with_constrains(root_cons, || {
+                let desired_size = LAYOUT.with_constraints(root_cons, || {
                     WidgetLayout::with_root_widget(self.layout_pass, |wl| self.root.layout(wl))
                 });
 

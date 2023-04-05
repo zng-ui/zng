@@ -1,7 +1,18 @@
-* Review word `Constrains`, should be `Constraints`?
 * Review `with_inline_measure` usage to disable inline.
     - Review entire inline constraints API. 
     - Best if we could reduce it all to two methods, one for measure and one for layout?
+
+```rust
+/// Disable inline for the widget and inside `f`.
+fn measure_no_inline<R>(&self, wm: &mut WidgetMeasure, f: impl FnOnce(&mut WidgetMeasure) -> R) -> R {
+
+}
+
+/// Enable inline
+fn measure_inline<R>(&self, wm: &mut WidgetMeasure, f: impl FnOnce(&mut WidgetMeasure) -> R) -> R {
+
+}
+```
 
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?

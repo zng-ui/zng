@@ -352,11 +352,11 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init
         [fn event(&mut self, update: &#crate_::event::EventUpdate) { }]
 
         [fn measure(&self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
-            #crate_::context::LAYOUT.constrains().fill_size()
+            #crate_::context::LAYOUT.constraints().fill_size()
         }]
 
         [fn layout(&mut self, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
-            #crate_::context::LAYOUT.constrains().fill_size()
+            #crate_::context::LAYOUT.constraints().fill_size()
         }]
         [fn render(&self, frame: &mut #crate_::render::FrameBuilder) { }]
 

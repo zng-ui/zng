@@ -486,15 +486,15 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         pending: Layout,
 
         txt_is_measured: bool,
-        last_layout: (LayoutMetrics, Option<InlineConstrainsMeasure>),
+        last_layout: (LayoutMetrics, Option<InlineConstraintsMeasure>),
     }
     impl FinalText {
         fn measure(&mut self, metrics: &LayoutMetrics) -> Option<PxSize> {
-            if metrics.inline_constrains().is_some() {
+            if metrics.inline_constraints().is_some() {
                 return None;
             }
 
-            metrics.constrains().fill_or_exact()
+            metrics.constraints().fill_or_exact()
         }
 
         fn layout(&mut self, metrics: &LayoutMetrics, t: &ResolvedText, is_measure: bool) -> PxSize {
@@ -527,8 +527,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 self.pending.insert(Layout::RESHAPE);
             }
 
-            if TEXT_WRAP_VAR.get() && !metrics.constrains().x.is_unbounded() {
-                let max_width = metrics.constrains().x.max().unwrap();
+            if TEXT_WRAP_VAR.get() && !metrics.constraints().x.is_unbounded() {
+                let max_width = metrics.constraints().x.max().unwrap();
                 if self.shaping_args.max_width != max_width {
                     self.shaping_args.max_width = max_width;
 
@@ -543,15 +543,15 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            if let Some(inline) = metrics.inline_constrains() {
+            if let Some(inline) = metrics.inline_constraints() {
                 match inline {
-                    InlineConstrains::Measure(m) => {
-                        if self.shaping_args.inline_constrains != Some(m) {
-                            self.shaping_args.inline_constrains = Some(m);
+                    InlineConstraints::Measure(m) => {
+                        if self.shaping_args.inline_constraints != Some(m) {
+                            self.shaping_args.inline_constraints = Some(m);
                             self.pending.insert(Layout::RESHAPE);
                         }
                     }
-                    InlineConstrains::Layout(l) => {
+                    InlineConstraints::Layout(l) => {
                         if !self.pending.contains(Layout::RESHAPE)
                             && (Some(l.first_segs.len()) != r.shaped_text.first_line().map(|l| l.segs_len())
                                 || Some(l.last_segs.len()) != r.shaped_text.last_line().map(|l| l.segs_len()))
@@ -568,14 +568,14 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                     }
                 }
-            } else if self.shaping_args.inline_constrains.is_some() {
-                self.shaping_args.inline_constrains = None;
+            } else if self.shaping_args.inline_constraints.is_some() {
+                self.shaping_args.inline_constraints = None;
                 self.pending.insert(Layout::RESHAPE);
             }
 
             if !self.pending.contains(Layout::RESHAPE_LINES) {
                 let size = r.shaped_text.size();
-                if metrics.constrains().fill_size_or(size) != r.shaped_text.align_size() {
+                if metrics.constraints().fill_size_or(size) != r.shaped_text.align_size() {
                     self.pending.insert(Layout::RESHAPE_LINES);
                 }
             }
@@ -586,7 +586,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let dft_tab_len = space_len * 3;
 
             let (letter_spacing, word_spacing, tab_length) = {
-                LAYOUT.with_constrains(PxConstrains2d::new_exact(space_len, space_len), || {
+                LAYOUT.with_constraints(PxConstraints2d::new_exact(space_len, space_len), || {
                     (
                         LETTER_SPACING_VAR.layout_x(),
                         WORD_SPACING_VAR.layout_x(),
@@ -597,12 +597,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             let dft_line_height = font.metrics().line_height();
             let line_height = {
-                LAYOUT.with_constrains(PxConstrains2d::new_exact(dft_line_height, dft_line_height), || {
+                LAYOUT.with_constraints(PxConstraints2d::new_exact(dft_line_height, dft_line_height), || {
                     LINE_HEIGHT_VAR.layout_dft_y(dft_line_height)
                 })
             };
             let line_spacing =
-                { LAYOUT.with_constrains(PxConstrains2d::new_exact(line_height, line_height), || LINE_SPACING_VAR.layout_y()) };
+                { LAYOUT.with_constraints(PxConstraints2d::new_exact(line_height, line_height), || LINE_SPACING_VAR.layout_y()) };
 
             if !self.pending.contains(Layout::RESHAPE)
                 && (letter_spacing != self.shaping_args.letter_spacing
@@ -625,7 +625,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             let dft_thickness = font.metrics().underline_thickness;
             let (overline, strikethrough, underline) = {
-                LAYOUT.with_constrains(PxConstrains2d::new_exact(line_height, line_height), || {
+                LAYOUT.with_constraints(PxConstraints2d::new_exact(line_height, line_height), || {
                     (
                         OVERLINE_THICKNESS_VAR.layout_dft_y(dft_thickness),
                         STRIKETHROUGH_THICKNESS_VAR.layout_dft_y(dft_thickness),
@@ -662,17 +662,18 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 self.pending = self.pending.intersection(Layout::RESHAPE_LINES);
             }
 
-            if !self.pending.contains(Layout::RESHAPE_LINES) && prev_final_size != metrics.constrains().fill_size_or(r.shaped_text.size()) {
+            if !self.pending.contains(Layout::RESHAPE_LINES) && prev_final_size != metrics.constraints().fill_size_or(r.shaped_text.size())
+            {
                 self.pending.insert(Layout::RESHAPE_LINES);
             }
 
             if !is_measure {
-                self.last_layout = (metrics.clone(), self.shaping_args.inline_constrains);
+                self.last_layout = (metrics.clone(), self.shaping_args.inline_constraints);
 
                 if self.pending.contains(Layout::RESHAPE_LINES) {
                     r.shaped_text.reshape_lines(
-                        metrics.constrains(),
-                        metrics.inline_constrains().map(|c| c.layout()),
+                        metrics.constraints(),
+                        metrics.inline_constraints().map(|c| c.layout()),
                         align,
                         line_height,
                         line_spacing,
@@ -736,13 +737,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
             self.txt_is_measured = is_measure;
 
-            metrics.constrains().fill_size_or(r.shaped_text.size())
+            metrics.constraints().fill_size_or(r.shaped_text.size())
         }
 
         fn ensure_layout_for_render(&mut self) {
             if self.txt_is_measured {
                 let metrics = self.last_layout.0.clone();
-                self.shaping_args.inline_constrains = self.last_layout.1;
+                self.shaping_args.inline_constraints = self.last_layout.1;
                 LAYOUT.with_context(metrics.clone(), || {
                     self.layout(&metrics, &RESOLVED_TEXT.get(), false);
                 });
@@ -961,7 +962,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let baseline = resolved_txt.baseline.load(Ordering::Relaxed);
             wl.set_baseline(baseline);
 
-            LAYOUT.with_constrains(PxConstrains2d::new_fill_size(size), || {
+            LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || {
                 self.with_mut(|c| c.layout(wl));
             });
 

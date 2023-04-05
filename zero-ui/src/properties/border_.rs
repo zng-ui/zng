@@ -26,11 +26,11 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
         }
 
         fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constrains().fill_size()
+            LAYOUT.constraints().fill_size()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
             self.corners = BORDER.border_radius();
-            LAYOUT.constrains().fill_size()
+            LAYOUT.constraints().fill_size()
         }
 
         fn render(&self, frame: &mut FrameBuilder) {

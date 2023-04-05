@@ -474,7 +474,7 @@ impl Length {
         }
     }
 
-    /// Returns a length that constrains the computed layout length between `min` and `max`.
+    /// Returns a length that constraints the computed layout length between `min` and `max`.
     pub fn clamp(&self, min: impl Into<Length>, max: impl Into<Length>) -> Length {
         self.max(min).min(max)
     }
@@ -601,12 +601,12 @@ impl super::Layout1d for Length {
             Dip(l) => l.to_px(LAYOUT.scale_factor().0),
             Px(l) => *l,
             Pt(l) => Self::pt_to_px(*l, LAYOUT.scale_factor()),
-            Relative(f) => LAYOUT.constrains_for(x_axis).fill() * f.0,
+            Relative(f) => LAYOUT.constraints_for(x_axis).fill() * f.0,
             Leftover(f) => {
                 if let Some(l) = LAYOUT.leftover_for(x_axis) {
                     l
                 } else {
-                    let fill = LAYOUT.constrains_for(x_axis).fill();
+                    let fill = LAYOUT.constraints_for(x_axis).fill();
                     (fill * f.0).clamp(self::Px(0), fill)
                 }
             }
@@ -629,12 +629,12 @@ impl super::Layout1d for Length {
             Dip(l) => l.to_f32() * LAYOUT.scale_factor().0,
             Px(l) => l.0 as f32,
             Pt(l) => Self::pt_to_px_f32(*l, LAYOUT.scale_factor()),
-            Relative(f) => LAYOUT.constrains_for(x_axis).fill().0 as f32 * f.0,
+            Relative(f) => LAYOUT.constraints_for(x_axis).fill().0 as f32 * f.0,
             Leftover(f) => {
                 if let Some(l) = LAYOUT.leftover_for(x_axis) {
                     l.0 as f32
                 } else {
-                    let fill = LAYOUT.constrains_for(x_axis).fill().0 as f32;
+                    let fill = LAYOUT.constraints_for(x_axis).fill().0 as f32;
                     (fill * f.0).clamp(0.0, fill)
                 }
             }
@@ -678,7 +678,7 @@ bitflags! {
     pub struct LayoutMask: u32 {
         /// The `default_value`.
         const DEFAULT_VALUE = 1 << 31;
-        /// The [`LayoutMetrics::constrains`] and [`LayoutMetrics::inline_constrains`].
+        /// The [`LayoutMetrics::constraints`] and [`LayoutMetrics::inline_constraints`].
         const CONSTRAINS = 1 << 30;
 
         /// The [`LayoutMetrics::font_size`].

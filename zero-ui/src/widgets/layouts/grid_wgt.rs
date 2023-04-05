@@ -897,10 +897,10 @@ impl GridNode {
         }
 
         let spacing = self.spacing.layout();
-        let constrains = LAYOUT.constrains();
+        let constraints = LAYOUT.constraints();
 
-        let fill_x = constrains.x.fill_or_exact();
-        let fill_y = constrains.y.fill_or_exact();
+        let fill_x = constraints.x.fill_or_exact();
+        let fill_y = constraints.y.fill_or_exact();
 
         let mut children = self.children.iter();
         let columns = children.next().unwrap();
@@ -969,7 +969,7 @@ impl GridNode {
         //  - For `leftover` columns&rows when the grid with no fill or exact size, to get the `1.lft()` length.
         let columns_len = info.columns.len();
         if has_default || (fill_x.is_none() && has_leftover_cols) || (fill_y.is_none() && has_leftover_rows) {
-            let c = LAYOUT.constrains();
+            let c = LAYOUT.constraints();
             cells.for_each(|i, cell| {
                 let cell_info = cell::CellInfo::get_wgt(cell);
                 if cell_info.column_span > 1 || cell_info.row_span > 1 {
@@ -991,33 +991,33 @@ impl GridNode {
                 if col_is_default {
                     if row_is_default {
                         // (default, default)
-                        let size = LAYOUT.with_constrains(c.with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constraints(c.with_fill(false, false), || cell.measure(wm));
 
                         col.width = col.width.max(size.width);
                         row.height = row.height.max(size.height);
                     } else if row_is_exact {
                         // (default, exact)
-                        let size = LAYOUT.with_constrains(c.with_exact_y(row.height).with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constraints(c.with_exact_y(row.height).with_fill(false, false), || cell.measure(wm));
 
                         col.width = col.width.max(size.width);
                     } else {
                         debug_assert!(row_is_leftover);
                         // (default, leftover)
-                        let size = LAYOUT.with_constrains(c.with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constraints(c.with_fill(false, false), || cell.measure(wm));
 
                         col.width = col.width.max(size.width);
                     }
                 } else if col_is_exact {
                     if row_is_default {
                         // (exact, default)
-                        let size = LAYOUT.with_constrains(c.with_exact_x(col.width).with_fill(false, false), || cell.measure(wm));
+                        let size = LAYOUT.with_constraints(c.with_exact_x(col.width).with_fill(false, false), || cell.measure(wm));
 
                         row.height = row.height.max(size.height);
                     }
                 } else if row_is_default {
                     debug_assert!(col_is_leftover);
                     // (leftover, default)
-                    let size = LAYOUT.with_constrains(c.with_fill(false, false), || cell.measure(wm));
+                    let size = LAYOUT.with_constraints(c.with_fill(false, false), || cell.measure(wm));
 
                     row.height = row.height.max(size.height);
                 }
@@ -1086,14 +1086,14 @@ impl GridNode {
                 let vis_columns = info.columns.iter().filter(|c| c.width != Px(0)).count() as i32;
                 w - used_width - spacing.column * Px(vis_columns - 1).max(Px(0))
             } else {
-                // grid has no width, so `1.lft()` is defined by the widest cell measured using `Default` constrains.
+                // grid has no width, so `1.lft()` is defined by the widest cell measured using `Default` constraints.
                 let mut unbounded_width = used_width;
                 for col in &info.columns {
                     if let Some(f) = col.meta.is_leftover() {
                         unbounded_width += no_fill_1_lft * f;
                     }
                 }
-                let bounded_width = constrains.x.clamp(unbounded_width);
+                let bounded_width = constraints.x.clamp(unbounded_width);
                 bounded_width - used_width
             };
             leftover_width = leftover_width.max(Px(0));
@@ -1116,7 +1116,7 @@ impl GridNode {
                     col.width = Px(width as i32);
 
                     if i < view_columns_len {
-                        let size = LAYOUT.with_constrains(LAYOUT.constrains().with_fill_x(true).with_max_x(col.width), || {
+                        let size = LAYOUT.with_constraints(LAYOUT.constraints().with_fill_x(true).with_max_x(col.width), || {
                             columns.with_node(i, |col| col.measure(wm))
                         });
 
@@ -1215,14 +1215,14 @@ impl GridNode {
                 let vis_rows = info.rows.iter().filter(|c| c.height != Px(0)).count() as i32;
                 h - used_height - spacing.row * Px(vis_rows - 1).max(Px(0))
             } else {
-                // grid has no height, so `1.lft()` is defined by the tallest cell measured using `Default` constrains.
+                // grid has no height, so `1.lft()` is defined by the tallest cell measured using `Default` constraints.
                 let mut unbounded_height = used_height;
                 for row in &info.rows {
                     if let Some(f) = row.meta.is_leftover() {
                         unbounded_height += no_fill_1_lft * f;
                     }
                 }
-                let bounded_height = constrains.x.clamp(unbounded_height);
+                let bounded_height = constraints.x.clamp(unbounded_height);
                 bounded_height - used_height
             };
             leftover_height = leftover_height.max(Px(0));
@@ -1245,7 +1245,7 @@ impl GridNode {
                     row.height = Px(height as i32);
 
                     if i < view_rows_len {
-                        let size = LAYOUT.with_constrains(LAYOUT.constrains().with_fill_y(true).with_max_y(row.height), || {
+                        let size = LAYOUT.with_constraints(LAYOUT.constraints().with_fill_y(true).with_max_y(row.height), || {
                             rows.with_node(i, |row| row.measure(wm))
                         });
 
@@ -1306,7 +1306,7 @@ impl GridNode {
 
     #[UiNode]
     fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-        if let Some(size) = LAYOUT.constrains().fill_or_exact() {
+        if let Some(size) = LAYOUT.constraints().fill_or_exact() {
             size
         } else {
             self.layout_info(wm).1
@@ -1316,12 +1316,12 @@ impl GridNode {
     #[UiNode]
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
         let (spacing, grid_size) = self.layout_info(&mut WidgetMeasure::new());
-        let c = LAYOUT.constrains();
+        let c = LAYOUT.constraints();
 
         let info = self.info.get_mut();
         if info.is_collapse() {
             wl.collapse_descendants();
-            return LAYOUT.constrains().fill_or_exact().unwrap_or_default();
+            return LAYOUT.constraints().fill_or_exact().unwrap_or_default();
         }
 
         let mut children = self.children.iter_mut();
@@ -1337,7 +1337,7 @@ impl GridNode {
             wl,
             |ci, col, wl| {
                 let info = info.columns[ci];
-                LAYOUT.with_constrains(c.with_exact(info.width, grid_size.height), || col.layout(wl))
+                LAYOUT.with_constraints(c.with_exact(info.width, grid_size.height), || col.layout(wl))
             },
             |_, _| PxSize::zero(),
         );
@@ -1346,7 +1346,7 @@ impl GridNode {
             wl,
             |ri, row, wl| {
                 let info = info.rows[ri];
-                LAYOUT.with_constrains(c.with_exact(grid_size.width, info.height), || row.layout(wl))
+                LAYOUT.with_constraints(c.with_exact(grid_size.width, info.height), || row.layout(wl))
             },
             |_, _| PxSize::zero(),
         );
@@ -1385,7 +1385,7 @@ impl GridNode {
                     return PxSize::zero(); // continue;
                 }
 
-                let (_, define_ref_frame) = LAYOUT.with_constrains(c.with_exact_size(cell_size), || wl.with_child(|wl| cell.layout(wl)));
+                let (_, define_ref_frame) = LAYOUT.with_constraints(c.with_exact_size(cell_size), || wl.with_child(|wl| cell.layout(wl)));
                 o.child_offset = cell_offset;
                 o.define_reference_frame = define_ref_frame;
 

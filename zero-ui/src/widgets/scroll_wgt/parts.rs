@@ -321,7 +321,7 @@ pub mod thumb {
                 self.child.measure(wm)
             }
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-                let bar_size = LAYOUT.constrains().fill_size();
+                let bar_size = LAYOUT.constraints().fill_size();
                 let mut final_offset = PxVector::zero();
                 let (bar_length, final_d) = match ORIENTATION_VAR.get() {
                     scrollbar::Orientation::Vertical => (bar_size.height, &mut final_offset.y),

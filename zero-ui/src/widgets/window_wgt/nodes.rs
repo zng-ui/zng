@@ -23,7 +23,7 @@ struct LayersCtx {
 ///
 /// # Layout & Render
 ///
-/// Layered widgets are measured and arranged using the same constrains as the window root widget, the desired
+/// Layered widgets are measured and arranged using the same constraints as the window root widget, the desired
 /// size is discarded, only the root widget desired size can affect the window size. Layered widgets are all layout
 /// and rendered after the window content and from the bottom layer up to the top-most, this means that the [`WidgetBoundsInfo`]
 /// of normal widgets are always up-to-date when the layered widget is arranged and rendered, so if you
@@ -197,13 +197,13 @@ impl LAYERS {
                     let mode = self.mode.get();
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
-                        return LAYOUT.with_constrains(
+                        return LAYOUT.with_constraints(
                             match mode.size {
-                                AnchorSize::Unbounded => PxConstrains2d::new_unbounded(),
-                                AnchorSize::Window => LAYOUT.constrains(),
-                                AnchorSize::InnerSize => PxConstrains2d::new_exact_size(bounds.inner_size()),
-                                AnchorSize::InnerBorder => PxConstrains2d::new_exact_size(border.inner_size(bounds)),
-                                AnchorSize::OuterSize => PxConstrains2d::new_exact_size(bounds.outer_size()),
+                                AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
+                                AnchorSize::Window => LAYOUT.constraints(),
+                                AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
+                                AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
+                                AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
                             },
                             || self.widget.measure(wm),
                         );
@@ -221,24 +221,24 @@ impl LAYERS {
 
                         self.offset_point = match &mode.transform {
                             AnchorTransform::InnerOffset(p) => {
-                                LAYOUT.with_constrains(PxConstrains2d::new_exact_size(bounds.inner_size()), || p.layout())
+                                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.inner_size()), || p.layout())
                             }
                             AnchorTransform::InnerBorderOffset(p) => {
-                                LAYOUT.with_constrains(PxConstrains2d::new_exact_size(border.inner_size(bounds)), || p.layout())
+                                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(border.inner_size(bounds)), || p.layout())
                             }
                             AnchorTransform::OuterOffset(p) => {
-                                LAYOUT.with_constrains(PxConstrains2d::new_exact_size(bounds.outer_size()), || p.layout())
+                                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.outer_size()), || p.layout())
                             }
                             _ => PxPoint::zero(),
                         };
 
-                        return LAYOUT.with_constrains(
+                        return LAYOUT.with_constraints(
                             match mode.size {
-                                AnchorSize::Unbounded => PxConstrains2d::new_unbounded(),
-                                AnchorSize::Window => LAYOUT.constrains(),
-                                AnchorSize::InnerSize => PxConstrains2d::new_exact_size(bounds.inner_size()),
-                                AnchorSize::InnerBorder => PxConstrains2d::new_exact_size(border.inner_size(bounds)),
-                                AnchorSize::OuterSize => PxConstrains2d::new_exact_size(bounds.outer_size()),
+                                AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
+                                AnchorSize::Window => LAYOUT.constraints(),
+                                AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
+                                AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
+                                AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
                             },
                             || {
                                 if mode.corner_radius {

@@ -767,7 +767,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
             let size_increase = PxSize::new(size_offset.horizontal(), size_offset.vertical());
 
-            LAYOUT.constrains().fill_size() + size_increase
+            LAYOUT.constraints().fill_size() + size_increase
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             // We are inside the *inner* bounds AND inside border_nodes:
@@ -786,7 +786,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
             let size_offset = offsets - our_offsets;
             let size_increase = PxSize::new(size_offset.horizontal(), size_offset.vertical());
-            let fill_bounds = LAYOUT.constrains().fill_size() + size_increase;
+            let fill_bounds = LAYOUT.constraints().fill_size() + size_increase;
             let corners = BORDER.inner_radius().inflate(size_offset);
 
             if self.clip_bounds != fill_bounds || self.clip_corners != corners {
@@ -795,7 +795,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 WIDGET.render();
             }
 
-            let (_, define_ref_frame) = LAYOUT.with_constrains(PxConstrains2d::new_exact_size(fill_bounds), || {
+            let (_, define_ref_frame) = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(fill_bounds), || {
                 wl.with_child(|wl| self.child.layout(wl))
             });
             if self.define_ref_frame != define_ref_frame {
@@ -932,7 +932,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 self.border_rect.size = LAYOUT.with_sub_size(taken_size, || self.children.with_node_mut(0, |n| n.layout(wl)));
 
                 // layout border visual
-                LAYOUT.with_constrains(PxConstrains2d::new_exact_size(self.border_rect.size), || {
+                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(self.border_rect.size), || {
                     BORDER.with_border_layout(self.border_rect, offsets, || {
                         self.children.with_node_mut(1, |n| n.layout(wl));
                     });

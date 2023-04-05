@@ -332,31 +332,31 @@ impl InlineLayout {
         }
 
         let metrics = LAYOUT.metrics();
-        let constrains = metrics.constrains();
+        let constraints = metrics.constraints();
 
-        if let (None, Some(known)) = (metrics.inline_constrains(), constrains.fill_or_exact()) {
+        if let (None, Some(known)) = (metrics.inline_constraints(), constraints.fill_or_exact()) {
             return known;
         }
 
         if let Some(inline) = wm.inline() {
-            let inline_constrains = metrics.inline_constrains().unwrap().measure();
+            let inline_constraints = metrics.inline_constraints().unwrap().measure();
 
-            inline.first_wrapped = inline_constrains.first_max < child_size.width;
+            inline.first_wrapped = inline_constraints.first_max < child_size.width;
 
             let mut children_len = Px(children_len as i32);
 
             if !inline.first_wrapped {
                 // first row
-                let max_x = inline_constrains.first_max;
+                let max_x = inline_constraints.first_max;
                 let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
 
                 children_len -= column_len; // remove first row
 
                 inline.first.width = (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width;
-                inline.first.height = child_size.height.max(inline_constrains.mid_clear_min);
+                inline.first.height = child_size.height.max(inline_constraints.mid_clear_min);
             }
 
-            let max_x = constrains.x.max().unwrap_or(Px::MAX).max(child_size.width);
+            let max_x = constraints.x.max().unwrap_or(Px::MAX).max(child_size.width);
             let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
             let mut row_len = (children_len / column_len).max(Px(1));
 
@@ -394,9 +394,9 @@ impl InlineLayout {
                 inline.first.height = child_size.height;
             }
 
-            constrains.clamp_size(desired_size)
+            constraints.clamp_size(desired_size)
         } else {
-            let max_x = constrains.x.max().unwrap_or(Px::MAX).max(child_size.width);
+            let max_x = constraints.x.max().unwrap_or(Px::MAX).max(child_size.width);
             let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
             let row_len = (Px(children_len as i32) / column_len).max(Px(1));
 
@@ -405,15 +405,15 @@ impl InlineLayout {
                 (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width,
                 (row_len - Px(1)) * (child_size.height + spacing.row) + child_size.height,
             );
-            constrains.clamp_size(desired_size)
+            constraints.clamp_size(desired_size)
         }
     }
 
     pub fn measure(&mut self, wm: &mut WidgetMeasure, children: &PanelList, child_align: Align, spacing: PxGridSpacing) -> PxSize {
         let metrics = LAYOUT.metrics();
-        let constrains = metrics.constrains();
+        let constraints = metrics.constraints();
 
-        if let (None, Some(known)) = (metrics.inline_constrains(), constrains.fill_or_exact()) {
+        if let (None, Some(known)) = (metrics.inline_constraints(), constraints.fill_or_exact()) {
             return known;
         }
 
@@ -443,7 +443,7 @@ impl InlineLayout {
             }
         }
 
-        constrains.clamp_size(self.desired_size)
+        constraints.clamp_size(self.desired_size)
     }
 
     pub fn estimate_layout(wl: &mut WidgetLayout, children_len: usize, child_size: PxSize, spacing: PxGridSpacing) -> PxSize {
@@ -454,12 +454,12 @@ impl InlineLayout {
                 inline.invalidate_negative_space();
                 inline.inner_size = size;
 
-                let inline_constrains = LAYOUT.inline_constrains().unwrap().layout();
+                let inline_constraints = LAYOUT.inline_constraints().unwrap().layout();
 
                 let mut mid_height = size.height;
 
                 if !m_inline.first_wrapped {
-                    inline.rows.push(inline_constrains.first);
+                    inline.rows.push(inline_constraints.first);
                     mid_height -= child_size.height + spacing.row;
                 }
                 if m_inline.last_wrapped {
@@ -468,40 +468,40 @@ impl InlineLayout {
                         PxPoint::new(Px(0), spacing.row + child_size.height),
                         PxSize::new(size.width, mid_height),
                     ));
-                    inline.rows.push(inline_constrains.last);
+                    inline.rows.push(inline_constraints.last);
                 }
 
-                size.height = inline_constrains.last.origin.y + inline_constrains.last.size.height;
+                size.height = inline_constraints.last.origin.y + inline_constraints.last.size.height;
             }
             size
         } else {
             Self::estimate_measure(&mut WidgetMeasure::new(), children_len, child_size, spacing)
         };
 
-        let width = LAYOUT.constrains().x.fill_or(size.width);
+        let width = LAYOUT.constraints().x.fill_or(size.width);
         PxSize::new(width, size.height)
     }
 
     pub fn layout(&mut self, wl: &mut WidgetLayout, children: &mut PanelList, child_align: Align, spacing: PxGridSpacing) -> PxSize {
         let metrics = LAYOUT.metrics();
-        let inline_constrains = metrics.inline_constrains();
+        let inline_constraints = metrics.inline_constraints();
         let direction = metrics.direction();
 
-        if inline_constrains.is_none() {
+        if inline_constraints.is_none() {
             // if not already measured by parent inline
             self.measure_rows(&metrics, children, child_align, spacing);
         }
         if self.has_bidi_inline && !self.bidi_layout_fresh {
-            self.layout_bidi(inline_constrains.clone(), direction, spacing.column);
+            self.layout_bidi(inline_constraints.clone(), direction, spacing.column);
         }
 
-        let constrains = metrics.constrains();
+        let constraints = metrics.constraints();
         let child_align_x = child_align.x(direction);
         let child_align_y = child_align.y();
 
-        let panel_width = constrains.x.fill_or(self.desired_size.width);
+        let panel_width = constraints.x.fill_or(self.desired_size.width);
 
-        let (first, mid, last) = if let Some(s) = inline_constrains.map(|c| c.layout()) {
+        let (first, mid, last) = if let Some(s) = inline_constraints.map(|c| c.layout()) {
             (s.first, s.mid_clear, s.last)
         } else {
             // define our own first and last
@@ -529,7 +529,7 @@ impl InlineLayout {
             last.origin.x = (panel_width - last.size.width) * child_align_x;
             last.origin.y = self.desired_size.height - last.size.height;
 
-            if let Some(y) = constrains.y.fill_or_exact() {
+            if let Some(y) = constraints.y.fill_or_exact() {
                 let align_y = (y - self.desired_size.height) * child_align_y;
                 first.origin.y += align_y;
                 last.origin.y += align_y;
@@ -539,13 +539,13 @@ impl InlineLayout {
         };
         let panel_height = last.origin.y + last.size.height;
 
-        let child_constrains = PxConstrains2d::new_unbounded().with_fill_x(true).with_max_x(panel_width);
+        let child_constraints = PxConstraints2d::new_unbounded().with_fill_x(true).with_max_x(panel_width);
 
         if let Some(inline) = wl.inline() {
             inline.rows.clear();
         }
 
-        LAYOUT.with_constrains(child_constrains, || {
+        LAYOUT.with_constraints(child_constraints, || {
             let mut row = first;
             let mut row_segs = &self.rows[0].item_segs;
             let mut row_advance = Px(0);
@@ -686,7 +686,7 @@ impl InlineLayout {
                         }
 
                         let (_, define_ref_frame) =
-                            LAYOUT.with_constrains(child_constrains.with_fill(false, false).with_max_size(max_size), || {
+                            LAYOUT.with_constraints(child_constraints.with_fill(false, false).with_max_size(max_size), || {
                                 LAYOUT.layout_inline(child_first, child_mid, child_last, bidi_segs.clone(), bidi_segs, || {
                                     wl.with_child(|wl| child.layout(wl))
                                 })
@@ -706,8 +706,8 @@ impl InlineLayout {
                     } else {
                         row.size.width - row_advance
                     };
-                    let (size, define_ref_frame) = LAYOUT.with_constrains(
-                        child_constrains.with_fill(false, false).with_max(max_width, row.size.height),
+                    let (size, define_ref_frame) = LAYOUT.with_constraints(
+                        child_constraints.with_fill(false, false).with_max(max_width, row.size.height),
                         || LAYOUT.with_inline_layout(None, || wl.with_child(|wl| child.layout(wl))),
                     );
                     if size.is_empty() {
@@ -739,7 +739,7 @@ impl InlineLayout {
             }
         });
 
-        constrains.clamp_size(PxSize::new(panel_width, panel_height))
+        constraints.clamp_size(PxSize::new(panel_width, panel_height))
     }
 
     fn measure_rows(&mut self, metrics: &LayoutMetrics, children: &PanelList, child_align: Align, spacing: PxGridSpacing) {
@@ -751,21 +751,21 @@ impl InlineLayout {
         self.has_bidi_inline = false;
 
         let direction = metrics.direction();
-        let constrains = metrics.constrains();
-        let inline_constrains = metrics.inline_constrains();
-        let child_inline_constrain = constrains.x.max_or(Px::MAX);
-        let child_constrains = PxConstrains2d::new_unbounded()
+        let constraints = metrics.constraints();
+        let inline_constraints = metrics.inline_constraints();
+        let child_inline_constrain = constraints.x.max_or(Px::MAX);
+        let child_constraints = PxConstraints2d::new_unbounded()
             .with_fill_x(child_align.is_fill_x())
             .with_max_x(child_inline_constrain);
         let mut row = self.rows.new_item();
-        LAYOUT.with_constrains(child_constrains, || {
+        LAYOUT.with_constraints(child_constraints, || {
             children.for_each(|i, child, _| {
                 let mut inline_constrain = child_inline_constrain;
                 let mut wrap_clear_min = Px(0);
                 if self.rows.is_empty() && !self.first_wrapped {
-                    if let Some(InlineConstrains::Measure(InlineConstrainsMeasure {
+                    if let Some(InlineConstraints::Measure(InlineConstraintsMeasure {
                         first_max, mid_clear_min, ..
-                    })) = inline_constrains
+                    })) = inline_constraints
                     {
                         inline_constrain = first_max;
                         wrap_clear_min = mid_clear_min;
@@ -877,7 +877,7 @@ impl InlineLayout {
             let sum_width = row.item_segs.iter().map(|s| Px(s.measure_width() as i32)).sum::<Px>();
 
             if (sum_width - width) > Px(1) {
-                if metrics.inline_constrains().is_some() && (i == 0 || i == self.rows.len() - 1) {
+                if metrics.inline_constraints().is_some() && (i == 0 || i == self.rows.len() - 1) {
                     tracing::error!("wrap! panel row {i} inline width is {width}, but sum of segs is {sum_width}");
                     continue;
                 }
@@ -887,11 +887,11 @@ impl InlineLayout {
         }
     }
 
-    fn layout_bidi(&mut self, constrains: Option<InlineConstrains>, direction: LayoutDirection, spacing_x: Px) {
+    fn layout_bidi(&mut self, constraints: Option<InlineConstraints>, direction: LayoutDirection, spacing_x: Px) {
         let spacing_x = spacing_x.0 as f32;
         let mut our_rows = 0..self.rows.len();
 
-        if let Some(l) = constrains {
+        if let Some(l) = constraints {
             let l = l.layout();
             our_rows = 0..0;
 
@@ -1045,13 +1045,13 @@ mod tests {
             WINDOW.test_init(&mut panel);
             WINDOW.test_init(&mut estimate);
 
-            let m_constrains = PxConstrains2d::new_unbounded().with_max_x(Px(1184));
-            let measure_constrains = InlineConstrainsMeasure {
+            let m_constraints = PxConstraints2d::new_unbounded().with_max_x(Px(1184));
+            let measure_constraints = InlineConstraintsMeasure {
                 first_max: Px(1184),
                 mid_clear_min: Px(-8),
             };
-            let l_constrains = PxConstrains2d::new_unbounded().with_max_x(Px(1144));
-            let layout_constrains = InlineConstrainsLayout {
+            let l_constraints = PxConstraints2d::new_unbounded().with_max_x(Px(1144));
+            let layout_constraints = InlineConstraintsLayout {
                 first: PxSize::new(Px(1144), Px(120)).into(),
                 mid_clear: Px(0),
                 last: PxRect::new(PxPoint::new(Px(0), Px(1408)), PxSize::new(Px(120), Px(120))),
@@ -1061,12 +1061,16 @@ mod tests {
             let panel_size = WINDOW
                 .test_layout_inline(
                     &mut panel,
-                    (m_constrains, measure_constrains),
-                    (l_constrains, layout_constrains.clone()),
+                    (m_constraints, measure_constraints),
+                    (l_constraints, layout_constraints.clone()),
                 )
                 .0;
             let estimate_size = WINDOW
-                .test_layout_inline(&mut estimate, (m_constrains, measure_constrains), (l_constrains, layout_constrains))
+                .test_layout_inline(
+                    &mut estimate,
+                    (m_constraints, measure_constraints),
+                    (l_constraints, layout_constraints),
+                )
                 .0;
 
             let panel_bounds = panel.with_context(|| WIDGET.bounds()).unwrap();
@@ -1107,13 +1111,13 @@ mod tests {
             WINDOW.test_init(&mut panel);
             WINDOW.test_init(&mut estimate);
 
-            let m_constrains = PxConstrains2d::new_unbounded().with_max_x(Px(1184));
-            let measure_constrains = InlineConstrainsMeasure {
+            let m_constraints = PxConstraints2d::new_unbounded().with_max_x(Px(1184));
+            let measure_constraints = InlineConstraintsMeasure {
                 first_max: Px(32),
                 mid_clear_min: Px(112),
             };
-            let l_constrains = PxConstrains2d::new_unbounded().with_max_x(Px(1144));
-            let layout_constrains = InlineConstrainsLayout {
+            let l_constraints = PxConstraints2d::new_unbounded().with_max_x(Px(1144));
+            let layout_constraints = InlineConstraintsLayout {
                 first: PxSize::new(Px(1144), Px(120)).into(),
                 mid_clear: Px(0),
                 last: PxRect::new(PxPoint::new(Px(0), Px(1416)), PxSize::new(Px(120), Px(120))),
@@ -1123,12 +1127,16 @@ mod tests {
             let panel_size = WINDOW
                 .test_layout_inline(
                     &mut panel,
-                    (m_constrains, measure_constrains),
-                    (l_constrains, layout_constrains.clone()),
+                    (m_constraints, measure_constraints),
+                    (l_constraints, layout_constraints.clone()),
                 )
                 .0;
             let estimate_size = WINDOW
-                .test_layout_inline(&mut estimate, (m_constrains, measure_constrains), (l_constrains, layout_constrains))
+                .test_layout_inline(
+                    &mut estimate,
+                    (m_constraints, measure_constraints),
+                    (l_constraints, layout_constraints),
+                )
                 .0;
 
             let panel_bounds = panel.with_context(|| WIDGET.bounds()).unwrap();
