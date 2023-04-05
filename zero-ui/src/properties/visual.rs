@@ -593,7 +593,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                 }
                 InlineMode::Block => {
                     // disable inline, method also disables in `WidgetMeasure`
-                    LAYOUT.with_inline_measure(wm, None, |wm| self.child.measure(wm))
+                    LAYOUT.disable_inline(wm, &self.child)
                 }
             }
         }

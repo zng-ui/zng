@@ -897,9 +897,8 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
         fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
             let offsets = self.offsets.layout();
             BORDER.measure_with_border(offsets, || {
-                let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                LAYOUT.with_inline_measure(wm, None, |wm| {
-                    LAYOUT.with_sub_size(taken_size, || self.children.with_node(0, |n| n.measure(wm)))
+                LAYOUT.with_sub_size(PxSize::new(offsets.horizontal(), offsets.vertical()), || {
+                    self.children.with_node(0, |n| LAYOUT.disable_inline(wm, n))
                 })
             })
         }

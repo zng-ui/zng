@@ -638,10 +638,9 @@ impl InlineLayout {
                             child_last.size.width = last_bidi_width;
                         }
 
-                        let (_, define_ref_frame) =
-                            LAYOUT.layout_inline(child_first, child_mid, child_last, bidi_segs, last_bidi_segs, || {
-                                wl.with_child(|wl| child.layout(wl))
-                            });
+                        let (_, define_ref_frame) = wl.with_child(|wl| {
+                            LAYOUT.layout_inline(wl, child_first, child_mid, child_last, bidi_segs, last_bidi_segs, child)
+                        });
                         o.child_offset = PxVector::new(Px(0), row.origin.y);
                         o.define_reference_frame = define_ref_frame;
 
@@ -685,12 +684,11 @@ impl InlineLayout {
                             child_last.size.width = bidi_width;
                         }
 
-                        let (_, define_ref_frame) =
+                        let (_, define_ref_frame) = wl.with_child(|wl| {
                             LAYOUT.with_constraints(child_constraints.with_fill(false, false).with_max_size(max_size), || {
-                                LAYOUT.layout_inline(child_first, child_mid, child_last, bidi_segs.clone(), bidi_segs, || {
-                                    wl.with_child(|wl| child.layout(wl))
-                                })
-                            });
+                                LAYOUT.layout_inline(wl, child_first, child_mid, child_last, bidi_segs.clone(), bidi_segs, child)
+                            })
+                        });
                         o.child_offset = row.origin.to_vector() + offset;
                         if self.has_bidi_inline {
                             o.child_offset.x = row.origin.x + bidi_x;
@@ -708,7 +706,7 @@ impl InlineLayout {
                     };
                     let (size, define_ref_frame) = LAYOUT.with_constraints(
                         child_constraints.with_fill(false, false).with_max(max_width, row.size.height),
-                        || LAYOUT.with_inline_layout(None, || wl.with_child(|wl| child.layout(wl))),
+                        || wl.with_child(|wl| LAYOUT.layout_block(wl, child)),
                     );
                     if size.is_empty() {
                         // collapsed, continue.
