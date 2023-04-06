@@ -1,3 +1,20 @@
+* Auto convert `impl UiNode` to `ArcNode` inside `WidgetGenerator`.
+    - Maybe we just don't want tooltip to be a generator.
+    - Generators are for property values that can end-up in more then one context.
+        - We don't even call it `tooltip_gen`.
+    - Try tooltip taking a node directly.
+        - The node goes on an `ArcNode`.
+        - Taken on layer init.
+
+* Implement tooltip.
+    - Initial show delay.
+    - Show duration.
+    - Between show delay.
+    - Improve layer anchor position.
+        - Follow cursor mode.
+        - Cursor on init mode.
+        - Define offsets using the stack idea of `place` and `origin` points.
+
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?
     - No `UiNodeList::info_all`?

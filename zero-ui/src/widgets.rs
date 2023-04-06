@@ -63,6 +63,10 @@ mod text_wgt;
 #[doc(inline)]
 pub use text_wgt::{em, strong, text, text_input};
 
+mod tip_wgt;
+#[doc(inline)]
+pub use tip_wgt::*;
+
 mod toggle_wgt;
 #[doc(inline)]
 pub use toggle_wgt::toggle;

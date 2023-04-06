@@ -10,18 +10,24 @@ use crate::prelude::{new_property::*, *};
 #[derive(Debug, Clone)]
 pub struct TooltipArgs {}
 
-/// Set a widget generator that is used to create a tooltip widget that is generated in inserted as a top-most layer
-/// when the widget is hovered or the tooltip is activated in any other way.
+/// Set tooltip for the widget.
+/// 
+/// The tooltip shows on hover
+/// 
+/// The `tip` generator is used to generate a new tip widget when one needs to be shown, any widget
+/// can be used as tooltip, the recommended widget is the [`tip!`] container, it provides the tooltip style.
+/// 
+/// [`tip!`]: mod@crate::widgets::tip
 #[property(CONTEXT, default(WidgetGenerator::nil()))]
-pub fn tooltip(child: impl UiNode, tooltip: impl IntoVar<WidgetGenerator<TooltipArgs>>) -> impl UiNode {
+pub fn tooltip(child: impl UiNode, tip: impl IntoVar<WidgetGenerator<TooltipArgs>>) -> impl UiNode {
     #[ui_node(struct TooltipNode {
         child: impl UiNode,
-        tooltip: impl Var<WidgetGenerator<TooltipArgs>>,
+        tip: impl Var<WidgetGenerator<TooltipArgs>>,
         open: Option<WidgetId>,
     })]
     impl UiNode for TooltipNode {
         fn init(&mut self) {
-            WIDGET.sub_var(&self.tooltip).sub_event(&MOUSE_HOVERED_EVENT);
+            WIDGET.sub_var(&self.tip).sub_event(&MOUSE_HOVERED_EVENT);
             self.child.init()
         }
 
@@ -52,7 +58,7 @@ pub fn tooltip(child: impl UiNode, tooltip: impl IntoVar<WidgetGenerator<Tooltip
                         self.open = None
                     }
                 } else if args.is_mouse_enter() {
-                    self.open = Some(open_tooltip(self.tooltip.get()));
+                    self.open = Some(open_tooltip(self.tip.get()));
                 }
             }
         }
@@ -60,7 +66,7 @@ pub fn tooltip(child: impl UiNode, tooltip: impl IntoVar<WidgetGenerator<Tooltip
         fn update(&mut self, updates: &WidgetUpdates) {
             self.child.update(updates);
             if let Some(tooltip_id) = self.open {
-                if let Some(gen) = self.tooltip.get_new() {
+                if let Some(gen) = self.tip.get_new() {
                     LAYERS.remove(tooltip_id);
                     self.open = Some(open_tooltip(gen));
                 }
@@ -69,7 +75,7 @@ pub fn tooltip(child: impl UiNode, tooltip: impl IntoVar<WidgetGenerator<Tooltip
     }
     TooltipNode {
         child,
-        tooltip: tooltip.into_var(),
+        tip: tip.into_var(),
         open: None,
     }
 }
@@ -130,3 +136,4 @@ impl UiNode for TooltipLayerNode {
         }
     }
 }
+

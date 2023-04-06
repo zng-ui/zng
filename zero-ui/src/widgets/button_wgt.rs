@@ -1,6 +1,6 @@
 use crate::prelude::new_widget::*;
 
-/// A clickable element.
+/// A clickable container.
 #[widget($crate::widgets::button)]
 pub mod button {
     use super::*;
