@@ -1,5 +1,3 @@
-* Implement `style` property that gets an style directly and overrides `style_fn` if set.
-
 * Implement tooltip.
     - Initial show delay.
     - Show duration.

@@ -4,49 +4,6 @@ Proc-macros are mostly implemented, there are some improvements we can make:
 
 * Sort property build actions by importance?
     - Right now we just have one, `easing` but can be many.
-* Support custom syntax in widget macros?
-```rust
-// - the { } after the path is optional, it contains `(<rule>) => { <widget-init> };`.
-// - this rules are inserted before all others in the widget macro.
-// - the <rule> is a normal macro_rules capture rule.
-// - the <widget-init> is the tokens that go inside the braces of the widget macro.
-//
-// This limitation or only expanding to widget new tokens ensures that the widget type is consistent. Implementers
-// can still redirect to a more elaborate macro like `formatx!` in the example, in property value positions.
-#[widget($crate::widgets::text {
-    ($txt:expr) => {
-        txt = $txt;
-    };
-    ($txt:tt, $($format:tt)*) => {
-        txt = $crate::core::text::formatx!($txt, $($format)*);
-    };
-})]
-
-// expands to:
-
-macro_rules! text {
-    ($txt:expr) => {
-        $crate::widgets::text! {
-            txt = $txt;
-        }
-    };
-    ($txt:tt, $($format:tt)*) => {
-        $crate::widgets::text! {
-            txt = $crate::core::text::formatx!($txt, $($format)*);
-        }
-    };
-
-    // normal rules, proabably need a less cool escape, a widget may want to use ">>".
-    (>> if!mixin) => { .. }
-    (>> if mixin) => { .. }
-    ($($tt:tt)*) => { .. }
-
-    // maybe
-    (zero_ui_widget: if!mixin) => { .. }
-    (zero_ui_widget: ifmixin) => { .. }
-    ($($tt:tt)*) => { .. }
-}
-```
 
 * Reduce the capture boilerplate?
     - Generate capture based on function inputs?
