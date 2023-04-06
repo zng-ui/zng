@@ -231,7 +231,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
             Event::End(tag) => match tag {
                 Tag::Paragraph => {
                     if !inlines.is_empty() {
-                        blocks.push(paragraph_view.call(ParagraphFnArgs {
+                        blocks.push(paragraph_view(ParagraphFnArgs {
                             index: blocks.len() as u32,
                             items: mem::take(&mut inlines).into(),
                         }));
@@ -239,7 +239,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                 }
                 Tag::Heading(level, _, _) => {
                     if !inlines.is_empty() {
-                        blocks.push(heading_view.call(HeadingFnArgs {
+                        blocks.push(heading_view(HeadingFnArgs {
                             level,
                             anchor: heading_anchor(heading_text.take().unwrap_or_default().as_str()),
                             items: mem::take(&mut inlines).into(),
@@ -250,7 +250,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     if let Some(start) = block_quote_start.pop() {
                         let items: UiNodeVec = blocks.drain(start..).collect();
                         if !items.is_empty() {
-                            blocks.push(block_quote_view.call(BlockQuoteFnArgs {
+                            blocks.push(block_quote_view(BlockQuoteFnArgs {
                                 level: block_quote_start.len() as u32,
                                 items,
                             }));
@@ -262,7 +262,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         if txt.chars().rev().next() == Some('\n') {
                             txt.pop();
                         }
-                        blocks.push(code_block_view.call(CodeBlockFnArgs {
+                        blocks.push(code_block_view(CodeBlockFnArgs {
                             lang: match kind {
                                 CodeBlockKind::Indented => Text::empty(),
                                 CodeBlockKind::Fenced(l) => l.to_text(),
@@ -273,7 +273,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                 }
                 Tag::List(n) => {
                     if let Some(_list) = list_info.pop() {
-                        blocks.push(list_view.call(ListFnArgs {
+                        blocks.push(list_view(ListFnArgs {
                             depth: list_info.len() as u32,
                             first_num: n,
                             items: mem::take(&mut list_items).into(),
@@ -304,8 +304,8 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                             num,
                             checked: list.item_checked.take(),
                         };
-                        list_items.push(list_item_bullet_view.call(bullet_args));
-                        list_items.push(list_item_view.call(ListItemFnArgs {
+                        list_items.push(list_item_bullet_view(bullet_args));
+                        list_items.push(list_item_view(ListItemFnArgs {
                             bullet: bullet_args,
                             items: inlines.drain(list.inline_start..).collect(),
                             nested_list,
@@ -316,7 +316,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     if let Some(i) = footnote_def_start.take() {
                         let label = html_escape::decode_html_entities(label.as_ref());
                         let items = blocks.drain(i..).collect();
-                        blocks.push(footnote_def_view.call(FootnoteDefFnArgs {
+                        blocks.push(footnote_def_view(FootnoteDefFnArgs {
                             label: label.to_text(),
                             items,
                         }));
@@ -324,7 +324,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                 }
                 Tag::Table(_) => {
                     if !table_cells.is_empty() {
-                        blocks.push(table_view.call(TableFnArgs {
+                        blocks.push(table_view(TableFnArgs {
                             columns: mem::take(&mut table_cols),
                             cells: mem::take(&mut table_cells).into(),
                         }));
@@ -335,7 +335,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                 }
                 Tag::TableRow => {}
                 Tag::TableCell => {
-                    table_cells.push(table_cell_view.call(TableCellFnArgs {
+                    table_cells.push(table_cell_view(TableCellFnArgs {
                         is_heading: table_head,
                         col_align: table_cols[table_col],
                         items: mem::take(&mut inlines).into(),
@@ -364,7 +364,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         LinkType::ShortcutUnknown => {}
                         LinkType::Autolink | LinkType::Email => {
                             let url = html_escape::decode_html_entities(url.as_ref());
-                            inlines.push(text_view.call(TextFnArgs {
+                            inlines.push(text_view(TextFnArgs {
                                 txt: url.to_text(),
                                 style: MarkdownStyle {
                                     strong: strong > 0,
@@ -377,7 +377,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     if !inlines.is_empty() {
                         if let Some(s) = link_start.take() {
                             let items = inlines.drain(s..).collect();
-                            inlines.push(link_view.call(LinkFnArgs {
+                            inlines.push(link_view(LinkFnArgs {
                                 url,
                                 title: title.to_text(),
                                 items,
@@ -387,7 +387,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                 }
                 Tag::Image(_, url, title) => {
                     let title = html_escape::decode_html_entities(title.as_ref());
-                    blocks.push(image_view.call(ImageFnArgs {
+                    blocks.push(image_view(ImageFnArgs {
                         source: image_resolver.resolve(&url),
                         title: title.to_text(),
                         alt_items: mem::take(&mut inlines).into(),
@@ -403,24 +403,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         t.push_str(&txt);
                     }
                     inlines.push(
-                        text_view
-                            .call(TextFnArgs {
-                                txt: txt.to_text(),
-                                style: MarkdownStyle {
-                                    strong: strong > 0,
-                                    emphasis: emphasis > 0,
-                                    strikethrough: strikethrough > 0,
-                                },
-                            })
-                            .boxed(),
-                    );
-                }
-            }
-            Event::Code(txt) => {
-                let txt = html_escape::decode_html_entities(txt.as_ref());
-                inlines.push(
-                    code_inline_view
-                        .call(CodeInlineFnArgs {
+                        text_view(TextFnArgs {
                             txt: txt.to_text(),
                             style: MarkdownStyle {
                                 strong: strong > 0,
@@ -429,6 +412,21 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                             },
                         })
                         .boxed(),
+                    );
+                }
+            }
+            Event::Code(txt) => {
+                let txt = html_escape::decode_html_entities(txt.as_ref());
+                inlines.push(
+                    code_inline_view(CodeInlineFnArgs {
+                        txt: txt.to_text(),
+                        style: MarkdownStyle {
+                            strong: strong > 0,
+                            emphasis: emphasis > 0,
+                            strikethrough: strikethrough > 0,
+                        },
+                    })
+                    .boxed(),
                 );
             }
             Event::Html(tag) => match tag.as_ref() {
@@ -442,12 +440,12 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
             },
             Event::FootnoteReference(label) => {
                 let label = html_escape::decode_html_entities(label.as_ref());
-                inlines.push(footnote_ref_view.call(FootnoteRefFnArgs { label: label.to_text() }));
+                inlines.push(footnote_ref_view(FootnoteRefFnArgs { label: label.to_text() }));
             }
             Event::SoftBreak => {}
             Event::HardBreak => {}
             Event::Rule => {
-                blocks.push(rule_view.call(RuleFnArgs {}));
+                blocks.push(rule_view(RuleFnArgs {}));
             }
             Event::TaskListMarker(c) => {
                 if let Some(l) = &mut list_info.last_mut() {
@@ -457,5 +455,5 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
         }
     }
 
-    PANEL_GEN_VAR.get().call(PanelFnArgs { items: blocks.into() })
+    PANEL_GEN_VAR.get()(PanelFnArgs { items: blocks.into() })
 }

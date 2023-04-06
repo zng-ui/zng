@@ -82,7 +82,7 @@ pub fn tooltip(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> 
 
 fn open_tooltip(func: WidgetFn<TooltipArgs>) -> WidgetId {
     let tooltip = TooltipLayerNode {
-        child: func.call(TooltipArgs {}).into_widget(),
+        child: func(TooltipArgs {}).into_widget(),
         anchor_id: WIDGET.id(),
     };
 

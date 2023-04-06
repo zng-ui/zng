@@ -772,7 +772,7 @@ impl GridNode {
                         imaginary_rows = max_needed - rows_len;
                     } else {
                         while index < max_needed {
-                            let mut row = view.call(AutoGrowFnArgs { mode: auto_mode, index });
+                            let mut row = view(AutoGrowFnArgs { mode: auto_mode, index });
                             row.init();
                             auto.push(row);
                             index += 1;
@@ -808,7 +808,7 @@ impl GridNode {
                         imaginary_cols = max_needed - cols_len;
                     } else {
                         while index < max_needed {
-                            let mut column = view.call(AutoGrowFnArgs { mode: auto_mode, index });
+                            let mut column = view(AutoGrowFnArgs { mode: auto_mode, index });
                             column.init();
                             auto.push(column);
                             index += 1;

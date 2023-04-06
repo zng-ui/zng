@@ -698,28 +698,26 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
                 for (i, line) in txt.lines().enumerate() {
                     let text = ansi_parse::AnsiTextParser::new(line)
                         .map(|txt| {
-                            text_fn
-                                .call(TextFnArgs {
-                                    txt: txt.txt.to_text(),
-                                    style: txt.style,
-                                })
-                                .boxed()
+                            text_fn(TextFnArgs {
+                                txt: txt.txt.to_text(),
+                                style: txt.style,
+                            })
+                            .boxed()
                         })
                         .collect();
 
                     lines.push(
-                        line_fn
-                            .call(LineFnArgs {
-                                index: i as u32,
-                                page_index: lines.len() as u32,
-                                text,
-                            })
-                            .boxed(),
+                        line_fn(LineFnArgs {
+                            index: i as u32,
+                            page_index: lines.len() as u32,
+                            text,
+                        })
+                        .boxed(),
                     );
 
                     if lines.len() == lines_per_page {
                         let lines = mem::replace(&mut lines, Vec::with_capacity(50));
-                        pages.push(page_fn.call(PageFnArgs {
+                        pages.push(page_fn(PageFnArgs {
                             index: pages.len() as u32,
                             lines: lines.into(),
                         }));
@@ -727,13 +725,13 @@ pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
                 }
 
                 if !lines.is_empty() {
-                    pages.push(page_fn.call(PageFnArgs {
+                    pages.push(page_fn(PageFnArgs {
                         index: pages.len() as u32,
                         lines: lines.into(),
                     }));
                 }
 
-                panel_fn.call(PanelFnArgs { pages: pages.into() })
+                panel_fn(PanelFnArgs { pages: pages.into() })
             });
         }
     }

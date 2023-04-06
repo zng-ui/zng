@@ -1,7 +1,7 @@
 //! Style building blocks.
 
-use std::fmt;
 use std::sync::Arc;
+use std::{fmt, ops};
 
 use crate::core::widget_builder::widget_mod;
 use crate::prelude::new_widget::*;
@@ -290,7 +290,7 @@ pub struct StyleArgs {}
 ///
 /// You can also use the [`style_fn!`] macro, it has the advantage of being clone move.
 #[derive(Clone)]
-pub struct StyleFn(Option<Arc<dyn Fn(&StyleArgs) -> Style + Send + Sync>>);
+pub struct StyleFn(Option<Arc<dyn Fn(&StyleArgs) -> Option<Style> + Send + Sync>>);
 impl Default for StyleFn {
     fn default() -> Self {
         Self::nil()
@@ -309,22 +309,36 @@ impl StyleFn {
 
     /// New style function, the `func` closure is called for each styleable widget, before the widget is inited.
     pub fn new(func: impl Fn(&StyleArgs) -> Style + Send + Sync + 'static) -> Self {
-        Self(Some(Arc::new(func)))
+        Self(Some(Arc::new(move |a| {
+            let style = func(a);
+            if style.is_empty() {
+                None
+            } else {
+                Some(style)
+            }
+        })))
     }
 
     /// Call the function to create a style for the styleable widget in the context.
     ///
     /// Returns `None` if [`is_nil`] or empty, otherwise returns the style.
     ///
+    /// Note that you can call the style function directly:
+    ///
+    /// ```
+    /// use zero_ui::prelude::*;
+    ///
+    /// fn foo(func: &StyleFn<bool>) {
+    ///     let a = func.call(&StyleArgs {});
+    ///     let b = func(&StyleArgs {});
+    /// }
+    /// ```
+    ///
+    /// In the example above `a` and `b` are both calls to the style function.
+    ///
     /// [`is_nil`]: Self::is_nil
     pub fn call(&self, args: &StyleArgs) -> Option<Style> {
-        if let Some(g) = &self.0 {
-            let style = g(args);
-            if !style.is_empty() {
-                return Some(style);
-            }
-        }
-        None
+        self.0.as_ref()?(args)
     }
 
     /// New style function that instantiates `self` and `other` and then [`extend`] `self` with `other`.
@@ -337,8 +351,8 @@ impl StyleFn {
             self
         } else {
             StyleFn::new(move |args| {
-                let mut r = self.call(args).unwrap();
-                r.extend(other.call(args).unwrap());
+                let mut r = self(args).unwrap();
+                r.extend(other(args).unwrap());
                 r
             })
         }
@@ -348,6 +362,20 @@ impl fmt::Debug for StyleFn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "StyleFn(_)")
     }
+}
+impl ops::Deref for StyleFn {
+    type Target = dyn Fn(&StyleArgs) -> Option<Style>;
+
+    fn deref(&self) -> &Self::Target {
+        if let Some(func) = &self.0 {
+            &**func
+        } else {
+            &nil_func
+        }
+    }
+}
+fn nil_func(_: &StyleArgs) -> Option<Style> {
+    None
 }
 
 /// <span data-del-macro-root></span> Declares a style function closure.

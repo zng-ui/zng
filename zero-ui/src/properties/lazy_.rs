@@ -195,14 +195,14 @@ impl UiNode for LazyNode {
                     //
                     // This time we have the actual widget content, so the placeholder is upgraded to a full widget.
 
-                    let placeholder = placeholder.call(()).into_widget();
+                    let placeholder = placeholder(()).into_widget();
                     self.children.push(placeholder);
                 }
                 self.children.push(self.not_inited.take().unwrap());
             } else {
                 // only placeholder
 
-                let placeholder = placeholder.call(());
+                let placeholder = placeholder(());
                 let placeholder = crate::core::widget_base::nodes::widget_inner(placeholder).boxed();
 
                 // just placeholder, and as the `widget_inner`, first render may init

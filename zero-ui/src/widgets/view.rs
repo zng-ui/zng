@@ -1,5 +1,5 @@
 use pretty_type_name::*;
-use std::{fmt, sync::Arc};
+use std::{fmt, ops, sync::Arc};
 
 use zero_ui_core::widget_instance::{BoxedUiNode, NilUiNode};
 
@@ -226,7 +226,20 @@ impl<D> WidgetFn<D> {
         self.0.is_none()
     }
 
-    /// Calls the function for the given `data`.
+    /// Calls the function with `data` argument.
+    ///
+    /// Note that you can call the widget function directly where `D: 'static`:
+    ///
+    /// ```
+    /// use zero_ui::prelude::*;
+    ///
+    /// fn foo(func: &WidgetFn<bool>) {
+    ///     let a = func.call(true);
+    ///     let b = func(true);
+    /// }
+    /// ```
+    ///
+    /// In the example above `a` and `b` are both calls to the widget function.
     pub fn call(&self, data: D) -> BoxedUiNode {
         if let Some(g) = &self.0 {
             g(data)
@@ -287,7 +300,7 @@ impl<D> WidgetFn<D> {
 
                 match (self.update)(true) {
                     DataUpdate::Update(data) => {
-                        let mut child = (self.map)(func.call(data));
+                        let mut child = (self.map)(func(data));
                         child.init();
                         self.child = Some(child);
                     }
@@ -315,7 +328,7 @@ impl<D> WidgetFn<D> {
                         if let Some(mut old) = self.child.take() {
                             old.deinit();
                         }
-                        let mut child = (self.map)(func.call(data));
+                        let mut child = (self.map)(func(data));
                         child.init();
                         self.child = Some(child);
                         WIDGET.update_info().layout().render();
@@ -338,6 +351,19 @@ impl<D> WidgetFn<D> {
         }
         .cfg_boxed()
     }
+}
+impl<D: 'static> ops::Deref for WidgetFn<D> {
+    type Target = dyn Fn(D) -> BoxedUiNode;
+
+    fn deref(&self) -> &Self::Target {
+        match self.0.as_ref() {
+            Some(f) => &**f,
+            None => &nil_call::<D>,
+        }
+    }
+}
+fn nil_call<D>(_: D) -> BoxedUiNode {
+    NilUiNode.boxed()
 }
 
 /// An update for the [`WidgetFn::presenter`].
