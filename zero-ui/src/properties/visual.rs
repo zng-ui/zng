@@ -254,6 +254,18 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     }
 }
 
+/// Custom foreground generated using a [`WidgetFn<()>`].
+///
+/// This is the equivalent of setting [`foreground`] to the [`presenter_default`] node.
+///
+/// [`WidgetFn<()>`]: WidgetFn
+/// [`foreground`]: fn@background
+/// [`presenter_default`]: WidgetFn::presenter_default
+#[property(FILL, default(WidgetFn::nil()))]
+pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    foreground(child, WidgetFn::presenter_default(wgt_fn))
+}
+
 /// Foreground highlight border overlay.
 ///
 /// This property draws a border contour with extra `offsets` padding as an overlay.

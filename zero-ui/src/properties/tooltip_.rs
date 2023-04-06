@@ -10,16 +10,24 @@ use crate::prelude::{new_property::*, *};
 #[derive(Debug, Clone)]
 pub struct TooltipArgs {}
 
-/// Set tooltip for the widget.
+/// Widget tooltip.
+/// 
+/// Any other widget can be used as tooltip, the recommended widget is the [`tip!`] container, it provides the tooltip style.
 ///
-/// The tooltip shows on hover
+/// [`tip!`]: mod@crate::widgets::tip
+#[property(CONTEXT)]
+pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
+    tooltip_fn(child, WidgetFn::singleton(tip))
+}
+
+/// Widget tooltip set as an widget function that is called every time the tooltip must be shown.
 ///
 /// The `tip` widget function is used to instantiate a new tip widget when one needs to be shown, any widget
 /// can be used as tooltip, the recommended widget is the [`tip!`] container, it provides the tooltip style.
 ///
 /// [`tip!`]: mod@crate::widgets::tip
 #[property(CONTEXT, default(WidgetFn::nil()))]
-pub fn tooltip(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> impl UiNode {
+pub fn tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> impl UiNode {
     #[ui_node(struct TooltipNode {
         child: impl UiNode,
         tip: impl Var<WidgetFn<TooltipArgs>>,

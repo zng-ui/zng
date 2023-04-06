@@ -1,19 +1,6 @@
-* Lets go with "new".
-    - `WidgetNew<A>`.
-    - `StyleNew<A>`.
-    - `foo_new`.
-* What about Fn:
-    - `WidgetFn<A>`.
-    - `style_fn`.
-    - `auto_grow_fn`.
-* Refactor tooltip to take in node, that is moved to layer and back using `ArcNode`.
-
-# Other
+* Implement `style` property that gets an style directly and overrides `style_fn` if set.
 
 * Implement tooltip.
-    - Rename to `tooltip_fn` and implement another `tooltip` that is just a a node directly.
-        - Similar to `background_fn` `background` pair.
-        - Do this for other stuff to, like style?
     - Initial show delay.
     - Show duration.
     - Between show delay.
