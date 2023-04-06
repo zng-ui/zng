@@ -58,7 +58,7 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
     grid! {
         spacing = 2;
         columns = ui_vec![grid::column!(1.lft()); 4];
-        auto_grow_gen = wgt_gen!(|_| grid::row!(1.lft()));
+        auto_grow_fn = wgt_fn!(|_| grid::row!(1.lft()));
         font_size = 14.pt();
         cells = ui_vec![
             b_squre,  b_sroot,  b_clear,  b_back,

@@ -158,18 +158,18 @@ fn toggle_buttons() -> impl UiNode {
             toggle! {
                 child = text!("Switch");
                 checked = var(false);
-                style_gen = style_gen!(|_| toggle::vis::switch_style!());
+                style_fn = style_fn!(|_| toggle::vis::switch_style!());
             },
             toggle! {
                 child = text!("Checkbox");
                 checked = var(false);
-                style_gen = style_gen!(|_| toggle::vis::check_style!());
+                style_fn = style_fn!(|_| toggle::vis::check_style!());
             },
             toggle! {
                 child = text!("Checkbox Tristate");
                 checked_opt = var(Some(false));
                 tristate = true;
-                style_gen = style_gen!(|_| toggle::vis::check_style!());
+                style_fn = style_fn!(|_| toggle::vis::check_style!());
             },
             stack! {
                 direction = StackDirection::top_to_bottom();
@@ -179,17 +179,17 @@ fn toggle_buttons() -> impl UiNode {
                     toggle! {
                         child = text!("Radio button (Tokyo)");
                         value::<&'static str> = "Tokyo";
-                        style_gen = style_gen!(|_| toggle::vis::radio_style!());
+                        style_fn = style_fn!(|_| toggle::vis::radio_style!());
                     },
                     toggle! {
                         child = text!("Radio button (Paris)");
                         value::<&'static str> = "Paris";
-                        style_gen = style_gen!(|_| toggle::vis::radio_style!());
+                        style_fn = style_fn!(|_| toggle::vis::radio_style!());
                     },
                     toggle! {
                         child = text!("Radio button (London)");
                         value::<&'static str> = "London";
-                        style_gen = style_gen!(|_| toggle::vis::radio_style!());
+                        style_fn = style_fn!(|_| toggle::vis::radio_style!());
                     },
                 ];
             }

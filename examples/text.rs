@@ -74,7 +74,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
         });
     }
     stack! {
-        button::vis::extend_style = style_gen!(|_| style! {
+        button::vis::extend_style = style_fn!(|_| style! {
             padding = (0, 5);
         });
         direction = StackDirection::left_to_right();

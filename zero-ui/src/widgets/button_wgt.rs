@@ -41,7 +41,7 @@ pub mod button {
         ///
         /// Set to [`vis::STYLE_VAR`] by default, setting this property directly completely replaces the button style,
         /// see [`vis::replace_style`] and [`vis::extend_style`] for other ways of modifying the button style.
-        style_gen = vis::STYLE_VAR;
+        style_fn = vis::STYLE_VAR;
     }
 }
 
@@ -55,7 +55,7 @@ pub mod vis {
         /// Is the [`default_style!`] by default.
         ///
         /// [`default_style!`]: mod@default_style
-        pub static STYLE_VAR: StyleGenerator = StyleGenerator::new(|_| default_style!());
+        pub static STYLE_VAR: StyleFn = StyleFn::new(|_| default_style!());
 
         /// Idle background dark and light color.
         pub static BASE_COLORS_VAR: ColorPair = (rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
@@ -69,14 +69,14 @@ pub mod vis {
 
     /// Sets the button style in a context, the parent style is fully replaced.
     #[property(CONTEXT, default(STYLE_VAR))]
-    pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+    pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
         with_context_var(child, STYLE_VAR, style)
     }
 
     /// Extends the button style in a context, the parent style is used, properties of the same name set in
     /// `style` override the parent style.
-    #[property(CONTEXT, default(StyleGenerator::nil()))]
-    pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+    #[property(CONTEXT, default(StyleFn::nil()))]
+    pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
         style_mixin::with_style_extension(child, STYLE_VAR, style)
     }
 

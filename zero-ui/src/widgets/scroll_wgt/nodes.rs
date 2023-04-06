@@ -262,8 +262,8 @@ pub fn h_scrollbar_presenter() -> impl UiNode {
     scrollbar_presenter(HORIZONTAL_SCROLLBAR_GEN_VAR, scrollbar::Orientation::Horizontal)
 }
 
-fn scrollbar_presenter(var: impl IntoVar<WidgetGenerator<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
-    WidgetGenerator::presenter(var, move |is_new| {
+fn scrollbar_presenter(var: impl IntoVar<WidgetFn<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
+    WidgetFn::presenter(var, move |is_new| {
         if is_new {
             DataUpdate::Update(ScrollBarArgs::new(orientation))
         } else {
@@ -276,7 +276,7 @@ fn scrollbar_presenter(var: impl IntoVar<WidgetGenerator<ScrollBarArgs>>, orient
 ///
 /// [scrollbar joiner]: SCROLLBAR_JOINER_GEN_VAR
 pub fn scrollbar_joiner_presenter() -> impl UiNode {
-    WidgetGenerator::presenter_default(SCROLLBAR_JOINER_GEN_VAR)
+    WidgetFn::presenter_default(SCROLLBAR_JOINER_GEN_VAR)
 }
 
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],

@@ -27,7 +27,7 @@ pub mod toggle {
         /// Toggle style.
         ///
         /// Set to [`vis::STYLE_VAR`] by default.
-        style_gen = vis::STYLE_VAR;
+        style_fn = vis::STYLE_VAR;
     }
 
     fn include(wgt: &mut super::WidgetBuilder) {
@@ -809,19 +809,19 @@ pub mod vis {
         /// Is the [`default_style!`] by default.
         ///
         /// [`default_style!`]: mod@default_style
-        pub static STYLE_VAR: StyleGenerator = StyleGenerator::new(|_| default_style!());
+        pub static STYLE_VAR: StyleFn = StyleFn::new(|_| default_style!());
     }
 
     /// Sets the toggle style in a context, the parent style is fully replaced.
     #[property(CONTEXT, default(STYLE_VAR))]
-    pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+    pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
         with_context_var(child, STYLE_VAR, style)
     }
 
     /// Extends the toggle style in a context, the parent style is used, properties of the same name set in
     /// `style` override the parent style.
-    #[property(CONTEXT, default(StyleGenerator::nil()))]
-    pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+    #[property(CONTEXT, default(StyleFn::nil()))]
+    pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
         style_mixin::with_style_extension(child, STYLE_VAR, style)
     }
 

@@ -26,7 +26,7 @@ pub mod style {
     use super::*;
 
     #[doc(inline)]
-    pub use super::{style_gen, Style, StyleGenerator};
+    pub use super::{style_fn, Style, StyleFn};
 
     /// style constructor.
     pub fn build(wgt: WidgetBuilder) -> Style {
@@ -36,7 +36,7 @@ pub mod style {
 
 /// Styleable widget mix-in.
 ///
-/// Widgets that inherit from this one have a `style` property that can be set to a [`style_gen!`]
+/// Widgets that inherit from this one have a `style` property that can be set to a [`style_fn!`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
 ///
 /// The style mix-in drastically affects the widget build process, only the `style` property and `when` condition
@@ -50,7 +50,7 @@ pub mod style_mixin {
     use super::*;
 
     properties! {
-        /// Style generator used for the widget.
+        /// Style function used for the widget.
         ///
         /// Properties and `when` conditions in the generated style are applied to the widget as
         /// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
@@ -61,7 +61,7 @@ pub mod style_mixin {
         /// on the full widget context will not work.
         ///
         /// Is `nil` by default.
-        pub style_gen(impl IntoVar<StyleGenerator>) = StyleGenerator::nil();
+        pub style_fn(impl IntoVar<StyleFn>) = StyleFn::nil();
     }
 
     fn include(wgt: &mut WidgetBuilder) {
@@ -70,7 +70,7 @@ pub mod style_mixin {
 
     /// Helper for declaring properties that [extend] a style set from a context var.
     ///
-    /// [extend]: StyleGenerator::with_extend
+    /// [extend]: StyleFn::with_extend
     ///
     /// # Examples
     ///
@@ -93,7 +93,7 @@ pub mod style_mixin {
     ///         /// The style is set to [`vis::STYLE_VAR`], settings this directly replaces the style.
     ///         /// You can use [`vis::replace_style`] and [`vis::extend_style`] to set or modify the
     ///         /// style for all `foo` in a context.
-    ///         style_gen = vis::STYLE_VAR;
+    ///         style_fn = vis::STYLE_VAR;
     ///     }
     ///
     ///     /// Foo style and visual properties.
@@ -102,7 +102,7 @@ pub mod style_mixin {
     ///
     ///         context_var! {
     ///             /// Foo style.
-    ///             pub static STYLE_VAR: StyleGenerator = style_gen!(|_args| {
+    ///             pub static STYLE_VAR: StyleFn = style_fn!(|_args| {
     ///                 style! {
     ///                     background_color = color_scheme_pair((colors::BLACK, colors::WHITE));
     ///                     cursor = CursorIcon::Crosshair;
@@ -114,27 +114,23 @@ pub mod style_mixin {
     ///         #[property(CONTEXT, default(STYLE_VAR))]
     ///         pub fn replace_style(
     ///             child: impl UiNode,
-    ///             style: impl IntoVar<StyleGenerator>
+    ///             style: impl IntoVar<StyleFn>
     ///         ) -> impl UiNode {
     ///             with_context_var(child, STYLE_VAR, style)
     ///         }
     ///
     ///         /// Extends the contextual [`STYLE_VAR`] with the `style` override.
-    ///         #[property(CONTEXT, default(StyleGenerator::nil()))]
+    ///         #[property(CONTEXT, default(StyleFn::nil()))]
     ///         pub fn extend_style(
     ///             child: impl UiNode,
-    ///             style: impl IntoVar<StyleGenerator>
+    ///             style: impl IntoVar<StyleFn>
     ///         ) -> impl UiNode {
     ///             style_mixin::with_style_extension(child, STYLE_VAR, style)
     ///         }
     ///     }
     /// }
     /// ```
-    pub fn with_style_extension(
-        child: impl UiNode,
-        style_context: ContextVar<StyleGenerator>,
-        extension: impl IntoVar<StyleGenerator>,
-    ) -> impl UiNode {
+    pub fn with_style_extension(child: impl UiNode, style_context: ContextVar<StyleFn>, extension: impl IntoVar<StyleFn>) -> impl UiNode {
         with_context_var(
             child,
             style_context,
@@ -148,7 +144,7 @@ pub mod style_mixin {
     pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
         // 1 - "split_off" the property `style`
         //     this moves the property and any `when` that affects it to a new widget builder.
-        let style_id = property_id!(self::style_gen);
+        let style_id = property_id!(self::style_fn);
         let mut style_builder = WidgetBuilder::new(wgt.widget_mod());
         wgt.split_off([style_id], &mut style_builder);
 
@@ -165,7 +161,7 @@ pub mod style_mixin {
             let mut wgt = Some(wgt);
             style_builder.push_build_action(move |b| {
                 // 3 - The actual StyleNode and builder is a child of the "mini widget".
-                let style = b.capture_var::<StyleGenerator>(style_id).unwrap();
+                let style = b.capture_var::<StyleFn>(style_id).unwrap();
                 b.set_child(StyleNode {
                     child: None,
                     builder: wgt.take().unwrap(),
@@ -184,12 +180,12 @@ pub mod style_mixin {
     #[ui_node(struct StyleNode {
         child: Option<BoxedUiNode>,
         builder: WidgetBuilder,
-        #[var] style: BoxedVar<StyleGenerator>,
+        #[var] style: BoxedVar<StyleFn>,
     })]
     impl UiNode for StyleNode {
         fn init(&mut self) {
             self.auto_subs();
-            if let Some(style) = self.style.get().generate(&StyleArgs {}) {
+            if let Some(style) = self.style.get().call(&StyleArgs {}) {
                 let mut builder = self.builder.clone();
                 builder.extend(style.into_builder());
                 self.child = Some(builder.default_build());
@@ -284,7 +280,7 @@ impl From<WidgetBuilder> for Style {
     }
 }
 
-/// Arguments for [`StyleGenerator`] closure.
+/// Arguments for [`StyleFn`] closure.
 ///
 /// Empty in this version.
 #[derive(Debug)]
@@ -292,36 +288,36 @@ pub struct StyleArgs {}
 
 /// Boxed shared closure that generates a style instance for a given widget context.
 ///
-/// You can also use the [`style_gen!`] macro, it has the advantage of being clone move.
+/// You can also use the [`style_fn!`] macro, it has the advantage of being clone move.
 #[derive(Clone)]
-pub struct StyleGenerator(Option<Arc<dyn Fn(&StyleArgs) -> Style + Send + Sync>>);
-impl Default for StyleGenerator {
+pub struct StyleFn(Option<Arc<dyn Fn(&StyleArgs) -> Style + Send + Sync>>);
+impl Default for StyleFn {
     fn default() -> Self {
         Self::nil()
     }
 }
-impl StyleGenerator {
-    /// Default generator, produces an empty style.
+impl StyleFn {
+    /// Default function, produces an empty style.
     pub fn nil() -> Self {
         Self(None)
     }
 
-    /// If this generator represents no style.
+    /// If this function represents no style.
     pub fn is_nil(&self) -> bool {
         self.0.is_none()
     }
 
-    /// New style generator, the `generate` closure is called for each styleable widget, before the widget is inited.
-    pub fn new(generate: impl Fn(&StyleArgs) -> Style + Send + Sync + 'static) -> Self {
-        Self(Some(Arc::new(generate)))
+    /// New style function, the `func` closure is called for each styleable widget, before the widget is inited.
+    pub fn new(func: impl Fn(&StyleArgs) -> Style + Send + Sync + 'static) -> Self {
+        Self(Some(Arc::new(func)))
     }
 
-    /// Generate a style for the styleable widget in the context.
+    /// Call the function to create a style for the styleable widget in the context.
     ///
     /// Returns `None` if [`is_nil`] or empty, otherwise returns the style.
     ///
     /// [`is_nil`]: Self::is_nil
-    pub fn generate(&self, args: &StyleArgs) -> Option<Style> {
+    pub fn call(&self, args: &StyleArgs) -> Option<Style> {
         if let Some(g) = &self.0 {
             let style = g(args);
             if !style.is_empty() {
@@ -331,41 +327,41 @@ impl StyleGenerator {
         None
     }
 
-    /// New style generator that generates `self` and `other` and then [`extend`] `self` with `other`.
+    /// New style function that instantiates `self` and `other` and then [`extend`] `self` with `other`.
     ///
     /// [`extend`]: Style::extend
-    pub fn with_extend(self, other: StyleGenerator) -> StyleGenerator {
+    pub fn with_extend(self, other: StyleFn) -> StyleFn {
         if self.is_nil() {
             other
         } else if other.is_nil() {
             self
         } else {
-            StyleGenerator::new(move |args| {
-                let mut r = self.generate(args).unwrap();
-                r.extend(other.generate(args).unwrap());
+            StyleFn::new(move |args| {
+                let mut r = self.call(args).unwrap();
+                r.extend(other.call(args).unwrap());
                 r
             })
         }
     }
 }
-impl fmt::Debug for StyleGenerator {
+impl fmt::Debug for StyleFn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "StyleGenerator(_)")
+        write!(f, "StyleFn(_)")
     }
 }
 
-/// <span data-del-macro-root></span> Declares a style generator closure.
+/// <span data-del-macro-root></span> Declares a style function closure.
 ///
-/// The output type is a [`StyleGenerator`], the closure is [`clmv!`].
+/// The output type is a [`StyleFn`], the closure is [`clmv!`].
 ///
 /// [`clmv!`]: crate::core::clmv
 #[macro_export]
-macro_rules! style_gen {
+macro_rules! style_fn {
     ($($tt:tt)+) => {
-        $crate::widgets::style::StyleGenerator::new($crate::core::clmv! {
+        $crate::widgets::style::StyleFn::new($crate::core::clmv! {
             $($tt)+
         })
     }
 }
 #[doc(inline)]
-pub use crate::style_gen;
+pub use crate::style_fn;

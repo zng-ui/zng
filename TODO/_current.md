@@ -1,12 +1,19 @@
-* Auto convert `impl UiNode` to `ArcNode` inside `WidgetGenerator`.
-    - Maybe we just don't want tooltip to be a generator.
-    - Generators are for property values that can end-up in more then one context.
-        - We don't even call it `tooltip_gen`.
-    - Try tooltip taking a node directly.
-        - The node goes on an `ArcNode`.
-        - Taken on layer init.
+* Lets go with "new".
+    - `WidgetNew<A>`.
+    - `StyleNew<A>`.
+    - `foo_new`.
+* What about Fn:
+    - `WidgetFn<A>`.
+    - `style_fn`.
+    - `auto_grow_fn`.
+* Refactor tooltip to take in node, that is moved to layer and back using `ArcNode`.
+
+# Other
 
 * Implement tooltip.
+    - Rename to `tooltip_fn` and implement another `tooltip` that is just a a node directly.
+        - Similar to `background_fn` `background` pair.
+        - Do this for other stuff to, like style?
     - Initial show delay.
     - Show duration.
     - Between show delay.

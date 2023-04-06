@@ -5,7 +5,7 @@ pub use pulldown_cmark::HeadingLevel;
 use crate::prelude::new_widget::*;
 
 mod resolvers;
-mod view_gen;
+mod view_fn;
 
 /// Render markdown styled text.
 #[widget($crate::widgets::markdown {
@@ -29,7 +29,7 @@ pub mod markdown {
 
     pub use super::resolvers::*;
     #[doc(inline)]
-    pub use super::view_gen::*;
+    pub use super::view_fn::*;
 
     #[doc(no_inline)]
     pub use crate::widgets::text::{line_spacing, paragraph_spacing};
@@ -81,7 +81,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
         #[UiNode]
         fn update(&mut self, updates: &WidgetUpdates) {
             use resolvers::*;
-            use view_gen::*;
+            use view_fn::*;
 
             if self.md.is_new()
                 || TEXT_GEN_VAR.is_new()
@@ -112,7 +112,7 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
         }
 
         fn generate_child(&mut self) {
-            self.child = self.md.with(|md| markdown_view_gen(md.as_str())).boxed();
+            self.child = self.md.with(|md| markdown_view_fn(md.as_str())).boxed();
         }
     }
     MarkdownNode {
@@ -121,10 +121,10 @@ pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
     }
 }
 
-fn markdown_view_gen(md: &str) -> impl UiNode {
+fn markdown_view_fn(md: &str) -> impl UiNode {
     use pulldown_cmark::*;
     use resolvers::*;
-    use view_gen::*;
+    use view_fn::*;
 
     let mut strong = 0;
     let mut emphasis = 0;
@@ -231,7 +231,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
             Event::End(tag) => match tag {
                 Tag::Paragraph => {
                     if !inlines.is_empty() {
-                        blocks.push(paragraph_view.generate(ParagraphGenArgs {
+                        blocks.push(paragraph_view.call(ParagraphFnArgs {
                             index: blocks.len() as u32,
                             items: mem::take(&mut inlines).into(),
                         }));
@@ -239,7 +239,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                 }
                 Tag::Heading(level, _, _) => {
                     if !inlines.is_empty() {
-                        blocks.push(heading_view.generate(HeadingGenArgs {
+                        blocks.push(heading_view.call(HeadingFnArgs {
                             level,
                             anchor: heading_anchor(heading_text.take().unwrap_or_default().as_str()),
                             items: mem::take(&mut inlines).into(),
@@ -250,7 +250,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                     if let Some(start) = block_quote_start.pop() {
                         let items: UiNodeVec = blocks.drain(start..).collect();
                         if !items.is_empty() {
-                            blocks.push(block_quote_view.generate(BlockQuoteGenArgs {
+                            blocks.push(block_quote_view.call(BlockQuoteFnArgs {
                                 level: block_quote_start.len() as u32,
                                 items,
                             }));
@@ -262,7 +262,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                         if txt.chars().rev().next() == Some('\n') {
                             txt.pop();
                         }
-                        blocks.push(code_block_view.generate(CodeBlockGenArgs {
+                        blocks.push(code_block_view.call(CodeBlockFnArgs {
                             lang: match kind {
                                 CodeBlockKind::Indented => Text::empty(),
                                 CodeBlockKind::Fenced(l) => l.to_text(),
@@ -273,7 +273,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                 }
                 Tag::List(n) => {
                     if let Some(_list) = list_info.pop() {
-                        blocks.push(list_view.generate(ListGenArgs {
+                        blocks.push(list_view.call(ListFnArgs {
                             depth: list_info.len() as u32,
                             first_num: n,
                             items: mem::take(&mut list_items).into(),
@@ -299,13 +299,13 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                             None
                         };
 
-                        let bullet_args = ListItemBulletGenArgs {
+                        let bullet_args = ListItemBulletFnArgs {
                             depth: depth as u32,
                             num,
                             checked: list.item_checked.take(),
                         };
-                        list_items.push(list_item_bullet_view.generate(bullet_args));
-                        list_items.push(list_item_view.generate(ListItemGenArgs {
+                        list_items.push(list_item_bullet_view.call(bullet_args));
+                        list_items.push(list_item_view.call(ListItemFnArgs {
                             bullet: bullet_args,
                             items: inlines.drain(list.inline_start..).collect(),
                             nested_list,
@@ -316,7 +316,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                     if let Some(i) = footnote_def_start.take() {
                         let label = html_escape::decode_html_entities(label.as_ref());
                         let items = blocks.drain(i..).collect();
-                        blocks.push(footnote_def_view.generate(FootnoteDefGenArgs {
+                        blocks.push(footnote_def_view.call(FootnoteDefFnArgs {
                             label: label.to_text(),
                             items,
                         }));
@@ -324,7 +324,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                 }
                 Tag::Table(_) => {
                     if !table_cells.is_empty() {
-                        blocks.push(table_view.generate(TableGenArgs {
+                        blocks.push(table_view.call(TableFnArgs {
                             columns: mem::take(&mut table_cols),
                             cells: mem::take(&mut table_cells).into(),
                         }));
@@ -335,7 +335,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                 }
                 Tag::TableRow => {}
                 Tag::TableCell => {
-                    table_cells.push(table_cell_view.generate(TableCellGenArgs {
+                    table_cells.push(table_cell_view.call(TableCellFnArgs {
                         is_heading: table_head,
                         col_align: table_cols[table_col],
                         items: mem::take(&mut inlines).into(),
@@ -364,7 +364,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                         LinkType::ShortcutUnknown => {}
                         LinkType::Autolink | LinkType::Email => {
                             let url = html_escape::decode_html_entities(url.as_ref());
-                            inlines.push(text_view.generate(TextGenArgs {
+                            inlines.push(text_view.call(TextFnArgs {
                                 txt: url.to_text(),
                                 style: MarkdownStyle {
                                     strong: strong > 0,
@@ -377,7 +377,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                     if !inlines.is_empty() {
                         if let Some(s) = link_start.take() {
                             let items = inlines.drain(s..).collect();
-                            inlines.push(link_view.generate(LinkGenArgs {
+                            inlines.push(link_view.call(LinkFnArgs {
                                 url,
                                 title: title.to_text(),
                                 items,
@@ -387,7 +387,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                 }
                 Tag::Image(_, url, title) => {
                     let title = html_escape::decode_html_entities(title.as_ref());
-                    blocks.push(image_view.generate(ImageGenArgs {
+                    blocks.push(image_view.call(ImageFnArgs {
                         source: image_resolver.resolve(&url),
                         title: title.to_text(),
                         alt_items: mem::take(&mut inlines).into(),
@@ -404,7 +404,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                     }
                     inlines.push(
                         text_view
-                            .generate(TextGenArgs {
+                            .call(TextFnArgs {
                                 txt: txt.to_text(),
                                 style: MarkdownStyle {
                                     strong: strong > 0,
@@ -420,7 +420,7 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
                 let txt = html_escape::decode_html_entities(txt.as_ref());
                 inlines.push(
                     code_inline_view
-                        .generate(CodeInlineGenArgs {
+                        .call(CodeInlineFnArgs {
                             txt: txt.to_text(),
                             style: MarkdownStyle {
                                 strong: strong > 0,
@@ -442,12 +442,12 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
             },
             Event::FootnoteReference(label) => {
                 let label = html_escape::decode_html_entities(label.as_ref());
-                inlines.push(footnote_ref_view.generate(FootnoteRefGenArgs { label: label.to_text() }));
+                inlines.push(footnote_ref_view.call(FootnoteRefFnArgs { label: label.to_text() }));
             }
             Event::SoftBreak => {}
             Event::HardBreak => {}
             Event::Rule => {
-                blocks.push(rule_view.generate(RuleGenArgs {}));
+                blocks.push(rule_view.call(RuleFnArgs {}));
             }
             Event::TaskListMarker(c) => {
                 if let Some(l) = &mut list_info.last_mut() {
@@ -457,5 +457,5 @@ fn markdown_view_gen(md: &str) -> impl UiNode {
         }
     }
 
-    PANEL_GEN_VAR.get().generate(PanelGenArgs { items: blocks.into() })
+    PANEL_GEN_VAR.get().call(PanelFnArgs { items: blocks.into() })
 }

@@ -28,11 +28,11 @@ pub enum LazyMode {
     Disabled,
     /// Node lazy loaded.
     Enabled {
-        /// Generator for the node that replaces the widget when it is not in the init viewport.
+        /// Function that instantiates the node that replaces the widget when it is not in the init viewport.
         ///
         /// All node methods are called on the placeholder, except the render methods, it should efficiently estimate
         /// the size of the inited widget.
-        placeholder: WidgetGenerator<()>,
+        placeholder: WidgetFn<()>,
         /// If the node is deinited when is moved out of the viewport.
         ///
         /// If `false` the node stays loaded after the first lazy load.
@@ -55,14 +55,14 @@ pub enum LazyMode {
 impl LazyMode {
     /// Enable lazy mode with a node that estimates the widget size.
     ///
-    /// The generator must produce a node that is used as the layout placeholder for the actual widget content.
+    /// The widget function must produce a node that is used as the layout placeholder for the actual widget content.
     ///
     /// The widget will init when the placeholder stops being culled by render, and deinit when it starts being culled.
     /// Note that in this mode the placeholder size is always used as the widget size, see the `deinit` docs in [`LazyMode::Enabled`]
     /// for more details.
     ///
     /// See [`FrameBuilder::auto_hide_rect`] for more details about render culling.
-    pub fn lazy(placeholder: WidgetGenerator<()>) -> Self {
+    pub fn lazy(placeholder: WidgetFn<()>) -> Self {
         Self::Enabled {
             placeholder,
             deinit: true,
@@ -77,7 +77,7 @@ impl LazyMode {
     /// the widget will still init and deinit considering only the vertical intersection.
     ///
     /// [`lazy`]: Self::lazy
-    pub fn lazy_vertical(placeholder: WidgetGenerator<()>) -> Self {
+    pub fn lazy_vertical(placeholder: WidgetFn<()>) -> Self {
         Self::Enabled {
             placeholder,
             deinit: true,
@@ -92,7 +92,7 @@ impl LazyMode {
     /// the widget will still init and deinit considering only the horizontal intersection.
     ///
     /// [`lazy`]: Self::lazy
-    pub fn lazy_horizontal(placeholder: WidgetGenerator<()>) -> Self {
+    pub fn lazy_horizontal(placeholder: WidgetFn<()>) -> Self {
         Self::Enabled {
             placeholder,
             deinit: true,
@@ -109,7 +109,7 @@ impl LazyMode {
     /// performance after many items are inited.
     ///
     /// [`lazy`]: Self::lazy
-    pub fn once(placeholder: WidgetGenerator<()>) -> Self {
+    pub fn once(placeholder: WidgetFn<()>) -> Self {
         Self::Enabled {
             placeholder,
             deinit: false,
@@ -120,7 +120,7 @@ impl LazyMode {
     /// Like [`once`], but only considers the height and vertical offset to init.
     ///
     /// [`once`]: Self::once
-    pub fn once_vertical(placeholder: WidgetGenerator<()>) -> Self {
+    pub fn once_vertical(placeholder: WidgetFn<()>) -> Self {
         Self::Enabled {
             placeholder,
             deinit: false,
@@ -131,7 +131,7 @@ impl LazyMode {
     /// Like [`once`], but only considers the width and horizontal offset to init.
     ///
     /// [`once`]: Self::once
-    pub fn once_horizontal(placeholder: WidgetGenerator<()>) -> Self {
+    pub fn once_horizontal(placeholder: WidgetFn<()>) -> Self {
         Self::Enabled {
             placeholder,
             deinit: false,
@@ -195,14 +195,14 @@ impl UiNode for LazyNode {
                     //
                     // This time we have the actual widget content, so the placeholder is upgraded to a full widget.
 
-                    let placeholder = placeholder.generate(()).into_widget();
+                    let placeholder = placeholder.call(()).into_widget();
                     self.children.push(placeholder);
                 }
                 self.children.push(self.not_inited.take().unwrap());
             } else {
                 // only placeholder
 
-                let placeholder = placeholder.generate(());
+                let placeholder = placeholder.call(());
                 let placeholder = crate::core::widget_base::nodes::widget_inner(placeholder).boxed();
 
                 // just placeholder, and as the `widget_inner`, first render may init

@@ -3,14 +3,14 @@ use crate::widgets::flood;
 use super::{commands::ScrollToMode, parts::*, types::*, *};
 
 context_var! {
-    /// Widget generator for creating the vertical scrollbar of an scroll widget.
-    pub static VERTICAL_SCROLLBAR_GEN_VAR: WidgetGenerator<ScrollBarArgs> = default_scrollbar();
+    /// Widget function for creating the vertical scrollbar of an scroll widget.
+    pub static VERTICAL_SCROLLBAR_GEN_VAR: WidgetFn<ScrollBarArgs> = default_scrollbar();
 
-    /// Widget generator for creating the vertical scrollbar of an scroll widget.
-    pub static HORIZONTAL_SCROLLBAR_GEN_VAR: WidgetGenerator<ScrollBarArgs> = default_scrollbar();
+    /// Widget function for creating the vertical scrollbar of an scroll widget.
+    pub static HORIZONTAL_SCROLLBAR_GEN_VAR: WidgetFn<ScrollBarArgs> = default_scrollbar();
 
-    /// Widget generator for the little square that joins the two scrollbars when both are visible.
-    pub static SCROLLBAR_JOINER_GEN_VAR: WidgetGenerator<()> = wgt_gen!(|_| flood(scrollbar::vis::BACKGROUND_VAR));
+    /// Widget function for the little square that joins the two scrollbars when both are visible.
+    pub static SCROLLBAR_JOINER_GEN_VAR: WidgetFn<()> = wgt_fn!(|_| flood(scrollbar::vis::BACKGROUND_VAR));
 
     /// Vertical offset added when the [`SCROLL_DOWN_CMD`] runs and removed when the [`SCROLL_UP_CMD`] runs.
     ///
@@ -81,8 +81,8 @@ context_var! {
     pub static AUTO_HIDE_EXTRA_VAR: SideOffsets = 500.dip().min(100.pct());
 }
 
-fn default_scrollbar() -> WidgetGenerator<ScrollBarArgs> {
-    wgt_gen!(|args: ScrollBarArgs| {
+fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
+    wgt_fn!(|args: ScrollBarArgs| {
         scrollbar! {
             thumb_node = scrollbar::thumb! {
                 viewport_ratio = args.viewport_ratio();
@@ -94,29 +94,29 @@ fn default_scrollbar() -> WidgetGenerator<ScrollBarArgs> {
     })
 }
 
-/// Vertical scrollbar generator for all scroll widget descendants.
+/// Vertical scrollbar function for all scroll widget descendants.
 #[property(CONTEXT, default(VERTICAL_SCROLLBAR_GEN_VAR))]
-pub fn v_scrollbar_gen(child: impl UiNode, generator: impl IntoVar<WidgetGenerator<ScrollBarArgs>>) -> impl UiNode {
-    with_context_var(child, VERTICAL_SCROLLBAR_GEN_VAR, generator)
+pub fn v_scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> impl UiNode {
+    with_context_var(child, VERTICAL_SCROLLBAR_GEN_VAR, wgt_fn)
 }
 
-/// Horizontal scrollbar generator for all scroll widget descendants.
+/// Horizontal scrollbar function for all scroll widget descendants.
 #[property(CONTEXT, default(HORIZONTAL_SCROLLBAR_GEN_VAR))]
-pub fn h_scrollbar_gen(child: impl UiNode, generator: impl IntoVar<WidgetGenerator<ScrollBarArgs>>) -> impl UiNode {
-    with_context_var(child, HORIZONTAL_SCROLLBAR_GEN_VAR, generator)
+pub fn h_scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> impl UiNode {
+    with_context_var(child, HORIZONTAL_SCROLLBAR_GEN_VAR, wgt_fn)
 }
 
-/// Scrollbar generator for both orientations applicable to all scroll widget descendants.
+/// Scrollbar function for both orientations applicable to all scroll widget descendants.
 ///
-/// This property sets both [`v_scrollbar_gen`] and [`h_scrollbar_gen`] to the same `generator`.
+/// This property sets both [`v_scrollbar_fn`] and [`h_scrollbar_fn`] to the same `wgt_fn`.
 ///
-/// [`v_scrollbar_gen`]: fn@v_scrollbar_gen
-/// [`h_scrollbar_gen`]: fn@h_scrollbar_gen
-#[property(CONTEXT, default(WidgetGenerator::nil()))]
-pub fn scrollbar_gen(child: impl UiNode, generator: impl IntoVar<WidgetGenerator<ScrollBarArgs>>) -> impl UiNode {
-    let generator = generator.into_var();
-    let child = v_scrollbar_gen(child, generator.clone());
-    h_scrollbar_gen(child, generator)
+/// [`v_scrollbar_fn`]: fn@v_scrollbar_fn
+/// [`h_scrollbar_fn`]: fn@h_scrollbar_fn
+#[property(CONTEXT, default(WidgetFn::nil()))]
+pub fn scrollbar_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ScrollBarArgs>>) -> impl UiNode {
+    let wgt_fn = wgt_fn.into_var();
+    let child = v_scrollbar_fn(child, wgt_fn.clone());
+    h_scrollbar_fn(child, wgt_fn)
 }
 
 /// Vertical offset added when the [`SCROLL_DOWN_CMD`] runs and removed when the [`SCROLL_UP_CMD`] runs.
@@ -226,7 +226,7 @@ pub fn auto_hide_extra(child: impl UiNode, extra: impl IntoVar<SideOffsets>) -> 
     with_context_var(child, AUTO_HIDE_EXTRA_VAR, extra)
 }
 
-/// Arguments for scrollbar view generators.
+/// Arguments for scrollbar widget functions.
 #[derive(Clone)]
 pub struct ScrollBarArgs {
     /// Scrollbar orientation.

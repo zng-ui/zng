@@ -57,7 +57,7 @@ macro_rules! unique_id_32 {
                 /// # Static
                 ///
                 /// The unique ID cannot be generated at compile time, but you can use the [`new_static`] constructor to
-                /// create a lightweight lazy ID generator that will generate the ID on the first get.
+                /// create a lightweight lazy ID factory that will generate the ID on the first get.
                 ///
                 /// [`new_static`]: Self::new_static
                 $vis struct $Type $(< $T $(:($($bounds)+))? >)?  $(: $ParentId)? ;
@@ -105,7 +105,7 @@ macro_rules! unique_id_64 {
                 /// # Static
                 ///
                 /// The unique ID cannot be generated at compile time, but you can use the [`new_static`] constructor to
-                /// create a lightweight lazy ID generator that will generate the ID on the first get.
+                /// create a lightweight lazy ID factory that will generate the ID on the first get.
                 ///
                 /// [`new_static`]: Self::new_static
                 $vis struct $Type $(< $T $(:($($bounds)+))? >)?  $(: $ParentId)? ;
@@ -336,7 +336,7 @@ pub fn next_id32(next: &'static AtomicU32) -> NonZeroU32 {
         let id = next.fetch_add(1, Ordering::Relaxed);
 
         if id == 0 {
-            tracing::error!("id generator reached `u32::MAX`, will start reusing");
+            tracing::error!("id factory reached `u32::MAX`, will start reusing");
         } else {
             let id = hash32(id);
             if let Some(id) = NonZeroU32::new(id) {
@@ -352,7 +352,7 @@ pub fn next_id64(next: &'static AtomicU64) -> NonZeroU64 {
         let id = next.fetch_add(1, Ordering::Relaxed);
 
         if id == 0 {
-            tracing::error!("id generator reached `u64::MAX`, will start reusing");
+            tracing::error!("id factory reached `u64::MAX`, will start reusing");
         } else {
             // remove the sequential clustering.
             let id = splitmix64(id);

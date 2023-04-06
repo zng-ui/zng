@@ -1,10 +1,10 @@
 use crate::prelude::new_widget::*;
 
 /// A tooltip container.
-/// 
+///
 /// Can be set on the [`tooltip`] property.
-/// 
-/// [`tooltip`]: fn@crate::properties::tooltip;
+///
+/// [`tooltip`]: fn@crate::properties::tooltip
 #[widget($crate::widgets::tip {
     ($child:expr) => {
         child = $child;
@@ -22,7 +22,7 @@ pub mod tip {
 
     properties! {
         /// If the tooltip can be interacted with the mouse.
-        /// 
+        ///
         /// This is disabled by default.
         pub crate::properties::hit_test_mode = false;
 
@@ -30,7 +30,7 @@ pub mod tip {
         ///
         /// Set to [`vis::STYLE_VAR`] by default, setting this property directly completely replaces the tip style,
         /// see [`vis::replace_style`] and [`vis::extend_style`] for other ways of modifying the button style.
-        style_gen = vis::STYLE_VAR;
+        style_fn = vis::STYLE_VAR;
     }
 }
 
@@ -44,7 +44,7 @@ pub mod vis {
         /// Is the [`default_style!`] by default.
         ///
         /// [`default_style!`]: mod@default_style
-        pub static STYLE_VAR: StyleGenerator = StyleGenerator::new(|_| default_style!());
+        pub static STYLE_VAR: StyleFn = StyleFn::new(|_| default_style!());
 
         /// Idle background dark and light color.
         pub static BASE_COLORS_VAR: ColorPair = (rgba(0, 0, 0, 0.8), rgba(255, 255, 255, 0.8));
@@ -58,14 +58,14 @@ pub mod vis {
 
     /// Sets the tip style in a context, the parent style is fully replaced.
     #[property(CONTEXT, default(STYLE_VAR))]
-    pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+    pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
         with_context_var(child, STYLE_VAR, style)
     }
 
     /// Extends the tip style in a context, the parent style is used, properties of the same name set in
     /// `style` override the parent style.
-    #[property(CONTEXT, default(StyleGenerator::nil()))]
-    pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleGenerator>) -> impl UiNode {
+    #[property(CONTEXT, default(StyleFn::nil()))]
+    pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
         style_mixin::with_style_extension(child, STYLE_VAR, style)
     }
 
@@ -104,8 +104,8 @@ pub mod vis {
             };
 
             /// Tip shadow.
-            /// 
-            /// Is 
+            ///
+            /// Is
             pub crate::properties::filters::drop_shadow = {
                 offset: (0, 0),
                 blur_radius: 2,

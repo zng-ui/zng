@@ -57,7 +57,7 @@ fn alt_scope() -> impl UiNode {
     stack! {
         direction = StackDirection::left_to_right();
         alt_focus_scope = true;
-        button::vis::extend_style = style_gen!(|_| style! {
+        button::vis::extend_style = style_fn!(|_| style! {
             border = unset!;
             corner_radius = unset!;
         });

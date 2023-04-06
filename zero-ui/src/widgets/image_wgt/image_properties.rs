@@ -59,11 +59,11 @@ context_var! {
     /// Is `true` by default.
     pub static IMAGE_CACHE_VAR: bool = true;
 
-    /// Widget generator for the content shown when the image does not load.
-    pub static IMAGE_ERROR_GEN_VAR: WidgetGenerator<ImageErrorArgs> = WidgetGenerator::nil();
+    /// Widget function for the content shown when the image does not load.
+    pub static IMAGE_ERROR_GEN_VAR: WidgetFn<ImageErrorArgs> = WidgetFn::nil();
 
-    /// Widget generator for the content shown when the image is still loading.
-    pub static IMAGE_LOADING_GEN_VAR: WidgetGenerator<ImageLoadingArgs> = WidgetGenerator::nil();
+    /// Widget function for the content shown when the image is still loading.
+    pub static IMAGE_LOADING_GEN_VAR: WidgetFn<ImageLoadingArgs> = WidgetFn::nil();
 
     /// Custom image load and decode limits.
     ///
@@ -293,25 +293,25 @@ pub fn is_loaded(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_is_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
 }
 
-/// Sets the [`wgt_gen!`] that is used to create a content for the error message.
+/// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
-/// [`wgt_gen!`]: crate::widgets::wgt_gen
+/// [`wgt_fn!`]: crate::widgets::wgt_fn
 #[property(CONTEXT, default(IMAGE_ERROR_GEN_VAR))]
-pub fn img_error_gen(child: impl UiNode, generator: impl IntoVar<WidgetGenerator<ImageErrorArgs>>) -> impl UiNode {
-    with_context_var(child, IMAGE_ERROR_GEN_VAR, generator)
+pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageErrorArgs>>) -> impl UiNode {
+    with_context_var(child, IMAGE_ERROR_GEN_VAR, wgt_fn)
 }
 
-/// Sets the [`wgt_gen!`] that is used to create a content for the error message.
+/// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
-/// [`wgt_gen!`]: crate::widgets::wgt_gen
+/// [`wgt_fn!`]: crate::widgets::wgt_fn
 #[property(CONTEXT, default(IMAGE_LOADING_GEN_VAR))]
-pub fn img_loading_gen(child: impl UiNode, generator: impl IntoVar<WidgetGenerator<ImageLoadingArgs>>) -> impl UiNode {
-    with_context_var(child, IMAGE_LOADING_GEN_VAR, generator)
+pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageLoadingArgs>>) -> impl UiNode {
+    with_context_var(child, IMAGE_LOADING_GEN_VAR, wgt_fn)
 }
 
-/// Arguments for [`img_loading_gen`].
+/// Arguments for [`img_loading_fn`].
 ///
-/// [`img_loading_gen`]: fn@img_loading_gen
+/// [`img_loading_fn`]: fn@img_loading_fn
 #[derive(Clone, Debug)]
 pub struct ImageLoadingArgs {}
 
@@ -321,10 +321,10 @@ pub struct ImageLoadingArgs {}
 #[derive(Clone, Debug)]
 pub struct ImageLoadArgs {}
 
-/// Arguments for [`on_error`] and [`img_error_gen`].
+/// Arguments for [`on_error`] and [`img_error_fn`].
 ///
 /// [`on_error`]: fn@on_error
-/// [`img_error_gen`]: fn@img_error_gen
+/// [`img_error_fn`]: fn@img_error_fn
 #[derive(Clone, Debug)]
 pub struct ImageErrorArgs {
     /// Error message.

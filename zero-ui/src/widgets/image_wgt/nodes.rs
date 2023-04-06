@@ -148,7 +148,7 @@ context_local! {
 pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
     let mut image_handle: Option<(VarHandle, WidgetId)> = None;
 
-    let view = WidgetGenerator::presenter_map(
+    let view = WidgetFn::presenter_map(
         IMAGE_ERROR_GEN_VAR,
         move |is_new| {
             if is_new {
@@ -168,7 +168,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
                 // avoid recursion.
                 DataUpdate::None
             } else if is_new {
-                // init or generator changed.
+                // init or fn changed.
                 if let Some(e) = CONTEXT_IMAGE_VAR.get().error() {
                     DataUpdate::Update(ImageErrorArgs { error: e })
                 } else {
@@ -205,7 +205,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
 pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
     let mut image_handle = None;
 
-    let view = WidgetGenerator::presenter_map(
+    let view = WidgetFn::presenter_map(
         IMAGE_LOADING_GEN_VAR,
         move |is_new| {
             if is_new {
@@ -225,7 +225,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
                 // avoid recursion.
                 DataUpdate::None
             } else if is_new {
-                // init or generator changed.
+                // init or fn changed.
                 if CONTEXT_IMAGE_VAR.with(Image::is_loading) {
                     DataUpdate::Update(ImageLoadingArgs {})
                 } else {

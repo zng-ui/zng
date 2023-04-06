@@ -8,7 +8,7 @@ pub mod grid {
     use super::*;
 
     #[doc(inline)]
-    pub use super::{cell, column, row, AutoGrowGenArgs, AutoGrowMode};
+    pub use super::{cell, column, row, AutoGrowFnArgs, AutoGrowMode};
 
     inherit!(widget_base::base);
 
@@ -64,13 +64,13 @@ pub mod grid {
         /// [`columns`]: fn@columns
         pub rows(impl UiNodeList);
 
-        /// Widget generator used when new rows or columns are needed to cover a cell placement.
+        /// Widget function used when new rows or columns are needed to cover a cell placement.
         ///
-        /// The generator is used according to the [`auto_grow_mode`]. Note that *imaginary* rows or columns are used if
-        /// the generator is [ `WidgetGenerator::nil` ].
+        /// The function is used according to the [`auto_grow_mode`]. Note that *imaginary* rows or columns are used if
+        /// the function is [ `WidgetFn::nil` ].
         ///
         /// [`auto_grow_mode`]: fn@auto_grow_mode
-        pub auto_grow_gen(impl IntoVar<WidgetGenerator<AutoGrowGenArgs>>);
+        pub auto_grow_fn(impl IntoVar<WidgetFn<AutoGrowFnArgs>>);
 
         /// Maximum inclusive index that can be covered by auto-generated columns or rows. If a cell is outside this index and
         /// is not covered by predefined columns or rows a new one is auto generated for it, but if the cell is also outside this
@@ -92,7 +92,7 @@ pub mod grid {
                 w.capture_ui_node_list_or_empty(property_id!(self::cells)),
                 w.capture_ui_node_list_or_empty(property_id!(self::columns)),
                 w.capture_ui_node_list_or_empty(property_id!(self::rows)),
-                w.capture_var_or_else(property_id!(self::auto_grow_gen), WidgetGenerator::nil),
+                w.capture_var_or_else(property_id!(self::auto_grow_fn), WidgetFn::nil),
                 w.capture_var_or_else(property_id!(self::auto_grow_mode), || AutoGrowMode::Rows(u32::MAX)),
                 w.capture_var_or_default(property_id!(self::spacing)),
             );
@@ -108,7 +108,7 @@ pub mod grid {
         cells: impl UiNodeList,
         columns: impl UiNodeList,
         rows: impl UiNodeList,
-        auto_grow_gen: impl IntoVar<WidgetGenerator<AutoGrowGenArgs>>,
+        auto_grow_fn: impl IntoVar<WidgetFn<AutoGrowFnArgs>>,
         auto_grow_mode: impl IntoVar<AutoGrowMode>,
         spacing: impl IntoVar<GridSpacing>,
     ) -> impl UiNode {
@@ -121,7 +121,7 @@ pub mod grid {
                 PanelList::new(cells).boxed(),
             ],
             spacing: spacing.into_var(),
-            auto_grow_gen: auto_grow_gen.into_var(),
+            auto_grow_fn: auto_grow_fn.into_var(),
             auto_grow_mode: auto_grow_mode.into_var(),
 
             info: Default::default(),
@@ -710,7 +710,7 @@ fn downcast_auto(cols_or_rows: &mut BoxedUiNodeList) -> &mut Vec<BoxedUiNode> {
 #[ui_node(struct GridNode {
     // [[columns, auto_columns], [rows, auto_rows], cells]
     children: Vec<BoxedUiNodeList>,
-    #[var] auto_grow_gen: impl Var<WidgetGenerator<AutoGrowGenArgs>>,
+    #[var] auto_grow_fn: impl Var<WidgetFn<AutoGrowFnArgs>>,
     #[var] auto_grow_mode: impl Var<AutoGrowMode>,
     #[var] spacing: impl Var<GridSpacing>,
 
@@ -767,12 +767,12 @@ impl GridNode {
                     let auto = downcast_auto(&mut self.children[1]);
                     let mut index = rows_len;
 
-                    let view = self.auto_grow_gen.get();
+                    let view = self.auto_grow_fn.get();
                     if view.is_nil() {
                         imaginary_rows = max_needed - rows_len;
                     } else {
                         while index < max_needed {
-                            let mut row = view.generate(AutoGrowGenArgs { mode: auto_mode, index });
+                            let mut row = view.call(AutoGrowFnArgs { mode: auto_mode, index });
                             row.init();
                             auto.push(row);
                             index += 1;
@@ -803,12 +803,12 @@ impl GridNode {
                     let auto = downcast_auto(&mut self.children[0]);
                     let mut index = cols_len;
 
-                    let view = self.auto_grow_gen.get();
+                    let view = self.auto_grow_fn.get();
                     if view.is_nil() {
                         imaginary_cols = max_needed - cols_len;
                     } else {
                         while index < max_needed {
-                            let mut column = view.generate(AutoGrowGenArgs { mode: auto_mode, index });
+                            let mut column = view.call(AutoGrowFnArgs { mode: auto_mode, index });
                             column.init();
                             auto.push(column);
                             index += 1;
@@ -874,7 +874,7 @@ impl GridNode {
         let mut any = false;
         self.children.update_all(updates, &mut any);
 
-        if self.auto_grow_gen.is_new() || self.auto_grow_mode.is_new() {
+        if self.auto_grow_fn.is_new() || self.auto_grow_mode.is_new() {
             for mut auto in downcast_auto(&mut self.children[0]).drain(..) {
                 auto.deinit();
             }
@@ -1484,11 +1484,11 @@ impl GridNode {
     }
 }
 
-/// Arguments for [`grid::auto_grow_gen`].
+/// Arguments for [`grid::auto_grow_fn`].
 ///
-/// [`grid::auto_grow_gen`]: fn@grid::auto_grow_gen.
+/// [`grid::auto_grow_fn`]: fn@grid::auto_grow_fn.
 #[derive(Clone, Debug)]
-pub struct AutoGrowGenArgs {
+pub struct AutoGrowFnArgs {
     /// Auto-grow direction.
     pub mode: AutoGrowMode,
     /// Column index.

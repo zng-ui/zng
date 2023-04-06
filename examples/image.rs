@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::core::task::http;
-use zero_ui::widgets::image::{img_error_gen, img_loading_gen, ImageErrorArgs};
+use zero_ui::widgets::image::{img_error_fn, img_loading_fn, ImageErrorArgs};
 use zero_ui::{
     core::image::{ImageLimits, IMAGES},
     prelude::*,
@@ -49,7 +49,7 @@ fn app_main() {
                             sub_title("File"),
                             grid! {
                                 columns = ui_vec![grid::column!(1.lft()); 4];
-                                auto_grow_gen = wgt_gen!(|_| grid::row!(1.lft()));
+                                auto_grow_fn = wgt_fn!(|_| grid::row!(1.lft()));
                                 spacing = 2;
                                 align = Align::CENTER;
                                 cells= ui_vec![
@@ -265,7 +265,7 @@ fn large_image() -> impl UiNode {
                             tracing::error!(target: "unexpected", "{}", args.error);
                         });
 
-                        img_loading_gen = wgt_gen!(|_| {
+                        img_loading_fn = wgt_fn!(|_| {
                             // thumbnail
                             stack! {
                                 children = ui_vec![
@@ -398,10 +398,10 @@ pub mod img_window {
         color_scheme = ColorScheme::Dark;
 
         // content shown by all images when loading.
-        img_loading_gen = wgt_gen!(|_| loading());
+        img_loading_fn = wgt_fn!(|_| loading());
 
         // content shown by all images that failed to load.
-        img_error_gen = wgt_gen!(|args: ImageErrorArgs| {
+        img_error_fn = wgt_fn!(|args: ImageErrorArgs| {
             center_viewport(text! {
                 txt = args.error;
                 margin = 8;

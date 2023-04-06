@@ -192,7 +192,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::scroll::ScrollMode;
     #[doc(no_inline)]
-    pub use crate::widgets::style::style_gen;
+    pub use crate::widgets::style::style_fn;
     #[doc(no_inline)]
     pub use crate::widgets::window::{AnchorMode, LayerIndex, LAYERS};
 
@@ -267,7 +267,7 @@ pub mod prelude {
             },
         };
         #[doc(no_inline)]
-        pub use crate::widgets::{layouts::stack_nodes, wgt_gen, DataUpdate, WidgetGenerator};
+        pub use crate::widgets::{layouts::stack_nodes, wgt_fn, DataUpdate, WidgetFn};
     }
 
     /// All the types you need to declare a new widget or widget mix-in.
@@ -358,8 +358,8 @@ pub mod prelude {
             layouts::{stack_nodes, stack_nodes_layout_by},
             mixins::style_mixin,
             style,
-            style::{style_gen, StyleGenerator},
-            wgt_gen, DataUpdate, WidgetGenerator,
+            style::{style_fn, StyleFn},
+            wgt_fn, DataUpdate, WidgetFn,
         };
     }
 }

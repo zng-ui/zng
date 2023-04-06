@@ -93,8 +93,8 @@ fn example() -> impl UiNode {
                 id = "easing-menu";
                 spacing = 2;
                 columns = ui_vec![grid::column!(1.lft()); 7];
-                auto_grow_gen = wgt_gen!(|_| grid::row!(1.lft()));
-                button::vis::extend_style = style_gen!(|_| style! {
+                auto_grow_fn = wgt_fn!(|_| grid::row!(1.lft()));
+                button::vis::extend_style = style_fn!(|_| style! {
                     padding = 3;
                 });
                 cells = ui_vec![
@@ -156,7 +156,7 @@ fn ease_btn(
                 text!(name.into()),
                 image! {
                     img_scale_ppi = true;
-                    img_loading_gen = wgt_gen!(|_| wgt! {
+                    img_loading_fn = wgt_fn!(|_| wgt! {
                         size = (64, 64);
                         margin = 10;
                     });
