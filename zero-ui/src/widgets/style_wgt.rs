@@ -26,7 +26,7 @@ pub mod style {
     use super::*;
 
     #[doc(inline)]
-    pub use super::{style_fn, Style, StyleFn};
+    pub use super::{style_fn, Style, StyleFn, StyleArgs};
 
     /// style constructor.
     pub fn build(wgt: WidgetBuilder) -> Style {
@@ -326,9 +326,9 @@ impl StyleFn {
     /// Note that you can call the style function directly:
     ///
     /// ```
-    /// use zero_ui::prelude::*;
+    /// use zero_ui::widgets::style::{StyleFn, StyleArgs};
     ///
-    /// fn foo(func: &StyleFn<bool>) {
+    /// fn foo(func: &StyleFn) {
     ///     let a = func.call(&StyleArgs {});
     ///     let b = func(&StyleArgs {});
     /// }
