@@ -182,7 +182,7 @@ fn anchor_example() -> impl UiNode {
         transform: AnchorTransform::InnerOffset(p.clone()),
         size: AnchorSize::Unbounded,
         visibility: true,
-        interaction: false,
+        interactivity: false,
         corner_radius: false,
     });
 

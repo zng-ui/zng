@@ -103,7 +103,7 @@ impl LAYERS {
 
             anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo)>,
             offset_point: PxPoint,
-            interaction: bool,
+            interactivity: bool,
 
             transform_key: FrameValueKey<PxTransform>,
             corner_radius_ctx_handle: Option<ContextInitHandle>,
@@ -119,7 +119,7 @@ impl LAYERS {
             W: UiNode,
         {
             fn info(&self, info: &mut WidgetInfoBuilder) {
-                if self.interaction {
+                if self.interactivity {
                     if let Some(widget) = self.widget.with_context(|| WIDGET.id()) {
                         let anchor = self.anchor.get();
                         let querying = AtomicBool::new(false);
@@ -149,7 +149,7 @@ impl LAYERS {
                     self.anchor_info = Some((w.bounds_info(), w.border_info()));
                 }
 
-                self.interaction = self.mode.with(|m| m.interaction);
+                self.interactivity = self.mode.with(|m| m.interactivity);
                 self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
 
                 self.widget.init();
@@ -177,14 +177,14 @@ impl LAYERS {
             fn update(&mut self, updates: &WidgetUpdates) {
                 if let Some(anchor) = self.anchor.get_new() {
                     self.anchor_info = WINDOW.widget_tree().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
-                    if self.mode.with(|m| m.interaction) {
+                    if self.mode.with(|m| m.interactivity) {
                         WIDGET.update_info();
                     }
                     WIDGET.layout().render();
                 }
                 if let Some(mode) = self.mode.get_new() {
-                    if mode.interaction != self.interaction {
-                        self.interaction = mode.interaction;
+                    if mode.interactivity != self.interactivity {
+                        self.interactivity = mode.interactivity;
                         WIDGET.update_info();
                     }
                     WIDGET.layout().render();
@@ -403,7 +403,7 @@ impl LAYERS {
 
                 anchor_info: None,
                 offset_point: PxPoint::zero(),
-                interaction: false,
+                interactivity: false,
 
                 transform_key: FrameValueKey::new_unique(),
                 corner_radius_ctx_handle: None,
@@ -667,7 +667,7 @@ pub struct AnchorMode {
     /// The widget [`interactivity`] is set to the the same as the anchor widget.
     ///
     /// [`interactivity`]: crate::core::widget_info::WidgetInfo::interactivity
-    pub interaction: bool,
+    pub interactivity: bool,
 
     /// The widget's corner radius is set for the layer.
     ///
@@ -684,7 +684,7 @@ impl AnchorMode {
             transform: AnchorTransform::None,
             size: AnchorSize::Window,
             visibility: false,
-            interaction: false,
+            interactivity: false,
             corner_radius: false,
         }
     }
@@ -697,7 +697,7 @@ impl AnchorMode {
             transform: AnchorTransform::InnerTransform,
             size: AnchorSize::InnerSize,
             visibility: true,
-            interaction: false,
+            interactivity: false,
             corner_radius: true,
         }
     }
@@ -720,9 +720,9 @@ impl AnchorMode {
         self
     }
 
-    /// Returns the mode with `interaction` set.
-    pub fn with_interaction(mut self, interaction: bool) -> Self {
-        self.interaction = interaction;
+    /// Returns the mode with `interactivity` set.
+    pub fn with_interactivity(mut self, interactivity: bool) -> Self {
+        self.interactivity = interactivity;
         self
     }
 
@@ -739,7 +739,7 @@ impl Default for AnchorMode {
             transform: AnchorTransform::InnerOffset(Point::top_left()),
             size: AnchorSize::Unbounded,
             visibility: true,
-            interaction: false,
+            interactivity: false,
             corner_radius: true,
         }
     }
