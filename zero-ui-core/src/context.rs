@@ -563,7 +563,7 @@ impl WINDOW {
             metrics = metrics.with_constraints(c);
         }
         let size = LAYOUT.with_context(metrics, || {
-            crate::widget_info::WidgetLayout::with_root_widget(0, |wl| content.layout(wl))
+            crate::widget_info::WidgetLayout::with_root_widget(|wl| content.layout(wl))
         });
         (size, UPDATES.apply())
     }
@@ -591,7 +591,7 @@ impl WINDOW {
             .with_constraints(layout_constraints.0)
             .with_inline_constraints(Some(InlineConstraints::Layout(layout_constraints.1)));
         let layout_size = LAYOUT.with_context(metrics, || {
-            crate::widget_info::WidgetLayout::with_root_widget(0, |wl| content.layout(wl))
+            crate::widget_info::WidgetLayout::with_root_widget(|wl| content.layout(wl))
         });
 
         ((measure_size, layout_size), UPDATES.apply())
@@ -1026,6 +1026,7 @@ impl WIDGET {
 
 context_local! {
     static LAYOUT_CTX: LayoutCtx = LayoutCtx::no_context();
+    static LAYOUT_PASS_CTX: LayoutPassId = LayoutPassId::new();
     static METRICS_USED_CTX: Atomic<LayoutMask> = Atomic::new(LayoutMask::empty());
 }
 
@@ -1038,11 +1039,41 @@ impl LayoutCtx {
     }
 }
 
+/// Identifies the layout pass of a window.
+///
+/// This value is different for each window layout, but the same for children of panels that do more then one layout pass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct LayoutPassId(u32);
+impl LayoutPassId {
+    /// New default.
+    pub const fn new() -> Self {
+        LayoutPassId(0)
+    }
+
+    /// Gets the next layout pass ID.
+    pub const fn next(self) -> LayoutPassId {
+        LayoutPassId(self.0.wrapping_add(1))
+    }
+}
+
 /// Current layout context.
 ///
 /// Only available in measure and layout methods.
 pub struct LAYOUT;
 impl LAYOUT {
+    /// Gets the current window layout pass.
+    ///
+    /// Widgets can be layout more then once per window layout pass, you can use this ID to identify such cases.
+    pub fn pass_id(&self) -> LayoutPassId {
+        LAYOUT_PASS_CTX.get_clone()
+    }
+
+    /// Calls `f` in a new layout pass.
+    pub fn with_root_context<R>(&self, pass_id: LayoutPassId, metrics: LayoutMetrics, f: impl FnOnce() -> R) -> R {
+        let mut pass = Some(Arc::new(pass_id));
+        LAYOUT_PASS_CTX.with_context(&mut pass, || self.with_context(metrics, f))
+    }
+
     /// Calls `f` in a new layout context.
     pub fn with_context<R>(&self, metrics: LayoutMetrics, f: impl FnOnce() -> R) -> R {
         let mut ctx = Some(Arc::new(LayoutCtx { metrics }));

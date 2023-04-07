@@ -574,7 +574,8 @@ impl_from_and_into_var! {
 /// Enforce an inline mode on the widget.
 ///
 /// Set to [`InlineMode::Inline`] to use the inline layout and visual even if the widget
-/// is not in an inlining parent.
+/// is not in an inlining parent. Note that the widget will still not inline if it has properties
+/// that disable inlining.
 ///
 /// Set to [`InlineMode::Block`] to ensure the widget layouts as a block item if the parent
 /// is inlining.
@@ -619,6 +620,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                 InlineMode::Allow => self.child.layout(wl),
                 InlineMode::Inline => {
                     if LAYOUT.inline_constraints().is_none() {
+                        WidgetMeasure::new().with_inline_visual(|wm| self.child.measure(wm));
                         wl.with_inline_visual(|wl| self.child.layout(wl))
                     } else {
                         // already enabled by parent

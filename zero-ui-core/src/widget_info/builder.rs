@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use crate::{
     border::BORDER,
-    context::{InlineConstraintsMeasure, StateMapMut, LAYOUT, WIDGET, WINDOW},
+    context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, StateMapMut, LAYOUT, WIDGET, WINDOW},
     text::TextSegmentKind,
 };
 
@@ -736,6 +736,8 @@ impl WidgetMeasure {
     ///
     /// The widget will be inlining even if the parent widget is not inlining, if properties request [`disable_inline`]
     /// these requests are ignored.
+    /// 
+    /// [`disable_inline`]: LAYOUT::disable_inline
     pub fn with_inline_visual(&mut self, measure: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         self.inline_locked = true;
         if self.inline.is_none() {
@@ -755,12 +757,14 @@ impl WidgetMeasure {
         self.inline_locked = false;
 
         let inline = self.inline.clone().unwrap();
+        let bounds = WIDGET.bounds();
         if inline.is_default() && !size.is_empty() {
             // widget did not handle inline
-            WIDGET.bounds().set_measure_inline(None);
+            bounds.set_measure_inline(None);
         } else {
-            WIDGET.bounds().set_measure_inline(Some(inline));
+            bounds.set_measure_inline(Some(inline));
         }
+        bounds.set_measure_outer_size(size);
 
         size
     }
@@ -803,7 +807,6 @@ impl Drop for ParWidgetLayout {
 
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
-    pass_id: LayoutPassId,
     bounds: WidgetBoundsInfo,
     nest_group: LayoutNestGroup,
     inline: Option<WidgetInlineInfo>,
@@ -813,9 +816,8 @@ impl WidgetLayout {
     /// Defines the root widget outer-bounds scope.
     ///
     /// The default window implementation calls this.
-    pub fn with_root_widget(pass_id: LayoutPassId, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
+    pub fn with_root_widget(layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         Self {
-            pass_id,
             bounds: WIDGET.bounds(),
             nest_group: LayoutNestGroup::Inner,
             inline: None,
@@ -843,7 +845,6 @@ impl WidgetLayout {
         );
         ParWidgetLayout {
             wl: Some(WidgetLayout {
-                pass_id: self.pass_id,
                 bounds: self.bounds.clone(),
                 nest_group: LayoutNestGroup::Child,
                 inline: None,
@@ -855,7 +856,6 @@ impl WidgetLayout {
     /// Collect the parallel changes back.
     pub fn finish_par(&mut self, mut par: ParWidgetLayout) {
         let folded = par.wl.take().expect("parallel layout already finished");
-        assert_eq!(self.pass_id, folded.pass_id);
         assert_eq!(self.bounds, folded.bounds);
 
         let count = self.child_count.unwrap_or(0) + folded.child_count.unwrap_or(0);
@@ -942,9 +942,41 @@ impl WidgetLayout {
 
     /// Calls `layout` with inline force enabled on the widget.
     ///
-    /// The widget will be inlining even if the parent widget is not inlining.
+    /// The widget will use the inline visual even if the parent did not inline it, but it will not
+    /// inline if it has properties that disable inlining.
     pub fn with_inline_visual(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
-        layout(self)
+        if self.is_inline() {
+            let size = layout(self);
+            WIDGET.bounds().set_inline(self.inline.clone());
+            size
+        } else {
+            let bounds = WIDGET.bounds();
+            if let Some(measure) = bounds.measure_inline() {
+                let constraints = InlineConstraintsLayout {
+                    first: PxRect::from_size(measure.first),
+                    mid_clear: Px(0),
+                    last: {
+                        let mut r = PxRect::from_size(measure.last);
+                        r.origin.y = bounds.measure_outer_size().height - measure.last.height;
+                        r
+                    },
+                    first_segs: Arc::new(vec![]),
+                    last_segs: Arc::new(vec![]),
+                };
+
+                self.inline = Some(Default::default());
+
+                let metrics = LAYOUT
+                    .metrics()
+                    .with_inline_constraints(Some(InlineConstraints::Layout(constraints)));
+                let size = LAYOUT.with_context(metrics, || layout(self));
+
+                bounds.set_inline(self.inline.clone());
+                size
+            } else {
+                layout(self)
+            }
+        }
     }
 
     /// Defines a widget inner scope, translations inside `layout` target the widget's child offset.
@@ -980,13 +1012,6 @@ impl WidgetLayout {
         let need_ref_frame = self.child_count != Some(1);
         self.child_count = parent_child_count;
         (child_size, need_ref_frame)
-    }
-
-    /// Gets the current window layout pass.
-    ///
-    /// Widgets can be layout more then once per window layout pass, you can use this ID to identify such cases.
-    pub fn pass_id(&self) -> LayoutPassId {
-        self.pass_id
     }
 
     /// Adds the `offset` to the closest *inner* bounds offset.
@@ -1162,8 +1187,3 @@ enum LayoutNestGroup {
     /// Inside `BORDER`.
     Child,
 }
-
-/// Identifies the layout pass of a window.
-///
-/// This value is different for each window layout, but the same for children of panels that do more then one layout pass.
-pub type LayoutPassId = u32;

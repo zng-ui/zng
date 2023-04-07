@@ -1,5 +1,7 @@
 # Layout TODO
 
+* Track widget bounds `LayoutPassId`?
+
 ## Inline Align::FILL
 
 * Support `Justify`, enabled by `Align::FILL`.
@@ -26,8 +28,6 @@
 
 ## Inline
 
-* Fix `inline` property, to force widgets to use inline visual even when not in inline context.
-  - Need a way to enable it in `WidgetMeasure` and `WidgetLayout`.
 * Review properties that disable inline, maybe they can support it with the new API?
   - First `foreground_highlight`, as it is used to draw the keyboard focus indicator in text links.
 

@@ -11,7 +11,7 @@ use crate::{
         view_process::*,
     },
     color::{ColorScheme, RenderColor},
-    context::{LayoutMetrics, WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW},
+    context::{LayoutMetrics, LayoutPassId, WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW},
     crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
     image::{Image, ImageVar, IMAGES},
@@ -20,7 +20,7 @@ use crate::{
     timer::TIMERS,
     units::*,
     var::*,
-    widget_info::{LayoutPassId, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
+    widget_info::{UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
     window::AutoSize,
 };
@@ -1480,7 +1480,7 @@ impl ContentCtrl {
             root: window.child,
 
             used_info_builder: None,
-            layout_pass: 0,
+            layout_pass: LayoutPassId::new(),
 
             used_frame_builder: None,
             used_frame_update: None,
@@ -1662,11 +1662,11 @@ impl ContentCtrl {
             }
         }
 
-        self.layout_pass += 1;
+        self.layout_pass = self.layout_pass.next();
 
         WIDGET.with_context(&self.root_ctx, || {
             let metrics = LayoutMetrics::new(scale_factor, viewport_size, root_font_size).with_screen_ppi(screen_ppi);
-            LAYOUT.with_context(metrics, || {
+            LAYOUT.with_root_context(self.layout_pass, metrics, || {
                 let mut root_cons = LAYOUT.constraints();
                 if !skip_auto_size {
                     if auto_size.contains(AutoSize::CONTENT_WIDTH) {
@@ -1676,9 +1676,7 @@ impl ContentCtrl {
                         root_cons = root_cons.with_unbounded_y();
                     }
                 }
-                let desired_size = LAYOUT.with_constraints(root_cons, || {
-                    WidgetLayout::with_root_widget(self.layout_pass, |wl| self.root.layout(wl))
-                });
+                let desired_size = LAYOUT.with_constraints(root_cons, || WidgetLayout::with_root_widget(|wl| self.root.layout(wl)));
 
                 let mut final_size = viewport_size;
                 if !skip_auto_size {
