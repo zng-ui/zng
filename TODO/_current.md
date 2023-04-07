@@ -7,6 +7,8 @@
         - Cursor on init mode.
         - Define offsets using the stack idea of `place` and `origin` points.
 
+* Finish  `with_inline_visual` and `inline = true`.
+
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?
     - No `UiNodeList::info_all`?

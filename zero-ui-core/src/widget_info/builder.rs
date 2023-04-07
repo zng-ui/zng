@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use crate::{
     border::BORDER,
-    context::{StateMapMut, LAYOUT, WIDGET, WINDOW},
+    context::{InlineConstraintsMeasure, StateMapMut, LAYOUT, WIDGET, WINDOW},
     text::TextSegmentKind,
 };
 
@@ -637,6 +637,7 @@ impl PartialEq for WidgetInlineInfo {
 #[derive(Default)]
 pub struct WidgetMeasure {
     inline: Option<WidgetInlineMeasure>,
+    inline_locked: bool,
 }
 impl WidgetMeasure {
     /// New default.
@@ -672,7 +673,9 @@ impl WidgetMeasure {
     ///
     /// [`is_inline`]: Self::is_inline
     pub(crate) fn disable_inline(&mut self) {
-        self.inline = None;
+        if !self.inline_locked {
+            self.inline = None;
+        }
     }
 
     /// Measure an widget.
@@ -725,6 +728,39 @@ impl WidgetMeasure {
             bounds.set_measure_inline(None);
         }
         self.inline = parent_inline;
+
+        size
+    }
+
+    /// Calls `measure` with inline force enabled on the widget.
+    ///
+    /// The widget will be inlining even if the parent widget is not inlining, if properties request [`disable_inline`]
+    /// these requests are ignored.
+    pub fn with_inline_visual(&mut self, measure: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
+        self.inline_locked = true;
+        if self.inline.is_none() {
+            self.inline = Some(Default::default());
+        }
+        let metrics = LAYOUT.metrics();
+        let size = if metrics.inline_constraints().is_none() {
+            let constraints = crate::context::InlineConstraints::Measure(InlineConstraintsMeasure {
+                first_max: metrics.constraints().x.max_or(Px::MAX),
+                mid_clear_min: Px(0),
+            });
+            let metrics = metrics.with_inline_constraints(Some(constraints));
+            LAYOUT.with_context(metrics, || measure(self))
+        } else {
+            measure(self)
+        };
+        self.inline_locked = false;
+
+        let inline = self.inline.clone().unwrap();
+        if inline.is_default() && !size.is_empty() {
+            // widget did not handle inline
+            WIDGET.bounds().set_measure_inline(None);
+        } else {
+            WIDGET.bounds().set_measure_inline(Some(inline));
+        }
 
         size
     }
@@ -902,6 +938,13 @@ impl WidgetLayout {
         self.nest_group = LayoutNestGroup::Child;
 
         size
+    }
+
+    /// Calls `layout` with inline force enabled on the widget.
+    ///
+    /// The widget will be inlining even if the parent widget is not inlining.
+    pub fn with_inline_visual(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
+        layout(self)
     }
 
     /// Defines a widget inner scope, translations inside `layout` target the widget's child offset.

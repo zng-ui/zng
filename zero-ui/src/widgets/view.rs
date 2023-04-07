@@ -3,7 +3,7 @@ use std::{fmt, ops, sync::Arc};
 
 use zero_ui_core::widget_instance::{BoxedUiNode, NilUiNode};
 
-use crate::{prelude::new_widget::*, core::widget_instance::ArcNode};
+use crate::{core::widget_instance::ArcNode, prelude::new_widget::*};
 
 /// [`view`] update.
 pub enum View<U: UiNode> {
@@ -353,7 +353,7 @@ impl<D> WidgetFn<D> {
     }
 
     /// New widget function that returns the same `widget` for every call.
-    /// 
+    ///
     /// The `widget` is wrapped in an [`ArcNode`] and every function call returns an [`ArcNode::take_on_init`] node.
     pub fn singleton(widget: impl UiNode) -> Self {
         let widget = ArcNode::new(widget);

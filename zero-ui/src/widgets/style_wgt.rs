@@ -26,7 +26,7 @@ pub mod style {
     use super::*;
 
     #[doc(inline)]
-    pub use super::{style_fn, Style, StyleFn, StyleArgs};
+    pub use super::{style_fn, Style, StyleArgs, StyleFn};
 
     /// style constructor.
     pub fn build(wgt: WidgetBuilder) -> Style {

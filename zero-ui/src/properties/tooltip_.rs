@@ -11,7 +11,7 @@ use crate::prelude::{new_property::*, *};
 pub struct TooltipArgs {}
 
 /// Widget tooltip.
-/// 
+///
 /// Any other widget can be used as tooltip, the recommended widget is the [`tip!`] container, it provides the tooltip style.
 ///
 /// [`tip!`]: mod@crate::widgets::tip

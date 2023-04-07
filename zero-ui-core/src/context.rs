@@ -1157,7 +1157,7 @@ impl LAYOUT {
     pub fn measure_inline(&self, first_max: Px, mid_clear_min: Px, child: &impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let constraints = InlineConstraints::Measure(InlineConstraintsMeasure { first_max, mid_clear_min });
         let metrics = self.metrics().with_inline_constraints(Some(constraints));
-        let size = self.with_context(metrics, || child.measure(&mut WidgetMeasure::new()));
+        let size = self.with_context(metrics, || child.measure(&mut WidgetMeasure::new_inline()));
         let inline = child.with_context(|| WIDGET.bounds().measure_inline()).flatten();
         (inline, size)
     }
