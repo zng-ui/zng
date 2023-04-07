@@ -736,7 +736,7 @@ impl WidgetMeasure {
     ///
     /// The widget will be inlining even if the parent widget is not inlining, if properties request [`disable_inline`]
     /// these requests are ignored.
-    /// 
+    ///
     /// [`disable_inline`]: LAYOUT::disable_inline
     pub fn with_inline_visual(&mut self, measure: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         self.inline_locked = true;

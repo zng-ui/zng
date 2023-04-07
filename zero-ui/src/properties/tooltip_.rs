@@ -108,7 +108,7 @@ fn open_tooltip(func: WidgetFn<TooltipArgs>) -> WidgetId {
     let id = tooltip.with_context(|| WIDGET.id()).unwrap();
 
     let mode = AnchorMode {
-        transform: window::AnchorTransform::InnerOffset(Point::bottom_left()),
+        transform: window::AnchorOffset::out_bottom_in_left().into(),
         size: window::AnchorSize::Unbounded,
         visibility: true,
         interactivity: false,

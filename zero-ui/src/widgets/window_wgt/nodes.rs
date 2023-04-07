@@ -102,7 +102,7 @@ impl LAYERS {
             info_changed_handle: Option<EventHandle>,
 
             anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo)>,
-            offset_point: PxPoint,
+            offset: (PxPoint, PxPoint), // place, origin (place is relative)
             interactivity: bool,
 
             transform_key: FrameValueKey<PxTransform>,
@@ -219,20 +219,7 @@ impl LAYERS {
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
                         // if we don't link visibility or anchor is not collapsed.
 
-                        self.offset_point = match &mode.transform {
-                            AnchorTransform::InnerOffset(p) => {
-                                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.inner_size()), || p.layout())
-                            }
-                            AnchorTransform::InnerBorderOffset(p) => {
-                                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(border.inner_size(bounds)), || p.layout())
-                            }
-                            AnchorTransform::OuterOffset(p) => {
-                                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.outer_size()), || p.layout())
-                            }
-                            _ => PxPoint::zero(),
-                        };
-
-                        return LAYOUT.with_constraints(
+                        let layer_size = LAYOUT.with_constraints(
                             match mode.size {
                                 AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
                                 AnchorSize::Window => LAYOUT.constraints(),
@@ -256,6 +243,32 @@ impl LAYERS {
                                 }
                             },
                         );
+
+                        match &mode.transform {
+                            AnchorTransform::InnerOffset(p) => {
+                                let place =
+                                    LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.inner_size()), || p.place.layout());
+                                let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
+                                self.offset = (place, origin);
+                            }
+                            AnchorTransform::InnerBorderOffset(p) => {
+                                let place = LAYOUT
+                                    .with_constraints(PxConstraints2d::new_exact_size(border.inner_size(bounds)), || p.place.layout());
+                                let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
+                                self.offset = (place, origin);
+                            }
+                            AnchorTransform::OuterOffset(p) => {
+                                let place =
+                                    LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.outer_size()), || p.place.layout());
+                                let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
+                                self.offset = (place, origin);
+                            }
+                            _ => {
+                                self.offset = (PxPoint::zero(), PxPoint::zero());
+                            }
+                        }
+
+                        return layer_size;
                     }
                 }
 
@@ -270,34 +283,39 @@ impl LAYERS {
                     if !mode.visibility || bounds_info.rendered().is_some() {
                         match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
-                                let point_in_window = bounds_info.inner_transform().transform_point(self.offset_point).unwrap_or_default();
+                                let place_in_window = bounds_info.inner_transform().transform_point(self.offset.0).unwrap_or_default();
+                                let offset = place_in_window - self.offset.0;
 
                                 frame.push_reference_frame(
                                     self.transform_key.into(),
-                                    self.transform_key.bind(PxTransform::from(point_in_window.to_vector()), true),
+                                    self.transform_key.bind(PxTransform::from(offset), true),
                                     true,
                                     false,
                                     |frame| self.widget.render(frame),
                                 )
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
-                                let point_in_window = border_info
+                                let place_in_window = border_info
                                     .inner_transform(bounds_info)
-                                    .transform_point(self.offset_point)
+                                    .transform_point(self.offset.0)
                                     .unwrap_or_default();
+                                let offset = place_in_window - self.offset.0;
+
                                 frame.push_reference_frame(
                                     self.transform_key.into(),
-                                    self.transform_key.bind(PxTransform::from(point_in_window.to_vector()), true),
+                                    self.transform_key.bind(PxTransform::from(offset), true),
                                     true,
                                     false,
                                     |frame| self.widget.render(frame),
                                 )
                             }
                             AnchorTransform::OuterOffset(_) => {
-                                let point_in_window = bounds_info.outer_transform().transform_point(self.offset_point).unwrap_or_default();
+                                let place_in_window = bounds_info.outer_transform().transform_point(self.offset.0).unwrap_or_default();
+                                let offset = place_in_window - self.offset.0;
+
                                 frame.push_reference_frame(
                                     self.transform_key.into(),
-                                    self.transform_key.bind(PxTransform::from(point_in_window.to_vector()), true),
+                                    self.transform_key.bind(PxTransform::from(offset), true),
                                     true,
                                     false,
                                     |frame| self.widget.render(frame),
@@ -336,31 +354,28 @@ impl LAYERS {
                     if !mode.visibility || bounds_info.rendered().is_some() {
                         match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
-                                let point_in_window = bounds_info.inner_transform().transform_point(self.offset_point).unwrap_or_default();
-                                update.with_transform(
-                                    self.transform_key.update(PxTransform::from(point_in_window.to_vector()), true),
-                                    false,
-                                    |update| self.widget.render_update(update),
-                                )
+                                let place_in_window = bounds_info.inner_transform().transform_point(self.offset.0).unwrap_or_default();
+                                let offset = place_in_window - self.offset.0;
+                                update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
+                                    self.widget.render_update(update)
+                                })
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
-                                let point_in_window = border_info
+                                let place_in_window = border_info
                                     .inner_transform(bounds_info)
-                                    .transform_point(self.offset_point)
+                                    .transform_point(self.offset.0)
                                     .unwrap_or_default();
-                                update.with_transform(
-                                    self.transform_key.update(PxTransform::from(point_in_window.to_vector()), true),
-                                    false,
-                                    |update| self.widget.render_update(update),
-                                )
+                                let offset = place_in_window - self.offset.0;
+                                update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
+                                    self.widget.render_update(update)
+                                })
                             }
                             AnchorTransform::OuterOffset(_) => {
-                                let point_in_window = bounds_info.outer_transform().transform_point(self.offset_point).unwrap_or_default();
-                                update.with_transform(
-                                    self.transform_key.update(PxTransform::from(point_in_window.to_vector()), true),
-                                    false,
-                                    |update| self.widget.render_update(update),
-                                )
+                                let place_in_window = bounds_info.outer_transform().transform_point(self.offset.0).unwrap_or_default();
+                                let offset = place_in_window - self.offset.0;
+                                update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
+                                    self.widget.render_update(update)
+                                })
                             }
                             AnchorTransform::InnerTransform => {
                                 update.with_transform(self.transform_key.update(bounds_info.inner_transform(), true), false, |update| {
@@ -402,7 +417,7 @@ impl LAYERS {
                 info_changed_handle: None,
 
                 anchor_info: None,
-                offset_point: PxPoint::zero(),
+                offset: (PxPoint::zero(), PxPoint::zero()),
                 interactivity: false,
 
                 transform_key: FrameValueKey::new_unique(),
@@ -588,21 +603,237 @@ impl ops::DivAssign<Factor> for LayerIndex {
     }
 }
 
+/// Represents two points that position a layer widget with its anchor widget.
+///
+/// The `place` point is layout in the anchor widget bounds, the `origin` point is layout in the layer widget bounds,
+/// the layer widget is offset so that the `origin` point aligns with the `place` point.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnchorOffset {
+    /// Point in the anchor widget.
+    pub place: Point,
+    /// Point in the layer widget.
+    pub origin: Point,
+}
+impl AnchorOffset {
+    /// New place and origin points from same `point`.
+    pub fn new(point: Point) -> Self {
+        Self {
+            place: point.clone(),
+            origin: point,
+        }
+    }
+
+    /// Layer widget is horizontally centered on the anchor widget and the top edge aligns.
+    pub fn in_top() -> Self {
+        Self::new(Point::top())
+    }
+
+    /// Layer widget is horizontally centered on the anchor widget and the bottom edge aligns.
+    pub fn in_bottom() -> Self {
+        Self::new(Point::bottom())
+    }
+
+    /// Layer widget is vertically centered on the anchor widget and the left edge aligns.
+    pub fn in_left() -> Self {
+        Self::new(Point::left())
+    }
+
+    /// Layer widget is vertically centered on the anchor widget and the right edge aligns.
+    pub fn in_right() -> Self {
+        Self::new(Point::right())
+    }
+
+    /// Layer widget top-left corner aligns with the anchor widget top-left corner.
+    pub fn in_top_left() -> Self {
+        Self::new(Point::top_left())
+    }
+
+    /// Layer widget top-right corner aligns with the anchor widget top-right corner.
+    pub fn in_top_right() -> Self {
+        Self::new(Point::top_right())
+    }
+
+    /// Layer widget bottom-left corner aligns with the anchor widget bottom-left corner.
+    pub fn in_bottom_left() -> Self {
+        Self::new(Point::bottom_left())
+    }
+
+    /// Layer widget bottom-right corner aligns with the anchor widget bottom-right corner.
+    pub fn in_bottom_right() -> Self {
+        Self::new(Point::bottom_right())
+    }
+
+    /// Layer widget is centered on the anchor widget.
+    pub fn center() -> Self {
+        Self::new(Point::center())
+    }
+
+    /// Layer widget is horizontally centered on the anchor widget and its bottom edge aligns with the anchors top edge.
+    pub fn out_top() -> Self {
+        Self {
+            place: Point::top(),
+            origin: Point::bottom(),
+        }
+    }
+
+    /// Layer widget is horizontally centered on the anchor widget and its top edge aligns with the anchors bottom edge.
+    pub fn out_bottom() -> Self {
+        Self {
+            place: Point::bottom(),
+            origin: Point::top(),
+        }
+    }
+
+    /// Layer widget is vertically centered on the anchor widget and its right edge aligns with the anchors left edge.
+    pub fn out_left() -> Self {
+        Self {
+            place: Point::left(),
+            origin: Point::right(),
+        }
+    }
+
+    /// Layer widget is vertically centered on the anchor widget and its left edge aligns with the anchors right edge.
+    pub fn out_right() -> Self {
+        Self {
+            place: Point::right(),
+            origin: Point::left(),
+        }
+    }
+
+    /// Layer widget bottom-right corner aligns with anchor widget top-left corner.
+    pub fn out_top_left() -> Self {
+        Self {
+            place: Point::top_left(),
+            origin: Point::bottom_right(),
+        }
+    }
+
+    /// Layer widget bottom-left corner aligns with anchor widget top-right corner.
+    pub fn out_top_right() -> Self {
+        Self {
+            place: Point::top_right(),
+            origin: Point::bottom_left(),
+        }
+    }
+
+    /// Layer widget top-right corner aligns with anchor widget bottom-left corner.
+    pub fn out_bottom_left() -> Self {
+        Self {
+            place: Point::bottom_left(),
+            origin: Point::top_right(),
+        }
+    }
+
+    /// Layer widget bottom-right corner aligns with anchor widget top-left corner.
+    pub fn out_bottom_right() -> Self {
+        Self {
+            place: Point::bottom_right(),
+            origin: Point::top_left(),
+        }
+    }
+
+    /// Layer widget bottom-left corner aligns with anchor widget top-left corner.
+    pub fn out_top_in_left() -> Self {
+        Self {
+            place: Point::top_left(),
+            origin: Point::bottom_left(),
+        }
+    }
+
+    /// Layer widget bottom-right corner aligns with anchor widget top-right corner.
+    pub fn out_top_in_right() -> Self {
+        Self {
+            place: Point::top_right(),
+            origin: Point::bottom_right(),
+        }
+    }
+
+    /// Layer widget top-left corner aligns with anchor widget bottom-left corner.
+    pub fn out_bottom_in_left() -> Self {
+        Self {
+            place: Point::bottom_left(),
+            origin: Point::top_left(),
+        }
+    }
+
+    /// Layer widget top-right corner aligns with anchor widget bottom-right corner.
+    pub fn out_bottom_in_right() -> Self {
+        Self {
+            place: Point::bottom_right(),
+            origin: Point::top_right(),
+        }
+    }
+
+    /// Layer widget top-right corner aligns with anchor widget top-left corner.
+    pub fn out_left_in_top() -> Self {
+        Self {
+            place: Point::top_left(),
+            origin: Point::top_right(),
+        }
+    }
+
+    /// Layer widget bottom-right corner aligns with anchor widget bottom-left corner.
+    pub fn out_left_in_bottom() -> Self {
+        Self {
+            place: Point::bottom_left(),
+            origin: Point::bottom_right(),
+        }
+    }
+
+    /// Layer widget top-left corner aligns with anchor widget top-right corner.
+    pub fn out_right_in_top() -> Self {
+        Self {
+            place: Point::top_right(),
+            origin: Point::top_left(),
+        }
+    }
+
+    /// Layer widget bottom-left corner aligns with anchor widget bottom-right corner.
+    pub fn out_right_in_bottom() -> Self {
+        Self {
+            place: Point::bottom_right(),
+            origin: Point::bottom_left(),
+        }
+    }
+}
+impl_from_and_into_var! {
+     /// `(place, origin)`.
+     fn from<P: Into<Point>, O: Into<Point>>(place_origin: (P, O)) -> AnchorOffset {
+        AnchorOffset {
+            place: place_origin.0.into(),
+            origin: place_origin.1.into(),
+        }
+    }
+}
+impl animation::Transitionable for AnchorOffset {
+    fn lerp(self, to: &Self, step: super::EasingStep) -> Self {
+        Self {
+            place: self.place.lerp(&to.place, step),
+            origin: self.origin.lerp(&to.place, step),
+        }
+    }
+
+    fn chase(&mut self, increment: Self) {
+        self.place.chase(increment.place);
+        self.origin.chase(increment.origin);
+    }
+}
+
 /// Options for [`AnchorMode::transform`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnchorTransform {
     /// Widget does not copy any position from the anchor widget.
     None,
-    /// The point is resolved in the inner space of the anchor widget, transformed to the window space
-    /// and then applied as a translate offset.
-    InnerOffset(Point),
-    /// The point is resolved in the inner space of the anchor widget offset by the anchor border widths, transformed
-    /// to the window space and then applied as a translate offset.
-    InnerBorderOffset(Point),
+    /// The layer widget is translated so that a point in the layer widget outer-bounds aligns with a point
+    /// in the anchor widget inner-bounds.
+    InnerOffset(AnchorOffset),
+    /// The layer widget is translated so that a point in the layer widget outer-bounds aligns with a point
+    /// in the anchor widget fill area (inside the border offset).
+    InnerBorderOffset(AnchorOffset),
 
-    /// The point is resolved in the outer space of the anchor widget, transformed to the window space
-    /// and then applied as a translate offset.
-    OuterOffset(Point),
+    /// The layer widget is translated so that a point in the layer widget outer-bounds aligns with a point
+    /// in the anchor widget outer-bounds.
+    OuterOffset(AnchorOffset),
 
     /// The full inner transform of the anchor object is applied to the widget.
     InnerTransform,
@@ -615,20 +846,12 @@ pub enum AnchorTransform {
 }
 impl_from_and_into_var! {
     /// `InnerOffset`.
-    fn from(inner_offset: Point) -> AnchorTransform {
+    fn from(inner_offset: AnchorOffset) -> AnchorTransform {
         AnchorTransform::InnerOffset(inner_offset)
     }
     /// `InnerOffset`.
-    fn from<X: Into<Length>, Y: Into<Length>>(inner_offset: (X, Y)) -> AnchorTransform {
-        Point::from(inner_offset).into()
-    }
-    /// `InnerOffset`.
-    fn from(inner_offset: PxPoint) -> AnchorTransform {
-        Point::from(inner_offset).into()
-    }
-    /// `InnerOffset`.
-    fn from(inner_offset: DipPoint) -> AnchorTransform {
-        Point::from(inner_offset).into()
+    fn from<P: Into<Point>, O: Into<Point>>(inner_offset: (P, O)) -> AnchorTransform {
+        AnchorOffset::from(inner_offset).into()
     }
 }
 
@@ -736,7 +959,7 @@ impl Default for AnchorMode {
     /// Transform `InnerOffset` top-left, size infinite, copy visibility and corner-radius.
     fn default() -> Self {
         AnchorMode {
-            transform: AnchorTransform::InnerOffset(Point::top_left()),
+            transform: AnchorTransform::InnerOffset(AnchorOffset::in_top_left()),
             size: AnchorSize::Unbounded,
             visibility: true,
             interactivity: false,
@@ -753,15 +976,7 @@ impl_from_and_into_var! {
         }
     }
     /// Transform `InnerOffset`, all else default.
-    fn from(inner_offset: Point) -> AnchorMode {
-        AnchorTransform::from(inner_offset).into()
-    }
-    /// Transform `InnerOffset`, all else default.
-    fn from(inner_offset: PxPoint) -> AnchorMode {
-        AnchorTransform::from(inner_offset).into()
-    }
-    /// Transform `InnerOffset`, all else default.
-    fn from(inner_offset: DipPoint) -> AnchorMode {
+    fn from(inner_offset: AnchorOffset) -> AnchorMode {
         AnchorTransform::from(inner_offset).into()
     }
 

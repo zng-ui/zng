@@ -1,3 +1,6 @@
+* Test new layer offset.
+    - Refactor example to use it?
+
 * Implement tooltip.
     - Initial show delay.
     - Show duration.
@@ -6,6 +9,8 @@
         - Follow cursor mode.
         - Cursor on init mode.
         - Define offsets using the stack idea of `place` and `origin` points.
+
+* Review `Transitionable::chase`, not needed anymore?
 
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?
