@@ -5,7 +5,7 @@ use zero_ui::{
         mouse::{on_mouse_enter, on_mouse_leave},
         widget::on_pre_init,
     },
-    widgets::window::{AnchorMode, AnchorSize, AnchorTransform, LayerIndex, LAYERS},
+    widgets::window::{AnchorMode, AnchorSize, LayerIndex, LAYERS},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -164,32 +164,30 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
 }
 
 fn anchor_example() -> impl UiNode {
-    let points = [
-        Point::top_left(),
-        Point::top(),
-        Point::top_right(),
-        Point::right(),
-        Point::bottom_right(),
-        Point::bottom(),
-        Point::bottom_left(),
-        Point::left(),
+    let offsets = [
+        AnchorOffset::out_top_left(),
+        AnchorOffset::out_top(),
+        AnchorOffset::out_top_right(),
+        AnchorOffset::out_right(),
+        AnchorOffset::out_bottom_right(),
+        AnchorOffset::out_bottom(),
+        AnchorOffset::out_bottom_left(),
+        AnchorOffset::out_left(),
     ];
-    let points_len = points.len();
-    let point_index = var(0);
-    let point = point_index.map(move |&i| points[i].clone());
-
-    let anchor_mode = point.map(move |p| AnchorMode {
-        transform: AnchorTransform::InnerOffset(p.clone()),
+    let len = offsets.len();
+    let idx = var(0);
+    let anchor_mode = idx.map(move |&i| AnchorMode {
+        transform: offsets[i].clone().into(),
         size: AnchorSize::Unbounded,
         visibility: true,
         interactivity: false,
         corner_radius: false,
     });
 
-    let next_point = hn!(|_| {
-        point_index.modify(move |i| {
+    let next_offset = hn!(|_| {
+        idx.modify(move |i| {
             let next = **i + 1;
-            *i.to_mut() = if next == points_len { 0 } else { next };
+            *i.to_mut() = if next == len { 0 } else { next };
         })
     });
 
@@ -209,7 +207,6 @@ fn anchor_example() -> impl UiNode {
                 font_weight = FontWeight::BOLD;
                 background_color = colors::DARK_GREEN.with_alpha(80.pct());
                 border = 1, colors::GREEN.darken(20.pct());
-                offset = point.map(|p|p.clone().as_vector() - Vector::splat(100.pct()));
                 margin = 2;
                 hit_test_mode = HitTestMode::Disabled;
             })
@@ -218,7 +215,7 @@ fn anchor_example() -> impl UiNode {
             LAYERS.remove("anchored");
         });
 
-        on_click = next_point;
+        on_click = next_offset;
     }
 }
 

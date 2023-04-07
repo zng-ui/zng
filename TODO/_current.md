@@ -1,6 +1,3 @@
-* Test new layer offset.
-    - Refactor example to use it?
-
 * Implement tooltip.
     - Initial show delay.
     - Show duration.

@@ -144,6 +144,8 @@ impl LAYERS {
             }
 
             fn init(&mut self) {
+                WIDGET.sub_var(&self.anchor).sub_var(&self.mode);
+
                 let tree = WINDOW.widget_tree();
                 if let Some(w) = tree.get(self.anchor.get()) {
                     self.anchor_info = Some((w.bounds_info(), w.border_info()));
@@ -244,28 +246,30 @@ impl LAYERS {
                             },
                         );
 
-                        match &mode.transform {
+                        let offset = match &mode.transform {
                             AnchorTransform::InnerOffset(p) => {
                                 let place =
                                     LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.inner_size()), || p.place.layout());
                                 let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
-                                self.offset = (place, origin);
+                                (place, origin)
                             }
                             AnchorTransform::InnerBorderOffset(p) => {
                                 let place = LAYOUT
                                     .with_constraints(PxConstraints2d::new_exact_size(border.inner_size(bounds)), || p.place.layout());
                                 let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
-                                self.offset = (place, origin);
+                                (place, origin)
                             }
                             AnchorTransform::OuterOffset(p) => {
                                 let place =
                                     LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.outer_size()), || p.place.layout());
                                 let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
-                                self.offset = (place, origin);
+                                (place, origin)
                             }
-                            _ => {
-                                self.offset = (PxPoint::zero(), PxPoint::zero());
-                            }
+                            _ => (PxPoint::zero(), PxPoint::zero()),
+                        };
+                        if self.offset != offset {
+                            self.offset = offset;
+                            WIDGET.render_update();
                         }
 
                         return layer_size;
@@ -284,7 +288,7 @@ impl LAYERS {
                         match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
                                 let place_in_window = bounds_info.inner_transform().transform_point(self.offset.0).unwrap_or_default();
-                                let offset = place_in_window - self.offset.0;
+                                let offset = place_in_window - self.offset.1;
 
                                 frame.push_reference_frame(
                                     self.transform_key.into(),
@@ -299,7 +303,7 @@ impl LAYERS {
                                     .inner_transform(bounds_info)
                                     .transform_point(self.offset.0)
                                     .unwrap_or_default();
-                                let offset = place_in_window - self.offset.0;
+                                let offset = place_in_window - self.offset.1;
 
                                 frame.push_reference_frame(
                                     self.transform_key.into(),
@@ -311,7 +315,7 @@ impl LAYERS {
                             }
                             AnchorTransform::OuterOffset(_) => {
                                 let place_in_window = bounds_info.outer_transform().transform_point(self.offset.0).unwrap_or_default();
-                                let offset = place_in_window - self.offset.0;
+                                let offset = place_in_window - self.offset.1;
 
                                 frame.push_reference_frame(
                                     self.transform_key.into(),
@@ -355,7 +359,7 @@ impl LAYERS {
                         match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
                                 let place_in_window = bounds_info.inner_transform().transform_point(self.offset.0).unwrap_or_default();
-                                let offset = place_in_window - self.offset.0;
+                                let offset = place_in_window - self.offset.1;
                                 update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
                                     self.widget.render_update(update)
                                 })
@@ -365,14 +369,14 @@ impl LAYERS {
                                     .inner_transform(bounds_info)
                                     .transform_point(self.offset.0)
                                     .unwrap_or_default();
-                                let offset = place_in_window - self.offset.0;
+                                let offset = place_in_window - self.offset.1;
                                 update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
                                     self.widget.render_update(update)
                                 })
                             }
                             AnchorTransform::OuterOffset(_) => {
                                 let place_in_window = bounds_info.outer_transform().transform_point(self.offset.0).unwrap_or_default();
-                                let offset = place_in_window - self.offset.0;
+                                let offset = place_in_window - self.offset.1;
                                 update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
                                     self.widget.render_update(update)
                                 })
