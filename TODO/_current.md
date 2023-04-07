@@ -5,7 +5,6 @@
     - Improve layer anchor position.
         - Follow cursor mode.
         - Cursor on init mode.
-        - Define offsets using the stack idea of `place` and `origin` points.
 
 * Review `Transitionable::chase`, not needed anymore?
 
