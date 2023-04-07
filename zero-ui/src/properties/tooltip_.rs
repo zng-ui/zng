@@ -89,8 +89,19 @@ pub fn tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) 
 }
 
 fn open_tooltip(func: WidgetFn<TooltipArgs>) -> WidgetId {
+    let mut child = func(TooltipArgs {}).boxed();
+
+    if !child.is_widget() {
+        let node = widget_base::nodes::widget_inner(child);
+
+        // set hit test mode so that it's only hit-testable if the child is hit-testable
+        let node = hit_test_mode(node, HitTestMode::Visual);
+
+        child = widget_base::nodes::widget(node, WidgetId::new_unique()).boxed();
+    }
+
     let tooltip = TooltipLayerNode {
-        child: func(TooltipArgs {}).into_widget(),
+        child,
         anchor_id: WIDGET.id(),
     };
 
