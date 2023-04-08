@@ -284,7 +284,12 @@ impl LAYERS {
                                     .get()
                                     .and_then(|(w_id, pos)| if w_id == WINDOW.id() { Some(pos) } else { None })
                                 {
-                                    let place = pos.to_px(LAYOUT.scale_factor().0); // !!: TODO cursor icon size?
+                                    let fct = LAYOUT.scale_factor().0;
+                                    let cursor_size = PxSize::splat(Dip::new(22).to_px(fct));
+                                    let place = pos.to_px(fct)
+                                        + LAYOUT
+                                            .with_constraints(PxConstraints2d::new_exact_size(cursor_size), || p.place.layout())
+                                            .to_vector();
                                     let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
 
                                     let offset = (place, origin);

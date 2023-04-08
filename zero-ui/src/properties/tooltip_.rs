@@ -16,7 +16,7 @@ context_var! {
     pub static TOOLTIP_TRANSFORM_VAR: AnchorTransform = AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left());
 
     /// Duration the cursor must be over the anchor widget before the tip widget is opened.
-    pub static TOOLTIP_DELAY_VAR: Duration = 100.ms();
+    pub static TOOLTIP_DELAY_VAR: Duration = 500.ms();
 
     /// Maximum duration from the last time a tooltip was shown that a new tooltip opens instantly.
     pub static TOOLTIP_INTERVAL_VAR: Duration = 100.ms();
@@ -32,7 +32,7 @@ app_local! {
     /// to integrate with the [`tooltip`] implementation.
     ///
     /// [`tooltip`]: fn@tooltip
-    pub static TOOLTIP_LAST_CLOSED: Instant = Instant::now();
+    pub static TOOLTIP_LAST_CLOSED: Instant = Instant::now() - 1.hours();
 }
 
 /// Set the position of the tip widgets opened for the widget or its descendants.

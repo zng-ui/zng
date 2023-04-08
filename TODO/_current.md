@@ -1,5 +1,3 @@
-* Layer anchor cursor.
-    - Cursor size.
 * Layer "keep visible".
     - Adjust offset of layers to remain inside the viewport.
     - this is important for tooltips.
