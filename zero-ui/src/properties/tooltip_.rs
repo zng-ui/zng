@@ -22,7 +22,7 @@ context_var! {
     pub static TOOLTIP_INTERVAL_VAR: Duration = 100.ms();
 
     /// Maximum time a tooltip stays open.
-    pub static TOOLTIP_DURATION_VAR: Duration = 1.secs();
+    pub static TOOLTIP_DURATION_VAR: Duration = 5.secs();
 }
 
 app_local! {
@@ -179,7 +179,8 @@ enum TooltipState {
     #[default]
     Closed,
     Delay(DeadlineVar),
-    Open(WidgetId),
+    /// Tip layer ID and duration deadline.
+    Open(WidgetId, Option<DeadlineVar>),
 }
 
 #[ui_node(struct TooltipNode {
@@ -196,7 +197,7 @@ impl UiNode for TooltipNode {
 
     fn deinit(&mut self) {
         self.child.deinit();
-        if let TooltipState::Open(id) = mem::take(&mut self.state) {
+        if let TooltipState::Open(id, _) = mem::take(&mut self.state) {
             LAYERS.remove(id);
             TOOLTIP_LAST_CLOSED.set(Instant::now());
         }
@@ -206,14 +207,14 @@ impl UiNode for TooltipNode {
         self.child.event(update);
 
         if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-            if let TooltipState::Open(t) = &self.state {
+            if let TooltipState::Open(t, _) = &self.state {
                 if !WINDOW.widget_tree().contains(*t) {
                     // already closed (from the layer probably)
                     self.state = TooltipState::Closed;
                 }
             }
             match &self.state {
-                TooltipState::Open(tooltip_id) => {
+                TooltipState::Open(tooltip_id, _) => {
                     if !args
                         .target
                         .as_ref()
@@ -240,7 +241,7 @@ impl UiNode for TooltipNode {
                         };
 
                         self.state = if delay == Duration::ZERO {
-                            TooltipState::Open(open_tooltip(self.tip.get(), self.disabled_only))
+                            TooltipState::Open(open_tooltip(self.tip.get(), self.disabled_only), duration_timer())
                         } else {
                             let delay = TIMERS.deadline(delay);
                             delay.subscribe(WIDGET.id()).perm();
@@ -256,8 +257,16 @@ impl UiNode for TooltipNode {
         self.child.update(updates);
 
         match &mut self.state {
-            TooltipState::Open(tooltip_id) => {
-                if let Some(func) = self.tip.get_new() {
+            TooltipState::Open(tooltip_id, timer) => {
+                if let Some(t) = &timer {
+                    if let Some(t) = t.get_new() {
+                        if t.has_elapsed() {
+                            LAYERS.remove(*tooltip_id);
+                            TOOLTIP_LAST_CLOSED.set(Instant::now());
+                            self.state = TooltipState::Closed;
+                        }
+                    }
+                } else if let Some(func) = self.tip.get_new() {
                     LAYERS.remove(*tooltip_id);
                     *tooltip_id = open_tooltip(func, self.disabled_only);
                 }
@@ -265,7 +274,7 @@ impl UiNode for TooltipNode {
             TooltipState::Delay(delay) => {
                 if let Some(t) = delay.get_new() {
                     if t.has_elapsed() {
-                        self.state = TooltipState::Open(open_tooltip(self.tip.get(), self.disabled_only));
+                        self.state = TooltipState::Open(open_tooltip(self.tip.get(), self.disabled_only), duration_timer());
                     }
                 }
             }
@@ -305,6 +314,17 @@ fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> WidgetId {
     LAYERS.insert_anchored(LayerIndex::TOP_MOST, tooltip.anchor_id, mode, tooltip);
 
     id
+}
+
+fn duration_timer() -> Option<DeadlineVar> {
+    let duration = TOOLTIP_DURATION_VAR.get();
+    if duration > Duration::ZERO {
+        let dur = TIMERS.deadline(duration);
+        dur.subscribe(WIDGET.id()).perm();
+        Some(dur)
+    } else {
+        None
+    }
 }
 
 #[ui_node(struct TooltipLayerNode {

@@ -2,8 +2,6 @@
     - A property in the layered widget that sets a state that is used by `LAYERS.remove` to animate a fade-out?
     - May want other "exit" animations.
     - We implemented this manually in window example, maybe check that out first.
-* Implement tooltip context properties.
-    - `tooltip_duration`.
 
 * Review `Transitionable::chase`, not needed anymore?
 * Review Dip units used in computed values.
