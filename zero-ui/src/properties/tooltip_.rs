@@ -1,6 +1,7 @@
+use std::mem;
 use std::time::{Duration, Instant};
 
-use zero_ui_core::mouse::MOUSE_HOVERED_EVENT;
+use crate::core::{mouse::MOUSE_HOVERED_EVENT, timer::DeadlineVar};
 
 use crate::prelude::{
     new_property::*,
@@ -123,8 +124,8 @@ pub fn tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) 
     TooltipNode {
         child,
         tip: tip.into_var(),
-        open: None,
         disabled_only: false,
+        state: TooltipState::Closed,
     }
 }
 
@@ -156,8 +157,8 @@ pub fn disabled_tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<Toolti
     TooltipNode {
         child,
         tip: tip.into_var(),
-        open: None,
         disabled_only: true,
+        state: TooltipState::Closed,
     }
 }
 
@@ -173,11 +174,19 @@ pub struct TooltipArgs {
     pub disabled: bool,
 }
 
+#[derive(Default)]
+enum TooltipState {
+    #[default]
+    Closed,
+    Delay(DeadlineVar),
+    Open(WidgetId),
+}
+
 #[ui_node(struct TooltipNode {
     child: impl UiNode,
     tip: impl Var<WidgetFn<TooltipArgs>>,
-    open: Option<WidgetId>,
     disabled_only: bool,
+    state: TooltipState,
 })]
 impl UiNode for TooltipNode {
     fn init(&mut self) {
@@ -187,8 +196,9 @@ impl UiNode for TooltipNode {
 
     fn deinit(&mut self) {
         self.child.deinit();
-        if let Some(id) = self.open.take() {
+        if let TooltipState::Open(id) = mem::take(&mut self.state) {
             LAYERS.remove(id);
+            TOOLTIP_LAST_CLOSED.set(Instant::now());
         }
     }
 
@@ -196,34 +206,70 @@ impl UiNode for TooltipNode {
         self.child.event(update);
 
         if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-            if let Some(t) = self.open {
-                if !WINDOW.widget_tree().contains(t) {
-                    self.open = None;
+            if let TooltipState::Open(t) = &self.state {
+                if !WINDOW.widget_tree().contains(*t) {
+                    // already closed (from the layer probably)
+                    self.state = TooltipState::Closed;
                 }
             }
-            if let Some(tooltip_id) = self.open {
-                let keep_open = if let Some(t) = &args.target {
-                    t.contains(tooltip_id) || t.contains(WIDGET.id())
-                } else {
-                    false
-                };
-                if !keep_open {
-                    LAYERS.remove(tooltip_id);
-                    self.open = None
+            match &self.state {
+                TooltipState::Open(tooltip_id) => {
+                    if !args
+                        .target
+                        .as_ref()
+                        .map(|t| t.contains(*tooltip_id) || t.contains(WIDGET.id()))
+                        .unwrap_or(true)
+                    {
+                        LAYERS.remove(*tooltip_id);
+                        TOOLTIP_LAST_CLOSED.set(Instant::now());
+                        self.state = TooltipState::Closed;
+                    }
                 }
-            } else if args.is_mouse_enter() && args.is_enabled(WIDGET.id()) != self.disabled_only {
-                self.open = Some(open_tooltip(self.tip.get(), self.disabled_only));
+                TooltipState::Delay(_) => {
+                    if !args.target.as_ref().map(|t| t.contains(WIDGET.id())).unwrap_or(true) {
+                        // cancel
+                        self.state = TooltipState::Closed;
+                    }
+                }
+                TooltipState::Closed => {
+                    if args.is_mouse_enter() && args.is_enabled(WIDGET.id()) != self.disabled_only {
+                        let delay = if TOOLTIP_LAST_CLOSED.get().elapsed() > TOOLTIP_INTERVAL_VAR.get() {
+                            TOOLTIP_DELAY_VAR.get()
+                        } else {
+                            Duration::ZERO
+                        };
+
+                        self.state = if delay == Duration::ZERO {
+                            TooltipState::Open(open_tooltip(self.tip.get(), self.disabled_only))
+                        } else {
+                            let delay = TIMERS.deadline(delay);
+                            delay.subscribe(WIDGET.id()).perm();
+                            TooltipState::Delay(delay)
+                        };
+                    }
+                }
             }
         }
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {
         self.child.update(updates);
-        if let Some(tooltip_id) = self.open {
-            if let Some(func) = self.tip.get_new() {
-                LAYERS.remove(tooltip_id);
-                self.open = Some(open_tooltip(func, self.disabled_only));
+
+        match &mut self.state {
+            TooltipState::Open(tooltip_id) => {
+                if let Some(func) = self.tip.get_new() {
+                    LAYERS.remove(*tooltip_id);
+                    *tooltip_id = open_tooltip(func, self.disabled_only);
+                }
             }
+            TooltipState::Delay(delay) => {
+                if let Some(t) = delay.get_new() {
+                    if t.has_elapsed() {
+                        self.state = TooltipState::Open(open_tooltip(self.tip.get(), self.disabled_only));
+                    }
+                }
+            }
+            TooltipState::Closed => {}
         }
     }
 }
@@ -291,6 +337,7 @@ impl UiNode for TooltipLayerNode {
             };
             if !keep_open {
                 LAYERS.remove(tooltip_id);
+                TOOLTIP_LAST_CLOSED.set(Instant::now());
             }
         }
     }
