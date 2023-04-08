@@ -847,6 +847,15 @@ pub enum AnchorTransform {
 
     /// The full outer transform of the anchor object is applied to the widget.
     OuterTransform,
+
+    /// The layer widget is translated on the first layout to be at the cursor position.
+    ///
+    /// The anchor offset place point is resolved in the cursor icon size (approximate).
+    CursorOnce(AnchorOffset),
+    /// The layer widget is translated to follow the cursor position.
+    ///
+    /// The anchor offset place point is resolved in the cursor icon size (approximate).
+    Cursor(AnchorOffset),
 }
 impl_from_and_into_var! {
     /// `InnerOffset`.

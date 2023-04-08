@@ -70,7 +70,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                 let tree = WINDOW.widget_tree();
                 let widget_id = WIDGET.id();
                 if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false) {
-                    if let Some((current, _)) = MOUSE.current_capture() {
+                    if let Some((current, _)) = MOUSE.current_capture().get() {
                         if current.widget_id() == widget_id {
                             // If mode updated and we are capturing the mouse:
                             match new_mode {

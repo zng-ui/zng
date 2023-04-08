@@ -732,6 +732,7 @@ pub struct MouseManager {
     click_state: ClickState,
 
     capture_count: u8,
+    current_capture: Option<(WidgetPath, CaptureMode)>,
 
     hovered: Option<InteractionPath>,
     pressed: FxHashMap<MouseButton, PressedInfo>,
@@ -752,6 +753,7 @@ impl Default for MouseManager {
             pressed: FxHashMap::default(),
 
             capture_count: 0,
+            current_capture: None,
         }
     }
 }
@@ -785,7 +787,7 @@ impl MouseManager {
         if state == ButtonState::Pressed {
             self.capture_count += 1;
             if self.capture_count == 1 {
-                mouse.start_window_capture(target.clone());
+                self.start_window_capture(&mut mouse, target.clone());
             }
 
             if !mouse.buttons.with(|b| b.contains(&button)) {
@@ -812,7 +814,7 @@ impl MouseManager {
             // ButtonState::Released
             self.capture_count = self.capture_count.saturating_sub(1);
             if self.capture_count == 0 {
-                mouse.end_window_capture();
+                self.end_window_capture(&mut mouse);
             }
 
             if mouse.buttons.with(|b| b.contains(&button)) {
@@ -829,7 +831,7 @@ impl MouseManager {
             });
         }
 
-        let capture_info = if let Some((capture, mode)) = &mouse.current_capture {
+        let capture_info = if let Some((capture, mode)) = &self.current_capture {
             Some(CaptureInfo {
                 target: capture.clone(),
                 mode: *mode,
@@ -1029,13 +1031,15 @@ impl MouseManager {
 
             self.pos = position;
 
+            MOUSE_SV.read().position.set_ne(self.pos_window.map(|id| (id, self.pos)));
+
             // mouse_move data
             let frame_info = match WINDOWS.widget_tree(window_id) {
                 Ok(f) => f,
                 Err(_) => {
                     // window not found
                     if let Some(hovered) = self.hovered.take() {
-                        let capture = self.capture_info(&mut MOUSE_SV.write());
+                        let capture = self.capture_info();
                         let args = MouseHoverArgs::now(
                             window_id,
                             device_id,
@@ -1065,10 +1069,11 @@ impl MouseManager {
             }
             .unblocked();
 
-            let capture = self.capture_info(&mut MOUSE_SV.write());
+            let capture = self.capture_info();
 
             // mouse_enter/mouse_leave.
             let hovered_args = if self.hovered != target {
+                MOUSE_SV.read().hovered.set_ne(target.clone());
                 let prev_target = mem::replace(&mut self.hovered, target.clone());
                 let args = MouseHoverArgs::now(
                     window_id,
@@ -1130,8 +1135,8 @@ impl MouseManager {
         }
     }
 
-    fn capture_info(&self, mouse: &mut MouseService) -> Option<CaptureInfo> {
-        if let Some((path, mode)) = &mouse.current_capture {
+    fn capture_info(&self) -> Option<CaptureInfo> {
+        if let Some((path, mode)) = &self.current_capture {
             Some(CaptureInfo {
                 target: path.clone(),
                 mode: *mode,
@@ -1143,8 +1148,10 @@ impl MouseManager {
 
     fn on_cursor_left_window(&mut self, window_id: WindowId, device_id: DeviceId) {
         if Some(window_id) == self.pos_window.take() {
+            MOUSE_SV.read().position.set_ne(None);
             if let Some(path) = self.hovered.take() {
-                let capture = MOUSE_SV.read().current_capture.as_ref().map(|(path, mode)| CaptureInfo {
+                MOUSE_SV.read().hovered.set_ne(None);
+                let capture = self.current_capture.as_ref().map(|(path, mode)| CaptureInfo {
                     target: path.clone(),
                     mode: *mode,
                 });
@@ -1173,11 +1180,93 @@ impl MouseManager {
 
     fn release_window_capture(&mut self, window_id: WindowId) {
         let mut mouse = MOUSE_SV.write();
-        if let Some((path, _)) = &mouse.current_capture {
+        if let Some((path, _)) = &self.current_capture {
             if path.window_id() == window_id {
-                mouse.end_window_capture();
+                self.end_window_capture(&mut mouse);
                 self.capture_count = 0;
             }
+        }
+    }
+
+    /// Call when the mouse starts pressing on the window.
+    fn start_window_capture(&mut self, mouse: &mut MouseService, mouse_down: InteractionPath) {
+        mouse.release_requested = false;
+
+        if let Some((target, mode)) = mouse.capture_request.take() {
+            if let Some(target) = mouse_down.ancestor_path(target) {
+                self.set_capture(mouse, target.into_owned(), mode);
+                return; // fulfilled request at start.
+            }
+        }
+
+        // set default capture.
+        self.set_capture(mouse, mouse_down.root_path().into_owned(), CaptureMode::Window);
+    }
+
+    /// Call after UI update.
+    fn fulfill_requests(&mut self, mouse: &mut MouseService) {
+        if let Some((current_target, current_mode)) = &self.current_capture {
+            if let Some((widget_id, mode)) = mouse.capture_request.take() {
+                if let Ok(true) = WINDOWS.is_focused(current_target.window_id()) {
+                    // current window pressed
+                    if let Some(widget) = WINDOWS.widget_tree(current_target.window_id()).unwrap().get(widget_id) {
+                        // request valid
+                        self.set_capture(mouse, widget.interaction_path(), mode);
+                    }
+                }
+            } else if mem::take(&mut mouse.release_requested) && *current_mode != CaptureMode::Window {
+                // release capture (back to default capture).
+                let target = current_target.root_path();
+                self.set_capture(mouse, InteractionPath::from_enabled(target.into_owned()), CaptureMode::Window);
+            }
+        }
+    }
+
+    /// Call after a frame is generated.
+    fn continue_capture(&mut self, mouse: &mut MouseService, frame: WidgetInfoTree) {
+        if let Some((target, mode)) = &self.current_capture {
+            if frame.window_id() == target.window_id() {
+                // is a frame from the capturing window.
+                if let Some(widget) = frame.get(target.widget_id()) {
+                    if let Some(new_path) = widget.new_interaction_path(&InteractionPath::from_enabled(target.clone())) {
+                        // widget moved inside window tree.
+                        let mode = *mode;
+                        self.set_capture(mouse, new_path, mode);
+                    }
+                } else {
+                    // widget not found. Returns to default capture.
+                    self.set_capture(mouse, frame.root().interaction_path(), CaptureMode::Window);
+                }
+            }
+        }
+    }
+
+    /// Call when the mouse stops pressing on the window, or the window loses focus or is closed.
+    fn end_window_capture(&mut self, mouse: &mut MouseService) {
+        mouse.release_requested = false;
+        mouse.capture_request = None;
+        self.unset_capture();
+    }
+
+    fn set_capture(&mut self, mouse: &mut MouseService, target: InteractionPath, mode: CaptureMode) {
+        let new = target.enabled().map(|target| (target, mode));
+        if new.is_none() {
+            self.unset_capture();
+            return;
+        }
+
+        if new != self.current_capture {
+            let prev = self.current_capture.take();
+            self.current_capture = new.clone();
+            mouse.capture.set_ne(new.clone());
+            MOUSE_CAPTURE_EVENT.notify(MouseCaptureArgs::now(prev, new));
+        }
+    }
+
+    fn unset_capture(&mut self) {
+        if self.current_capture.is_some() {
+            let prev = self.current_capture.take();
+            MOUSE_CAPTURE_EVENT.notify(MouseCaptureArgs::now(prev, None));
         }
     }
 }
@@ -1186,7 +1275,6 @@ impl AppExtension for MouseManager {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             // update hovered
             if self.pos_window == Some(args.window_id) {
-                let mut mouse = MOUSE_SV.write();
                 let frame_info = WINDOWS.widget_tree(args.window_id).unwrap();
                 let pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
                 self.pos_hits = Some(pos_hits.clone());
@@ -1201,7 +1289,7 @@ impl AppExtension for MouseManager {
                 .unblocked();
 
                 if self.hovered != target {
-                    let capture = self.capture_info(&mut mouse);
+                    let capture = self.capture_info();
                     let prev = mem::replace(&mut self.hovered, target.clone());
                     let args = MouseHoverArgs::now(args.window_id, None, self.pos, pos_hits, prev, target, capture.clone(), capture);
                     MOUSE_HOVERED_EVENT.notify(args);
@@ -1211,7 +1299,7 @@ impl AppExtension for MouseManager {
             if self.capture_count > 0 {
                 let mut mouse = MOUSE_SV.write();
                 if let Ok(frame) = WINDOWS.widget_tree(args.window_id) {
-                    mouse.continue_capture(frame);
+                    self.continue_capture(&mut mouse, frame);
                 }
             }
         } else if let Some(args) = RAW_CURSOR_MOVED_EVENT.on(update) {
@@ -1271,7 +1359,8 @@ impl AppExtension for MouseManager {
                         MOUSE_HOVERED_EVENT.notify(args);
                     }
                 }
-                if let Some(cap) = mouse.current_capture.take() {
+                if let Some(cap) = self.current_capture.take() {
+                    mouse.capture.set_ne(None);
                     let args = MouseCaptureArgs::now(cap, None);
                     MOUSE_CAPTURE_EVENT.notify(args);
                 }
@@ -1283,6 +1372,8 @@ impl AppExtension for MouseManager {
                 self.pos_device = None;
                 self.pos_window = None;
                 self.pos_hits = None;
+                mouse.position.set_ne(None);
+                mouse.hovered.set_ne(None);
             }
         }
     }
@@ -1334,7 +1425,7 @@ impl AppExtension for MouseManager {
                         if let Some(hit) = hit_test.target().map(|t| tree.get(t.widget_id).unwrap()) {
                             target = hit.path().shared_ancestor(info.path.as_path()).map(|c| c.into_owned());
                         }
-                        if let Some((cap, mode)) = MOUSE.current_capture() {
+                        if let Some((cap, mode)) = &self.current_capture {
                             match mode {
                                 CaptureMode::Window => {
                                     if let Some(t) = &target {
@@ -1350,11 +1441,11 @@ impl AppExtension for MouseManager {
                                     if let Some(t) = &target {
                                         target = cap.shared_ancestor(t).map(|c| c.into_owned());
                                     } else {
-                                        target = Some(cap);
+                                        target = Some(cap.clone());
                                     }
                                 }
                                 CaptureMode::Widget => {
-                                    target = Some(cap);
+                                    target = Some(cap.clone());
                                 }
                             }
                         }
@@ -1393,7 +1484,7 @@ impl AppExtension for MouseManager {
     }
 
     fn update(&mut self) {
-        MOUSE_SV.write().fulfill_requests();
+        self.fulfill_requests(&mut MOUSE_SV.write());
     }
 }
 
@@ -1568,9 +1659,19 @@ impl MOUSE {
         MOUSE_SV.read().repeat_config.clone()
     }
 
-    /// The current capture target and mode.
-    pub fn current_capture(&self) -> Option<(WidgetPath, CaptureMode)> {
-        MOUSE_SV.read().current_capture.as_ref().map(|(p, c)| (p.clone(), *c))
+    /// Variable that gets the current capture target and mode.
+    pub fn current_capture(&self) -> ReadOnlyArcVar<Option<(WidgetPath, CaptureMode)>> {
+        MOUSE_SV.read().capture.read_only()
+    }
+
+    /// Variable that gets current hovered window and cursor point over that window.
+    pub fn position(&self) -> ReadOnlyArcVar<Option<(WindowId, DipPoint)>> {
+        MOUSE_SV.read().position.read_only()
+    }
+
+    /// Variable that gets the current hovered window and widgets.
+    pub fn hovered(&self) -> ReadOnlyArcVar<Option<InteractionPath>> {
+        MOUSE_SV.read().hovered.read_only()
     }
 
     /// Set a widget to redirect all mouse events to.
@@ -1607,103 +1708,25 @@ impl MOUSE {
 
 app_local! {
     static MOUSE_SV: MouseService = MouseService {
-        current_capture: None,
+        capture: var(None),
         capture_request: None,
         release_requested: false,
         multi_click_config: var(MultiClickConfig::default()),
         repeat_config: KEYBOARD.repeat_config().map(|c| ButtonRepeatConfig { start_delay: c.start_delay, interval: c.interval }).cow().boxed(),
         buttons: var(vec![]),
+        hovered: var(None),
+        position: var(None),
     };
 }
 struct MouseService {
-    current_capture: Option<(WidgetPath, CaptureMode)>,
+    capture: ArcVar<Option<(WidgetPath, CaptureMode)>>,
     capture_request: Option<(WidgetId, CaptureMode)>,
     release_requested: bool,
     multi_click_config: ArcVar<MultiClickConfig>,
     repeat_config: BoxedVar<ButtonRepeatConfig>,
     buttons: ArcVar<Vec<MouseButton>>,
-}
-impl MouseService {
-    /// Call when the mouse starts pressing on the window.
-    fn start_window_capture(&mut self, mouse_down: InteractionPath) {
-        self.release_requested = false;
-
-        if let Some((target, mode)) = self.capture_request.take() {
-            if let Some(target) = mouse_down.ancestor_path(target) {
-                self.set_capture(target.into_owned(), mode);
-                return; // fulfilled request at start.
-            }
-        }
-
-        // set default capture.
-        self.set_capture(mouse_down.root_path().into_owned(), CaptureMode::Window);
-    }
-
-    /// Call after UI update.
-    fn fulfill_requests(&mut self) {
-        if let Some((current_target, current_mode)) = &self.current_capture {
-            if let Some((widget_id, mode)) = self.capture_request.take() {
-                if let Ok(true) = WINDOWS.is_focused(current_target.window_id()) {
-                    // current window pressed
-                    if let Some(widget) = WINDOWS.widget_tree(current_target.window_id()).unwrap().get(widget_id) {
-                        // request valid
-                        self.set_capture(widget.interaction_path(), mode);
-                    }
-                }
-            } else if mem::take(&mut self.release_requested) && *current_mode != CaptureMode::Window {
-                // release capture (back to default capture).
-                let target = current_target.root_path();
-                self.set_capture(InteractionPath::from_enabled(target.into_owned()), CaptureMode::Window);
-            }
-        }
-    }
-
-    /// Call after a frame is generated.
-    fn continue_capture(&mut self, frame: WidgetInfoTree) {
-        if let Some((target, mode)) = &self.current_capture {
-            if frame.window_id() == target.window_id() {
-                // is a frame from the capturing window.
-                if let Some(widget) = frame.get(target.widget_id()) {
-                    if let Some(new_path) = widget.new_interaction_path(&InteractionPath::from_enabled(target.clone())) {
-                        // widget moved inside window tree.
-                        let mode = *mode;
-                        self.set_capture(new_path, mode);
-                    }
-                } else {
-                    // widget not found. Returns to default capture.
-                    self.set_capture(frame.root().interaction_path(), CaptureMode::Window);
-                }
-            }
-        }
-    }
-
-    /// Call when the mouse stops pressing on the window, or the window loses focus or is closed.
-    fn end_window_capture(&mut self) {
-        self.release_requested = false;
-        self.capture_request = None;
-        self.unset_capture();
-    }
-
-    fn set_capture(&mut self, target: InteractionPath, mode: CaptureMode) {
-        let new = target.enabled().map(|target| (target, mode));
-        if new.is_none() {
-            self.unset_capture();
-            return;
-        }
-
-        if new != self.current_capture {
-            let prev = self.current_capture.take();
-            self.current_capture = new.clone();
-            MOUSE_CAPTURE_EVENT.notify(MouseCaptureArgs::now(prev, new));
-        }
-    }
-
-    fn unset_capture(&mut self) {
-        if self.current_capture.is_some() {
-            let prev = self.current_capture.take();
-            MOUSE_CAPTURE_EVENT.notify(MouseCaptureArgs::now(prev, None));
-        }
-    }
+    hovered: ArcVar<Option<InteractionPath>>,
+    position: ArcVar<Option<(WindowId, DipPoint)>>,
 }
 
 /// Mouse capture mode.

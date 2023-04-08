@@ -5,8 +5,12 @@
     - Improve layer anchor position.
         - Follow cursor mode.
         - Cursor on init mode.
+        - Change offset to remain visible.
 
 * Review `Transitionable::chase`, not needed anymore?
+* Review Dip units used in computed values.
+    - Things like `MOUSE.position` are pretty useless without the scale_factor.
+    - Real problem is having to retrieve the scale factor?
 
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?
