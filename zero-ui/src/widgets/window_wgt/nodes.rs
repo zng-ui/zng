@@ -352,18 +352,25 @@ impl LAYERS {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
                     let mode = self.mode.get();
                     if !mode.visibility || bounds_info.rendered().is_some() {
+                        let mut push_reference_frame = |mut transform: PxTransform, is_translate_only: bool| {
+                            if mode.viewport_bound {
+                                transform = adjust_viewport_bound(transform, &self.widget);
+                            }
+                            frame.push_reference_frame(
+                                self.transform_key.into(),
+                                self.transform_key.bind(transform, true),
+                                is_translate_only,
+                                false,
+                                |frame| self.widget.render(frame),
+                            );
+                        };
+
                         match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
                                 let place_in_window = bounds_info.inner_transform().transform_point(self.offset.0).unwrap_or_default();
                                 let offset = place_in_window - self.offset.1;
 
-                                frame.push_reference_frame(
-                                    self.transform_key.into(),
-                                    self.transform_key.bind(PxTransform::from(offset), true),
-                                    true,
-                                    false,
-                                    |frame| self.widget.render(frame),
-                                )
+                                push_reference_frame(PxTransform::from(offset), true);
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
                                 let place_in_window = border_info
@@ -372,58 +379,28 @@ impl LAYERS {
                                     .unwrap_or_default();
                                 let offset = place_in_window - self.offset.1;
 
-                                frame.push_reference_frame(
-                                    self.transform_key.into(),
-                                    self.transform_key.bind(PxTransform::from(offset), true),
-                                    true,
-                                    false,
-                                    |frame| self.widget.render(frame),
-                                )
+                                push_reference_frame(PxTransform::from(offset), true);
                             }
                             AnchorTransform::OuterOffset(_) => {
                                 let place_in_window = bounds_info.outer_transform().transform_point(self.offset.0).unwrap_or_default();
                                 let offset = place_in_window - self.offset.1;
 
-                                frame.push_reference_frame(
-                                    self.transform_key.into(),
-                                    self.transform_key.bind(PxTransform::from(offset), true),
-                                    true,
-                                    false,
-                                    |frame| self.widget.render(frame),
-                                )
+                                push_reference_frame(PxTransform::from(offset), true);
                             }
                             AnchorTransform::Cursor(_) | AnchorTransform::CursorOnce(_) => {
                                 let offset = self.offset.0 - self.offset.1;
 
-                                frame.push_reference_frame(
-                                    self.transform_key.into(),
-                                    self.transform_key.bind(PxTransform::from(offset), true),
-                                    true,
-                                    false,
-                                    |frame| self.widget.render(frame),
-                                )
+                                push_reference_frame(PxTransform::from(offset), true);
                             }
-                            AnchorTransform::InnerTransform => frame.push_reference_frame(
-                                self.transform_key.into(),
-                                self.transform_key.bind(bounds_info.inner_transform(), true),
-                                false,
-                                false,
-                                |frame| self.widget.render(frame),
-                            ),
-                            AnchorTransform::InnerBorderTransform => frame.push_reference_frame(
-                                self.transform_key.into(),
-                                self.transform_key.bind(border_info.inner_transform(bounds_info), true),
-                                false,
-                                false,
-                                |frame| self.widget.render(frame),
-                            ),
-                            AnchorTransform::OuterTransform => frame.push_reference_frame(
-                                self.transform_key.into(),
-                                self.transform_key.bind(bounds_info.outer_transform(), true),
-                                false,
-                                false,
-                                |frame| self.widget.render(frame),
-                            ),
+                            AnchorTransform::InnerTransform => {
+                                push_reference_frame(bounds_info.inner_transform(), false);
+                            }
+                            AnchorTransform::InnerBorderTransform => {
+                                push_reference_frame(border_info.inner_transform(bounds_info), false);
+                            }
+                            AnchorTransform::OuterTransform => {
+                                push_reference_frame(bounds_info.outer_transform(), false);
+                            }
                             _ => self.widget.render(frame),
                         }
                     }
@@ -434,13 +411,20 @@ impl LAYERS {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
                     let mode = self.mode.get();
                     if !mode.visibility || bounds_info.rendered().is_some() {
+                        let mut with_transform = |mut transform: PxTransform| {
+                            if mode.viewport_bound {
+                                transform = adjust_viewport_bound(transform, &self.widget);
+                            }
+                            update.with_transform(self.transform_key.update(transform, true), false, |update| {
+                                self.widget.render_update(update)
+                            });
+                        };
+
                         match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
                                 let place_in_window = bounds_info.inner_transform().transform_point(self.offset.0).unwrap_or_default();
                                 let offset = place_in_window - self.offset.1;
-                                update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
-                                    self.widget.render_update(update)
-                                })
+                                with_transform(PxTransform::from(offset));
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
                                 let place_in_window = border_info
@@ -448,39 +432,25 @@ impl LAYERS {
                                     .transform_point(self.offset.0)
                                     .unwrap_or_default();
                                 let offset = place_in_window - self.offset.1;
-                                update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
-                                    self.widget.render_update(update)
-                                })
+                                with_transform(PxTransform::from(offset));
                             }
                             AnchorTransform::OuterOffset(_) => {
                                 let place_in_window = bounds_info.outer_transform().transform_point(self.offset.0).unwrap_or_default();
                                 let offset = place_in_window - self.offset.1;
-                                update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
-                                    self.widget.render_update(update)
-                                })
+                                with_transform(PxTransform::from(offset));
                             }
                             AnchorTransform::Cursor(_) | AnchorTransform::CursorOnce(_) => {
                                 let offset = self.offset.0 - self.offset.1;
-                                update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
-                                    self.widget.render_update(update)
-                                })
+                                with_transform(PxTransform::from(offset));
                             }
                             AnchorTransform::InnerTransform => {
-                                update.with_transform(self.transform_key.update(bounds_info.inner_transform(), true), false, |update| {
-                                    self.widget.render_update(update)
-                                });
+                                with_transform(bounds_info.inner_transform());
                             }
                             AnchorTransform::InnerBorderTransform => {
-                                update.with_transform(
-                                    self.transform_key.update(border_info.inner_transform(bounds_info), true),
-                                    false,
-                                    |update| self.widget.render_update(update),
-                                );
+                                with_transform(border_info.inner_transform(bounds_info));
                             }
                             AnchorTransform::OuterTransform => {
-                                update.with_transform(self.transform_key.update(bounds_info.outer_transform(), true), false, |update| {
-                                    self.widget.render_update(update)
-                                });
+                                with_transform(bounds_info.outer_transform());
                             }
                             _ => self.widget.render_update(update),
                         }
@@ -524,6 +494,24 @@ impl LAYERS {
             s.req(&WINDOW_LAYERS_ID).items.remove(id);
         });
     }
+}
+
+fn adjust_viewport_bound(transform: PxTransform, widget: &impl UiNode) -> PxTransform {
+    let window_bounds = WINDOW_CTRL.vars().actual_size_px().get();
+    let wgt_bounds = PxBox::from(widget.with_context(|| WIDGET.bounds().outer_size()).unwrap_or_else(PxSize::zero));
+    let wgt_bounds = transform.outer_transformed(wgt_bounds).unwrap_or_default();
+
+    let x_underflow = -wgt_bounds.min.x.min(Px(0));
+    let x_overflow = (wgt_bounds.max.x - window_bounds.width).max(Px(0));
+    let y_underflow = -wgt_bounds.min.y.min(Px(0));
+    let y_overflow = (wgt_bounds.max.y - window_bounds.height).max(Px(0));
+
+    let x = x_underflow - x_overflow;
+    let y = y_underflow - y_overflow;
+
+    let correction = PxVector::new(x, y);
+
+    transform.then_translate(correction.cast())
 }
 
 static WINDOW_LAYERS_ID: StaticStateId<LayersCtx> = StaticStateId::new_unique();
@@ -981,6 +969,10 @@ pub struct AnchorMode {
     pub transform: AnchorTransform,
     /// What size is copied from the anchor widget and used as the available size and final size of the widget.
     pub size: AnchorSize,
+    /// After the `transform` and `size` are resolved the transform is adjusted so that the layered widget is
+    /// fully visible in the window.
+    pub viewport_bound: bool,
+
     /// If the widget is only layout if the anchor widget is not [`Collapsed`] and is only rendered
     /// if the anchor widget is rendered.
     ///
@@ -1005,6 +997,7 @@ impl AnchorMode {
         AnchorMode {
             transform: AnchorTransform::None,
             size: AnchorSize::Window,
+            viewport_bound: false,
             visibility: false,
             interactivity: false,
             corner_radius: false,
@@ -1019,6 +1012,7 @@ impl AnchorMode {
             transform: AnchorTransform::InnerTransform,
             size: AnchorSize::InnerSize,
             visibility: true,
+            viewport_bound: false,
             interactivity: false,
             corner_radius: true,
         }
@@ -1060,6 +1054,7 @@ impl Default for AnchorMode {
         AnchorMode {
             transform: AnchorTransform::InnerOffset(AnchorOffset::in_top_left()),
             size: AnchorSize::Unbounded,
+            viewport_bound: false,
             visibility: true,
             interactivity: false,
             corner_radius: true,

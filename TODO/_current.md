@@ -1,11 +1,9 @@
-* Layer "keep visible".
-    - Adjust offset of layers to remain inside the viewport.
-    - this is important for tooltips.
-* Tooltip fade-in/out context properties?
-    - Fade-out can't easily be implemented for layers?
-    - Maybe we need a helper for that, something set on the layer widget that makes the `LAYERS` implement a fade-out
-      on remove.
+* Layer fade-out.
+    - A property in the layered widget that sets a state that is used by `LAYERS.remove` to animate a fade-out?
+    - May want other "exit" animations.
+    - We implemented this manually in window example, maybe check that out first.
 * Implement tooltip context properties.
+    - `tooltip_duration`.
 
 * Review `Transitionable::chase`, not needed anymore?
 * Review Dip units used in computed values.

@@ -296,6 +296,7 @@ fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> WidgetId {
     let mode = AnchorMode {
         transform: AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left()),
         size: AnchorSize::Unbounded,
+        viewport_bound: true,
         visibility: true,
         interactivity: false,
         corner_radius: false,

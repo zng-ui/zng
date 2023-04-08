@@ -182,6 +182,7 @@ fn anchor_example() -> impl UiNode {
         visibility: true,
         interactivity: false,
         corner_radius: false,
+        viewport_bound: false,
     });
 
     let next_offset = hn!(|_| {
