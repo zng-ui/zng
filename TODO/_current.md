@@ -1,10 +1,10 @@
+* Cursor size?
+
 * Implement tooltip.
     - Initial show delay.
     - Show duration.
     - Between show delay.
     - Improve layer anchor position.
-        - Follow cursor mode.
-        - Cursor on init mode.
         - Change offset to remain visible.
 
 * Review `Transitionable::chase`, not needed anymore?

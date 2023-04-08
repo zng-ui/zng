@@ -1,9 +1,13 @@
 //! UI nodes used for building a window widget.
 
-use crate::core::window::{WIDGET_INFO_CHANGED_EVENT, WINDOW_CTRL};
+use crate::core::{
+    mouse::MOUSE,
+    units::DipToPx,
+    window::{WIDGET_INFO_CHANGED_EVENT, WINDOW_CTRL},
+};
 use crate::prelude::new_property::*;
 
-use std::ops;
+use std::{mem, ops};
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
@@ -100,10 +104,12 @@ impl LAYERS {
             mode: M,
             widget: W,
             info_changed_handle: Option<EventHandle>,
+            mouse_pos_handle: Option<VarHandle>,
 
             anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo)>,
             offset: (PxPoint, PxPoint), // place, origin (place is relative)
             interactivity: bool,
+            cursor_once_pending: bool,
 
             transform_key: FrameValueKey<PxTransform>,
             corner_radius_ctx_handle: Option<ContextInitHandle>,
@@ -154,14 +160,22 @@ impl LAYERS {
                 self.interactivity = self.mode.with(|m| m.interactivity);
                 self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
 
+                if self.mode.with(|m| matches!(&m.transform, AnchorTransform::Cursor(_))) {
+                    self.mouse_pos_handle = Some(MOUSE.position().subscribe(WIDGET.id()));
+                } else if self.mode.with(|m| matches!(&m.transform, AnchorTransform::CursorOnce(_))) {
+                    self.cursor_once_pending = true;
+                }
+
                 self.widget.init();
             }
 
             fn deinit(&mut self) {
                 self.anchor_info = None;
                 self.info_changed_handle = None;
+                self.mouse_pos_handle = None;
                 self.widget.deinit();
                 self.corner_radius_ctx_handle = None;
+                self.cursor_once_pending = false;
             }
 
             fn event(&mut self, update: &EventUpdate) {
@@ -189,7 +203,18 @@ impl LAYERS {
                         self.interactivity = mode.interactivity;
                         WIDGET.update_info();
                     }
+                    if matches!(&mode.transform, AnchorTransform::Cursor(_)) {
+                        if self.mouse_pos_handle.is_none() {
+                            self.mouse_pos_handle = Some(MOUSE.position().subscribe(WIDGET.id()));
+                        }
+                        self.cursor_once_pending = false;
+                    } else {
+                        self.cursor_once_pending = matches!(&mode.transform, AnchorTransform::CursorOnce(_));
+                        self.mouse_pos_handle = None;
+                    }
                     WIDGET.layout().render();
+                } else if self.mouse_pos_handle.is_some() && MOUSE.position().is_new() {
+                    WIDGET.layout();
                 }
                 self.widget.update(updates);
             }
@@ -246,33 +271,70 @@ impl LAYERS {
                             },
                         );
 
-                        let offset = match &mode.transform {
-                            AnchorTransform::InnerOffset(p) => {
-                                let place =
-                                    LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.inner_size()), || p.place.layout());
-                                let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
-                                (place, origin)
-                            }
-                            AnchorTransform::InnerBorderOffset(p) => {
-                                let place = LAYOUT
-                                    .with_constraints(PxConstraints2d::new_exact_size(border.inner_size(bounds)), || p.place.layout());
-                                let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
-                                (place, origin)
-                            }
-                            AnchorTransform::OuterOffset(p) => {
-                                let place =
-                                    LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.outer_size()), || p.place.layout());
-                                let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
-                                (place, origin)
-                            }
-                            _ => (PxPoint::zero(), PxPoint::zero()),
-                        };
-                        if self.offset != offset {
-                            self.offset = offset;
-                            WIDGET.render_update();
-                        }
+                        if let Some((p, update)) = match &mode.transform {
+                            AnchorTransform::Cursor(p) => Some((p, true)),
+                            AnchorTransform::CursorOnce(p) => Some((p, mem::take(&mut self.cursor_once_pending))),
+                            _ => None,
+                        } {
+                            // cursor transform mode, only visible if cursor over window
+                            const NO_POS_X: Px = Px::MIN;
+                            if update {
+                                if let Some(pos) = MOUSE
+                                    .position()
+                                    .get()
+                                    .and_then(|(w_id, pos)| if w_id == WINDOW.id() { Some(pos) } else { None })
+                                {
+                                    let place = pos.to_px(LAYOUT.scale_factor().0); // !!: TODO cursor icon size?
+                                    let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
 
-                        return layer_size;
+                                    let offset = (place, origin);
+                                    if self.offset != offset {
+                                        self.offset = offset;
+                                        WIDGET.render_update();
+                                    }
+
+                                    return layer_size;
+                                } else {
+                                    // collapsed signal (permanent if `CursorOnce`)
+                                    self.offset.0.x = NO_POS_X;
+                                }
+                            } else {
+                                // offset already set
+                                if self.offset.0.x != NO_POS_X {
+                                    // and it is not collapsed `CursorOnce`
+                                    return layer_size;
+                                }
+                            }
+                        } else {
+                            // other transform modes, will be visible
+                            let offset = match &mode.transform {
+                                AnchorTransform::InnerOffset(p) => {
+                                    let place =
+                                        LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.inner_size()), || p.place.layout());
+                                    let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
+                                    (place, origin)
+                                }
+                                AnchorTransform::InnerBorderOffset(p) => {
+                                    let place = LAYOUT
+                                        .with_constraints(PxConstraints2d::new_exact_size(border.inner_size(bounds)), || p.place.layout());
+                                    let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
+                                    (place, origin)
+                                }
+                                AnchorTransform::OuterOffset(p) => {
+                                    let place =
+                                        LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.outer_size()), || p.place.layout());
+                                    let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
+                                    (place, origin)
+                                }
+                                _ => (PxPoint::zero(), PxPoint::zero()),
+                            };
+                            if self.offset != offset {
+                                self.offset = offset;
+                                WIDGET.render_update();
+                            }
+
+                            return layer_size;
+                        }
                     }
                 }
 
@@ -316,6 +378,17 @@ impl LAYERS {
                             AnchorTransform::OuterOffset(_) => {
                                 let place_in_window = bounds_info.outer_transform().transform_point(self.offset.0).unwrap_or_default();
                                 let offset = place_in_window - self.offset.1;
+
+                                frame.push_reference_frame(
+                                    self.transform_key.into(),
+                                    self.transform_key.bind(PxTransform::from(offset), true),
+                                    true,
+                                    false,
+                                    |frame| self.widget.render(frame),
+                                )
+                            }
+                            AnchorTransform::Cursor(_) | AnchorTransform::CursorOnce(_) => {
+                                let offset = self.offset.0 - self.offset.1;
 
                                 frame.push_reference_frame(
                                     self.transform_key.into(),
@@ -381,6 +454,12 @@ impl LAYERS {
                                     self.widget.render_update(update)
                                 })
                             }
+                            AnchorTransform::Cursor(_) | AnchorTransform::CursorOnce(_) => {
+                                let offset = self.offset.0 - self.offset.1;
+                                update.with_transform(self.transform_key.update(PxTransform::from(offset), true), false, |update| {
+                                    self.widget.render_update(update)
+                                })
+                            }
                             AnchorTransform::InnerTransform => {
                                 update.with_transform(self.transform_key.update(bounds_info.inner_transform(), true), false, |update| {
                                     self.widget.render_update(update)
@@ -419,6 +498,8 @@ impl LAYERS {
                 mode: mode.into_var(),
                 widget: widget.cfg_boxed(),
                 info_changed_handle: None,
+                mouse_pos_handle: None,
+                cursor_once_pending: false,
 
                 anchor_info: None,
                 offset: (PxPoint::zero(), PxPoint::zero()),
