@@ -1,11 +1,9 @@
-* Cursor size?
-
-* Implement tooltip.
-    - Initial show delay.
-    - Show duration.
-    - Between show delay.
-    - Improve layer anchor position.
-        - Change offset to remain visible.
+* Layer anchor cursor.
+    - Cursor size.
+* Layer "keep visible".
+    - Adjust offset of layers to remain inside the viewport.
+    - this is important for tooltips.
+* Implement tooltip context properties.
 
 * Review `Transitionable::chase`, not needed anymore?
 * Review Dip units used in computed values.
