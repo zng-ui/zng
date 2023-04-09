@@ -19,13 +19,13 @@ webrender_api = { path = "../dependencies/webrender/webrender_api" }
 serde = { version = "1.0", features = ["derive"] }
 duct = { version = "0.13", optional = true }
 
-ipc-channel = { version = "0.16", optional = true }
-# winapi features ipc-channel uses but does not import correctly
-[target.'cfg(target_os = "windows")'.dependencies]
-winapi = { version = "0.3.7", features = ["errhandlingapi"], optional = true }
-
 tracing = "0.1"
 flume = { version = "0.10", default-features  = false }
 bitflags = "2"
 num-traits = "0.2"
 rustc-hash = "1"
+
+ipc-channel = { version = "0.16", optional = true }
+# winapi features ipc-channel uses but does not import correctly
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = { version = "0.3.7", features = ["errhandlingapi"], optional = true }
