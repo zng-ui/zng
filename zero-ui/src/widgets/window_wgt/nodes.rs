@@ -345,8 +345,9 @@ impl LAYERS {
                     }
                 }
 
-                // no visible mode match
-                wl.collapse();
+                self.with_context(|| {
+                    wl.collapse();
+                });
                 PxSize::zero()
             }
 
