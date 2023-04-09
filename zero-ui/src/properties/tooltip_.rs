@@ -32,7 +32,7 @@ app_local! {
     /// to integrate with the [`tooltip`] implementation.
     ///
     /// [`tooltip`]: fn@tooltip
-    pub static TOOLTIP_LAST_CLOSED: Instant = Instant::now() - 1.hours();
+    pub static TOOLTIP_LAST_CLOSED: Option<Instant> = None;
 }
 
 /// Set the position of the tip widgets opened for the widget or its descendants.
@@ -199,7 +199,7 @@ impl UiNode for TooltipNode {
         self.child.deinit();
         if let TooltipState::Open(id, _) = mem::take(&mut self.state) {
             LAYERS.remove(id);
-            TOOLTIP_LAST_CLOSED.set(Instant::now());
+            TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
         }
     }
 
@@ -222,7 +222,7 @@ impl UiNode for TooltipNode {
                         .unwrap_or(true)
                     {
                         LAYERS.remove(*tooltip_id);
-                        TOOLTIP_LAST_CLOSED.set(Instant::now());
+                        TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
                         self.state = TooltipState::Closed;
                     }
                 }
@@ -234,7 +234,11 @@ impl UiNode for TooltipNode {
                 }
                 TooltipState::Closed => {
                     if args.is_mouse_enter() && args.is_enabled(WIDGET.id()) != self.disabled_only {
-                        let delay = if TOOLTIP_LAST_CLOSED.get().elapsed() > TOOLTIP_INTERVAL_VAR.get() {
+                        let delay = if TOOLTIP_LAST_CLOSED
+                            .get()
+                            .map(|t| t.elapsed() > TOOLTIP_INTERVAL_VAR.get())
+                            .unwrap_or(true)
+                        {
                             TOOLTIP_DELAY_VAR.get()
                         } else {
                             Duration::ZERO
@@ -262,7 +266,7 @@ impl UiNode for TooltipNode {
                     if let Some(t) = t.get_new() {
                         if t.has_elapsed() {
                             LAYERS.remove(*tooltip_id);
-                            TOOLTIP_LAST_CLOSED.set(Instant::now());
+                            TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
                             self.state = TooltipState::Closed;
                         }
                     }
@@ -358,7 +362,7 @@ impl UiNode for TooltipLayerNode {
             };
             if !keep_open {
                 LAYERS.remove(tooltip_id);
-                TOOLTIP_LAST_CLOSED.set(Instant::now());
+                TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
             }
         }
     }
