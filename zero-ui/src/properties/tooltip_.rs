@@ -1,5 +1,5 @@
-use std::mem;
 use std::time::{Duration, Instant};
+use std::{fmt, mem};
 
 use crate::core::{mouse::MOUSE_HOVERED_EVENT, timer::DeadlineVar};
 
@@ -182,6 +182,15 @@ enum TooltipState {
     /// Tip layer ID and duration deadline.
     Open(WidgetId, Option<DeadlineVar>),
 }
+impl fmt::Debug for TooltipState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Closed => write!(f, "Closed"),
+            Self::Delay(_) => write!(f, "Delay(_)"),
+            Self::Open(id, _) => write!(f, "Open({id:?}, _)"),
+        }
+    }
+}
 
 #[ui_node(struct TooltipNode {
     child: impl UiNode,
@@ -227,7 +236,7 @@ impl UiNode for TooltipNode {
                     }
                 }
                 TooltipState::Delay(_) => {
-                    if !args.target.as_ref().map(|t| t.contains(WIDGET.id())).unwrap_or(true) {
+                    if args.target.as_ref().map(|t| !t.contains(WIDGET.id())).unwrap_or(true) {
                         // cancel
                         self.state = TooltipState::Closed;
                     }
