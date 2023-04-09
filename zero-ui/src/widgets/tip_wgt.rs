@@ -47,7 +47,7 @@ pub mod vis {
         pub static STYLE_VAR: StyleFn = StyleFn::new(|_| default_style!());
 
         /// Idle background dark and light color.
-        pub static BASE_COLORS_VAR: ColorPair = (rgba(0, 0, 0, 0.8), rgba(255, 255, 255, 0.8));
+        pub static BASE_COLORS_VAR: ColorPair = (rgb(20, 20, 20), rgb(235, 235, 235));
     }
 
     /// Sets the [`BASE_COLORS_VAR`] that is used to compute all background and border colors in the tip style.
@@ -95,21 +95,14 @@ pub mod vis {
             /// Tip background.
             pub crate::properties::background_color = color_scheme_pair(BASE_COLORS_VAR);
 
+            pub crate::widgets::text::font_size = 10.pt();
+
             /// Tip border.
             ///
             /// Is widths `1`.
             pub crate::properties::border = {
                 widths: 1.px(),
-                sides: color_scheme_highlight(BASE_COLORS_VAR, 0.2).map_into()
-            };
-
-            /// Tip shadow.
-            ///
-            /// Is
-            pub crate::properties::filters::drop_shadow = {
-                offset: (0, 0),
-                blur_radius: 2,
-                color: colors::BLACK,
+                sides: color_scheme_highlight(BASE_COLORS_VAR, 0.5).map_into()
             };
         }
     }
