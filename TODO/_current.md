@@ -11,18 +11,6 @@
     - Things like `MOUSE.position` are pretty useless without the scale_factor.
     - Real problem is having to retrieve the scale factor?
 
-* Try to use the `inventory` or `linkme` crate as an alternative for generating a struct for property functions.
-    - Can have a collection of all properties in runtime.
-    - No struct means we don't need to invent names to avoid collision `text! { text = "" }`.
-    - Can use the function pointer as a key?
-        - How, they are generic.
-        - Need to support `property_id!(property_fn)`.
-    - Could explicitly refactor property functions to take no args and return a metadata instance.
-        - Then rename the original function to `property_node` or something.
-        - This generates doubles the docs.
-        - And having a function to return metadata looks weird?
-        - Also the generated struct has generic converters associated functions.
-
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?
     - No `UiNodeList::info_all`?
