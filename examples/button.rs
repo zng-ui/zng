@@ -67,13 +67,15 @@ fn disabled() -> impl UiNode {
         on_click = hn!(|_| panic!("disabled button"));
         enabled = false;
         child = text!("Disabled");
-        id = "disabled-btn"
+        id = "disabled-btn";
+        disabled_tooltip = tip!(text!("disabled tooltip"));
     }
 }
 
 fn image_button() -> impl UiNode {
     button! {
         id = "img-btn";
+        tooltip = tip!(text!("image button"));
         on_click = hn!(|_| println!("Clicked image button"));
         child = stack! {
             direction = StackDirection::left_to_right();

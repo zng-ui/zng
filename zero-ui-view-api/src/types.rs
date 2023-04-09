@@ -549,6 +549,34 @@ impl CursorIcon {
         CursorIcon::ColResize,
         CursorIcon::RowResize,
     ];
+
+    /// Estimated icon size and click spot in that size.
+    pub fn size_and_spot(&self) -> (DipSize, DipPoint) {
+        fn splat(s: f32, rel_pt: f32) -> (DipSize, DipPoint) {
+            size(s, s, rel_pt, rel_pt)
+        }
+        fn size(w: f32, h: f32, rel_x: f32, rel_y: f32) -> (DipSize, DipPoint) {
+            (
+                DipSize::new(Dip::new_f32(w), Dip::new_f32(h)),
+                DipPoint::new(Dip::new_f32(w * rel_x), Dip::new_f32(h * rel_y)),
+            )
+        }
+
+        match self {
+            CursorIcon::Crosshair
+            | CursorIcon::Move
+            | CursorIcon::Wait
+            | CursorIcon::NotAllowed
+            | CursorIcon::NoDrop
+            | CursorIcon::Cell
+            | CursorIcon::Grab
+            | CursorIcon::Grabbing
+            | CursorIcon::AllScroll => splat(20.0, 0.5),
+            CursorIcon::Text | CursorIcon::NResize | CursorIcon::SResize | CursorIcon::NsResize => size(8.0, 20.0, 0.5, 0.5),
+            CursorIcon::VerticalText | CursorIcon::EResize | CursorIcon::WResize | CursorIcon::EwResize => size(20.0, 8.0, 0.5, 0.5),
+            _ => splat(20.0, 0.0),
+        }
+    }
 }
 
 /// Window state after a resize.

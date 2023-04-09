@@ -285,10 +285,12 @@ impl LAYERS {
                                     .and_then(|(w_id, pos)| if w_id == WINDOW.id() { Some(pos) } else { None })
                                 {
                                     let fct = LAYOUT.scale_factor().0;
-                                    let cursor_size = PxSize::splat(Dip::new(22).to_px(fct));
-                                    let place = pos.to_px(fct)
+                                    let (cursor_size, cursor_spot) =
+                                        WINDOW_CTRL.vars().cursor().get().map(|c| c.size_and_spot()).unwrap_or_default();
+                                    let cursor_rect = DipRect::new((pos - cursor_spot).to_point(), cursor_size).to_px(fct);
+                                    let place = cursor_rect.origin
                                         + LAYOUT
-                                            .with_constraints(PxConstraints2d::new_exact_size(cursor_size), || p.place.layout())
+                                            .with_constraints(PxConstraints2d::new_exact_size(cursor_rect.size), || p.place.layout())
                                             .to_vector();
                                     let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
 
