@@ -1,3 +1,5 @@
+* Cursor position for tooltip is lagging to far behind.
+* Image vanished after opening and closing tooltip (mouse out of window).
 * Layer fade-out.
     - A property in the layered widget that sets a state that is used by `LAYERS.remove` to animate a fade-out?
     - May want other "exit" animations.

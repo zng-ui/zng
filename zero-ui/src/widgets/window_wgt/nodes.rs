@@ -227,7 +227,7 @@ impl LAYERS {
                         return LAYOUT.with_constraints(
                             match mode.size {
                                 AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
-                                AnchorSize::Window => LAYOUT.constraints(),
+                                AnchorSize::Window => LAYOUT.constraints().with_fill(false, false),
                                 AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
                                 AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
                                 AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
@@ -249,7 +249,7 @@ impl LAYERS {
                         let layer_size = LAYOUT.with_constraints(
                             match mode.size {
                                 AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
-                                AnchorSize::Window => LAYOUT.constraints(),
+                                AnchorSize::Window => LAYOUT.constraints().with_fill(false, false),
                                 AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
                                 AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
                                 AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
