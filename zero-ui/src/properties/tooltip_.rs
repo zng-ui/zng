@@ -97,6 +97,8 @@ pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) ->
 /// [`tooltip_transform`]: fn@tooltip_transform
 /// [`tooltip_delay`]: fn@tooltip_delay
 /// [`tooltip_interval`]: fn@tooltip_interval
+/// [`tooltip_duration`]: fn@tooltip_duration
+/// [`disabled_tooltip`]: fn@disabled_tooltip
 #[property(EVENT)]
 pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
     tooltip_fn(child, WidgetFn::singleton(tip))
@@ -113,12 +115,14 @@ pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 ///
 /// # Disabled
 ///
-/// This tooltip only opens if the widget is enabled, see [`disabled_tooltip`] for a tooltip that only shows when the widget is disabled.
+/// This tooltip only opens if the widget is enabled, see [`disabled_tooltip_fn`] for a tooltip that only shows when the widget is disabled.
 ///
 /// [`tip!`]: mod@crate::widgets::tip
 /// [`tooltip_transform`]: fn@tooltip_transform
 /// [`tooltip_delay`]: fn@tooltip_delay
 /// [`tooltip_interval`]: fn@tooltip_interval
+/// [`tooltip_duration`]: fn@tooltip_duration
+/// [`disabled_tooltip_fn`]: fn@disabled_tooltip_fn
 #[property(EVENT, default(WidgetFn::nil()))]
 pub fn tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> impl UiNode {
     TooltipNode {
