@@ -59,17 +59,7 @@ pub fn hex_color(input: TokenStream) -> TokenStream {
 /// Read the documentation in the [`zero_ui_core::widget`](../zero_ui_core/attr.widget.html) page.
 #[proc_macro_attribute]
 pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
-    widget::expand(args, input, false)
-}
-
-/// Expands a module to a widget mix-in module and macro.
-///
-/// # Full Documentation
-///
-/// Read the documentation in the [`zero_ui_core::widget_mixin`](../zero_ui_core/attr.widget_mixin.html) page.
-#[proc_macro_attribute]
-pub fn widget_mixin(args: TokenStream, input: TokenStream) -> TokenStream {
-    widget::expand(args, input, true)
+    widget::expand(args, input)
 }
 
 /// Expands a property assign to include a build action that applies an easing transition to the variable inputs.

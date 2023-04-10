@@ -954,7 +954,7 @@ impl WidgetInfo {
             {
                 use crate::inspector::*;
                 if let Some(info) = w.inspector_info() {
-                    let mod_path = info.builder.widget_mod().path;
+                    let mod_path = info.builder.widget_type().path;
                     let mod_ident = if let Some((_, ident)) = mod_path.rsplit_once(':') {
                         ident
                     } else {
@@ -990,7 +990,7 @@ impl WidgetInfo {
         {
             use crate::inspector::*;
             if let Some(info) = self.inspector_info() {
-                let mod_path = info.builder.widget_mod().path;
+                let mod_path = info.builder.widget_type().path;
                 let mod_ident = if let Some((_, ident)) = mod_path.rsplit_once(':') {
                     ident
                 } else {

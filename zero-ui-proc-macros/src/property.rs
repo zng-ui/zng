@@ -555,7 +555,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         };
         let inputs = quote! {
             #cfg
-            #[doc(hidden)]            
+            #[doc(hidden)]
             #[allow(non_camel_case_types)]
             #vis struct #ident_inputs { }
             #cfg

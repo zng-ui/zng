@@ -9,9 +9,14 @@
         - Same path res as `property_info!`.
     - Generic properties.
 * Refactor `#[widget]`.
+    - Mixins, just `#[widget]` on a trait?
+    - No, can't have `#[property(impl(Trait))]`.
+    - Where is `widget_new!` available for the widget macro?
+    - Defaults helper, `properties! { builder; properties.. }`
 * Refactor all widgets.
 * Review docs.
     - No more property rename.
+    - `#[widget]` docs.
 * Test all.
 * Merge.
 

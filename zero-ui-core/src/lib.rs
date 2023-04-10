@@ -476,21 +476,20 @@ pub use zero_ui_proc_macros::ui_node;
 #[doc(inline)]
 pub use zero_ui_proc_macros::property;
 
-/// Expands a module to a widget module and macro.
+/// Expands a struct to a widget struct and macro.
 ///
-/// Each widget is a module and macro pair that construct a [`WidgetBuilder`] and instantiates a custom widget type.  Widgets
-/// can *inherit* from one other widget and from multiple [mix-ins](macro@widget_mixin), they can define properties with and without
-/// a default value and can add build actions to the [`WidgetBuilder`] that generates intrinsic nodes that define the widget behavior.
+/// Each widget is a struct and macro pair that construct a [`WidgetBuilder`] and instantiates a custom widget type.  Widgets
+/// *inherit* from one other widget, they can have intrinsic nodes and default properties and can build to a custom output type,
+/// the `#[property(.., impl(Widget))]` macro can be used to declare intrinsic properties that are always available in a widget.
 ///
 /// # Attribute
 ///
-/// The widget attribute must be placed in a `mod name { }` module declaration, only modules with inline content are supported, mods
-/// with content in other files will cause a compile time error. You also cannot set the attribute from the inside `#!`, this  is a
-/// limitation of the Rust compiler.
+/// The widget attribute must be placed in a `struct Name(Parent);` struct declaration, only struct following the exact pattern are allowed,
+/// different struct syntaxes will generate a compile error.
 ///
-/// The attribute requires one argument, it must be a macro style `$crate` path to the widget module, this is used in the generated macro
-/// to find the module during instantiation. The path must be to the *public* path to the module, that is, the same path that will be used
-/// to import the widget macro.  After the required widget path [custom rules] for the generated macro can be declared.
+/// The attribute requires one argument, it must be a macro style `$crate` path to the widget struct, this is used in the generated macro
+/// to find the struct during instantiation. The path must be to the *public* path to the struct, that is, the same path that will be used
+/// to import the widget. After the required widget path [custom rules] for the generated macro can be declared.
 ///
 /// ```
 /// # fn main() { }
@@ -498,50 +497,32 @@ pub use zero_ui_proc_macros::property;
 ///
 /// /// Minimal widget.
 /// #[widget($crate::foo)]
-/// pub mod foo {
-///     inherit!(zero_ui_core::widget_base::base);
-/// }
-/// ```
-///
-/// Because Rust does not allow custom inner attributes you cannot have a file per widget, the main zero-ui crate works around this
-/// by declaring the widget in a private `name_wgt.rs` and then re-exporting it. For example, the code above can be placed in a
-/// `foo_wgt.rs` file and then re-exported in the `lib.rs` file using:
-///
-/// ```
-/// # macro_rules! demo {() => {
-/// mod foo_wgt;
-/// #[doc(inline)]
-/// pub use foo_wgt::*;
-/// # }}
+/// pub struct Foo(zero_ui_core::widget_base::WidgetBase);
 /// ```
 ///
 /// # Inherit
 ///
-/// Inside the widget module the `inherit!` pseudo-macro can be used *import* another widget and multiple mix-ins. All properties
-/// in the other widget are imported and re-exported, the widget [include](#include) function is called before the widget's own and
-/// the [build](#build) function is used if the widget does not override it.
+/// The widget struct one unnamed member must be a path to the parent widget type, all widgets must inherit from another or the
+/// [`WidgetBase`], the parent widget(s) intrinsic properties and nodes are all included in the new widget. The intrinsic
+/// properties are included by deref, the new widget will dereference to the parent widget, during widget build auto-deref will select
+/// the property methods first, this mechanism even allows for property overrides.
 ///
-/// Apart from some special cases widgets should always inherit from another, in case no specific parent is needed the widget should
-/// inherit from [`widget_base::base`]. The base widget implements the minimal collaborative layout and render mechanisms that are
-/// expected by properties and other widgets.
+/// # On Start
 ///
-/// # Include
-///
-/// The widget module can define a function that *includes* custom build actions in the [`WidgetBuilder`] that is generated during
-/// [instantiation](#instantiation).
+/// The widget struct can define a method `on_start` that *includes* custom build actions in the [`WidgetBuilder`], this special
+/// method must be annotated with `#[widget(on_start)]` and will be called once for its own widget or derived widgets.
 ///
 /// ```
 /// # fn main() { }
 /// use zero_ui_core::{widget, widget_base::*, widget_builder::*};
 ///
-/// #[widget($crate::foo)]
-/// pub mod foo {
-///     use super::*;
+/// #[widget($crate::Foo)]
+/// pub struct Foo(WidgetBase);
 ///
-///     inherit!(base);
-///
-///     fn include(wgt: &mut WidgetBuilder) {
-///         wgt.push_build_action(|wgt| {
+/// impl Foo {
+///     #[widget(on_start)]
+///     fn on_start(&mut self) {
+///         self.builder().push_build_action(|b| {
 ///             // push_intrinsic, capture_var.
 ///         });
 ///     }
@@ -549,46 +530,38 @@ pub use zero_ui_proc_macros::property;
 /// ```
 ///
 /// The example above demonstrate the function used to [`push_build_action`]. This is the primary mechanism for widgets to define their
-/// own behavior that does not depend on properties. Note that the widget inherits from [`widget_base::base`], during [instantiation](#instantiation)
-/// of `foo!` the base include is called first, then the `foo!` include is called.
+/// own behavior that does not depend on properties. Note that the widget inherits from [`WidgetBase`], during [instantiation](#instantiation)
+/// of `Foo!` the base `on_start` is called first, then the `Foo!` `on_start` is called.
 ///
-/// The function does not need to be `pub`, but the widget attribute will generate a `pub` include function that calls this function,
-/// inherited includes and property builds. This generated `pub fn include` is visible in docs with sections about the properties and
-/// inherits it builds documented, if you place docs in the custom `include` they are incorporated in the generated docs after the
-/// first paragraph.
+/// The method does not need to be `pub`, and is not required.
 ///
 /// # Build
 ///
-/// The widget module can define a function that *builds* the final widget instance.
+/// The widget struct can define a method that *builds* the final widget instance.
 ///
 /// ```
 /// # fn main() { }
 /// use zero_ui_core::{widget, widget_base, widget_builder::*, widget_instance::*};
 ///
-/// #[widget($crate::foo)]
-/// pub mod foo {
-///     use super::*;
+/// #[widget($crate::Foo)]
+/// pub struct Foo(WidgetBase);
 ///
-///     inherit!(widget_base::base);
-///
-///     fn build(wgt: WidgetBuilder) -> impl UiNode {
-///         widget_base::nodes::build(wgt)
+/// impl Foo {
+///     /// Custom build.
+///     pub fn build(&mut self) -> impl UiNode {
+///         widget_base::nodes::build(self.take_builder())
 ///     }
 /// }
 /// ```
 ///
-/// The build function takes the [`WidgetBuilder`] already loaded with includes and properties, the function can define its own
-/// return type, this is the **widget type**. If the build function is not defined the inherited parent build function is used,
-/// if the widget does not inherit from any other the build function is required, and a compile error is shown if it is missing.
+/// The build method must have the same visibility as the widget, and can define its own
+/// return type, this is the **widget type**. If the build method is not defined the inherited parent build method is used.
 ///
-/// Unlike the [include](#include) function, the widget only has one `build`, if defined it overrides the parent `build`. Most widgets
-/// don't define their own build, leaving it to be inherited from [`widget_base::base`]. The base type is an opaque `impl UiNode`, normal
+/// Unlike the [on_start](#on-start) method, the widget only has one `build`, if defined it overrides the parent `build`. Most widgets
+/// don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base type is an opaque `impl UiNode`, normal
 /// widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets, the widget outer-node also must implement
 /// the widget context, to ensure that the widget is correctly placed in the UI tree. The base widget implementation is in [`widget_base::nodes::widget`],
 /// you can use it directly, so even if you need to run code on build or define a custom type you don't need to start from scratch.
-///
-/// The function does not need to be `pub`, but the widget attribute will make it `pub` and add some minimal docs, if you place
-/// docs in the custom `build` they are incorporated after the generated docs.
 ///
 /// # Properties
 ///
@@ -1054,20 +1027,6 @@ pub use zero_ui_proc_macros::property;
 /// [`widget_base::base`]: mod@widget_base::base
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;
-
-/// Expands a module to a widget mix-in module.
-///
-/// Widget mix-ins can only be inherited by other widgets and mix-ins, they cannot be instantiated. Widgets can only
-/// inherit from one other widget, but they can inherit from many mix-ins. All mix-in names must have the `_mixin` suffix,
-/// this is validated at compile time. Mix-ins represent a set of properties and build actions that adds a complex feature to an widget,
-/// something that cannot be implemented as a single property.
-///
-/// See the [`#[widget(..)]`][#widget] documentation for how to declare, the same syntax and items are expected
-/// by this macro, except the `build` function.
-///
-/// [#widget]: macro@widget
-#[doc(inline)]
-pub use zero_ui_proc_macros::widget_mixin;
 
 mod tests;
 

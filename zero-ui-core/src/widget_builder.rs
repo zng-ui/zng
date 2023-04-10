@@ -14,6 +14,7 @@ use crate::{
     impl_from_and_into_var,
     text::{formatx, Text},
     var::{types::AnyWhenVarBuilder, *},
+    widget_base::WidgetBase,
     widget_instance::{
         ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder,
     },
@@ -65,8 +66,8 @@ pub use when_condition_expr_var;
 ///
 /// # Syntax
 ///
-/// * `property::path`: Gets the ID for the property function.
-/// * `property::path as rename`: Gets the ID, but with the new name.
+/// * `path::ident`: Gets the ID for the property function.
+/// * `Widget::ident`: Gets the ID, for the property method, from inside the widget use `Self::ident`.
 ///
 /// # Examples
 ///
@@ -79,28 +80,26 @@ pub use when_condition_expr_var;
 /// #     child
 /// #   }
 /// # }
+/// # #[zero_ui_core::widget($crate::FooWgt)]
+/// # pub struct FooWgt(zero_ui_core::widget_base::WidgetBase);
+/// # #[property(CONTEXT, impl(FooWgt))]
+/// # pub fn bar(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
+/// #   child
+/// # }
 /// # fn main() {
 /// let foo_id = property_id!(path::foo);
-/// let renamed_id = property_id!(path::foo as bar);
+/// let bar_id = property_id!(FooWgt::bar);
 ///
-/// assert_ne!(foo_id, renamed_id);
-/// assert_eq!(foo_id.impl_id, renamed_id.impl_id);
-/// assert_ne!(foo_id.name, renamed_id.name);
+/// assert_ne!(foo_id, bar_id);
 /// # }
 /// ```
 #[macro_export]
 macro_rules! property_id {
     ($($property:ident)::+) => {{
-        $($property)::+::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
+        todo!("!!:")
     }};
     ($($property:ident)::+::<$($generics:ty),*>) => {{
-        $($property)::+ ::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
-    }};
-    ($($property:ident)::+ as $rename:ident) => {{
-        $($property)::+::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
-    }};
-    ($($property:ident)::+ ::<$($generics:ty),*> as $rename:ident) => {{
-        $($property)::+::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
+        todo!("!!:")
     }};
 }
 #[doc(inline)]
@@ -160,11 +159,6 @@ macro_rules! property_input_types {
 }
 #[doc(inline)]
 pub use crate::property_input_types;
-
-#[doc(hidden)]
-pub fn property_id_name(path: &'static str) -> &'static str {
-    path.rsplit(':').next().unwrap_or("").trim()
-}
 
 ///<span data-del-macro-root></span> New [`PropertyArgs`] box from a property and value.
 ///

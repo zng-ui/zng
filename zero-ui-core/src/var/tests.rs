@@ -473,24 +473,19 @@ mod context {
         OnInitNode { child, handler }
     }
 
-    #[widget($crate::var::tests::context::test_wgt)]
-    mod test_wgt {
-        use super::*;
-
-        inherit!(crate::widget_base::base);
-
-        properties! {
-            pub crate::widget_base::child;
-        }
-
-        fn include(wgt: &mut widget_builder::WidgetBuilder) {
-            wgt.push_build_action(|wgt| {
+    #[widget($crate::var::tests::context::TestWgt)]
+    struct TestWgt(crate::widget_base::WidgetBase);
+    impl TestWgt {
+        #[widget(on_start)]
+        fn on_start(&mut self) {
+            self.builder().push_build_action(|wgt| {
                 if let Some(child) = wgt.capture_ui_node(property_id!(self::child)) {
                     wgt.set_child(child);
                 }
             });
         }
     }
+    use widget_base::child;
 
     fn test_app(app: AppExtended<impl AppExtension>, root: impl UiNode) -> HeadlessApp {
         test_log();
@@ -506,10 +501,10 @@ mod context {
     fn context_var_basic() {
         let _test = test_app(
             App::default(),
-            test_wgt! {
+            TestWgt! {
                 test_prop = "test!";
 
-                child = test_wgt! {
+                child = TestWgt! {
                     probe = TEST_VAR;
                 }
             },
@@ -522,10 +517,10 @@ mod context {
     fn context_var_map() {
         let _test = test_app(
             App::default(),
-            test_wgt! {
+            TestWgt! {
                 test_prop = "test!";
 
-                child = test_wgt! {
+                child = TestWgt! {
                     probe = TEST_VAR.map(|t| formatx!("map {t}"));
                 }
             },
@@ -546,14 +541,14 @@ mod context {
 
         let _test = test_app(
             app,
-            test_wgt! {
+            TestWgt! {
                 test_prop_a = "A!";
 
-                child = test_wgt! {
+                child = TestWgt! {
                     probe = mapped.clone();
                     test_prop_b = "B!";
 
-                    child = test_wgt! {
+                    child = TestWgt! {
                         probe = mapped;
                     }
                 }
@@ -571,18 +566,18 @@ mod context {
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
         let _test = test_app(
             app,
-            test_wgt! {
+            TestWgt! {
                 test_prop = "A!";
 
-                child = test_wgt! {
+                child = TestWgt! {
                     probe = mapped.clone();
                     test_prop = "B!";
 
-                    child = test_wgt! {
+                    child = TestWgt! {
                         probe = mapped.clone();
                         test_prop = "C!";
 
-                        child = test_wgt! {
+                        child = TestWgt! {
                             probe = mapped;
                             test_prop = "D!";
                         }
@@ -605,14 +600,14 @@ mod context {
 
         let _test = test_app(
             app,
-            test_wgt! {
+            TestWgt! {
                 test_prop_a = "A!";
 
-                child = test_wgt! {
+                child = TestWgt! {
                     probe = TEST_VAR.map(|t| formatx!("map {t}"));
                     test_prop_b = "B!";
 
-                    child = test_wgt! {
+                    child = TestWgt! {
                         probe = TEST_VAR.map(|t| formatx!("map {t}"));
                     }
                 }
@@ -646,7 +641,7 @@ mod context {
 
         let _test = test_app(
             app,
-            test_wgt! {
+            TestWgt! {
                 test_prop_a = "A!";
                 probe_a = mapped.clone();
                 test_prop_b = "B!";
@@ -682,7 +677,7 @@ mod context {
 
         let mut test = test_app(
             app,
-            test_wgt! {
+            TestWgt! {
                 test_prop = input_var.clone();
                 on_init = hn_once!(other_var, |_| {
                     TEST_VAR.bind(&other_var).perm();

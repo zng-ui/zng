@@ -67,11 +67,11 @@ impl WriteTreeState {
     fn write_widget(&mut self, info: WidgetInfo, fmt: &mut print_fmt::Fmt) {
         let mut wgt_name = "<widget>";
         if let Some(inf) = info.inspector_info() {
-            wgt_name = inf.builder.widget_mod().name();
+            wgt_name = inf.builder.widget_type().name();
 
             let widget_id = info.id();
             let (parent_name, parent_prop) = match info.parent_property() {
-                Some((p, _)) => (info.parent().unwrap().inspector_info().unwrap().builder.widget_mod().name(), p.name),
+                Some((p, _)) => (info.parent().unwrap().inspector_info().unwrap().builder.widget_type().name(), p.name),
                 None => ("", ""),
             };
 

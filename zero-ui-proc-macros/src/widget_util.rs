@@ -19,15 +19,10 @@ use crate::{
 pub struct WgtProperty {
     /// Attributes.
     pub attrs: Attributes,
-    /// Reexport visibility.
-    pub vis: Visibility,
     /// Path to property.
     pub path: Path,
-    pub capture_decl: Option<CaptureDeclaration>,
     /// The ::<T> part of the path, if present it is removed from `path`.
     pub generics: TokenStream,
-    /// Optional property rename.
-    pub rename: Option<(Token![as], Ident)>,
     /// Optional value, if not defined the property must be assigned to its own name.
     pub value: Option<(Token![=], PropertyValue)>,
     /// Optional terminator.
@@ -36,11 +31,7 @@ pub struct WgtProperty {
 impl WgtProperty {
     /// Gets the property name.
     pub fn ident(&self) -> &Ident {
-        if let Some((_, id)) = &self.rename {
-            id
-        } else {
-            &self.path.segments.last().unwrap().ident
-        }
+        &self.path.segments.last().unwrap().ident
     }
 
     /// Generate PropertyId init code.
@@ -51,10 +42,6 @@ impl WgtProperty {
         quote_spanned! {path_span(path)=>
             #path::__id__(#ident_str)
         }
-    }
-
-    pub fn is_private(&self) -> bool {
-        matches!(&self.vis, Visibility::Inherited)
     }
 
     /// Gets if this property is assigned `unset!`.
@@ -75,8 +62,6 @@ impl WgtProperty {
         // if we just use the path span, go to rust-analyzer go-to-def gets confused.
         if let Some((eq, _)) = &self.value {
             eq.span()
-        } else if let Some((as_, _)) = &self.rename {
-            as_.span()
         } else if let Some(s) = &self.semi {
             s.span()
         } else {
@@ -86,9 +71,7 @@ impl WgtProperty {
 
     /// Converts values to `let` bindings that are returned.
     pub fn pre_bind_args(&mut self, shorthand_init_enabled: bool, extra_attrs: Option<&Attributes>, extra_prefix: &str) -> TokenStream {
-        let prefix = if let Some((_, id)) = &self.rename {
-            format!("__{extra_prefix}as_{id}_")
-        } else {
+        let prefix = {
             let path_str = self.path.to_token_stream().to_string().replace(' ', "").replace("::", "_i_");
             format!("__{extra_prefix}p_{path_str}_")
         };
@@ -133,7 +116,7 @@ impl WgtProperty {
                 }
                 PropertyValue::Special(_, _) => {}
             }
-        } else if shorthand_init_enabled && (self.rename.is_some() || self.path.get_ident().is_some()) {
+        } else if shorthand_init_enabled && self.path.get_ident().is_some() {
             let ident = self.ident().clone();
             let let_ident = ident!("{prefix}0__");
             self.value = Some((parse_quote!(=), PropertyValue::Unnamed(quote!(#let_ident))));
@@ -143,110 +126,6 @@ impl WgtProperty {
             });
         }
         r
-    }
-
-    pub fn reexport(&self) -> TokenStream {
-        if self.capture_decl.is_some() {
-            return quote!();
-        }
-
-        let vis = match self.vis.clone() {
-            Visibility::Inherited => {
-                if self.rename.is_some() || self.path.get_ident().is_none() {
-                    // so at least the widget can use it after pre-bind.
-                    Visibility::Inherited
-                } else {
-                    // already in context
-                    return quote!();
-                }
-            }
-            vis => vis,
-        };
-
-        let path = &self.path;
-
-        let name = match &self.rename {
-            Some((as_, id_)) => quote!(#as_ #id_),
-            None => {
-                let id_ = self.ident();
-                quote_spanned!(id_.span()=> as #id_)
-            }
-        };
-        let attrs = self.attrs.cfg_and_lints();
-        let clippy_nag = quote!(#[allow(clippy::useless_attribute)]);
-
-        quote_spanned! {self.path.span()=>
-            #clippy_nag
-            #attrs
-            #[allow(unused_imports)]
-            #[doc(inline)]
-            #vis use #path #name;
-        }
-    }
-
-    /// Declares capture property if it is one.
-    pub fn declare_capture(&self) -> TokenStream {
-        if let Some(decl) = &self.capture_decl {
-            let mut errors = Errors::default();
-            if !self.generics.is_empty() {
-                errors.push("new capture shorthand cannot have explicit generics", self.generics.span());
-            }
-            if let Some((as_, _)) = &self.rename {
-                errors.push("new capture properties cannot be renamed", as_.span());
-            }
-            if self.path.get_ident().is_none() {
-                errors.push("new capture properties must have a single ident", self.path.span());
-            }
-            let default_args = match &self.value {
-                Some((_, val)) => match val {
-                    PropertyValue::Unnamed(val) => Some(val),
-                    PropertyValue::Special(id, _) => {
-                        errors.push("cannot `{id}` new capture property", id.span());
-                        None
-                    }
-                    PropertyValue::Named(brace, _) => {
-                        errors.push("expected unnamed default", brace.span.join());
-                        None
-                    }
-                },
-                None => None,
-            };
-
-            if errors.is_empty() {
-                let ident = self.path.get_ident().unwrap().clone();
-
-                let ty = &decl.ty;
-                let vis = match self.vis.clone() {
-                    Visibility::Inherited => {
-                        // so at least the widget can get the `property_id!`.
-                        parse_quote!(pub(super))
-                    }
-                    vis => vis,
-                };
-                let core = util::crate_core();
-
-                let default = if let Some(default_args) = default_args {
-                    quote! {
-                        , default(#default_args)
-                    }
-                } else {
-                    quote!()
-                };
-
-                let attrs = &self.attrs;
-                quote_spanned! {ident.span()=>
-                    #attrs
-                    #[#core::property(CONTEXT, capture #default)]
-                    #vis fn #ident(__child__: impl #core::widget_instance::UiNode, #ident: #ty) -> impl #core::widget_instance::UiNode {
-                        __child__
-                    }
-                }
-            } else {
-                errors.to_token_stream()
-            }
-        } else {
-            quote!()
-        }
     }
 
     /// Gets the property args new code.
@@ -319,7 +198,6 @@ impl Parse for WgtProperty {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let attrs = Attribute::parse_outer(input)?;
 
-        let vis = input.parse()?;
         let path: Path = input.parse()?;
         if input.peek(Token![!]) {
             // cause error.
@@ -327,13 +205,6 @@ impl Parse for WgtProperty {
         }
         let (path, generics) = split_path_generics(path)?;
 
-        let capture_decl = if input.peek(token::Paren) { Some(input.parse()?) } else { None };
-
-        let rename = if input.peek(Token![as]) {
-            Some((input.parse()?, input.parse()?))
-        } else {
-            None
-        };
         let value = if input.peek(Token![=]) {
             Some((input.parse()?, input.parse()?))
         } else {
@@ -342,11 +213,8 @@ impl Parse for WgtProperty {
 
         Ok(WgtProperty {
             attrs: Attributes::new(attrs),
-            vis,
             path,
-            capture_decl,
             generics,
-            rename,
             value,
             semi: input.parse()?,
         })
@@ -392,18 +260,6 @@ impl Parse for PropertyField {
                 t
             },
         })
-    }
-}
-
-/// Property assign declares a new capture-only.
-pub struct CaptureDeclaration {
-    ty: Type,
-}
-impl Parse for CaptureDeclaration {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        let inner;
-        parenthesized!(inner in input);
-        Ok(Self { ty: inner.parse()? })
     }
 }
 
@@ -569,12 +425,6 @@ impl WgtWhen {
                                 // skip to next property.
                                 let _ = inner.parse::<TokenTree>();
                             }
-                        }
-                        if !matches!(p.vis, Visibility::Inherited) {
-                            errors.push("cannot reexport property from when assign", p.vis.span());
-                        }
-                        if let Some(decl) = &p.capture_decl {
-                            errors.push("cannot declare capture property in when assign", decl.ty.span());
                         }
 
                         if let Some((_, PropertyValue::Special(s, _))) = &p.value {

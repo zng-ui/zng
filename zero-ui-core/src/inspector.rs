@@ -35,11 +35,11 @@ mod inspector_only {
 #[cfg(inspector)]
 pub(crate) use inspector_only::*;
 
-use std::sync::Arc;
+use std::{any::TypeId, sync::Arc};
 
 use crate::{
     context::{StaticStateId, WIDGET},
-    widget_builder::{InputKind, NestGroup, PropertyArgs, PropertyId, PropertyImplId, WidgetBuilder, WidgetImplId, WidgetMod},
+    widget_builder::{InputKind, NestGroup, PropertyArgs, PropertyId, WidgetBuilder, WidgetType},
     widget_info::WidgetInfo,
 };
 
@@ -229,17 +229,17 @@ pub trait InspectWidgetPattern {
 /// Matches if the [`WidgetMod::path`] ends with the string.
 impl<'s> InspectWidgetPattern for &'s str {
     fn matches(&self, info: &InspectorInfo) -> bool {
-        info.builder.widget_mod().path.ends_with(self)
+        info.builder.widget_type().path.ends_with(self)
     }
 }
-impl InspectWidgetPattern for WidgetImplId {
+impl InspectWidgetPattern for TypeId {
     fn matches(&self, info: &InspectorInfo) -> bool {
-        info.builder.widget_mod().impl_id == *self
+        info.builder.widget_type().type_id == *self
     }
 }
-impl InspectWidgetPattern for WidgetMod {
+impl InspectWidgetPattern for WidgetType {
     fn matches(&self, info: &InspectorInfo) -> bool {
-        info.builder.widget_mod().impl_id == self.impl_id
+        info.builder.widget_type().type_id == self.type_id
     }
 }
 
@@ -253,16 +253,11 @@ pub trait InspectPropertyPattern {
 /// [`PropertyInstInfo::name`]: crate::widget_builder::PropertyInstInfo::name
 impl<'s> InspectPropertyPattern for &'s str {
     fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
-        args.instance().name == *self
+        args.property().name == *self
     }
 }
 impl InspectPropertyPattern for PropertyId {
     fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
         args.id() == *self
-    }
-}
-impl InspectPropertyPattern for PropertyImplId {
-    fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
-        args.property().id == *self
     }
 }
