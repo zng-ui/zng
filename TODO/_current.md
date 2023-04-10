@@ -3,6 +3,10 @@
  See `_widget_design.md`.
 
 * Refactor `#[property]`.
+    - `property_info!`.
+        - Need a proc-macro to guess if is trait or impl.
+    - `property_id!`.
+        - Same path res as `property_info!`.
     - Generic properties.
 * Refactor `#[widget]`.
 * Refactor all widgets.

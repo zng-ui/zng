@@ -1365,7 +1365,6 @@ impl<'a> fmt::Debug for &'a dyn PropertyArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("dyn PropertyArgs")
             .field("property", &self.property())
-            .field("instance", &self.instance())
             .finish_non_exhaustive()
     }
 }
@@ -1373,7 +1372,6 @@ impl fmt::Debug for Box<dyn PropertyArgs> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("dyn PropertyArgs")
             .field("property", &self.property())
-            .field("instance", &self.instance())
             .finish_non_exhaustive()
     }
 }

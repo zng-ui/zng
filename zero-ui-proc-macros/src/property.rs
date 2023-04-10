@@ -116,6 +116,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let has_generics = !generics.params.empty_or_trailing();
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
 
+        let ident_args = ident!("{}_args__", ident);
+        let ident_inputs = ident!("{}_inputs__", ident);
+        let ident_meta = ident!("{}_meta__", ident);
+
         let default;
         let default_fn;
         let args_default = match args.default {
@@ -162,14 +166,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         };
 
         if let Some((span, args)) = args_default {
-            let new = quote_spanned!(span=> Self::__new__);
-            default = quote! {
-                pub fn __default__() -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    #new(#args)
+            default = quote_spanned! {span=>
+                fn __default__() -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                    #ident_meta {}.args(#args)
                 }
             };
             default_fn = quote! {
-                Some(Self::__default__)
+                Some(__default__)
             };
         } else {
             default = quote!();
@@ -441,10 +444,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         let node_instance = ident_spanned!(output_span=> "__node__");
 
-        let ident_args = ident!("{}_args__", ident);
-        let ident_inputs = ident!("{}_inputs__", ident);
-        let ident_meta = ident!("{}_meta__", ident);
-
         let (is_ext, target) = match args.impl_for {
             Some(impl_for) => (impl_for.is_ext, impl_for.target.to_token_stream()),
             None => (true, quote!(#core::widget_base::WidgetBase)),
@@ -455,6 +454,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let meta = quote! {
             #cfg
             #[doc(hidden)]
+            #[allow(non_camel_case_types)]
             #vis struct #ident_meta  { }
             #cfg
             #[doc(hidden)]
@@ -485,7 +485,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     }
                 }
 
-                #vis const input_types(&self) ->  #core::widget_builder::PropertyInputTypes<(#(#storage_tys,)*)> {
+                #vis const fn input_types(&self) ->  #core::widget_builder::PropertyInputTypes<(#(#storage_tys,)*)> {
                     #core::widget_builder::PropertyInputTypes::unit()
                 }
 
@@ -532,7 +532,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #(#input_idents: #storage_tys),*
             }
             #cfg
-            impl #impl_gens #core::widget_builder::PropertyArgs for #ident #ty_gens #where_gens {
+            impl #impl_gens #core::widget_builder::PropertyArgs for #ident_args #ty_gens #where_gens {
                 fn clone_boxed(&self) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
                     Box::new(std::clone::Clone::clone(self))
                 }
@@ -555,7 +555,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         };
         let inputs = quote! {
             #cfg
-            #[doc(hidden)]
+            #[doc(hidden)]            
+            #[allow(non_camel_case_types)]
             #vis struct #ident_inputs { }
             #cfg
             impl #ident_inputs {
@@ -568,12 +569,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             quote! {
                 #cfg
                 #[doc(hidden)]
+                #[allow(non_camel_case_types)]
                 #vis trait #ident: #core::widget_base::WidgetBaseExt {
                     #(#docs)*
                     #[allow(clippy::too_many_arguments)]
                     fn #ident(&mut self, #(#input_idents: #input_tys),*) {
                         let args = #ident_meta { }.args(#(#input_idents),*);
-                        self.ext_property(args)
+                        self.ext_property__(args)
                     }
 
                     #[doc(hidden)]
@@ -593,9 +595,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #cfg
                 impl #target {
                     #(#docs)*
-                    #vis fn ident(&self, #(#input_idents: #input_tys),*) {
+                    #vis fn #ident(&self, #(#input_idents: #input_tys),*) {
                         let args = #ident_meta { }.args(#(#input_idents),*);
-                        self.ext_property(args)
+                        self.mtd_property__(args)
                     }
 
                     #[doc(hidden)]
