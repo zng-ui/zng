@@ -1194,6 +1194,38 @@ pub struct PropertyId {
     pub name: &'static str,
 }
 
+/// Unique identifier of a widget type.
+///
+/// Equality and hash is defined by the `type_id` only.
+///
+/// You can use the [`widget_type!`] macro to get the mod info of a widget.
+#[derive(Clone, Copy, Debug)]
+pub struct WidgetType {
+    /// Widget type ID.
+    pub type_id: TypeId,
+    /// The widget public macro path.
+    pub path: &'static str,
+    /// Source code location.
+    pub location: SourceLocation,
+}
+impl WidgetType {
+    /// Get the last part of the path.
+    pub fn name(&self) -> &'static str {
+        self.path.rsplit_once(':').map(|(_, n)| n).unwrap_or(self.path)
+    }
+}
+impl PartialEq for WidgetType {
+    fn eq(&self, other: &Self) -> bool {
+        self.type_id == other.type_id
+    }
+}
+impl Eq for WidgetType {}
+impl std::hash::Hash for WidgetType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.type_id.hash(state);
+    }
+}
+
 /// Unique identifier of a widget module.
 ///
 /// Equality and hash is defined by the `impl_id` only.

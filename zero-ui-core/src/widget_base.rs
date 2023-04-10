@@ -1,6 +1,6 @@
-//! The [`base`](mod@base) and properties used in most widgets.
+//! The [`WidgetBase`], nodes and properties used in most widgets.
 
-use std::fmt;
+use std::{any::TypeId, cell::RefCell, fmt};
 
 use crate::{
     context::*,
@@ -16,6 +16,100 @@ use crate::{
     widget_instance::*,
     window::INTERACTIVITY_CHANGED_EVENT,
 };
+
+/// Base widget that implements the necessary core API.
+///
+/// The base widget does [`nodes::include_intrinsics`] to enable proper layout and render in all widgets that inherit from base.
+///
+/// The base widget also provides a default function that captures the [`id`] and handles missing child node by capturing
+/// [`child`] or falling back to [`FillUiNode`].
+///
+/// [`id`]: WidgetBase::id
+/// [`child`]: fn@child
+// #[widget($crate::widget_base::WidgetBase)]
+pub struct WidgetBase {
+    builder: Option<RefCell<WidgetBuilder>>,
+    started: bool,
+}
+impl WidgetBase {
+    /// Gets the type of [`WidgetBase`].
+    pub fn widget_type() -> WidgetType {
+        WidgetType {
+            type_id: TypeId::of::<Self>(),
+            path: "$crate::widget_base::WidgetBase",
+            location: source_location!(),
+        }
+    }
+
+    /// Starts building a new [`WidgetBase`] instance.
+    pub fn start() -> Self {
+        Self::inherit(Self::widget_type())
+    }
+
+    /// Starts building a new widget derived from [`WidgetBase`].
+    pub fn inherit(widget: WidgetType) -> Self {
+        let mut builder = WidgetBuilder::new(widget);
+        let mut w = Self {
+            builder: Some(RefCell::new(builder)),
+            started: false,
+        };
+        w.on_start__();
+        w
+    }
+
+    /// Direct reference the widget builder.
+    pub fn builder(&mut self) -> &mut WidgetBuilder {
+        self.builder.as_mut().expect("already built").get_mut()
+    }
+
+    /// Gets the widget builder.
+    ///
+    /// After this call trying to set a property will panic.
+    pub fn take_builder(&mut self) -> WidgetBuilder {
+        self.builder.take().expect("builder already taken").into_inner()
+    }
+
+    /// Build the widget.
+    ///
+    /// After this call trying to set a property will panic.
+    pub fn build(&mut self) -> impl UiNode {
+        let mut wgt = self.take_builder();
+        wgt.push_build_action(|wgt| {
+            if !wgt.has_child() {
+                wgt.set_child(FillUiNode);
+            }
+        });
+        nodes::build(wgt)
+    }
+
+    #[doc(hidden)]
+    pub fn on_start__(&mut self) {
+        if !self.started {
+            self.started = true;
+            nodes::include_intrinsics(self.builder());
+        }
+    }
+
+    /// Push method property.
+    #[doc(hidden)]
+    pub fn mtd_property__(&self, args: Box<dyn PropertyArgs>) {
+        self.builder
+            .as_ref()
+            .expect("cannot set after build")
+            .borrow_mut()
+            .push_property(Importance::INSTANCE, args);
+    }
+
+    /// Push extension property.
+    #[doc(hidden)]
+    pub fn ext_property__(&mut self, args: Box<dyn PropertyArgs>) {
+        self.builder
+            .as_mut()
+            .expect("cannot set after build")
+            .get_mut()
+            .push_property(Importance::INSTANCE, args);
+    }
+}
 
 /// Base widget that implements the necessary core API.
 ///
