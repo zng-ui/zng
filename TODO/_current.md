@@ -3,6 +3,7 @@
  See `_widget_design.md`.
 
 * Refactor `#[property]`.
+    - Generic properties.
 * Refactor `#[widget]`.
 * Refactor all widgets.
 * Review docs.

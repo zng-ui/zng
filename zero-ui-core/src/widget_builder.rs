@@ -1126,7 +1126,6 @@ impl fmt::Debug for PropertyId {
     }
 }
 
-
 /// Unique identifier of a widget type.
 ///
 /// Equality and hash is defined by the `type_id` only.

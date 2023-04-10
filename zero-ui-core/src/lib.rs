@@ -335,15 +335,15 @@ pub use zero_ui_proc_macros::ui_node;
 /// block if will only be visible when it is active.
 ///
 /// For properties with multiple inputs the default args may be defined in a comma separated list of params, `default(dft0, dft1, ..)`.
-/// 
+///
 /// ## Impl For
-/// 
+///
 /// The last argument is an optional `impl(<widget-type>)` or `for(<widget-type>)`. It limits what widgets the property can be set in and when it
 /// is a part of the widget, the `impl` mode can only be used with widgets declared in the same crate, it will strongly associate with the widget type,
 /// so that users can set the property on the widget (or derived widgets) directly, without needing to import the property. The `for` mode
 /// generates a property that can only be set on the widget (or derived widgets), but the property still needs to be imported, the widget type
 /// can be external from another crate too.
-/// 
+///
 /// When this argument is not present the property expands equivalent to `for(zero_ui_core::WidgetBase)`, meaning the property can be set in
 /// any widget.
 ///

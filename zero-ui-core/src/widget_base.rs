@@ -100,7 +100,7 @@ impl WidgetBase {
     }
 }
 
-impl crate::private::Sealed for WidgetBase { }
+impl crate::private::Sealed for WidgetBase {}
 
 #[doc(hidden)]
 pub trait WidgetBaseExt: crate::private::Sealed {

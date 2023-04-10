@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, *};
 
-use crate::util::{self, crate_core, set_stream_span, Attributes, Errors};
+use crate::util::{crate_core, set_stream_span, Attributes, Errors};
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut errors = Errors::default();
@@ -218,7 +218,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             match kind {
                 InputKind::Var => {
                     input_to_storage.push(quote! {
-                        Self::#ident(#ident)
+                        self.inputs().#ident(#ident)
                     });
                     get_var.extend(quote! {
                         #i => &self.#ident,
@@ -227,7 +227,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         std::clone::Clone::clone(&self.#ident),
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #storage_ty {
+                        pub fn #ident(&self, #ident: #input_ty) -> #storage_ty {
                             #core::widget_builder::var_to_args(#ident)
                         }
                     });
@@ -238,11 +238,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident()
+                        pub fn #get_ident(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
-                        pub fn #get_ident_i()
+                        pub fn #get_ident_i(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
@@ -251,10 +251,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 InputKind::Value => {
                     allowed_in_when_assign = false;
                     input_to_storage.push(quote! {
-                        Self::#ident(#ident)
+                        self.inputs().#ident(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #storage_ty {
+                        pub fn #ident(&self, #ident: #input_ty) -> #storage_ty {
                             #core::widget_builder::value_to_args(#ident)
                         }
                     });
@@ -271,11 +271,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident()
+                        pub fn #get_ident(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
-                        pub fn #get_ident_i()
+                        pub fn #get_ident_i(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
@@ -287,7 +287,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #core::widget_builder::ui_node_to_args(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #core::widget_instance::BoxedUiNode {
+                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget_instance::BoxedUiNode {
                             #core::widget_instance::UiNode::boxed(#ident)
                         }
                     });
@@ -304,11 +304,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident()
+                        pub fn #get_ident(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeInWhenExprError>) {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeInWhenExprError>()
                         }
-                        pub fn #get_ident_i()
+                        pub fn #get_ident_i(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeInWhenExprError>) {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeInWhenExprError>()
                         }
@@ -320,7 +320,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #core::widget_builder::ui_node_list_to_args(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #core::widget_instance::BoxedUiNodeList {
+                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget_instance::BoxedUiNodeList {
                             #core::widget_instance::UiNodeList::boxed(#ident)
                         }
                     });
@@ -337,11 +337,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident()
+                        pub fn #get_ident(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeListInWhenExprError>) {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeListInWhenExprError>()
                         }
-                        pub fn #get_ident_i()
+                        pub fn #get_ident_i(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeListInWhenExprError>) {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeListInWhenExprError>()
                         }
@@ -353,7 +353,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #core::widget_builder::widget_handler_to_args(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #input_ty {
+                        pub fn #ident(&self, #ident: #input_ty) -> #input_ty {
                             #ident
                         }
                     });
@@ -370,11 +370,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident()
+                        pub fn #get_ident(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::WidgetHandlerInWhenExprError>) {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::WidgetHandlerInWhenExprError>()
                         }
-                        pub fn #get_ident_i()
+                        pub fn #get_ident_i(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::WidgetHandlerInWhenExprError>) {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::WidgetHandlerInWhenExprError>()
                         }
@@ -441,7 +441,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         let node_instance = ident_spanned!(output_span=> "__node__");
 
-        let ident_args = ident!("{}_args", ident);
+        let ident_args = ident!("{}_args__", ident);
+        let ident_inputs = ident!("{}_inputs__", ident);
         let ident_meta = ident!("{}_meta__", ident);
 
         let (is_ext, target) = match args.impl_for {
@@ -461,13 +462,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 pub const ALLOWED_IN_WHEN_EXPR: bool = #allowed_in_when_expr;
                 pub const ALLOWED_IN_WHEN_ASSIGN: bool = #allowed_in_when_assign;
 
-                pub fn id(&self, name: &'static str) -> #core::widget_builder::PropertyId {
-                    static impl_id: #core::widget_builder::StaticPropertyImplId = #core::widget_builder::StaticPropertyImplId::new_unique();
-    
-                    #core::widget_builder::PropertyId {
-                        impl_id: impl_id.get(),
-                        name,
-                    }
+                pub fn id(&self) -> #core::widget_builder::PropertyId {
+                    static ID: #core::widget_builder::StaticPropertyId = #core::widget_builder::StaticPropertyId::new_unique();
+                    ID.get()
                 }
 
                 pub fn info(&self) -> #core::widget_builder::PropertyInfo {
@@ -477,11 +474,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             #nest_group
                         },
                         capture: #capture,
-                        impl_id: Self::id("").impl_id,
+                        id: self.id(),
                         name: std::stringify!(#ident),
                         location: #core::widget_builder::source_location!(),
-                        default: #default_fn,
-                        new: Self::__new_dyn__,
+                        default: self.default_fn(),
+                        new: Self::args_dyn,
                         inputs: std::boxed::Box::new([
                             #input_info
                         ]),
@@ -492,20 +489,38 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     #core::widget_builder::PropertyInputTypes::unit()
                 }
 
-                #default
-
-                pub fn default_fn() -> std::option::Option<fn () -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs>> {
+                pub fn default_fn(&self) -> std::option::Option<fn () -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs>> {
+                    #default
                     #default_fn
                 }
 
-                pub fn args_dyn(
+                #vis fn args(
                     &self,
+                    #(#input_idents: #input_tys),*
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                    std::boxed::Box::new(#ident_args {
+                        #(#input_idents: #input_to_storage),*
+                    })
+                }
+
+                #vis fn args_sorted(
+                    &self,
+                    #(#sorted_idents: #sorted_tys),*
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                    self.args(#(#input_idents),*)
+                }
+
+                fn args_dyn(
                     __args__: #core::widget_builder::PropertyNewArgs,
                 ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
                     let mut __inputs__ = __args__.args.into_iter();
-                    Box::new(Self {
+                    Box::new(#ident_args {
                         #(#input_idents: { #input_new_dyn },)*
                     })
+                }
+
+                pub fn inputs(&self) -> #ident_inputs {
+                    #ident_inputs { }
                 }
             }
         };
@@ -515,24 +530,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #[allow(non_camel_case_types)]
             #vis struct #ident_args #impl_gens #where_gens {
                 #(#input_idents: #storage_tys),*
-            }
-            #cfg
-            impl #impl_gens #ident_args #ty_gens #where_gens {                
-                pub fn __new__(
-                    #(#input_idents: #input_tys),*
-                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    std::boxed::Box::new(Self {
-                        #(#input_idents: #input_to_storage),*
-                    })
-                }
-
-                #[allow(clippy::too_many_arguments)]
-                pub fn __new_sorted__(#(#sorted_idents: #sorted_tys),*) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    Self::__new__(#(#input_idents),*)
-                }
-
-                #named_into
-                #get_when_input
             }
             #cfg
             impl #impl_gens #core::widget_builder::PropertyArgs for #ident #ty_gens #where_gens {
@@ -556,6 +553,16 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #get_widget_handler
             }
         };
+        let inputs = quote! {
+            #cfg
+            #[doc(hidden)]
+            #vis struct #ident_inputs { }
+            #cfg
+            impl #ident_inputs {
+                #named_into
+                #get_when_input
+            }
+        };
 
         if is_ext {
             quote! {
@@ -565,7 +572,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     #(#docs)*
                     #[allow(clippy::too_many_arguments)]
                     fn #ident(&mut self, #(#input_idents: #input_tys),*) {
-                        self.ext_property(todo!("!!"))
+                        let args = #ident_meta { }.args(#(#input_idents),*);
+                        self.ext_property(args)
                     }
 
                     #[doc(hidden)]
@@ -576,8 +584,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #cfg
                 impl self::#ident for #target { }
 
-                #args
                 #meta
+                #args
+                #inputs
             }
         } else {
             quote! {
@@ -585,7 +594,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 impl #target {
                     #(#docs)*
                     #vis fn ident(&self, #(#input_idents: #input_tys),*) {
-                        self.mtd_property(todo!("!!"))
+                        let args = #ident_meta { }.args(#(#input_idents),*);
+                        self.ext_property(args)
                     }
 
                     #[doc(hidden)]
@@ -596,6 +606,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                 #args
                 #meta
+                #inputs
             }
         }
     } else {
