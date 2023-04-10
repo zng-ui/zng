@@ -1,3 +1,17 @@
+# Widget & Property Refactor
+
+ See `_widget_design.md`.
+
+* Refactor `#[property]`.
+* Refactor `#[widget]`.
+* Refactor all widgets.
+* Review docs.
+    - No more property rename.
+* Test all.
+* Merge.
+
+# Other
+
 * Cursor position for tooltip is lagging to far behind.
     - Observed this in Firefox too, maybe there is nothing to do?
     - Make a system call to get the cursor position and compare it with the MOUSE var, just to see if we are not lagging more then "normal".

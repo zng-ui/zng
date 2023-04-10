@@ -17,6 +17,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 nest_group: parse_quote!(CONTEXT),
                 capture: false,
                 default: None,
+                impl_for: None,
             }
         }
     };
@@ -163,8 +164,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         if let Some((span, args)) = args_default {
             let new = quote_spanned!(span=> Self::__new__);
             default = quote! {
-                pub fn __default__(info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    #new(#args).__build__(info)
+                pub fn __default__() -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                    #new(#args)
                 }
             };
             default_fn = quote! {
@@ -440,50 +441,43 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         let node_instance = ident_spanned!(output_span=> "__node__");
 
-        let struct_docs = if util::is_rust_analyzer() {
-            let docs = &attrs.docs;
-            quote! {
-                #(#docs)*
-            }
-        } else {
-            quote! {
-                #[doc(hidden)]
-            }
+        let ident_args = ident!("{}_args", ident);
+        let ident_meta = ident!("{}_meta__", ident);
+
+        let (is_ext, target) = match args.impl_for {
+            Some(impl_for) => (impl_for.is_ext, impl_for.target.to_token_stream()),
+            None => (true, quote!(#core::widget_base::WidgetBase)),
         };
 
-        quote! {
+        let docs = &attrs.docs;
+
+        let meta = quote! {
             #cfg
-            #struct_docs
-            #[derive(std::clone::Clone)]
-            #[allow(non_camel_case_types)]
-            #vis struct #ident #impl_gens #where_gens {
-                __instance__: #core::widget_builder::PropertyInstInfo,
-                #(#input_idents: #storage_tys),*
-            }
+            #[doc(hidden)]
+            #vis struct #ident_meta  { }
             #cfg
-            impl #impl_gens #ident #ty_gens #where_gens {
+            #[doc(hidden)]
+            impl #ident_meta {
                 pub const ALLOWED_IN_WHEN_EXPR: bool = #allowed_in_when_expr;
                 pub const ALLOWED_IN_WHEN_ASSIGN: bool = #allowed_in_when_assign;
 
-                #[doc(hidden)]
-                pub fn __id__(name: &'static str) -> #core::widget_builder::PropertyId {
+                pub fn id(&self, name: &'static str) -> #core::widget_builder::PropertyId {
                     static impl_id: #core::widget_builder::StaticPropertyImplId = #core::widget_builder::StaticPropertyImplId::new_unique();
-
+    
                     #core::widget_builder::PropertyId {
                         impl_id: impl_id.get(),
                         name,
                     }
                 }
 
-                #[doc(hidden)]
-                pub fn __property__() -> #core::widget_builder::PropertyInfo {
+                pub fn info(&self) -> #core::widget_builder::PropertyInfo {
                     #core::widget_builder::PropertyInfo {
                         group: {
                             use #core::widget_builder::nest_group_items::*;
                             #nest_group
                         },
                         capture: #capture,
-                        impl_id: Self::__id__("").impl_id,
+                        impl_id: Self::id("").impl_id,
                         name: std::stringify!(#ident),
                         location: #core::widget_builder::source_location!(),
                         default: #default_fn,
@@ -494,45 +488,47 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     }
                 }
 
-                #[doc(hidden)]
-                pub const fn __input_types__() -> #core::widget_builder::PropertyInputTypes<(#(#storage_tys,)*)> {
+                #vis const input_types(&self) ->  #core::widget_builder::PropertyInputTypes<(#(#storage_tys,)*)> {
                     #core::widget_builder::PropertyInputTypes::unit()
-                }
-
-                #[allow(clippy::too_many_arguments)]
-                pub fn __new__(
-                    #(#input_idents: #input_tys),*
-                ) -> Self {
-                    Self {
-                        __instance__: #core::widget_builder::PropertyInstInfo::none(),
-                        #(#input_idents: #input_to_storage),*
-                    }
-                }
-
-                #[allow(clippy::too_many_arguments)]
-                pub fn __new_sorted__(#(#sorted_idents: #sorted_tys),*) -> Self {
-                    Self::__new__(#(#input_idents),*)
-                }
-
-                pub fn __new_dyn__(
-                    __args__: #core::widget_builder::PropertyNewArgs,
-                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    let mut __inputs__ = __args__.args.into_iter();
-                    Box::new(Self {
-                        __instance__: __args__.inst_info,
-                        #(#input_idents: { #input_new_dyn },)*
-                    })
-                }
-
-                pub fn __build__(mut self, info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    self.__instance__ = info;
-                    Box::new(self)
                 }
 
                 #default
 
-                pub fn __default_fn__() -> std::option::Option<fn (info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs>> {
+                pub fn default_fn() -> std::option::Option<fn () -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs>> {
                     #default_fn
+                }
+
+                pub fn args_dyn(
+                    &self,
+                    __args__: #core::widget_builder::PropertyNewArgs,
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                    let mut __inputs__ = __args__.args.into_iter();
+                    Box::new(Self {
+                        #(#input_idents: { #input_new_dyn },)*
+                    })
+                }
+            }
+        };
+        let args = quote! {
+            #cfg
+            #[derive(std::clone::Clone)]
+            #[allow(non_camel_case_types)]
+            #vis struct #ident_args #impl_gens #where_gens {
+                #(#input_idents: #storage_tys),*
+            }
+            #cfg
+            impl #impl_gens #ident_args #ty_gens #where_gens {                
+                pub fn __new__(
+                    #(#input_idents: #input_tys),*
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                    std::boxed::Box::new(Self {
+                        #(#input_idents: #input_to_storage),*
+                    })
+                }
+
+                #[allow(clippy::too_many_arguments)]
+                pub fn __new_sorted__(#(#sorted_idents: #sorted_tys),*) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                    Self::__new__(#(#input_idents),*)
                 }
 
                 #named_into
@@ -545,11 +541,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
 
                 fn property(&self) -> #core::widget_builder::PropertyInfo {
-                    Self::__property__()
-                }
-
-                fn instance(&self) -> #core::widget_builder::PropertyInstInfo {
-                    std::clone::Clone::clone(&self.__instance__)
+                    #ident_meta { }.info()
                 }
 
                 fn instantiate(&self, __child__: #core::widget_instance::BoxedUiNode) -> #core::widget_instance::BoxedUiNode {
@@ -562,6 +554,48 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #get_ui_node
                 #get_ui_node_list
                 #get_widget_handler
+            }
+        };
+
+        if is_ext {
+            quote! {
+                #cfg
+                #[doc(hidden)]
+                #vis trait #ident: #core::widget_base::WidgetBaseExt {
+                    #(#docs)*
+                    #[allow(clippy::too_many_arguments)]
+                    fn #ident(&mut self, #(#input_idents: #input_tys),*) {
+                        self.ext_property(todo!("!!"))
+                    }
+
+                    #[doc(hidden)]
+                    fn #ident_meta(&self) -> #ident_meta {
+                        #ident_meta { }
+                    }
+                }
+                #cfg
+                impl self::#ident for #target { }
+
+                #args
+                #meta
+            }
+        } else {
+            quote! {
+                #cfg
+                impl #target {
+                    #(#docs)*
+                    #vis fn ident(&self, #(#input_idents: #input_tys),*) {
+                        self.mtd_property(todo!("!!"))
+                    }
+
+                    #[doc(hidden)]
+                    #vis fn #ident_meta(&self) -> #ident_meta {
+                        #ident_meta { }
+                    }
+                }
+
+                #args
+                #meta
             }
         }
     } else {
@@ -581,6 +615,7 @@ struct Args {
     nest_group: Expr,
     capture: bool,
     default: Option<Default>,
+    impl_for: Option<ImplFor>,
 }
 impl Parse for Args {
     fn parse(input: parse::ParseStream) -> Result<Self> {
@@ -594,6 +629,11 @@ impl Parse for Args {
                 false
             },
             default: if input.peek(Token![,]) && input.peek2(Token![default]) {
+                Some(input.parse()?)
+            } else {
+                None
+            },
+            impl_for: if input.peek(Token![,]) && (input.peek2(Token![impl]) || input.peek2(Token![for])) {
                 Some(input.parse()?)
             } else {
                 None
@@ -615,6 +655,31 @@ impl Parse for Default {
         Ok(Default {
             default,
             args: Punctuated::parse_terminated(&inner)?,
+        })
+    }
+}
+
+struct ImplFor {
+    is_ext: bool,
+    target: Path,
+}
+impl Parse for ImplFor {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        let _: Token![,] = input.parse()?;
+        let is_ext = if input.peek(Token![for]) {
+            let _: Token![for] = input.parse()?;
+            true
+        } else {
+            let _: Token![impl] = input.parse()?;
+            false
+        };
+
+        let inner;
+        parenthesized!(inner in input);
+
+        Ok(ImplFor {
+            is_ext,
+            target: inner.parse()?,
         })
     }
 }

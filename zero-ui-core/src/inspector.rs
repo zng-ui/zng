@@ -263,6 +263,6 @@ impl InspectPropertyPattern for PropertyId {
 }
 impl InspectPropertyPattern for PropertyImplId {
     fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
-        args.property().impl_id == *self
+        args.property().id == *self
     }
 }

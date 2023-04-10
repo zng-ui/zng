@@ -185,21 +185,21 @@ pub fn property_id_name(path: &'static str) -> &'static str {
 macro_rules! property_args {
     ($($property:ident)::+ $(as $rename:ident)? = $($value:tt)*) => {
         {
-            $crate::widget_builder::property_args_getter! {
+            $crate::widget_builder::PropertyArgsGetter! {
                 $($property)::+ $(as $rename)? = $($value)*
             }
         }
     };
     ($($property:ident)::+ ::<$($generics:ty),*> $(as $rename:ident)? = $($value:tt)*) => {
         {
-            $crate::widget_builder::property_args_getter! {
+            $crate::widget_builder::PropertyArgsGetter! {
                 $($property)::+ ::<$($generics),*> $(as $rename)? = $($value)*
             }
         }
     };
     ($property:ident $(;)?) => {
         {
-            $crate::widget_builder::property_args_getter! {
+            $crate::widget_builder::PropertyArgsGetter! {
                 $property
             }
         }
@@ -220,11 +220,11 @@ macro_rules! widget_mod {
 pub use widget_mod;
 
 #[doc(hidden)]
-#[crate::widget($crate::widget_builder::property_args_getter)]
-pub mod property_args_getter {
-    use super::*;
-
-    fn build(mut wgt: WidgetBuilder) -> Box<dyn PropertyArgs> {
+#[crate::widget($crate::widget_builder::PropertyArgsGetter)]
+pub struct PropertyArgsGetter(WidgetBase);
+impl PropertyArgsGetter {
+    pub fn build(&mut self) -> Box<dyn PropertyArgs> {
+        let mut wgt = self.take_builder();
         if wgt.p.items.len() > 1 {
             tracing::error!("properties ignored, `property_args!` only collects args for first property");
         }
@@ -609,9 +609,6 @@ pub type PropertyBuildActionsWhenData = Vec<Vec<Option<WhenBuildActionData>>>;
 
 /// Args for [`PropertyInfo::new`].
 pub struct PropertyNewArgs {
-    /// Defines the [`PropertyArgs::instance`] value.
-    pub inst_info: PropertyInstInfo,
-
     /// The args vec must have a value for each input in the same order they appear in [`PropertyInfo::inputs`], types must match
     /// the input kind and type, the function panics if the types don't match or not all inputs are provided.
     ///
@@ -677,8 +674,8 @@ pub struct PropertyInfo {
     pub capture: bool,
 
     /// Unique type ID that identifies the property implementation.
-    pub impl_id: PropertyImplId,
-    /// Property original name.
+    pub id: PropertyId,
+    /// Property name.
     pub name: &'static str,
 
     /// Property declaration location.
@@ -687,7 +684,7 @@ pub struct PropertyInfo {
     /// New default property args.
     ///
     /// This is `Some(_)` only if the `#[property(_, default(..))]` was set in the property declaration.
-    pub default: Option<fn(PropertyInstInfo) -> Box<dyn PropertyArgs>>,
+    pub default: Option<fn() -> Box<dyn PropertyArgs>>,
 
     /// New property args from dynamically typed args.
     ///
@@ -707,36 +704,6 @@ impl PropertyInfo {
     /// Gets the index that can be used to get a property value in [`PropertyArgs`].
     pub fn input_idx(&self, name: &str) -> Option<usize> {
         self.inputs.iter().position(|i| i.name == name)
-    }
-}
-
-/// Property instance info.
-#[derive(Debug, Clone)]
-pub struct PropertyInstInfo {
-    /// Property name in this instance.
-    ///
-    /// This can be different from [`PropertyInfo::name`] if the property was renamed by the widget.
-    pub name: &'static str,
-
-    /// Property instantiation location.
-    pub location: SourceLocation,
-}
-impl PropertyInstInfo {
-    /// No info.
-    pub fn none() -> Self {
-        PropertyInstInfo {
-            name: "",
-            location: SourceLocation {
-                file: "",
-                line: 0,
-                column: 0,
-            },
-        }
-    }
-
-    /// Returns `true` if there is no instance info.
-    pub fn is_none(&self) -> bool {
-        self.name.is_empty()
     }
 }
 
@@ -768,9 +735,6 @@ pub trait PropertyArgs: Send + Sync {
 
     /// Property info.
     fn property(&self) -> PropertyInfo;
-
-    /// Instance info.
-    fn instance(&self) -> PropertyInstInfo;
 
     /// Gets a [`InputKind::Var`].
     ///
@@ -809,10 +773,7 @@ pub trait PropertyArgs: Send + Sync {
 impl dyn PropertyArgs + '_ {
     /// Unique ID.
     pub fn id(&self) -> PropertyId {
-        PropertyId {
-            impl_id: self.property().impl_id,
-            name: self.instance().name,
-        }
+        self.property().id
     }
 
     /// Gets a strongly typed [`value`].
@@ -913,7 +874,6 @@ impl dyn PropertyArgs + '_ {
         }
 
         (p.new)(PropertyNewArgs {
-            inst_info: self.instance(),
             args,
             build_actions,
             build_actions_when_data,
@@ -1157,42 +1117,15 @@ impl_from_and_into_var! {
 }
 
 unique_id_32! {
-    /// Unique ID of a widget implementation.
-    ///
-    /// This ID identifies a widget implementation. Widgets are identified
-    /// by this ID and a module path, see [`WidgetMod`].
-    pub struct WidgetImplId;
-}
-impl fmt::Debug for WidgetImplId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("WidgetImplId").field(&self.get()).finish()
-    }
-}
-
-unique_id_32! {
     /// Unique ID of a property implementation.
-    ///
-    /// This ID identifies a property implementation, disregarding renames. Properties are identified
-    /// by this ID and a name string, see [`PropertyId`].
-    pub struct PropertyImplId;
+    pub struct PropertyId;
 }
-impl fmt::Debug for PropertyImplId {
+impl fmt::Debug for PropertyId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("PropertyImplId").field(&self.get()).finish()
+        f.debug_tuple("PropertyId").field(&self.get()).finish()
     }
 }
 
-/// Unique identifier of a property, properties with the same id override each other in a widget and are joined
-/// into a single instance is assigned in when blocks.
-///
-/// You can use the [`property_id!`] macro to retrieve a property ID.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PropertyId {
-    /// The [`PropertyInfo::impl_id`].
-    pub impl_id: PropertyImplId,
-    /// The [`PropertyInstInfo::name`].
-    pub name: &'static str,
-}
 
 /// Unique identifier of a widget type.
 ///
@@ -1226,38 +1159,6 @@ impl std::hash::Hash for WidgetType {
     }
 }
 
-/// Unique identifier of a widget module.
-///
-/// Equality and hash is defined by the `impl_id` only.
-///
-/// You can use the [`widget_mod!`] macro to get the mod info of a widget.
-#[derive(Clone, Copy)]
-pub struct WidgetMod {
-    /// The widget module unique ID.
-    pub impl_id: WidgetImplId,
-    /// The widget public module path.
-    pub path: &'static str,
-    /// Source code location.
-    pub location: SourceLocation,
-}
-impl WidgetMod {
-    /// Get the last part of the path.
-    pub fn name(&self) -> &'static str {
-        self.path.rsplit_once(':').map(|(_, n)| n).unwrap_or(self.path)
-    }
-}
-impl PartialEq for WidgetMod {
-    fn eq(&self, other: &Self) -> bool {
-        self.impl_id == other.impl_id
-    }
-}
-impl Eq for WidgetMod {}
-impl std::hash::Hash for WidgetMod {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.impl_id.hash(state);
-    }
-}
-
 /// Represents what member and how it was accessed in a [`WhenInput`].
 #[derive(Clone, Copy, Debug)]
 pub enum WhenInputMember {
@@ -1277,7 +1178,7 @@ pub struct WhenInput {
     /// Input var.
     pub var: WhenInputVar,
     /// Constructor that generates the default property instance.
-    pub property_default: Option<fn(PropertyInstInfo) -> Box<dyn PropertyArgs>>,
+    pub property_default: Option<fn() -> Box<dyn PropertyArgs>>,
 }
 impl fmt::Debug for WhenInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1536,7 +1437,7 @@ type PropertyBuildActionsVec = Vec<((PropertyId, &'static str), (Importance, Vec
 
 /// Widget instance builder.
 pub struct WidgetBuilder {
-    widget_mod: WidgetMod,
+    widget_type: WidgetType,
 
     insert_idx: u32,
     p: WidgetBuilderProperties,
@@ -1555,7 +1456,7 @@ pub struct WidgetBuilder {
 impl Clone for WidgetBuilder {
     fn clone(&self) -> Self {
         Self {
-            widget_mod: self.widget_mod,
+            widget_type: self.widget_type,
             p: WidgetBuilderProperties { items: self.items.clone() },
             p_build_actions: self.p_build_actions.clone(),
             insert_idx: self.insert_idx,
@@ -1577,6 +1478,7 @@ impl fmt::Debug for WidgetBuilder {
             }
         }
         f.debug_struct("WidgetBuilder")
+            .field("widget_type", &self.widget_type)
             .field("properties", &PropertiesDebug(&self.p))
             .field("unset", &self.unset)
             .field("whens", &self.whens)
@@ -1587,9 +1489,9 @@ impl fmt::Debug for WidgetBuilder {
 }
 impl WidgetBuilder {
     /// New empty default.
-    pub fn new(widget: WidgetMod) -> Self {
+    pub fn new(widget: WidgetType) -> Self {
         Self {
-            widget_mod: widget,
+            widget_type: widget,
             p: WidgetBuilderProperties { items: Default::default() },
             insert_idx: 0,
             unset: Default::default(),
@@ -1603,8 +1505,8 @@ impl WidgetBuilder {
     }
 
     /// The widget that started this builder.
-    pub fn widget_mod(&self) -> WidgetMod {
-        self.widget_mod
+    pub fn widget_type(&self) -> WidgetType {
+        self.widget_type
     }
 
     /// Insert/override a property.
@@ -1996,7 +1898,7 @@ impl WidgetBuilder {
             #[cfg(trace_wgt_item)]
             trace_wgt_item: true,
 
-            widget_mod: self.widget_mod,
+            widget_type: self.widget_type,
             p: self.p,
             child: None,
         };
@@ -2046,14 +1948,14 @@ pub struct WidgetBuilding {
     #[cfg(trace_wgt_item)]
     trace_wgt_item: bool,
 
-    widget_mod: WidgetMod,
+    widget_type: WidgetType,
     p: WidgetBuilderProperties,
     child: Option<BoxedUiNode>,
 }
 impl WidgetBuilding {
     /// The widget that started this builder.
-    pub fn widget_mod(&self) -> WidgetMod {
-        self.widget_mod
+    pub fn widget_type(&self) -> WidgetType {
+        self.widget_type
     }
 
     /// If an innermost node is defined.
@@ -2265,10 +2167,7 @@ impl WidgetBuilding {
                 if let Some(i) = self.property_index(input.property) {
                     inputs.push(Input { input, item_idx: i })
                 } else if let Some(default) = input.property_default {
-                    let args = default(PropertyInstInfo {
-                        name: input.property.name,
-                        location: when.location,
-                    });
+                    let args = default();
                     self.p.items.push(WidgetItemPositioned {
                         position: NestPosition::property(args.property().group),
                         insert_idx: u32::MAX,
@@ -2299,7 +2198,7 @@ impl WidgetBuilding {
                     assign_info = assign.property();
                     i = idx;
                 } else if let Some(default) = assign.property().default {
-                    let args = default(assign.instance());
+                    let args = default();
                     assign_info = args.property();
                     i = self.p.items.len();
                     self.p.items.push(WidgetItemPositioned {
@@ -2480,7 +2379,6 @@ impl WidgetBuilding {
             }
 
             *args = (args.property().new)(PropertyNewArgs {
-                inst_info: args.instance(),
                 args: builder,
                 build_actions: actions,
                 build_actions_when_data: b_actions_data,
@@ -2565,7 +2463,7 @@ impl WidgetBuilding {
 
         #[cfg(trace_widget)]
         if self.trace_widget {
-            let name = self.widget_mod.name();
+            let name = self.widget_type.name();
             node = node
                 .trace(move |mtd| crate::context::UpdatesTrace::widget_span(crate::context::WIDGET.id(), name, mtd))
                 .boxed();

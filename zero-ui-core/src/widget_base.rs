@@ -10,7 +10,6 @@ use crate::{
     ui_node,
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
-    widget,
     widget_builder::*,
     widget_info::*,
     widget_instance::*,
@@ -99,10 +98,17 @@ impl WidgetBase {
             .borrow_mut()
             .push_property(Importance::INSTANCE, args);
     }
+}
 
-    /// Push extension property.
+impl crate::private::Sealed for WidgetBase { }
+
+#[doc(hidden)]
+pub trait WidgetBaseExt: crate::private::Sealed {
     #[doc(hidden)]
-    pub fn ext_property__(&mut self, args: Box<dyn PropertyArgs>) {
+    fn ext_property__(&mut self, args: Box<dyn PropertyArgs>);
+}
+impl WidgetBaseExt for WidgetBase {
+    fn ext_property__(&mut self, args: Box<dyn PropertyArgs>) {
         self.builder
             .as_mut()
             .expect("cannot set after build")
@@ -111,42 +117,22 @@ impl WidgetBase {
     }
 }
 
-/// Base widget that implements the necessary core API.
-///
-/// The base widget does [`nodes::include_intrinsics`] to enable proper layout and render in all widgets that inherit from base.
-///
-/// The base widget also provides a default function that captures the [`id`] and handles missing child node by capturing
-/// [`child`] or falling back to [`FillUiNode`].
-///
-/// [`id`]: fn@id
-/// [`child`]: fn@child
-#[widget($crate::widget_base::base)]
-pub mod base {
-    use super::*;
-
-    properties! {
-        pub super::id;
-        pub super::enabled;
-        pub super::visibility;
-    }
-
-    fn include(wgt: &mut WidgetBuilder) {
-        nodes::include_intrinsics(wgt);
-    }
-
-    fn build(mut wgt: WidgetBuilder) -> impl UiNode {
-        wgt.push_build_action(|wgt| {
-            if !wgt.has_child() {
-                wgt.set_child(FillUiNode);
-            }
-        });
-        nodes::build(wgt)
+#[doc(hidden)]
+#[macro_export]
+macro_rules! WidgetBaseMacro__ {
+    ($($tt:tt)*) => {
+        $crate::widget_new! {
+            widget { $crate::widget_base::WidgetBase }
+            new { $($tt)* }
+        }
     }
 }
+#[doc(hidden)]
+pub use WidgetBaseMacro__ as WidgetBase;
 
-/// Basic nodes for widgets, some used in [`base`].
+/// Basic nodes for widgets, some used in [`WidgetBase`].
 ///
-/// [`base`]: mod@base
+/// [`WidgetBase`]: struct@WidgetBase
 pub mod nodes {
     use super::*;
 
@@ -731,7 +717,7 @@ pub fn children(_child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
 ///
 /// [captured]: crate::widget#property-capture
 /// [`base`]: mod@base
-#[property(CONTEXT, capture, default(WidgetId::new_unique()))]
+#[property(CONTEXT, capture, default(WidgetId::new_unique()), impl(WidgetBase))]
 pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
     _child
 }
@@ -767,7 +753,7 @@ pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
 /// [`interactive`]: fn@interactive
 /// [`is_enabled`]: fn@is_enabled
 /// [`is_disabled`]: fn@is_disabled
-#[property(CONTEXT, default(true))]
+#[property(CONTEXT, default(true), impl(WidgetBase))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct EnabledNode {
         child: impl UiNode,
@@ -894,7 +880,7 @@ pub fn is_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode
 /// [`is_hidden`]: fn@is_hidden
 /// [`is_collapsed`]: fn@is_collapsed
 /// [`WidgetInfo::visibility`]: crate::widget_info::WidgetInfo::visibility
-#[property(CONTEXT, default(true))]
+#[property(CONTEXT, default(true), impl(WidgetBase))]
 pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
     #[ui_node(struct VisibilityNode {
         child: impl UiNode,
