@@ -22,7 +22,7 @@ context_var! {
     pub static TOOLTIP_INTERVAL_VAR: Duration = 100.ms();
 
     /// Maximum time a tooltip stays open.
-    pub static TOOLTIP_DURATION_VAR: Duration = 5.secs();
+    pub static TOOLTIP_DURATION_VAR: Duration = 0.ms();
 }
 
 app_local! {
