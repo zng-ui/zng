@@ -7,8 +7,8 @@ mod a;
 mod b;
 mod ui_node_list;
 
-pub use a::foo as foa;
-pub use b::foo as fob;
+pub use a::Foo as FooA;
+pub use b::Foo as FooB;
 
 #[test]
 fn widget_macro_idents_are_unique() {
@@ -19,8 +19,8 @@ fn widget_macro_idents_are_unique() {
     // This test asserts that even if two widgets with the same name and file span
     // are declared, there are still different because the file is different.
 
-    let a = foa!();
-    let b = fob!();
+    let a = FooA!();
+    let b = FooB!();
 
     assert_eq!("a", a);
     assert_eq!("b", b);

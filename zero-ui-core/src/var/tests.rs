@@ -435,6 +435,15 @@ mod context {
         with_context_var(child, TEST_VAR, value)
     }
 
+    #[property(CONTEXT, default(TEST_VAR))]
+    fn test_prop_a(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
+        test_prop(child, value)
+    }
+    #[property(CONTEXT, default(TEST_VAR))]
+    fn test_prop_b(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
+        test_prop(child, value)
+    }
+
     #[property(CONTEXT)]
     fn probe(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
         #[ui_node(struct ProbeNode {
@@ -451,6 +460,14 @@ mod context {
             child,
             var: var.into_var(),
         }
+    }
+    #[property(CONTEXT)]
+    fn probe_a(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
+        probe(child, var)
+    }
+    #[property(CONTEXT)]
+    fn probe_b(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
+        probe(child, var)
     }
 
     #[property(EVENT)]
@@ -479,7 +496,7 @@ mod context {
         #[widget(on_start)]
         fn on_start(&mut self) {
             self.builder().push_build_action(|wgt| {
-                if let Some(child) = wgt.capture_ui_node(property_id!(self::child)) {
+                if let Some(child) = wgt.capture_ui_node(property_id!(child)) {
                     wgt.set_child(child);
                 }
             });
@@ -536,8 +553,6 @@ mod context {
         // mapped context var should depend on the context.
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
-        use self::test_prop as test_prop_a;
-        use self::test_prop as test_prop_b;
 
         let _test = test_app(
             app,
@@ -595,9 +610,6 @@ mod context {
 
         // sanity check for `context_var_map_cloned`
 
-        use self::test_prop as test_prop_a;
-        use self::test_prop as test_prop_b;
-
         let _test = test_app(
             app,
             TestWgt! {
@@ -634,10 +646,6 @@ mod context {
         let app = App::default();
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
-        use self::probe as probe_a;
-        use self::probe as probe_b;
-        use self::test_prop as test_prop_a;
-        use self::test_prop as test_prop_b;
 
         let _test = test_app(
             app,

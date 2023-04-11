@@ -338,6 +338,93 @@ fn path_slug(path: &str) -> String {
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let NewArgs { widget, properties: mut p } = parse_macro_input!(args as NewArgs);
 
+    let mut set_props = quote!();
+    for prop in &p.properties {
+        prop.attrs.to_tokens(&mut set_props);
+
+        let ident = prop.ident();
+
+        let prop_init;
+
+        match &prop.value {
+            Some((_, val)) => match val {
+                widget_util::PropertyValue::Special(special, _) => {
+                    if prop.is_unset() {
+                        let unset_ident = ident_spanned!(ident.span()=> "unset_{}", ident);
+                        prop_init = quote! {
+                            wgt__.#unset_ident();
+                        };
+                    } else {
+                        p.errors.push("unknown value, expected `unset!`", special.span());
+                        continue;
+                    }
+                }
+                widget_util::PropertyValue::Unnamed(val) => {
+                    prop_init = quote! {
+                        wgt__.#ident(#val);
+                    };
+                }
+                widget_util::PropertyValue::Named(_, fields) => {
+                    let mut idents_sorted: Vec<_> = fields.iter().map(|f| &f.ident).collect();
+                    idents_sorted.sort();
+                    let idents = fields.iter().map(|f| &f.ident);
+                    let values = fields.iter().map(|f| &f.expr);
+                    let ident_sorted = ident_spanned!(ident.span()=> "{}_sorted__", ident);
+                    let ident_meta = ident_spanned!(ident.span()=> "{}_meta__", ident);
+
+                    prop_init = quote! {
+                        {
+                            #(
+                                let #idents = wgt_.#ident_meta().inputs().#idents(#values);
+                            )*
+                            wgt__.#ident_sorted(#(#idents_sorted),*);
+                        }
+                    };
+                }
+            },
+            None => match prop.path.get_ident() {
+                Some(_) => {
+                    prop_init = quote! {
+                        wgt__.#ident(#ident);
+                    };
+                }
+                None => {
+                    p.errors.push("missing value", util::path_span(&prop.path));
+                    continue;
+                }
+            },
+        }
+
+        if prop.path.get_ident().is_some() {
+            set_props.extend(prop_init);
+        } else {
+            // trait path
+            let path = &prop.path;
+            set_props.extend(quote! {
+                {
+                    use #path;
+                    #prop_init
+                }
+            });
+        }
+    }
+
+    let r = quote! {
+        {
+            let mut wgt__ = #widget::start();
+
+            #set_props
+
+            wgt__.build()
+        }
+    };
+
+    r.into()
+}
+
+pub fn expand_new_old(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let NewArgs { widget, properties: mut p } = parse_macro_input!(args as NewArgs);
+
     let mut pre_bind = quote!();
     for prop in &mut p.properties {
         pre_bind.extend(prop.pre_bind_args(true, None, ""));

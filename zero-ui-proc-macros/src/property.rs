@@ -24,6 +24,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     let nest_group = args.nest_group;
     let capture = args.capture;
+    let impl_for = args.impl_for;
 
     let mut item = match parse::<ItemFn>(input.clone()) {
         Ok(i) => i,
@@ -116,9 +117,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let has_generics = !generics.params.empty_or_trailing();
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
 
+        let ident_unset = ident!("unset_{}", ident);
         let ident_args = ident!("{}_args__", ident);
         let ident_inputs = ident!("{}_inputs__", ident);
         let ident_meta = ident!("{}_meta__", ident);
+        let ident_sorted = ident!("{}_sorted__", ident);
 
         let default;
         let default_fn;
@@ -439,15 +442,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         let mut sorted_inputs: Vec<_> = inputs[1..].iter().collect();
         sorted_inputs.sort_by_key(|i| &i.ident);
-        let sorted_idents = sorted_inputs.iter().map(|i| &i.ident);
-        let sorted_tys = sorted_inputs.iter().map(|i| &i.ty);
+        let sorted_idents: Vec<_> = sorted_inputs.iter().map(|i| &i.ident).collect();
+        let sorted_tys: Vec<_> = sorted_inputs.iter().map(|i| &i.ty).collect();
 
         let node_instance = ident_spanned!(output_span=> "__node__");
-
-        let (is_ext, target) = match args.impl_for {
-            Some(impl_for) => (impl_for.is_ext, impl_for.target.to_token_stream()),
-            None => (true, quote!(#core::widget_base::WidgetBase)),
-        };
 
         let docs = &attrs.docs;
 
@@ -526,6 +524,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         };
         let args = quote! {
             #cfg
+            #[doc(hidden)]
             #[derive(std::clone::Clone)]
             #[allow(non_camel_case_types)]
             #vis struct #ident_args #impl_gens #where_gens {
@@ -565,32 +564,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
         };
 
-        if is_ext {
-            quote! {
-                #cfg
-                #[doc(hidden)]
-                #[allow(non_camel_case_types)]
-                #vis trait #ident: #core::widget_base::WidgetBaseExt {
-                    #(#docs)*
-                    #[allow(clippy::too_many_arguments)]
-                    fn #ident(&mut self, #(#input_idents: #input_tys),*) {
-                        let args = #ident_meta { }.args(#(#input_idents),*);
-                        self.ext_property__(args)
-                    }
-
-                    #[doc(hidden)]
-                    fn #ident_meta(&self) -> #ident_meta {
-                        #ident_meta { }
-                    }
-                }
-                #cfg
-                impl self::#ident for #target { }
-
-                #meta
-                #args
-                #inputs
-            }
-        } else {
+        let direct_impl = if let Some(impl_for) = impl_for {
+            let target = impl_for.target;
             quote! {
                 #cfg
                 impl #target {
@@ -600,16 +575,65 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         self.mtd_property__(args)
                     }
 
+                    /// Unset the property.
+                    #vis fn #ident_unset(&self) {
+                        self.mtd_property_unset__(#ident_meta { }.id())
+                    }
+
+                    #[doc(hidden)]
+                    #vis fn #ident_sorted(&mut self, #(#sorted_idents: #sorted_tys),*) {
+                        let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
+                        self.mtd_property__(args)
+                    }
+
                     #[doc(hidden)]
                     #vis fn #ident_meta(&self) -> #ident_meta {
                         #ident_meta { }
                     }
                 }
-
-                #args
-                #meta
-                #inputs
             }
+        } else {
+            quote!()
+        };
+
+        quote! {
+            #direct_impl
+
+            #cfg
+            #[doc(hidden)]
+            #[allow(non_camel_case_types)]
+            #vis trait #ident: #core::widget_base::WidgetBaseExt {
+                #(#docs)*
+                #[allow(clippy::too_many_arguments)]
+                fn #ident(&mut self, #(#input_idents: #input_tys),*) {
+                    let args = #ident_meta { }.args(#(#input_idents),*);
+                    self.ext_property__(args)
+                }
+
+                /// Unset the property.
+                fn #ident_unset(&mut self) {
+                    self.ext_property_unset__(#ident_meta {}.id())
+                }
+
+                #[doc(hidden)]
+                fn #ident_sorted(&mut self, #(#sorted_idents: #sorted_tys),*) {
+                    let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
+                    self.ext_property__(args)
+                }
+
+                #[doc(hidden)]
+                fn #ident_meta(&self) -> #ident_meta {
+                    #ident_meta { }
+                }
+            }
+            #cfg
+            impl self::#ident for #core::widget_base::WidgetBase { }
+            #cfg
+            impl self::#ident for #core::widget_builder::WgtInfo { }
+
+            #meta
+            #args
+            #inputs
         }
     } else {
         quote!()
@@ -673,27 +697,16 @@ impl Parse for Default {
 }
 
 struct ImplFor {
-    is_ext: bool,
     target: Path,
 }
 impl Parse for ImplFor {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let _: Token![,] = input.parse()?;
-        let is_ext = if input.peek(Token![for]) {
-            let _: Token![for] = input.parse()?;
-            true
-        } else {
-            let _: Token![impl] = input.parse()?;
-            false
-        };
-
+        let _: Token![impl] = input.parse()?;
         let inner;
         parenthesized!(inner in input);
 
-        Ok(ImplFor {
-            is_ext,
-            target: inner.parse()?,
-        })
+        Ok(ImplFor { target: inner.parse()? })
     }
 }
 
@@ -839,4 +852,16 @@ impl Input {
 
 pub mod keyword {
     syn::custom_keyword!(capture);
+}
+
+pub fn expand_meta(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let path = parse_macro_input!(input as Path);
+    let ident = &path.segments.last().unwrap().ident;
+    let meta_ident = ident!("{}_meta__", ident);
+    let core = crate_core();
+
+    quote! {
+        <#core::widget_builder::WgtInfo as #path>::#meta_ident(&#core::widget_builder::WgtInfo)
+    }
+    .into()
 }

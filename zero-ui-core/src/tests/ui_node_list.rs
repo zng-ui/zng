@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::widget::empty_wgt;
+use super::widget::EmptyWgt;
 use crate::{
     app::App,
     context::WINDOW,
@@ -17,7 +17,7 @@ pub fn init_many() {
 
     let list: Vec<_> = (0..1000)
         .map(|_| {
-            empty_wgt! {
+            EmptyWgt! {
                 parallel = true;
                 util::trace = "inited";
                 util::log_init_thread = true;
@@ -49,17 +49,17 @@ pub fn init_many() {
 #[test]
 pub fn nested_par_each_ctx() {
     let _app = App::minimal().run_headless(false);
-    let mut test = list_wgt! {
+    let mut test = ListWgt! {
         parallel = true;
         children = (0..1000)
             .map(|_| {
-                list_wgt! {
+                ListWgt! {
                     children = ui_vec![
-                        empty_wgt! {
+                        EmptyWgt! {
                             util::ctx_val = true;
                             util::assert_ctx_val = true;
                         },
-                        empty_wgt! {
+                        EmptyWgt! {
                             util::assert_ctx_val = false;
                         }
                     ];
@@ -76,16 +76,16 @@ pub fn nested_par_each_ctx() {
 #[test]
 pub fn par_each_ctx() {
     let _app = App::minimal().run_headless(false);
-    let mut test = list_wgt! {
+    let mut test = ListWgt! {
         parallel = true;
         children = (0..1000)
             .flat_map(|_| {
                 ui_vec![
-                    empty_wgt! {
+                    EmptyWgt! {
                         util::ctx_val = true;
                         util::assert_ctx_val = true;
                     },
-                    empty_wgt! {
+                    EmptyWgt! {
                         util::assert_ctx_val = false;
                     }
                 ]
@@ -98,22 +98,20 @@ pub fn par_each_ctx() {
     });
 }
 
-#[widget($crate::tests::ui_node_list::list_wgt)]
-pub mod list_wgt {
-    use crate::widget_base;
-
-    inherit!(widget_base::base);
-
-    properties! {
-        pub widget_base::children;
-    }
-
-    fn include(wgt: &mut crate::widget_builder::WidgetBuilder) {
-        wgt.push_build_action(|wgt| {
-            let child = super::util::list_node(wgt.capture_ui_node_list_or_empty(crate::property_id!(self::children)));
+#[widget($crate::tests::ui_node_list::ListWgt)]
+pub struct ListWgt(crate::widget_base::WidgetBase);
+impl ListWgt {
+    #[widget(on_start)]
+    fn on_start(&mut self) {
+        self.builder().push_build_action(|wgt| {
+            let child = util::list_node(wgt.capture_ui_node_list_or_empty(crate::property_id!(self::children)));
             wgt.set_child(child);
         });
     }
+}
+#[crate::property(CHILD, capture, impl(ListWgt))]
+pub fn children(child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
+    child
 }
 
 mod util {

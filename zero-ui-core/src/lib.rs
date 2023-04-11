@@ -60,7 +60,7 @@ pub mod window;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_proc_macros::widget_new;
+pub use zero_ui_proc_macros::{property_meta, widget_new};
 
 /// Expands an `impl` block into an [`UiNode`] trait implementation or new node declaration.
 ///
@@ -338,14 +338,10 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// ## Impl For
 ///
-/// The last argument is an optional `impl(<widget-type>)` or `for(<widget-type>)`. It limits what widgets the property can be set in and when it
-/// is a part of the widget, the `impl` mode can only be used with widgets declared in the same crate, it will strongly associate with the widget type,
-/// so that users can set the property on the widget (or derived widgets) directly, without needing to import the property. The `for` mode
-/// generates a property that can only be set on the widget (or derived widgets), but the property still needs to be imported, the widget type
-/// can be external from another crate too.
-///
-/// When this argument is not present the property expands equivalent to `for(zero_ui_core::WidgetBase)`, meaning the property can be set in
-/// any widget.
+/// The last argument is an optional `impl(<widget-type>)`, it generates `impl <widget-type>` methods for the property strongly associating
+/// the property with the widget, users can set this property on the widget or descendants without needing to import the property. Note that
+/// this makes the property have priority over all others of the same name, only a derived widget can override with another strongly associated
+/// property.
 ///
 /// ## Capture
 ///

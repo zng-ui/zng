@@ -14,7 +14,7 @@ use crate::{
     impl_from_and_into_var,
     text::{formatx, Text},
     var::{types::AnyWhenVarBuilder, *},
-    widget_base::WidgetBase,
+    widget_base::{WidgetBase, WidgetBaseExt},
     widget_instance::{
         ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder,
     },
@@ -62,12 +62,23 @@ macro_rules! when_condition_expr_var {
 #[doc(hidden)]
 pub use when_condition_expr_var;
 
+#[doc(hidden)]
+pub struct WgtInfo;
+impl WidgetBaseExt for WgtInfo {
+    fn ext_property__(&mut self, _: Box<dyn PropertyArgs>) {
+        panic!("WgtInfo is for extrating info only")
+    }
+
+    fn ext_property_unset__(&mut self, _: PropertyId) {
+        panic!("WgtInfo is for extrating info only")
+    }
+}
+
 ///<span data-del-macro-root></span> New [`PropertyId`] that represents the type and name.
 ///
 /// # Syntax
 ///
 /// * `path::ident`: Gets the ID for the property function.
-/// * `Widget::ident`: Gets the ID, for the property method, from inside the widget use `Self::ident`.
 ///
 /// # Examples
 ///
@@ -88,7 +99,7 @@ pub use when_condition_expr_var;
 /// # }
 /// # fn main() {
 /// let foo_id = property_id!(path::foo);
-/// let bar_id = property_id!(FooWgt::bar);
+/// let bar_id = property_id!(bar);
 ///
 /// assert_ne!(foo_id, bar_id);
 /// # }
@@ -96,7 +107,7 @@ pub use when_condition_expr_var;
 #[macro_export]
 macro_rules! property_id {
     ($($property:ident)::+) => {{
-        todo!("!!:")
+        $crate::property_meta!($($property)::+).id()
     }};
     ($($property:ident)::+::<$($generics:ty),*>) => {{
         todo!("!!:")
@@ -132,10 +143,10 @@ pub use crate::property_id;
 #[macro_export]
 macro_rules! property_info {
     ($($property:ident)::+) => {{
-        $($property)::+::__property__()
+        $crate::property_meta!($($property)::+).info()
     }};
     ($($property:ident)::+ ::<$($generics:ty),*>) => {{
-        $($property)::+::<$($generics),*>::__property__()
+        todo!("!!:")
     }};
 }
 #[doc(inline)]

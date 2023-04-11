@@ -8,11 +8,14 @@
     - `property_id!`.
         - Same path res as `property_info!`.
     - Generic properties.
+    - Generate `unset_ident(&mut self)`.
 * Refactor `#[widget]`.
     - Mixins, just `#[widget]` on a trait?
     - No, can't have `#[property(impl(Trait))]`.
     - Where is `widget_new!` available for the widget macro?
-    - Defaults helper, `properties! { builder; properties.. }`
+    - Defaults helper, `properties! { wgt; properties.. }`.
+        - How to set importance? Something like `begin_importance(&mut self)`.
+        - And the properties need to use `wiget_new!`.
 * Refactor all widgets.
 * Review docs.
     - No more property rename.

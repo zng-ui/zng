@@ -47,7 +47,7 @@ impl WidgetBase {
 
     /// Starts building a new widget derived from [`WidgetBase`].
     pub fn inherit(widget: WidgetType) -> Self {
-        let mut builder = WidgetBuilder::new(widget);
+        let builder = WidgetBuilder::new(widget);
         let mut w = Self {
             builder: Some(RefCell::new(builder)),
             started: false,
@@ -98,14 +98,24 @@ impl WidgetBase {
             .borrow_mut()
             .push_property(Importance::INSTANCE, args);
     }
+
+    /// Push method unset property.
+    #[doc(hidden)]
+    pub fn mtd_property_unset__(&self, id: PropertyId) {
+        self.builder
+            .as_ref()
+            .expect("cannot unset after build")
+            .borrow_mut()
+            .push_unset(Importance::INSTANCE, id);
+    }
 }
 
-impl crate::private::Sealed for WidgetBase {}
-
 #[doc(hidden)]
-pub trait WidgetBaseExt: crate::private::Sealed {
+pub trait WidgetBaseExt {
     #[doc(hidden)]
     fn ext_property__(&mut self, args: Box<dyn PropertyArgs>);
+    #[doc(hidden)]
+    fn ext_property_unset__(&mut self, id: PropertyId);
 }
 impl WidgetBaseExt for WidgetBase {
     fn ext_property__(&mut self, args: Box<dyn PropertyArgs>) {
@@ -114,6 +124,14 @@ impl WidgetBaseExt for WidgetBase {
             .expect("cannot set after build")
             .get_mut()
             .push_property(Importance::INSTANCE, args);
+    }
+
+    fn ext_property_unset__(&mut self, id: PropertyId) {
+        self.builder
+            .as_mut()
+            .expect("cannot unset after build")
+            .get_mut()
+            .push_unset(Importance::INSTANCE, id);
     }
 }
 

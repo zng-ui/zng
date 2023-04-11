@@ -48,6 +48,12 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 
 #[doc(hidden)]
 #[proc_macro]
+pub fn property_meta(input: TokenStream) -> TokenStream {
+    property::expand_meta(input)
+}
+
+#[doc(hidden)]
+#[proc_macro]
 pub fn hex_color(input: TokenStream) -> TokenStream {
     hex_color::expand(input)
 }

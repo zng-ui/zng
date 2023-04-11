@@ -71,7 +71,10 @@ impl WriteTreeState {
 
             let widget_id = info.id();
             let (parent_name, parent_prop) = match info.parent_property() {
-                Some((p, _)) => (info.parent().unwrap().inspector_info().unwrap().builder.widget_type().name(), p.name),
+                Some((p, _)) => (
+                    info.parent().unwrap().inspector_info().unwrap().builder.widget_type().name(),
+                    info.parent().unwrap().inspect_property(p).unwrap().property().name,
+                ),
                 None => ("", ""),
             };
 
@@ -87,9 +90,8 @@ impl WriteTreeState {
                 };
 
                 let info = args.property();
-                let inst = args.instance();
                 let group = info.group.name();
-                let name = inst.name;
+                let name = info.name;
                 let user_assigned = if let Some(p) = inf.builder.property(args.id()) {
                     p.importance == Importance::INSTANCE
                 } else {
@@ -128,7 +130,7 @@ impl WriteTreeState {
 
         let widget_id = info.id();
 
-        if info.inspect_property(property_id!(crate::widget_base::id).impl_id).is_none() {
+        if info.inspect_property(property_id!(crate::widget_base::id)).is_none() {
             fmt.write_property(
                 Text::from_static("computed"),
                 "id",
