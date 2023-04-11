@@ -347,8 +347,6 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::properties::*;
         #[doc(no_inline)]
-        pub use crate::widgets::mixins::*;
-        #[doc(no_inline)]
         pub use crate::widgets::text::{
             font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, txt_align, txt_color,
             txt_transform, word_spacing,
@@ -357,9 +355,9 @@ pub mod prelude {
         pub use crate::widgets::{
             Container,
             layouts::{stack_nodes, stack_nodes_layout_by},
-            mixins::style_mixin,
+            focusable::FocusableMix,
             style,
-            style::{StyleFn, StyleMix},
+            style::{StyleFn, StyleMix, Style},
             wgt_fn, DataUpdate, WidgetFn,
         };
     }

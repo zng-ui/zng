@@ -8,9 +8,9 @@ mod ansi_text_wgt;
 #[doc(inline)]
 pub use ansi_text_wgt::ansi_text;
 
-mod button_wgt;
+pub mod button;
 #[doc(inline)]
-pub use button_wgt::button;
+pub use button::Button;
 
 pub mod checkerboard;
 #[doc(inline)]
