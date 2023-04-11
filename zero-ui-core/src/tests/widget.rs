@@ -380,11 +380,11 @@ impl CfgPropertyWgt {
             self;
             // property not included in widget.
             #[cfg(never)]
-            trace as never_trace = "never-trace";
+            never_trace = "never-trace";
 
             // suppress warning.
             #[allow(non_snake_case)]
-            trace as always_trace = {
+            always_trace = {
                 #[allow(clippy::needless_late_init)]
                 let weird___name;
                 weird___name = "always-trace";
@@ -393,6 +393,16 @@ impl CfgPropertyWgt {
         }
     }
 }
+#[cfg(never)]
+#[crate::property(CONTEXT)]
+pub fn never_trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+    util::trace(child, trace)
+}
+#[crate::property(CONTEXT)]
+pub fn always_trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+    util::trace(child, trace)
+}
+
 #[test]
 pub fn wgt_cfg_property() {
     let _app = App::minimal().run_headless(false);
@@ -410,9 +420,6 @@ pub fn user_cfg_property() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
-        #[allow(unused_imports)]
-        use util::trace as never_trace;
-        use util::trace as always_trace;
         let mut wgt = EmptyWgt! {
             // property not set.
             #[cfg(never)]
@@ -445,7 +452,7 @@ impl CfgWhenWgt {
     fn on_start(&mut self) {
         defaults! {
             self;
-            live_trace = "trace";
+            util::live_trace = "trace";
 
             // suppress warning in all assigns.
             #[allow(non_snake_case)]
@@ -461,7 +468,7 @@ impl CfgWhenWgt {
             // when not applied.
             #[cfg(never)]
             when *#is_state {
-                live_trace = "is_never_state";
+                util::live_trace = "is_never_state";
             }
         }
     }
@@ -541,13 +548,14 @@ impl CapturePropertiesWgt {
     fn on_start(&mut self) {
         defaults! {
             self;
-            pub super::util::trace as new_trace = "new";
-            pub super::util::trace as property_trace = "property";
+            util::trace = "new";
         }
     }
 
-    pub fn build(mut wgt: WidgetBuilder) -> impl crate::widget_instance::UiNode {
-        let msg: &'static str = wgt.capture_value(property_id!(self::new_trace)).unwrap();
+    pub fn build(&mut self) -> impl crate::widget_instance::UiNode {
+        let mut wgt = self.take_builder();
+
+        let msg: &'static str = wgt.capture_value(property_id!(util::trace)).unwrap();
         let msg = match msg {
             "new" => "custom new",
             "user-new" => "custom new (user)",
@@ -556,7 +564,7 @@ impl CapturePropertiesWgt {
         wgt.push_property(
             Importance::WIDGET,
             property_args! {
-                super::util::trace as build_trace = msg;
+                util::trace = msg;
             },
         );
 
@@ -576,24 +584,6 @@ pub fn wgt_capture_properties() {
         assert!(!util::traced(&wgt, "new"));
     });
 }
-#[test]
-pub fn wgt_capture_properties_reassign() {
-    let _app = App::minimal().run_headless(false);
-
-    WINDOW.with_test_context(|| {
-        let mut wgt = CapturePropertiesWgt! {
-            property_trace = "user-property";
-            new_trace = "user-new";
-        };
-        wgt.init();
-
-        assert!(util::traced(&wgt, "user-property"));
-        assert!(util::traced(&wgt, "custom new (user)"));
-
-        assert!(!util::traced(&wgt, "new"));
-        assert!(!util::traced(&wgt, "user-new"));
-    });
-}
 
 /*
  * Tests order properties are inited and applied.
@@ -601,44 +591,24 @@ pub fn wgt_capture_properties_reassign() {
 
 #[widget($crate::tests::widget::PropertyNestGroupSortingWgt)]
 pub struct PropertyNestGroupSortingWgt(crate::widget_base::WidgetBase);
-impl PropertyNestGroupSortingWgt {
-    #[widget(on_start)]
-    fn on_start(&mut self) {
-        properties! {
-            pub super::util::count_border as count_border2;
-            pub super::util::count_border as count_border1;
-            pub super::util::count_child_context as count_child_context2;
-            pub super::util::count_child_context as count_child_context1;
-            pub super::util::count_child_layout as count_child_layout2;
-            pub super::util::count_child_layout as count_child_layout1;
-            pub super::util::count_context as count_context2;
-            pub super::util::count_context as count_context1;
-            pub super::util::count_layout as count_layout2;
-            pub super::util::count_layout as count_layout1;
-            pub super::util::count_size as count_size2;
-            pub super::util::count_size as count_size1;
-            pub super::util::on_count as count_event2;
-            pub super::util::on_count as count_event1;
-        }
-    }
-}
+impl PropertyNestGroupSortingWgt {}
 fn property_nest_group_sorting_init1() -> impl UiNode {
     PropertyNestGroupSortingWgt! {
-        count_border1 = Position::next("count_border1");
-        count_border2 = Position::next("count_border2");
-        count_size1 = Position::next("count_size1");
-        count_size2 = Position::next("count_size2");
-        count_layout1 = Position::next("count_layout1");
-        count_layout2 = Position::next("count_layout2");
-        count_event1 = Position::next("count_event1");
-        count_event2 = Position::next("count_event2");
-        count_context1 = Position::next("count_context1");
-        count_context2 = Position::next("count_context2");
+        util::count_border = Position::next("count_border");
+        util::count_border2 = Position::next("count_border2");
+        util::count_size = Position::next("count_size");
+        util::count_size2 = Position::next("count_size2");
+        util::count_layout = Position::next("count_layout");
+        util::count_layout2 = Position::next("count_layout2");
+        util::count_event = Position::next("count_event");
+        util::count_event2 = Position::next("count_event2");
+        util::count_context = Position::next("count_context");
+        util::count_context2 = Position::next("count_context2");
 
-        count_child_layout1 = Position::next("count_child_layout1");
-        count_child_layout2 = Position::next("count_child_layout2");
-        count_child_context1 = Position::next("count_child_context1");
-        count_child_context2 = Position::next("count_child_context2");
+        util::count_child_layout = Position::next("count_child_layout");
+        util::count_child_layout2 = Position::next("count_child_layout2");
+        util::count_child_context = Position::next("count_child_context");
+        util::count_child_context2 = Position::next("count_child_context2");
     }
 }
 #[test]
@@ -655,19 +625,19 @@ pub fn property_nest_group_sorting_value_init1() {
         pretty_assertions::assert_eq!(
             util::sorted_value_init(&wgt),
             [
-                "count_border1",
+                "count_border",
                 "count_border2",
-                "count_size1",
+                "count_size",
                 "count_size2",
-                "count_layout1",
+                "count_layout",
                 "count_layout2",
-                "count_event1",
+                "count_event",
                 "count_event2",
-                "count_context1",
+                "count_context",
                 "count_context2",
-                "count_child_layout1",
+                "count_child_layout",
                 "count_child_layout2",
-                "count_child_context1",
+                "count_child_context",
                 "count_child_context2",
             ]
         );
@@ -675,21 +645,21 @@ pub fn property_nest_group_sorting_value_init1() {
 }
 fn property_nest_group_sorting_init2() -> impl UiNode {
     PropertyNestGroupSortingWgt! {
-        count_child_context1 = Position::next("count_child_context1");
-        count_child_context2 = Position::next("count_child_context2");
-        count_child_layout1 = Position::next("count_child_layout1");
-        count_child_layout2 = Position::next("count_child_layout2");
+        util::count_child_context = Position::next("count_child_context");
+        util::count_child_context2 = Position::next("count_child_context2");
+        util::count_child_layout = Position::next("count_child_layout");
+        util::count_child_layout2 = Position::next("count_child_layout2");
 
-        count_context1 = Position::next("count_context1");
-        count_context2 = Position::next("count_context2");
-        count_event1 = Position::next("count_event1");
-        count_event2 = Position::next("count_event2");
-        count_layout1 = Position::next("count_layout1");
-        count_layout2 = Position::next("count_layout2");
-        count_size1 = Position::next("count_size1");
-        count_size2 = Position::next("count_size2");
-        count_border1 = Position::next("count_border1");
-        count_border2 = Position::next("count_border2");
+        util::count_context = Position::next("count_context");
+        util::count_context2 = Position::next("count_context2");
+        util::count_event = Position::next("count_event");
+        util::count_event2 = Position::next("count_event2");
+        util::count_layout = Position::next("count_layout");
+        util::count_layout2 = Position::next("count_layout2");
+        util::count_size = Position::next("count_size");
+        util::count_size2 = Position::next("count_size2");
+        util::count_border = Position::next("count_border");
+        util::count_border2 = Position::next("count_border2");
     }
 }
 #[test]
@@ -706,19 +676,19 @@ pub fn property_nest_group_sorting_value_init2() {
         pretty_assertions::assert_eq!(
             util::sorted_value_init(&wgt),
             [
-                "count_child_context1",
+                "count_child_context",
                 "count_child_context2",
-                "count_child_layout1",
+                "count_child_layout",
                 "count_child_layout2",
-                "count_context1",
+                "count_context",
                 "count_context2",
-                "count_event1",
+                "count_event",
                 "count_event2",
-                "count_layout1",
+                "count_layout",
                 "count_layout2",
-                "count_size1",
+                "count_size",
                 "count_size2",
-                "count_border1",
+                "count_border",
                 "count_border2",
             ]
         );
@@ -732,19 +702,19 @@ fn assert_node_order(wgt: &impl UiNode) {
         [
             // each property wraps the next one and takes a position number before
             // delegating to the next property (child node).
-            "count_context1",
+            "count_context",
             "count_context2",
-            "count_event1",
+            "count_event",
             "count_event2",
-            "count_layout1",
+            "count_layout",
             "count_layout2",
-            "count_size1",
+            "count_size",
             "count_size2",
-            "count_border1",
+            "count_border",
             "count_border2",
-            "count_child_context1",
+            "count_child_context",
             "count_child_context2",
-            "count_child_layout1",
+            "count_child_layout",
             "count_child_layout2",
         ]
     );
@@ -784,21 +754,21 @@ pub fn property_nest_group_sorting_node_inherited_init() {
         Position::reset();
 
         let mut wgt = PropertyNestGroupSortingInheritedWgt! {
-            count_child_context1 = Position::next("count_child_context1");
-            count_child_context2 = Position::next("count_child_context2");
-            count_child_layout1 = Position::next("count_child_layout1");
-            count_child_layout2 = Position::next("count_child_layout2");
+            util::count_child_context = Position::next("count_child_context");
+            util::count_child_context2 = Position::next("count_child_context2");
+            util::count_child_layout = Position::next("count_child_layout");
+            util::count_child_layout2 = Position::next("count_child_layout2");
 
-            count_context1 = Position::next("count_context1");
-            count_context2 = Position::next("count_context2");
-            count_event1 = Position::next("count_event1");
-            count_event2 = Position::next("count_event2");
-            count_layout1 = Position::next("count_layout1");
-            count_layout2 = Position::next("count_layout2");
-            count_size1 = Position::next("count_size1");
-            count_size2 = Position::next("count_size2");
-            count_border1 = Position::next("count_border1");
-            count_border2 = Position::next("count_border2");
+            util::count_context = Position::next("count_context");
+            util::count_context2 = Position::next("count_context2");
+            util::count_event = Position::next("count_event");
+            util::count_event2 = Position::next("count_event2");
+            util::count_layout = Position::next("count_layout");
+            util::count_layout2 = Position::next("count_layout2");
+            util::count_size = Position::next("count_size");
+            util::count_size2 = Position::next("count_size2");
+            util::count_border = Position::next("count_border");
+            util::count_border2 = Position::next("count_border2");
         };
         wgt.init();
 
@@ -811,22 +781,23 @@ pub struct PropertyNestGroupSortingDefaultsWgt(PropertyNestGroupSortingWgt);
 impl PropertyNestGroupSortingDefaultsWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        properties! {
-            count_context1 = Position::next("count_context1");
-            count_context2 = Position::next("count_context2");
-            count_event1 = Position::next("count_event1");
-            count_event2 = Position::next("count_event2");
-            count_layout1 = Position::next("count_layout1");
-            count_layout2 = Position::next("count_layout2");
-            count_size1 = Position::next("count_size1");
-            count_size2 = Position::next("count_size2");
-            count_border1 = Position::next("count_border1");
-            count_border2 = Position::next("count_border2");
+        defaults! {
+            self;
+            util::count_context = Position::next("count_context");
+            util::count_context2 = Position::next("count_context2");
+            util::count_event = Position::next("count_event");
+            util::count_event2 = Position::next("count_event2");
+            util::count_layout = Position::next("count_layout");
+            util::count_layout2 = Position::next("count_layout2");
+            util::count_size = Position::next("count_size");
+            util::count_size2 = Position::next("count_size2");
+            util::count_border = Position::next("count_border");
+            util::count_border2 = Position::next("count_border2");
 
-            count_child_context1 = Position::next("count_child_context1");
-            count_child_context2 = Position::next("count_child_context2");
-            count_child_layout1 = Position::next("count_child_layout1");
-            count_child_layout2 = Position::next("count_child_layout2");
+            util::count_child_context = Position::next("count_child_context");
+            util::count_child_context2 = Position::next("count_child_context2");
+            util::count_child_layout = Position::next("count_child_layout");
+            util::count_child_layout2 = Position::next("count_child_layout2");
         }
     }
 }
@@ -950,7 +921,8 @@ pub fn when_property_member_indexed_method() {
 #[widget($crate::tests::widget::GetBuilder)]
 pub struct GetBuilder(crate::widget_base::WidgetBase);
 impl GetBuilder {
-    pub fn build(mut wgt: WidgetBuilder) -> WidgetBuilder {
+    pub fn build(&mut self) -> WidgetBuilder {
+        let mut wgt = self.take_builder();
         wgt.set_custom_build(crate::widget_base::nodes::build);
         wgt
     }
@@ -1116,15 +1088,18 @@ pub fn generated_name_collision_in_when_assign() {
 #[widget($crate::tests::widget::NameCollisionWgtWhen)]
 pub struct NameCollisionWgtWhen(crate::widget_base::WidgetBase);
 impl NameCollisionWgtWhen {
-    defaults! {
-        self;
-        live_trace = "1";
+    #[widget(on_start)]
+    fn on_start(&mut self) {
+        defaults! {
+            self;
+            util::live_trace = "1";
 
-        when *#is_state {
-            live_trace = "2";
-        }
-        when *#is_state {
-            live_trace = "3";
+            when *#is_state {
+                util::live_trace = "2";
+            }
+            when *#is_state {
+                util::live_trace = "3";
+            }
         }
     }
 }
@@ -1244,10 +1219,26 @@ pub mod util {
             value_pos: count.into(),
         }
     }
+    /// Same as [`count`] but in `CHILD_CONTEXT` group.
+    #[property(CHILD_CONTEXT)]
+    pub fn count_child_context2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
 
     /// Same as [`count`] but in `CHILD_LAYOUT` group.
     #[property(CHILD_LAYOUT)]
     pub fn count_child_layout(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
+    /// Same as [`count`] but in `CHILD_LAYOUT` group.
+    #[property(CHILD_LAYOUT)]
+    pub fn count_child_layout2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
             value_pos: count.into(),
@@ -1262,10 +1253,26 @@ pub mod util {
             value_pos: count.into(),
         }
     }
+    /// Same as [`count`] but in `BORDER` group.
+    #[property(BORDER)]
+    pub fn count_border2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
 
     /// Same as [`count`] but in `LAYOUT` group.
     #[property(LAYOUT)]
     pub fn count_layout(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
+    /// Same as [`count`] but in `LAYOUT` group.
+    #[property(LAYOUT)]
+    pub fn count_layout2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
             value_pos: count.into(),
@@ -1280,6 +1287,14 @@ pub mod util {
             value_pos: count.into(),
         }
     }
+    /// Same as [`count`] but in `CONTEXT` group.
+    #[property(CONTEXT)]
+    pub fn count_context2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
 
     /// Same as [`count`] but in `SIZE` group.
     #[property(SIZE)]
@@ -1289,10 +1304,26 @@ pub mod util {
             value_pos: count.into(),
         }
     }
+    /// Same as [`count`] but in `SIZE` group.
+    #[property(SIZE)]
+    pub fn count_size2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
 
     /// Same as [`count`] but in `EVENT` group.
     #[property(EVENT)]
-    pub fn on_count(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_event(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
+    /// Same as [`count`] but in `EVENT` group.
+    #[property(EVENT)]
+    pub fn count_event2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
             value_pos: count.into(),
