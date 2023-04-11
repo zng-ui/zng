@@ -75,6 +75,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     let validate_path = quote_spanned! {val_span=>
         #[doc(hidden)]
         #[allow(unused)]
+        #[allow(non_snake_case)]
         mod #validate_path_ident {
             macro_rules! #validate_path_ident {
                 () => {
@@ -106,7 +107,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     let macro_new = quote! {
         $crate::widget_new! {
-            widget { #struct_path }
+            start { #struct_path::start() }
+            end { wgt__.build() }
             new { $($tt)* }
         }
     };
@@ -336,7 +338,7 @@ fn path_slug(path: &str) -> String {
 */
 
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let NewArgs { widget, properties: mut p } = parse_macro_input!(args as NewArgs);
+    let NewArgs { start, end, properties: mut p } = parse_macro_input!(args as NewArgs);
 
     let mut set_props = quote!();
     for prop in &p.properties {
@@ -411,92 +413,12 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let r = quote! {
         {
-            let mut wgt__ = #widget::start();
+            #[allow(unused_mut)]
+            let mut wgt__ = #start;
 
             #set_props
 
-            wgt__.build()
-        }
-    };
-
-    r.into()
-}
-
-pub fn expand_new_old(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let NewArgs { widget, properties: mut p } = parse_macro_input!(args as NewArgs);
-
-    let mut pre_bind = quote!();
-    for prop in &mut p.properties {
-        pre_bind.extend(prop.pre_bind_args(true, None, ""));
-    }
-    for (i, when) in p.whens.iter_mut().enumerate() {
-        pre_bind.extend(when.pre_bind(true, i));
-    }
-
-    let mut init = quote!();
-
-    let builder = ident!("__wgt__");
-    let when = ident!("__when__");
-    let importance = ident!("__importance__");
-
-    for p in &p.properties {
-        let custom_expand = if p.has_custom_attrs() {
-            p.custom_attrs_expand(builder.clone(), None, Some(importance.clone()))
-        } else {
-            quote!()
-        };
-
-        let attrs = p.attrs.cfg_and_lints();
-        if p.is_unset() {
-            let id = p.property_id();
-            init.extend(quote! {
-                #attrs
-                {
-                    let mut #importance = #widget::__widget__::widget_builder::Importance::INSTANCE;
-                    { #custom_expand }
-                    __wgt__.push_unset(#importance, #id);
-                }
-            });
-        } else if p.has_args() {
-            let args = p.args_new(quote!(#widget::__widget__::widget_builder));
-            init.extend(quote! {
-                #attrs
-                {
-                    let mut #importance = #widget::__widget__::widget_builder::Importance::INSTANCE;
-                    { #custom_expand }
-                    __wgt__.push_property(#importance, #args);
-                }
-            });
-        }
-    }
-
-    for w in &p.whens {
-        let attrs = w.attrs.cfg_and_lints();
-        let args = w.when_new(quote!(#widget::__widget__::widget_builder));
-        let custom_expr = w.custom_assign_expand(&builder, &when);
-        init.extend(quote! {
-            #attrs
-            {
-                let mut #when = #args;
-                { #custom_expr }
-                __wgt__.push_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #when);
-            }
-        });
-    }
-
-    p.errors.to_tokens(&mut init);
-
-    let r = quote! {
-        {
-            #pre_bind
-
-            let mut __wgt__ = #widget::__widget__::new();
-            {
-                #[allow(unused_imports)]
-                use #widget::*;
-                #init
-            }
-            #widget::build(__wgt__)
+            #end
         }
     };
 
@@ -504,13 +426,15 @@ pub fn expand_new_old(args: proc_macro::TokenStream) -> proc_macro::TokenStream 
 }
 
 struct NewArgs {
-    widget: TokenStream,
+    start: TokenStream,
+    end: TokenStream,
     properties: Properties,
 }
 impl Parse for NewArgs {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         Ok(Self {
-            widget: non_user_braced!(input, "widget").parse().unwrap(),
+            start: non_user_braced!(input, "start").parse().unwrap(),
+            end: non_user_braced!(input, "end").parse().unwrap(),
             properties: non_user_braced!(input, "new").parse()?,
         })
     }

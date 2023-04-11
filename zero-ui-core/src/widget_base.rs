@@ -29,6 +29,7 @@ use crate::{
 pub struct WidgetBase {
     builder: Option<RefCell<WidgetBuilder>>,
     started: bool,
+    importance: Importance,
 }
 impl WidgetBase {
     /// Gets the type of [`WidgetBase`].
@@ -51,6 +52,7 @@ impl WidgetBase {
         let mut w = Self {
             builder: Some(RefCell::new(builder)),
             started: false,
+            importance: Importance::INSTANCE,
         };
         w.on_start__();
         w
@@ -81,6 +83,16 @@ impl WidgetBase {
         nodes::build(wgt)
     }
 
+    /// Properties, unsets and when conditions set after this call will have [`Importance::WIDGET`].
+    pub fn start_defaults(&mut self) {
+        self.importance = Importance::WIDGET;
+    }
+
+    /// Properties, unsets and when conditions set after this call will have [`Importance::INSTANCE`].
+    pub fn end_defaults(&mut self) {
+        self.importance = Importance::INSTANCE;
+    }
+
     #[doc(hidden)]
     pub fn on_start__(&mut self) {
         if !self.started {
@@ -96,7 +108,7 @@ impl WidgetBase {
             .as_ref()
             .expect("cannot set after build")
             .borrow_mut()
-            .push_property(Importance::INSTANCE, args);
+            .push_property(self.importance, args);
     }
 
     /// Push method unset property.
@@ -106,7 +118,7 @@ impl WidgetBase {
             .as_ref()
             .expect("cannot unset after build")
             .borrow_mut()
-            .push_unset(Importance::INSTANCE, id);
+            .push_unset(self.importance, id);
     }
 }
 
@@ -123,7 +135,7 @@ impl WidgetBaseExt for WidgetBase {
             .as_mut()
             .expect("cannot set after build")
             .get_mut()
-            .push_property(Importance::INSTANCE, args);
+            .push_property(self.importance, args);
     }
 
     fn ext_property_unset__(&mut self, id: PropertyId) {
@@ -131,7 +143,7 @@ impl WidgetBaseExt for WidgetBase {
             .as_mut()
             .expect("cannot unset after build")
             .get_mut()
-            .push_unset(Importance::INSTANCE, id);
+            .push_unset(self.importance, id);
     }
 }
 
@@ -140,7 +152,8 @@ impl WidgetBaseExt for WidgetBase {
 macro_rules! WidgetBaseMacro__ {
     ($($tt:tt)*) => {
         $crate::widget_new! {
-            widget { $crate::widget_base::WidgetBase }
+            start { $crate::widget_base::WidgetBase::start() }
+            end { wgt__.build() }
             new { $($tt)* }
         }
     }

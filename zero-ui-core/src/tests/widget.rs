@@ -6,7 +6,7 @@ use self::util::Position;
 use crate::{
     app::App,
     context::{WIDGET, WINDOW},
-    property_args, property_id,
+    defaults, property_args, property_id,
     var::{IntoValue, Var},
     widget,
     widget_builder::{Importance, WidgetBuilder},
@@ -39,11 +39,11 @@ pub struct BarWgt(crate::widget_base::WidgetBase);
 impl BarWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        // properties! { !!:
-        //     self;
-        //     bar_trace = "bar_wgt";
-        //     foo_trace = "foo_wgt";
-        // }
+        defaults! {
+            self;
+            bar_trace = "bar_wgt";
+            foo_trace = "foo_wgt";
+        }
     }
 }
 #[crate::property(CONTEXT)]
@@ -101,10 +101,10 @@ pub struct ResetWgt(BarWgt);
 impl ResetWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        // properties! { !!:
-        //     self;
-        //     foo_trace = "reset_wgt";
-        // }
+        defaults! {
+            self;
+            foo_trace = "reset_wgt";
+        }
     }
 }
 
@@ -129,10 +129,10 @@ pub struct DefaultValueWgt(crate::widget_base::WidgetBase);
 impl DefaultValueWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        // properties! { !!:
-        //     self;
-        //     util::trace = "default_value_wgt";
-        // }
+        defaults! {
+            self;
+            util::trace = "default_value_wgt";
+        }
     }
 }
 #[test]
@@ -263,7 +263,8 @@ pub struct WhenWgt(crate::widget_base::WidgetBase);
 impl WhenWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        properties! {
+        defaults! {
+            self;
             util::live_trace = "boo!";
 
             when *#util::is_state {
@@ -332,7 +333,8 @@ pub struct MultiWhenWgt(crate::widget_base::WidgetBase);
 impl MultiWhenWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        properties! {
+        defaults! {
+            self;
             util::trace = "default";
             when *#util::is_state {
                 util::trace = "state_0";
@@ -374,7 +376,8 @@ pub struct CfgPropertyWgt(crate::widget_base::WidgetBase);
 impl CfgPropertyWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        properties! {
+        defaults! {
+            self;
             // property not included in widget.
             #[cfg(never)]
             trace as never_trace = "never-trace";
@@ -440,7 +443,8 @@ pub struct CfgWhenWgt(crate::widget_base::WidgetBase);
 impl CfgWhenWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        properties! {
+        defaults! {
+            self;
             live_trace = "trace";
 
             // suppress warning in all assigns.
@@ -535,7 +539,8 @@ pub struct CapturePropertiesWgt(crate::widget_base::WidgetBase);
 impl CapturePropertiesWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        properties! {
+        defaults! {
+            self;
             pub super::util::trace as new_trace = "new";
             pub super::util::trace as property_trace = "property";
         }
@@ -1010,22 +1015,14 @@ pub fn allowed_in_when_without_wgt_assign1() {
     });
 }
 
-#[widget($crate::tests::widget::DeclarePropWithDefaultWgt)]
-pub struct DeclarePropWithDefaultWgt(crate::widget_base::WidgetBase);
-impl DeclarePropWithDefaultWgt {
-    properties! {
-        pub super::util::live_trace_default as trace;
-    }
-}
-
 #[test]
 pub fn allowed_in_when_without_wgt_assign2() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = DeclarePropWithDefaultWgt! {
+        let mut wgt = EmptyWgt! {
             // live_trace_default = "default-trace";
             when *#util::is_state {
-                trace = "when-trace";
+                live_trace_default = "when-trace";
             }
         };
 
@@ -1119,7 +1116,8 @@ pub fn generated_name_collision_in_when_assign() {
 #[widget($crate::tests::widget::NameCollisionWgtWhen)]
 pub struct NameCollisionWgtWhen(crate::widget_base::WidgetBase);
 impl NameCollisionWgtWhen {
-    properties! {
+    defaults! {
+        self;
         live_trace = "1";
 
         when *#is_state {

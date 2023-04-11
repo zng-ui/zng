@@ -1030,3 +1030,38 @@ mod private {
     // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
     pub trait Sealed {}
 }
+
+/// Sets the default properties and when conditions on an widget.
+///
+/// # Example
+/// 
+/// ```
+/// # use zero_ui_core::{*, widget_base::*};
+/// #[widget($crate::Wgt)]
+/// pub struct Wgt(WidgetBase);
+/// impl Wgt {
+///     #[widget(on_start)]
+///     fn on_start(&mut self) {
+///         defaults! {
+///             self;
+///             enabled = false;
+///         }
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! defaults {
+    (
+        $self:ident;
+        $($tt:tt)*
+    ) => {
+        $crate::widget_new! {
+            start { {
+                $self.start_defaults();
+                $self
+            } }
+            end { $self.end_defaults() }
+            new { $($tt)* }
+        }
+    }
+}
