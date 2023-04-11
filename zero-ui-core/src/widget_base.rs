@@ -121,9 +121,8 @@ impl WidgetBase {
             .push_unset(self.importance, id);
     }
 
-    /// Helper for `properties!` macro.
     #[doc(hidden)]
-    pub fn reexport_impl__(&self, f: impl FnOnce(&mut Self)) {
+    pub fn reexport__(&self, f: impl FnOnce(&mut Self)) {
         let mut inner = Self {
             builder: RefCell::new(self.builder.borrow_mut().take()),
             started: self.started,
@@ -136,14 +135,28 @@ impl WidgetBase {
     }
 }
 
-#[doc(hidden)]
+/// Trait implemented by all `#[widget]`.
 pub trait WidgetImpl {
-    #[doc(hidden)]
+    /// The inherit function.
     fn inherit(widget: WidgetType) -> Self;
+
+    /// Reference the parent [`WidgetBase`].
+    fn base(&mut self) -> &mut WidgetBase;
+
+    #[doc(hidden)]
+    fn base_ref(&self) -> &WidgetBase;
 }
 impl WidgetImpl for WidgetBase {
     fn inherit(widget: WidgetType) -> Self {
         Self::inherit(widget)
+    }
+
+    fn base(&mut self) -> &mut WidgetBase {
+        self
+    }
+
+    fn base_ref(&self) -> &WidgetBase {
+        self
     }
 }
 

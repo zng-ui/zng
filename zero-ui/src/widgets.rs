@@ -1,7 +1,8 @@
 //! Common widgets.
 
 pub mod layouts;
-pub mod mixins;
+
+pub mod focusable;
 
 mod ansi_text_wgt;
 #[doc(inline)]
@@ -71,9 +72,9 @@ mod toggle_wgt;
 #[doc(inline)]
 pub use toggle_wgt::toggle;
 
-mod style_wgt;
+pub mod style;
 #[doc(inline)]
-pub use style_wgt::style;
+pub use style::Style;
 
 mod view;
 #[doc(inline)]
@@ -87,7 +88,5 @@ pub use window_wgt::window;
 ///
 /// You can use this to create a quick new custom widget that is only used in one code place and can be created entirely
 /// by properties and `when` conditions.
-#[crate::core::widget($crate::widgets::wgt)]
-pub mod wgt {
-    inherit!(::zero_ui_core::widget_base::base);
-}
+#[crate::core::widget($crate::widgets::Wgt)]
+pub struct Wgt(crate::core::widget_base::WidgetBase);

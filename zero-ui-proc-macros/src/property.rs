@@ -565,27 +565,45 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         };
 
         let direct_impl = if let Some(impl_for) = impl_for {
-            let target = impl_for.target;
+            let mut target = impl_for.target;
+            let (generics_impl, generics) = match &target.segments.last().unwrap().arguments {
+                PathArguments::None => (quote!(), quote!()),
+                PathArguments::AngleBracketed(b) => {
+                    if b.args.is_empty() {
+                        (quote!(), quote!())
+                    } else if b.args.len() > 1 {
+                        errors.push("only `<P>` generics is allowed", b.span());
+                        (quote!(), quote!())
+                    } else {
+                        target.segments.last_mut().unwrap().arguments = PathArguments::None;
+                        (quote!(<P: #core::widget_base::WidgetImpl>), quote!(<P>))
+                    }
+                }
+                PathArguments::Parenthesized(p) => {
+                    errors.push("only `<P>` generics is allowed", p.span());
+                    (quote!(), quote!())
+                }
+            };
             quote! {
                 #cfg
-                impl #target {
+                impl #generics_impl #target #generics {
                     #(#docs)*
                     #vis fn #ident(&self, #(#input_idents: #input_tys),*) {
                         let args = #ident_meta { }.args(#(#input_idents),*);
-                        self.mtd_property__(args)
+                        #core::widget_base::WidgetImpl::base_ref(self).mtd_property__(args)
                     }
 
                     /// Unset the property.
                     #[allow(dead_code)]
                     #vis fn #ident_unset(&self) {
-                        self.mtd_property_unset__(#ident_meta { }.id())
+                        #core::widget_base::WidgetImpl::base_ref(self).mtd_property_unset__(#ident_meta { }.id())
                     }
 
                     #[doc(hidden)]
                     #[allow(dead_code)]
                     #vis fn #ident_sorted(&mut self, #(#sorted_idents: #sorted_tys),*) {
                         let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
-                        self.mtd_property__(args)
+                        #core::widget_base::WidgetImpl::base_ref(self).mtd_property__(args)
                     }
 
                     #[doc(hidden)]
@@ -636,7 +654,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 type MetaType = ();
             }
             #cfg
-            impl self::#ident for #core::widget_builder::WgtInfo { 
+            impl self::#ident for #core::widget_builder::WgtInfo {
                 type MetaType = #ident_meta;
             }
 
@@ -905,7 +923,7 @@ pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let r = quote! {
         #attrs
         #vis fn #ident(&self, #args) {
-            self.reexport_impl__(|base__| {
+            #core::widget_base::WidgetImpl::base_ref(self).reexport__(|base__| {
                 #path::#ident(base__, #(#arg_idents),*);
             });
         }
@@ -914,7 +932,7 @@ pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #cfg
         #[allow(dead_code)]
         #vis fn #ident_unset(&self) {
-            self.reexport_impl__(|base__| {
+            #core::widget_base::WidgetImpl::base_ref(self).reexport__(|base__| {
                 #path::#ident_unset(base__);
             });
         }
@@ -923,7 +941,7 @@ pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #cfg
         #[allow(dead_code)]
         #vis fn #ident_sorted(&self, #(#sorted_idents: #sorted_tys),*) {
-            self.reexport_impl__(|base__| {
+            #core::widget_base::WidgetImpl::base_ref(self).reexport__(|base__| {
                 #path::#ident_sorted(base__, #(#sorted_idents),*);
             });
         }

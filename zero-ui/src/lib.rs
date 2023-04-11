@@ -319,7 +319,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::{
             property, ui_node, widget, widget_mixin,
-            widget_base::{self, HitTestMode, WidgetBase},
+            widget_base::{self, HitTestMode, WidgetBase,  WidgetImpl},
             widget_info::{
                 InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,
                 WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
@@ -355,11 +355,11 @@ pub mod prelude {
         };
         #[doc(no_inline)]
         pub use crate::widgets::{
-            container,
+            Container,
             layouts::{stack_nodes, stack_nodes_layout_by},
             mixins::style_mixin,
             style,
-            style::{style_fn, StyleFn},
+            style::{StyleFn, StyleMix},
             wgt_fn, DataUpdate, WidgetFn,
         };
     }

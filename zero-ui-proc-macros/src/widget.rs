@@ -231,15 +231,21 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         };
 
         let start_r = quote! {
-            /// Start building a new instance.
-            pub fn start() -> Self {
-                Self::inherit(#crate_core::widget_builder::WidgetType {
-                    type_id: std::any::TypeId::of::<Self>(),
-                    path: #struct_path_str,
-                    location: #crate_core::widget_builder::source_location!(),
-                })
-            }
+            impl #mixin_p_bounded #ident #mixin_p {
+                /// Start building a new instance.
+                pub fn start() -> Self {
+                    <Self as #crate_core::widget_base::WidgetImpl>::inherit(Self::widget_type())
+                }
 
+                /// Gets the widget type info.
+                pub fn widget_type() -> #crate_core::widget_builder::WidgetType {
+                    #crate_core::widget_builder::WidgetType {
+                        type_id: std::any::TypeId::of::<Self>(),
+                        path: #struct_path_str,
+                        location: #crate_core::widget_builder::source_location!(),
+                    }
+                }
+            }
         };
 
         (r, start_r)
@@ -263,11 +269,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 &mut self.base
             }
         }
-        impl #mixin_p_bounded #ident #mixin_p {
-            #start_r
+        #start_r
 
-            /// Start building a widget derived from this one.
-            pub fn inherit(widget: #crate_core::widget_builder::WidgetType) -> Self {
+        #[doc(hidden)]
+        impl #mixin_p_bounded #crate_core::widget_base::WidgetImpl for #ident #mixin_p {
+            fn inherit(widget: #crate_core::widget_builder::WidgetType) -> Self {
                 let mut wgt = Self {
                     base: <#parent as #crate_core::widget_base::WidgetImpl>::inherit(widget),
                     started: false,
@@ -275,11 +281,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 wgt.on_start__();
                 wgt
             }
-        }
-        #[doc(hidden)]
-        impl #mixin_p_bounded #crate_core::widget_base::WidgetImpl for #ident #mixin_p {
-            fn inherit(widget: #crate_core::widget_builder::WidgetType) -> Self {
-                Self::inherit(widget)
+
+            fn base(&mut self) -> &mut #crate_core::widget_base::WidgetBase {
+                #crate_core::widget_base::WidgetImpl::base(&mut self.base)
+            }
+
+            fn base_ref(&self) -> &#crate_core::widget_base::WidgetBase {
+                #crate_core::widget_base::WidgetImpl::base_ref(&self.base)
             }
         }
 

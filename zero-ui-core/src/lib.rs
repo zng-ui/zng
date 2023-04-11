@@ -1031,7 +1031,8 @@ pub use zero_ui_proc_macros::widget;
 /// Widget mix-ins can be inserted on a widgets inheritance chain, but they cannot be instantiated directly. Unlike
 /// the full widgets it defines its parent as a generic type, that must be filled with a real widget when used.
 /// 
-/// By convention mix-ins have the prefix `Mix` and the generic parent is named `P`.
+/// By convention mix-ins have the prefix `Mix` and the generic parent is named `P`. The `P` must not have any generic bounds
+/// in the declaration, the expansion will bound it to [`widget_base::WidgetImpl`].
 /// 
 /// # Examples
 /// 
@@ -1042,7 +1043,7 @@ pub use zero_ui_proc_macros::widget;
 /// /// Make a widget capable of receiving keyboard focus.
 /// #[widget_mixin]
 /// pub struct FocusableMix<P>(P);
-/// impl<P> FocusableMix<P> {
+/// impl<P: WidgetImpl> FocusableMix<P> {
 ///     #[widget(on_start)]
 ///     fn on_start(&mut self) {
 ///         defaults! {

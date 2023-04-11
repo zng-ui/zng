@@ -3,7 +3,6 @@
 use std::sync::Arc;
 use std::{fmt, ops};
 
-use crate::core::widget_builder::widget_mod;
 use crate::prelude::new_widget::*;
 
 /// Represents a set of properties that can be applied to any styleable widget.
@@ -43,13 +42,50 @@ impl Style {
 /// [`style_mixin::with_style_extension`] for a full styleable widget example.
 #[widget_mixin]
 pub struct StyleMix<P>(P);
-impl<P> StyleMix<P> {
+impl<P: WidgetImpl> StyleMix<P> {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        self.builder().set_custom_build(custom_build);
+        self.base().builder().set_custom_build(StyleMix::<()>::custom_build);
     }
 }
+impl<P> StyleMix<P> {
+    /// The custom build that is set on intrinsic by the mix-in.
+    pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
+        // 1 - "split_off" the property `style`
+        //     this moves the property and any `when` that affects it to a new widget builder.
+        let style_id = property_id!(style_fn);
+        let mut style_builder = WidgetBuilder::new(wgt.widget_type());
+        wgt.split_off([style_id], &mut style_builder);
 
+        if style_builder.has_properties() {
+            // 2.a - There was a `style` property, build a "mini widget" that is only the style property
+            //       and when condition properties that affect it.
+
+            #[cfg(trace_widget)]
+            wgt.push_build_action(|wgt| {
+                // avoid double trace as the style builder already inserts a widget tracer.
+                wgt.disable_trace_widget();
+            });
+
+            let mut wgt = Some(wgt);
+            style_builder.push_build_action(move |b| {
+                // 3 - The actual StyleNode and builder is a child of the "mini widget".
+                let style = b.capture_var::<StyleFn>(style_id).unwrap();
+                b.set_child(StyleNode {
+                    child: None,
+                    builder: wgt.take().unwrap(),
+                    style,
+                });
+            });
+            // 4 - Build the "mini widget",
+            //     if the `style` property was not affected by any `when` this just returns the `StyleNode`.
+            style_builder.build()
+        } else {
+            // 2.b - There was not property `style`, this widget is not styleable, just build the default.
+            wgt.build()
+        }
+    }
+}
 /// Style function used for the widget.
 ///
 /// Properties and `when` conditions in the generated style are applied to the widget as
@@ -136,43 +172,6 @@ pub fn with_style_extension(child: impl UiNode, style_context: ContextVar<StyleF
     )
 }
 
-/// Gets the custom build that is set on intrinsic by the mix-in.
-pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
-    // 1 - "split_off" the property `style`
-    //     this moves the property and any `when` that affects it to a new widget builder.
-    let style_id = property_id!(self::style_fn);
-    let mut style_builder = WidgetBuilder::new(wgt.widget_mod());
-    wgt.split_off([style_id], &mut style_builder);
-
-    if style_builder.has_properties() {
-        // 2.a - There was a `style` property, build a "mini widget" that is only the style property
-        //       and when condition properties that affect it.
-
-        #[cfg(trace_widget)]
-        wgt.push_build_action(|wgt| {
-            // avoid double trace as the style builder already inserts a widget tracer.
-            wgt.disable_trace_widget();
-        });
-
-        let mut wgt = Some(wgt);
-        style_builder.push_build_action(move |b| {
-            // 3 - The actual StyleNode and builder is a child of the "mini widget".
-            let style = b.capture_var::<StyleFn>(style_id).unwrap();
-            b.set_child(StyleNode {
-                child: None,
-                builder: wgt.take().unwrap(),
-                style,
-            });
-        });
-        // 4 - Build the "mini widget",
-        //     if the `style` property was not affected by any `when` this just returns the `StyleNode`.
-        style_builder.build()
-    } else {
-        // 2.b - There was not property `style`, this widget is not styleable, just build the default.
-        wgt.build()
-    }
-}
-
 #[ui_node(struct StyleNode {
     child: Option<BoxedUiNode>,
     builder: WidgetBuilder,
@@ -206,18 +205,6 @@ impl UiNode for StyleNode {
     }
 }
 
-#[widget_mixin($crate::widgets::mixins::style_mixin)]
-pub mod style_mixin {
-    use super::*;
-
-    properties! {
-
-        pub style_fn(impl IntoVar<StyleFn>) = StyleFn::nil();
-    }
-
-    fn include(wgt: &mut WidgetBuilder) {}
-}
-
 /// Represents a style instance.
 ///
 /// Use the [`Style!`] *widget* to declare.
@@ -230,7 +217,7 @@ pub struct StyleBuilder {
 impl Default for StyleBuilder {
     fn default() -> Self {
         Self {
-            builder: WidgetBuilder::new(widget_mod!(style)),
+            builder: WidgetBuilder::new(Style::widget_type()),
         }
     }
 }
