@@ -17,7 +17,7 @@ pub use checkerboard_wgt::checkerboard;
 
 mod container_wgt;
 #[doc(inline)]
-pub use container_wgt::container;
+pub use container_wgt::Container;
 
 mod flood;
 #[doc(inline)]

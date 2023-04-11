@@ -576,17 +576,20 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     }
 
                     /// Unset the property.
+                    #[allow(dead_code)]
                     #vis fn #ident_unset(&self) {
                         self.mtd_property_unset__(#ident_meta { }.id())
                     }
 
                     #[doc(hidden)]
+                    #[allow(dead_code)]
                     #vis fn #ident_sorted(&mut self, #(#sorted_idents: #sorted_tys),*) {
                         let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
                         self.mtd_property__(args)
                     }
 
                     #[doc(hidden)]
+                    #[allow(dead_code)]
                     #vis fn #ident_meta(&self) -> #ident_meta {
                         #ident_meta { }
                     }
@@ -603,6 +606,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #[doc(hidden)]
             #[allow(non_camel_case_types)]
             #vis trait #ident: #core::widget_base::WidgetBaseExt {
+                type MetaType;
+
                 #(#docs)*
                 #[allow(clippy::too_many_arguments)]
                 fn #ident(&mut self, #(#input_idents: #input_tys),*) {
@@ -627,9 +632,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
             }
             #cfg
-            impl self::#ident for #core::widget_base::WidgetBase { }
+            impl self::#ident for #core::widget_base::WidgetBase {
+                type MetaType = ();
+            }
             #cfg
-            impl self::#ident for #core::widget_builder::WgtInfo { }
+            impl self::#ident for #core::widget_builder::WgtInfo { 
+                type MetaType = #ident_meta;
+            }
 
             #meta
             #args
@@ -860,8 +869,111 @@ pub fn expand_meta(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let meta_ident = ident!("{}_meta__", ident);
     let core = crate_core();
 
-    quote! {
+    let r = quote! {
         <#core::widget_builder::WgtInfo as #path>::#meta_ident(&#core::widget_builder::WgtInfo)
+    };
+    r.into()
+}
+
+pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let p = parse_macro_input!(input as PropertyImplArgs);
+    if p.args.empty_or_trailing() {
+        return quote_spanned! {p.path.span()=>
+            compile_error!("missing args")
+        }
+        .into();
     }
-    .into()
+
+    let attrs = Attributes::new(p.attrs);
+    let cfg = &attrs.cfg;
+    let vis = p.vis;
+    let path = p.path;
+    let ident = &path.segments.last().unwrap().ident;
+    let ident_unset = ident!("unset_{ident}");
+    let ident_meta = ident!("{}_meta__", ident);
+    let ident_sorted = ident!("{}_sorted__", ident);
+    let args = p.args;
+    let mut sorted_args: Vec<_> = args.iter().collect();
+    sorted_args.sort_by_key(|a| &a.ident);
+
+    let arg_idents = args.iter().map(|a| &a.ident);
+    let sorted_idents: Vec<_> = sorted_args.iter().map(|a| &a.ident).collect();
+    let sorted_tys = sorted_args.iter().map(|a| &a.ty);
+
+    let core = crate_core();
+
+    let r = quote! {
+        #attrs
+        #vis fn #ident(&self, #args) {
+            self.reexport_impl__(|base__| {
+                #path::#ident(base__, #(#arg_idents),*);
+            });
+        }
+
+        /// Unset the property.
+        #cfg
+        #[allow(dead_code)]
+        #vis fn #ident_unset(&self) {
+            self.reexport_impl__(|base__| {
+                #path::#ident_unset(base__);
+            });
+        }
+
+        #[doc(hidden)]
+        #cfg
+        #[allow(dead_code)]
+        #vis fn #ident_sorted(&self, #(#sorted_idents: #sorted_tys),*) {
+            self.reexport_impl__(|base__| {
+                #path::#ident_sorted(base__, #(#sorted_idents),*);
+            });
+        }
+
+        #[doc(hidden)]
+        #cfg
+        #[allow(dead_code)]
+        #vis fn #ident_meta(&self) -> <#core::widget_builder::WgtInfo as #path>::MetaType {
+            <#core::widget_builder::WgtInfo as #path>::#ident_meta(&#core::widget_builder::WgtInfo)
+        }
+    };
+    r.into()
+}
+
+struct PropertyImplArgs {
+    attrs: Vec<Attribute>,
+    vis: syn::Visibility,
+    path: Path,
+    args: Punctuated<SimpleFnArg, Token![,]>,
+}
+impl Parse for PropertyImplArgs {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        Ok(Self {
+            attrs: Attribute::parse_outer(&non_user_braced!(input, "attrs"))?,
+            vis: non_user_braced!(input, "vis").parse().unwrap(),
+            path: non_user_braced!(input, "path").parse()?,
+            args: Punctuated::parse_terminated(&non_user_braced!(input, "args"))?,
+        })
+    }
+}
+
+#[derive(Clone)]
+struct SimpleFnArg {
+    ident: Ident,
+    _s: Token![:],
+    ty: Type,
+}
+impl ToTokens for SimpleFnArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ident.to_tokens(tokens);
+        self._s.to_tokens(tokens);
+        self.ty.to_tokens(tokens);
+    }
+}
+impl Parse for SimpleFnArg {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        Ok(Self {
+            ident: input.parse()?,
+            _s: input.parse()?,
+            ty: input.parse()?,
+        })
+    }
 }

@@ -60,7 +60,7 @@ pub mod window;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_proc_macros::{property_meta, widget_new};
+pub use zero_ui_proc_macros::{property_meta, property_impl, widget_new};
 
 /// Expands an `impl` block into an [`UiNode`] trait implementation or new node declaration.
 ///
@@ -1052,16 +1052,39 @@ mod private {
 #[macro_export]
 macro_rules! defaults {
     (
-        $self:ident;
+        $wgt_borrow_mut:expr;
         $($tt:tt)*
     ) => {
         $crate::widget_new! {
             start { {
-                $self.start_defaults();
-                $self
+                let mut wgt__ = $wgt_borrow_mut;
+                wgt__.start_defaults();
+                wgt__
             } }
             end { wgt__.end_defaults() }
             new { $($tt)* }
         }
+    }
+}
+
+/// Implement a property on the widget to strongly associate it with the widget.
+/// 
+/// This is equivalent of the `impl(Widget)` directive in the [`property`] macro, but generates
+#[macro_export]
+macro_rules! impl_properties {
+    (
+        $(
+            $(#[$attr:meta])*
+            $vis:vis fn $($property:ident)::+ ($($arg:ident : $arg_ty:ty)*);            
+        )+
+    ) => {
+        $(
+            $crate::property_impl! {
+                attrs { $(#[$attr])* }
+                vis { $vis }
+                path { $($property)::* }
+                args { $($arg:$arg_ty),* }
+            }
+        )+
     }
 }

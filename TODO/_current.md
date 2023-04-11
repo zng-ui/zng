@@ -6,6 +6,7 @@
     - Need a way to impl an existing property on the widget.
         - See `Container!`. 
     - Generic properties.
+    - Rust named parameters RFC does not allow reorder.
 * Refactor `#[widget]`.
     - Mixins, just `#[widget]` on a trait?
     - No, can't have `#[property(impl(Trait))]`.

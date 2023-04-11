@@ -329,7 +329,8 @@ pub mod prelude {
                 NilUiNode, PanelList, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeVec,
                 WidgetId, ZIndex,
             },
-            widget_mixin,
+            defaults,
+            impl_properties,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};

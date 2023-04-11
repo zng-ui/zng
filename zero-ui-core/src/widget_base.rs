@@ -27,7 +27,7 @@ use crate::{
 /// [`child`]: fn@child
 // #[widget($crate::widget_base::WidgetBase)]
 pub struct WidgetBase {
-    builder: Option<RefCell<WidgetBuilder>>,
+    builder: RefCell<Option<WidgetBuilder>>,
     started: bool,
     importance: Importance,
 }
@@ -50,7 +50,7 @@ impl WidgetBase {
     pub fn inherit(widget: WidgetType) -> Self {
         let builder = WidgetBuilder::new(widget);
         let mut w = Self {
-            builder: Some(RefCell::new(builder)),
+            builder: RefCell::new(Some(builder)),
             started: false,
             importance: Importance::INSTANCE,
         };
@@ -60,14 +60,14 @@ impl WidgetBase {
 
     /// Direct reference the widget builder.
     pub fn builder(&mut self) -> &mut WidgetBuilder {
-        self.builder.as_mut().expect("already built").get_mut()
+        self.builder.get_mut().as_mut().expect("already built")
     }
 
     /// Gets the widget builder.
     ///
     /// After this call trying to set a property will panic.
     pub fn take_builder(&mut self) -> WidgetBuilder {
-        self.builder.take().expect("builder already taken").into_inner()
+        self.builder.get_mut().take().expect("builder already taken")
     }
 
     /// Build the widget.
@@ -105,9 +105,9 @@ impl WidgetBase {
     #[doc(hidden)]
     pub fn mtd_property__(&self, args: Box<dyn PropertyArgs>) {
         self.builder
-            .as_ref()
-            .expect("cannot set after build")
             .borrow_mut()
+            .as_mut()
+            .expect("cannot set after build")
             .push_property(self.importance, args);
     }
 
@@ -115,10 +115,24 @@ impl WidgetBase {
     #[doc(hidden)]
     pub fn mtd_property_unset__(&self, id: PropertyId) {
         self.builder
-            .as_ref()
-            .expect("cannot unset after build")
             .borrow_mut()
+            .as_mut()
+            .expect("cannot unset after build")
             .push_unset(self.importance, id);
+    }
+
+    /// Helper for `properties!` macro.
+    #[doc(hidden)]
+    pub fn reexport_impl__(&self, f: impl FnOnce(&mut Self)) {
+        let mut inner = Self {
+            builder: RefCell::new(self.builder.borrow_mut().take()),
+            started: self.started,
+            importance: self.importance,
+        };
+        f(&mut inner);
+        *self.builder.borrow_mut() = inner.builder.into_inner().take();
+        debug_assert_eq!(self.started, inner.started);
+        debug_assert_eq!(self.importance, inner.importance);
     }
 }
 
@@ -132,17 +146,17 @@ pub trait WidgetBaseExt {
 impl WidgetBaseExt for WidgetBase {
     fn ext_property__(&mut self, args: Box<dyn PropertyArgs>) {
         self.builder
+            .get_mut()
             .as_mut()
             .expect("cannot set after build")
-            .get_mut()
             .push_property(self.importance, args);
     }
 
     fn ext_property_unset__(&mut self, id: PropertyId) {
         self.builder
+            .get_mut()
             .as_mut()
             .expect("cannot unset after build")
-            .get_mut()
             .push_unset(self.importance, id);
     }
 }
