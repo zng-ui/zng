@@ -1,8 +1,26 @@
 use crate::prelude::new_widget::*;
 
 /// Base single content container.
-#[widget($crate::widgets::container)]
-pub mod container {
+#[widget($crate::widgets::Container)]
+pub struct Container(widget_base::WidgetBase);
+impl Container {
+    #[widget(on_start)] 
+    fn on_start(&mut self) {
+        self.builder().push_build_action(|wgt| {
+            if let Some(child) = wgt.capture_ui_node(property_id!(child)) {
+                wgt.set_child(child);
+            }
+        });
+    }   
+}
+
+/// Defines the container child.
+#[property(CHILD, capture, default(FillUiNode), impl(Container))]
+pub fn child(_child: impl UiNode, child: impl UiNode) -> impl UiNode {
+    _child
+}
+
+mod old {
     use super::*;
 
     inherit!(widget_base::base);

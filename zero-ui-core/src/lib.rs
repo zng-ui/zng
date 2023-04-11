@@ -1060,7 +1060,7 @@ macro_rules! defaults {
                 $self.start_defaults();
                 $self
             } }
-            end { $self.end_defaults() }
+            end { wgt__.end_defaults() }
             new { $($tt)* }
         }
     }

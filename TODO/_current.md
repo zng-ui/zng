@@ -3,12 +3,8 @@
  See `_widget_design.md`.
 
 * Refactor `#[property]`.
-    - `property_info!`.
-        - Need a proc-macro to guess if is trait or impl.
-    - `property_id!`.
-        - Same path res as `property_info!`.
+    - Need a way to impl an existing property on the widget.
     - Generic properties.
-    - Generate `unset_ident(&mut self)`.
 * Refactor `#[widget]`.
     - Mixins, just `#[widget]` on a trait?
     - No, can't have `#[property(impl(Trait))]`.
