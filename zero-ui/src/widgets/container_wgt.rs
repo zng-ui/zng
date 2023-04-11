@@ -4,14 +4,22 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::Container)]
 pub struct Container(widget_base::WidgetBase);
 impl Container {
-    #[widget(on_start)] 
+    #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
             if let Some(child) = wgt.capture_ui_node(property_id!(child)) {
                 wgt.set_child(child);
             }
         });
-    }   
+    }
+
+    /// The content.
+    ///
+    /// Can be any type that implements [`UiNode`], any widget.
+    ///
+    /// [`UiNode`]: crate::core::widget_instance::UiNode
+    #[property(crate::core::widget_base::child)]
+    pub fn child(&self, child: impl UiNode) { }
 }
 
 /// Defines the container child.

@@ -4,6 +4,7 @@
 
 * Refactor `#[property]`.
     - Need a way to impl an existing property on the widget.
+        - See `Container!`. 
     - Generic properties.
 * Refactor `#[widget]`.
     - Mixins, just `#[widget]` on a trait?
