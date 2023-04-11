@@ -11,13 +11,13 @@ mod button_wgt;
 #[doc(inline)]
 pub use button_wgt::button;
 
-mod checkerboard_wgt;
+pub mod checkerboard;
 #[doc(inline)]
-pub use checkerboard_wgt::checkerboard;
+pub use checkerboard::Checkerboard;
 
-mod container_wgt;
+mod container;
 #[doc(inline)]
-pub use container_wgt::Container;
+pub use container::Container;
 
 mod flood;
 #[doc(inline)]

@@ -318,8 +318,8 @@ pub mod prelude {
         pub use crate::core::window::{CursorIcon, WindowId, INTERACTIVITY_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            property, ui_node, widget,
-            widget_base::{self, HitTestMode},
+            property, ui_node, widget, widget_mixin,
+            widget_base::{self, HitTestMode, WidgetBase},
             widget_info::{
                 InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,
                 WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,

@@ -2,7 +2,7 @@ use crate::prelude::new_widget::*;
 
 /// Base single content container.
 #[widget($crate::widgets::Container)]
-pub struct Container(widget_base::WidgetBase);
+pub struct Container(WidgetBase);
 impl Container {
     #[widget(on_start)]
     fn on_start(&mut self) {

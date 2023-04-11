@@ -8,12 +8,9 @@
     - Generic properties.
     - Rust named parameters RFC does not allow reorder.
 * Refactor `#[widget]`.
-    - Mixins, just `#[widget]` on a trait?
-    - No, can't have `#[property(impl(Trait))]`.
+    - Mixins:
+        - `#[widget] pub struct StyleMixin<P>(P);`
     - Where is `widget_new!` available for the widget macro?
-    - Defaults helper, `properties! { wgt; properties.. }`.
-        - How to set importance? Something like `begin_importance(&mut self)`.
-        - And the properties need to use `wiget_new!`.
 * Refactor all widgets.
 * Review docs.
     - No more property rename.

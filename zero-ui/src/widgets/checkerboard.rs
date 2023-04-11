@@ -1,73 +1,65 @@
+/// Properties and nodes used by [`Checkerboard`].
+
 use crate::prelude::new_widget::*;
 use zero_ui_core::gradient::RenderGradientStop;
 
 /// A checkerboard visual.
 ///
 /// This widget draws a checkerboard pattern, with configurable dimensions and colors.
-#[widget($crate::widgets::checkerboard)]
-pub mod checkerboard {
-    pub use super::node;
-    use super::*;
-
-    inherit!(widget_base::base);
-
-    #[doc(inline)]
-    pub use super::checkerboard_properties::*;
-
-    fn include(wgt: &mut WidgetBuilder) {
-        wgt.push_build_action(|wgt| wgt.set_child(self::node()))
+#[widget($crate::widgets::Checkerboard)]
+pub struct Checkerboard(WidgetBase);
+impl Checkerboard {
+    #[widget(on_start)]
+    fn on_start(&mut self) {
+        self.builder().push_build_action(|wgt| wgt.set_child(self::node()));
     }
 }
 
-mod checkerboard_properties {
-    use crate::prelude::new_property::*;
-
-    context_var! {
-        /// The checkerboard colors.
-        ///
-        /// Default depends on the color scheme.
-        ///
-        /// [`BLACK`]: colors::BLACK
-        /// [`WHITE`]: colors::WHITE
-        pub static COLORS_VAR: (Rgba, Rgba) = color_scheme_map(
-            (rgb(20, 20, 20), rgb(40, 40, 40)),
-            (rgb(202, 202, 204), rgb(253, 253, 253))
-        );
-
-        /// The size of one color rectangle in the checkerboard.
-        ///
-        /// Default is `(20, 20)`.
-        pub static SIZE_VAR: Size = (20, 20);
-
-        /// Offset applied to the checkerboard pattern.
-        ///
-        /// Default is no offset `(0, 0)`.
-        pub static OFFSET_VAR: Vector = Vector::zero();
-    }
-
-    /// Set both checkerboard colors.
+context_var! {
+    /// The checkerboard colors.
     ///
-    /// This property sets [`COLORS_VAR`] for all inner checkerboard widgets.
-    #[property(CONTEXT, default(COLORS_VAR))]
-    pub fn colors(child: impl UiNode, colors: impl IntoVar<(Rgba, Rgba)>) -> impl UiNode {
-        with_context_var(child, COLORS_VAR, colors)
-    }
-
-    /// Set the size of a checkerboard color rectangle.
+    /// Default depends on the color scheme.
     ///
-    /// This property sets the [`SIZE_VAR`] for all inner checkerboard widgets.
-    #[property(CONTEXT, default(SIZE_VAR))]
-    pub fn cb_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
-        with_context_var(child, SIZE_VAR, size)
-    }
+    /// [`BLACK`]: colors::BLACK
+    /// [`WHITE`]: colors::WHITE
+    pub static COLORS_VAR: (Rgba, Rgba) = color_scheme_map(
+        (rgb(20, 20, 20), rgb(40, 40, 40)),
+        (rgb(202, 202, 204), rgb(253, 253, 253))
+    );
 
-    /// Sets the offset of the checkerboard pattern.
+    /// The size of one color rectangle in the checkerboard.
     ///
-    /// This property sets the [`OFFSET_VAR`] for all inner checkerboard widgets.
-    #[property(CONTEXT, default(OFFSET_VAR))]
-    pub fn cb_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
-        with_context_var(child, OFFSET_VAR, offset)
-    }
+    /// Default is `(20, 20)`.
+    pub static SIZE_VAR: Size = (20, 20);
+
+    /// Offset applied to the checkerboard pattern.
+    ///
+    /// Default is no offset `(0, 0)`.
+    pub static OFFSET_VAR: Vector = Vector::zero();
+}
+
+/// Set both checkerboard colors.
+///
+/// This property sets [`COLORS_VAR`] for all inner checkerboard widgets.
+#[property(CONTEXT, default(COLORS_VAR))]
+pub fn colors(child: impl UiNode, colors: impl IntoVar<(Rgba, Rgba)>) -> impl UiNode {
+    with_context_var(child, COLORS_VAR, colors)
+}
+
+/// Set the size of a checkerboard color rectangle.
+///
+/// This property sets the [`SIZE_VAR`] for all inner checkerboard widgets.
+#[property(CONTEXT, default(SIZE_VAR))]
+pub fn cb_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+    with_context_var(child, SIZE_VAR, size)
+}
+
+/// Sets the offset of the checkerboard pattern.
+///
+/// This property sets the [`OFFSET_VAR`] for all inner checkerboard widgets.
+#[property(CONTEXT, default(OFFSET_VAR))]
+pub fn cb_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
+    with_context_var(child, OFFSET_VAR, offset)
 }
 
 /// Checkerboard node.
@@ -75,7 +67,6 @@ mod checkerboard_properties {
 /// The node is configured by the contextual variables defined in the widget.
 pub fn node() -> impl UiNode {
     use crate::core::gradient::RenderExtendMode;
-    use checkerboard_properties::*;
 
     #[ui_node(struct CheckerboardNode {
         final_size: PxSize,

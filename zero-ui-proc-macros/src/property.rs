@@ -605,7 +605,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #cfg
             #[doc(hidden)]
             #[allow(non_camel_case_types)]
-            #vis trait #ident: #core::widget_base::WidgetBaseExt {
+            #vis trait #ident: #core::widget_base::WidgetExt {
                 type MetaType;
 
                 #(#docs)*

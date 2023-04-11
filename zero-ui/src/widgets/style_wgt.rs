@@ -8,8 +8,8 @@ use crate::prelude::new_widget::*;
 
 /// Represents a set of properties that can be applied to any styleable widget.
 ///
-/// This *widget* can be instantiated using the same syntax as any widget, but it produces a [`Style`]
-/// instance instead of an widget. Widgets that inherit from [`style_mixin`] can be modified using properties
+/// This *widget* can be instantiated using the same syntax as any widget, but it produces a [`StyleBuilder`]
+/// instance instead of an widget. Widgets that have [`StyleMixin<P>`] can be modified using properties
 /// defined in a style, the properties are dynamically spliced into each widget instance.
 ///
 /// Styles must only visually affect the styled widget, this is a semantic distinction only, any property can be set
@@ -18,216 +18,223 @@ use crate::prelude::new_widget::*;
 /// # Derived Styles
 ///
 /// Note that you can declare a custom style *widget* using the same inheritance mechanism of normal widgets, as long
-/// as any build override calls [`style::build`].
+/// as they build to [`StyleBuilder`].
 ///
 /// [`style_mixin`]: mod@style_mixin
-#[widget($crate::widgets::style)]
-pub mod style {
-    use super::*;
-
-    #[doc(inline)]
-    pub use super::{style_fn, Style, StyleArgs, StyleFn};
-
-    /// style constructor.
-    pub fn build(wgt: WidgetBuilder) -> Style {
-        Style::from_builder(wgt)
+#[widget($crate::widgets::Style)]
+pub struct Style(WidgetBase);
+impl Style {
+    /// Build the style.
+    pub fn build(&mut self) -> StyleBuilder {
+        StyleBuilder::from_builder(self.take_builder())
     }
 }
 
 /// Styleable widget mix-in.
 ///
-/// Widgets that inherit from this one have a `style` property that can be set to a [`style_fn!`]
+/// Widgets that inherit from this one have a `style_fn` property that can be set to a [`style_fn!`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
 ///
-/// The style mix-in drastically affects the widget build process, only the `style` property and `when` condition
+/// The style mix-in drastically affects the widget build process, only the `style_fn` property and `when` condition
 /// properties that affects it are instantiated with the widget, all the other properties and intrinsic nodes are instantiated
 /// on init, after the style is generated.
 ///
 /// Styleable widgets usually have a more elaborate style setup that supports mixing multiple contextual styles, see
 /// [`style_mixin::with_style_extension`] for a full styleable widget example.
+#[widget_mixin]
+pub struct StyleMix<P>(P);
+impl<P> StyleMix<P> {
+    #[widget(on_start)]
+    fn on_start(&mut self) {
+        self.builder().set_custom_build(custom_build);
+    }
+}
+
+/// Style function used for the widget.
+///
+/// Properties and `when` conditions in the generated style are applied to the widget as
+/// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
+/// prefer property binding and `when` conditions to cause visual changes that happen often.
+///
+/// The style property it-self can be affected by `when` conditions set on the widget, this works to a limited
+/// extent as only the style and when condition properties is loaded to evaluate, so a when condition that depends
+/// on the full widget context will not work.
+///
+/// Is `nil` by default.
+#[property(WIDGET, capture, default(StyleFn::nil()), impl(StyleMix<P>))]
+pub fn style_fn(_child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {}
+
+/// Helper for declaring properties that [extend] a style set from a context var.
+///
+/// [extend]: StyleFn::with_extend
+///
+/// # Examples
+///
+/// Example styleable widget defining a `foo::vis::extend_style` property that extends the contextual style.
+///
+/// ```
+/// # fn main() { }
+/// use zero_ui::prelude::new_widget::*;
+///
+/// #[widget($crate::foo)]
+/// pub mod foo {
+///     use super::*;
+///
+///     inherit!(widget_base::base);
+///     inherit!(style_mixin);
+///
+///     properties! {
+///         /// Foo style.
+///         ///
+///         /// The style is set to [`vis::STYLE_VAR`], settings this directly replaces the style.
+///         /// You can use [`vis::replace_style`] and [`vis::extend_style`] to set or modify the
+///         /// style for all `foo` in a context.
+///         style_fn = vis::STYLE_VAR;
+///     }
+///
+///     /// Foo style and visual properties.
+///     pub mod vis {
+///         use super::*;
+///
+///         context_var! {
+///             /// Foo style.
+///             pub static STYLE_VAR: StyleFn = style_fn!(|_args| {
+///                 style! {
+///                     background_color = color_scheme_pair((colors::BLACK, colors::WHITE));
+///                     cursor = CursorIcon::Crosshair;
+///                 }
+///             });
+///         }
+///
+///         /// Replace the contextual [`STYLE_VAR`] with `style`.
+///         #[property(CONTEXT, default(STYLE_VAR))]
+///         pub fn replace_style(
+///             child: impl UiNode,
+///             style: impl IntoVar<StyleFn>
+///         ) -> impl UiNode {
+///             with_context_var(child, STYLE_VAR, style)
+///         }
+///
+///         /// Extends the contextual [`STYLE_VAR`] with the `style` override.
+///         #[property(CONTEXT, default(StyleFn::nil()))]
+///         pub fn extend_style(
+///             child: impl UiNode,
+///             style: impl IntoVar<StyleFn>
+///         ) -> impl UiNode {
+///             style_mixin::with_style_extension(child, STYLE_VAR, style)
+///         }
+///     }
+/// }
+/// ```
+pub fn with_style_extension(child: impl UiNode, style_context: ContextVar<StyleFn>, extension: impl IntoVar<StyleFn>) -> impl UiNode {
+    with_context_var(
+        child,
+        style_context,
+        merge_var!(style_context, extension.into_var(), |base, over| {
+            base.clone().with_extend(over.clone())
+        }),
+    )
+}
+
+/// Gets the custom build that is set on intrinsic by the mix-in.
+pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
+    // 1 - "split_off" the property `style`
+    //     this moves the property and any `when` that affects it to a new widget builder.
+    let style_id = property_id!(self::style_fn);
+    let mut style_builder = WidgetBuilder::new(wgt.widget_mod());
+    wgt.split_off([style_id], &mut style_builder);
+
+    if style_builder.has_properties() {
+        // 2.a - There was a `style` property, build a "mini widget" that is only the style property
+        //       and when condition properties that affect it.
+
+        #[cfg(trace_widget)]
+        wgt.push_build_action(|wgt| {
+            // avoid double trace as the style builder already inserts a widget tracer.
+            wgt.disable_trace_widget();
+        });
+
+        let mut wgt = Some(wgt);
+        style_builder.push_build_action(move |b| {
+            // 3 - The actual StyleNode and builder is a child of the "mini widget".
+            let style = b.capture_var::<StyleFn>(style_id).unwrap();
+            b.set_child(StyleNode {
+                child: None,
+                builder: wgt.take().unwrap(),
+                style,
+            });
+        });
+        // 4 - Build the "mini widget",
+        //     if the `style` property was not affected by any `when` this just returns the `StyleNode`.
+        style_builder.build()
+    } else {
+        // 2.b - There was not property `style`, this widget is not styleable, just build the default.
+        wgt.build()
+    }
+}
+
+#[ui_node(struct StyleNode {
+    child: Option<BoxedUiNode>,
+    builder: WidgetBuilder,
+    #[var] style: BoxedVar<StyleFn>,
+})]
+impl UiNode for StyleNode {
+    fn init(&mut self) {
+        self.auto_subs();
+        if let Some(style) = self.style.get().call(&StyleArgs {}) {
+            let mut builder = self.builder.clone();
+            builder.extend(style.into_builder());
+            self.child = Some(builder.default_build());
+        } else {
+            self.child = Some(self.builder.clone().default_build());
+        }
+        self.child.init();
+    }
+
+    fn deinit(&mut self) {
+        self.child.deinit();
+        self.child = None;
+    }
+
+    fn update(&mut self, updates: &WidgetUpdates) {
+        if self.style.is_new() {
+            WIDGET.reinit();
+            WIDGET.update_info().layout().render();
+        } else {
+            self.child.update(updates);
+        }
+    }
+}
+
 #[widget_mixin($crate::widgets::mixins::style_mixin)]
 pub mod style_mixin {
     use super::*;
 
     properties! {
-        /// Style function used for the widget.
-        ///
-        /// Properties and `when` conditions in the generated style are applied to the widget as
-        /// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
-        /// prefer property binding and `when` conditions to cause visual changes that happen often.
-        ///
-        /// The style property it-self can be affected by `when` conditions set on the widget, this works to a limited
-        /// extent as only the style and when condition properties is loaded to evaluate, so a when condition that depends
-        /// on the full widget context will not work.
-        ///
-        /// Is `nil` by default.
+
         pub style_fn(impl IntoVar<StyleFn>) = StyleFn::nil();
     }
 
-    fn include(wgt: &mut WidgetBuilder) {
-        wgt.set_custom_build(custom_build);
-    }
-
-    /// Helper for declaring properties that [extend] a style set from a context var.
-    ///
-    /// [extend]: StyleFn::with_extend
-    ///
-    /// # Examples
-    ///
-    /// Example styleable widget defining a `foo::vis::extend_style` property that extends the contextual style.
-    ///
-    /// ```
-    /// # fn main() { }
-    /// use zero_ui::prelude::new_widget::*;
-    ///
-    /// #[widget($crate::foo)]
-    /// pub mod foo {
-    ///     use super::*;
-    ///
-    ///     inherit!(widget_base::base);
-    ///     inherit!(style_mixin);
-    ///
-    ///     properties! {
-    ///         /// Foo style.
-    ///         ///
-    ///         /// The style is set to [`vis::STYLE_VAR`], settings this directly replaces the style.
-    ///         /// You can use [`vis::replace_style`] and [`vis::extend_style`] to set or modify the
-    ///         /// style for all `foo` in a context.
-    ///         style_fn = vis::STYLE_VAR;
-    ///     }
-    ///
-    ///     /// Foo style and visual properties.
-    ///     pub mod vis {
-    ///         use super::*;
-    ///
-    ///         context_var! {
-    ///             /// Foo style.
-    ///             pub static STYLE_VAR: StyleFn = style_fn!(|_args| {
-    ///                 style! {
-    ///                     background_color = color_scheme_pair((colors::BLACK, colors::WHITE));
-    ///                     cursor = CursorIcon::Crosshair;
-    ///                 }
-    ///             });
-    ///         }
-    ///
-    ///         /// Replace the contextual [`STYLE_VAR`] with `style`.
-    ///         #[property(CONTEXT, default(STYLE_VAR))]
-    ///         pub fn replace_style(
-    ///             child: impl UiNode,
-    ///             style: impl IntoVar<StyleFn>
-    ///         ) -> impl UiNode {
-    ///             with_context_var(child, STYLE_VAR, style)
-    ///         }
-    ///
-    ///         /// Extends the contextual [`STYLE_VAR`] with the `style` override.
-    ///         #[property(CONTEXT, default(StyleFn::nil()))]
-    ///         pub fn extend_style(
-    ///             child: impl UiNode,
-    ///             style: impl IntoVar<StyleFn>
-    ///         ) -> impl UiNode {
-    ///             style_mixin::with_style_extension(child, STYLE_VAR, style)
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    pub fn with_style_extension(child: impl UiNode, style_context: ContextVar<StyleFn>, extension: impl IntoVar<StyleFn>) -> impl UiNode {
-        with_context_var(
-            child,
-            style_context,
-            merge_var!(style_context, extension.into_var(), |base, over| {
-                base.clone().with_extend(over.clone())
-            }),
-        )
-    }
-
-    /// Gets the custom build that is set on intrinsic by the mix-in.
-    pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
-        // 1 - "split_off" the property `style`
-        //     this moves the property and any `when` that affects it to a new widget builder.
-        let style_id = property_id!(self::style_fn);
-        let mut style_builder = WidgetBuilder::new(wgt.widget_mod());
-        wgt.split_off([style_id], &mut style_builder);
-
-        if style_builder.has_properties() {
-            // 2.a - There was a `style` property, build a "mini widget" that is only the style property
-            //       and when condition properties that affect it.
-
-            #[cfg(trace_widget)]
-            wgt.push_build_action(|wgt| {
-                // avoid double trace as the style builder already inserts a widget tracer.
-                wgt.disable_trace_widget();
-            });
-
-            let mut wgt = Some(wgt);
-            style_builder.push_build_action(move |b| {
-                // 3 - The actual StyleNode and builder is a child of the "mini widget".
-                let style = b.capture_var::<StyleFn>(style_id).unwrap();
-                b.set_child(StyleNode {
-                    child: None,
-                    builder: wgt.take().unwrap(),
-                    style,
-                });
-            });
-            // 4 - Build the "mini widget",
-            //     if the `style` property was not affected by any `when` this just returns the `StyleNode`.
-            style_builder.build()
-        } else {
-            // 2.b - There was not property `style`, this widget is not styleable, just build the default.
-            wgt.build()
-        }
-    }
-
-    #[ui_node(struct StyleNode {
-        child: Option<BoxedUiNode>,
-        builder: WidgetBuilder,
-        #[var] style: BoxedVar<StyleFn>,
-    })]
-    impl UiNode for StyleNode {
-        fn init(&mut self) {
-            self.auto_subs();
-            if let Some(style) = self.style.get().call(&StyleArgs {}) {
-                let mut builder = self.builder.clone();
-                builder.extend(style.into_builder());
-                self.child = Some(builder.default_build());
-            } else {
-                self.child = Some(self.builder.clone().default_build());
-            }
-            self.child.init();
-        }
-
-        fn deinit(&mut self) {
-            self.child.deinit();
-            self.child = None;
-        }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.style.is_new() {
-                WIDGET.reinit();
-                WIDGET.update_info().layout().render();
-            } else {
-                self.child.update(updates);
-            }
-        }
-    }
+    fn include(wgt: &mut WidgetBuilder) {}
 }
 
 /// Represents a style instance.
 ///
-/// Use the [`style!`] *widget* to instantiate.
+/// Use the [`Style!`] *widget* to declare.
 ///
-/// [`style!`]: mod@style
+/// [`Style!`]: mod@style
 #[derive(Debug)]
-pub struct Style {
+pub struct StyleBuilder {
     builder: WidgetBuilder,
 }
-impl Default for Style {
+impl Default for StyleBuilder {
     fn default() -> Self {
         Self {
             builder: WidgetBuilder::new(widget_mod!(style)),
         }
     }
 }
-impl Style {
+impl StyleBuilder {
     /// Importance of style properties set by default in style widgets.
     ///
     /// Is `Importance::WIDGET - 10`.
@@ -241,17 +248,17 @@ impl Style {
     /// New style from a widget builder.
     ///
     /// The importance index of properties is adjusted, any custom build or widget build action is ignored.
-    pub fn from_builder(mut wgt: WidgetBuilder) -> Style {
+    pub fn from_builder(mut wgt: WidgetBuilder) -> StyleBuilder {
         wgt.clear_build_actions();
         wgt.clear_custom_build();
         for p in wgt.properties_mut() {
             *p.importance = match *p.importance {
-                Importance::WIDGET => Style::WIDGET_IMPORTANCE,
-                Importance::INSTANCE => Style::INSTANCE_IMPORTANCE,
+                Importance::WIDGET => StyleBuilder::WIDGET_IMPORTANCE,
+                Importance::INSTANCE => StyleBuilder::INSTANCE_IMPORTANCE,
                 other => other,
             };
         }
-        Style { builder: wgt }
+        StyleBuilder { builder: wgt }
     }
 
     /// Unwrap the style dynamic widget.
@@ -260,7 +267,7 @@ impl Style {
     }
 
     /// Overrides `self` with `other`.
-    pub fn extend(&mut self, other: Style) {
+    pub fn extend(&mut self, other: StyleBuilder) {
         self.builder.extend(other.builder);
     }
 
@@ -269,14 +276,14 @@ impl Style {
         !self.builder.has_properties() && !self.builder.has_whens() && !self.builder.has_unsets()
     }
 }
-impl From<Style> for WidgetBuilder {
-    fn from(t: Style) -> Self {
+impl From<StyleBuilder> for WidgetBuilder {
+    fn from(t: StyleBuilder) -> Self {
         t.into_builder()
     }
 }
-impl From<WidgetBuilder> for Style {
+impl From<WidgetBuilder> for StyleBuilder {
     fn from(p: WidgetBuilder) -> Self {
-        Style::from_builder(p)
+        StyleBuilder::from_builder(p)
     }
 }
 
@@ -290,7 +297,7 @@ pub struct StyleArgs {}
 ///
 /// You can also use the [`style_fn!`] macro, it has the advantage of being clone move.
 #[derive(Clone)]
-pub struct StyleFn(Option<Arc<dyn Fn(&StyleArgs) -> Option<Style> + Send + Sync>>);
+pub struct StyleFn(Option<Arc<dyn Fn(&StyleArgs) -> Option<StyleBuilder> + Send + Sync>>);
 impl Default for StyleFn {
     fn default() -> Self {
         Self::nil()
@@ -308,7 +315,7 @@ impl StyleFn {
     }
 
     /// New style function, the `func` closure is called for each styleable widget, before the widget is inited.
-    pub fn new(func: impl Fn(&StyleArgs) -> Style + Send + Sync + 'static) -> Self {
+    pub fn new(func: impl Fn(&StyleArgs) -> StyleBuilder + Send + Sync + 'static) -> Self {
         Self(Some(Arc::new(move |a| {
             let style = func(a);
             if style.is_empty() {
@@ -337,7 +344,7 @@ impl StyleFn {
     /// In the example above `a` and `b` are both calls to the style function.
     ///
     /// [`is_nil`]: Self::is_nil
-    pub fn call(&self, args: &StyleArgs) -> Option<Style> {
+    pub fn call(&self, args: &StyleArgs) -> Option<StyleBuilder> {
         self.0.as_ref()?(args)
     }
 
@@ -364,7 +371,7 @@ impl fmt::Debug for StyleFn {
     }
 }
 impl ops::Deref for StyleFn {
-    type Target = dyn Fn(&StyleArgs) -> Option<Style>;
+    type Target = dyn Fn(&StyleArgs) -> Option<StyleBuilder>;
 
     fn deref(&self) -> &Self::Target {
         if let Some(func) = &self.0 {
@@ -374,7 +381,7 @@ impl ops::Deref for StyleFn {
         }
     }
 }
-fn nil_func(_: &StyleArgs) -> Option<Style> {
+fn nil_func(_: &StyleArgs) -> Option<StyleBuilder> {
     None
 }
 

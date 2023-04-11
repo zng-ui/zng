@@ -137,13 +137,24 @@ impl WidgetBase {
 }
 
 #[doc(hidden)]
-pub trait WidgetBaseExt {
+pub trait WidgetImpl {
+    #[doc(hidden)]
+    fn inherit(widget: WidgetType) -> Self;
+}
+impl WidgetImpl for WidgetBase {
+    fn inherit(widget: WidgetType) -> Self {
+        Self::inherit(widget)
+    }
+}
+
+#[doc(hidden)]
+pub trait WidgetExt {
     #[doc(hidden)]
     fn ext_property__(&mut self, args: Box<dyn PropertyArgs>);
     #[doc(hidden)]
     fn ext_property_unset__(&mut self, id: PropertyId);
 }
-impl WidgetBaseExt for WidgetBase {
+impl WidgetExt for WidgetBase {
     fn ext_property__(&mut self, args: Box<dyn PropertyArgs>) {
         self.builder
             .get_mut()

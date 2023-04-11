@@ -342,6 +342,8 @@ pub use zero_ui_proc_macros::ui_node;
 /// the property with the widget, users can set this property on the widget or descendants without needing to import the property. Note that
 /// this makes the property have priority over all others of the same name, only a derived widget can override with another strongly associated
 /// property.
+/// 
+/// Note that you can use the [`impl_properties!`] in widget declarations to implement existing properties for a widget.
 ///
 /// ## Capture
 ///
@@ -1023,6 +1025,49 @@ pub use zero_ui_proc_macros::property;
 /// [`widget_base::base`]: mod@widget_base::base
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;
+
+/// Expands a struct to a widget mix-in.
+/// 
+/// Widget mix-ins can be inserted on a widgets inheritance chain, but they cannot be instantiated directly. Unlike
+/// the full widgets it defines its parent as a generic type, that must be filled with a real widget when used.
+/// 
+/// By convention mix-ins have the prefix `Mix` and the generic parent is named `P`.
+/// 
+/// # Examples
+/// 
+/// ```
+/// # use zero_ui_core::{*, widget_instance::*, var::*, widget_base::*};
+/// # #[property(CONTEXT)] pub fn focusable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
+/// #
+/// /// Make a widget capable of receiving keyboard focus.
+/// #[widget_mixin]
+/// pub struct FocusableMix<P>(P);
+/// impl<P> FocusableMix<P> {
+///     #[widget(on_start)]
+///     fn on_start(&mut self) {
+///         defaults! {
+///             focusable = true;
+///         }
+///     }
+///     
+///     impl_properties! {
+///         /// If the widget can receive focus, enabled by default.
+///         pub fn focusable(enabled: impl IntoVar<bool>);
+///     }
+/// }
+/// 
+/// /// Foo is focusable.
+/// #[widget($crate::Foo)]
+/// pub struct Foo(FocusableMix<WidgetBase>);
+/// ```
+/// 
+/// The example above declares a mix-in `FocusableMix<P>` and an widget `Foo`, the mix-in is used as a parent of the widget, only
+/// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable`.
+/// 
+/// All widget `impl` items can be declared in a mix-in, including the `fn build(&mut self) -> T`, multiple mix-ins can be inherited
+/// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`, mix-ins cannot inherit even from other mix-ins.
+#[doc(inline)]
+pub use zero_ui_proc_macros::widget_mixin;
 
 mod tests;
 

@@ -64,14 +64,24 @@ pub fn hex_color(input: TokenStream) -> TokenStream {
     hex_color::expand(input)
 }
 
-/// Expands a module to a widget module and macro.
+/// Expands a struct to a widget and macro.
 ///
 /// # Full Documentation
 ///
 /// Read the documentation in the [`zero_ui_core::widget`](../zero_ui_core/attr.widget.html) page.
 #[proc_macro_attribute]
 pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
-    widget::expand(args, input)
+    widget::expand(args, input, false)
+}
+
+/// Expands a generic struct to a widget mix-in.
+///
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui_core::widget_mixin`](../zero_ui_core/attr.widget_mixin.html) page.
+#[proc_macro_attribute]
+pub fn widget_mixin(args: TokenStream, input: TokenStream) -> TokenStream {
+    widget::expand(args, input, true)
 }
 
 /// Expands a property assign to include a build action that applies an easing transition to the variable inputs.

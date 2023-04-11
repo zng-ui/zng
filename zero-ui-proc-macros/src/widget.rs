@@ -7,7 +7,7 @@ use crate::{
     widget_util::{self, WgtProperty, WgtWhen},
 };
 
-pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mixin: bool) -> proc_macro::TokenStream {
     if let Ok(special) = syn::parse::<Ident>(args.clone()) {
         if special == "on_start" {
             let on_start = parse_macro_input!(input as ItemFn);
@@ -49,102 +49,188 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         return r.into();
     }
 
+    let crate_core = util::crate_core();
+
+    let (mixin_p, mixin_p_bounded) = if mixin {
+        if struct_.generics.params.is_empty() {
+            let mut r = syn::Error::new(struct_.ident.span(), "mix-ins must have one generic `P`")
+                .to_compile_error()
+                .to_token_stream();
+            struct_.to_tokens(&mut r);
+            return r.into();
+        } else if struct_.generics.params.len() > 1 {
+            let mut r = syn::Error::new(struct_.generics.span(), "mix-ins must have one generic `P` only")
+                .to_compile_error()
+                .to_token_stream();
+            struct_.to_tokens(&mut r);
+            return r.into();
+        }
+        match struct_.generics.params.first().unwrap() {
+            GenericParam::Lifetime(l) => {
+                let mut r = syn::Error::new(l.span(), "mix-ins must have one generic `P` only")
+                    .to_compile_error()
+                    .to_token_stream();
+                struct_.to_tokens(&mut r);
+                return r.into();
+            }
+            GenericParam::Const(c) => {
+                let mut r = syn::Error::new(c.span(), "mix-ins must have one generic `P` only")
+                    .to_compile_error()
+                    .to_token_stream();
+                struct_.to_tokens(&mut r);
+                return r.into();
+            }
+
+            GenericParam::Type(t) => {
+                if !t.bounds.is_empty() || t.default.is_some() {
+                    let mut r = syn::Error::new(t.span(), "mix-ins must have one unbounded generic `P`")
+                        .to_compile_error()
+                        .to_token_stream();
+                    struct_.to_tokens(&mut r);
+                    return r.into();
+                }
+                if let Some(where_) = &struct_.generics.where_clause {
+                    let mut r = syn::Error::new(where_.span(), "mix-ins must have one unbounded generic `P`")
+                        .to_compile_error()
+                        .to_token_stream();
+                    struct_.to_tokens(&mut r);
+                    return r.into();
+                }
+
+                let id = &t.ident;
+                (quote!(<#id>), quote!(<#id : #crate_core::widget_base::WidgetImpl>))
+            }
+        }
+    } else {
+        if !struct_.generics.params.is_empty() {
+            let mut r = syn::Error::new(struct_.generics.span(), "widgets cannot be generic")
+                .to_compile_error()
+                .to_token_stream();
+            struct_.to_tokens(&mut r);
+            return r.into();
+        }
+        (quote!(), quote!())
+    };
+
     // accumulate the most errors as possible before returning.
     let mut errors = Errors::default();
-
-    let crate_core = util::crate_core();
 
     let vis = struct_.vis;
     let ident = struct_.ident;
     let mut attrs = util::Attributes::new(struct_.attrs);
-    attrs.tag_doc("W", "This struct is also a widget macro");
-
-    // a `$crate` path to the widget struct.
-    let (struct_path, custom_rules) = match syn::parse::<Args>(args) {
-        Ok(a) => (a.path, a.custom_rules),
-        Err(e) => {
-            errors.push_syn(e);
-            (quote! { $crate::missing_widget_path}, vec![])
-        }
-    };
-    let struct_path_str = struct_path.to_string().replace(' ', "");
-    let struct_path_slug = path_slug(&struct_path_str);
-
-    let val_span = util::last_span(struct_path.clone());
-    let validate_path_ident = ident_spanned!(val_span=> "__widget_path_{struct_path_slug}__");
-    let validate_path = quote_spanned! {val_span=>
-        #[doc(hidden)]
-        #[allow(unused)]
-        #[allow(non_snake_case)]
-        mod #validate_path_ident {
-            macro_rules! #validate_path_ident {
-                () => {
-                    use #struct_path;
-                }
-            }
-            #validate_path_ident!{}
-        }
-    };
-
-    let custom_rules = {
-        let mut tt = quote!();
-        for widget_util::WidgetCustomRule { rule, init } in custom_rules {
-            tt.extend(quote! {
-                (#rule) => {
-                    #struct_path! {
-                        #init
-                    }
-                };
-            })
-        }
-        tt
-    };
-
-    let macro_ident = ident!("__wgt_{}__", struct_path_slug);
-
-    // rust-analyzer does not find the macro if we don't set the call_site here.
-    let struct_path = util::set_stream_span(struct_path, Span::call_site());
-
-    let macro_new = quote! {
-        $crate::widget_new! {
-            start { #struct_path::start() }
-            end { wgt__.build() }
-            new { $($tt)* }
-        }
-    };
-
-    let macro_docs = if util::is_rust_analyzer() {
-        let docs = &attrs.docs;
-        quote! {
-            #(#docs)*
-        }
-    } else {
-        quote! {
-            #[doc(hidden)]
-        }
-    };
+    if !mixin {
+        attrs.tag_doc("W", "This struct is also a widget macro");
+    }
 
     let struct_token = struct_.struct_token;
 
-    let r = quote! {
-        #attrs
-        #vis #struct_token #ident {
-            base: #parent,
-            started: bool,
-        }
-        impl std::ops::Deref for #ident {
-            type Target = #parent;
+    let (macro_r, start_r) = if mixin {
+        (quote!(), quote!())
+    } else {
+        // a `$crate` path to the widget struct.
+        let (struct_path, custom_rules) = match syn::parse::<Args>(args) {
+            Ok(a) => (a.path, a.custom_rules),
+            Err(e) => {
+                errors.push_syn(e);
+                (quote! { $crate::missing_widget_path}, vec![])
+            }
+        };
+        let struct_path_str = struct_path.to_string().replace(' ', "");
+        let struct_path_slug = path_slug(&struct_path_str);
 
-            fn deref(&self) -> &Self::Target {
-                &self.base
+        let val_span = util::last_span(struct_path.clone());
+        let validate_path_ident = ident_spanned!(val_span=> "__widget_path_{struct_path_slug}__");
+        let validate_path = quote_spanned! {val_span=>
+            #[doc(hidden)]
+            #[allow(unused)]
+            #[allow(non_snake_case)]
+            mod #validate_path_ident {
+                macro_rules! #validate_path_ident {
+                    () => {
+                        use #struct_path;
+                    }
+                }
+                #validate_path_ident!{}
             }
-        }
-        impl std::ops::DerefMut for #ident {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.base
+        };
+
+        let custom_rules = {
+            let mut tt = quote!();
+            for widget_util::WidgetCustomRule { rule, init } in custom_rules {
+                tt.extend(quote! {
+                    (#rule) => {
+                        #struct_path! {
+                            #init
+                        }
+                    };
+                })
             }
-        }
-        impl #ident {
+            tt
+        };
+
+        let macro_ident = ident!("__wgt_{}__", struct_path_slug);
+
+        // rust-analyzer does not find the macro if we don't set the call_site here.
+        let struct_path = util::set_stream_span(struct_path, Span::call_site());
+
+        let macro_new = quote! {
+            $crate::widget_new! {
+                start { #struct_path::start() }
+                end { wgt__.build() }
+                new { $($tt)* }
+            }
+        };
+
+        let macro_docs = if util::is_rust_analyzer() {
+            let docs = &attrs.docs;
+            quote! {
+                #(#docs)*
+            }
+        } else {
+            quote! {
+                #[doc(hidden)]
+            }
+        };
+
+        let r = quote! {
+            #macro_docs
+            #[macro_export]
+            macro_rules! #macro_ident {
+                // actual new
+                (zero_ui_widget: $($tt:tt)*) => {
+                    #macro_new
+                };
+
+                // enforce normal syntax, property = <expr> ..
+                ($(#[$attr:meta])* $property:ident = $($rest:tt)*) => {
+                    #struct_path! {
+                        zero_ui_widget: $(#[$attr])* $property = $($rest)*
+                    }
+                };
+                // enforce normal syntax, when <expr> { .. } ..
+                ($(#[$attr:meta])* when $($rest:tt)*) => {
+                    #struct_path! {
+                        zero_ui_widget: $(#[$attr])* when $($rest)*
+                    }
+                };
+
+                // custom rules, can be (<expr>), why we need enforce some rules
+                #custom_rules
+
+                // fallback, single property shorthand or error.
+                ($($tt:tt)*) => {
+                    #struct_path! {
+                        zero_ui_widget: $($tt)*
+                    }
+                };
+            }
+            #[doc(hidden)]
+            #[allow(unused_imports)]
+            #vis use #macro_ident as #ident;
+            #validate_path
+        };
+
+        let start_r = quote! {
             /// Start building a new instance.
             pub fn start() -> Self {
                 Self::inherit(#crate_core::widget_builder::WidgetType {
@@ -154,54 +240,52 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 })
             }
 
+        };
+
+        (r, start_r)
+    };
+
+    let r = quote! {
+        #attrs
+        #vis #struct_token #ident #mixin_p {
+            base: #parent,
+            started: bool,
+        }
+        impl #mixin_p_bounded std::ops::Deref for #ident #mixin_p {
+            type Target = #parent;
+
+            fn deref(&self) -> &Self::Target {
+                &self.base
+            }
+        }
+        impl #mixin_p_bounded std::ops::DerefMut for #ident #mixin_p {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.base
+            }
+        }
+        impl #mixin_p_bounded #ident #mixin_p {
+            #start_r
+
             /// Start building a widget derived from this one.
             pub fn inherit(widget: #crate_core::widget_builder::WidgetType) -> Self {
                 let mut wgt = Self {
-                    base: #parent::inherit(widget),
+                    base: <#parent as #crate_core::widget_base::WidgetImpl>::inherit(widget),
                     started: false,
                 };
                 wgt.on_start__();
                 wgt
             }
         }
-
-        #macro_docs
-        #[macro_export]
-        macro_rules! #macro_ident {
-            // actual new
-            (zero_ui_widget: $($tt:tt)*) => {
-                #macro_new
-            };
-
-            // enforce normal syntax, property = <expr> ..
-            ($(#[$attr:meta])* $property:ident = $($rest:tt)*) => {
-                #struct_path! {
-                    zero_ui_widget: $(#[$attr])* $property = $($rest)*
-                }
-            };
-            // enforce normal syntax, when <expr> { .. } ..
-            ($(#[$attr:meta])* when $($rest:tt)*) => {
-                #struct_path! {
-                    zero_ui_widget: $(#[$attr])* when $($rest)*
-                }
-            };
-
-            // custom rules, can be (<expr>), why we need enforce some rules
-            #custom_rules
-
-            // fallback, single property shorthand or error.
-            ($($tt:tt)*) => {
-                #struct_path! {
-                    zero_ui_widget: $($tt)*
-                }
-            };
-        }
         #[doc(hidden)]
-        #[allow(unused_imports)]
-        #vis use #macro_ident as #ident;
+        impl #mixin_p_bounded #crate_core::widget_base::WidgetImpl for #ident #mixin_p {
+            fn inherit(widget: #crate_core::widget_builder::WidgetType) -> Self {
+                Self::inherit(widget)
+            }
+        }
+
+        #macro_r
 
         #errors
-        #validate_path
     };
     r.into()
 }
@@ -338,7 +422,11 @@ fn path_slug(path: &str) -> String {
 */
 
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let NewArgs { start, end, properties: mut p } = parse_macro_input!(args as NewArgs);
+    let NewArgs {
+        start,
+        end,
+        properties: mut p,
+    } = parse_macro_input!(args as NewArgs);
 
     let mut set_props = quote!();
     for prop in &p.properties {

@@ -14,7 +14,7 @@ use crate::{
     impl_from_and_into_var,
     text::{formatx, Text},
     var::{types::AnyWhenVarBuilder, *},
-    widget_base::{WidgetBase, WidgetBaseExt},
+    widget_base::{WidgetBase, WidgetExt},
     widget_instance::{
         ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder,
     },
@@ -64,7 +64,7 @@ pub use when_condition_expr_var;
 
 #[doc(hidden)]
 pub struct WgtInfo;
-impl WidgetBaseExt for WgtInfo {
+impl WidgetExt for WgtInfo {
     fn ext_property__(&mut self, _: Box<dyn PropertyArgs>) {
         panic!("WgtInfo is for extrating info only")
     }
