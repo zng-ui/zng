@@ -1104,10 +1104,10 @@ macro_rules! defaults {
         $crate::widget_new! {
             start { {
                 let mut wgt__ = $wgt_borrow_mut;
-                wgt__.start_defaults();
+                $crate::widget_base::WidgetImpl::base(wgt__).start_defaults();
                 wgt__
             } }
-            end { wgt__.end_defaults() }
+            end { $crate::widget_base::WidgetImpl::base(wgt__).end_defaults() }
             new { $($tt)* }
         }
     }

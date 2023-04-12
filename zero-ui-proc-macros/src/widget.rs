@@ -174,7 +174,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         let struct_path = util::set_stream_span(struct_path, Span::call_site());
 
         let macro_new = quote! {
-            $crate::widget_new! {
+            #crate_core::widget_new! {
                 start { #struct_path::start() }
                 end { wgt__.build() }
                 new { $($tt)* }

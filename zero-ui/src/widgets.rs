@@ -4,9 +4,9 @@ pub mod layouts;
 
 pub mod focusable;
 
-mod ansi_text_wgt;
+pub mod ansi_text;
 #[doc(inline)]
-pub use ansi_text_wgt::ansi_text;
+pub use ansi_text::AnsiText;
 
 pub mod button;
 #[doc(inline)]
@@ -32,13 +32,13 @@ pub use gradient::{
     repeating_conic_gradient, repeating_linear_gradient, repeating_radial_gradient,
 };
 
-mod image_wgt;
+pub mod image;
 #[doc(inline)]
-pub use image_wgt::image;
+pub use image::Image;
 
-mod icon_wgt;
+pub mod icon;
 #[doc(inline)]
-pub use icon_wgt::icon;
+pub use icon::Icon;
 
 mod link_wgt;
 #[doc(inline)]

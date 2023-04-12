@@ -1,3 +1,5 @@
+//! ANSI text widget and helpers.
+
 use zero_ui::prelude::new_widget::*;
 
 /// Render text styled using ANSI scale sequences.
@@ -5,7 +7,7 @@ use zero_ui::prelude::new_widget::*;
 /// Supports color, weight, italic and more, see [`AnsiStyle`] for the full style supported.
 ///
 /// [`AnsiStyle`]: ansi_text::AnsiStyle
-#[widget($crate::widgets::ansi_text {
+#[widget($crate::widgets::AnsiText {
     ($txt:literal) => {
         txt = $crate::core::text::formatx!($txt);
     };
@@ -16,45 +18,36 @@ use zero_ui::prelude::new_widget::*;
         txt = $crate::core::text::formatx!($txt, $($format)*);
     };
 })]
-pub mod ansi_text {
-    use super::*;
+pub struct AnsiText(WidgetBase);
+impl AnsiText {
+    #[widget(on_start)]
+    fn on_start(&mut self) {
+        defaults! {
+            self;
+            crate::widgets::text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
+        };
 
-    inherit!(widget_base::base);
-
-    #[doc(inline)]
-    pub use ansi_parse::*;
-
-    #[doc(inline)]
-    pub use ansi_fn::*;
-
-    #[doc(inline)]
-    pub use super::ansi_node;
-
-    #[doc(no_inline)]
-    pub use crate::widgets::text::{font_family, font_size, tab_length};
-
-    properties! {
-        /// ANSI text.
-        pub txt(impl IntoVar<Text>) = "";
-
-        font_family = ["JetBrains Mono", "Consolas", "monospace"];
-    }
-
-    fn include(wgt: &mut WidgetBuilder) {
-        wgt.push_build_action(|wgt| {
-            let txt = wgt.capture_var_or_default(property_id!(self::txt));
+        self.builder().push_build_action(|wgt| {
+            let txt = wgt.capture_var_or_default(property_id!(txt));
             let child = ansi_node(txt);
             wgt.set_child(child.boxed());
         });
     }
 }
 
+/// ANSI text.
+#[property(CONTEXT, capture, impl(AnsiText))]
+pub fn txt(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
+
+}
+
+pub use ansi_parse::*;
 mod ansi_parse {
     use super::*;
 
     /// Represents a segment of ANSI styled text that shares the same style.
     #[derive(Debug)]
-    pub struct AnsiText<'a> {
+    pub struct AnsiTxt<'a> {
         /// Text run.
         pub txt: &'a str,
         /// Text style.
@@ -204,7 +197,7 @@ mod ansi_parse {
         }
     }
     impl<'a> Iterator for AnsiTextParser<'a> {
-        type Item = AnsiText<'a>;
+        type Item = AnsiTxt<'a>;
 
         fn next(&mut self) -> Option<Self::Item> {
             const CSI: &str = "\x1b[";
@@ -233,12 +226,12 @@ mod ansi_parse {
                 } else if let Some(i) = self.source.find(CSI) {
                     let (txt, source) = self.source.split_at(i);
                     self.source = source;
-                    return Some(AnsiText {
+                    return Some(AnsiTxt {
                         txt,
                         style: self.style.clone(),
                     });
                 } else {
-                    return Some(AnsiText {
+                    return Some(AnsiTxt {
                         txt: std::mem::take(&mut self.source),
                         style: self.style.clone(),
                     });
@@ -327,11 +320,11 @@ mod ansi_parse {
     }
 }
 
+pub use ansi_fn::*;
 mod ansi_fn {
-
     use std::time::Duration;
 
-    use ansi_text::{AnsiColor, AnsiStyle, AnsiWeight};
+    use super::{AnsiColor, AnsiStyle, AnsiWeight};
     use zero_ui_core::widget_instance::UiNodeVec;
 
     use super::*;
