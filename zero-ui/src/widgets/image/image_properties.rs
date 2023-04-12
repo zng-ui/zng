@@ -6,7 +6,6 @@ pub use crate::core::render::ImageRendering;
 use crate::core::window::{WindowLoadingHandle, WINDOW_CTRL};
 use crate::widgets::window::nodes::BlockWindowLoad;
 use nodes::CONTEXT_IMAGE_VAR;
-
 /// Image layout mode.
 ///
 /// This layout mode can be set to all images inside a widget using [`img_fit`], the [`image_presenter`] uses this value
@@ -408,7 +407,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
         fn init(&mut self) {
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
-            if CONTEXT_IMAGE_VAR.with(Image::is_loaded) {
+            if CONTEXT_IMAGE_VAR.with(Img::is_loaded) {
                 self.handler.event(&ImageLoadArgs {});
             }
             self.child.init();
@@ -450,7 +449,7 @@ pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWi
         }
 
         fn update(&mut self, updates: &WidgetUpdates) {
-            if self.block.is_some() && !CONTEXT_IMAGE_VAR.with(Image::is_loading) {
+            if self.block.is_some() && !CONTEXT_IMAGE_VAR.with(Img::is_loading) {
                 self.block = None;
             }
             self.child.update(updates);

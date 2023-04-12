@@ -10,7 +10,7 @@ use parking_lot::Mutex;
 use crate::{
     crate_util::{IdSet, NameIdMap},
     event::{event, event_args},
-    image::{Image, ImageDataFormat, ImageSource, ImageVar},
+    image::{Img, ImageDataFormat, ImageSource, ImageVar},
     render::{FrameId, RenderMode},
     text::Txt,
     units::*,
@@ -751,7 +751,7 @@ event_args! {
         pub frame_id: FrameId,
 
         /// The frame pixels if it was requested when the frame request was sent to the view process.
-        pub frame_image: Option<Image>,
+        pub frame_image: Option<Img>,
 
         ..
 

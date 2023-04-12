@@ -15,10 +15,10 @@ context_var! {
     /// Image acquired by [`image_source`], or `"no image source in context"` error by default.
     ///
     /// [`image_source`]: fn@image_source
-    pub static CONTEXT_IMAGE_VAR: Image = no_context_image();
+    pub static CONTEXT_IMAGE_VAR: Img = no_context_image();
 }
-fn no_context_image() -> Image {
-    Image::dummy(Some("no image source in context".to_owned()))
+fn no_context_image() -> Img {
+    Img::dummy(Some("no image source in context".to_owned()))
 }
 
 /// Requests an image from [`IMAGES`] and sets [`CONTEXT_IMAGE_VAR`].
@@ -37,7 +37,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         #[var] source: impl Var<ImageSource>,
 
         img: ImageVar,
-        ctx_img: ArcVar<Image>,
+        ctx_img: ArcVar<Img>,
         ctx_binding: Option<VarHandle>,
     })]
     impl UiNode for ImageSourceNode {
@@ -101,7 +101,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     self.img = if is_cached {
                         // must not cache, but is cached, detach from cache.
 
-                        let img = mem::replace(&mut self.img, var(Image::dummy(None)).read_only());
+                        let img = mem::replace(&mut self.img, var(Img::dummy(None)).read_only());
                         IMAGES.detach(img)
                     } else {
                         // must cache, but image is not cached, get source again.
@@ -121,11 +121,11 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         }
     }
 
-    let ctx_img = var(Image::dummy(None));
+    let ctx_img = var(Img::dummy(None));
 
     ImageSourceNode {
         child: with_context_var(child, CONTEXT_IMAGE_VAR, ctx_img.read_only()),
-        img: var(Image::dummy(None)).read_only(),
+        img: var(Img::dummy(None)).read_only(),
         ctx_img,
         ctx_binding: None,
         source: source.into_var(),
@@ -226,7 +226,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
                 DataUpdate::None
             } else if is_new {
                 // init or fn changed.
-                if CONTEXT_IMAGE_VAR.with(Image::is_loading) {
+                if CONTEXT_IMAGE_VAR.with(Img::is_loading) {
                     DataUpdate::Update(ImageLoadingArgs {})
                 } else {
                     DataUpdate::None
@@ -293,7 +293,7 @@ pub fn image_presenter() -> impl UiNode {
                 .sub_var(&IMAGE_RENDERING_VAR)
                 .sub_var(&IMAGE_OFFSET_VAR);
 
-            self.img_size = CONTEXT_IMAGE_VAR.with(Image::size);
+            self.img_size = CONTEXT_IMAGE_VAR.with(Img::size);
             self.requested_layout = true;
         }
 
@@ -334,7 +334,7 @@ pub fn image_presenter() -> impl UiNode {
             let mut scale = IMAGE_SCALE_VAR.get();
             if IMAGE_SCALE_PPI_VAR.get() {
                 let sppi = metrics.screen_ppi();
-                let (ippi_x, ippi_y) = CONTEXT_IMAGE_VAR.with(Image::ppi).unwrap_or((sppi, sppi));
+                let (ippi_x, ippi_y) = CONTEXT_IMAGE_VAR.with(Img::ppi).unwrap_or((sppi, sppi));
                 scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
             }
             if IMAGE_SCALE_FACTOR_VAR.get() {
@@ -362,7 +362,7 @@ pub fn image_presenter() -> impl UiNode {
             let mut scale = IMAGE_SCALE_VAR.get();
             if IMAGE_SCALE_PPI_VAR.get() {
                 let sppi = metrics.screen_ppi();
-                let (ippi_x, ippi_y) = CONTEXT_IMAGE_VAR.with(Image::ppi).unwrap_or((sppi, sppi));
+                let (ippi_x, ippi_y) = CONTEXT_IMAGE_VAR.with(Img::ppi).unwrap_or((sppi, sppi));
                 scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
             }
             if IMAGE_SCALE_FACTOR_VAR.get() {

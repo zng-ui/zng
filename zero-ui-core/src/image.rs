@@ -144,7 +144,7 @@ impl AppExtension for ImageManager {
                     }
                     if let Some(e) = view.error() {
                         // respawned, but image was an error.
-                        img_var.set(Image::dummy(Some(e.to_owned())));
+                        img_var.set(Img::dummy(Some(e.to_owned())));
                     } else if let Some(task) = decoding_interrupted.iter().find(|e| e.image.with(|img| img.view() == Some(view))) {
                         // respawned, but image was decoding, need to restart decode.
 
@@ -155,7 +155,7 @@ impl AppExtension for ImageManager {
                             downscale,
                         }) {
                             Ok(img) => {
-                                img_var.set(Image::new(img));
+                                img_var.set(Img::new(img));
                             }
                             Err(ViewProcessOffline) => { /*will receive another event.*/ }
                         }
@@ -183,7 +183,7 @@ impl AppExtension for ImageManager {
                             Err(ViewProcessOffline) => return, // we will receive another event.
                         };
 
-                        img_var.set(Image::new(img));
+                        img_var.set(Img::new(img));
 
                         images.decoding.push(ImageDecodingTask {
                             format: img_format,
@@ -291,7 +291,7 @@ app_local! {
 
 struct ImageLoadingTask {
     task: Mutex<UiTask<ImageData>>,
-    image: ArcVar<Image>,
+    image: ArcVar<Img>,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
 }
@@ -299,18 +299,18 @@ struct ImageLoadingTask {
 struct ImageDecodingTask {
     format: ImageDataFormat,
     data: IpcBytes,
-    image: ArcVar<Image>,
+    image: ArcVar<Img>,
 }
 
 struct CacheEntry {
-    image: ArcVar<Image>,
+    image: ArcVar<Img>,
     error: AtomicBool,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
 }
 
 struct NotCachedEntry {
-    image: WeakArcVar<Image>,
+    image: WeakArcVar<Img>,
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
 }
@@ -361,7 +361,7 @@ impl ImagesService {
         };
         let entry = CacheEntry {
             error: AtomicBool::new(image.is_error()),
-            image: var(Image::new(image)),
+            image: var(Img::new(image)),
             max_decoded_len: limits.max_decoded_len,
             downscale,
         };
@@ -384,7 +384,7 @@ impl ImagesService {
                 }
             }
 
-            // remove `cache_key` from image, this clones the `Image` only-if is still in cache.
+            // remove `cache_key` from image, this clones the `Img` only-if is still in cache.
             let mut img = image.into_value();
             img.cache_key = None;
             let img = var(img);
@@ -432,7 +432,7 @@ impl ImagesService {
                 if !limits.allow_path.allows(&path) {
                     let error = format!("limits filter blocked `{}`", path.display());
                     tracing::error!("{error}");
-                    return var(Image::dummy(Some(error))).read_only();
+                    return var(Img::dummy(Some(error))).read_only();
                 }
                 ImageSource::Read(path)
             }
@@ -441,7 +441,7 @@ impl ImagesService {
                 if !limits.allow_uri.allows(&uri) {
                     let error = format!("limits filter blocked `{uri}`");
                     tracing::error!("{error}");
-                    return var(Image::dummy(Some(error))).read_only();
+                    return var(Img::dummy(Some(error))).read_only();
                 }
                 ImageSource::Download(uri, accepts)
             }
@@ -489,7 +489,7 @@ impl ImagesService {
         if self.view.is_none() && !self.load_in_headless.get() {
             tracing::warn!("loading dummy image, set `load_in_headless=true` to actually load without renderer");
 
-            let dummy = var(Image::new(ViewImage::dummy(None)));
+            let dummy = var(Img::new(ViewImage::dummy(None)));
             self.cache.insert(
                 key,
                 CacheEntry {
@@ -657,14 +657,14 @@ impl ImagesService {
         mode: ImageCacheMode,
         max_decoded_len: ByteLength,
         downscale: Option<ImageDownscale>,
-    ) -> ArcVar<Image> {
+    ) -> ArcVar<Img> {
         self.cleanup_not_cached(false);
 
         if let ImageCacheMode::Reload = mode {
             self.cache
                 .entry(key)
                 .or_insert_with(|| CacheEntry {
-                    image: var(Image::new_none(Some(key))),
+                    image: var(Img::new_none(Some(key))),
                     error: AtomicBool::new(false),
                     max_decoded_len,
                     downscale,
@@ -672,7 +672,7 @@ impl ImagesService {
                 .image
                 .clone()
         } else if let ImageCacheMode::Ignore = mode {
-            let img = var(Image::new_none(None));
+            let img = var(Img::new_none(None));
             self.not_cached.push(NotCachedEntry {
                 image: img.downgrade(),
                 max_decoded_len,
@@ -680,7 +680,7 @@ impl ImagesService {
             });
             img
         } else {
-            let img = var(Image::new_none(Some(key)));
+            let img = var(Img::new_none(Some(key)));
             self.cache.insert(
                 key,
                 CacheEntry {
@@ -745,7 +745,7 @@ impl IMAGES {
 
     /// Returns a dummy image that reports it is loaded or an error.
     pub fn dummy(&self, error: Option<String>) -> ImageVar {
-        var(Image::dummy(error)).read_only()
+        var(Img::dummy(error)).read_only()
     }
 
     /// Cache or load an image file from a file system `path`.
@@ -853,7 +853,7 @@ impl IMAGES {
     }
 
     /// Gets the cache key of an image.
-    pub fn cache_key(&self, image: &Image) -> Option<ImageHash> {
+    pub fn cache_key(&self, image: &Img) -> Option<ImageHash> {
         if let Some(key) = &image.cache_key {
             if IMAGES_SV.read().cache.contains_key(key) {
                 return Some(*key);
@@ -863,7 +863,7 @@ impl IMAGES {
     }
 
     /// If the image is cached.
-    pub fn is_cached(&self, image: &Image) -> bool {
+    pub fn is_cached(&self, image: &Img) -> bool {
         image
             .cache_key
             .as_ref()

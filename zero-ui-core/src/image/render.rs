@@ -10,14 +10,14 @@ use crate::{
     window::*,
 };
 
-use super::{Image, ImageManager, ImageVar, ImagesService, IMAGES, IMAGES_SV};
+use super::{Img, ImageManager, ImageVar, ImagesService, IMAGES, IMAGES_SV};
 
 impl ImagesService {
     fn render<N>(&mut self, render: N) -> ImageVar
     where
         N: FnOnce() -> WindowCfg + Send + Sync + 'static,
     {
-        let result = var(Image::new_none(None));
+        let result = var(Img::new_none(None));
         self.render_img(
             move || {
                 let r = render();
@@ -50,7 +50,7 @@ impl ImagesService {
         })
     }
 
-    pub(super) fn render_img<N>(&mut self, render: N, result: &ArcVar<Image>)
+    pub(super) fn render_img<N>(&mut self, render: N, result: &ArcVar<Img>)
     where
         N: FnOnce() -> WindowCfg + Send + Sync + 'static,
     {
@@ -104,7 +104,7 @@ impl ImageManager {
             let mut retain = false;
 
             if let Some(img) = r.image.upgrade() {
-                if img.with(Image::is_loading) {
+                if img.with(Img::is_loading) {
                     retain = true;
                 }
             }
@@ -173,13 +173,13 @@ pub(super) struct ImagesRender {
 
 struct ActiveRenderer {
     window_id: WindowId,
-    image: WeakArcVar<Image>,
+    image: WeakArcVar<Img>,
     retain: ArcVar<bool>,
 }
 
 struct RenderRequest {
     render: Box<dyn FnOnce() -> WindowCfg + Send + Sync>,
-    image: WeakArcVar<Image>,
+    image: WeakArcVar<Img>,
 }
 
 #[derive(Clone)]

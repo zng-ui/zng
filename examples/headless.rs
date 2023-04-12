@@ -109,7 +109,7 @@ fn images_render() {
     let img = IMAGES.render_node(RenderMode::Software, 1.fct(), image);
 
     app.run_task(async move {
-        while img.with(Image::is_loading) {
+        while img.with(Img::is_loading) {
             img.wait_new().await;
         }
         let img = img.get();

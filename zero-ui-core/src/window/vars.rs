@@ -6,7 +6,7 @@ use crate::{
     context::StaticStateId,
     context::WINDOW,
     crate_util::IdSet,
-    image::Image,
+    image::Img,
     render::{RenderMode, RendererDebug},
     text::{Txt, ToText},
     units::*,
@@ -16,7 +16,7 @@ use crate::{
 pub(super) struct WindowVarsData {
     chrome: ArcVar<WindowChrome>,
     icon: ArcVar<WindowIcon>,
-    pub(super) actual_icon: ArcVar<Option<Image>>,
+    pub(super) actual_icon: ArcVar<Option<Img>>,
     cursor: ArcVar<Option<CursorIcon>>,
     title: ArcVar<Txt>,
 
@@ -174,11 +174,11 @@ impl WindowVars {
 
     /// Window icon image.
     ///
-    /// This is `None` if [`icon`] is [`WindowIcon::Default`], otherwise it is an [`Image`]
+    /// This is `None` if [`icon`] is [`WindowIcon::Default`], otherwise it is an [`Img`]
     /// reference clone.
     ///
     /// [`icon`]: Self::icon
-    pub fn actual_icon(&self) -> ReadOnlyArcVar<Option<Image>> {
+    pub fn actual_icon(&self) -> ReadOnlyArcVar<Option<Img>> {
         self.0.actual_icon.read_only()
     }
 

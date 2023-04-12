@@ -14,7 +14,7 @@ use crate::{
     context::{LayoutMetrics, LayoutPassId, WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW},
     crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
-    image::{Image, ImageVar, IMAGES},
+    image::{Img, ImageVar, IMAGES},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::FONTS,
     timer::TIMERS,
@@ -1594,7 +1594,7 @@ impl ContentCtrl {
                     }
                 }
 
-                let image = args.frame_image.as_ref().cloned().map(Image::new);
+                let image = args.frame_image.as_ref().cloned().map(Img::new);
 
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), args.window_id, args.frame_id, image);
                 FRAME_IMAGE_READY_EVENT.notify(args);

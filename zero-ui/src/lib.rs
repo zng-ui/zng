@@ -301,7 +301,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::handler::*;
         #[doc(no_inline)]
-        pub use crate::core::image::Image;
+        pub use crate::core::image::Img;
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]

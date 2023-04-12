@@ -19,7 +19,7 @@ use crate::context::{WidgetUpdates, WindowCtx};
 use crate::context::{UPDATES, WINDOW};
 use crate::crate_util::{IdMap, IdSet};
 use crate::event::{AnyEventArgs, EventUpdate};
-use crate::image::{Image, ImageVar};
+use crate::image::{Img, ImageVar};
 use crate::render::RenderMode;
 use crate::task::ui::UiTask;
 use crate::task::ParallelIteratorExt;
@@ -49,7 +49,7 @@ pub(super) struct WindowsService {
     focus_request: Option<WindowId>,
     bring_to_top_requests: Vec<WindowId>,
 
-    frame_images: Vec<ArcVar<Image>>,
+    frame_images: Vec<ArcVar<Img>>,
 
     loading_deadline: Option<DeadlineHandle>,
     latest_color_scheme: ColorScheme,
@@ -144,18 +144,18 @@ impl WindowsService {
             if let Some(r) = &w.renderer {
                 match action(r) {
                     Ok(img) => {
-                        let img = Image::new(img);
+                        let img = Img::new(img);
                         let img = var(img);
                         self.frame_images.push(img.clone());
                         img.read_only()
                     }
-                    Err(_) => var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).read_only(),
+                    Err(_) => var(Img::dummy(Some(format!("{}", WindowNotFound(window_id))))).read_only(),
                 }
             } else {
-                var(Image::dummy(Some(format!("window `{window_id}` is headless without renderer")))).read_only()
+                var(Img::dummy(Some(format!("window `{window_id}` is headless without renderer")))).read_only()
             }
         } else {
-            var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).read_only()
+            var(Img::dummy(Some(format!("{}", WindowNotFound(window_id))))).read_only()
         }
     }
 

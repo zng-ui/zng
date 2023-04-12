@@ -71,31 +71,31 @@ pub enum ProxyRemoveResult {
     Removed,
 }
 
-/// Represents an [`Image`] tracked by the [`IMAGES`] cache.
+/// Represents an [`Img`] tracked by the [`IMAGES`] cache.
 ///
 /// The variable updates when the image updates.
 ///
 /// [`IMAGES`]: super::IMAGES
-pub type ImageVar = ReadOnlyArcVar<Image>;
+pub type ImageVar = ReadOnlyArcVar<Img>;
 
 /// State of an [`ImageVar`].
 ///
 /// Each instance of this struct represent a single state,
 #[derive(Debug, Clone)]
-pub struct Image {
+pub struct Img {
     pub(super) view: OnceCell<ViewImage>,
     render_keys: Arc<Mutex<Vec<RenderImage>>>,
     pub(super) done_signal: SignalOnce,
     pub(super) cache_key: Option<ImageHash>,
 }
-impl PartialEq for Image {
+impl PartialEq for Img {
     fn eq(&self, other: &Self) -> bool {
         self.view == other.view
     }
 }
-impl Image {
+impl Img {
     pub(super) fn new_none(cache_key: Option<ImageHash>) -> Self {
-        Image {
+        Img {
             view: OnceCell::new(),
             render_keys: Arc::default(),
             done_signal: SignalOnce::new(),
@@ -108,7 +108,7 @@ impl Image {
         let sig = view.done_signal();
         let v = OnceCell::new();
         let _ = v.set(view);
-        Image {
+        Img {
             view: v,
             render_keys: Arc::default(),
             done_signal: sig,
@@ -290,7 +290,7 @@ impl Image {
         task::wait(move || fs::write(path, &data[..])).await
     }
 }
-impl crate::render::Image for Image {
+impl crate::render::Img for Img {
     fn image_key(&self, renderer: &ViewRenderer) -> ImageKey {
         if self.is_loaded() {
             use crate::render::webrender_api::*;
@@ -577,9 +577,7 @@ impl ImageSource {
         })
     }
 
-    /// Returns the image hash, unless the source is [`Image`].
-    ///
-    /// [`Image`]: Self::Image
+    /// Returns the image hash, unless the source is [`Img`].
     pub fn hash128(&self, downscale: Option<ImageDownscale>) -> Option<ImageHash> {
         match self {
             ImageSource::Read(p) => Some(Self::hash128_read(p, downscale)),
