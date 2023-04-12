@@ -10,7 +10,7 @@ use crate::prelude::new_property::*;
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// container! {
+/// Container! {
 ///     cursor = CursorIcon::Hand;
 ///     child = Text!("Mouse over this text shows the hand cursor");
 /// }

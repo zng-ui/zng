@@ -45,12 +45,12 @@ fn example() -> impl UiNode {
     use easing::EasingModifierFn::*;
     let easing_mod = var(EaseOut);
 
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 10;
         children_align = Align::TOP;
         children = ui_vec![
-            container! {
+            Container! {
                 id = "demo";
                 width = 301;
                 background = ruler();
@@ -69,7 +69,7 @@ fn example() -> impl UiNode {
                     }
                 };
             },
-            stack! {
+            Stack! {
                 id = "mod-menu";
                 direction = StackDirection::left_to_right();
                 spacing = 2;
@@ -89,11 +89,11 @@ fn example() -> impl UiNode {
                     ]
                 }
             },
-            grid! {
+            Grid! {
                 id = "easing-menu";
                 spacing = 2;
-                columns = ui_vec![grid::column!(1.lft()); 7];
-                auto_grow_fn = wgt_fn!(|_| grid::row!(1.lft()));
+                columns = ui_vec![grid::Column!(1.lft()); 7];
+                auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
                 button::vis::extend_style = style_fn!(|_| style! {
                     padding = 3;
                 });
@@ -148,7 +148,7 @@ fn ease_btn(
     use easing::EasingModifierFn::*;
 
     Button! {
-        child = stack! {
+        child = Stack! {
             direction = StackDirection::top_to_bottom();
             spacing = 2;
             children_align = Align::TOP;
@@ -231,7 +231,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 }
                 .boxed(),
             );
-            stack! {
+            Stack! {
                 children_align = Align::TOP_LEFT;
                 children;
                 size;
@@ -243,7 +243,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
 }
 
 fn ruler() -> impl UiNode {
-    stack! {
+    Stack! {
         children_align = Align::LEFT;
         children = (0..=300).step_by(10)
             .map(|x| rule_line! {

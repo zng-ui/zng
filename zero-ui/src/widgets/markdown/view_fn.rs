@@ -388,42 +388,31 @@ pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>)
     with_context_var(child, PANEL_GEN_VAR, wgt_fn)
 }
 
-fn text_view_builder(txt: Txt, style: MarkdownStyle) -> WidgetBuilder {
-    use crate::widgets::Text as t;
+fn text_view_builder(txt: Txt, style: MarkdownStyle) -> crate::widgets::Text {
+    let mut builder = crate::widgets::Text::start();
 
-    let mut builder = WidgetBuilder::new(t::widget_type()); // !!: use `Text` directly.
-    t::include(&mut builder);
-
-    builder.push_property(
-        Importance::INSTANCE,
-        property_args! {
-            t::txt = txt;
-        },
-    );
+    properties! {
+        &mut builder;
+        txt;
+    }
 
     if style.strong {
-        builder.push_property(
-            Importance::INSTANCE,
-            property_args! {
-                t::font_weight = FontWeight::BOLD;
-            },
-        );
+        properties! {
+            &mut builder;
+            font_weight = FontWeight::BOLD;
+        }
     }
     if style.emphasis {
-        builder.push_property(
-            Importance::INSTANCE,
-            property_args! {
-                t::font_style = FontStyle::Italic;
-            },
-        );
+        properties! {
+            &mut builder;
+            font_style = FontStyle::Italic;
+        }
     }
     if style.strikethrough {
-        builder.push_property(
-            Importance::INSTANCE,
-            property_args! {
-                t::strikethrough = 1, LineStyle::Solid;
-            },
-        );
+        properties! {
+            &mut builder;
+            strikethrough = 1, LineStyle::Solid;
+        }
     }
 
     builder
@@ -433,32 +422,23 @@ fn text_view_builder(txt: Txt, style: MarkdownStyle) -> WidgetBuilder {
 ///
 /// See [`TEXT_GEN_VAR`] for more details.
 pub fn default_text_fn(args: TextFnArgs) -> impl UiNode {
-    let builder = text_view_builder(args.txt, args.style);
-    crate::widgets::text::build(builder)
+    let mut builder = text_view_builder(args.txt, args.style);
+    builder.build()
 }
 
 /// Default inlined code text view.
 ///
 /// See [`CODE_INLINE_GEN_VAR`] for more details.
 pub fn default_code_inline_fn(args: CodeInlineFnArgs) -> impl UiNode {
-    use crate::widgets::text as t;
-
     let mut builder = text_view_builder(args.txt, args.style);
 
-    builder.push_property(
-        Importance::INSTANCE,
-        property_args! {
-            t::font_family = ["JetBrains Mono", "Consolas", "monospace"];
-        },
-    );
-    builder.push_property(
-        Importance::INSTANCE,
-        property_args! {
-            background_color = color_scheme_map(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
-        },
-    );
+    properties! {
+        &mut builder;
+        font_family = ["JetBrains Mono", "Consolas", "monospace"];
+        background_color = color_scheme_map(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
+    }
 
-    crate::widgets::text::build(builder)
+    builder.build()
 }
 
 /// Default inlined link view.
@@ -474,20 +454,20 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
         let items = if items.len() == 1 {
             items.remove(0)
         } else {
-            crate::widgets::layouts::wrap! {
+            crate::widgets::layouts::Wrap! {
                 children = items;
             }
             .boxed()
         };
 
-        crate::widgets::link! {
+        crate::widgets::Link! {
             child = items;
 
             on_click = hn!(|args: &ClickArgs| {
                 args.propagation().stop();
 
                 let link = WINDOW.widget_tree().get(WIDGET.id()).unwrap().interaction_path();
-                markdown::LINK_EVENT.notify(markdown::LinkArgs::now(url.clone(), link));
+                LINK_EVENT.notify(LinkArgs::now(url.clone(), link));
             });
         }
         .boxed()
@@ -496,14 +476,14 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
 
 /// Default code block view.
 ///
-/// Is [`ansi_text!`] for the `ansi` language, and only raw text for the rest.
+/// Is [`AnsiText!`] for the `ansi` language, and only raw text for the rest.
 ///
 /// See [`CODE_BLOCK_GEN_VAR`] for more details.
 ///
-/// [`ansi_text!`]: mod@crate::widgets::ansi_text
+/// [`AnsiText!`]: mod@crate::widgets::ansi_text
 pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
     if args.lang == "ansi" {
-        crate::widgets::ansi_text! {
+        crate::widgets::AnsiText! {
             txt = args.txt;
             padding = 6;
             corner_radius = 4;
@@ -531,7 +511,7 @@ pub fn default_paragraph_fn(mut args: ParagraphFnArgs) -> impl UiNode {
     } else if args.items.len() == 1 {
         args.items.remove(0)
     } else {
-        crate::widgets::layouts::wrap! {
+        crate::widgets::layouts::Wrap! {
             children = args.items;
         }
         .boxed()
@@ -545,7 +525,7 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
-        crate::widgets::layouts::wrap! {
+        crate::widgets::layouts::Wrap! {
             font_size = match args.level {
                 HeadingLevel::H1 => 2.em(),
                 HeadingLevel::H2 => 1.5.em(),
@@ -555,7 +535,7 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
                 HeadingLevel::H6 => 1.1.em()
             };
             children = args.items;
-            super::markdown::anchor = args.anchor;
+            anchor = args.anchor;
         }
         .boxed()
     }
@@ -563,22 +543,22 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
 
 /// Default list view.
 ///
-/// Uses a [`grid!`] with two columns, one default for the bullet or number, the other fills the leftover space.
+/// Uses a [`Grid!`] with two columns, one default for the bullet or number, the other fills the leftover space.
 ///
 /// See [`LIST_GEN_VAR`] for more details.
 ///
-/// [`grid!`]: mod@crate::widgets::layouts::grid
+/// [`Grid!`]: mod@crate::widgets::layouts::grid
 pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
-        use crate::widgets::layouts::grid;
-        grid! {
+        use crate::widgets::layouts::{Grid, grid};
+        Grid! {
             margin = (0, 0, 0, 1.em());
             cells = args.items;
             columns = ui_vec![
-                grid::column!(),
-                grid::column! { width = 1.lft() },
+                grid::Column!(),
+                grid::Column! { width = 1.lft() },
             ];
         }
         .boxed()
@@ -654,14 +634,14 @@ pub fn default_list_item_fn(args: ListItemFnArgs) -> impl UiNode {
     let mut r = if items.len() == 1 {
         items.remove(0)
     } else {
-        wrap! {
+        Wrap! {
             children = items;
         }
         .boxed()
     };
 
     if let Some(inner) = args.nested_list {
-        r = stack! {
+        r = Stack! {
             direction = StackDirection::top_to_bottom();
             children = ui_vec![
                 r,
@@ -690,7 +670,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
         let alt_items = if alt_items.len() == 1 {
             alt_items.remove(0)
         } else {
-            wrap! {
+            Wrap! {
                 children = alt_items;
             }
             .boxed()
@@ -724,7 +704,7 @@ pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
-        stack! {
+        Stack! {
             direction = StackDirection::top_to_bottom();
             spacing = PARAGRAPH_SPACING_VAR;
             children = args.items;
@@ -750,12 +730,12 @@ pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> impl UiNode {
 pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
     use crate::widgets::layouts::grid;
 
-    grid! {
+    Grid! {
         background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
         border = 1, TEXT_COLOR_VAR.map(|c| c.with_alpha(30.pct()).into());
         align = Align::LEFT;
         auto_grow_fn = wgt_fn!(|args: grid::AutoGrowFnArgs| {
-            grid::row! {
+            grid::Row! {
                 border = (0, 0, 1, 0), TEXT_COLOR_VAR.map(|c| c.with_alpha(10.pct()).into());
                 background_color = {
                     let alpha = if args.index % 2 == 0 {
@@ -771,7 +751,7 @@ pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
                 }
             }
         });
-        columns = std::iter::repeat_with(|| grid::column!{}.boxed()).take(args.columns.len()).collect::<UiNodeVec>();
+        columns = std::iter::repeat_with(|| grid::Column!{}.boxed()).take(args.columns.len()).collect::<UiNodeVec>();
         cells = args.cells;
     }
 }
@@ -785,7 +765,7 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else if args.is_heading {
-        wrap! {
+        Wrap! {
             crate::widgets::text::font_weight = crate::core::text::FontWeight::BOLD;
             padding = 6;
             child_align = args.col_align;
@@ -793,7 +773,7 @@ pub fn default_table_cell_fn(args: TableCellFnArgs) -> impl UiNode {
         }
         .boxed()
     } else {
-        wrap! {
+        Wrap! {
             padding = 6;
             child_align = args.col_align;
             children = args.items;
@@ -811,7 +791,7 @@ pub fn default_panel_fn(args: PanelFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
-        stack! {
+        Stack! {
             direction = StackDirection::top_to_bottom();
             spacing = PARAGRAPH_SPACING_VAR;
             children = args.items;
@@ -827,7 +807,7 @@ pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> impl UiNode {
     use crate::widgets::*;
 
     let url = formatx!("#footnote-{}", args.label);
-    link! {
+    Link! {
         font_size = 0.7.em();
         offset = (0, (-0.5).em());
         markdown::anchor = formatx!("footnote-ref-{}", args.label);
@@ -853,7 +833,7 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> impl UiNode {
     } else if items.len() == 1 {
         items.remove(0)
     } else {
-        stack! {
+        Stack! {
             direction = StackDirection::top_to_bottom();
             children = items;
         }
@@ -861,12 +841,12 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> impl UiNode {
     };
 
     let url_back = formatx!("#footnote-ref-{}", args.label);
-    stack! {
+    Stack! {
         direction = StackDirection::left_to_right();
         spacing = 0.5.em();
         markdown::anchor = formatx!("footnote-{}", args.label);
         children = ui_vec![
-            link! {
+            Link! {
                 child = Text!("[^{}]", args.label);
                 on_click = hn!(|args: &ClickArgs| {
                     args.propagation().stop();

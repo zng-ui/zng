@@ -28,11 +28,11 @@ fn app_main() {
             title = "Focus Example";
             enabled = window_enabled.clone();
             background = commands();
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children = ui_vec![
                     alt_scope(),
-                    stack! {
+                    Stack! {
                         direction = StackDirection::left_to_right();
                         margin = (50, 0, 0, 0);
                         align = Align::CENTER;
@@ -54,7 +54,7 @@ fn app_main() {
 }
 
 fn alt_scope() -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::left_to_right();
         alt_focus_scope = true;
         button::vis::extend_style = style_fn!(|_| style! {
@@ -69,7 +69,7 @@ fn alt_scope() -> impl UiNode {
 }
 
 fn tab_index() -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         focus_shortcut = shortcut!(T);
@@ -85,7 +85,7 @@ fn tab_index() -> impl UiNode {
 }
 
 fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         focus_shortcut = shortcut!(F);
@@ -100,7 +100,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
                         Window! {
                             title = "Other Window";
                             focus_shortcut = shortcut!(W);
-                            child = stack! {
+                            child = Stack! {
                                 direction = StackDirection::top_to_bottom();
                                 align = Align::CENTER;
                                 spacing = 5;
@@ -163,18 +163,18 @@ fn disable_window(window_enabled: ArcVar<bool>) -> impl UiNode {
     }
 }
 fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
-    container! {
+    Container! {
         id = "overlay";
         modal = true;
         child_align = Align::CENTER;
-        child = container! {
+        child = Container! {
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 2;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
                 children = ui_vec![
@@ -182,7 +182,7 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
                         txt = "Window scope is disabled so the overlay scope is the root scope.";
                         margin = 15;
                     },
-                    stack! {
+                    Stack! {
                         direction = StackDirection::left_to_right();
                         spacing = 2;
                         children = ui_vec![
@@ -202,7 +202,7 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
 }
 
 fn delayed_focus() -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         focus_shortcut = shortcut!(D);
@@ -302,7 +302,7 @@ fn commands() -> impl UiNode {
         FOCUS_EXIT_CMD,
     ];
 
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         align = Align::BOTTOM_RIGHT;
         padding = 10;
@@ -355,7 +355,7 @@ fn nested_focusables() -> impl UiNode {
 
                     // zero_ui::properties::inspector::show_center_points = true;
                     child_align = Align::CENTER;
-                    child = stack! {
+                    child = Stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 10;
                         children = ui_vec![
@@ -369,7 +369,7 @@ fn nested_focusables() -> impl UiNode {
     }
 }
 fn nested_focusables_group(g: char) -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::left_to_right();
         align = Align::TOP;
         spacing = 10;
@@ -381,7 +381,7 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
         txt = format!("Focusable {column}, {row}");
         margin = 5;
     };
-    stack! {
+    Stack! {
         id = formatx!("focusable-{g}-{column}-{row}");
         padding = 2;
         direction = StackDirection::top_to_bottom();

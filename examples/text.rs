@@ -24,13 +24,13 @@ fn app_main() {
             zero_ui::core::widget_base::parallel = false;
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             child = z_stack(ui_vec![
-                stack! {
+                Stack! {
                     font_size = fs.easing(150.ms(), easing::linear);
                     direction = StackDirection::left_to_right();
                     align = Align::CENTER;
                     spacing = 40;
                     children = ui_vec![
-                        stack! {
+                        Stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
                             children = ui_vec![
@@ -38,7 +38,7 @@ fn app_main() {
                                 defaults(),
                             ];
                         },
-                        stack! {
+                        Stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
                             children = ui_vec![
@@ -48,7 +48,7 @@ fn app_main() {
                                 letter_spacing(),
                             ];
                         },
-                        stack! {
+                        Stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
                             children = ui_vec![
@@ -57,7 +57,7 @@ fn app_main() {
                         }
                     ];
                 },
-                container! {
+                Container! {
                     align = Align::TOP;
                     margin = 10;
                     child = font_size(fs);
@@ -73,7 +73,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
             *s.to_mut() += Length::Pt(change);
         });
     }
-    stack! {
+    Stack! {
         button::vis::extend_style = style_fn!(|_| style! {
             padding = (0, 5);
         });
@@ -149,7 +149,7 @@ fn line_height() -> impl UiNode {
 fn line_spacing() -> impl UiNode {
     section(
         "line_spacing",
-        ui_vec![container! {
+        ui_vec![Container! {
             child = Text! {
                 txt = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
@@ -274,7 +274,7 @@ fn defaults() -> impl UiNode {
                 None => Txt::empty(),
             });
 
-        stack! {
+        Stack! {
             direction = StackDirection::left_to_right();
             children_align = Align::BASELINE_LEFT;
             children = ui_vec![
@@ -307,7 +307,7 @@ fn defaults() -> impl UiNode {
 }
 
 fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_vec![Text! {

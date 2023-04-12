@@ -28,7 +28,7 @@ fn app_main() {
                         colors::WHITE.with_alpha(80.pct()).mix_normal(hex!(#245E81))
                     );
                     // smooth_scrolling = false;
-                    child = stack!{
+                    child = Stack!{
                         direction = StackDirection::top_to_bottom();
                         children_align = Align::LEFT;
                         children = ui_vec![
@@ -58,7 +58,7 @@ fn commands() -> impl UiNode {
 
     let show = var(false);
 
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         align = Align::TOP;
         padding = 5;
@@ -67,7 +67,7 @@ fn commands() -> impl UiNode {
         alt_focus_scope = true;
 
         children = ui_vec![
-            stack! {
+            Stack! {
                 direction = StackDirection::top_to_bottom();
                 visibility = show.map_into();
                 spacing = 3;

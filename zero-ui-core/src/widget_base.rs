@@ -1246,7 +1246,7 @@ pub fn is_hit_testable(child: impl UiNode, state: impl IntoVar<bool>) -> impl Ui
 /// # macro_rules! container { ($($tt:tt)*) => { NilUiNode }}
 /// # use zero_ui_core::widget_instance::*;
 /// fn center_viewport(content: impl UiNode) -> impl UiNode {
-///     container! {
+///     Container! {
 ///         zero_ui::core::widget_base::can_auto_hide = false;
 ///
 ///         x = zero_ui::widgets::scroll::SCROLL_HORIZONTAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vw() * fct);

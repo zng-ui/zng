@@ -127,15 +127,15 @@ async fn listener_window(focused_wgt: bool) -> WindowCfg {
 
     Window! {
         zero_ui::core::widget_base::parallel = false;
-        child = stack! {
+        child = Stack! {
             direction = StackDirection::top_to_bottom();
             children = ui_vec![
-                container! {
+                Container! {
                     id = "test-widget";
                     size = (100, 100);
                     child = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
                 },
-                container! {
+                Container! {
                     id = "other-widget";
                     size = (100, 100);
                     focusable = focused_wgt;

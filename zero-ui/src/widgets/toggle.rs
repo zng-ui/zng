@@ -8,6 +8,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::core::gesture::CLICK_EVENT;
+
 use crate::prelude::new_widget::*;
 
 /// A toggle button that flips a `bool` or `Option<bool>` variable on click, or selects a value.
@@ -21,20 +23,17 @@ use crate::prelude::new_widget::*;
 /// [`value`]: fn@toggle::value
 /// [`selector`]: fn@toggle::selector
 #[widget($crate::widgets::Toggle)]
-pub struct Toggle(Button);
+pub struct Toggle(crate::widgets::Button);
 impl Toggle {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
-            self;
-            style_fn = STYLE_VAR;
-        }
+        self.style_fn(STYLE_VAR);
 
         self.builder().push_build_action(|wgt| {
-            if let Some(p) = wgt.property_mut(super::property_id!(checked_opt)) {
+            if let Some(p) = wgt.property_mut(property_id!(Self::checked_opt)) {
                 p.position.index = u16::MAX; // force property to be inside tristate.
             }
-            if let Some(p) = wgt.property_mut(super::property_id!(value::<()>)) {
+            if let Some(p) = wgt.property_mut(property_id!(Self::value)) {
                 p.position.index = u16::MAX; // force property to be inside select_on_init and others.
             }
         });
@@ -261,7 +260,7 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// # let _scope = App::minimal();
 /// let foo = var(1_i32);
 ///
-/// stack! {
+/// Stack! {
 ///     toggle::selector = toggle::Selector::single(foo.clone());
 ///
 ///     spacing = 5;
@@ -838,7 +837,7 @@ impl DefaultStyle {
 /// Style a [`Toggle!`] widget to look like a *checkbox*.
 ///
 /// [`Toggle!`]: struct@Toggle
-#[widget($crate::widgets::toggle::vis::CheckStyle)]
+#[widget($crate::widgets::toggle::CheckStyle)]
 pub struct CheckStyle(Style);
 impl CheckStyle {
     #[widget(on_start)]

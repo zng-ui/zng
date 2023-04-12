@@ -20,11 +20,11 @@ fn app_main() {
         Window! {
             title = "Transform Example";
             child_align = Align::CENTER;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::left_to_right();
                 spacing = 40;
                 children = ui_vec![
-                    stack! {
+                    Stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 25;
                         children_align = Align::TOP;
@@ -37,7 +37,7 @@ fn app_main() {
                             transformed("Identity", Transform::identity()),
                         ];
                     },
-                    stack! {
+                    Stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 40;
                         children = ui_vec![
@@ -52,8 +52,8 @@ fn app_main() {
 }
 
 fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
-    container! {
-        child = container! {
+    Container! {
+        child = Container! {
             transform;
             child = Text!(label.into());
             background_color = color_scheme_map(colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
@@ -63,8 +63,8 @@ fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
     }
 }
 fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into<Point>) -> impl UiNode {
-    container! {
-        child = container! {
+    Container! {
+        child = Container! {
             transform;
             transform_origin = origin.into();
             child = Text!(label.into());
@@ -78,16 +78,16 @@ fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into
 fn transform_stack() -> impl UiNode {
     // the panel widget uses its child transform to position the widget for performance reasons,
     // the widget transform does not affect.
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_vec![
-            container! {
+            Container! {
                 child = Text!("Identity");
                 background_color = colors::DARK_GRAY.with_alpha(80.pct());
                 padding = 10;
             },
-            container! {
+            Container! {
                 id = "in-stack";
                 transform = rotate(45.deg());
                 child = Text!("Rotated 45º");
@@ -98,7 +98,7 @@ fn transform_stack() -> impl UiNode {
                     z_index = ZIndex::DEFAULT + 1;
                 }
             },
-            container! {
+            Container! {
                 child = Text!("Identity");
                 background_color = colors::DARK_GRAY.with_alpha(80.pct());
                 padding = 10;

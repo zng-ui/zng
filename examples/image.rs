@@ -39,7 +39,7 @@ fn app_main() {
 
         img_window(
             "Image Example",
-            stack! {
+            Stack! {
                 direction = StackDirection::left_to_right();
                 spacing = 30;
                 children = ui_vec![
@@ -47,9 +47,9 @@ fn app_main() {
                         "Sources",
                         ui_vec![
                             sub_title("File"),
-                            grid! {
-                                columns = ui_vec![grid::column!(1.lft()); 4];
-                                auto_grow_fn = wgt_fn!(|_| grid::row!(1.lft()));
+                            Grid! {
+                                columns = ui_vec![grid::Column!(1.lft()); 4];
+                                auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
                                 spacing = 2;
                                 align = Align::CENTER;
                                 cells= ui_vec![
@@ -78,7 +78,7 @@ fn app_main() {
                             sub_title("Render"),
                             Image! {
                                 img_scale_ppi = true;
-                                source = ImageSource::render_node(RenderMode::Software, |_| container! {
+                                source = ImageSource::render_node(RenderMode::Software, |_| Container! {
                                     size = (180, 120);
                                     background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
                                     font_size = 24;
@@ -122,7 +122,7 @@ fn app_main() {
                         ]
                     ),
 
-                    stack! {
+                    Stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 30;
                         children = ui_vec![
@@ -160,7 +160,7 @@ fn app_main() {
 fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
     let fit = fit.into_var();
 
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         children_align = Align::TOP_LEFT;
         spacing = 5;
@@ -183,7 +183,7 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
 fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl UiNode {
     let filter = filter.into_var();
 
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         children_align = Align::TOP_LEFT;
         spacing = 2;
@@ -210,7 +210,7 @@ fn sprite() -> impl UiNode {
     let timer = TIMERS.interval((1.0 / 24.0).secs(), true);
     let label = var_from("play");
 
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         align = Align::CENTER;
         children = ui_vec![
@@ -267,7 +267,7 @@ fn large_image() -> impl UiNode {
 
                         img_loading_fn = wgt_fn!(|_| {
                             // thumbnail
-                            stack! {
+                            Stack! {
                                 children = ui_vec![
                                     Image! {
                                         source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
@@ -356,7 +356,7 @@ fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {
 }
 
 fn center_viewport(msg: impl UiNode) -> impl UiNode {
-    container! {
+    Container! {
         // center the message on the scroll viewport:
         //
         // the large images can take a moment to decode in debug builds, but the size
@@ -456,14 +456,14 @@ fn img_window(title: impl IntoVar<Txt>, child: impl UiNode) -> WindowCfg {
 }
 
 fn section(title: impl IntoVar<Txt>, children: impl UiNodeList) -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         children_align = Align::TOP_LEFT;
 
         children = ui_vec![
             self::title(title),
-            stack! {
+            Stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children_align = Align::TOP_LEFT;

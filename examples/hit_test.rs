@@ -10,7 +10,7 @@ fn main() {
             title = "Hit-Test Example";
 
             child_align = Align::CENTER;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::left_to_right();
                 spacing = 14;
                 children = ui_vec![
@@ -24,7 +24,7 @@ fn main() {
 }
 
 fn example(mode: HitTestMode) -> impl UiNode {
-    container! {
+    Container! {
         hit_test_mode = mode;
 
         on_click = hn!(mode, |_| {

@@ -43,11 +43,11 @@ async fn main_window() -> WindowCfg {
         });
         on_close_requested = confirm_close();
         child_align = Align::CENTER;
-        child = stack! {
+        child = Stack! {
             direction = StackDirection::left_to_right();
             spacing = 40;
             children = ui_vec![
-                stack! {
+                Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
@@ -55,7 +55,7 @@ async fn main_window() -> WindowCfg {
                         focus_control(),
                     ]
                 },
-                stack! {
+                Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
@@ -64,7 +64,7 @@ async fn main_window() -> WindowCfg {
                         chrome(),
                     ];
                 },
-                stack! {
+                Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
@@ -72,7 +72,7 @@ async fn main_window() -> WindowCfg {
                         background_color(background),
                     ];
                 },
-                stack! {
+                Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
@@ -90,7 +90,7 @@ fn background_color(color: impl Var<Rgba>) -> impl UiNode {
         toggle! {
             value::<Rgba> = c.clone();
             select_on_init;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::left_to_right();
                 spacing = 4;
                 children_align = Align::LEFT;
@@ -476,14 +476,14 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
 fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNode {
     let opacity = var(0.fct());
     opacity.ease(1.fct(), 300.ms(), easing::linear).perm();
-    container! {
+    Container! {
         opacity = opacity.clone();
 
         id = "close-dialog";
         modal = true;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
-        child = container! {
+        child = Container! {
             background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
@@ -498,7 +498,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                 }
             });
 
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
                 children = ui_vec![
@@ -509,7 +509,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                         };
                         margin = 15;
                     },
-                    stack! {
+                    Stack! {
                         direction = StackDirection::left_to_right();
                         spacing = 4;
                         children = ui_vec![
@@ -551,7 +551,7 @@ fn cmd_btn(cmd: Command) -> impl UiNode {
 }
 
 fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_vec![Text! {
@@ -563,7 +563,7 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
 }
 
 fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>, items: impl UiNodeList) -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         toggle::selector = toggle::Selector::single(selection);

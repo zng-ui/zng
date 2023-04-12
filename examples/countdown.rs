@@ -45,7 +45,7 @@ fn app_main() {
                 r
             }));
 
-            icon = WindowIcon::render(move || container! {
+            icon = WindowIcon::render(move || Container! {
                 zero_ui::core::image::render_retain = true;
 
                 size = (36, 36);

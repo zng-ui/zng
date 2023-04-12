@@ -546,7 +546,7 @@ impl ImageSource {
     /// # let _ =
     /// ImageSource::render_node(
     ///     RenderMode::Software,
-    ///     |_args| container! {
+    ///     |_args| Container! {
     ///         size = (500, 400);
     ///         background_color = colors::GREEN;
     ///         child = Text!("Rendered!");

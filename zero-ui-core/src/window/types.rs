@@ -473,7 +473,7 @@ impl WindowIcon {
     /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
     /// # let _ =
     /// WindowIcon::render(
-    ///     || container! {
+    ///     || Container! {
     ///         size = (36, 36);
     ///         background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
     ///         corner_radius = 6;

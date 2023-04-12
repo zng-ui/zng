@@ -55,7 +55,7 @@ fn headless_example() {
 
 // A 800x600 "Hello World!" with a fancy background.
 fn image() -> impl UiNode {
-    container! {
+    Container! {
         size = (800, 600);
 
         background = stack_nodes({

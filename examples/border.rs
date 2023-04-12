@@ -26,7 +26,7 @@ fn app_main() {
 
             color_scheme = ColorScheme::Dark;
 
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 align = Align::CENTER;
                 spacing = 20;
@@ -66,7 +66,7 @@ fn app_main() {
 
 fn clip_to_bounds_demo() -> impl UiNode {
     let clip = var(true);
-    container! {
+    Container! {
         child_align = Align::FILL;
         corner_radius = 10;
         border = 0.5, colors::RED.darken(20.pct());

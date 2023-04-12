@@ -44,7 +44,7 @@ fn app_main() {
                     txt_color = colors::RED;
                 }
             };
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 align = Align::CENTER;
                 spacing = 5;

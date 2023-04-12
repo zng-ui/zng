@@ -67,7 +67,7 @@ fn app_main() {
             start_position = StartPosition::CenterMonitor;
 
             child_align = Align::CENTER;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children = ui_vec![
                     Text!{

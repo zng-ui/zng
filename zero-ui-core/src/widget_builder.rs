@@ -27,7 +27,7 @@ macro_rules! source_location {
         $crate::widget_builder::SourceLocation {
             file: std::file!(),
             line: std::line!(),
-            column: std::column!(),
+            column: std::Column!(),
         }
     };
 }
@@ -43,7 +43,7 @@ pub struct SourceLocation {
     pub file: &'static str,
     /// [`line!`]
     pub line: u32,
-    /// [`column!`]
+    /// [`Column!`]
     pub column: u32,
 }
 impl fmt::Display for SourceLocation {

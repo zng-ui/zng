@@ -19,7 +19,7 @@ fn main() {
             });
             foreground = window_status();
             child_align = Align::CENTER;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children_align = Align::TOP;
@@ -76,7 +76,7 @@ fn click_counter() -> impl UiNode {
 }
 
 fn image() -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 3;
         children = ui_vec![
@@ -95,7 +95,7 @@ fn window_status() -> impl UiNode {
         };
     }
 
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         margin = 10;
@@ -113,7 +113,7 @@ fn window_status() -> impl UiNode {
 }
 
 fn icon() -> impl UiNode {
-    container! {
+    Container! {
         size = (36, 36);
         background_gradient = Line::to_bottom_right(), stops![colors::ORANGE_RED, 70.pct(), colors::DARK_RED];
         corner_radius = 6;

@@ -62,7 +62,7 @@ pub fn state_var() -> ArcVar<bool> {
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// let probe = getter_var::<usize>();
 /// # let _ =
-/// row! {
+/// Row! {
 ///     background_color = probe.map(|&i| {
 ///         let g = (i % 255) as u8;
 ///         rgb(g, g, g)

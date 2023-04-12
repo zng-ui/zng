@@ -301,7 +301,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                     focus_on_init = true;
 
                     child = Text!(url);
-                    underline_skip = UnderlineSkip::SPACES;
+                    text::underline_skip = UnderlineSkip::SPACES;
 
                     on_blur = async_hn_once!(status, |_| {
                         if status.get() != Status::Pending {

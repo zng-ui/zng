@@ -80,7 +80,7 @@ pub fn children_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl Ui
 /// Wrap node.
 ///
 /// Can be used directly to inline widgets without declaring a wrap widget info.  This node is the child
-/// of the `wrap!` widget.
+/// of the `Wrap!` widget.
 pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> impl UiNode {
     WrapNode {
         children: PanelList::new(children),
@@ -876,11 +876,11 @@ impl InlineLayout {
 
             if (sum_width - width) > Px(1) {
                 if metrics.inline_constraints().is_some() && (i == 0 || i == self.rows.len() - 1) {
-                    tracing::error!("wrap! panel row {i} inline width is {width}, but sum of segs is {sum_width}");
+                    tracing::error!("Wrap! panel row {i} inline width is {width}, but sum of segs is {sum_width}");
                     continue;
                 }
 
-                tracing::error!("wrap! panel row {i} computed width {width}, but sum of segs is {sum_width}");
+                tracing::error!("Wrap! panel row {i} computed width {width}, but sum of segs is {sum_width}");
             }
         }
     }

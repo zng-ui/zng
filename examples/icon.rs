@@ -45,14 +45,14 @@ fn icons() -> impl UiNode {
     }
     fn show_font(icons: Vec<MaterialIcon>) -> impl UiNode {
         let _scope = tracing::error_span!("show_font").entered();
-        wrap! {
+        Wrap! {
             spacing = 5;
             icon::vis::ico_size = 48;
             children = {
                 let mut r = vec![];
                 icons
                 .par_chunks(100)
-                .map(|c| wrap! { // segment into multiple inlined lazy inited `wrap!` for better performance.
+                .map(|c| Wrap! { // segment into multiple inlined lazy inited `Wrap!` for better performance.
                     spacing = 5;
                     lazy = {
                         let len = c.len();
@@ -73,13 +73,13 @@ fn icons() -> impl UiNode {
             },
         }
     }
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         padding = (20, 5, 5, 5);
         spacing = 20;
         children_align = Align::TOP;
         children = ui_vec![
-            stack! {
+            Stack! {
                 direction = StackDirection::left_to_right();
                 toggle::selector = toggle::Selector::single(selected_font.clone());
                 spacing = 5;
@@ -110,7 +110,7 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
     Button! {
         padding = 2;
         size = (80, 80);
-        child = stack! {
+        child = Stack! {
             direction = StackDirection::top_to_bottom();
             spacing = 2;
             children_align = Align::CENTER;
@@ -134,7 +134,7 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
 fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
     let opacity = var(0.fct());
     opacity.ease(1.fct(), 200.ms(), easing::linear).perm();
-    container! {
+    Container! {
         opacity = opacity.clone();
 
         id = "expanded-icon";
@@ -147,15 +147,15 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                 args.propagation().stop();
             }
         });
-        child = container! {
+        child = Container! {
             id = "panel";
             background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             drop_shadow = (0, 0), 4, colors::BLACK;
-            child = stack!(children = ui_vec![
-                stack! {
+            child = Stack!(children = ui_vec![
+                Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 5;
                     padding = 10;
@@ -168,12 +168,12 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                             font_size = 18;
                         },
                         sub_title("Using `icon!`:"),
-                        stack! {
+                        Stack! {
                             direction = StackDirection::left_to_right();
                             spacing = 5;
                             children_align = Align::TOP_LEFT;
                             children = [64, 48, 32, 24, 16].into_iter().map(clmv!(ico, |size| {
-                                stack! {
+                                Stack! {
                                     direction = StackDirection::top_to_bottom();
                                     spacing = 3;
                                     children = ui_vec![
@@ -195,12 +195,12 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                         },
 
                         sub_title("Using `Text!`:"),
-                        stack! {
+                        Stack! {
                             direction = StackDirection::left_to_right();
                             spacing = 5;
                             children_align = Align::TOP_LEFT;
                             children = [64, 48, 32, 24, 16].into_iter().map(clmv!(ico, |size| {
-                                stack! {
+                                Stack! {
                                     direction = StackDirection::top_to_bottom();
                                     spacing = 3;
                                     children = ui_vec![

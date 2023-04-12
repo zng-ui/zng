@@ -29,7 +29,7 @@ use zero_ui::prelude::new_property::*;
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// container! {
+/// Container! {
 ///     child = Button! {
 ///         margin = (10, 5.pct());
 ///         child = Text!("Click Me!")
@@ -93,7 +93,7 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 /// #
-/// container! {
+/// Container! {
 ///     child = Button! {
 ///         align = Align::TOP;
 ///         child = Text!("Click Me!")
@@ -1446,7 +1446,7 @@ pub fn child_insert_end(child: impl UiNode, insert: impl UiNode, spacing: impl I
 pub enum WidgetLength {
     /// Evaluates to [`PxConstraints2d::fill_size`] when measured, can serve as a request for *size-to-fit*.
     ///
-    /// The `grid!` widget uses this to fit the column and row widgets to *their* cells, as they don't
+    /// The `Grid!` widget uses this to fit the column and row widgets to *their* cells, as they don't
     /// logically own the cells, this fit needs to be computed by the parent panel.
     #[default]
     Default,

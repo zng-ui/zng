@@ -27,7 +27,7 @@ fn app_main() {
             resizable = false;
             auto_size = true;
             padding = 5;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children = ui_vec![
@@ -55,10 +55,10 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
     let b_back = btn_backspace(calc.clone());
     let b_equal = btn_eval(calc.clone());
 
-    grid! {
+    Grid! {
         spacing = 2;
-        columns = ui_vec![grid::column!(1.lft()); 4];
-        auto_grow_fn = wgt_fn!(|_| grid::row!(1.lft()));
+        columns = ui_vec![grid::Column!(1.lft()); 4];
+        auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
         font_size = 14.pt();
         cells = ui_vec![
             b_squre,  b_sroot,  b_clear,  b_back,

@@ -102,7 +102,7 @@ pub fn children_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl Ui
 /// Stack node.
 ///
 /// Can be used directly to stack widgets without declaring a stack widget info. This node is the child
-/// of the `stack!` widget.
+/// of the `Stack!` widget.
 pub fn node(
     children: impl UiNodeList,
     direction: impl IntoVar<StackDirection>,
@@ -477,9 +477,9 @@ fn spacing_from_direction(direction_vector: euclid::Vector2D<i8, ()>, spacing: L
 /// ]);
 /// ```
 ///
-/// # `stack!`
+/// # `Stack!`
 ///
-/// This function is just a shortcut for [`stack!`](mod@stack) with [`StackDirection::left_to_right`].
+/// This function is just a shortcut for [`Stack!`](mod@stack) with [`StackDirection::left_to_right`].
 pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
@@ -500,9 +500,9 @@ pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
 /// ]);
 /// ```
 ///
-/// # `stack!`
+/// # `Stack!`
 ///
-/// This function is just a shortcut for [`stack!`](mod@stack) with [`StackDirection::top_to_bottom`].
+/// This function is just a shortcut for [`Stack!`](mod@stack) with [`StackDirection::top_to_bottom`].
 pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
@@ -523,9 +523,9 @@ pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
 /// ]);
 /// ```
 ///
-/// # `stack!`
+/// # `Stack!`
 ///
-/// This function is just a shortcut for [`stack!`](mod@stack) with [`StackDirection::none`].
+/// This function is just a shortcut for [`Stack!`](mod@stack) with [`StackDirection::none`].
 pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
     Stack! {
         children;
@@ -538,9 +538,9 @@ pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
 ///
 /// This is the most simple *z-stack* implementation possible, it is a building block useful for quickly declaring
 /// overlaying effects composed of multiple nodes, it does not do any alignment layout or z-sorting render,
-/// for a complete stack panel widget see [`stack!`].
+/// for a complete stack panel widget see [`Stack!`].
 ///
-/// [`stack!`]: mod@stack
+/// [`Stack!`]: mod@stack
 pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
     #[ui_node(struct StackNodesNode {
         children: impl UiNodeList,

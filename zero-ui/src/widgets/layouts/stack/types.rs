@@ -17,15 +17,15 @@ use std::{fmt, mem, ops};
 /// The direction type can express non-fill alignment and spacing by it self, but prefer using the [`stack::children_align`] and
 /// [`stack::spacing`] properties as they are more readable and include fill alignment.
 ///
-/// The [`stack!`] widget implements alignment along the axis that does not change, so if the computed layout vector
+/// The [`Stack!`] widget implements alignment along the axis that does not change, so if the computed layout vector
 /// is zero in a dimension the items can fill in that dimension.
 ///
-/// The [`stack!`] widget adds the spacing along non-zero axis for each item offset after the first, so the spacing is not
+/// The [`Stack!`] widget adds the spacing along non-zero axis for each item offset after the first, so the spacing is not
 /// added for a perfect straight column or row, but it is added even for a single pixel shift *diagonal* stack.
 ///
 /// [`stack::children_align`]: fn@crate::widgets::layouts::stack::children_align
 /// [`stack::spacing`]: fn@crate::widgets::layouts::stack::spacing
-/// [`stack!`]: mod@crate::widgets::layouts::stack
+/// [`Stack!`]: mod@crate::widgets::layouts::stack
 #[derive(Default, Clone)]
 pub struct StackDirection {
     /// Point on the previous item where the next item is placed.

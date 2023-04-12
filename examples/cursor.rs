@@ -25,9 +25,9 @@ fn app_main() {
             auto_size = true;
             padding = 20;
             child = v_stack(ui_vec![
-                grid! {
-                    columns = ui_vec![grid::column!(1.lft()); 5];
-                    auto_grow_fn = wgt_fn!(|_| grid::row!(1.lft()));
+                Grid! {
+                    columns = ui_vec![grid::Column!(1.lft()); 5];
+                    auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
                     cells = demos;
                 },
                 cursor_demo(None),
@@ -37,7 +37,7 @@ fn app_main() {
 }
 
 fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
-    container! {
+    Container! {
         cursor = icon.map(|i| i.0);
 
         size = (150, 80);

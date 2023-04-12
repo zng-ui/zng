@@ -177,9 +177,9 @@ mod ansi_parse {
 
     /// Iterator that parses ANSI escape codes.
     ///
-    /// This is the pull style parser used internally by the [`ansi_text!`] widget.
+    /// This is the pull style parser used internally by the [`AnsiText!`] widget.
     ///
-    /// [`ansi_text!`]: mod@crate::widgets::ansi_text
+    /// [`AnsiText!`]: mod@crate::widgets::ansi_text
     pub struct AnsiTextParser<'a> {
         source: &'a str,
         /// Current style.
@@ -392,9 +392,9 @@ mod ansi_fn {
 
         /// Widget function for [`PanelFnArgs`].
         ///
-        /// The returned view is the [`ansi_text!`] child. The default is [`default_panel_fn`].
+        /// The returned view is the [`AnsiText!`] child. The default is [`default_panel_fn`].
         ///
-        /// [`ansi_text!`]: mod@super::ansi_text
+        /// [`AnsiText!`]: mod@super::ansi_text
         pub static PANEL_GEN_VAR: WidgetFn<PanelFnArgs> = wgt_fn!(|args: PanelFnArgs| {
             default_panel_fn(args)
         });
@@ -497,7 +497,7 @@ mod ansi_fn {
 
     /// Default [`LINE_GEN_VAR`].
     ///
-    /// Returns a `wrap!` for text with multiple segments, or returns the single segment, or an empty text.
+    /// Returns a `Wrap!` for text with multiple segments, or returns the single segment, or an empty text.
     pub fn default_line_fn(mut args: LineFnArgs) -> impl UiNode {
         use crate::prelude::*;
 

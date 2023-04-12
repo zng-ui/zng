@@ -45,7 +45,7 @@ pub fn cells(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
 
 /// Column definitions.
 ///
-/// You can define columns with any widget, but the [`column!`] widget is recommended. The column widget width defines
+/// You can define columns with any widget, but the [`Column!`] widget is recommended. The column widget width defines
 /// the width of the cells assigned to it, the [`column::width`] property can be used to enforce a width, otherwise the
 /// column is sized by the widest cell.
 ///
@@ -69,7 +69,7 @@ pub fn cells(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
 /// Properties like `padding` and `align` only affect the column visual, not the cells, similarly contextual properties like `text_color`
 /// don't affect the cells.
 ///
-/// [`column!`]: mod@column
+/// [`Column!`]: mod@column
 /// [`column::width`]: fn@column::width
 /// [`lft`]: LengthUnits::lft
 #[property(CHILD, capture, impl(Grid))]
@@ -107,7 +107,7 @@ pub fn spacing(child: impl UiNode, spacing: impl IntoVar<GridSpacing>) -> impl U
 /// Grid node.
 ///
 /// Can be used directly to layout widgets without declaring a grid widget info. This node is the child
-/// of the `grid!` widget.
+/// of the `Grid!` widget.
 pub fn node(
     cells: impl UiNodeList,
     columns: impl UiNodeList,
@@ -147,7 +147,7 @@ pub mod column {
     ///
     /// # Shorthand
     ///
-    /// The `column!` macro provides a shorthand init that sets the width, `grid::column!(1.lft())` instantiates
+    /// The `Column!` macro provides a shorthand init that sets the width, `grid::Column!(1.lft())` instantiates
     /// a column with width of *1 leftover*.
     ///
     /// [`grid::columns`]: fn@grid::columns
@@ -233,7 +233,7 @@ pub mod column {
     /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::colors};
     /// # let _scope = zero_ui::core::app::App::minimal();
     /// # let _ =
-    /// grid::column! {
+    /// grid::Column! {
     ///     background_color = colors::GRAY;    
     ///
     ///     when *#get_index % 3 == 0 {
@@ -332,7 +332,7 @@ pub mod row {
     ///
     /// # Shorthand
     ///
-    /// The `row!` macro provides a shorthand init that sets the height, `grid::row!(1.lft())` instantiates
+    /// The `Row!` macro provides a shorthand init that sets the height, `grid::Row!(1.lft())` instantiates
     /// a row with height of *1 leftover*.
     ///
     /// [`grid::rows`]: fn@grid::rows
@@ -418,7 +418,7 @@ pub mod row {
     /// # use zero_ui::{widgets::layouts::grid, properties::background_color, core::color::colors};
     /// # let _scope = zero_ui::core::app::App::minimal();
     /// # let _ =
-    /// grid::row! {
+    /// grid::Row! {
     ///     background_color = colors::GRAY;    
     ///
     ///     when *#get_index % 3 == 0 {
@@ -510,7 +510,7 @@ pub mod cell {
 
     /// Grid cell container.
     ///
-    /// This widget defines properties that position and size widgets in a [`grid!`].
+    /// This widget defines properties that position and size widgets in a [`Grid!`].
     ///
     /// See the [`grid::cells`] property for more details.
     ///

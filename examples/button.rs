@@ -19,12 +19,12 @@ fn app_main() {
     App::default().run_window(async {
         Window! {
             title = "Button Example";
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::left_to_right();
                 spacing = 20;
                 align = Align::CENTER;
                 children = ui_vec![
-                    stack! {
+                    Stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 5;
                         sticky_width = true;
@@ -77,7 +77,7 @@ fn image_button() -> impl UiNode {
         id = "img-btn";
         tooltip = tip!(Text!("image button"));
         on_click = hn!(|_| println!("Clicked image button"));
-        child = stack! {
+        child = Stack! {
             direction = StackDirection::left_to_right();
             children_align = Align::CENTER;
             children = ui_vec![
@@ -106,7 +106,7 @@ fn dyn_buttons() -> impl UiNode {
     let children_ref = dyn_children.reference();
     let mut btn = 'A';
 
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = dyn_children.chain(ui_vec![
@@ -140,7 +140,7 @@ fn separator() -> impl UiNode {
 }
 
 fn toggle_buttons() -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_vec![
@@ -173,7 +173,7 @@ fn toggle_buttons() -> impl UiNode {
                 tristate = true;
                 style_fn = style_fn!(|_| toggle::vis::check_style!());
             },
-            stack! {
+            Stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 toggle::selector = toggle::Selector::single(var("Paris"));

@@ -45,7 +45,7 @@ fn app_main() {
             });
 
             child_align = Align::CENTER;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children = ui_vec![
@@ -69,12 +69,12 @@ fn overlay_example() -> impl UiNode {
 }
 fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
     let id = id.into();
-    container! {
+    Container! {
         id;
         modal = true;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
-        child = container! {
+        child = Container! {
             offset = (offset, offset);
             focus_scope = true;
             tab_nav = TabNav::Cycle;
@@ -87,7 +87,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                 corner_radius = unset!;
             });
             padding = 2;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
                 children = ui_vec![
@@ -95,7 +95,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                         txt = "Overlay inserted in the TOP_MOST layer.";
                         margin = 15;
                     },
-                    stack! {
+                    Stack! {
                         direction = StackDirection::left_to_right();
                         spacing = 2;
                         children = ui_vec![
@@ -122,7 +122,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
 
 fn layer_index_example() -> impl UiNode {
     // demonstrates that the z-order is not affected by the order of insertion.
-    stack! {
+    Stack! {
         direction = StackDirection::left_to_right();
         spacing = 5;
         children = ui_vec![
@@ -138,7 +138,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
         child = Text!(label.clone());
         on_click = async_hn!(label, |_| {
             let id = WidgetId::new_unique();
-            LAYERS.insert(n, container! {
+            LAYERS.insert(n, Container! {
                 id;
                 child = Text! {
                     txt = label.clone();
@@ -231,7 +231,7 @@ fn transform_anchor_example() -> impl UiNode {
 
         on_click = hn!(|_| {
             if insert {
-                LAYERS.insert_anchored(LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), container! {
+                LAYERS.insert_anchored(LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), Container! {
                     id = "t-anchored";
                     child_align = Align::TOP_LEFT;
                     border = 1, colors::GREEN.lighten(30.pct());
