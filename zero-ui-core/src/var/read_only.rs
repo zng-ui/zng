@@ -101,7 +101,7 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self.1.var_ptr()
     }
 
-    fn get_debug(&self) -> crate::text::Text {
+    fn get_debug(&self) -> crate::text::Txt {
         self.with(var_debug)
     }
 
@@ -109,7 +109,7 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         Var::modify(self, var_touch)
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>> {
         Var::map(self, var_debug)
     }
 }

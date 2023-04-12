@@ -252,7 +252,7 @@ fn delayed_focus() -> impl UiNode {
         ]
     }
 }
-fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut() + Send + 'static) -> impl UiNode {
+fn delayed_btn(content: impl Into<Txt>, on_timeout: impl FnMut() + Send + 'static) -> impl UiNode {
     use std::sync::Arc;
     use zero_ui::core::task::parking_lot::Mutex;
 
@@ -271,11 +271,11 @@ fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut() + Send + 'stat
     }
 }
 
-fn title(txt: impl IntoVar<Text>) -> impl UiNode {
+fn title(txt: impl IntoVar<Txt>) -> impl UiNode {
     text! { txt; font_weight = FontWeight::BOLD; align = Align::CENTER; }
 }
 
-fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl UiNode {
+fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> impl UiNode {
     let content = content.into();
     let tab_index = tab_index.into();
     button! {

@@ -245,20 +245,20 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
     }
 }
 
-fn title(title: Text) -> impl UiNode {
+fn title(title: Txt) -> impl UiNode {
     text! {
         txt = title;
         font_size = 24;
         txt_align = Align::CENTER;
     }
 }
-fn sub_title(title: impl Into<Text>) -> impl UiNode {
+fn sub_title(title: impl Into<Txt>) -> impl UiNode {
     text! {
         txt = title.into();
         font_size = 16;
     }
 }
-fn size_label(size: Text) -> impl UiNode {
+fn size_label(size: Txt) -> impl UiNode {
     text! {
         txt = size;
         font_size = 10;

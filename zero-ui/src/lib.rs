@@ -135,7 +135,7 @@ pub mod prelude {
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
                 NumVariant,
             },
-            formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Hyphens, Justify, LineBreak, Text,
+            formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Hyphens, Justify, LineBreak, Txt,
             TextTransformFn, ToText, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak, FONTS,
         },
         timer::TIMERS,
@@ -244,7 +244,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::task::{self, rayon::prelude::*, ui::UiTask};
         #[doc(no_inline)]
-        pub use crate::core::text::Text;
+        pub use crate::core::text::Txt;
         #[doc(no_inline)]
         pub use crate::core::units::{self, *};
         #[doc(no_inline)]

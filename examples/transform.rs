@@ -51,7 +51,7 @@ fn app_main() {
     })
 }
 
-fn transformed(label: impl Into<Text>, transform: Transform) -> impl UiNode {
+fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
     container! {
         child = container! {
             transform;
@@ -62,7 +62,7 @@ fn transformed(label: impl Into<Text>, transform: Transform) -> impl UiNode {
         border = 2, (colors::GRAY, BorderStyle::Dashed);
     }
 }
-fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Into<Point>) -> impl UiNode {
+fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into<Point>) -> impl UiNode {
     container! {
         child = container! {
             transform;

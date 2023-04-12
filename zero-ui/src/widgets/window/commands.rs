@@ -21,14 +21,14 @@ pub(super) fn inspect_node(
     use crate::core::{
         handler::{async_clmv, hn},
         inspector::prompt::WriteTreeState,
-        text::Text,
+        text::Txt,
         var::var,
         window::{WindowId, WINDOWS},
     };
 
     let mut inspector_state = WriteTreeState::new();
     let inspector = WindowId::new_unique();
-    let inspector_text = var(Text::empty());
+    let inspector_text = var(Txt::empty());
 
     let can_inspect = can_inspect.into_var();
 
@@ -64,7 +64,7 @@ mod inspector_window {
     use crate::core::{inspector::*, window::*};
     use crate::prelude::new_widget::*;
 
-    pub fn new(inspected: WindowId, inspector_text: ArcVar<Text>) -> WindowCfg {
+    pub fn new(inspected: WindowId, inspector_text: ArcVar<Txt>) -> WindowCfg {
         use crate::widgets::*;
 
         let parent = WINDOWS.vars(inspected).unwrap().parent().get().unwrap_or(inspected);

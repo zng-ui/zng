@@ -50,13 +50,13 @@ impl Markdown {
 
 /// Markdown text.
 #[property(CONTEXT, capture, impl(Markdown))]
-pub fn md(child: impl UiNode, md: impl IntoVar<Text>) -> impl UiNode {}
+pub fn md(child: impl UiNode, md: impl IntoVar<Txt>) -> impl UiNode {}
 
 /// Implements the markdown parsing and view generation, configured by contextual properties.
-pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {
+pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
     #[ui_node(struct MarkdownNode {
         child: BoxedUiNode,
-        #[var] md: impl Var<Text>,
+        #[var] md: impl Var<Txt>,
     })]
     impl MarkdownNode {
         #[UiNode]
@@ -264,7 +264,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         }
                         blocks.push(code_block_view(CodeBlockFnArgs {
                             lang: match kind {
-                                CodeBlockKind::Indented => Text::empty(),
+                                CodeBlockKind::Indented => Txt::empty(),
                                 CodeBlockKind::Fenced(l) => l.to_text(),
                             },
                             txt: txt.into(),

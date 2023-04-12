@@ -253,7 +253,7 @@ impl_from_and_into_var! {
 pub struct MonitorInfo {
     id: MonitorId,
     is_primary: ArcVar<bool>,
-    name: ArcVar<Text>,
+    name: ArcVar<Txt>,
     position: ArcVar<PxPoint>,
     size: ArcVar<PxSize>,
     video_modes: ArcVar<Vec<VideoMode>>,
@@ -308,7 +308,7 @@ impl MonitorInfo {
     }
 
     /// Name of the monitor.
-    pub fn name(&self) -> ReadOnlyArcVar<Text> {
+    pub fn name(&self) -> ReadOnlyArcVar<Txt> {
         self.name.read_only()
     }
     /// Top-left offset of the monitor region in the virtual screen, in pixels.

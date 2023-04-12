@@ -142,7 +142,7 @@ fn separator() -> impl UiNode {
     }
 }
 
-fn ipsum() -> Text {
+fn ipsum() -> Txt {
     let mut s = String::new();
     for _ in 0..10 {
         for _ in 0..10 {

@@ -24,7 +24,7 @@ use crate::{
     crate_util::IdMap,
     event::EventUpdate,
     task::{self, fs, io::*, ui::UiTask},
-    text::Text,
+    text::Txt,
     units::*,
     var::{types::WeakArcVar, *},
 };
@@ -320,7 +320,7 @@ struct ImagesService {
     limits: ArcVar<ImageLimits>,
 
     view: Option<ViewProcess>,
-    download_accept: Text,
+    download_accept: Txt,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
 
     loading: Vec<ImageLoadingTask>,
@@ -339,7 +339,7 @@ impl ImagesService {
             proxies: vec![],
             loading: vec![],
             decoding: vec![],
-            download_accept: Text::empty(),
+            download_accept: Txt::empty(),
             cache: IdMap::new(),
             not_cached: vec![],
             render: render::ImagesRender::default(),
@@ -623,7 +623,7 @@ impl ImagesService {
     }
 
     #[cfg(http)]
-    fn download_accept(&mut self) -> Text {
+    fn download_accept(&mut self) -> Txt {
         if self.download_accept.is_empty() {
             if let Some(view) = &self.view {
                 let mut r = String::new();
@@ -758,7 +758,7 @@ impl IMAGES {
     /// Optionally define the HTTP ACCEPT header, if not set all image formats supported by the view-process
     /// backend are accepted.
     #[cfg(http)]
-    pub fn download(&self, uri: impl task::http::TryUri, accept: Option<Text>) -> ImageVar {
+    pub fn download(&self, uri: impl task::http::TryUri, accept: Option<Txt>) -> ImageVar {
         match uri.try_uri() {
             Ok(uri) => self.cache(ImageSource::Download(uri, accept)),
             Err(e) => self.dummy(Some(e.to_string())),

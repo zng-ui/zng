@@ -423,32 +423,32 @@ mod context {
     use crate::{app::*, context::*, text::*, var::*, widget_instance::*, *};
 
     context_var! {
-        static TEST_VAR: Text = "";
+        static TEST_VAR: Txt = "";
     }
 
     app_local! {
-        static PROBE_ID: Text = const { Text::empty() };
+        static PROBE_ID: Txt = const { Txt::empty() };
     }
 
     #[property(CONTEXT, default(TEST_VAR))]
-    fn test_prop(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
+    fn test_prop(child: impl UiNode, value: impl IntoVar<Txt>) -> impl UiNode {
         with_context_var(child, TEST_VAR, value)
     }
 
     #[property(CONTEXT, default(TEST_VAR))]
-    fn test_prop_a(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
+    fn test_prop_a(child: impl UiNode, value: impl IntoVar<Txt>) -> impl UiNode {
         test_prop(child, value)
     }
     #[property(CONTEXT, default(TEST_VAR))]
-    fn test_prop_b(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
+    fn test_prop_b(child: impl UiNode, value: impl IntoVar<Txt>) -> impl UiNode {
         test_prop(child, value)
     }
 
     #[property(CONTEXT)]
-    fn probe(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
+    fn probe(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
         #[ui_node(struct ProbeNode {
             child: impl UiNode,
-            var: impl Var<Text>,
+            var: impl Var<Txt>,
         })]
         impl UiNode for ProbeNode {
             fn init(&mut self) {
@@ -462,11 +462,11 @@ mod context {
         }
     }
     #[property(CONTEXT)]
-    fn probe_a(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
+    fn probe_a(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
         probe(child, var)
     }
     #[property(CONTEXT)]
-    fn probe_b(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
+    fn probe_b(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
         probe(child, var)
     }
 
@@ -527,7 +527,7 @@ mod context {
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("test!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("test!"));
     }
 
     #[test]
@@ -543,7 +543,7 @@ mod context {
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("map test!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("map test!"));
     }
 
     #[test]
@@ -570,7 +570,7 @@ mod context {
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("map B!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("map B!"));
     }
 
     #[test]
@@ -601,7 +601,7 @@ mod context {
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("map C!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("map C!"));
     }
 
     #[test]
@@ -626,7 +626,7 @@ mod context {
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("map B!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("map B!"));
     }
 
     #[test]
@@ -657,14 +657,14 @@ mod context {
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("map B!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("map B!"));
     }
 
     #[test]
     fn context_var_set() {
         let mut app = test_app(App::default(), NilUiNode);
 
-        let backing_var = var(Text::from(""));
+        let backing_var = var(Txt::from(""));
 
         TEST_VAR.with_context_var(ContextInitHandle::new(), backing_var.clone(), || {
             let t = TEST_VAR;

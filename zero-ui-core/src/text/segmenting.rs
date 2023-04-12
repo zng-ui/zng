@@ -2,7 +2,7 @@ use std::ops;
 
 use crate::{context::LayoutDirection, crate_util::FxHashMap};
 
-use super::Text;
+use super::Txt;
 use unicode_bidi::BidiInfo;
 use xi_unicode::LineBreakIterator;
 
@@ -168,16 +168,16 @@ impl TextSegment {
 /// an offset from the last segment.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SegmentedText {
-    text: Text,
+    text: Txt,
     segments: Vec<TextSegment>,
     base_direction: LayoutDirection,
 }
 impl SegmentedText {
     /// New segmented text from any text type.
-    pub fn new(text: impl Into<Text>, base_direction: LayoutDirection) -> Self {
+    pub fn new(text: impl Into<Txt>, base_direction: LayoutDirection) -> Self {
         Self::new_text(text.into(), base_direction)
     }
-    fn new_text(text: Text, base_direction: LayoutDirection) -> Self {
+    fn new_text(text: Txt, base_direction: LayoutDirection) -> Self {
         let mut segs: Vec<TextSegment> = vec![];
         let text_str: &str = &text;
         let bidi = BidiInfo::new(text_str, Some(base_direction.into()));
@@ -303,7 +303,7 @@ impl SegmentedText {
     }
 
     /// Destructs `self` into the text and segments.
-    pub fn into_parts(self) -> (Text, Vec<TextSegment>, LayoutDirection) {
+    pub fn into_parts(self) -> (Txt, Vec<TextSegment>, LayoutDirection) {
         (self.text, self.segments, self.base_direction)
     }
 
@@ -315,7 +315,7 @@ impl SegmentedText {
     ///
     /// * If one of the inputs is empty but the other is not.
     /// * If text is not empty and the last segment does not end with the text.
-    pub fn from_parts(text: Text, segments: Vec<TextSegment>, base_direction: LayoutDirection) -> Self {
+    pub fn from_parts(text: Txt, segments: Vec<TextSegment>, base_direction: LayoutDirection) -> Self {
         assert_eq!(text.is_empty(), segments.is_empty());
         if !text.is_empty() {
             assert!(segments.last().unwrap().end == text.len());

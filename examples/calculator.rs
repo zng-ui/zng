@@ -124,13 +124,13 @@ fn btn_eval(calc: ArcVar<Calculator>) -> impl UiNode {
 
 #[derive(Default, Clone, Debug)]
 struct Calculator {
-    buffer: Text,
+    buffer: Txt,
     error: bool,
 }
 impl Calculator {
-    pub fn text(&self) -> &Text {
+    pub fn text(&self) -> &Txt {
         if self.buffer.is_empty() {
-            static ZERO: Text = Text::from_static("0");
+            static ZERO: Txt = Txt::from_static("0");
             &ZERO
         } else {
             &self.buffer

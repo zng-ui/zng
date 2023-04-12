@@ -271,7 +271,7 @@ fn defaults() -> impl UiNode {
             )
             .map(|f| match f.done() {
                 Some(f) => f.best().family_name().to_text(),
-                None => Text::empty(),
+                None => Txt::empty(),
             });
 
         stack! {

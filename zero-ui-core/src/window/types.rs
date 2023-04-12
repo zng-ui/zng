@@ -12,7 +12,7 @@ use crate::{
     event::{event, event_args},
     image::{Image, ImageDataFormat, ImageSource, ImageVar},
     render::{FrameId, RenderMode},
-    text::Text,
+    text::Txt,
     units::*,
     var::*,
     widget_info::{Interactivity, WidgetInfoTree, WidgetPath},
@@ -42,7 +42,7 @@ impl WindowId {
     /// If the `name` is already associated with an id, returns it.
     /// If the `name` is new, generates a new id and associated it with the name.
     /// If `name` is an empty string just returns a new id.
-    pub fn named(name: impl Into<Text>) -> Self {
+    pub fn named(name: impl Into<Txt>) -> Self {
         Self::name_map().get_id_or_insert(name.into(), Self::new_unique)
     }
 
@@ -55,7 +55,7 @@ impl WindowId {
     /// [`named`]: WidgetId::named
     /// [`new_unique`]: WidgetId::new_unique
     /// [`id`]: fn@crate::widget_base::base::id
-    pub fn debug_named(name: impl Into<Text>) -> Self {
+    pub fn debug_named(name: impl Into<Txt>) -> Self {
         #[cfg(debug_assertions)]
         return Self::named(name);
 
@@ -72,12 +72,12 @@ impl WindowId {
     /// If the `name` is an empty string just returns a new id.
     ///
     /// [`NameUsed`]: IdNameError::NameUsed
-    pub fn named_new(name: impl Into<Text>) -> Result<Self, IdNameError<Self>> {
+    pub fn named_new(name: impl Into<Txt>) -> Result<Self, IdNameError<Self>> {
         Self::name_map().new_named(name.into(), Self::new_unique)
     }
 
     /// Returns the name associated with the id or `""`.
-    pub fn name(self) -> Text {
+    pub fn name(self) -> Txt {
         Self::name_map().get_name(self)
     }
 
@@ -89,7 +89,7 @@ impl WindowId {
     ///
     /// [`NameUsed`]: IdNameError::NameUsed
     /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
-    pub fn set_name(self, name: impl Into<Text>) -> Result<(), IdNameError<Self>> {
+    pub fn set_name(self, name: impl Into<Txt>) -> Result<(), IdNameError<Self>> {
         Self::name_map().set(name.into(), self)
     }
 }
@@ -137,7 +137,7 @@ impl_from_and_into_var! {
         WindowId::named(name)
     }
     /// Calls [`WindowId::named`].
-    fn from(name: Text) -> WindowId {
+    fn from(name: Txt) -> WindowId {
         WindowId::named(name)
     }
 }
@@ -524,7 +524,7 @@ impl_from_and_into_var! {
         ImageSource::from(s).into()
     }
     /// Same as conversion from `&str`.
-    fn from(s: Text) -> WindowIcon {
+    fn from(s: Txt) -> WindowIcon {
         ImageSource::from(s).into()
     }
     /// From encoded data of [`Unknown`] format.

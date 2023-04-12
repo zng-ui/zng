@@ -23,7 +23,7 @@ pub struct MarkdownStyle {
 /// See [`TEXT_GEN_VAR`] for more details.
 pub struct TextFnArgs {
     /// The text run.
-    pub txt: Text,
+    pub txt: Txt,
     /// The style.
     pub style: MarkdownStyle,
 }
@@ -33,10 +33,10 @@ pub struct TextFnArgs {
 /// See [`LINK_GEN_VAR`] for more details.
 pub struct LinkFnArgs {
     /// The link.
-    pub url: Text,
+    pub url: Txt,
 
     /// Link title, usually displayed as a tool-tip.
-    pub title: Text,
+    pub title: Txt,
 
     /// Inline items.
     pub items: UiNodeVec,
@@ -49,7 +49,7 @@ pub struct LinkFnArgs {
 /// See [`CODE_INLINE_GEN_VAR`] for more details.
 pub struct CodeInlineFnArgs {
     /// The code text run.
-    pub txt: Text,
+    pub txt: Txt,
     /// The style.
     pub style: MarkdownStyle,
 }
@@ -59,9 +59,9 @@ pub struct CodeInlineFnArgs {
 /// See [`CODE_BLOCK_GEN_VAR`] for more details.
 pub struct CodeBlockFnArgs {
     /// Code language, can be empty.
-    pub lang: Text,
+    pub lang: Txt,
     /// Raw text.
-    pub txt: Text,
+    pub txt: Txt,
 }
 
 /// Arguments for a markdown paragraph view.
@@ -80,7 +80,7 @@ pub struct HeadingFnArgs {
     pub level: HeadingLevel,
 
     /// Anchor label that identifies the header in the markdown context.
-    pub anchor: Text,
+    pub anchor: Txt,
 
     /// Inline items.
     pub items: UiNodeVec,
@@ -132,7 +132,7 @@ pub struct ImageFnArgs {
     /// [`image_resolver`]: fn@crate::widgets::markdown::image_resolver
     pub source: ImageSource,
     /// Image title, usually displayed as a tool-tip.
-    pub title: Text,
+    pub title: Txt,
     /// Items to display when the image does not load and for screen readers.
     pub alt_items: UiNodeVec,
 }
@@ -158,7 +158,7 @@ pub struct BlockQuoteFnArgs {
 /// Arguments for a markdown footnote reference view.
 pub struct FootnoteRefFnArgs {
     /// Footnote referenced.
-    pub label: Text,
+    pub label: Txt,
 }
 
 /// Arguments for a markdown footnote definition view.
@@ -166,7 +166,7 @@ pub struct FootnoteRefFnArgs {
 /// See [`PARAGRAPH_GEN_VAR`] for more details.
 pub struct FootnoteDefFnArgs {
     /// Identifier label.
-    pub label: Text,
+    pub label: Txt,
     /// Block items.
     pub items: UiNodeVec,
 }
@@ -388,7 +388,7 @@ pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>)
     with_context_var(child, PANEL_GEN_VAR, wgt_fn)
 }
 
-fn text_view_builder(txt: Text, style: MarkdownStyle) -> WidgetBuilder {
+fn text_view_builder(txt: Txt, style: MarkdownStyle) -> WidgetBuilder {
     use crate::widgets::Text as t;
 
     let mut builder = WidgetBuilder::new(t::widget_type()); // !!: use `Text` directly.

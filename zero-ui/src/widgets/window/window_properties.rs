@@ -73,7 +73,7 @@ set_properties! {
 
     chrome: WindowChrome,
     icon: WindowIcon,
-    title: Text,
+    title: Txt,
 
     auto_size: AutoSize,
     auto_size_origin: Point,

@@ -4,7 +4,7 @@ use crate::prelude::new_widget::*;
 
 /// Text box widget.
 #[widget($crate::widgets::TextInput)]
-pub struct TextInput(StyleMix<Text>);
+pub struct TextInput(StyleMix<Txt>);
 impl TextInput {
     #[widget(on_start)]
     fn on_start(&mut self) {

@@ -511,21 +511,21 @@ pub enum TextTransformFn {
     /// to lowercase.
     Lowercase,
     /// Custom transform function.
-    Custom(Arc<dyn Fn(Text) -> Text + Send + Sync>),
+    Custom(Arc<dyn Fn(Txt) -> Txt + Send + Sync>),
 }
 impl TextTransformFn {
     /// Apply the text transform.
-    pub fn transform(&self, text: Text) -> Text {
+    pub fn transform(&self, text: Txt) -> Txt {
         match self {
             TextTransformFn::None => text,
-            TextTransformFn::Uppercase => Text::owned(text.to_uppercase()),
-            TextTransformFn::Lowercase => Text::owned(text.to_lowercase()),
+            TextTransformFn::Uppercase => Txt::owned(text.to_uppercase()),
+            TextTransformFn::Lowercase => Txt::owned(text.to_lowercase()),
             TextTransformFn::Custom(fn_) => fn_(text),
         }
     }
 
     /// New [`Custom`](Self::Custom).
-    pub fn custom(fn_: impl Fn(Text) -> Text + Send + Sync + 'static) -> Self {
+    pub fn custom(fn_: impl Fn(Txt) -> Txt + Send + Sync + 'static) -> Self {
         TextTransformFn::Custom(Arc::new(fn_))
     }
 }
@@ -561,7 +561,7 @@ impl Default for WhiteSpace {
 }
 impl WhiteSpace {
     /// Transform the white space of the text.
-    pub fn transform(self, text: Text) -> Text {
+    pub fn transform(self, text: Txt) -> Txt {
         match self {
             WhiteSpace::Preserve => text,
             WhiteSpace::Merge => text.split_ascii_whitespace().collect::<Vec<_>>().join(" ").into(),
@@ -591,7 +591,7 @@ impl fmt::Debug for WhiteSpace {
 /// Font family names are case-insensitive. `"Arial"` and `"ARIAL"` are equal and have the same hash.
 #[derive(Clone)]
 pub struct FontName {
-    text: Text,
+    text: Txt,
     is_ascii: bool,
 }
 impl fmt::Debug for FontName {
@@ -634,7 +634,7 @@ impl FontName {
     /// New font name from `&'static str`.
     pub const fn from_static(name: &'static str) -> Self {
         FontName {
-            text: Text::from_static(name),
+            text: Txt::from_static(name),
             is_ascii: {
                 // str::is_ascii is not const
                 let name_bytes = name.as_bytes();
@@ -658,7 +658,7 @@ impl FontName {
     ///
     /// Font names are case insensitive but the input casing is preserved, this casing shows during display and in
     /// the value of [`name`](Self::name).
-    pub fn new(name: impl Into<Text>) -> Self {
+    pub fn new(name: impl Into<Txt>) -> Self {
         let text = name.into();
         FontName {
             is_ascii: text.is_ascii(),
@@ -709,7 +709,7 @@ impl FontName {
     }
 
     /// Unwraps into a [`Text`].
-    pub fn into_text(self) -> Text {
+    pub fn into_text(self) -> Txt {
         self.text
     }
 }
@@ -723,7 +723,7 @@ impl_from_and_into_var! {
     fn from(s: Cow<'static, str>) -> FontName {
         FontName::new(s)
     }
-    fn from(f: FontName) -> Text {
+    fn from(f: FontName) -> Txt {
         f.into_text()
     }
 }
@@ -932,7 +932,7 @@ impl_from_and_into_var! {
         FontNames(vec![FontName::new(font_name)])
     }
 
-    fn from(font_name: Text) -> FontNames {
+    fn from(font_name: Txt) -> FontNames {
         FontNames(vec![FontName::new(font_name)])
     }
 
@@ -1014,12 +1014,12 @@ impl<const N: usize> IntoVar<FontNames> for [String; N] {
         LocalVar(self.into())
     }
 }
-impl<const N: usize> From<[Text; N]> for FontNames {
-    fn from(font_names: [Text; N]) -> Self {
+impl<const N: usize> From<[Txt; N]> for FontNames {
+    fn from(font_names: [Txt; N]) -> Self {
         FontNames(font_names.into_iter().map(FontName::new).collect())
     }
 }
-impl<const N: usize> IntoVar<FontNames> for [Text; N] {
+impl<const N: usize> IntoVar<FontNames> for [Txt; N] {
     type Var = LocalVar<FontNames>;
 
     fn into_var(self) -> Self::Var {
@@ -1044,12 +1044,12 @@ fn str_to_inline(s: &str) -> [u8; INLINE_MAX] {
 }
 
 #[derive(Clone)]
-enum TextData {
+enum TxtData {
     Static(&'static str),
     Inline([u8; INLINE_MAX]),
     Owned(String),
 }
-impl fmt::Debug for TextData {
+impl fmt::Debug for TxtData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             match self {
@@ -1062,30 +1062,30 @@ impl fmt::Debug for TextData {
         }
     }
 }
-impl fmt::Display for TextData {
+impl fmt::Display for TxtData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.deref())
     }
 }
-impl PartialEq for TextData {
+impl PartialEq for TxtData {
     fn eq(&self, other: &Self) -> bool {
         self.deref() == other.deref()
     }
 }
-impl Eq for TextData {}
-impl Hash for TextData {
+impl Eq for TxtData {}
+impl Hash for TxtData {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         Hash::hash(&self.deref(), state)
     }
 }
-impl Deref for TextData {
+impl Deref for TxtData {
     type Target = str;
 
     fn deref(&self) -> &str {
         match self {
-            TextData::Static(s) => s,
-            TextData::Inline(d) => inline_to_str(d),
-            TextData::Owned(s) => s,
+            TxtData::Static(s) => s,
+            TxtData::Inline(d) => inline_to_str(d),
+            TxtData::Owned(s) => s,
         }
     }
 }
@@ -1097,51 +1097,51 @@ impl Deref for TextData {
 /// to access all mutating methods of [`String`]. The mutations that can be
 /// implemented using only a borrowed `str` are provided as methods in this type.
 ///
-/// [`to_mut`]: Text::to_mut
+/// [`to_mut`]: Txt::to_mut
 #[derive(Clone, dm::Display, PartialEq, Eq, Hash)]
-pub struct Text(TextData);
-impl Text {
+pub struct Txt(TxtData);
+impl Txt {
     /// New text that is a `&'static str`.
-    pub const fn from_static(s: &'static str) -> Text {
-        Text(TextData::Static(s))
+    pub const fn from_static(s: &'static str) -> Txt {
+        Txt(TxtData::Static(s))
     }
 
     /// New text that is an owned [`String`].
-    pub const fn owned(s: String) -> Text {
-        Text(TextData::Owned(s))
+    pub const fn owned(s: String) -> Txt {
+        Txt(TxtData::Owned(s))
     }
 
     /// New text that is an inlined `char`.
-    pub fn from_char(c: char) -> Text {
+    pub fn from_char(c: char) -> Txt {
         #[allow(clippy::assertions_on_constants)]
         const _: () = assert!(4 <= INLINE_MAX, "cannot inline char");
 
         let mut buf = [0u8; 4];
         let s = c.encode_utf8(&mut buf);
 
-        Text(TextData::Inline(str_to_inline(s)))
+        Txt(TxtData::Inline(str_to_inline(s)))
     }
     /// New empty text.
-    pub const fn empty() -> Text {
+    pub const fn empty() -> Txt {
         Self::from_static("")
     }
 
     /// If the text is an owned [`String`].
     pub const fn is_owned(&self) -> bool {
-        matches!(&self.0, TextData::Owned(_))
+        matches!(&self.0, TxtData::Owned(_))
     }
 
     /// Acquires a mutable reference to a [`String`] buffer.
     ///
     /// Turns the text to owned if it was borrowed.
     pub fn to_mut(&mut self) -> &mut String {
-        self.0 = match mem::replace(&mut self.0, TextData::Static("")) {
-            TextData::Owned(s) => TextData::Owned(s),
-            TextData::Static(s) => TextData::Owned(s.to_owned()),
-            TextData::Inline(d) => TextData::Owned(inline_to_str(&d).to_owned()),
+        self.0 = match mem::replace(&mut self.0, TxtData::Static("")) {
+            TxtData::Owned(s) => TxtData::Owned(s),
+            TxtData::Static(s) => TxtData::Owned(s.to_owned()),
+            TxtData::Inline(d) => TxtData::Owned(inline_to_str(&d).to_owned()),
         };
 
-        if let TextData::Owned(s) = &mut self.0 {
+        if let TxtData::Owned(s) = &mut self.0 {
             s
         } else {
             unreachable!()
@@ -1153,9 +1153,9 @@ impl Text {
     /// Turns the text to owned if it was borrowed.
     pub fn into_owned(self) -> String {
         match self.0 {
-            TextData::Owned(s) => s,
-            TextData::Static(s) => s.to_owned(),
-            TextData::Inline(d) => inline_to_str(&d).to_owned(),
+            TxtData::Owned(s) => s,
+            TxtData::Static(s) => s.to_owned(),
+            TxtData::Inline(d) => inline_to_str(&d).to_owned(),
         }
     }
 
@@ -1163,21 +1163,21 @@ impl Text {
     /// replaces `self` with an empty str (`""`).
     pub fn clear(&mut self) {
         match &mut self.0 {
-            TextData::Owned(s) => s.clear(),
-            d => *d = TextData::Static(""),
+            TxtData::Owned(s) => s.clear(),
+            d => *d = TxtData::Static(""),
         }
     }
 
     /// Removes the last character from the text and returns it.
     ///
-    /// Returns None if this `Text` is empty.
+    /// Returns None if this `Txt` is empty.
     ///
     /// This method calls [`String::pop`] if the text is owned, otherwise
     /// reborrows a slice of the `str` without the last character.
     pub fn pop(&mut self) -> Option<char> {
         match &mut self.0 {
-            TextData::Owned(s) => s.pop(),
-            TextData::Static(s) => {
+            TxtData::Owned(s) => s.pop(),
+            TxtData::Static(s) => {
                 if let Some((i, c)) = s.char_indices().last() {
                     *s = &s[..i];
                     Some(c)
@@ -1185,13 +1185,13 @@ impl Text {
                     None
                 }
             }
-            TextData::Inline(d) => {
+            TxtData::Inline(d) => {
                 let s = inline_to_str(d);
                 if let Some((i, c)) = s.char_indices().last() {
                     if !s.is_empty() {
                         *d = str_to_inline(&s[..i]);
                     } else {
-                        self.0 = TextData::Static("");
+                        self.0 = TxtData::Static("");
                     }
                     Some(c)
                 } else {
@@ -1201,7 +1201,7 @@ impl Text {
         }
     }
 
-    /// Shortens this `Text` to the specified length.
+    /// Shortens this `Txt` to the specified length.
     ///
     /// If `new_len` is greater than the text's current length, this has no
     /// effect.
@@ -1210,16 +1210,16 @@ impl Text {
     /// reborrows a slice of the text.
     pub fn truncate(&mut self, new_len: usize) {
         match &mut self.0 {
-            TextData::Owned(s) => s.truncate(new_len),
-            TextData::Static(s) => {
+            TxtData::Owned(s) => s.truncate(new_len),
+            TxtData::Static(s) => {
                 if new_len <= s.len() {
                     assert!(s.is_char_boundary(new_len));
                     *s = &s[..new_len];
                 }
             }
-            TextData::Inline(d) => {
+            TxtData::Inline(d) => {
                 if new_len == 0 {
-                    self.0 = TextData::Static("");
+                    self.0 = TxtData::Static("");
                 } else {
                     let s = inline_to_str(d);
                     if new_len < s.len() {
@@ -1233,35 +1233,35 @@ impl Text {
 
     /// Splits the text into two at the given index.
     ///
-    /// Returns a new `Text`. `self` contains bytes `[0, at)`, and
-    /// the returned `Text` contains bytes `[at, len)`. `at` must be on the
+    /// Returns a new `Txt`. `self` contains bytes `[0, at)`, and
+    /// the returned `Txt` contains bytes `[at, len)`. `at` must be on the
     /// boundary of a UTF-8 code point.
     ///
     /// This method calls [`String::split_off`] if the text is owned, otherwise
     /// reborrows slices of the text.
-    pub fn split_off(&mut self, at: usize) -> Text {
+    pub fn split_off(&mut self, at: usize) -> Txt {
         match &mut self.0 {
-            TextData::Owned(s) => Text::owned(s.split_off(at)),
-            TextData::Static(s) => {
+            TxtData::Owned(s) => Txt::owned(s.split_off(at)),
+            TxtData::Static(s) => {
                 assert!(s.is_char_boundary(at));
                 let other = &s[at..];
                 *s = &s[at..];
-                Text(TextData::Static(other))
+                Txt(TxtData::Static(other))
             }
-            TextData::Inline(d) => {
+            TxtData::Inline(d) => {
                 let s = inline_to_str(d);
                 assert!(s.is_char_boundary(at));
                 let a_len = at;
                 let b_len = s.len() - at;
 
-                let r = Text(if b_len == 0 {
-                    TextData::Static("")
+                let r = Txt(if b_len == 0 {
+                    TxtData::Static("")
                 } else {
-                    TextData::Inline(str_to_inline(&s[at..]))
+                    TxtData::Inline(str_to_inline(&s[at..]))
                 });
 
                 if a_len == 0 {
-                    self.0 = TextData::Static("");
+                    self.0 = TxtData::Static("");
                 } else {
                     *d = str_to_inline(&s[..at]);
                 }
@@ -1279,123 +1279,123 @@ impl Text {
     /// Copy the inner static `str` if this text represents one.
     pub fn as_static_str(&self) -> Option<&'static str> {
         match self.0 {
-            TextData::Static(s) => Some(s),
+            TxtData::Static(s) => Some(s),
             _ => None,
         }
     }
 }
-impl fmt::Debug for Text {
+impl fmt::Debug for Txt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
     }
 }
-impl Default for Text {
+impl Default for Txt {
     /// Empty.
     fn default() -> Self {
         Self::empty()
     }
 }
 impl_from_and_into_var! {
-    fn from(s: &'static str) -> Text {
-        Text(TextData::Static(s))
+    fn from(s: &'static str) -> Txt {
+        Txt(TxtData::Static(s))
     }
-    fn from(s: String) -> Text {
-        Text(TextData::Owned(s))
+    fn from(s: String) -> Txt {
+        Txt(TxtData::Owned(s))
     }
-    fn from(s: Cow<'static, str>) -> Text {
+    fn from(s: Cow<'static, str>) -> Txt {
         match s {
-            Cow::Borrowed(s) => Text(TextData::Static(s)),
-            Cow::Owned(s) => Text(TextData::Owned(s))
+            Cow::Borrowed(s) => Txt(TxtData::Static(s)),
+            Cow::Owned(s) => Txt(TxtData::Owned(s))
         }
     }
-    fn from(c: char) -> Text {
-        Text::from_char(c)
+    fn from(c: char) -> Txt {
+        Txt::from_char(c)
     }
-    fn from(t: Text) -> String {
+    fn from(t: Txt) -> String {
         t.into_owned()
     }
-    fn from(t: Text) -> Cow<'static, str> {
+    fn from(t: Txt) -> Cow<'static, str> {
         match t.0 {
-            TextData::Static(s) => Cow::Borrowed(s),
-            TextData::Owned(s) => Cow::Owned(s),
-            TextData::Inline(d) => Cow::Owned(inline_to_str(&d).to_owned()),
+            TxtData::Static(s) => Cow::Borrowed(s),
+            TxtData::Owned(s) => Cow::Owned(s),
+            TxtData::Inline(d) => Cow::Owned(inline_to_str(&d).to_owned()),
         }
     }
-    fn from(t: Text) -> std::path::PathBuf {
+    fn from(t: Txt) -> std::path::PathBuf {
         t.into_owned().into()
     }
 }
-impl From<Text> for Box<dyn std::error::Error> {
-    fn from(err: Text) -> Self {
+impl From<Txt> for Box<dyn std::error::Error> {
+    fn from(err: Txt) -> Self {
         err.into_owned().into()
     }
 }
-impl From<Text> for Box<dyn std::error::Error + Send + Sync> {
-    fn from(err: Text) -> Self {
+impl From<Txt> for Box<dyn std::error::Error + Send + Sync> {
+    fn from(err: Txt) -> Self {
         err.into_owned().into()
     }
 }
-impl std::ops::Deref for Text {
+impl std::ops::Deref for Txt {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
         self.0.deref()
     }
 }
-impl AsRef<str> for Text {
+impl AsRef<str> for Txt {
     fn as_ref(&self) -> &str {
         self.0.as_ref()
     }
 }
-impl std::borrow::Borrow<str> for Text {
+impl std::borrow::Borrow<str> for Txt {
     fn borrow(&self) -> &str {
         self.0.borrow()
     }
 }
-impl<'a> std::ops::Add<&'a str> for Text {
-    type Output = Text;
+impl<'a> std::ops::Add<&'a str> for Txt {
+    type Output = Txt;
 
     fn add(mut self, rhs: &'a str) -> Self::Output {
         self += rhs;
         self
     }
 }
-impl std::ops::AddAssign<&str> for Text {
+impl std::ops::AddAssign<&str> for Txt {
     fn add_assign(&mut self, rhs: &str) {
         self.to_mut().push_str(rhs);
     }
 }
-impl PartialEq<&str> for Text {
+impl PartialEq<&str> for Txt {
     fn eq(&self, other: &&str) -> bool {
         self.as_str().eq(*other)
     }
 }
-impl PartialEq<str> for Text {
+impl PartialEq<str> for Txt {
     fn eq(&self, other: &str) -> bool {
         self.as_str().eq(other)
     }
 }
-impl PartialEq<String> for Text {
+impl PartialEq<String> for Txt {
     fn eq(&self, other: &String) -> bool {
         self.as_str().eq(other)
     }
 }
-impl PartialEq<Text> for &str {
-    fn eq(&self, other: &Text) -> bool {
+impl PartialEq<Txt> for &str {
+    fn eq(&self, other: &Txt) -> bool {
         other.as_str().eq(*self)
     }
 }
-impl PartialEq<Text> for str {
-    fn eq(&self, other: &Text) -> bool {
+impl PartialEq<Txt> for str {
+    fn eq(&self, other: &Txt) -> bool {
         other.as_str().eq(self)
     }
 }
-impl PartialEq<Text> for String {
-    fn eq(&self, other: &Text) -> bool {
+impl PartialEq<Txt> for String {
+    fn eq(&self, other: &Txt) -> bool {
         other.as_str().eq(self)
     }
 }
-impl serde::Serialize for Text {
+impl serde::Serialize for Txt {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -1403,12 +1403,12 @@ impl serde::Serialize for Text {
         serializer.serialize_str(self.as_str())
     }
 }
-impl<'de> serde::Deserialize<'de> for Text {
+impl<'de> serde::Deserialize<'de> for Txt {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        String::deserialize(deserializer).map(Text::from)
+        String::deserialize(deserializer).map(Txt::from)
     }
 }
 
@@ -1432,10 +1432,10 @@ pub trait ToText {
     ///
     /// assert_eq!(expected, actual);
     /// ```
-    fn to_text(&self) -> Text;
+    fn to_text(&self) -> Txt;
 }
 impl<T: ToString> ToText for T {
-    fn to_text(&self) -> Text {
+    fn to_text(&self) -> Txt {
         self.to_string().into()
     }
 }
@@ -1537,7 +1537,7 @@ pub enum UnderlinePosition {
 #[macro_export]
 macro_rules! formatx {
     ($($tt:tt)*) => {
-        $crate::text::Text::owned(format!($($tt)*))
+        $crate::text::Txt::owned(format!($($tt)*))
     };
 }
 #[doc(inline)]

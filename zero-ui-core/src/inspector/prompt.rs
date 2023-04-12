@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     crate_util::RunOnDrop,
-    text::{formatx, Text},
+    text::{formatx, Txt},
     units::PxRect,
     var::VarUpdateId,
     widget_builder::{property_id, Importance, InputKind, PropertyId},
@@ -132,7 +132,7 @@ impl WriteTreeState {
 
         if info.inspect_property(property_id!(crate::widget_base::id)).is_none() {
             fmt.write_property(
-                Text::from_static("computed"),
+                Txt::from_static("computed"),
                 "id",
                 false,
                 false,
@@ -144,7 +144,7 @@ impl WriteTreeState {
         }
         if info.parent().is_none() {
             fmt.write_property(
-                Text::from_static("computed"),
+                Txt::from_static("computed"),
                 "window_id",
                 false,
                 false,
@@ -157,7 +157,7 @@ impl WriteTreeState {
 
         let outer_bounds = info.outer_bounds();
         fmt.write_property(
-            Text::from_static("computed"),
+            Txt::from_static("computed"),
             "outer_bounds",
             false,
             true,
@@ -168,7 +168,7 @@ impl WriteTreeState {
         );
         let inner_bounds = info.inner_bounds();
         fmt.write_property(
-            Text::from_static("computed"),
+            Txt::from_static("computed"),
             "inner_bounds",
             false,
             true,
@@ -179,7 +179,7 @@ impl WriteTreeState {
         );
         let visibility = info.visibility();
         fmt.write_property(
-            Text::from_static("computed"),
+            Txt::from_static("computed"),
             "visibility",
             false,
             true,
@@ -190,7 +190,7 @@ impl WriteTreeState {
         );
         let interactivity = info.interactivity();
         fmt.write_property(
-            Text::from_static("computed"),
+            Txt::from_static("computed"),
             "interactivity",
             false,
             true,
@@ -278,7 +278,7 @@ impl From<PxRect> for ComputedValue {
 mod print_fmt {
     pub struct Diff {
         /// Debug value.
-        pub value: Text,
+        pub value: Txt,
         /// If the variable version changed since last read.
         pub changed: bool,
     }
@@ -287,19 +287,19 @@ mod print_fmt {
     use std::fmt::Display;
     use std::io::Write;
 
-    use crate::text::Text;
+    use crate::text::Txt;
 
     pub struct Fmt<'w> {
         depth: u32,
         output: &'w mut dyn Write,
-        property_group: Text,
+        property_group: Txt,
     }
     impl<'w> Fmt<'w> {
         pub fn new(output: &'w mut dyn Write) -> Self {
             Fmt {
                 depth: 0,
                 output,
-                property_group: Text::empty(),
+                property_group: Txt::empty(),
             }
         }
 
@@ -339,7 +339,7 @@ mod print_fmt {
             self.depth += 1;
         }
 
-        fn write_property_header(&mut self, group: Text, name: &str, user_assigned: bool) {
+        fn write_property_header(&mut self, group: Txt, name: &str, user_assigned: bool) {
             if self.property_group != group {
                 self.write_comment(&group);
                 self.property_group = group;
@@ -383,7 +383,7 @@ mod print_fmt {
             }
         }
 
-        pub fn write_instrinsic(&mut self, group: Text, name: &str) {
+        pub fn write_instrinsic(&mut self, group: Txt, name: &str) {
             if self.property_group != group {
                 self.write_comment(&group);
                 self.property_group = group;
@@ -394,13 +394,13 @@ mod print_fmt {
             self.writeln();
         }
 
-        pub fn write_property(&mut self, group: Text, name: &str, user_assigned: bool, can_update: bool, value: Diff) {
+        pub fn write_property(&mut self, group: Txt, name: &str, user_assigned: bool, can_update: bool, value: Diff) {
             self.write_property_header(group, name, user_assigned);
             self.write_property_value(value, can_update);
             self.write_property_end(user_assigned);
         }
 
-        pub fn open_property(&mut self, group: Text, name: &str, user_assigned: bool) {
+        pub fn open_property(&mut self, group: Txt, name: &str, user_assigned: bool) {
             self.write_property_header(group, name, user_assigned);
             if user_assigned {
                 self.write("{".blue().bold());
@@ -442,7 +442,7 @@ mod print_fmt {
 
         pub fn close_widget(&mut self, name: &str) {
             self.depth -= 1;
-            self.property_group = Text::empty();
+            self.property_group = Txt::empty();
             self.write_tabs();
             self.write("} ".bold());
             self.write_comment_after(format_args!("{name}!"));

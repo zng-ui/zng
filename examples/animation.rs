@@ -134,7 +134,7 @@ fn example() -> impl UiNode {
 fn ease_btn(
     l: &ArcVar<Length>,
     color: &ArcVar<Rgba>,
-    name: impl Into<Text>,
+    name: impl Into<Txt>,
     easing: impl Fn(EasingTime) -> EasingStep + Copy + Send + Sync + 'static,
     easing_mod: &ArcVar<easing::EasingModifierFn>,
 ) -> impl UiNode {

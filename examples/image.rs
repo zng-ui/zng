@@ -192,9 +192,9 @@ fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl UiNode {
             sub_title(filter.map(|f| {
                 let s = format!("{f:?}");
                 if s.starts_with("color_matrix") {
-                    Text::from_static("color_matrix([...])")
+                    Txt::from_static("color_matrix([...])")
                 } else {
-                    Text::from(s)
+                    Txt::from(s)
                 }
             })),
             image! {
@@ -451,11 +451,11 @@ pub mod img_window {
         })
     }
 }
-fn img_window(title: impl IntoVar<Text>, child: impl UiNode) -> WindowCfg {
+fn img_window(title: impl IntoVar<Txt>, child: impl UiNode) -> WindowCfg {
     img_window!(title; child)
 }
 
-fn section(title: impl IntoVar<Text>, children: impl UiNodeList) -> impl UiNode {
+fn section(title: impl IntoVar<Txt>, children: impl UiNodeList) -> impl UiNode {
     stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
@@ -474,7 +474,7 @@ fn section(title: impl IntoVar<Text>, children: impl UiNodeList) -> impl UiNode 
     }
 }
 
-fn title(txt: impl IntoVar<Text>) -> impl UiNode {
+fn title(txt: impl IntoVar<Txt>) -> impl UiNode {
     text! {
         txt;
         font_size = 20;
@@ -483,7 +483,7 @@ fn title(txt: impl IntoVar<Text>) -> impl UiNode {
     }
 }
 
-fn sub_title(txt: impl IntoVar<Text>) -> impl UiNode {
+fn sub_title(txt: impl IntoVar<Txt>) -> impl UiNode {
     text! {
         txt;
 

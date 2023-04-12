@@ -180,7 +180,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         VarPtr::new_arc(&self.init)
     }
 
-    fn get_debug(&self) -> crate::text::Text {
+    fn get_debug(&self) -> crate::text::Txt {
         self.with(var_debug)
     }
 
@@ -188,7 +188,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         Var::modify(self, var_touch)
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>> {
         Var::map(self, var_debug)
     }
 }

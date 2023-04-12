@@ -37,7 +37,7 @@ impl AnsiText {
 
 /// ANSI text.
 #[property(CONTEXT, capture, impl(AnsiText))]
-pub fn txt(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {}
+pub fn txt(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode {}
 
 pub use ansi_parse::*;
 mod ansi_parse {
@@ -332,7 +332,7 @@ mod ansi_fn {
     /// See [`TEXT_GEN_VAR`] for more details.
     pub struct TextFnArgs {
         /// The text.
-        pub txt: Text,
+        pub txt: Txt,
         /// The ANSI style.
         pub style: AnsiStyle,
     }
@@ -632,10 +632,10 @@ mod ansi_fn {
 }
 
 /// Implements the ANSI parsing and view generation, configured by contextual properties.
-pub fn ansi_node(txt: impl IntoVar<Text>) -> impl UiNode {
+pub fn ansi_node(txt: impl IntoVar<Txt>) -> impl UiNode {
     #[ui_node(struct AnsiNode {
         child: BoxedUiNode,
-        #[var] txt: impl Var<Text>,
+        #[var] txt: impl Var<Txt>,
     })]
     impl AnsiNode {
         #[UiNode]

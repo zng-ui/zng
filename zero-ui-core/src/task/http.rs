@@ -41,7 +41,7 @@ use futures_lite::io::{AsyncReadExt, BufReader};
 use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
-use crate::text::Text;
+use crate::text::Txt;
 use crate::units::*;
 
 /// Marker trait for types that try-to-convert to [`Uri`].
@@ -116,7 +116,7 @@ where
         header::HeaderName::try_from(self).map_err(|e| e.into().into())
     }
 }
-impl TryHeaderName for Text {
+impl TryHeaderName for Txt {
     fn try_header_name(self) -> Result<header::HeaderName, Error> {
         <header::HeaderName as TryFrom<&str>>::try_from(self.as_str()).map_err(|e| isahc::http::Error::from(e).into())
     }
@@ -139,7 +139,7 @@ where
         header::HeaderValue::try_from(self).map_err(|e| e.into().into())
     }
 }
-impl TryHeaderValue for Text {
+impl TryHeaderValue for Txt {
     fn try_header_value(self) -> Result<header::HeaderValue, Error> {
         header::HeaderValue::from_str(self.as_str()).map_err(|e| isahc::http::Error::from(e).into())
     }

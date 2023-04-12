@@ -157,7 +157,7 @@ context_local! {
 /// so all properties except [`NestGroup::CONTEXT`] have access using the [`ResolvedText::get`] function.
 ///
 /// This node also subscribes to all the text context vars so other `text!` properties don't need to.
-pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
+pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode {
     struct LoadingFontFaceList {
         _var_handle: VarHandle,
         result: ResponseVar<FontFaceList>,
@@ -188,7 +188,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             RESOLVED_TEXT.with_context_opt(&mut *self.resolved.lock(), || f(&self.child))
         }
     }
-    impl<C: UiNode, T: Var<Text>> UiNode for ResolveTextNode<C, T> {
+    impl<C: UiNode, T: Var<Txt>> UiNode for ResolveTextNode<C, T> {
         fn init(&mut self) {
             WIDGET
                 .sub_var(&self.text)

@@ -328,7 +328,7 @@ pub struct ImageLoadArgs {}
 #[derive(Clone, Debug)]
 pub struct ImageErrorArgs {
     /// Error message.
-    pub error: Text,
+    pub error: Txt,
 }
 
 /// Image load or decode error event.
@@ -348,7 +348,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
     #[ui_node(struct OnErrorNode {
         child: impl UiNode,
         handler: impl WidgetHandler<ImageErrorArgs>,
-        error: Text,
+        error: Txt,
     })]
     impl UiNode for OnErrorNode {
         fn init(&mut self) {

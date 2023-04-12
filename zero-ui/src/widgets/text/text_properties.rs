@@ -116,7 +116,7 @@ context_var! {
     pub static HYPHENS_VAR: Hyphens = Hyphens::default();
 
     /// Hyphen text rendered when auto-hyphenating.
-    pub static HYPHEN_CHAR_VAR: Text = Text::from_char('-');
+    pub static HYPHEN_CHAR_VAR: Txt = Txt::from_char('-');
 }
 
 /// Font family name or list of names for texts in this widget or descendants.
@@ -751,6 +751,6 @@ pub fn hyphens(child: impl UiNode, hyphens: impl IntoVar<Hyphens>) -> impl UiNod
 ///
 /// [`hyphens`]: fn@hyphens
 #[property(CONTEXT, default(HYPHEN_CHAR_VAR), impl(Text))]
-pub fn hyphen_char(child: impl UiNode, hyphen: impl IntoVar<Text>) -> impl UiNode {
+pub fn hyphen_char(child: impl UiNode, hyphen: impl IntoVar<Txt>) -> impl UiNode {
     with_context_var(child, HYPHEN_CHAR_VAR, hyphen)
 }

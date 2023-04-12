@@ -23,7 +23,7 @@ use crate::{
     context::*,
     crate_util::BoxedFut,
     task::ui::UiTask,
-    text::Text,
+    text::Txt,
     var::*,
 };
 
@@ -56,7 +56,7 @@ impl AppExtension for ConfigManager {
 }
 
 /// Key to a persistent config in [`CONFIG`].
-pub type ConfigKey = Text;
+pub type ConfigKey = Txt;
 
 /// A type that can be a [`CONFIG`] value.
 ///

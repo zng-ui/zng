@@ -14,7 +14,7 @@ use crate::{
     impl_from_and_into_var,
     render::RenderMode,
     task::{self, SignalOnce},
-    text::Text,
+    text::Txt,
     units::*,
     var::{AnyVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar},
     widget_instance::UiNode,
@@ -146,9 +146,9 @@ impl Image {
     }
 
     /// Returns an error message if the image failed to load.
-    pub fn error(&self) -> Option<Text> {
+    pub fn error(&self) -> Option<Txt> {
         match self.view.get() {
-            Some(v) => v.error().map(Text::from),
+            Some(v) => v.error().map(Txt::from),
             None => None,
         }
     }
@@ -466,7 +466,7 @@ pub enum ImageSource {
     ///
     /// Image equality is defined by the URI and ACCEPT string.
     #[cfg(http)]
-    Download(crate::task::http::Uri, Option<Text>),
+    Download(crate::task::http::Uri, Option<Txt>),
     /// Static bytes for an encoded or decoded image.
     ///
     /// Image equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
@@ -625,7 +625,7 @@ impl ImageSource {
     ///
     /// [`Download`]: Self::Download
     #[cfg(http)]
-    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Text>, downscale: Option<ImageDownscale>) -> ImageHash {
+    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Txt>, downscale: Option<ImageDownscale>) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         1u8.hash(&mut h);
@@ -748,7 +748,7 @@ impl_from_and_into_var! {
        s.as_str().into()
     }
     /// Same as conversion from `&str`.
-    fn from(s: Text) -> ImageSource {
+    fn from(s: Txt) -> ImageSource {
         s.as_str().into()
     }
     /// From encoded data of [`Unknown`] format.
@@ -979,7 +979,7 @@ pub type UriFilter = ImageSourceFilter<crate::task::http::Uri>;
 #[cfg(http)]
 impl UriFilter {
     /// Allow any file from the `host` site.
-    pub fn allow_host(host: impl Into<Text>) -> Self {
+    pub fn allow_host(host: impl Into<Txt>) -> Self {
         let host = host.into();
         UriFilter::custom(move |u| u.authority().map(|a| a.host() == host).unwrap_or(false))
     }

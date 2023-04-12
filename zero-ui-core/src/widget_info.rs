@@ -12,7 +12,7 @@ use crate::{
     crate_util::IdMap,
     impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate},
-    text::Text,
+    text::Txt,
     units::*,
     widget_instance::{WidgetId, ZIndex},
     window::WindowId,
@@ -940,7 +940,7 @@ impl WidgetInfo {
     /// Path details to help finding the widget during debug.
     ///
     /// If the inspector metadata is present the widget mod ident is included.
-    pub fn trace_path(&self) -> Text {
+    pub fn trace_path(&self) -> Txt {
         let mut ws: Vec<_> = self.self_and_ancestors().collect();
         ws.reverse();
 
@@ -985,7 +985,7 @@ impl WidgetInfo {
     /// Detailed id text.
     ///
     /// If the inspector metadata is present the widget mod ident is included.
-    pub fn trace_id(&self) -> Text {
+    pub fn trace_id(&self) -> Txt {
         #[cfg(inspector)]
         {
             use crate::inspector::*;

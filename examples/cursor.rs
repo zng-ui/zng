@@ -70,7 +70,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         child = text! {
             txt = match icon {
                 Some((ico, _)) => formatx!("{ico:?}"),
-                None => Text::from_static("<none>"),
+                None => Txt::from_static("<none>"),
             };
 
             font_style = match icon {

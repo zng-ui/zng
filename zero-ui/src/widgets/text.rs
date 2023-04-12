@@ -101,7 +101,7 @@ impl Text {
 ///
 /// Set to an empty string (`""`) by default.
 #[property(CHILD, capture, default(""))]
-pub fn txt(child: impl UiNode, txt: impl IntoVar<Text>) -> impl UiNode {}
+pub fn txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {}
 
 ///<span data-del-macro-root></span> A simple text run with **bold** font weight.
 ///

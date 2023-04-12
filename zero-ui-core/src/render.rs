@@ -2367,7 +2367,7 @@ impl_from_and_into_var! {
 }
 
 impl_from_and_into_var! {
-    fn from(profiler: crate::text::Text) -> RendererDebug {
+    fn from(profiler: crate::text::Txt) -> RendererDebug {
         RendererDebug::profiler(profiler)
     }
 }

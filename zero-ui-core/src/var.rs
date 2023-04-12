@@ -534,7 +534,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Get the value as a debug [`Text`].
     ///
     /// [`Text`]: crate::text::Text
-    fn get_debug(&self) -> crate::text::Text;
+    fn get_debug(&self) -> crate::text::Txt;
 
     /// Causes a variable update without actually changing the variable value.
     fn touch(&self) -> Result<(), VarIsReadOnlyError>;
@@ -543,7 +543,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     ///
     /// [`map`]: Var::map
     /// [`Text`]: crate::text::Text
-    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>>;
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>>;
 }
 
 /// Represents an [`AnyVar`] *pointer* that can be used for comparison.
@@ -959,7 +959,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Gets the value as a display [`Text`].
     ///
     /// [`Text`]: crate::text::Text
-    fn get_text(&self) -> crate::text::Text
+    fn get_text(&self) -> crate::text::Txt
     where
         T: fmt::Display,
     {
@@ -1110,7 +1110,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`map`]: Var::map
     /// [`Text`]: crate::text::Text
     /// [`ToText`]: crate::text::ToText
-    fn map_to_text(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>>
+    fn map_to_text(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>>
     where
         T: crate::text::ToText,
     {
@@ -1988,7 +1988,7 @@ where
     var_value.to_mut();
 }
 
-fn var_debug<T>(value: &T) -> crate::text::Text
+fn var_debug<T>(value: &T) -> crate::text::Txt
 where
     T: VarValue,
 {

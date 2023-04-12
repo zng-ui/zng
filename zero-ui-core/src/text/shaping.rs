@@ -6,7 +6,7 @@ use std::{
 
 use super::{
     font_features::RFontFeatures, lang, Font, FontList, GlyphIndex, GlyphInstance, Hyphenation, Hyphens, Lang, LineBreak, SegmentedText,
-    Text, TextSegment, TextSegmentKind, WordBreak,
+    Txt, TextSegment, TextSegmentKind, WordBreak,
 };
 use crate::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, LayoutDirection},
@@ -76,7 +76,7 @@ pub struct TextShapingArgs {
     pub hyphens: Hyphens,
 
     /// Character rendered when text is auto-hyphenated.
-    pub hyphen_char: Text,
+    pub hyphen_char: Txt,
 }
 impl Default for TextShapingArgs {
     fn default() -> Self {
@@ -96,7 +96,7 @@ impl Default for TextShapingArgs {
             line_break: Default::default(),
             word_break: Default::default(),
             hyphens: Default::default(),
-            hyphen_char: Text::from_char('-'),
+            hyphen_char: Txt::from_char('-'),
         }
     }
 }

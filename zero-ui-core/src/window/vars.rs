@@ -8,7 +8,7 @@ use crate::{
     crate_util::IdSet,
     image::Image,
     render::{RenderMode, RendererDebug},
-    text::{Text, ToText},
+    text::{Txt, ToText},
     units::*,
     var::*,
 };
@@ -18,7 +18,7 @@ pub(super) struct WindowVarsData {
     icon: ArcVar<WindowIcon>,
     pub(super) actual_icon: ArcVar<Option<Image>>,
     cursor: ArcVar<Option<CursorIcon>>,
-    title: ArcVar<Text>,
+    title: ArcVar<Txt>,
 
     state: ArcVar<WindowState>,
     focus_indicator: ArcVar<Option<FocusIndicator>>,
@@ -194,7 +194,7 @@ impl WindowVars {
     /// Window title text.
     ///
     /// The default value is `""`.
-    pub fn title(&self) -> ArcVar<Text> {
+    pub fn title(&self) -> ArcVar<Txt> {
         self.0.title.clone()
     }
 

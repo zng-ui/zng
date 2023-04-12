@@ -17,8 +17,8 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        let shortcut_text = var(Text::empty());
-        let keypress_text = var(Text::empty());
+        let shortcut_text = var(Txt::empty());
+        let keypress_text = var(Txt::empty());
         let shortcut_error = var(false);
 
         // examples_util::trace_var!(ctx, ?shortcut_text);

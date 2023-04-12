@@ -50,21 +50,21 @@ pub enum GlyphSource {
     /// Code "char" that is mapped to the glyph.
     Code(char),
     /// String that resolves to the glyph due to the default ligature config of the font.
-    Ligature(Text),
+    Ligature(Txt),
 }
 impl_from_and_into_var! {
     fn from(code: char) -> GlyphSource {
         GlyphSource::Code(code)
     }
     fn from(ligature: &'static str) -> GlyphSource {
-        Text::from_static(ligature).into()
+        Txt::from_static(ligature).into()
     }
-    fn from(ligature: Text) -> GlyphSource {
+    fn from(ligature: Txt) -> GlyphSource {
         GlyphSource::Ligature(ligature)
     }
-    fn from(source: GlyphSource) -> Text {
+    fn from(source: GlyphSource) -> Txt {
         match source {
-            GlyphSource::Code(c) => Text::from_char(c),
+            GlyphSource::Code(c) => Txt::from_char(c),
             GlyphSource::Ligature(l) => l,
         }
     }

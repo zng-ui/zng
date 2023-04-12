@@ -107,11 +107,11 @@ pub enum LinkResolver {
     /// No extra resolution, just pass the link provided.
     Default,
     /// Custom resolution.
-    Resolve(Arc<dyn Fn(&str) -> Text + Send + Sync>),
+    Resolve(Arc<dyn Fn(&str) -> Txt + Send + Sync>),
 }
 impl LinkResolver {
     /// Resolve the link.
-    pub fn resolve(&self, url: &str) -> Text {
+    pub fn resolve(&self, url: &str) -> Txt {
         match self {
             Self::Default => url.to_text(),
             Self::Resolve(r) => r(url),
@@ -119,7 +119,7 @@ impl LinkResolver {
     }
 
     /// New [`Resolve`](Self::Resolve).
-    pub fn new(fn_: impl Fn(&str) -> Text + Send + Sync + 'static) -> Self {
+    pub fn new(fn_: impl Fn(&str) -> Txt + Send + Sync + 'static) -> Self {
         Self::Resolve(Arc::new(fn_))
     }
 
@@ -174,7 +174,7 @@ event_args! {
     /// Arguments for the [`LINK_EVENT`].
     pub struct LinkArgs {
         /// Raw URL.
-        pub url: Text,
+        pub url: Txt,
 
         /// Link widget.
         pub link: InteractionPath,
@@ -386,7 +386,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
     true
 }
 
-static ANCHOR_ID: StaticStateId<Text> = StaticStateId::new_unique();
+static ANCHOR_ID: StaticStateId<Txt> = StaticStateId::new_unique();
 
 pub(super) static MARKDOWN_INFO_ID: StaticStateId<()> = StaticStateId::new_unique();
 
@@ -395,10 +395,10 @@ pub(super) static MARKDOWN_INFO_ID: StaticStateId<()> = StaticStateId::new_uniqu
 /// The anchor can be retried in the widget info using [`WidgetInfoExt::anchor`]. It is mostly used
 /// by markdown links to find scroll targets.
 #[property(CONTEXT, default(""))]
-pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Text>) -> impl UiNode {
+pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Txt>) -> impl UiNode {
     #[ui_node(struct AnchorNode {
         child: impl UiNode,
-        #[var] anchor: impl Var<Text>,
+        #[var] anchor: impl Var<Txt>,
     })]
     impl UiNode for AnchorNode {
         fn update(&mut self, updates: &WidgetUpdates) {
@@ -424,7 +424,7 @@ pub trait WidgetInfoExt {
     /// Gets the [`anchor`].
     ///
     /// [`anchor`]: fn@anchor
-    fn anchor(&self) -> Option<&Text>;
+    fn anchor(&self) -> Option<&Txt>;
 
     /// If this widget is a [`markdown!`].
     ///
@@ -435,7 +435,7 @@ pub trait WidgetInfoExt {
     fn find_anchor(&self, anchor: &str) -> Option<WidgetInfo>;
 }
 impl WidgetInfoExt for WidgetInfo {
-    fn anchor(&self) -> Option<&Text> {
+    fn anchor(&self) -> Option<&Txt> {
         self.meta().get(&ANCHOR_ID)
     }
 
@@ -449,7 +449,7 @@ impl WidgetInfoExt for WidgetInfo {
 }
 
 /// Generate an anchor label for a header.
-pub fn heading_anchor(header: &str) -> Text {
+pub fn heading_anchor(header: &str) -> Txt {
     header.chars().filter_map(slugify).collect::<String>().into()
 }
 fn slugify(c: char) -> Option<char> {

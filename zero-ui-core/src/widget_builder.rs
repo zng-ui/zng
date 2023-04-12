@@ -12,7 +12,7 @@ use crate::{
     crate_util::{FxEntry, FxHashMap, FxHashSet},
     handler::WidgetHandler,
     impl_from_and_into_var,
-    text::{formatx, Text},
+    text::{formatx, Txt},
     var::{types::AnyWhenVarBuilder, *},
     widget_base::{WidgetBase, WidgetExt},
     widget_instance::{
@@ -403,27 +403,27 @@ impl NestGroup {
     /// Group name.
     ///
     /// Is a static str for values that are a group `const`, or a display format for the others.
-    pub fn name(self) -> Text {
+    pub fn name(self) -> Txt {
         if self.0 == Self::WIDGET.0 {
-            Text::from_static("WIDGET")
+            Txt::from_static("WIDGET")
         } else if self.0 == Self::CONTEXT.0 {
-            Text::from_static("CONTEXT")
+            Txt::from_static("CONTEXT")
         } else if self.0 == Self::EVENT.0 {
-            Text::from_static("EVENT")
+            Txt::from_static("EVENT")
         } else if self.0 == Self::LAYOUT.0 {
-            Text::from_static("LAYOUT")
+            Txt::from_static("LAYOUT")
         } else if self.0 == Self::SIZE.0 {
-            Text::from_static("SIZE")
+            Txt::from_static("SIZE")
         } else if self.0 == Self::BORDER.0 {
-            Text::from_static("BORDER")
+            Txt::from_static("BORDER")
         } else if self.0 == Self::FILL.0 {
-            Text::from_static("FILL")
+            Txt::from_static("FILL")
         } else if self.0 == Self::CHILD_CONTEXT.0 {
-            Text::from_static("CHILD_CONTEXT")
+            Txt::from_static("CHILD_CONTEXT")
         } else if self.0 == Self::CHILD_LAYOUT.0 {
-            Text::from_static("CHILD_LAYOUT")
+            Txt::from_static("CHILD_LAYOUT")
         } else if self.0 == Self::CHILD.0 {
-            Text::from_static("CHILD")
+            Txt::from_static("CHILD")
         } else {
             let closest = Self::ITEMS
                 .into_iter()
@@ -735,7 +735,7 @@ impl PropertyInput {
     /// Shorter [`ty_name`].
     ///
     /// [`ty_name`]: Self::ty_name
-    pub fn display_ty_name(&self) -> Text {
+    pub fn display_ty_name(&self) -> Txt {
         pretty_type_name::pretty_type_name_str(self.ty_name).into()
     }
 }
@@ -826,7 +826,7 @@ impl dyn PropertyArgs + '_ {
     /// Gets the property input as a debug variable.
     ///
     /// If the input is a variable the returned variable will update with it, if not it is a static print.
-    pub fn live_debug(&self, i: usize) -> BoxedVar<Text> {
+    pub fn live_debug(&self, i: usize) -> BoxedVar<Txt> {
         let p = self.property();
         match p.inputs[i].kind {
             InputKind::Var => {
@@ -846,20 +846,20 @@ impl dyn PropertyArgs + '_ {
                 out_var.boxed()
             }
             InputKind::Value => LocalVar(formatx!("{:?}", self.value(i))).boxed(),
-            InputKind::UiNode => LocalVar(Text::from_static("<impl UiNode>")).boxed(),
-            InputKind::UiNodeList => LocalVar(Text::from_static("<impl UiNodeList>")).boxed(),
+            InputKind::UiNode => LocalVar(Txt::from_static("<impl UiNode>")).boxed(),
+            InputKind::UiNodeList => LocalVar(Txt::from_static("<impl UiNodeList>")).boxed(),
             InputKind::WidgetHandler => LocalVar(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name())).boxed(),
         }
     }
 
     /// Gets the property input current value as a debug
-    pub fn debug(&self, i: usize) -> Text {
+    pub fn debug(&self, i: usize) -> Txt {
         let p = self.property();
         match p.inputs[i].kind {
             InputKind::Var => formatx!("{:?}", self.var(i).get_any()),
             InputKind::Value => formatx!("{:?}", self.value(i)),
-            InputKind::UiNode => Text::from_static("<impl UiNode>"),
-            InputKind::UiNodeList => Text::from_static("<impl UiNodeList>"),
+            InputKind::UiNode => Txt::from_static("<impl UiNode>"),
+            InputKind::UiNodeList => Txt::from_static("<impl UiNodeList>"),
             InputKind::WidgetHandler => formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name()),
         }
     }
