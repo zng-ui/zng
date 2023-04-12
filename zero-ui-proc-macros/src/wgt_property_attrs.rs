@@ -61,9 +61,10 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                         #easing
                     }),
                 );
+                let id__ = #property_meta.id();
                 #when.build_action_data.push((
                     (
-                        #property_meta.id(),
+                        id__,
                         #name,
                     ),
                     __data__,
@@ -79,8 +80,9 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
             #core::var::types::easing_property::easing_property_unset(
                 #property_meta.input_types()
             );
+            let id__ = #property_meta.id();
             #core::widget_base::WidgetImpl::base(#builder).builder().push_unset_property_build_action__(
-                #property_meta.id(),
+                id__,
                 #name,
             );
             #data
@@ -100,8 +102,9 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                     }),
                 );
                 if !__actions__.is_empty() {
+                    let id__ = #property_meta.id();
                     #core::widget_base::WidgetImpl::base(#builder).push_property_build_action__(
-                        #property_meta.id(),
+                        id__,
                         #name,
                         __actions__
                     );

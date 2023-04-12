@@ -1,17 +1,9 @@
 # Widget & Property Refactor
 
- See `_widget_design.md`.
-
 * Refactor `#[property]`.
-    - Need a way to impl an existing property on the widget.
-        - See `Container!`. 
     - Generic properties.
-    - Rust named parameters RFC does not allow reorder.
 * Refactor `#[widget]`.
-    - Mixins:
-        - `#[widget] pub struct StyleMixin<P>(P);`
     - Where is `widget_new!` available for the widget macro?
-* Refactor all widgets.
 * Review docs.
     - No more property rename.
     - `#[widget]` docs.
