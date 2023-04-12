@@ -1,93 +1,16 @@
+//! Grid widgets and helpers.
+
 use zero_ui_core::task::parking_lot::Mutex;
 
 use crate::prelude::new_widget::*;
 
 /// Grid layout with cells of variable sizes.
-#[widget($crate::widgets::layouts::grid)]
-pub mod grid {
-    use super::*;
-
-    #[doc(inline)]
-    pub use super::{cell, column, row, AutoGrowFnArgs, AutoGrowMode};
-
-    inherit!(widget_base::base);
-
-    properties! {
-        /// Cell widget items.
-        ///
-        /// Cells can select their own column, row using the properties in the [`cell!`] widget. Note that
-        /// you don't need to use the `cell!` widget, only the properties.
-        ///
-        /// Cells can also be set to span multiple columns using the [`cell!`] properties.
-        ///
-        /// If the column or row is not explicitly set the widget is positioned in the logical index, the column
-        /// `i % columns` and the row  `i / columns`.
-        ///
-        /// [`cell!`]: mod@cell
-        pub widget_base::children as cells;
-
-        /// Column definitions.
-        ///
-        /// You can define columns with any widget, but the [`column!`] widget is recommended. The column widget width defines
-        /// the width of the cells assigned to it, the [`column::width`] property can be used to enforce a width, otherwise the
-        /// column is sized by the widest cell.
-        ///
-        /// The grid uses the [`WIDGET_SIZE`] value to select one of three layout modes for columns:
-        ///
-        /// * *Cell*, used for columns that do not set width or set it to [`Length::Default`].
-        /// * *Exact*, used for columns that set the width to a different unit.
-        /// * *Leftover*, used for columns that set width to an [`lft`] value.
-        ///
-        /// The column layout follows these steps:
-        ///
-        /// 1 - All *Exact* column widgets are layout, their final width defines the column width.
-        /// 2 - All cell widgets with span `1` in *Cell* columns are measured, the widest defines the fill width constrain,
-        /// the columns is layout using this constrain, the final width defines the column width.
-        /// 3 - All *Leftover* cells are layout with the leftover grid width divided among all columns in this mode.
-        ///
-        /// So given the columns `200 | 1.lft() | 1.lft()` and grid width of `1000` with spacing `5` the final widths are `200 | 395 | 395`,
-        /// for `200 + 5 + 395 + 5 + 395 = 1000`.
-        ///
-        /// Note that the column widget is not the parent of the cells that match it, the column widget is rendered under cell and row widgets.
-        /// Properties like `padding` and `align` only affect the column visual, not the cells, similarly contextual properties like `text_color`
-        /// don't affect the cells.
-        ///
-        /// [`column!`]: mod@column
-        /// [`column::width`]: fn@column::width
-        /// [`lft`]: LengthUnits::lft
-        pub columns(impl UiNodeList);
-
-        /// Row definitions.
-        ///
-        /// Same behavior as [`columns`], but in the ***y*** dimension.
-        ///
-        /// [`columns`]: fn@columns
-        pub rows(impl UiNodeList);
-
-        /// Widget function used when new rows or columns are needed to cover a cell placement.
-        ///
-        /// The function is used according to the [`auto_grow_mode`]. Note that *imaginary* rows or columns are used if
-        /// the function is [ `WidgetFn::nil` ].
-        ///
-        /// [`auto_grow_mode`]: fn@auto_grow_mode
-        pub auto_grow_fn(impl IntoVar<WidgetFn<AutoGrowFnArgs>>);
-
-        /// Maximum inclusive index that can be covered by auto-generated columns or rows. If a cell is outside this index and
-        /// is not covered by predefined columns or rows a new one is auto generated for it, but if the cell is also outside this
-        /// max it is *collapsed*.
-        ///
-        /// Is `AutoGrowMode::Rows(u32::MAX)` by default.
-        pub auto_grow_mode(impl IntoVar<AutoGrowMode>);
-
-        /// Space in-between cells.
-        pub spacing(impl IntoVar<GridSpacing>);
-
-        /// Spacing around the grid, inside the border.
-        pub crate::properties::padding;
-    }
-
-    fn include(wgt: &mut WidgetBuilder) {
-        wgt.push_build_action(|w| {
+#[widget($crate::widgets::layouts::Grid)]
+pub struct Grid(WidgetBase);
+impl Grid {
+    #[widget(on_start)]
+    fn on_start(&mut self) {
+        self.builder().push_build_action(|w| {
             let child = node(
                 w.capture_ui_node_list_or_empty(property_id!(self::cells)),
                 w.capture_ui_node_list_or_empty(property_id!(self::columns)),
@@ -100,59 +23,152 @@ pub mod grid {
         });
     }
 
-    /// Grid node.
-    ///
-    /// Can be used directly to layout widgets without declaring a grid widget info. This node is the child
-    /// of the `grid!` widget.
-    pub fn node(
-        cells: impl UiNodeList,
-        columns: impl UiNodeList,
-        rows: impl UiNodeList,
-        auto_grow_fn: impl IntoVar<WidgetFn<AutoGrowFnArgs>>,
-        auto_grow_mode: impl IntoVar<AutoGrowMode>,
-        spacing: impl IntoVar<GridSpacing>,
-    ) -> impl UiNode {
-        let auto_columns: Vec<BoxedUiNode> = vec![];
-        let auto_rows: Vec<BoxedUiNode> = vec![];
-        GridNode {
-            children: vec![
-                vec![columns.boxed(), auto_columns.boxed()].boxed(),
-                vec![rows.boxed(), auto_rows.boxed()].boxed(),
-                PanelList::new(cells).boxed(),
-            ],
-            spacing: spacing.into_var(),
-            auto_grow_fn: auto_grow_fn.into_var(),
-            auto_grow_mode: auto_grow_mode.into_var(),
-
-            info: Default::default(),
-        }
+    impl_properties! {
+        /// Spacing around the grid, inside the border.
+        pub fn crate::properties::padding(padding: impl IntoVar<SideOffsets>);
     }
 }
 
-/// Grid column definition.
+/// Cell widget items.
 ///
-/// This widget is layout to define the actual column width, it is not the parent
-/// of the cells, only the `width` and `align` properties affect the cells.
+/// Cells can select their own column, row using the properties in the [`cell!`] widget. Note that
+/// you don't need to use the `cell!` widget, only the properties.
 ///
-/// See the [`grid::columns`] property for more details.
+/// Cells can also be set to span multiple columns using the [`cell!`] properties.
 ///
-/// # Shorthand
+/// If the column or row is not explicitly set the widget is positioned in the logical index, the column
+/// `i % columns` and the row  `i / columns`.
 ///
-/// The `column!` macro provides a shorthand init that sets the width, `grid::column!(1.lft())` instantiates
-/// a column with width of *1 leftover*.
+/// [`cell!`]: mod@cell
+#[property(CHILD, capture, impl(Grid))]
+pub fn cells(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
+
+/// Column definitions.
 ///
-/// [`grid::columns`]: fn@grid::columns
-#[widget($crate::widgets::layouts::grid::column {
-    ($width:expr) => {
-        width = $width;
-    };
-})]
+/// You can define columns with any widget, but the [`column!`] widget is recommended. The column widget width defines
+/// the width of the cells assigned to it, the [`column::width`] property can be used to enforce a width, otherwise the
+/// column is sized by the widest cell.
+///
+/// The grid uses the [`WIDGET_SIZE`] value to select one of three layout modes for columns:
+///
+/// * *Cell*, used for columns that do not set width or set it to [`Length::Default`].
+/// * *Exact*, used for columns that set the width to a different unit.
+/// * *Leftover*, used for columns that set width to an [`lft`] value.
+///
+/// The column layout follows these steps:
+///
+/// 1 - All *Exact* column widgets are layout, their final width defines the column width.
+/// 2 - All cell widgets with span `1` in *Cell* columns are measured, the widest defines the fill width constrain,
+/// the columns is layout using this constrain, the final width defines the column width.
+/// 3 - All *Leftover* cells are layout with the leftover grid width divided among all columns in this mode.
+///
+/// So given the columns `200 | 1.lft() | 1.lft()` and grid width of `1000` with spacing `5` the final widths are `200 | 395 | 395`,
+/// for `200 + 5 + 395 + 5 + 395 = 1000`.
+///
+/// Note that the column widget is not the parent of the cells that match it, the column widget is rendered under cell and row widgets.
+/// Properties like `padding` and `align` only affect the column visual, not the cells, similarly contextual properties like `text_color`
+/// don't affect the cells.
+///
+/// [`column!`]: mod@column
+/// [`column::width`]: fn@column::width
+/// [`lft`]: LengthUnits::lft
+#[property(CHILD, capture, impl(Grid))]
+pub fn columns(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
+
+/// Row definitions.
+///
+/// Same behavior as [`columns`], but in the ***y*** dimension.
+///
+/// [`columns`]: fn@columns
+#[property(CHILD, capture, impl(Grid))]
+pub fn rows(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
+
+/// Widget function used when new rows or columns are needed to cover a cell placement.
+///
+/// The function is used according to the [`auto_grow_mode`]. Note that *imaginary* rows or columns are used if
+/// the function is [ `WidgetFn::nil` ].
+///
+/// [`auto_grow_mode`]: fn@auto_grow_mode
+#[property(CONTEXT, capture, impl(Grid))]
+pub fn auto_grow_fn(child: impl UiNode, auto_grow: impl IntoVar<WidgetFn<AutoGrowFnArgs>>) -> impl UiNode {}
+
+/// Maximum inclusive index that can be covered by auto-generated columns or rows. If a cell is outside this index and
+/// is not covered by predefined columns or rows a new one is auto generated for it, but if the cell is also outside this
+/// max it is *collapsed*.
+///
+/// Is `AutoGrowMode::Rows(u32::MAX)` by default.
+#[property(CONTEXT, capture, impl(Grid))]
+pub fn auto_grow_mode(child: impl UiNode, mode: impl IntoVar<AutoGrowMode>) -> impl UiNode {}
+
+/// Space in-between cells.
+#[property(LAYOUT, capture, impl(Grid))]
+pub fn spacing(child: impl UiNode, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {}
+
+/// Grid node.
+///
+/// Can be used directly to layout widgets without declaring a grid widget info. This node is the child
+/// of the `grid!` widget.
+pub fn node(
+    cells: impl UiNodeList,
+    columns: impl UiNodeList,
+    rows: impl UiNodeList,
+    auto_grow_fn: impl IntoVar<WidgetFn<AutoGrowFnArgs>>,
+    auto_grow_mode: impl IntoVar<AutoGrowMode>,
+    spacing: impl IntoVar<GridSpacing>,
+) -> impl UiNode {
+    let auto_columns: Vec<BoxedUiNode> = vec![];
+    let auto_rows: Vec<BoxedUiNode> = vec![];
+    GridNode {
+        children: vec![
+            vec![columns.boxed(), auto_columns.boxed()].boxed(),
+            vec![rows.boxed(), auto_rows.boxed()].boxed(),
+            PanelList::new(cells).boxed(),
+        ],
+        spacing: spacing.into_var(),
+        auto_grow_fn: auto_grow_fn.into_var(),
+        auto_grow_mode: auto_grow_mode.into_var(),
+
+        info: Default::default(),
+    }
+}
+
+pub use column::Column;
+
+/// Column widget and properties.
 pub mod column {
     use super::*;
 
-    inherit!(widget_base::base);
+    /// Grid column definition.
+    ///
+    /// This widget is layout to define the actual column width, it is not the parent
+    /// of the cells, only the `width` and `align` properties affect the cells.
+    ///
+    /// See the [`grid::columns`] property for more details.
+    ///
+    /// # Shorthand
+    ///
+    /// The `column!` macro provides a shorthand init that sets the width, `grid::column!(1.lft())` instantiates
+    /// a column with width of *1 leftover*.
+    ///
+    /// [`grid::columns`]: fn@grid::columns
+    #[widget($crate::widgets::layouts::grid::Column {
+        ($width:expr) => {
+            width = $width;
+        };
+    })]
+    pub struct Column(WidgetBase);
+    impl Column {
+        impl_properties! {
+            /// Column max width.
+            pub fn crate::properties::max_width(max: impl IntoVar<Length>);
 
-    pub use crate::properties::{max_width, min_width, width};
+            /// Column min width.
+            pub fn crate::properties::min_width(min: impl IntoVar<Length>);
+
+            /// Column width.
+            pub fn crate::properties::width(width: impl IntoVar<Length>);
+        }
+    }
 
     /// Column index, total in the parent widget set by the parent.
     pub(super) static INDEX_ID: StaticStateId<(usize, usize)> = StaticStateId::new_unique();
@@ -162,7 +178,7 @@ pub mod column {
     /// Column index is zero-based, so the first column is even, the next [`is_odd`].
     ///
     /// [`is_odd`]: fn@is_odd
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Column))]
     pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
     }
@@ -172,13 +188,13 @@ pub mod column {
     /// Column index is zero-based, so the first column [`is_even`], the next one is odd.
     ///
     /// [`is_even`]: fn@is_even
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Column))]
     pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
     }
 
     /// If the column is the first.
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Column))]
     pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(
             child,
@@ -192,7 +208,7 @@ pub mod column {
     }
 
     /// If the column is the last.
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Column))]
     pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(
             child,
@@ -226,7 +242,7 @@ pub mod column {
     /// }
     /// # ;
     /// ```
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Column))]
     pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
         widget_state_get_state(
             child,
@@ -244,7 +260,7 @@ pub mod column {
     }
 
     /// Get the column index and number of columns.
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Column))]
     pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
         widget_state_get_state(
             child,
@@ -262,7 +278,7 @@ pub mod column {
     }
 
     /// Get the column index, starting from the last column at `0`.
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Column))]
     pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
         widget_state_get_state(
             child,
@@ -281,7 +297,7 @@ pub mod column {
     }
 
     /// Get the column index as a factor of the total number of columns.
-    #[property(CONTEXT, default(var(0.fct())))]
+    #[property(CONTEXT, default(var(0.fct())), impl(Column))]
     pub fn get_index_fct(child: impl UiNode, state: impl IntoVar<Factor>) -> impl UiNode {
         widget_state_get_state(
             child,
@@ -301,30 +317,43 @@ pub mod column {
     }
 }
 
-/// Grid row definition.
-///
-/// This widget is layout to define the actual row height, it is not the parent
-/// of the cells, only the `height` property affect the cells.
-///
-/// See the [`grid::rows`] property for more details.
-///
-/// # Shorthand
-///
-/// The `row!` macro provides a shorthand init that sets the height, `grid::row!(1.lft())` instantiates
-/// a row with height of *1 leftover*.
-///
-/// [`grid::rows`]: fn@grid::rows
-#[widget($crate::widgets::layouts::grid::row {
-    ($height:expr) => {
-        height = $height;
-    };
-})]
+pub use row::Row;
+
+/// Row widget and properties.
 pub mod row {
     use super::*;
 
-    inherit!(widget_base::base);
+    /// Grid row definition.
+    ///
+    /// This widget is layout to define the actual row height, it is not the parent
+    /// of the cells, only the `height` property affect the cells.
+    ///
+    /// See the [`grid::rows`] property for more details.
+    ///
+    /// # Shorthand
+    ///
+    /// The `row!` macro provides a shorthand init that sets the height, `grid::row!(1.lft())` instantiates
+    /// a row with height of *1 leftover*.
+    ///
+    /// [`grid::rows`]: fn@grid::rows
+    #[widget($crate::widgets::layouts::grid::row {
+        ($height:expr) => {
+            height = $height;
+        };
+    })]
+    pub struct Row(WidgetBase);
+    impl Row {
+        impl_properties! {
+            /// Row max height.
+            pub fn crate::properties::max_height(max: impl IntoVar<Length>);
 
-    pub use crate::properties::{height, max_height, min_height};
+            /// Row min height.
+            pub fn crate::properties::min_height(max: impl IntoVar<Length>);
+
+            /// Row height.
+            pub fn crate::properties::height(max: impl IntoVar<Length>);
+        }
+    }
 
     /// Row index, total in the parent widget set by the parent.
     pub(super) static INDEX_ID: StaticStateId<(usize, usize)> = StaticStateId::new_unique();
@@ -334,7 +363,7 @@ pub mod row {
     /// Row index is zero-based, so the first row is even, the next [`is_odd`].
     ///
     /// [`is_odd`]: fn@is_odd
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Row))]
     pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
     }
@@ -344,13 +373,13 @@ pub mod row {
     /// Row index is zero-based, so the first row [`is_even`], the next one is odd.
     ///
     /// [`is_even`]: fn@is_even
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Row))]
     pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
     }
 
     /// If the row is the first.
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Row))]
     pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(
             child,
@@ -364,7 +393,7 @@ pub mod row {
     }
 
     /// If the row is the last.
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Row))]
     pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
         widget_state_is_state(
             child,
@@ -398,7 +427,7 @@ pub mod row {
     /// }
     /// # ;
     /// ```
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Row))]
     pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
         widget_state_get_state(
             child,
@@ -416,7 +445,7 @@ pub mod row {
     }
 
     /// Get the column index and number of columns.
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Row))]
     pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
         widget_state_get_state(
             child,
@@ -434,7 +463,7 @@ pub mod row {
     }
 
     /// Get the row index, starting from the last row at `0`.
-    #[property(CONTEXT)]
+    #[property(CONTEXT, impl(Row))]
     pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
         widget_state_get_state(
             child,
@@ -453,7 +482,7 @@ pub mod row {
     }
 
     /// Get the row index as a factor of the total number of rows.
-    #[property(CONTEXT, default(0.fct()))]
+    #[property(CONTEXT, default(0.fct()), impl(Row))]
     pub fn get_index_fct(child: impl UiNode, state: impl IntoVar<Factor>) -> impl UiNode {
         widget_state_get_state(
             child,
@@ -473,18 +502,21 @@ pub mod row {
     }
 }
 
-/// Grid cell container.
-///
-/// This widget defines properties that position and size widgets in a [`grid!`].
-///
-/// See the [`grid::cells`] property for more details.
-///
-/// [`grid::cells`]: fn@grid::cells
-#[widget($crate::widgets::layouts::grid::cell)]
+pub use cell::Cell;
+
+/// Cell widget and properties.
 pub mod cell {
     use super::*;
 
-    inherit!(crate::widgets::container);
+    /// Grid cell container.
+    ///
+    /// This widget defines properties that position and size widgets in a [`grid!`].
+    ///
+    /// See the [`grid::cells`] property for more details.
+    ///
+    /// [`grid::cells`]: fn@grid::cells
+    #[widget($crate::widgets::layouts::grid::Cell)]
+    pub struct Cell(Container);
 
     /// Represents values set by cell properties in a widget.
     #[derive(Clone, Copy, Debug)]
@@ -556,7 +588,7 @@ pub mod cell {
     /// If not set or set to [`usize::MAX`] the cell is positioned based on the logical index.
     ///
     /// This property sets the [`INFO_ID`].
-    #[property(CONTEXT, default(usize::MAX))]
+    #[property(CONTEXT, default(usize::MAX), impl(Cell))]
     pub fn column(child: impl UiNode, col: impl IntoVar<usize>) -> impl UiNode {
         with_widget_state_modify(child, &INFO_ID, col, CellInfo::default, |i, &c| {
             if i.column != c {
@@ -571,7 +603,7 @@ pub mod cell {
     /// If not set or out-of-bounds the cell is positioned based on the logical index.
     ///
     /// This property sets the [`INFO_ID`].
-    #[property(CONTEXT, default(usize::MAX))]
+    #[property(CONTEXT, default(usize::MAX), impl(Cell))]
     pub fn row(child: impl UiNode, row: impl IntoVar<usize>) -> impl UiNode {
         with_widget_state_modify(child, &INFO_ID, row, CellInfo::default, |i, &r| {
             if i.row != r {
@@ -591,7 +623,7 @@ pub mod cell {
     /// Note that the cell does not influence the column width if it spans over multiple columns.
     ///
     /// This property sets the [`INFO_ID`].
-    #[property(CONTEXT, default(1))]
+    #[property(CONTEXT, default(1), impl(Cell))]
     pub fn column_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
         with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, &s| {
             if i.column_span != s {
@@ -611,7 +643,7 @@ pub mod cell {
     /// Note that the cell does not influence the row height if it spans over multiple rows.
     ///
     /// This property sets the [`INFO_ID`].
-    #[property(CONTEXT, default(1))]
+    #[property(CONTEXT, default(1), impl(Cell))]
     pub fn row_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
         with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, &s| {
             if i.row_span != s {

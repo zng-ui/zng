@@ -2,7 +2,10 @@
 
 use std::{
     any::Any,
-    sync::{Arc, Mutex}, error::Error, fmt, marker::PhantomData,
+    error::Error,
+    fmt,
+    marker::PhantomData,
+    sync::{Arc, Mutex},
 };
 
 use crate::prelude::new_widget::*;

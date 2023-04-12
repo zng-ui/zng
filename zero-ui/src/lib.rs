@@ -318,8 +318,8 @@ pub mod prelude {
         pub use crate::core::window::{CursorIcon, WindowId, INTERACTIVITY_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            property, ui_node, widget, widget_mixin,
-            widget_base::{self, HitTestMode, WidgetBase,  WidgetImpl},
+            defaults, impl_properties, property, ui_node, widget,
+            widget_base::{self, HitTestMode, WidgetBase, WidgetImpl},
             widget_info::{
                 InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,
                 WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
@@ -329,8 +329,7 @@ pub mod prelude {
                 NilUiNode, PanelList, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeVec,
                 WidgetId, ZIndex,
             },
-            defaults,
-            impl_properties,
+            widget_mixin,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
@@ -353,12 +352,11 @@ pub mod prelude {
         };
         #[doc(no_inline)]
         pub use crate::widgets::{
-            Container,
-            layouts::{stack_nodes, stack_nodes_layout_by},
             focusable::FocusableMix,
+            layouts::{stack_nodes, stack_nodes_layout_by},
             style,
-            style::{StyleFn, StyleMix, Style},
-            wgt_fn, DataUpdate, WidgetFn,
+            style::{Style, StyleFn, StyleMix},
+            wgt_fn, Container, DataUpdate, WidgetFn,
         };
     }
 }

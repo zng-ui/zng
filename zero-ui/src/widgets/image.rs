@@ -11,7 +11,7 @@ pub mod nodes;
 /// Image presenter.
 ///
 /// This widget loads a still image from a variety of sources and presents it.
-/// 
+///
 #[widget($crate::widgets::Image {
     ($source:expr) => {
         source = $source;
@@ -44,7 +44,6 @@ fn on_build(wgt: &mut WidgetBuilding) {
     });
     wgt.push_intrinsic(NestGroup::EVENT, "image_source", |child| nodes::image_source(child, source));
 }
-
 
 #[cfg(test)]
 mod tests {

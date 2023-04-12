@@ -47,7 +47,27 @@ use direction::*;
 /// [`direction`]: fn@stack::direction
 /// [`StackDirection`]: stack::StackDirection
 /// [`z_index`]: fn@crate::prelude::z_index
-#[widget($crate::widgets::layouts::stack)]
+#[widget($crate::widgets::layouts::Stack)]
+pub struct Stack(WidgetBase);
+impl Stack {
+    #[widget(on_start)]
+    fn on_start(&mut self) {
+        self.builder().push_build_action(|wgt| {
+            let child = node(
+                wgt.capture_ui_node_list_or_empty(property_id!(self::children)),
+                wgt.capture_var_or_default(property_id!(self::direction)),
+                wgt.capture_var_or_default(property_id!(self::spacing)),
+                wgt.capture_var_or_else(property_id!(self::children_align), || Align::FILL),
+            );
+            wgt.set_child(child);
+        });
+    }
+
+    impl_properties! {
+        
+    }
+}
+
 pub mod stack {
     pub use super::direction::StackDirection;
     use super::*;
@@ -81,18 +101,6 @@ pub mod stack {
         /// [`FILL`]: Align::FILL
         /// [`direction`]: fn@direction
         pub children_align(impl IntoVar<Align>) = Align::FILL;
-    }
-
-    fn include(wgt: &mut WidgetBuilder) {
-        wgt.push_build_action(|wgt| {
-            let child = node(
-                wgt.capture_ui_node_list_or_empty(property_id!(self::children)),
-                wgt.capture_var_or_default(property_id!(self::direction)),
-                wgt.capture_var_or_default(property_id!(self::spacing)),
-                wgt.capture_var_or_else(property_id!(self::children_align), || Align::FILL),
-            );
-            wgt.set_child(child);
-        });
     }
 
     /// Stack node.

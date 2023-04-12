@@ -75,7 +75,12 @@ impl WindowsService {
         }
     }
 
-    fn open_impl(&mut self, id: WindowId, new_window: UiTask<WindowCfg>, force_headless: Option<WindowMode>) -> ResponseVar<WindowOpenArgs> {
+    fn open_impl(
+        &mut self,
+        id: WindowId,
+        new_window: UiTask<WindowCfg>,
+        force_headless: Option<WindowMode>,
+    ) -> ResponseVar<WindowOpenArgs> {
         let (responder, response) = response_var();
         let request = OpenWindowRequest {
             id,

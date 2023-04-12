@@ -60,7 +60,7 @@ pub mod window;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_proc_macros::{property_meta, property_impl, widget_new};
+pub use zero_ui_proc_macros::{property_impl, property_meta, widget_new};
 
 /// Expands an `impl` block into an [`UiNode`] trait implementation or new node declaration.
 ///
@@ -342,7 +342,7 @@ pub use zero_ui_proc_macros::ui_node;
 /// the property with the widget, users can set this property on the widget or descendants without needing to import the property. Note that
 /// this makes the property have priority over all others of the same name, only a derived widget can override with another strongly associated
 /// property.
-/// 
+///
 /// Note that you can use the [`impl_properties!`] in widget declarations to implement existing properties for a widget.
 ///
 /// ## Capture
@@ -1027,15 +1027,15 @@ pub use zero_ui_proc_macros::property;
 pub use zero_ui_proc_macros::widget;
 
 /// Expands a struct to a widget mix-in.
-/// 
+///
 /// Widget mix-ins can be inserted on a widgets inheritance chain, but they cannot be instantiated directly. Unlike
 /// the full widgets it defines its parent as a generic type, that must be filled with a real widget when used.
-/// 
+///
 /// By convention mix-ins have the prefix `Mix` and the generic parent is named `P`. The `P` must not have any generic bounds
 /// in the declaration, the expansion will bound it to [`widget_base::WidgetImpl`].
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// # use zero_ui_core::{*, widget_instance::*, var::*, widget_base::*};
 /// # #[property(CONTEXT)] pub fn focusable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
@@ -1056,15 +1056,15 @@ pub use zero_ui_proc_macros::widget;
 ///         pub fn focusable(enabled: impl IntoVar<bool>);
 ///     }
 /// }
-/// 
+///
 /// /// Foo is focusable.
 /// #[widget($crate::Foo)]
 /// pub struct Foo(FocusableMix<WidgetBase>);
 /// ```
-/// 
+///
 /// The example above declares a mix-in `FocusableMix<P>` and an widget `Foo`, the mix-in is used as a parent of the widget, only
 /// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable`.
-/// 
+///
 /// All widget `impl` items can be declared in a mix-in, including the `fn build(&mut self) -> T`, multiple mix-ins can be inherited
 /// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`, mix-ins cannot inherit even from other mix-ins.
 #[doc(inline)]
@@ -1080,7 +1080,7 @@ mod private {
 /// Sets the default properties and when conditions on an widget.
 ///
 /// # Example
-/// 
+///
 /// ```
 /// # use zero_ui_core::{*, widget_base::*};
 /// #[widget($crate::Wgt)]
@@ -1114,14 +1114,14 @@ macro_rules! defaults {
 }
 
 /// Implement a property on the widget to strongly associate it with the widget.
-/// 
+///
 /// This is equivalent of the `impl(Widget)` directive in the [`property`] macro, but generates
 #[macro_export]
 macro_rules! impl_properties {
     (
         $(
             $(#[$attr:meta])*
-            $vis:vis fn $($property:ident)::+ ($($arg:ident : $arg_ty:ty)*);            
+            $vis:vis fn $($property:ident)::+ ($($arg:ident : $arg_ty:ty)*);
         )+
     ) => {
         $(

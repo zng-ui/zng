@@ -1,65 +1,20 @@
+//! Wrap panel and helpers.
+
 use std::sync::Arc;
 
 use crate::{crate_util::RecycleVec, prelude::new_widget::*};
 
+use crate::widgets::text::{LINE_SPACING_VAR, TEXT_ALIGN_VAR};
+
 use task::parking_lot::Mutex;
 
 /// Wrapping inline layout.
-#[widget($crate::widgets::layouts::wrap)]
-pub mod wrap {
-    use super::*;
-
-    use crate::widgets::text::{LINE_SPACING_VAR, TEXT_ALIGN_VAR};
-
-    inherit!(widget_base::base);
-
-    properties! {
-        /// Widget items.
-        pub widget_base::children;
-
-        /// Space in-between items and rows.
-        ///
-        /// This property only defines the spacing for rows of this panel, but it is set
-        /// to [`LINE_SPACING_VAR`] for rows and zero for *column space* by default, so you can use
-        /// the [`line_spacing`] property if you want to affect all nested wrap and text widgets.
-        ///
-        /// Note that *column space* is limited for bidirectional inline items as it only inserts spacing between
-        /// items once and bidirectional text can interleave items, consider using [`word_spacing`] for inline text.
-        ///
-        /// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
-        /// [`line_spacing`]: fn@crate::widgets::text::txt_align
-        /// [`word_spacing`]: fn@crate::widgets::text::word_spacing
-        pub spacing(impl IntoVar<GridSpacing>);
-
-        /// Children align.
-        ///
-        /// This property only defines the align for children inside this panel, but it is set
-        /// to [`TEXT_ALIGN_VAR`] by default, so you can use the [`txt_align`] property if you want
-        /// to affect all nested wrap and text widgets.
-        ///
-        /// [`TEXT_ALIGN_VAR`]: crate::widgets::text::TEXT_ALIGN_VAR
-        /// [`txt_align`]: fn@crate::widgets::text::txt_align
-        pub children_align(impl IntoVar<Align>);
-
-        /// Alignment of children in this widget and of nested wrap panels and texts.
-        ///
-        /// Note that this only sets the [`children_align`] if that property is not set (default) or is set to [`TEXT_ALIGN_VAR`].
-        ///
-        /// [`children_align`]: fn@children_align
-        pub crate::widgets::text::txt_align;
-
-        /// Spacing in-between rows of this widget and of nested wrap panels and texts.
-        ///
-        /// Note that this only sets the [`row_spacing`] if that property is no set (default), or is set to [`LINE_SPACING_VAR`] mapped to
-        /// the [`GridSpacing::row`] value.
-        ///
-        /// [`row_spacing`]: fn@crate::widgets::text::row_spacing
-        /// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
-        pub crate::widgets::text::line_spacing;
-    }
-
-    fn include(wgt: &mut WidgetBuilder) {
-        wgt.push_build_action(|wgt| {
+#[widget($crate::widgets::layouts::Wrap)]
+pub struct Wrap(WidgetBase);
+impl Wrap {
+    #[widget(on_start)]
+    fn on_start(&mut self) {
+        self.builder().push_build_action(|wgt| {
             let child = node(
                 wgt.capture_ui_node_list_or_empty(property_id!(self::children)),
                 wgt.capture_var_or_else(property_id!(self::spacing), || {
@@ -73,21 +28,66 @@ pub mod wrap {
             wgt.set_child(child);
         });
     }
-    /// Wrap node.
-    ///
-    /// Can be used directly to inline widgets without declaring a wrap widget info.  This node is the child
-    /// of the `wrap!` widget.
-    pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> impl UiNode {
-        WrapNode {
-            children: PanelList::new(children),
-            spacing: spacing.into_var(),
-            children_align: children_align.into_var(),
-            layout: Default::default(),
-        }
-    }
 
-    #[doc(inline)]
-    pub use super::{lazy_sample, lazy_size};
+    impl_properties! {
+        /// Inlined wrap items.
+        pub fn widget_base::children(children: impl UiNodeList);
+
+        /// Alignment of children in this widget and of nested wrap panels and texts.
+        ///
+        /// Note that this only sets the [`children_align`] if that property is not set (default) or is set to [`TEXT_ALIGN_VAR`].
+        ///
+        /// [`children_align`]: fn@children_align
+        pub fn crate::widgets::text::txt_align(align: impl IntoVar<Align>);
+
+        /// Spacing in-between rows of this widget and of nested wrap panels and texts.
+        ///
+        /// Note that this only sets the [`row_spacing`] if that property is no set (default), or is set to [`LINE_SPACING_VAR`] mapped to
+        /// the [`GridSpacing::row`] value.
+        ///
+        /// [`row_spacing`]: fn@crate::widgets::text::row_spacing
+        /// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
+        pub fn crate::widgets::text::line_spacing(spacing: impl IntoVar<Length>);
+    }
+}
+
+/// Space in-between items and rows.
+///
+/// This property only defines the spacing for rows of this panel, but it is set
+/// to [`LINE_SPACING_VAR`] for rows and zero for *column space* by default, so you can use
+/// the [`line_spacing`] property if you want to affect all nested wrap and text widgets.
+///
+/// Note that *column space* is limited for bidirectional inline items as it only inserts spacing between
+/// items once and bidirectional text can interleave items, consider using [`word_spacing`] for inline text.
+///
+/// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
+/// [`line_spacing`]: fn@crate::widgets::text::txt_align
+/// [`word_spacing`]: fn@crate::widgets::text::word_spacing
+#[property(LAYOUT, capture, impl(Wrap))]
+pub fn spacing(child: impl UiNode, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {}
+
+/// Children align.
+///
+/// This property only defines the align for children inside this panel, but it is set
+/// to [`TEXT_ALIGN_VAR`] by default, so you can use the [`txt_align`] property if you want
+/// to affect all nested wrap and text widgets.
+///
+/// [`TEXT_ALIGN_VAR`]: crate::widgets::text::TEXT_ALIGN_VAR
+/// [`txt_align`]: fn@crate::widgets::text::txt_align
+#[property(LAYOUT, capture, impl(Wrap))]
+pub fn children_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {}
+
+/// Wrap node.
+///
+/// Can be used directly to inline widgets without declaring a wrap widget info.  This node is the child
+/// of the `wrap!` widget.
+pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> impl UiNode {
+    WrapNode {
+        children: PanelList::new(children),
+        spacing: spacing.into_var(),
+        children_align: children_align.into_var(),
+        layout: Default::default(),
+    }
 }
 
 /// Create a node that estimates the size for a wrap panel children where all items have the same `child_size`.
@@ -1021,7 +1021,7 @@ impl InlineLayout {
 #[cfg(test)]
 mod tests {
     use crate::core::{app::App, context::*};
-    use crate::widgets::{container, wgt};
+    use crate::widgets::{Container, Wgt};
 
     use super::*;
 
@@ -1030,13 +1030,13 @@ mod tests {
         let _app = App::minimal().run_headless(false);
 
         WINDOW.with_test_context(|| {
-            let mut panel = wrap! {
+            let mut panel = Wrap! {
                 children = (0..100).map(|_| wgt! {
                     size = (120, 120);
                 }).collect::<UiNodeVec>();
                 spacing = 8;
             };
-            let mut estimate = container! {
+            let mut estimate = Container! {
                 child = wrap::lazy_size(100, 8, (120, 120));
             };
 

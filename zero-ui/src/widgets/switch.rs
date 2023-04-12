@@ -128,4 +128,3 @@ pub fn new_node(index: impl Var<usize>, options: impl UiNodeList) -> impl UiNode
     }
     .cfg_boxed()
 }
-

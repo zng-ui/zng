@@ -12,7 +12,7 @@ impl<P: WidgetImpl> FocusableMix<P> {
     fn on_start(&mut self) {
         defaults! {
             self;
-            focusable = true;        
+            focusable = true;
             when *#focus::is_focused_hgl {
                 foreground_highlight = {
                     offsets: vis::FOCUS_HIGHLIGHT_OFFSETS_VAR,
@@ -25,7 +25,7 @@ impl<P: WidgetImpl> FocusableMix<P> {
 
     impl_properties! {
         /// If the widget can receive keyboard focus.
-        /// 
+        ///
         /// Is enabled by default in this widget.
         pub fn crate::properties::focus::focusable(focusable: impl IntoVar<bool>);
     }
