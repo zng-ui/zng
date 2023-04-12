@@ -40,17 +40,17 @@ pub mod icon;
 #[doc(inline)]
 pub use icon::Icon;
 
-mod link_wgt;
+pub mod link;
 #[doc(inline)]
-pub use link_wgt::link;
+pub use link::Link;
 
-mod markdown_wgt;
+mod markdown;
 #[doc(inline)]
-pub use markdown_wgt::markdown;
+pub use markdown::Markdown;
 
-mod rule_line_wgt;
+pub mod rule_line;
 #[doc(inline)]
-pub use rule_line_wgt::{hr, rule_line};
+pub use rule_line::{hr::Hr, RuleLine};
 
 mod scroll_wgt;
 #[doc(inline)]

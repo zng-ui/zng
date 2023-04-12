@@ -7,8 +7,11 @@ use crate::prelude::new_widget::*;
 mod resolvers;
 mod view_fn;
 
+pub use resolvers::*;
+pub use view_fn::*;
+
 /// Render markdown styled text.
-#[widget($crate::widgets::markdown {
+#[widget($crate::widgets::Markdown {
     ($md:literal) => {
         md = $crate::core::text::formatx!($md);
     };
@@ -19,38 +22,35 @@ mod view_fn;
         md = $crate::core::text::formatx!($md, $($format)*);
     };
 })]
-pub mod markdown {
-    use super::*;
+pub struct Markdown(WidgetBase);
+impl Markdown {
+    #[widget(on_start)]
+    fn on_start(&mut self) {
+        defaults! {
+            self;
+            on_link = hn!(|args: &LinkArgs| {
+                try_default_link_action(args);
+            });
+        };
 
-    inherit!(widget_base::base);
-
-    #[doc(inline)]
-    pub use super::markdown_node;
-
-    pub use super::resolvers::*;
-    #[doc(inline)]
-    pub use super::view_fn::*;
-
-    #[doc(no_inline)]
-    pub use crate::widgets::text::{line_spacing, paragraph_spacing};
-
-    properties! {
-        /// Markdown text.
-        pub md(impl IntoVar<Text>);
-
-        on_link = hn!(|args: &LinkArgs| {
-            try_default_link_action(args);
-        })
-    }
-
-    fn include(wgt: &mut WidgetBuilder) {
-        wgt.push_build_action(|wgt| {
-            let md = wgt.capture_var_or_default(property_id!(self::md));
+        self.builder().push_build_action(|wgt| {
+            let md = wgt.capture_var_or_default(property_id!(md));
             let child = markdown_node(md);
             wgt.set_child(child.boxed());
         });
     }
+
+    impl_properties! {
+        /// Extra space between lines.
+        pub fn text::line_spacing(spacing: impl IntoVar<LineSpacing>);
+        /// Extra space between paragraphs.
+        pub fn text::paragraph_spacing(spacing: impl IntoVar<LineSpacing>);
+    }
 }
+
+/// Markdown text.
+#[property(CONTEXT, capture, impl(Markdown))]
+pub fn md(child: impl UiNode, md: impl IntoVar<Text>) -> impl UiNode {}
 
 /// Implements the markdown parsing and view generation, configured by contextual properties.
 pub fn markdown_node(md: impl IntoVar<Text>) -> impl UiNode {

@@ -14,6 +14,8 @@ use crate::prelude::new_property::*;
 use crate::widgets::scroll::WidgetInfoExt as _;
 use crate::widgets::scroll_wgt::commands::ScrollToMode;
 
+use super::Markdown;
+
 context_var! {
     /// Markdown image resolver.
     pub static IMAGE_RESOLVER_VAR: ImageResolver = ImageResolver::Default;
@@ -35,7 +37,7 @@ context_var! {
 ///
 /// [`image_fn`]: fn@crate::widgets::markdown::image_fn
 /// [`image::img_limits`]: fn@crate::widgets::image::img_limits
-#[property(CONTEXT, default(IMAGE_RESOLVER_VAR))]
+#[property(CONTEXT, default(IMAGE_RESOLVER_VAR), impl(Markdown))]
 pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>) -> impl UiNode {
     with_context_var(child, IMAGE_RESOLVER_VAR, resolver)
 }
@@ -45,13 +47,13 @@ pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>)
 /// This can be used to expand or replace links.
 ///
 /// Sets the [`LINK_RESOLVER_VAR`].
-#[property(CONTEXT, default(LINK_RESOLVER_VAR))]
+#[property(CONTEXT, default(LINK_RESOLVER_VAR), impl(Markdown))]
 pub fn link_resolver(child: impl UiNode, resolver: impl IntoVar<LinkResolver>) -> impl UiNode {
     with_context_var(child, LINK_RESOLVER_VAR, resolver)
 }
 
 /// Scroll-to mode used by anchor links.
-#[property(CONTEXT, default(LINK_SCROLL_MODE_VAR))]
+#[property(CONTEXT, default(LINK_SCROLL_MODE_VAR), impl(Markdown))]
 pub fn link_scroll_mode(child: impl UiNode, mode: impl IntoVar<ScrollToMode>) -> impl UiNode {
     with_context_var(child, LINK_SCROLL_MODE_VAR, mode)
 }
