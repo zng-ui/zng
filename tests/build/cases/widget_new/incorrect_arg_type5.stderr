@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
   --> cases/widget_new/incorrect_arg_type5.rs:11:13
    |
-11 |       let _ = wgt! {
+11 |       let _ = Wgt! {
    |  _____________^
 12 | |         simple_type = 42, true
    | |         ----------- required by a bound introduced by this call

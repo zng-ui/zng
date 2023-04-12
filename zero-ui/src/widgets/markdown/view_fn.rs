@@ -590,21 +590,21 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
         .boxed()
     } else {
         match args.depth {
-            0 => wgt! {
+            0 => Wgt! {
                 align = Align::TOP;
                 size = (5, 5);
                 corner_radius = 5;
                 margin = (0.6.em(), 0.5.em(), 0, 0);
                 background_color = TEXT_COLOR_VAR;
             },
-            1 => wgt! {
+            1 => Wgt! {
                 align = Align::TOP;
                 size = (5, 5);
                 corner_radius = 5;
                 margin = (0.6.em(), 0.5.em(), 0, 0);
                 border = 1.px(), TEXT_COLOR_VAR.map_into();
             },
-            _ => wgt! {
+            _ => Wgt! {
                 align = Align::TOP;
                 size = (5, 5);
                 margin = (0.6.em(), 0.5.em(), 0, 0);
@@ -690,7 +690,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
 ///
 /// See [`RULE_GEN_VAR`] for more details.
 pub fn default_rule_fn(_: RuleFnArgs) -> impl UiNode {
-    crate::widgets::hr! {
+    crate::widgets::Hr! {
         opacity = 50.pct();
     }
 }
@@ -728,7 +728,7 @@ pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> impl UiNode {
 ///
 /// See [`TABLE_GEN_VAR`] for more details.
 pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
-    use crate::widgets::layouts::grid;
+    use crate::widgets::layouts::{grid, Grid};
 
     Grid! {
         background_color = TEXT_COLOR_VAR.map(|c| c.with_alpha(5.pct()));
@@ -844,7 +844,7 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> impl UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         spacing = 0.5.em();
-        markdown::anchor = formatx!("footnote-{}", args.label);
+        anchor = formatx!("footnote-{}", args.label);
         children = ui_vec![
             Link! {
                 child = Text!("[^{}]", args.label);
@@ -852,7 +852,7 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> impl UiNode {
                     args.propagation().stop();
 
                     let link = WINDOW.widget_tree().get(WIDGET.id()).unwrap().interaction_path();
-                    markdown::LINK_EVENT.notify(markdown::LinkArgs::now(url_back.clone(), link));
+                    LINK_EVENT.notify(LinkArgs::now(url_back.clone(), link));
                 });
             },
             items,

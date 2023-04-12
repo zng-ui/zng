@@ -702,17 +702,17 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// # fn main() {
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// // shorthand #1:
-/// let w = wgt! {
+/// let w = Wgt! {
 ///     size = (800, 600);
 /// };
 ///
 /// // shorthand #2:
-/// let w = wgt! {
+/// let w = Wgt! {
 ///     size = (800.1, 600.2);
 /// };
 ///
 /// // full:
-/// let w = wgt! {
+/// let w = Wgt! {
 ///     size = Size { width: 800.0, height: 600.0 };
 /// };
 /// # }
@@ -750,18 +750,18 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// # fn main() {
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// // literal assign:
-/// let wgt = wgt! {
+/// let wgt = Wgt! {
 ///     foo = 42;
 /// };
 ///
 /// // variable assign:
 /// let variable = var(42);
-/// let wgt = wgt! {
+/// let wgt = Wgt! {
 ///     foo = variable;
 /// };
 ///
 /// // widget when:
-/// let wgt = wgt! {
+/// let wgt = Wgt! {
 ///     foo = 42;
 ///
 ///     when !*#enabled {

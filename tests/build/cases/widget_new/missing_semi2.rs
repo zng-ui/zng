@@ -5,7 +5,7 @@ use zero_ui::widgets::wgt;
 fn main() {
     let _scope = zero_ui::core::app::App::minimal();
     let margin = 0;
-    let _ = wgt! {
+    let _ = Wgt! {
         margin
         // we expect this properties to be used.
         enabled = true;

@@ -27,7 +27,7 @@ macro_rules! source_location {
         $crate::widget_builder::SourceLocation {
             file: std::file!(),
             line: std::line!(),
-            column: std::Column!(),
+            column: std::column!(),
         }
     };
 }

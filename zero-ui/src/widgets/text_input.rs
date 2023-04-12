@@ -4,7 +4,7 @@ use crate::prelude::new_widget::*;
 
 /// Text box widget.
 #[widget($crate::widgets::TextInput)]
-pub struct TextInput(StyleMix<Txt>);
+pub struct TextInput(StyleMix<text::Text>);
 impl TextInput {
     #[widget(on_start)]
     fn on_start(&mut self) {
@@ -47,7 +47,7 @@ pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl U
 /// `style` override the parent style.
 #[property(CONTEXT, default(StyleFn::nil()))]
 pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    style_mixin::with_style_extension(child, STYLE_VAR, style)
+    style::with_style_extension(child, STYLE_VAR, style)
 }
 
 /// Default border color.
@@ -73,7 +73,7 @@ impl DefaultStyle {
     fn on_start(&mut self) {
         defaults! {
             self;
-            crate::widgets::text::padding = (7, 15);
+            padding = (7, 15);
             crate::properties::cursor = CursorIcon::Text;
             crate::properties::background_color = color_scheme_pair(BASE_COLORS_VAR);
             crate::properties::border = {

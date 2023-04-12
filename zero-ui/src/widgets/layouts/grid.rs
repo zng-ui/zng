@@ -336,7 +336,7 @@ pub mod row {
     /// a row with height of *1 leftover*.
     ///
     /// [`grid::rows`]: fn@grid::rows
-    #[widget($crate::widgets::layouts::grid::row {
+    #[widget($crate::widgets::layouts::grid::Row {
         ($height:expr) => {
             height = $height;
         };

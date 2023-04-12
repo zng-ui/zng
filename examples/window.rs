@@ -95,7 +95,7 @@ fn background_color(color: impl Var<Rgba>) -> impl UiNode {
                 spacing = 4;
                 children_align = Align::LEFT;
                 children = ui_vec![
-                    wgt! {
+                    Wgt! {
                         background_color = c.clone();
                         size = (16, 16);
                     },
@@ -576,7 +576,7 @@ fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>,
 }
 
 fn separator() -> impl UiNode {
-    hr! {
+    Hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
         line_style = LineStyle::Dashed;

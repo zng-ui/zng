@@ -19,6 +19,7 @@
 * Merge.
 
 * Update webrender.
+* Review `DefaultStyle` and `base_colors`.
 
 # Other
 

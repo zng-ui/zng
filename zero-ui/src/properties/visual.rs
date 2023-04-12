@@ -18,7 +18,7 @@ use super::hit_test_mode;
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
 /// Container! {
 ///     child = foo();
@@ -82,7 +82,7 @@ pub fn background_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
 /// Container! {
 ///     child = foo();
@@ -106,7 +106,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
 /// Container! {
 ///     child = foo();
@@ -136,7 +136,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
 /// Container! {
 ///     child = foo();
@@ -172,7 +172,7 @@ pub fn background_radial(
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
 /// Container! {
 ///     child = foo();
@@ -210,7 +210,7 @@ pub fn background_conic(
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
 /// Container! {
 ///     child = foo();
@@ -275,7 +275,7 @@ pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// Container! {
 ///     child = foo();
 ///     foreground_highlight = {
@@ -379,7 +379,7 @@ pub fn foreground_highlight(
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
 /// Container! {
 ///     child = foo();
@@ -405,7 +405,7 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
 /// Container! {
 ///     child = foo();

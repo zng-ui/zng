@@ -137,7 +137,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     }
 }
 fn separator() -> impl UiNode {
-    wgt! {
+    Wgt! {
         size = (8, 8);
     }
 }

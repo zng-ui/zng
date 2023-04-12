@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
   --> cases/widget_new/missing_field_all_single.rs:6:13
    |
-6  |       let _ = wgt! {
+6  |       let _ = Wgt! {
    |  _____________^
 7  | |         // margin has one field
 8  | |         // this is interpreted as an unnamed assign `{ }` is the value

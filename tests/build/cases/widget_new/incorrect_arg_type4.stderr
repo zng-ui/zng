@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
   --> cases/widget_new/incorrect_arg_type4.rs:7:13
    |
-7  |        let _ = wgt! {
+7  |        let _ = Wgt! {
    |  ______________^
 8  | |          // only background_gradient gets highlighted here because generics..
 9  | |/         background_gradient = {

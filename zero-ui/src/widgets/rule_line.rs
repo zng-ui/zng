@@ -41,23 +41,23 @@ fn on_build(wgt: &mut WidgetBuilding) {
         bounds: PxSize::zero(),
 
         orientation: wgt
-            .capture_var(property_id!(Self::orientation))
+            .capture_var(property_id!(orientation))
             .unwrap_or_else(|| LineOrientation::Horizontal.into_var().boxed()),
 
         length: wgt
-            .capture_var(property_id!(Self::length))
+            .capture_var(property_id!(length))
             .unwrap_or_else(|| LocalVar(Length::Default).boxed()),
 
         stroke_thickness: wgt
-            .capture_var(property_id!(Self::stroke_thickness))
+            .capture_var(property_id!(stroke_thickness))
             .unwrap_or_else(|| LocalVar(Length::from(1)).boxed()),
 
         color: wgt
-            .capture_var(property_id!(Self::color))
+            .capture_var(property_id!(color))
             .unwrap_or_else(|| LocalVar(rgb(0, 0, 0)).boxed()),
 
         style: wgt
-            .capture_var(property_id!(Self::line_style))
+            .capture_var(property_id!(line_style))
             .unwrap_or_else(|| LineStyle::Solid.into_var().boxed()),
     };
     wgt.set_child(child);
@@ -150,7 +150,7 @@ pub mod hr {
 
     context_var! {
         /// Line color, inherits from [`TEXT_COLOR_VAR`].
-        pub static COLOR_VAR: Rgba = TEXT_COLOR_VAR;
+        pub static COLOR_VAR: Rgba = text::TEXT_COLOR_VAR;
 
         /// Line stroke thickness, default is `1.dip()`
         pub static STROKE_THICKNESS_VAR: Length = 1.dip();

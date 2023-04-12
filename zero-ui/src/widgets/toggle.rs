@@ -5,8 +5,10 @@ use std::{
     error::Error,
     fmt,
     marker::PhantomData,
-    sync::{Arc, Mutex},
+    sync::{Arc}, borrow::Cow,
 };
+
+use task::parking_lot::Mutex;
 
 use crate::core::gesture::CLICK_EVENT;
 
@@ -804,7 +806,7 @@ pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl U
 /// `style` override the parent style.
 #[property(CONTEXT, default(StyleFn::nil()))]
 pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    style_mixin::with_style_extension(child, STYLE_VAR, style)
+    style::with_style_extension(child, STYLE_VAR, style)
 }
 
 /// Default toggle style.

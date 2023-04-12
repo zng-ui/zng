@@ -108,7 +108,7 @@ fn app_main() {
 }
 
 fn separator() -> impl UiNode {
-    hr! {
+    Hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
         line_style = LineStyle::Dashed;

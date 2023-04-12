@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
   --> cases/widget_new/malformed_fields1.rs:6:13
    |
-6  |        let _ = wgt! {
+6  |        let _ = Wgt! {
    |  ______________^
 7  | |/         margin = {
 8  | ||             margin: 0;

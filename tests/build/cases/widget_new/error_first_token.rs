@@ -2,13 +2,13 @@ use zero_ui::properties::states::is_pressed;
 use zero_ui::widgets::wgt;
 
 fn test_1() {
-    let _ = wgt! {
+    let _ = Wgt! {
         =
     };
 }
 
 fn test_2() {
-    let _ = wgt! {
+    let _ = Wgt! {
         when *#is_pressed {
             =
         }
