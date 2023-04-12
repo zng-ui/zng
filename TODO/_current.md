@@ -3,6 +3,9 @@
 * Refactor `#[property]`.
     - Generic properties.
 * Refactor `#[widget]`.
+    - Implement `when`.
+        - For attached properties.
+        - For intrinsic properties.
     - Where is `widget_new!` available for the widget macro?
 * Review docs.
     - No more property rename.

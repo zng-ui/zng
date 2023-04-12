@@ -492,19 +492,19 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     #default_fn
                 }
 
-                #vis fn args(
+                #vis fn args #impl_gens(
                     &self,
                     #(#input_idents: #input_tys),*
-                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> #where_gens {
                     std::boxed::Box::new(#ident_args {
                         #(#input_idents: #input_to_storage),*
                     })
                 }
 
-                #vis fn args_sorted(
+                #vis fn args_sorted #impl_gens(
                     &self,
                     #(#sorted_idents: #sorted_tys),*
-                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> #where_gens {
                     self.args(#(#input_idents),*)
                 }
 
@@ -588,7 +588,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #cfg
                 impl #generics_impl #target #generics {
                     #(#docs)*
-                    #vis fn #ident(&self, #(#input_idents: #input_tys),*) {
+                    #vis fn #ident #impl_gens(&self, #(#input_idents: #input_tys),*) #where_gens {
                         let args = #ident_meta { }.args(#(#input_idents),*);
                         #core::widget_base::WidgetImpl::base_ref(self).mtd_property__(args)
                     }
@@ -601,7 +601,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                     #[doc(hidden)]
                     #[allow(dead_code)]
-                    #vis fn #ident_sorted(&mut self, #(#sorted_idents: #sorted_tys),*) {
+                    #vis fn #ident_sorted #impl_gens(&mut self, #(#sorted_idents: #sorted_tys),*) #where_gens {
                         let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
                         #core::widget_base::WidgetImpl::base_ref(self).mtd_property__(args)
                     }
@@ -628,7 +628,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
                 #(#docs)*
                 #[allow(clippy::too_many_arguments)]
-                fn #ident(&mut self, #(#input_idents: #input_tys),*) {
+                fn #ident #impl_gens(&mut self, #(#input_idents: #input_tys),*) #where_gens {
                     let args = #ident_meta { }.args(#(#input_idents),*);
                     self.ext_property__(args)
                 }
@@ -639,7 +639,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
 
                 #[doc(hidden)]
-                fn #ident_sorted(&mut self, #(#sorted_idents: #sorted_tys),*) {
+                fn #ident_sorted #impl_gens(&mut self, #(#sorted_idents: #sorted_tys),*) #where_gens {
                     let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
                     self.ext_property__(args)
                 }
