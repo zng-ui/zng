@@ -489,7 +489,7 @@ impl LAYERS {
         );
     }
 
-    /// Remove the widget from the layers overlay in the next update.
+    /// Remove the widget in the next update.
     ///
     /// The `id` must the widget id of a previous inserted widget, nothing happens if the widget is not found.
     pub fn remove(&self, id: impl Into<WidgetId>) {
@@ -526,8 +526,16 @@ static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 ///
 /// [`NestGroup::EVENT`]: crate::core::widget_builder::NestGroup::EVENT
 pub fn layers(child: impl UiNode) -> impl UiNode {
+    type SortFn = fn(&BoxedUiNode, &BoxedUiNode) -> std::cmp::Ordering;
+
     #[ui_node(struct LayersNode {
-        children: impl UiNodeList,
+        children: crate::core::widget_instance::UiNodeListChainImpl<
+            UiNodeVec, 
+            SortingList<
+                EditableUiNodeList, 
+                SortFn,
+            >,
+        >,
         layered: EditableUiNodeListRef,
     })]
     impl UiNode for LayersNode {
@@ -544,6 +552,29 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
 
         fn update(&mut self, updates: &WidgetUpdates) {
             let mut changed = false;
+            {
+                let editable_list = self.children.1.list_mut();
+
+                let removes = editable_list.take_remove_requests();
+
+                if !removes.is_empty() {
+                    editable_list.retain_mut(|n| {
+                        let rmv = n.with_context(|| {
+                            let id = WIDGET.id();
+                            removes.iter().any(|i| *i == id)                            
+                        }).unwrap_or(false);
+
+                        if rmv {
+                            println!("!!: removed");
+                            n.deinit();
+                            WIDGET.info();
+                            changed = true;
+                        }
+
+                        !rmv
+                    });
+                }                
+            } 
 
             self.children.update_all(updates, &mut changed);
 
@@ -571,7 +602,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
     let layers = EditableUiNodeList::new();
     let layered = layers.reference();
 
-    let sorting_layers = SortingList::new(layers, |a, b| {
+    let sorting_layers = SortingList::<_, SortFn>::new(layers, |a, b| {
         let a = a.with_context(|| WIDGET.req_state(&LAYER_INDEX_ID)).unwrap_or(LayerIndex::DEFAULT);
         let b = b.with_context(|| WIDGET.req_state(&LAYER_INDEX_ID)).unwrap_or(LayerIndex::DEFAULT);
 

@@ -1,5 +1,7 @@
 * Layer fade-out.
     - Make `LAYERS.remove` notify the widget that it's about to be removed as an `on_remove` event ?
+    - Continue impl in `LayersNode`, set a state on the layer widget that signals remove state:
+        - `LayerRmv::Allowed/Request/Requested(ListRef)`
 
 * Review `Transitionable::chase`, not needed anymore?
 * Review Dip units used in computed values.

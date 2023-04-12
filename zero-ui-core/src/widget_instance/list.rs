@@ -1187,6 +1187,11 @@ impl EditableUiNodeList {
         self.ctrl.clone()
     }
 
+    /// Take the list of pending remove requests, the widgets will not be removed on the next update.
+    pub fn take_remove_requests(&mut self) ->  Vec<WidgetId> {
+        self.ctrl.take_remove_requests()
+    }
+
     fn fullfill_requests(&mut self, observer: &mut dyn UiNodeListObserver) {
         if let Some(r) = self.ctrl.take_requests() {
             if r.clear {
@@ -1555,6 +1560,10 @@ impl EditableUiNodeListRef {
         let mut s = self.0.lock();
         s.clear = true;
         UPDATES.update(s.target);
+    }
+
+    fn take_remove_requests(&self) -> Vec<WidgetId> {
+        mem::take(&mut self.0.lock().remove)
     }
 
     fn take_requests(&self) -> Option<EditRequests> {
