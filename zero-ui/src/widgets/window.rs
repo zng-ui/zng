@@ -41,9 +41,9 @@ impl Window {
 
             background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
             txt_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
-            focusable::focus_highlight = {
-                offsets: focusable::FOCUS_HIGHLIGHT_OFFSETS_VAR,
-                widths: focusable::FOCUS_HIGHLIGHT_WIDTHS_VAR,
+            crate::widgets::focusable_mix::focus_highlight = {
+                offsets: crate::widgets::focusable_mix::FOCUS_HIGHLIGHT_OFFSETS_VAR,
+                widths: crate::widgets::focusable_mix::FOCUS_HIGHLIGHT_WIDTHS_VAR,
                 sides: color_scheme_map(
                     BorderSides::dashed(rgba(200, 200, 200, 1.0)),
                     BorderSides::dashed(colors::BLACK)

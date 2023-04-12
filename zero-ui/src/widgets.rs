@@ -2,7 +2,7 @@
 
 pub mod layouts;
 
-pub mod focusable;
+pub mod focusable_mix;
 
 pub mod ansi_text;
 #[doc(inline)]

@@ -352,7 +352,7 @@ pub mod prelude {
         };
         #[doc(no_inline)]
         pub use crate::widgets::{
-            focusable::FocusableMix,
+            focusable_mix::FocusableMix,
             layouts::{stack_nodes, stack_nodes_layout_by},
             style,
             style::{Style, StyleFn, StyleMix},
