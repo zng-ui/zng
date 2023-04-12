@@ -505,10 +505,20 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let call = quote_call! {
                         #ident_sorted(#(#idents_sorted),*)
                     };
+                    let meta = if path.get_ident().is_some() {
+                        quote! {
+                            wgt__.#ident_meta()
+                        }
+                    } else {
+                        quote! {
+                            <#core::widget_builder::WgtInfo as #path>::#ident_meta(&#core::widget_builder::WgtInfo)
+                        }
+                    };
                     prop_init = quote! {
                         {
+                            let meta__ = #meta;
                             #(
-                                let #idents = wgt__.#ident_meta().inputs().#idents(#values);
+                                let #idents = meta__.inputs().#idents(#values);
                             )*
                             #call
                         }
