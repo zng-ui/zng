@@ -1,6 +1,6 @@
 //! Scrollbar widget and helpers.
 
-use crate::core::mouse::ClickMode;
+use crate::core::mouse::{MouseClickArgs, ClickMode};
 
 use crate::prelude::new_widget::*;
 
@@ -84,7 +84,7 @@ impl Scrollbar {
 
         self.builder().push_build_action(|wgt| {
             // scrollbar is larger than thumb, align inserts the extra space.
-            let thumb = wgt.capture_ui_node_or_else(property_id!(self::thumb_node), || NilUiNode);
+            let thumb = wgt.capture_ui_node_or_else(property_id!(self.thumb_node), || NilUiNode);
             let thumb = align(thumb, Align::FILL);
             wgt.set_child(thumb);
 
@@ -98,7 +98,7 @@ impl Scrollbar {
                 )
             });
 
-            let orientation = wgt.capture_var_or_else(property_id!(self::orientation), || Orientation::Vertical);
+            let orientation = wgt.capture_var_or_else(property_id!(self.orientation), || Orientation::Vertical);
             wgt.push_intrinsic(NestGroup::CONTEXT, "scrollbar-context", move |child| {
                 with_context_var(child, ORIENTATION_VAR, orientation)
             });
@@ -112,7 +112,7 @@ impl Scrollbar {
 /// thumb behavior and tags it-self in the frame.
 ///
 /// [`Thumb!`]: struct@thumb
-#[property(CHILD, capture, default(Thumb!()), impl(Scrollbar))]
+#[property(CHILD, capture, default(super::Thumb!()), impl(Scrollbar))]
 pub fn thumb_node(child: impl UiNode, node: impl UiNode) -> impl UiNode {}
 
 /// Scrollbar orientation.

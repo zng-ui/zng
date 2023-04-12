@@ -76,7 +76,7 @@ pub struct Text(WidgetBase);
 impl Text {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        wgt.push_build_action(|wgt| {
+        self.builder().push_build_action(|wgt| {
             let child = nodes::render_text();
             let child = nodes::render_caret(child);
             let child = nodes::render_overlines(child);
@@ -86,14 +86,14 @@ impl Text {
 
             wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", nodes::layout_text);
 
-            let text = wgt.capture_var_or_default(property_id!(self::txt));
+            let text = wgt.capture_var_or_default(property_id!(self.txt));
             wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| nodes::resolve_text(child, text));
         });
     }
 
     impl_properties! {
         /// Spacing in-between the text and borders.
-        pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
+        pub fn crate::properties::padding(padding: impl IntoVar<SideOffsets>);
     }
 }
 

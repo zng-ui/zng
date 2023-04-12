@@ -16,14 +16,14 @@ impl Wrap {
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
             let child = node(
-                wgt.capture_ui_node_list_or_empty(property_id!(self::children)),
-                wgt.capture_var_or_else(property_id!(self::spacing), || {
+                wgt.capture_ui_node_list_or_empty(property_id!(self.children)),
+                wgt.capture_var_or_else(property_id!(self.spacing), || {
                     LINE_SPACING_VAR.map(|s| GridSpacing {
                         column: Length::zero(),
                         row: s.clone(),
                     })
                 }),
-                wgt.capture_var_or_else(property_id!(self::children_align), || TEXT_ALIGN_VAR),
+                wgt.capture_var_or_else(property_id!(self.children_align), || TEXT_ALIGN_VAR),
             );
             wgt.set_child(child);
         });
@@ -1031,13 +1031,13 @@ mod tests {
 
         WINDOW.with_test_context(|| {
             let mut panel = Wrap! {
-                children = (0..100).map(|_| wgt! {
+                children = (0..100).map(|_| Wgt! {
                     size = (120, 120);
                 }).collect::<UiNodeVec>();
                 spacing = 8;
             };
             let mut estimate = Container! {
-                child = wrap::lazy_size(100, 8, (120, 120));
+                child = lazy_size(100, 8, (120, 120));
             };
 
             WINDOW.test_init(&mut panel);
@@ -1096,14 +1096,14 @@ mod tests {
         let _app = App::minimal().run_headless(false);
 
         WINDOW.with_test_context(|| {
-            let mut panel = wrap! {
-                children = (0..100).map(|_| wgt! {
+            let mut panel = Wrap! {
+                children = (0..100).map(|_| Wgt! {
                     size = (120, 120);
                 }).collect::<UiNodeVec>();
                 spacing = 8;
             };
-            let mut estimate = container! {
-                child = wrap::lazy_size(100, 8, (120, 120));
+            let mut estimate = Container! {
+                child = lazy_size(100, 8, (120, 120));
             };
 
             WINDOW.test_init(&mut panel);

@@ -11,6 +11,7 @@ use crate::core::{
 
 use super::commands::*;
 use super::scroll_properties::*;
+use super::scrollbar::Orientation;
 use super::types::*;
 
 /// The actual content presenter.
@@ -251,17 +252,17 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 ///
 /// [vertical scrollbar]: VERTICAL_SCROLLBAR_GEN_VAR
 pub fn v_scrollbar_presenter() -> impl UiNode {
-    scrollbar_presenter(VERTICAL_SCROLLBAR_GEN_VAR, scrollbar::Orientation::Vertical)
+    scrollbar_presenter(VERTICAL_SCROLLBAR_GEN_VAR, Orientation::Vertical)
 }
 
 /// Create a node that generates and presents the [horizontal scrollbar].
 ///
 /// [horizontal scrollbar]: HORIZONTAL_SCROLLBAR_GEN_VAR
 pub fn h_scrollbar_presenter() -> impl UiNode {
-    scrollbar_presenter(HORIZONTAL_SCROLLBAR_GEN_VAR, scrollbar::Orientation::Horizontal)
+    scrollbar_presenter(HORIZONTAL_SCROLLBAR_GEN_VAR, Orientation::Horizontal)
 }
 
-fn scrollbar_presenter(var: impl IntoVar<WidgetFn<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
+fn scrollbar_presenter(var: impl IntoVar<WidgetFn<ScrollBarArgs>>, orientation: Orientation) -> impl UiNode {
     WidgetFn::presenter(var, move |is_new| {
         if is_new {
             DataUpdate::Update(ScrollBarArgs::new(orientation))

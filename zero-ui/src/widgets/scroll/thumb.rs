@@ -11,6 +11,7 @@ impl Thumb {
     #[widget(on_start)]
     fn on_start(&mut self) {
         defaults! {
+            self;
             crate::properties::background_color = rgba(200, 200, 200, 50.pct());
             capture_mouse = true;
             crate::properties::click_mode = ClickMode::Default; // scrollbar sets to repeat
@@ -43,7 +44,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl UiNode {
 pub fn cross_length(child: impl UiNode, length: impl IntoVar<Length>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
-    let cross_length = wgt.capture_var_or_default::<Length>(property_id!(self::cross_length));
+    let cross_length = wgt.capture_var_or_default::<Length>(property_id!(cross_length));
     wgt.push_intrinsic(NestGroup::SIZE, "orientation-size", move |child| {
         size(
             child,
@@ -58,8 +59,8 @@ fn on_build(wgt: &mut WidgetBuilding) {
 
     wgt.push_intrinsic(NestGroup::LAYOUT, "thumb_layout", thumb_layout);
 
-    let viewport_ratio = wgt.capture_var_or_else(property_id!(self::viewport_ratio), || 1.fct());
-    let offset = wgt.capture_var_or_else(property_id!(self::offset), || 0.fct());
+    let viewport_ratio = wgt.capture_var_or_else(property_id!(viewport_ratio), || 1.fct());
+    let offset = wgt.capture_var_or_else(property_id!(offset), || 0.fct());
 
     wgt.push_intrinsic(NestGroup::CONTEXT, "thumb-context", move |child| {
         let child = with_context_var(child, THUMB_VIEWPORT_RATIO_VAR, viewport_ratio);

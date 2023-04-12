@@ -1,8 +1,8 @@
 use crate::prelude::new_widget::*;
 
-mod direction;
+mod types;
 use crate::core::task::parking_lot::Mutex;
-use direction::*;
+use types::*;
 
 /// Stack layout.
 ///
@@ -24,7 +24,7 @@ use direction::*;
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// let text = stack! {
+/// let text = Stack! {
 ///     direction = StackDirection::top_to_bottom();
 ///     padding = 10;
 ///     spacing = 5;
@@ -54,96 +54,88 @@ impl Stack {
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
             let child = node(
-                wgt.capture_ui_node_list_or_empty(property_id!(self::children)),
-                wgt.capture_var_or_default(property_id!(self::direction)),
-                wgt.capture_var_or_default(property_id!(self::spacing)),
-                wgt.capture_var_or_else(property_id!(self::children_align), || Align::FILL),
+                wgt.capture_ui_node_list_or_empty(property_id!(self.children)),
+                wgt.capture_var_or_default(property_id!(self.direction)),
+                wgt.capture_var_or_default(property_id!(self.spacing)),
+                wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL),
             );
             wgt.set_child(child);
         });
     }
 
     impl_properties! {
-        
+        /// Widget items.
+        pub fn widget_base::children(children: impl UiNodeList);
+
+        /// Spacing around the items stack, inside the border.
+        pub fn crate::properties::padding(padding: impl IntoVar<SideOffsets>);
     }
 }
 
-pub mod stack {
-    pub use super::direction::StackDirection;
-    use super::*;
+/// Stack direction.
+#[property(LAYOUT, capture, impl(Stack))]
+pub fn direction(child: impl UiNode, direction: impl IntoVar<StackDirection>) -> impl UiNode {}
 
-    inherit!(widget_base::base);
+/// Space in-between items.
+///
+/// The spacing is added along non-zero axis for each item offset after the first, so the spacing may
+/// not always be in-between items if a non-standard [`direction`] is used.
+///
+/// [`direction`]: fn@direction
+#[property(LAYOUT, capture, impl(Stack))]
+pub fn spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {}
 
-    properties! {
-        /// Widget items.
-        pub widget_base::children;
+/// Items alignment.
+///
+/// The items are aligned along axis that don't change, as defined by the [`direction`].
+///
+/// The default is [`FILL`].
+///
+/// [`FILL`]: Align::FILL
+/// [`direction`]: fn@direction
+#[property(LAYOUT, capture, default(Align::FILL), impl(Stack))]
+pub fn children_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {}
 
-        /// Stack direction.
-        pub direction(impl IntoVar<StackDirection>);
-
-        /// Space in-between items.
-        ///
-        /// The spacing is added along non-zero axis for each item offset after the first, so the spacing may
-        /// not always be in-between items if a non-standard [`direction`] is used.
-        ///
-        /// [`direction`]: fn@direction
-        pub spacing(impl IntoVar<Length>);
-
-        /// Spacing around the items stack, inside the border.
-        pub crate::properties::padding;
-
-        /// Items alignment.
-        ///
-        /// The items are aligned along axis that don't change, as defined by the [`direction`].
-        ///
-        /// The default is [`FILL`].
-        ///
-        /// [`FILL`]: Align::FILL
-        /// [`direction`]: fn@direction
-        pub children_align(impl IntoVar<Align>) = Align::FILL;
+/// Stack node.
+///
+/// Can be used directly to stack widgets without declaring a stack widget info. This node is the child
+/// of the `stack!` widget.
+pub fn node(
+    children: impl UiNodeList,
+    direction: impl IntoVar<StackDirection>,
+    spacing: impl IntoVar<Length>,
+    children_align: impl IntoVar<Align>,
+) -> impl UiNode {
+    StackNode {
+        children: PanelList::new(children),
+        direction: direction.into_var(),
+        spacing: spacing.into_var(),
+        children_align: children_align.into_var(),
     }
+}
 
-    /// Stack node.
-    ///
-    /// Can be used directly to stack widgets without declaring a stack widget info. This node is the child
-    /// of the `stack!` widget.
-    pub fn node(
-        children: impl UiNodeList,
-        direction: impl IntoVar<StackDirection>,
-        spacing: impl IntoVar<Length>,
-        children_align: impl IntoVar<Align>,
-    ) -> impl UiNode {
-        StackNode {
-            children: PanelList::new(children),
-            direction: direction.into_var(),
-            spacing: spacing.into_var(),
-            children_align: children_align.into_var(),
-        }
-    }
+/// Create a node that estimates the size for a stack panel children where all items have the same `child_size`.
+pub fn lazy_size(
+    children_len: impl IntoVar<usize>,
+    direction: impl IntoVar<StackDirection>,
+    spacing: impl IntoVar<Length>,
+    child_size: impl IntoVar<Size>,
+) -> impl UiNode {
+    lazy_sample(children_len, direction, spacing, crate::properties::size(NilUiNode, child_size))
+}
 
-    /// Create a node that estimates the size for a stack panel children where all items have the same `child_size`.
-    pub fn lazy_size(
-        children_len: impl IntoVar<usize>,
-        direction: impl IntoVar<StackDirection>,
-        spacing: impl IntoVar<Length>,
-        child_size: impl IntoVar<Size>,
-    ) -> impl UiNode {
-        lazy_sample(children_len, direction, spacing, crate::properties::size(NilUiNode, child_size))
-    }
-
-    /// Create a node that estimates the size for a stack panel children where all items have the same size as `child_sample`.
-    pub fn lazy_sample(
-        children_len: impl IntoVar<usize>,
-        direction: impl IntoVar<StackDirection>,
-        spacing: impl IntoVar<Length>,
-        child_sample: impl UiNode,
-    ) -> impl UiNode {
-        LazyStackNode {
-            child: child_sample,
-            children_len: children_len.into_var(),
-            direction: direction.into_var(),
-            spacing: spacing.into_var(),
-        }
+/// Create a node that estimates the size for a stack panel children where all items have the same size as `child_sample`.
+pub fn lazy_sample(
+    children_len: impl IntoVar<usize>,
+    direction: impl IntoVar<StackDirection>,
+    spacing: impl IntoVar<Length>,
+    child_sample: impl UiNode,
+) -> impl UiNode {
+    LazyStackNode {
+        child: child_sample,
+        children_len: children_len.into_var(),
+        direction: direction.into_var(),
+        spacing: spacing.into_var(),
     }
 }
 
@@ -486,7 +478,7 @@ fn spacing_from_direction(direction_vector: euclid::Vector2D<i8, ()>, spacing: L
 ///
 /// This function is just a shortcut for [`stack!`](mod@stack) with [`StackDirection::left_to_right`].
 pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::left_to_right();
         children;
     }
@@ -509,7 +501,7 @@ pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
 ///
 /// This function is just a shortcut for [`stack!`](mod@stack) with [`StackDirection::top_to_bottom`].
 pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         children;
     }
@@ -532,7 +524,7 @@ pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
 ///
 /// This function is just a shortcut for [`stack!`](mod@stack) with [`StackDirection::none`].
 pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
-    stack! {
+    Stack! {
         children;
     }
 }

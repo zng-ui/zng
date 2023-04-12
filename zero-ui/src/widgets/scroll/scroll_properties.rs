@@ -1,6 +1,6 @@
 use crate::widgets::flood;
 
-use super::{commands::ScrollToMode, parts::*, types::*, *};
+use super::{commands::ScrollToMode, types::*, *};
 
 context_var! {
     /// Widget function for creating the vertical scrollbar of an scroll widget.
@@ -83,8 +83,8 @@ context_var! {
 
 fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
     wgt_fn!(|args: ScrollBarArgs| {
-        scrollbar! {
-            thumb_node = scrollbar::thumb! {
+        Scrollbar! {
+            thumb_node = Thumb! {
                 viewport_ratio = args.viewport_ratio();
                 offset = args.offset();
             };

@@ -14,8 +14,8 @@ impl Switch {
     #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
-            let index = wgt.capture_var_or_else(property_id!(self::index), || 0);
-            let options = wgt.capture_ui_node_list_or_empty(property_id!(self::options));
+            let index = wgt.capture_var_or_else(property_id!(self.index), || 0);
+            let options = wgt.capture_ui_node_list_or_empty(property_id!(self.options));
             let child = self::new_node(index, options);
             wgt.set_child(child);
         });

@@ -23,6 +23,7 @@ impl Scroll {
     #[widget(on_start)]
     fn on_start(&mut self) {
         defaults! {
+            self;
             child_align = Align::CENTER;
             clip_to_bounds = true;
             focusable = true;
@@ -57,9 +58,9 @@ pub fn clip_to_viewport(child: impl UiNode, clip: impl IntoVar<bool>) -> impl Ui
 pub fn mode(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
-    let mode = wgt.capture_var_or_else(property_id!(self::mode), || ScrollMode::ALL);
+    let mode = wgt.capture_var_or_else(property_id!(mode), || ScrollMode::ALL);
 
-    let clip_to_viewport = wgt.capture_var_or_default(property_id!(self::clip_to_viewport));
+    let clip_to_viewport = wgt.capture_var_or_default(property_id!(clip_to_viewport));
 
     wgt.push_intrinsic(NestGroup::CHILD_CONTEXT, "scroll_node", |child| {
         scroll_node(child, mode, clip_to_viewport)

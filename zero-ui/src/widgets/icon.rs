@@ -26,7 +26,7 @@ impl Icon {
 pub fn ico(child: impl UiNode, ico: impl IntoVar<GlyphIcon>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
-    let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(self::ico)) {
+    let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(self.ico)) {
         icon
     } else {
         tracing::error!("missing `icon` property");

@@ -389,9 +389,9 @@ pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>)
 }
 
 fn text_view_builder(txt: Text, style: MarkdownStyle) -> WidgetBuilder {
-    use crate::widgets::text as t;
+    use crate::widgets::Text as t;
 
-    let mut builder = WidgetBuilder::new(widget_mod!(t));
+    let mut builder = WidgetBuilder::new(t::widget_type()); // !!: use `Text` directly.
     t::include(&mut builder);
 
     builder.push_property(

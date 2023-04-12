@@ -37,7 +37,7 @@ context_var! {
     /// Is the [`default_style!`] by default.
     ///
     /// [`default_style!`]: mod@default_style
-    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| default_style!());
+    pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
 
     /// Idle background dark and light color.
     pub static BASE_COLORS_VAR: ColorPair = (rgb(20, 20, 20), rgb(235, 235, 235));
@@ -59,7 +59,7 @@ pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl U
 /// `style` override the parent style.
 #[property(CONTEXT, default(StyleFn::nil()))]
 pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    style_mixin::with_style_extension(child, STYLE_VAR, style)
+    style::with_style_extension(child, STYLE_VAR, style)
 }
 
 /// Tip default style.

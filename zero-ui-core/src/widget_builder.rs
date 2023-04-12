@@ -78,7 +78,8 @@ impl WidgetExt for WgtInfo {
 ///
 /// # Syntax
 ///
-/// * `path::ident`: Gets the ID for the property function.
+/// * `path::property`: Gets the ID for the property function.
+/// * `self.property`: Gets the ID for the property on the `#[widget]` builder instance.
 ///
 /// # Examples
 ///
@@ -106,6 +107,9 @@ impl WidgetExt for WgtInfo {
 /// ```
 #[macro_export]
 macro_rules! property_id {
+    ($wgt:ident . $property:ident) => {{
+        $crate::property_meta!($wgt . $property).id()
+    }};
     ($($property:ident)::+) => {{
         $crate::property_meta!($($property)::+).id()
     }};
@@ -120,7 +124,8 @@ pub use crate::property_id;
 ///
 /// # Syntax
 ///
-/// * `property::path`: Gets the info for the property function.
+/// * `path::property`: Gets the info for the property function.
+/// * `self.property`: Gets the info for the property on the `#[widget]` builder instance.
 ///
 /// # Examples
 ///
@@ -142,6 +147,9 @@ pub use crate::property_id;
 /// ```
 #[macro_export]
 macro_rules! property_info {
+    ($wgt:ident . $property:ident) => {{
+        $crate::property_meta!($wgt . $property).info()
+    }};
     ($($property:ident)::+) => {{
         $crate::property_meta!($($property)::+).info()
     }};

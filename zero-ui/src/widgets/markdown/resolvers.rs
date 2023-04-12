@@ -271,7 +271,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
 
     let open_time = Instant::now();
 
-    let popup = container! {
+    let popup = Container! {
         id = popup_id;
 
         padding = (2, 4);
@@ -294,13 +294,13 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
             background_color = color_scheme_map(colors::DARK_RED.with_alpha(90.pct()), colors::PINK.with_alpha(90.pct()));
         }
 
-        child = stack! {
+        child = Stack! {
             direction = StackDirection::left_to_right();
             children = ui_vec![
-                link! {
+                Link! {
                     focus_on_init = true;
 
-                    child = text!(url);
+                    child = Text!(url);
                     underline_skip = UnderlineSkip::SPACES;
 
                     on_blur = async_hn_once!(status, |_| {
@@ -371,7 +371,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                         LAYERS.remove(popup_id);
                     });
                 },
-                text!(" 🡵"),
+                Text!(" 🡵"),
             ];
         }
     };

@@ -2,7 +2,7 @@ use std::mem;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, *};
+use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, *, ext::IdentExt};
 
 use crate::util::{crate_core, set_stream_span, Attributes, Errors};
 
@@ -882,15 +882,51 @@ pub mod keyword {
 }
 
 pub fn expand_meta(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let path = parse_macro_input!(input as Path);
-    let ident = &path.segments.last().unwrap().ident;
-    let meta_ident = ident!("{}_meta__", ident);
-    let core = crate_core();
+    let args = parse_macro_input!(input as MetaArgs);
 
-    let r = quote! {
-        <#core::widget_builder::WgtInfo as #path>::#meta_ident(&#core::widget_builder::WgtInfo)
+    let r= match args {
+        MetaArgs::Method { wgt, _dot, property } => {
+            let meta_ident = ident!("{}_meta__", property);
+            quote! {
+                #wgt . #meta_ident()
+            }
+        },
+        MetaArgs::Function { path } => {
+            let ident = &path.segments.last().unwrap().ident;
+            let meta_ident = ident!("{}_meta__", ident);
+            let core = crate_core();
+        
+            quote! {
+                <#core::widget_builder::WgtInfo as #path>::#meta_ident(&#core::widget_builder::WgtInfo)
+            }
+        },
     };
     r.into()
+}
+enum MetaArgs {
+    Method {
+        wgt: Ident,
+        _dot: Token![.],
+        property: Ident,
+    },
+    Function {
+        path: Path,
+    }
+}
+impl Parse for MetaArgs {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        if input.peek2(Token![.]) {
+            Ok(Self::Method {
+                wgt: Ident::parse_any(input)?,
+                _dot: input.parse()?,
+                property: input.parse()?,
+            })
+        } else {
+            Ok(Self::Function {
+                path: input.parse()?
+            })
+        }
+    }
 }
 
 pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

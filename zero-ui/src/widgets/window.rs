@@ -1,7 +1,7 @@
 //!: Window widget, properties and helpers.
 
 use crate::core::focus::*;
-use crate::core::window::{HeadlessMonitor, StartPosition, WindowCfg};
+use crate::core::window::{HeadlessMonitor, StartPosition, WindowCfg, WindowOpenArgs};
 use crate::prelude::new_widget::*;
 
 pub mod commands;
@@ -72,13 +72,13 @@ impl Window {
     pub fn build(&mut self) -> WindowCfg {
         let mut wgt = self.take_builder();
         WindowCfg::new_root(
-            wgt.capture_value_or_else(property_id!(id), WidgetId::new_unique),
-            wgt.capture_value_or_default::<StartPosition>(property_id!(start_position)),
-            wgt.capture_value_or_default(property_id!(kiosk)),
-            wgt.capture_value_or_else(property_id!(allow_transparency), || true),
-            wgt.capture_value_or_default::<Option<RenderMode>>(property_id!(render_mode)),
-            wgt.capture_value_or_default::<HeadlessMonitor>(property_id!(headless_monitor)),
-            wgt.capture_value_or_default(property_id!(start_focused)),
+            wgt.capture_value_or_else(property_id!(self.id), WidgetId::new_unique),
+            wgt.capture_value_or_default::<StartPosition>(property_id!(self.start_position)),
+            wgt.capture_value_or_default(property_id!(self.kiosk)),
+            wgt.capture_value_or_else(property_id!(self.allow_transparency), || true),
+            wgt.capture_value_or_default::<Option<RenderMode>>(property_id!(self.render_mode)),
+            wgt.capture_value_or_default::<HeadlessMonitor>(property_id!(self.headless_monitor)),
+            wgt.capture_value_or_default(property_id!(self.start_focused)),
             wgt.build(),
         )
     }
@@ -161,45 +161,63 @@ pub fn allow_transparency(child: impl UiNode, allow: impl IntoValue<bool>) -> im
 #[property(CONTEXT, capture, impl(Window))]
 pub fn render_mode(child: impl UiNode, mode: impl IntoValue<Option<RenderMode>>) -> impl UiNode {}
 
+/// Event just after the window opens.
+///
+/// This event notifies once per window, after the window content is inited.
+///
+/// This property handles the same event as [`on_pre_window_open`] so window handlers see it first.
+///
+/// [`on_pre_window_open`]: fn@events::window::on_pre_window_open
+#[property(EVENT, impl(Window))]
+pub fn on_open(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) -> impl UiNode {
+    events::window::on_pre_window_open(child, handler)
+}
+
+/// Event just after the window loads.
+///
+/// This event notifies once per window, after the window content is inited, updated, layout and the first frame
+/// was send to the renderer. Windows are considered *loaded* after the first layout and all [`WindowLoadingHandle`]
+/// have expired or dropped.
+///
+/// This property handles the same event as [`on_pre_window_load`] so window handlers see it first.
+///
+/// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
+/// [`on_pre_window_load`]: fn@events::window::on_pre_window_load
+#[property(EVENT, impl(Window))]
+pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) -> impl UiNode {
+    events::window::on_pre_window_load(child, handler)
+}
+
+/// On window close requested.
+///
+/// This event notifies every time the user or the app tries to close the window, you can stop propagation
+/// to stop the window from being closed.
+#[property(EVENT, impl(Window))]
+pub fn on_close_requested(child: impl UiNode, handler: impl WidgetHandler<WindowCloseRequestedArgs>) -> impl UiNode {
+    events::window::on_window_close_requested(child, handler)
+}
+
+/// On window deinited.
+///
+/// This event notifies once after the window content is deinited because it is closing.
+#[property(EVENT, impl(Window))]
+pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<events::widget::OnDeinitArgs>) -> impl UiNode {
+    events::widget::on_deinit(child, handler)
+}
+
+#[property(EVENT, impl(Window))]
+pub fn on_moved(child: impl UiNode, handler: impl WidgetHandler<WindowCloseRequestedArgs>) -> impl UiNode {
+    events::window::on_pre_window_moved(child, handler)
+}
+
 todo! {
-    /// Event just after the window opens.
-    ///
-    /// This event notifies once per window, after the window content is inited.
-    ///
-    /// This property is the [`on_pre_window_open`] so window handlers see it first.
-    ///
-    /// [`on_pre_window_open`]: fn@events::window::on_pre_window_open
-    pub events::window::on_pre_window_open as on_open;
-
-    /// Event just after the window loads.
-    ///
-    /// This event notifies once per window, after the window content is inited, updated, layout and the first frame
-    /// was send to the renderer. Windows are considered *loaded* after the first layout and all [`WindowLoadingHandle`]
-    /// have expired or dropped.
-    ///
-    /// This property is the [`on_pre_window_load`] so window handlers see it first.
-    ///
-    /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
-    /// [`on_pre_window_load`]: fn@events::window::on_pre_window_load
-    pub events::window::on_pre_window_load as on_load;
-
-    /// On window close requested.
-    ///
-    /// This event notifies every time the user or the app tries to close the window, you can stop propagation
-    /// to stop the window from being closed.
-    pub events::window::on_window_close_requested as on_close_requested;
-
-    /// On window deinited.
-    ///
-    /// This event notifies once after the window content is deinited because it is closing.
-    pub events::widget::on_deinit as on_close;
 
     /// On window position changed.
     ///
     /// This event notifies every time the user or app changes the window position. You can also track the window
     /// position using the [`actual_position`] variable.
     ///
-    /// This property is the [`on_pre_window_moved`] so window handlers see it first.
+    /// This property handles the same event as [`on_pre_window_moved`] so window handlers see it first.
     ///
     /// [`actual_position`]: crate::core::window::WindowVars::actual_position
     /// [`on_pre_window_moved`]: fn@events::window::on_pre_window_moved
@@ -210,7 +228,7 @@ todo! {
     /// This event notifies every time the user or app changes the window content area size. You can also track
     /// the window size using the [`actual_size`] variable.
     ///
-    /// This property is the [`on_pre_window_resized`] so window handlers see it first.
+    /// This property handles the same event as [`on_pre_window_resized`] so window handlers see it first.
     ///
     /// [`actual_size`]: crate::core::window::WindowVars::actual_size
     /// [`on_pre_window_resized`]: fn@events::window::on_pre_window_resized
@@ -221,7 +239,7 @@ todo! {
     /// This event notifies every time the user or app changes the window state. You can also track the window
     /// state by setting [`state`] to a read-write variable.
     ///
-    /// This property is the [`on_pre_window_state_changed`] so window handlers see it first.
+    /// This property handles the same event as [`on_pre_window_state_changed`] so window handlers see it first.
     ///
     /// [`state`]: fn@state
     /// [`on_pre_window_state_changed`]: fn@events::window::on_pre_window_state_changed
@@ -231,7 +249,7 @@ todo! {
     ///
     /// This event notifies every time the user or app changes the window state to maximized.
     ///
-    /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
+    /// This property handles the same event as [`on_pre_window_maximized`] so window handlers see it first.
     ///
     /// [`on_pre_window_maximized`]: fn@events::window::on_pre_window_maximized
     pub events::window::on_pre_window_maximized as on_maximized;
@@ -240,7 +258,7 @@ todo! {
     ///
     /// This event notifies every time the user or app changes the window state to a different state from maximized.
     ///
-    /// This property is the [`on_pre_window_unmaximized`] so window handlers see it first.
+    /// This property handles the same event as [`on_pre_window_unmaximized`] so window handlers see it first.
     ///
     /// [`on_pre_window_unmaximized`]: fn@events::window::on_pre_window_unmaximized
     pub events::window::on_pre_window_unmaximized as on_unmaximized;
@@ -249,7 +267,7 @@ todo! {
     ///
     /// This event notifies every time the user or app changes the window state to maximized.
     ///
-    /// This property is the [`on_pre_window_maximized`] so window handlers see it first.
+    /// This property handles the same event as [`on_pre_window_maximized`] so window handlers see it first.
     ///
     /// [`on_pre_window_maximized`]: fn@events::window::on_pre_window_maximized
     pub events::window::on_pre_window_minimized as on_minimized;
@@ -258,7 +276,7 @@ todo! {
     ///
     /// This event notifies every time the user or app changes the window state to a different state from minimized.
     ///
-    /// This property is the [`on_pre_window_unminimized`] so window handlers see it first.
+    /// This property handles the same event as [`on_pre_window_unminimized`] so window handlers see it first.
     ///
     /// [`on_pre_window_unminimized`]: fn@events::window::on_pre_window_unminimized
     pub events::window::on_pre_window_unminimized as on_unminimized;
@@ -267,7 +285,7 @@ todo! {
     ///
     /// This event notifies every time the user or app changes the window state to [`Normal`].
     ///
-    /// This property is the [`on_pre_window_restored`] so window handlers see it first.
+    /// This property handles the same event as [`on_pre_window_restored`] so window handlers see it first.
     ///
     /// [`Normal`]: crate::core::window::WindowState::Normal
     /// [`on_pre_window_restored`]: fn@events::window::on_pre_window_restored
@@ -277,7 +295,7 @@ todo! {
     ///
     /// This event notifies every time the user or app changes the window state to [`Fullscreen`] or [`Exclusive`].
     ///
-    /// This property is the [`on_pre_window_fullscreen`] so window handlers see it first.
+    /// This property handles the same event as [`on_pre_window_fullscreen`] so window handlers see it first.
     ///
     /// [`Fullscreen`]: crate::core::window::WindowState::Fullscreen
     /// [`Exclusive`]: crate::core::window::WindowState::Exclusive
@@ -288,7 +306,7 @@ todo! {
     ///
     /// This event notifies every time the user or app changed the window state to one that is not fullscreen.
     ///
-    /// This property is the [`on_pre_window_exited_fullscreen`] so window handlers see it first.
+    /// This property handles the same event as [`on_pre_window_exited_fullscreen`] so window handlers see it first.
     ///
     /// [`on_pre_window_exited_fullscreen`]: fn@events::window::on_pre_window_exited_fullscreen
     pub events::window::on_pre_window_exited_fullscreen as on_exited_fullscreen;
