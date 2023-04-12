@@ -75,7 +75,7 @@ impl WindowsService {
         }
     }
 
-    fn open_impl(&mut self, id: WindowId, new_window: UiTask<Window>, force_headless: Option<WindowMode>) -> ResponseVar<WindowOpenArgs> {
+    fn open_impl(&mut self, id: WindowId, new_window: UiTask<WindowCfg>, force_headless: Option<WindowMode>) -> ResponseVar<WindowOpenArgs> {
         let (responder, response) = response_var();
         let request = OpenWindowRequest {
             id,
@@ -255,7 +255,7 @@ impl WINDOWS {
     /// can use the context [`WINDOW`] to set variables that will be read on init with the new value.
     ///
     /// [loaded]: Self::is_loaded
-    pub fn open(&self, new_window: impl Future<Output = Window> + Send + 'static) -> ResponseVar<WindowOpenArgs> {
+    pub fn open(&self, new_window: impl Future<Output = WindowCfg> + Send + 'static) -> ResponseVar<WindowOpenArgs> {
         WINDOWS_SV
             .write()
             .open_impl(WindowId::new_unique(), UiTask::new(None, new_window), None)
@@ -269,7 +269,7 @@ impl WINDOWS {
     pub fn open_id(
         &self,
         window_id: impl Into<WindowId>,
-        new_window: impl Future<Output = Window> + Send + 'static,
+        new_window: impl Future<Output = WindowCfg> + Send + 'static,
     ) -> ResponseVar<WindowOpenArgs> {
         let window_id = window_id.into();
         self.assert_id_unused(window_id);
@@ -286,7 +286,7 @@ impl WINDOWS {
     /// [`open`]: WINDOWS::open
     pub fn open_headless(
         &self,
-        new_window: impl Future<Output = Window> + Send + 'static,
+        new_window: impl Future<Output = WindowCfg> + Send + 'static,
         with_renderer: bool,
     ) -> ResponseVar<WindowOpenArgs> {
         WINDOWS_SV.write().open_impl(
@@ -308,7 +308,7 @@ impl WINDOWS {
     pub fn open_headless_id(
         &self,
         window_id: impl Into<WindowId>,
-        new_window: impl Future<Output = Window> + Send + 'static,
+        new_window: impl Future<Output = WindowCfg> + Send + 'static,
         with_renderer: bool,
     ) -> ResponseVar<WindowOpenArgs> {
         let window_id = window_id.into();
@@ -535,7 +535,7 @@ impl WINDOWS {
     pub fn focus_or_open(
         &self,
         window_id: impl Into<WindowId>,
-        open: impl Future<Output = Window> + Send + 'static,
+        open: impl Future<Output = WindowCfg> + Send + 'static,
     ) -> Option<ResponseVar<WindowOpenArgs>> {
         let window_id = window_id.into();
         if self.focus(window_id).is_ok() {
@@ -1004,7 +1004,7 @@ impl AppWindowInfo {
 }
 struct OpenWindowRequest {
     id: WindowId,
-    new: Mutex<UiTask<Window>>, // never locked, makes `OpenWindowRequest: Sync`
+    new: Mutex<UiTask<WindowCfg>>, // never locked, makes `OpenWindowRequest: Sync`
     force_headless: Option<WindowMode>,
     responder: ResponderVar<WindowOpenArgs>,
 }
@@ -1016,7 +1016,7 @@ struct CloseWindowRequest {
 struct AppWindowTask {
     ctx: WindowCtx,
     mode: WindowMode,
-    task: Mutex<UiTask<Window>>, // never locked, used to make `AppWindowTask: Sync`
+    task: Mutex<UiTask<WindowCfg>>, // never locked, used to make `AppWindowTask: Sync`
     responder: ResponderVar<WindowOpenArgs>,
 }
 impl AppWindowTask {
@@ -1024,7 +1024,7 @@ impl AppWindowTask {
         id: WindowId,
         mode: WindowMode,
         color_scheme: ColorScheme,
-        new: UiTask<Window>,
+        new: UiTask<WindowCfg>,
         responder: ResponderVar<WindowOpenArgs>,
     ) -> Self {
         let primary_scale_factor = MONITORS

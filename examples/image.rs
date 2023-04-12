@@ -451,7 +451,7 @@ pub mod img_window {
         })
     }
 }
-fn img_window(title: impl IntoVar<Text>, child: impl UiNode) -> Window {
+fn img_window(title: impl IntoVar<Text>, child: impl UiNode) -> WindowCfg {
     img_window!(title; child)
 }
 

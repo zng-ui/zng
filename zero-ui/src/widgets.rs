@@ -84,9 +84,9 @@ mod view;
 #[doc(inline)]
 pub use view::*;
 
-mod window_wgt;
+pub mod window;
 #[doc(inline)]
-pub use window_wgt::window;
+pub use window::Window;
 
 /// Minimal widget.
 ///

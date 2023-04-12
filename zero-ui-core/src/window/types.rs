@@ -153,7 +153,7 @@ impl crate::var::IntoValue<WindowId> for &'static StaticWindowId {}
 /// More window configuration is accessible using the [`WindowVars`] type.
 ///
 /// [`WindowVars`]: crate::window::WindowVars
-pub struct Window {
+pub struct WindowCfg {
     pub(super) id: WidgetId,
     pub(super) start_position: StartPosition,
     pub(super) kiosk: bool,
@@ -163,7 +163,7 @@ pub struct Window {
     pub(super) start_focused: bool,
     pub(super) child: BoxedUiNode,
 }
-impl Window {
+impl WindowCfg {
     /// New window from a `root` node that forms the window root widget.
     ///
     /// * `root_id` - Widget ID of `root`.
@@ -186,7 +186,7 @@ impl Window {
         start_focused: bool,
         root: impl UiNode,
     ) -> Self {
-        Window {
+        WindowCfg {
             id: root_id,
             start_position,
             kiosk,
@@ -218,7 +218,7 @@ impl Window {
         start_focused: bool,
         child: impl UiNode,
     ) -> Self {
-        Window::new_root(
+        WindowCfg::new_root(
             root_id,
             start_position,
             kiosk,
@@ -233,7 +233,7 @@ impl Window {
     /// New test window.
     #[cfg(any(test, doc, feature = "test_util"))]
     pub fn new_test(child: impl UiNode) -> Self {
-        Window::new_container(
+        WindowCfg::new_container(
             WidgetId::named("test-window-root"),
             StartPosition::Default,
             false,

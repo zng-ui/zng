@@ -63,7 +63,7 @@ mod tests {
         IMAGES.load_in_headless().set(true);
         let ok = Arc::new(AtomicBool::new(false));
         let window_id = app.open_window(async_clmv!(ok, {
-            Window! {
+            WindowCfg! {
                 child = image! {
                     source = img.clone();
                     img_error_fn = wgt_fn!(ok, |_| {
