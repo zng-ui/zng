@@ -13,7 +13,7 @@ pub use text_properties::*;
 /// ```
 /// use zero_ui::prelude::text;
 ///
-/// let hello_txt = text! {
+/// let hello_txt = Text! {
 ///     font_family = "Arial";
 ///     font_size = 18;
 ///     txt = "Hello!";
@@ -21,16 +21,16 @@ pub use text_properties::*;
 /// ```
 /// # Shorthand
 ///
-/// The `text!` macro provides shorthand syntax that matches the [`formatx!`] input, but outputs a text widget:
+/// The `Text!` macro provides shorthand syntax that matches the [`formatx!`] input, but outputs a text widget:
 ///
 /// ```
 /// # use zero_ui::prelude::text;
-/// let txt = text!("Hello!");
+/// let txt = Text!("Hello!");
 ///
 /// let name = "World";
-/// let fmt = text!("Hello {}!", name);
+/// let fmt = Text!("Hello {}!", name);
 ///
-/// let expr = text!({
+/// let expr = Text!({
 ///     let mut s = String::new();
 ///     s.push('a');
 ///     s
@@ -41,16 +41,16 @@ pub use text_properties::*;
 ///
 /// ```
 /// # use zero_ui::prelude::text;
-/// let txt = text! {
+/// let txt = Text! {
 ///     txt = zero_ui::core::text::formatx!("Hello!");
 /// };
 ///
 /// let name = "World";
-/// let fmt = text! {
+/// let fmt = Text! {
 ///     txt = zero_ui::core::text::formatx!("Hello {}!", name);
 /// };
 ///
-/// let expr = text! {
+/// let expr = Text! {
 ///     txt = {
 ///         let mut s = String::new();
 ///         s.push('a');
@@ -105,11 +105,11 @@ pub fn txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {}
 
 ///<span data-del-macro-root></span> A simple text run with **bold** font weight.
 ///
-/// The input syntax is the same as the shorthand [`text!`].
+/// The input syntax is the same as the shorthand [`Text!`].
 ///
 /// # Configure
 ///
-/// Apart from the font weight this widget can be configured with contextual properties like [`text!`].
+/// Apart from the font weight this widget can be configured with contextual properties like [`Text!`].
 ///
 /// [`text`]: mod@text
 #[macro_export]
@@ -132,11 +132,11 @@ pub use Strong;
 
 ///<span data-del-macro-root></span> A simple text run with *italic* font style.
 ///
-/// The input syntax is the same as the shorthand [`text!`].
+/// The input syntax is the same as the shorthand [`Text!`].
 ///
 /// # Configure
 ///
-/// Apart from the font style this widget can be configured with contextual properties like [`text!`].
+/// Apart from the font style this widget can be configured with contextual properties like [`Text!`].
 ///
 /// [`text`]: mod@text
 #[macro_export]

@@ -8,7 +8,7 @@ fn main() {
     examples_util::print_info();
     zero_ui_view::init();
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "View-Process Respawn Example";
             icon = WindowIcon::render(icon);
             start_position = StartPosition::CenterMonitor;
@@ -24,7 +24,7 @@ fn main() {
                 spacing = 5;
                 children_align = Align::TOP;
                 children = ui_vec![
-                    text! {
+                    Text! {
                         txt = "The renderer and OS windows are created in another process, the `view-process`. \
                                It automatically respawns in case of a graphics driver crash or other similar fatal error.";
                         txt_align = Align::CENTER;
@@ -43,8 +43,8 @@ fn main() {
 }
 
 fn respawn() -> impl UiNode {
-    button! {
-        child = text!("Respawn (F5)");
+    Button! {
+        child = Text!("Respawn (F5)");
         on_click = hn!(|_| {
             VIEW_PROCESS.respawn();
         });
@@ -53,8 +53,8 @@ fn respawn() -> impl UiNode {
 
 #[cfg(debug_assertions)]
 fn crash_respawn() -> impl UiNode {
-    button! {
-        child = text!("Crash View-Process");
+    Button! {
+        child = Text!("Crash View-Process");
         on_click = hn!(|_| {
             VIEW_PROCESS.crash_view_process();
         });
@@ -65,13 +65,13 @@ fn click_counter() -> impl UiNode {
     let t = var_from("Click Me!");
     let mut count = 0;
 
-    button! {
+    Button! {
         on_click = hn!(t, |_| {
             count += 1;
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
             t.set(new_txt);
         });
-        child = text!(t);
+        child = Text!(t);
     }
 }
 
@@ -81,7 +81,7 @@ fn image() -> impl UiNode {
         spacing = 3;
         children = ui_vec![
             strong!("Image:"),
-            image! { source = "examples/res/window/icon-bytes.png"; size = (32, 32); },
+            Image! { source = "examples/res/window/icon-bytes.png"; size = (32, 32); },
         ];
     }
 }
@@ -91,7 +91,7 @@ fn window_status() -> impl UiNode {
 
     macro_rules! status {
         ($name:ident) => {
-            text!(vars.$name().map(|v| formatx!("{}: {v:?}", stringify!($name))))
+            Text!(vars.$name().map(|v| formatx!("{}: {v:?}", stringify!($name))))
         };
     }
 
@@ -120,6 +120,6 @@ fn icon() -> impl UiNode {
         font_size = 28;
         font_weight = FontWeight::BOLD;
         child_align = Align::CENTER;
-        child = text!("R");
+        child = Text!("R");
     }
 }

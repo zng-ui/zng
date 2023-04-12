@@ -22,9 +22,9 @@ pub use window_properties::*;
 /// use zero_ui::prelude::*;
 ///
 /// App::default().run_window(async {
-///     window! {
+///     Window! {
 ///         title = "Window 1";
-///         child = text!("Window 1");
+///         child = Text!("Window 1");
 ///     }
 /// })
 /// ```
@@ -146,10 +146,10 @@ pub fn allow_transparency(child: impl UiNode, allow: impl IntoValue<bool>) -> im
 ///
 /// fn example() -> Window {
 ///     let selected_mode = WINDOW_CTRL.vars().render_mode();
-///     window! {
+///     Window! {
 ///         title = "Render Mode";
 ///         render_mode = RenderMode::Dedicated;
-///         child = text!(selected_mode.map(|m| formatx!("Preference: Dedicated\nActual: {m:?}")));
+///         child = Text!(selected_mode.map(|m| formatx!("Preference: Dedicated\nActual: {m:?}")));
 ///     }
 /// }
 /// ```

@@ -32,10 +32,10 @@ use zero_ui::prelude::*;
 fn run() {
     App::default().run_window(async {
         let size = var_from((800, 600));
-        window! {
+        Window! {
             title = size.map(|s: &Size| formatx!("Button Example - {}", s));
             size;
-            child = button! {
+            child = Button! {
                 on_click = hn!(|_| {
                     println!("Button clicked!");
                 });
@@ -43,7 +43,7 @@ fn run() {
                 size = (300, 200);
                 align = Align::CENTER;
                 font_size = 28;
-                child = text!("Click Me!");
+                child = Text!("Click Me!");
             }
         }
     })

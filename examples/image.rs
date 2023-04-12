@@ -65,29 +65,29 @@ fn app_main() {
                           },
 
                             sub_title("Web"),
-                            image! {
+                            Image! {
                                 source = "https://httpbin.org/image";
                                 size = (200, 150);
                             },
 
                             sub_title("Web With Format"),
-                            image! {
+                            Image! {
                                 source = (Uri::from_static("https://httpbin.org/image"), "image/png");
                                 size = (200, 150);
                             },
                             sub_title("Render"),
-                            image! {
+                            Image! {
                                 img_scale_ppi = true;
                                 source = ImageSource::render_node(RenderMode::Software, |_| container! {
                                     size = (180, 120);
                                     background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
                                     font_size = 24;
                                     child_align = Align::CENTER;
-                                    child = text!("Rendered!");
+                                    child = Text!("Rendered!");
                                 })
                             },
                             // sub_title("AVIF"),
-                            // image! {
+                            // Image! {
                             //     source = "https://raw.githubusercontent.com/link-u/avif-sample-images/master/fox.profile0.8bpc.yuv420.avif";
                             //     size = (200, 150);
                             // },
@@ -167,7 +167,7 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
 
         children = ui_vec![
             sub_title(fit.map_debug()),
-            image! {
+            Image! {
                 source = "examples/res/image/zdenek-machacek-unsplash.jpg";
                 size = (200, 100);
                 img_fit = fit;
@@ -197,7 +197,7 @@ fn img_filter(filter: impl IntoVar<filters::Filter>) -> impl UiNode {
                     Txt::from(s)
                 }
             })),
-            image! {
+            Image! {
                 source = "examples/res/image/zdenek-machacek-unsplash.jpg";
                 size = (200, 100);
                 filter;
@@ -214,8 +214,8 @@ fn sprite() -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         align = Align::CENTER;
         children = ui_vec![
-            button! {
-                child = text!(label.clone());
+            Button! {
+                child = Text!(label.clone());
                 align = Align::CENTER;
                 padding = (2, 3);
                 on_click = hn!(timer, |_| {
@@ -228,7 +228,7 @@ fn sprite() -> impl UiNode {
                     label.set(if t.is_paused() { "play" } else { "pause" });
                 });
             },
-            image! {
+            Image! {
                 source = "examples/res/image/player_combat_sheet-10-96x84-CC0.png";
                 size = (96, 84);
                 border = {
@@ -249,14 +249,14 @@ fn sprite() -> impl UiNode {
 }
 
 fn large_image() -> impl UiNode {
-    button! {
-        child = text!("Large Image (205MB download)");
+    Button! {
+        child = Text!("Large Image (205MB download)");
         on_click = hn!(|_| {
             WINDOWS.open(async {
                 img_window! {
                     title = "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB, downscale to fit 8,000 × 8,000";
                     child_align = Align::FILL;
-                    child = image! {
+                    child = Image! {
                         source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
                         img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
                         img_downscale = Px(8000);
@@ -269,7 +269,7 @@ fn large_image() -> impl UiNode {
                             // thumbnail
                             stack! {
                                 children = ui_vec![
-                                    image! {
+                                    Image! {
                                         source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
                                     },
                                     img_window::loading(),
@@ -284,15 +284,15 @@ fn large_image() -> impl UiNode {
 }
 
 fn panorama_image() -> impl UiNode {
-    button! {
-        child = text!("Panorama Image (100MB download)");
+    Button! {
+        child = Text!("Panorama Image (100MB download)");
         on_click = hn!(|_| {
             WINDOWS.open(async {
                 img_window(
                     "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
                     scroll! {
                         mode = ScrollMode::HORIZONTAL;
-                        child = image! {
+                        child = Image! {
                             img_fit = ImageFit::Fill;
                             source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
                             img_limits = Some(ImageLimits::none().with_max_encoded_len(130.megabytes()).with_max_decoded_len(1.gigabytes()));
@@ -309,8 +309,8 @@ fn panorama_image() -> impl UiNode {
 
 fn block_window_load_image() -> impl UiNode {
     let enabled = var(true);
-    button! {
-        child = text!(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
+    Button! {
+        child = Text!(enabled.map(|e| if *e { "Block Window Load (100MB download)" } else { "Blocking new window until image loads.." }.into()));
         enabled = enabled.clone();
         on_click = hn!(|_| {
             enabled.set(false);
@@ -320,7 +320,7 @@ fn block_window_load_image() -> impl UiNode {
                     state = WindowState::Normal;
 
                     child = scroll! {
-                        child = image! {
+                        child = Image! {
 
                             // block window load until the image is ready to present or 5 minutes have elapsed.
                             // usually you want to set a shorter deadline, `true` converts to 1 second.
@@ -402,7 +402,7 @@ pub mod img_window {
 
         // content shown by all images that failed to load.
         img_error_fn = wgt_fn!(|args: ImageErrorArgs| {
-            center_viewport(text! {
+            center_viewport(Text! {
                 txt = args.error;
                 margin = 8;
                 align = Align::CENTER;
@@ -437,7 +437,7 @@ pub mod img_window {
             formatx!("loading{:.^dots_count$}", "")
         });
 
-        center_viewport(text! {
+        center_viewport(Text! {
             txt = msg;
             txt_color = loading_color();
             margin = 8;
@@ -475,7 +475,7 @@ fn section(title: impl IntoVar<Txt>, children: impl UiNodeList) -> impl UiNode {
 }
 
 fn title(txt: impl IntoVar<Txt>) -> impl UiNode {
-    text! {
+    Text! {
         txt;
         font_size = 20;
         background_color = colors::BLACK;
@@ -484,7 +484,7 @@ fn title(txt: impl IntoVar<Txt>) -> impl UiNode {
 }
 
 fn sub_title(txt: impl IntoVar<Txt>) -> impl UiNode {
-    text! {
+    Text! {
         txt;
 
         font_size = 14;

@@ -26,7 +26,7 @@ fn app_main() {
             hsl(angle.deg(), 80.pct(), 30.pct()).to_rgba()
         });
 
-        window! {
+        Window! {
             title = "Countdown Example";
             size = (280, 120);
             start_position = StartPosition::CenterMonitor;
@@ -39,7 +39,7 @@ fn app_main() {
 
             background_color = bkg.easing(150.ms(), easing::linear);
 
-            child = text!(count.map(|&n| {
+            child = Text!(count.map(|&n| {
                 let r = if n > 0 { formatx!("{n}") } else { "Done!".to_text() };
                 println!("{r}");
                 r
@@ -56,7 +56,7 @@ fn app_main() {
 
                 background_color = bkg.clone();
 
-                child = text!(count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() }));
+                child = Text!(count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() }));
             });
         }
     })

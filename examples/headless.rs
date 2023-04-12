@@ -21,7 +21,7 @@ fn headless_example() {
     let mut app = App::default().run_headless(true);
 
     app.run_window(async {
-        window! {
+        Window! {
             // the window content is the image.
             child = image();
             auto_size = true;
@@ -79,7 +79,7 @@ fn image() -> impl UiNode {
             ]
         });
 
-        child = text! {
+        child = Text! {
             align = Align::CENTER;
             txt = "Hello World!";
             font_size = 72;

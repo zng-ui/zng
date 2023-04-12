@@ -10,7 +10,7 @@ use parking_lot::Mutex;
 use crate::{
     crate_util::{IdSet, NameIdMap},
     event::{event, event_args},
-    image::{Img, ImageDataFormat, ImageSource, ImageVar},
+    image::{ImageDataFormat, ImageSource, ImageVar, Img},
     render::{FrameId, RenderMode},
     text::Txt,
     units::*,
@@ -479,7 +479,7 @@ impl WindowIcon {
     ///         corner_radius = 6;
     ///         font_size = 28;
     ///         font_weight = FontWeight::BOLD;
-    ///         child = text!("A");
+    ///         child = Text!("A");
     ///     }
     /// )
     /// # ;

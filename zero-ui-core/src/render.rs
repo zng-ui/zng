@@ -88,7 +88,7 @@ pub trait Img {
 /// slower but more complex algorithm or pre-scaling it before including in the app.
 ///
 /// You can use the [`Img`] type to re-scale an image, image widgets probably can be configured to do this too.
-/// 
+///
 /// [`Img`]: crate::image::Img
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

@@ -981,7 +981,7 @@ pub use zero_ui_proc_macros::property;
 /// }
 ///
 /// # fn main() {
-/// let wgt = text!("Hello!");
+/// let wgt = Text!("Hello!");
 /// # }
 /// ```
 ///
@@ -991,7 +991,7 @@ pub use zero_ui_proc_macros::property;
 /// # macro_rules! demo {
 /// # () => {
 /// let margin = 10;
-/// let wgt = text! {
+/// let wgt = Text! {
 ///     txt = "Hello!";
 /// };
 /// # };
@@ -1007,7 +1007,7 @@ pub use zero_ui_proc_macros::property;
 /// * `$(#[$attr:meta])* $property:ident = $($rest:tt)*`, blocks all custom `$ident = $tt*` patterns.
 /// * `$(#[$attr:meta])* when $($rest:tt)*`, blocks all custom `when $tt*` patterns.
 ///
-/// Note that the default single property shorthand syntax is not blocked, in the examples above `text!(font_size)` will match
+/// Note that the default single property shorthand syntax is not blocked, in the examples above `Text!(font_size)` will match
 /// the custom shorthand rule and try to set the `txt` with the `font_size` variable, without the shorthand it would create a widget without
 /// `txt` but with a set `font_size`. So a custom rule `$p:expr` is only recommended for widgets that have a property of central importance.
 ///
@@ -1079,7 +1079,7 @@ mod private {
 
 /// Sets the default properties and when conditions on an widget.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::{*, widget_base::*};
@@ -1102,12 +1102,73 @@ macro_rules! defaults {
         $($tt:tt)*
     ) => {
         $crate::widget_new! {
-            start { {
-                let mut wgt__ = $wgt_borrow_mut;
+            start {
+                let wgt__ = $wgt_borrow_mut;
                 $crate::widget_base::WidgetImpl::base(wgt__).start_defaults();
-                wgt__
-            } }
+            }
             end { $crate::widget_base::WidgetImpl::base(wgt__).end_defaults() }
+            new { $($tt)* }
+        }
+    }
+}
+
+/// Sets properties and when condition on a partial widget.
+///
+/// Note that you must use [`defaults!`] in `#[widget(on_start)]`, this macro is building an widget instance
+/// with properties that are only conditionally set.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::{*, widget_base::*};
+/// # #[widget($crate::Wgt)]
+/// #  pub struct Wgt(WidgetBase);
+/// # let flag = true;
+///
+/// let mut wgt = Wgt::start();
+///
+/// if flag {
+///     properties! {
+///         &mut wgt;
+///         enabled = false;
+///     }
+/// }
+///
+/// properties! {
+///     id = "wgt";
+/// }
+///
+/// let wgt = wgt.build();
+/// ```
+///
+/// In the example above the widget will always build with custom `id`, but only will set `enabled = false` when `flag` is `true`.
+///
+/// Note that properties are designed to have a default *neutral* value that behaves as if unset, in the example case you could more easily write:
+///
+/// ```
+/// # use zero_ui_core::{*, widget_base::*};
+/// # #[widget($crate::Wgt)]
+/// #  pub struct Wgt(WidgetBase);
+/// # let flag = true;
+/// let wgt = Wgt! {
+///     enabled = !flag;
+///     id = "wgt";
+/// };
+/// ```
+///
+/// You should use this macro only in contexts where a widget will be build in steps, or in very hot code paths where a widget
+/// has many properties and only some will be non-default per instance.
+#[macro_export]
+macro_rules! properties {
+    (
+        $wgt_borrow_mut:expr;
+        $($tt:tt)*
+    ) => {
+        $crate::widget_new! {
+            start {
+                let wgt__ = $wgt_borrow_mut;
+            }
+            end { }
             new { $($tt)* }
         }
     }

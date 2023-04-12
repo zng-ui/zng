@@ -153,10 +153,10 @@ context_local! {
 
 /// An UI node that resolves the text context vars, applies the text transform and white space correction and segments the `text`.
 ///
-/// This node setups the [`ResolvedText`] for all inner nodes, the `text!` widget includes this node in the [`NestGroup::EVENT`] group,
+/// This node setups the [`ResolvedText`] for all inner nodes, the `Text!` widget includes this node in the [`NestGroup::EVENT`] group,
 /// so all properties except [`NestGroup::CONTEXT`] have access using the [`ResolvedText::get`] function.
 ///
-/// This node also subscribes to all the text context vars so other `text!` properties don't need to.
+/// This node also subscribes to all the text context vars so other `Text!` properties don't need to.
 pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode {
     struct LoadingFontFaceList {
         _var_handle: VarHandle,
@@ -466,7 +466,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
 /// An UI node that layouts the parent [`ResolvedText`] defined by the text context vars.
 ///
-/// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `text!` widget includes this
+/// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `Text!` widget includes this
 /// node in the `NestGroup::CHILD_LAYOUT + 100` nest group, so all properties in [`NestGroup::CHILD_LAYOUT`] can affect the layout normally and
 /// custom properties can be created to be inside this group and have access to the [`LayoutText::get`] function.
 pub fn layout_text(child: impl UiNode) -> impl UiNode {
@@ -997,7 +997,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 ///
 /// The lines are rendered before `child`, under it.
 ///
-/// The `text!` widgets introduces this node in `new_child`, around the [`render_strikethroughs`] node.
+/// The `Text!` widgets introduces this node in `new_child`, around the [`render_strikethroughs`] node.
 pub fn render_underlines(child: impl UiNode) -> impl UiNode {
     #[ui_node(struct RenderUnderlineNode {
         child: impl UiNode,
@@ -1043,7 +1043,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
 ///
 /// The lines are rendered after `child`, over it.
 ///
-/// The `text!` widgets introduces this node in `new_child`, around the [`render_overlines`] node.
+/// The `Text!` widgets introduces this node in `new_child`, around the [`render_overlines`] node.
 pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
     #[ui_node(struct RenderStrikethroughsNode {
         child: impl UiNode,
@@ -1087,7 +1087,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
 ///
 /// The lines are rendered before `child`, under it.
 ///
-/// The `text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
+/// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_overlines(child: impl UiNode) -> impl UiNode {
     #[ui_node(struct RenderOverlineNode {
         child: impl UiNode,
@@ -1131,7 +1131,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 ///
 /// The caret is rendered after `child`, over it.
 ///
-/// The `text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
+/// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_caret(child: impl UiNode) -> impl UiNode {
     #[ui_node(struct RenderCaretNode {
         child: impl UiNode,
@@ -1202,7 +1202,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
 ///
 /// This node renders the text only, decorators are rendered by other nodes.
 ///
-/// This is the `text!` widget inner most child node.
+/// This is the `Text!` widget inner most child node.
 pub fn render_text() -> impl UiNode {
     #[derive(Clone, Copy, PartialEq)]
     struct RenderedText {

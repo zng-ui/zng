@@ -37,8 +37,8 @@ fn on_build(wgt: &mut WidgetBuilding) {
     let node = nodes::image_loading_presenter(node);
     wgt.set_child(node);
 
-    let source = wgt.capture_var::<ImageSource>(property_id!(Self::source)).unwrap_or_else(|| {
-        let error = Image::dummy(Some("no source".to_owned()));
+    let source = wgt.capture_var::<ImageSource>(property_id!(source)).unwrap_or_else(|| {
+        let error = Img::dummy(Some("no source".to_owned()));
         let error = ImageSource::Image(var(error).read_only());
         LocalVar(error).boxed()
     });
@@ -62,12 +62,12 @@ mod tests {
         IMAGES.load_in_headless().set(true);
         let ok = Arc::new(AtomicBool::new(false));
         let window_id = app.open_window(async_clmv!(ok, {
-            WindowCfg! {
-                child = image! {
+            Window! {
+                child = Image! {
                     source = img.clone();
                     img_error_fn = wgt_fn!(ok, |_| {
                         ok.store(true, Ordering::Relaxed);
-                        image! {
+                        Image! {
                             source = img.clone();
                         }
                     });

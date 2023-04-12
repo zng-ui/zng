@@ -104,9 +104,9 @@ pub trait AppRunWindowExt {
     /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
     /// App::default().run_window(async {
     ///     println!("starting app with window {:?}", WINDOW.id());
-    ///     window! {
+    ///     Window! {
     ///         title = "Window 1";
-    ///         child = text!("Window 1");
+    ///         child = Text!("Window 1");
     ///     }
     /// })   
     /// ```
@@ -120,9 +120,9 @@ pub trait AppRunWindowExt {
     /// App::default().run(async {
     ///     WINDOWS.open(async {
     ///         println!("starting app with window {:?}", WINDOW.id());
-    ///         window! {
+    ///         Window! {
     ///             title = "Window 1";
-    ///             child = text!("Window 1");
+    ///             child = Text!("Window 1");
     ///         }
     ///     });
     /// })   

@@ -14,7 +14,7 @@ use crate::{
     context::{LayoutMetrics, LayoutPassId, WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW},
     crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
-    image::{Img, ImageVar, IMAGES},
+    image::{ImageVar, Img, IMAGES},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::FONTS,
     timer::TIMERS,

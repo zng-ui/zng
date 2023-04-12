@@ -19,7 +19,7 @@ fn app_main() {
             demos.push(cursor_demo(Some(*icon)));
         }
 
-        window! {
+        Window! {
             title = "Cursor Example";
             resizable = false;
             auto_size = true;
@@ -43,12 +43,12 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         size = (150, 80);
         align = Align::CENTER;
 
-        tooltip = tip!(text!("tooltip"));
+        tooltip = tip!(Text!("tooltip"));
 
         margin = 1;
         background_color = color_scheme_map(colors::BLACK, colors::WHITE);
         background = match icon {
-            Some((_, img)) => image!{
+            Some((_, img)) => Image!{
                 source = img;
                 img_fit = ImageFit::None;
                 invert_color = color_scheme_map(true, false);
@@ -67,7 +67,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         child_align = Align::TOP_LEFT;
         padding = (2, 5);
 
-        child = text! {
+        child = Text! {
             txt = match icon {
                 Some((ico, _)) => formatx!("{ico:?}"),
                 None => Txt::from_static("<none>"),

@@ -29,7 +29,7 @@ impl Button {
         ///         assert!(args.is_primary());
         ///         println!("button {:?} clicked!", ctx.path.widget_id());
         ///     });
-        ///     child = text!("Click Me!");
+        ///     child = Text!("Click Me!");
         /// }
         /// # ;
         /// ```

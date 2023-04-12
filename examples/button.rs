@@ -17,7 +17,7 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Button Example";
             child = stack! {
                 direction = StackDirection::left_to_right();
@@ -49,7 +49,7 @@ fn example() -> impl UiNode {
     let t = var_from("Click Me!");
     let mut count = 0;
 
-    button! {
+    Button! {
         on_click = hn!(t, |_| {
             count += 1;
             let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
@@ -58,31 +58,31 @@ fn example() -> impl UiNode {
         on_double_click = hn!(|_| println!("double click!"));
         on_triple_click = hn!(|_| println!("triple click!"));
         on_context_click = hn!(|_| println!("context click!"));
-        child = text!(t);
+        child = Text!(t);
     }
 }
 
 fn disabled() -> impl UiNode {
-    button! {
+    Button! {
         on_click = hn!(|_| panic!("disabled button"));
         enabled = false;
-        child = text!("Disabled");
+        child = Text!("Disabled");
         id = "disabled-btn";
-        disabled_tooltip = tip!(text!("disabled tooltip"));
+        disabled_tooltip = tip!(Text!("disabled tooltip"));
     }
 }
 
 fn image_button() -> impl UiNode {
-    button! {
+    Button! {
         id = "img-btn";
-        tooltip = tip!(text!("image button"));
+        tooltip = tip!(Text!("image button"));
         on_click = hn!(|_| println!("Clicked image button"));
         child = stack! {
             direction = StackDirection::left_to_right();
             children_align = Align::CENTER;
             children = ui_vec![
-                image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16); },
-                text!("Click Me!")
+                Image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16); },
+                Text!("Click Me!")
             ];
             spacing = 5;
         };
@@ -90,14 +90,14 @@ fn image_button() -> impl UiNode {
 }
 
 fn repeat_button() -> impl UiNode {
-    button! {
+    Button! {
         id = "repeat-btn";
         click_mode = ClickMode::Repeat;
         on_click = hn!(|args: &ClickArgs| {
             println!("Clicked repeat button, is_repeat={}, click_count={}", args.is_repeat, args.click_count);
         });
 
-        child = text!("Repeat Click!");
+        child = Text!("Repeat Click!");
     }
 }
 
@@ -110,11 +110,11 @@ fn dyn_buttons() -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = dyn_children.chain(ui_vec![
-            button! {
-                child = text!("Add Button");
+            Button! {
+                child = Text!("Add Button");
                 on_click = hn!(|_| {
-                    children_ref.push(button! {
-                        child = text!("Remove {}", btn);
+                    children_ref.push(Button! {
+                        child = Text!("Remove {}", btn);
                         on_click = hn!(children_ref, |_| {
                             children_ref.remove(WIDGET.id());
                         })
@@ -145,30 +145,30 @@ fn toggle_buttons() -> impl UiNode {
         spacing = 5;
         children = ui_vec![
             toggle! {
-                child = text!(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s.unwrap())));
+                child = Text!(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s.unwrap())));
                 checked = var(false);
             },
             toggle! {
-                child = text!(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
+                child = Text!(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
                 checked_opt = var(None);
             },
             toggle! {
-                child = text!(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
+                child = Text!(toggle::IS_CHECKED_VAR.map(|s| formatx!("Toggle: {:?}", s)));
                 checked_opt = var(Some(false));
                 tristate = true;
             },
             toggle! {
-                child = text!("Switch");
+                child = Text!("Switch");
                 checked = var(false);
                 style_fn = style_fn!(|_| toggle::vis::switch_style!());
             },
             toggle! {
-                child = text!("Checkbox");
+                child = Text!("Checkbox");
                 checked = var(false);
                 style_fn = style_fn!(|_| toggle::vis::check_style!());
             },
             toggle! {
-                child = text!("Checkbox Tristate");
+                child = Text!("Checkbox Tristate");
                 checked_opt = var(Some(false));
                 tristate = true;
                 style_fn = style_fn!(|_| toggle::vis::check_style!());
@@ -179,17 +179,17 @@ fn toggle_buttons() -> impl UiNode {
                 toggle::selector = toggle::Selector::single(var("Paris"));
                 children = ui_vec![
                     toggle! {
-                        child = text!("Radio button (Tokyo)");
+                        child = Text!("Radio button (Tokyo)");
                         value::<&'static str> = "Tokyo";
                         style_fn = style_fn!(|_| toggle::vis::radio_style!());
                     },
                     toggle! {
-                        child = text!("Radio button (Paris)");
+                        child = Text!("Radio button (Paris)");
                         value::<&'static str> = "Paris";
                         style_fn = style_fn!(|_| toggle::vis::radio_style!());
                     },
                     toggle! {
-                        child = text!("Radio button (London)");
+                        child = Text!("Radio button (London)");
                         value::<&'static str> = "London";
                         style_fn = style_fn!(|_| toggle::vis::radio_style!());
                     },

@@ -58,7 +58,7 @@ fn app_main() {
             }))
             .perm();
 
-        window! {
+        Window! {
             title = "Shortcuts Example";
             auto_size = true;
             resizable = false;
@@ -70,12 +70,12 @@ fn app_main() {
             child = stack! {
                 direction = StackDirection::top_to_bottom();
                 children = ui_vec![
-                    text!{
+                    Text!{
                         align = Align::CENTER;
                         font_size = 18.pt();
                         txt = "Press a shortcut:";
                     },
-                    text! {
+                    Text! {
                         align = Align::CENTER;
                         margin = (10, 0);
                         font_size = 28.pt();
@@ -85,7 +85,7 @@ fn app_main() {
                             txt_color = colors::SALMON;
                         }
                     },
-                    text! {
+                    Text! {
                         align = Align::CENTER;
                         font_size = 22.pt();
                         font_family = FontName::monospace();

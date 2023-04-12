@@ -63,7 +63,7 @@ context_var! {
 /// toggle! {
 ///     checked = foo.clone();
 ///
-///     child = text!(foo.map(|b| formatx!("foo = {b}")));
+///     child = Text!(foo.map(|b| formatx!("foo = {b}")));
 /// }
 /// # ;
 /// ```
@@ -130,7 +130,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 ///     checked_opt = foo.clone();
 ///     tristate = true;
 ///
-///     child = text!(foo.map(|b| formatx!("foo = {b:?}")));
+///     child = Text!(foo.map(|b| formatx!("foo = {b:?}")));
 /// }
 /// # ;
 /// ```
@@ -225,7 +225,7 @@ pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 ///     // checked_opt = var(Some(false));
 ///     // value<i32> = 42;
 ///
-///     child = text!("Toggle Background");
+///     child = Text!("Toggle Background");
 ///     background_color = colors::RED;
 ///     when *#is_checked {
 ///         background_color = colors::GREEN;
@@ -267,7 +267,7 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 ///     spacing = 5;
 ///     children = (1..=10_i32).map(|i| {
 ///         toggle! {
-///             child = text!("Item {i}");
+///             child = Text!("Item {i}");
 ///             value::<i32> = i;
 ///         }
 ///         .boxed()

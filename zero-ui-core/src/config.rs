@@ -458,11 +458,11 @@ impl ConfigService {
 ///     // read the "main.count" config and bind it to a variable.
 ///     let count = CONFIG.var("main.count", || 0);
 ///
-///     window! {
+///     Window! {
 ///         title = "Persistent Counter";
 ///         padding = 20;
-///         child = button! {
-///             child = text!(count.map(|c| formatx!("Count: {c}")));
+///         child = Button! {
+///             child = Text!(count.map(|c| formatx!("Count: {c}")));
 ///             on_click = hn!(|_| {
 ///                 // modifying the var updates the "main.count" config.
 ///                 count.modify(|mut c| *c += 1).unwrap();

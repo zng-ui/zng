@@ -155,14 +155,12 @@ pub use crate::property_info;
 /// # Syntax
 ///
 /// * `property::path`: Gets the info for the property function.
+/// * `Self::property`: Gets the info for the property on the `#[widget(on_start)]`.
 #[macro_export]
 macro_rules! property_input_types {
-    ($($property:ident)::+) => {{
-        $($property)::+::__input_types__()
-    }};
-    ($($property:ident)::+ ::<$($generics:ty),*>) => {{
-        $($property)::+::<$($generics),*>::__input_types__()
-    }};
+    ($($tt:tt)*) => {
+        $crate::property_meta!($($tt)*).input_types()
+    }
 }
 #[doc(inline)]
 pub use crate::property_input_types;

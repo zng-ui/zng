@@ -415,89 +415,68 @@ mod ansi_fn {
     /// This view is configured by contextual variables like [`BLINK_INTERVAL_VAR`] and all text variables that are
     /// not overridden by the ANSI style, like the font.
     ///
-    /// Returns a `text!` with the text and style.
+    /// Returns a `Text!` with the text and style.
     pub fn default_text_fn(args: TextFnArgs) -> impl UiNode {
         use crate::prelude::*;
 
-        use text as t;
+        let mut text = text::Text::start();
 
-        let mut builder = WidgetBuilder::new(widget_mod!(t));
-        t::include(&mut builder);
-
-        builder.push_property(
-            Importance::INSTANCE,
-            property_args! {
-                t::txt = args.txt;
-            },
-        );
+        properties! {
+            &mut text;
+            txt = args.txt;
+        }
 
         if args.style.background_color != AnsiColor::Black {
-            builder.push_property(
-                Importance::INSTANCE,
-                property_args! {
-                    background_color = args.style.background_color;
-                },
-            );
+            properties! {
+                &mut text;
+                background_color = args.style.background_color;
+            }
         }
         if args.style.color != AnsiColor::White {
-            builder.push_property(
-                Importance::INSTANCE,
-                property_args! {
-                    t::txt_color = args.style.color;
-                },
-            );
+            properties! {
+                &mut text;
+                txt_color = args.style.color;
+            }
         }
 
         if args.style.weight != AnsiWeight::Normal {
-            builder.push_property(
-                Importance::INSTANCE,
-                property_args! {
-                    t::font_weight = args.style.weight;
-                },
-            );
+            properties! {
+                &mut text;
+                font_weight = args.style.weight;
+            }
         }
         if args.style.italic {
-            builder.push_property(
-                Importance::INSTANCE,
-                property_args! {
-                    t::font_style = FontStyle::Italic;
-                },
-            );
+            properties! {
+                &mut text;
+                font_style = FontStyle::Italic;
+            }
         }
 
         if args.style.underline {
-            builder.push_property(
-                Importance::INSTANCE,
-                property_args! {
-                    t::underline = 1, LineStyle::Solid;
-                },
-            );
+            properties! {
+                &mut text;
+                underline = 1, LineStyle::Solid;
+            }
         }
         if args.style.strikethrough {
-            builder.push_property(
-                Importance::INSTANCE,
-                property_args! {
-                    t::strikethrough = 1, LineStyle::Solid;
-                },
-            );
+            properties! {
+                &mut text;
+                strikethrough = 1, LineStyle::Solid;
+            }
         }
 
         if args.style.invert_color {
-            builder.push_property(
-                Importance::INSTANCE,
-                property_args! {
-                    invert_color = true;
-                },
-            );
+            properties! {
+                &mut text;
+                invert_color = true;
+            }
         }
 
         if args.style.hidden {
-            builder.push_property(
-                Importance::INSTANCE,
-                property_args! {
-                    t::visibility = Visibility::Hidden;
-                },
-            );
+            properties! {
+                &mut text;
+                visibility = Visibility::Hidden;
+            }
         }
         if args.style.blink && !args.style.hidden {
             let opacity = var(1.fct());
@@ -506,16 +485,14 @@ mod ansi_fn {
             if interval != Duration::ZERO && interval != Duration::MAX {
                 opacity.step_oci(0.fct(), interval, usize::MAX).perm();
 
-                builder.push_property(
-                    Importance::INSTANCE,
-                    property_args! {
-                        opacity;
-                    },
-                );
+                properties! {
+                    &mut text;
+                    opacity;
+                }
             }
         }
 
-        text::build(builder)
+        text.build()
     }
 
     /// Default [`LINE_GEN_VAR`].
@@ -525,11 +502,11 @@ mod ansi_fn {
         use crate::prelude::*;
 
         if args.text.is_empty() {
-            text!("").boxed()
+            Text!("").boxed()
         } else if args.text.len() == 1 {
             args.text.remove(0)
         } else {
-            stack! {
+            Stack! {
                 direction =  StackDirection::start_to_end();
                 children = args.text;
             }
@@ -539,7 +516,7 @@ mod ansi_fn {
 
     /// Default [`PAGE_GEN_VAR`].
     ///
-    /// Returns a `stack!` for multiple lines, or return the single line, or a nil node.
+    /// Returns a `Stack!` for multiple lines, or return the single line, or a nil node.
     pub fn default_page_fn(mut args: PageFnArgs) -> impl UiNode {
         use crate::prelude::*;
 
@@ -549,7 +526,7 @@ mod ansi_fn {
             args.lines.remove(0)
         } else {
             let len = args.lines.len();
-            stack! {
+            Stack! {
                 direction = StackDirection::top_to_bottom();
                 children = args.lines;
                 lazy = LazyMode::lazy_vertical(wgt_fn!(|_| {
@@ -563,14 +540,14 @@ mod ansi_fn {
 
     /// Default [`PANEL_GEN_VAR`].
     ///
-    /// Returns a `stack!` for multiple pages, or returns the single page, or a nil node.
+    /// Returns a `Stack!` for multiple pages, or returns the single page, or a nil node.
     pub fn default_panel_fn(args: PanelFnArgs) -> impl UiNode {
         use crate::prelude::*;
 
         if args.pages.is_empty() {
             NilUiNode.boxed()
         } else {
-            stack! {
+            Stack! {
                 direction = StackDirection::top_to_bottom();
                 children = args.pages;
             }

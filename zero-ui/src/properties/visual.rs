@@ -22,7 +22,7 @@ use super::hit_test_mode;
 /// #
 /// container! {
 ///     child = foo();
-///     background = text! {
+///     background = Text! {
 ///         txt = "CUSTOM BACKGROUND";
 ///         font_size = 72;
 ///         txt_color = colors::LIGHT_GRAY;
@@ -214,7 +214,7 @@ pub fn background_conic(
 /// #
 /// container! {
 ///     child = foo();
-///     foreground = text! {
+///     foreground = Text! {
 ///         txt = "TRIAL";
 ///         font_size = 72;
 ///         txt_color = colors::BLACK;
@@ -450,7 +450,7 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 ///         background_color = rgb(0, 255, 0);
 ///         // fixed size ignores the layout available size.
 ///         size = (1000, 1000);
-///         child = text!("1000x1000 green clipped to 200x300");
+///         child = Text!("1000x1000 green clipped to 200x300");
 ///     };
 /// }
 /// # ;

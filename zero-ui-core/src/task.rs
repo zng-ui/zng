@@ -20,7 +20,7 @@
 //! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
 //! # fn main() {
 //! let enabled = var(false);
-//! button! {
+//! Button! {
 //!     on_click = async_hn!(enabled, |_| {
 //!         enabled.set(false);
 //!
@@ -97,7 +97,7 @@
 //! # fn main() {
 //! let enabled = var(false);
 //! let msg = var("loading..".to_text());
-//! button! {
+//! Button! {
 //!     on_click = async_hn!(enabled, msg, |_| {
 //!         enabled.set(false);
 //!

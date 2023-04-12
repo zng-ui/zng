@@ -19,7 +19,7 @@ fn main() {
 
 fn app_main() {
     App::default().extend(icons::MaterialFonts).run_window(async {
-        window! {
+        Window! {
             title = "Icon Example";
             icon = WindowIcon::render(|| icon! {
                 ico = icons::filled::LIGHTBULB;
@@ -39,7 +39,7 @@ fn icons() -> impl UiNode {
     let selected_font = var("outlined");
     fn select_font(key: &'static str) -> impl UiNode {
         toggle! {
-            child = text!(key);
+            child = Text!(key);
             value::<&'static str> = key;
         }
     }
@@ -107,7 +107,7 @@ fn icons() -> impl UiNode {
 }
 
 fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
-    button! {
+    Button! {
         padding = 2;
         size = (80, 80);
         child = stack! {
@@ -118,7 +118,7 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
                 icon! {
                     ico = ico.clone();
                 },
-                text! {
+                Text! {
                     txt = formatx!("{ico}");
                     txt_wrap = false;
                     font_size = 10;
@@ -162,7 +162,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                     children_align = Align::TOP_LEFT;
                     children = ui_vec![
                         title(formatx!("{ico}")),
-                        text! {
+                        Text! {
                             txt = ico.name;
                             font_family = FontName::monospace();
                             font_size = 18;
@@ -194,7 +194,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                             })).collect::<Vec<_>>()
                         },
 
-                        sub_title("Using `text!`:"),
+                        sub_title("Using `Text!`:"),
                         stack! {
                             direction = StackDirection::left_to_right();
                             spacing = 5;
@@ -205,7 +205,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                                     spacing = 3;
                                     children = ui_vec![
                                         size_label(formatx!("{size}")),
-                                        text! {
+                                        Text! {
                                             txt = ico.code;
                                             font_family = ico.font.clone();
                                             font_size = size;
@@ -223,7 +223,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                         }
                     ]
                 },
-                button! {
+                Button! {
                     id = "close-btn";
                     icon::ico_size = 14;
                     child = icon(icons::filled::CLOSE);
@@ -246,20 +246,20 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
 }
 
 fn title(title: Txt) -> impl UiNode {
-    text! {
+    Text! {
         txt = title;
         font_size = 24;
         txt_align = Align::CENTER;
     }
 }
 fn sub_title(title: impl Into<Txt>) -> impl UiNode {
-    text! {
+    Text! {
         txt = title.into();
         font_size = 16;
     }
 }
 fn size_label(size: Txt) -> impl UiNode {
-    text! {
+    Text! {
         txt = size;
         font_size = 10;
         txt_align = Align::CENTER;

@@ -24,7 +24,7 @@ use crate::{context::*, event::*, widget_instance::*, *};
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// let probe = state_var();
 /// # let _ =
-/// text! {
+/// Text! {
 ///     txt = probe.map(|p| formatx!("is_pressed = {p:?}"));
 ///     is_pressed = probe;
 /// }

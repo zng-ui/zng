@@ -176,7 +176,7 @@ impl WgtProperty {
     }
 
     /// Gets custom attributes expansion data if any was present in the property.
-    pub fn custom_attrs_expand(&self, builder: Ident, when: Option<Ident>, importance: Option<Ident>) -> TokenStream {
+    pub fn custom_attrs_expand(&self, builder: Ident, when: Option<Ident>) -> TokenStream {
         debug_assert!(self.has_custom_attrs());
 
         let attrs = &self.attrs.others;
@@ -189,7 +189,6 @@ impl WgtProperty {
             is_unset: self.is_unset(),
             when,
             property: self.path.clone(),
-            importance,
         }
         .to_token_stream()
     }
@@ -581,7 +580,7 @@ impl WgtWhen {
         let mut r = quote!();
         for a in &self.assigns {
             if a.has_custom_attrs() {
-                r.extend(a.custom_attrs_expand(builder.clone(), Some(when.clone()), None));
+                r.extend(a.custom_attrs_expand(builder.clone(), Some(when.clone())));
             }
         }
         r

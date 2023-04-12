@@ -13,7 +13,7 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Gradient Example";
             auto_size = true;
             icon = WindowIcon::render(icon);
@@ -37,7 +37,7 @@ fn app_main() {
 }
 
 fn title(title: &'static str) -> impl UiNode {
-    text! {
+    Text! {
         txt = title;
         font_size = 18.pt();
     }
@@ -170,7 +170,7 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_vec![
-            text!(name),
+            Text!(name),
             container! {
                 size = (180, 180);
                 child = gradient;
@@ -195,6 +195,6 @@ fn icon() -> impl UiNode {
         font_size = 28;
         font_weight = FontWeight::BOLD;
         child_align = Align::CENTER;
-        child = text!("G");
+        child = Text!("G");
     }
 }

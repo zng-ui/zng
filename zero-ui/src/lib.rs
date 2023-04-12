@@ -30,10 +30,10 @@
 //!
 //!     App::default().run_window(async {
 //!         let size = var_from((800, 600));
-//!         window! {
+//!         Window! {
 //!             title = size.map(|s: &Size| formatx!("Button Example - {s}"));
 //!             size;
-//!             child = button! {
+//!             child = Button! {
 //!                 on_click = hn!(|_| {
 //!                     println!("Button clicked!");
 //!                 });
@@ -41,7 +41,7 @@
 //!                 size = (300, 200);
 //!                 align = Align::CENTER;
 //!                 font_size = 28;
-//!                 child = text!("Click Me!");
+//!                 child = Text!("Click Me!");
 //!             }
 //!         }
 //!     })
@@ -135,8 +135,8 @@ pub mod prelude {
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
                 NumVariant,
             },
-            formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Hyphens, Justify, LineBreak, Txt,
-            TextTransformFn, ToText, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak, FONTS,
+            formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Hyphens, Justify, LineBreak,
+            TextTransformFn, ToText, Txt, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak, FONTS,
         },
         timer::TIMERS,
         units::{
@@ -318,7 +318,7 @@ pub mod prelude {
         pub use crate::core::window::{CursorIcon, WindowId, INTERACTIVITY_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            defaults, impl_properties, property, ui_node, widget,
+            defaults, impl_properties, properties, property, ui_node, widget,
             widget_base::{self, HitTestMode, WidgetBase, WidgetImpl},
             widget_info::{
                 InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,

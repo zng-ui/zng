@@ -133,6 +133,29 @@ impl WidgetBase {
         debug_assert_eq!(self.started, inner.started);
         debug_assert_eq!(self.importance, inner.importance);
     }
+
+    #[doc(hidden)]
+    pub fn push_unset_property_build_action__(&mut self, property_id: PropertyId, action_name: &'static str) {
+        self.builder
+            .get_mut()
+            .as_mut()
+            .expect("cannot unset build actions after build")
+            .push_unset_property_build_action(property_id, action_name, self.importance);
+    }
+
+    #[doc(hidden)]
+    pub fn push_property_build_action__(
+        &mut self,
+        property_id: PropertyId,
+        action_name: &'static str,
+        input_actions: Vec<Box<dyn AnyPropertyBuildAction>>,
+    ) {
+        self.builder
+            .get_mut()
+            .as_mut()
+            .expect("cannot unset build actions after build")
+            .push_property_build_action(property_id, action_name, self.importance, input_actions);
+    }
 }
 
 /// Trait implemented by all `#[widget]`.

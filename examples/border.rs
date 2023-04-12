@@ -17,7 +17,7 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Border Example";
 
             height = 800;
@@ -33,19 +33,19 @@ fn app_main() {
                 children = ui_vec![
                     widgets::mr_borders! {
                         border_align = 0.pct();
-                        child = text!("border_align = 0.pct();");
+                        child = Text!("border_align = 0.pct();");
                     },
                     widgets::mr_borders! {
                         border_align = (1.0 / 3.0).fct();
-                        child = text!("border_align = (1.0 / 3.0).fct();");
+                        child = Text!("border_align = (1.0 / 3.0).fct();");
                     },
                     widgets::mr_borders! {
                         border_align = 50.pct();
-                        child = text!("border_align = 50.pct();");
+                        child = Text!("border_align = 50.pct();");
                     },
                     widgets::mr_borders! {
                         border_align = 100.pct();
-                        child = text!("border_align = 100.pct();");
+                        child = Text!("border_align = 100.pct();");
                     },
                     clip_to_bounds_demo(),
                     widgets::mr_borders! {
@@ -54,7 +54,7 @@ fn app_main() {
                             border_align = 100.pct();
                             child = widgets::mr_borders! {
                                 border_align = 100.pct();
-                                child = text!("Nested");
+                                child = Text!("Nested");
                             },
                         },
                     },
@@ -74,7 +74,7 @@ fn clip_to_bounds_demo() -> impl UiNode {
         on_click = hn!(clip, |_| {
             clip.modify(|c| *c.to_mut() = !**c)
         });
-        child = text! {
+        child = Text! {
             corner_radius = 0;
             background_color = colors::GREEN.darken(40.pct());
             padding = 3;

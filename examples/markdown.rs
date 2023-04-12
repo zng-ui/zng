@@ -23,7 +23,7 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Markdown Example";
             child = scroll! {
                 mode = ScrollMode::VERTICAL;

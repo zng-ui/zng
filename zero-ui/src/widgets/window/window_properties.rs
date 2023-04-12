@@ -247,7 +247,7 @@ impl_from_and_into_var! {
 /// If enabled a config entry is created for the window state in [`CONFIG`], and if a config backend is set
 /// the window state is persisted on change and restored when the app reopens.
 ///
-/// This property is enabled by default in the `window!` widget, it is recommended to open the window with a name if
+/// This property is enabled by default in the `Window!` widget, it is recommended to open the window with a name if
 /// the app can open more than one window.
 #[property(CONTEXT, default(SaveState::Disabled), impl(Window))]
 pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {

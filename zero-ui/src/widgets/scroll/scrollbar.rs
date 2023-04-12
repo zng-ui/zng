@@ -1,6 +1,6 @@
 //! Scrollbar widget and helpers.
 
-use crate::core::mouse::{MouseClickArgs, ClickMode};
+use crate::core::mouse::{ClickMode, MouseClickArgs};
 
 use crate::prelude::new_widget::*;
 

@@ -8,7 +8,7 @@ use crate::{
     crate_util::IdSet,
     image::Img,
     render::{RenderMode, RendererDebug},
-    text::{Txt, ToText},
+    text::{ToText, Txt},
     units::*,
     var::*,
 };

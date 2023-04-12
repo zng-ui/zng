@@ -17,7 +17,7 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Animation Example";
             padding = 10;
             child_align = Align::CENTER;
@@ -76,7 +76,7 @@ fn example() -> impl UiNode {
                 toggle::selector = toggle::Selector::single(easing_mod.clone());
                 children = {
                     let mode = |m: easing::EasingModifierFn| toggle! {
-                        child = text!(m.to_text());
+                        child = Text!(m.to_text());
                         value = m;
                     };
                     ui_vec![
@@ -114,8 +114,8 @@ fn example() -> impl UiNode {
                     ease_btn(&x, &color, "none", easing::none, &easing_mod),
                 ]
             },
-            button! {
-                child = text!("reset");
+            Button! {
+                child = Text!("reset");
                 foreground_highlight = {
                     offsets: -2,
                     widths: 1,
@@ -147,14 +147,14 @@ fn ease_btn(
 
     use easing::EasingModifierFn::*;
 
-    button! {
+    Button! {
         child = stack! {
             direction = StackDirection::top_to_bottom();
             spacing = 2;
             children_align = Align::TOP;
             children = ui_vec![
-                text!(name.into()),
-                image! {
+                Text!(name.into()),
+                Image! {
                     img_scale_ppi = true;
                     img_loading_fn = wgt_fn!(|_| wgt! {
                         size = (64, 64);
@@ -212,7 +212,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
 
             #[allow(clippy::precedence)]
             children.push(
-                text! {
+                Text! {
                     txt = "v";
                     font_size = 12;
                     font_style = FontStyle::Italic;
@@ -222,7 +222,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 .boxed(),
             );
             children.push(
-                text! {
+                Text! {
                     txt = "t";
                     font_size = 12;
                     font_style = FontStyle::Italic;

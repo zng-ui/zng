@@ -324,12 +324,12 @@ pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> imp
 
 /// Extra spacing in-between paragraphs.
 ///
-/// The default value is `1.em()`. Note that the [`text!`] widget does not implement this property, as raw text does not encode
+/// The default value is `1.em()`. Note that the [`Text!`] widget does not implement this property, as raw text does not encode
 /// paragraph breaks, this property and context var exists to configure *rich-text* widgets, like the [`markdown!`] widget.
 ///
 /// Sets the [`PARAGRAPH_SPACING_VAR`] context var.
 ///
-/// [`text!`]: mod@crate::widgets::text
+/// [`Text!`]: mod@crate::widgets::text
 /// [`markdown!`]: mod@crate::widgets::markdown
 #[property(CONTEXT, default(PARAGRAPH_SPACING_VAR), impl(Text))]
 pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
@@ -360,12 +360,12 @@ pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiN
 
 /// Alignment of text lines inside text blocks.
 ///
-/// Note that the [`text!`] widget only implements this for text inside each instance in isolation, multiple
-/// text instances in an inline row will not all align together by the [`text!`] layout implementation alone.
+/// Note that the [`Text!`] widget only implements this for text inside each instance in isolation, multiple
+/// text instances in an inline row will not all align together by the [`Text!`] layout implementation alone.
 ///
 /// Sets the [`TEXT_ALIGN_VAR`] context var.
 ///
-/// [`text!`]: mod@crate::widgets::text
+/// [`Text!`]: mod@crate::widgets::text
 #[property(CONTEXT, default(TEXT_ALIGN_VAR), impl(Text))]
 pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, TEXT_ALIGN_VAR, mode)

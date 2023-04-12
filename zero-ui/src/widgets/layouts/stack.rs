@@ -31,9 +31,9 @@ use types::*;
 ///     align = Align::CENTER;
 ///     children_align = Align::FILL;
 ///     children = ui_vec![
-///         text!("one"),
-///         text!("two"),
-///         text!("three"),
+///         Text!("one"),
+///         Text!("two"),
+///         Text!("three"),
 ///     ];
 /// };
 /// ```
@@ -469,8 +469,8 @@ fn spacing_from_direction(direction_vector: euclid::Vector2D<i8, ()>, spacing: L
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 /// let text = h_stack(ui_vec![
-///     text!("Hello "),
-///     text!("World"),
+///     Text!("Hello "),
+///     Text!("World"),
 /// ]);
 /// ```
 ///
@@ -492,8 +492,8 @@ pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 /// let text = v_stack(ui_vec![
-///     text!("Hello "),
-///     text!("World"),
+///     Text!("Hello "),
+///     Text!("World"),
 /// ]);
 /// ```
 ///
@@ -515,8 +515,8 @@ pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 /// let text = z_stack(ui_vec![
-///     text!("Hello "),
-///     text!("World"),
+///     Text!("Hello "),
+///     Text!("World"),
 /// ]);
 /// ```
 ///

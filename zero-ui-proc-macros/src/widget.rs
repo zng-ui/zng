@@ -175,7 +175,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
         let macro_new = quote! {
             #crate_core::widget_new! {
-                start { #struct_path::start() }
+                start {
+                    let mut wgt__ = #struct_path::start();
+                    let wgt__ = &mut wgt__;
+                }
                 end { wgt__.build() }
                 new { $($tt)* }
             }
@@ -443,11 +446,33 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
         properties: mut p,
     } = parse_macro_input!(args as NewArgs);
 
+    let core = util::crate_core();
+
     let mut set_props = quote!();
     for prop in &p.properties {
-        prop.attrs.to_tokens(&mut set_props);
+        let custom_expand = if prop.has_custom_attrs() {
+            prop.custom_attrs_expand(ident!("wgt__"), None)
+        } else {
+            quote!()
+        };
+        let attrs = prop.attrs.cfg_and_lints();
 
         let ident = prop.ident();
+        let path = &prop.path;
+
+        macro_rules! quote_call {
+            (#$mtd:ident ( $($args:tt)* )) => {
+                if path.get_ident().is_some() {
+                    quote! {
+                        wgt__.#$mtd($($args)*);
+                    }
+                } else {
+                    quote! {
+                        #path::#$mtd(#core::widget_base::WidgetImpl::base(wgt__), $($args)*);
+                    }
+                }
+            }
+        }
 
         let prop_init;
 
@@ -456,8 +481,8 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 widget_util::PropertyValue::Special(special, _) => {
                     if prop.is_unset() {
                         let unset_ident = ident_spanned!(ident.span()=> "unset_{}", ident);
-                        prop_init = quote! {
-                            wgt__.#unset_ident();
+                        prop_init = quote_call! {
+                            #unset_ident()
                         };
                     } else {
                         p.errors.push("unknown value, expected `unset!`", special.span());
@@ -465,8 +490,8 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
                 widget_util::PropertyValue::Unnamed(val) => {
-                    prop_init = quote! {
-                        wgt__.#ident(#val);
+                    prop_init = quote_call! {
+                        #ident(#val)
                     };
                 }
                 widget_util::PropertyValue::Named(_, fields) => {
@@ -477,20 +502,23 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let ident_sorted = ident_spanned!(ident.span()=> "{}_sorted__", ident);
                     let ident_meta = ident_spanned!(ident.span()=> "{}_meta__", ident);
 
+                    let call = quote_call! {
+                        #ident_sorted(#(#idents_sorted),*)
+                    };
                     prop_init = quote! {
                         {
                             #(
-                                let #idents = wgt_.#ident_meta().inputs().#idents(#values);
+                                let #idents = wgt__.#ident_meta().inputs().#idents(#values);
                             )*
-                            wgt__.#ident_sorted(#(#idents_sorted),*);
+                            #call
                         }
                     };
                 }
             },
             None => match prop.path.get_ident() {
                 Some(_) => {
-                    prop_init = quote! {
-                        wgt__.#ident(#ident);
+                    prop_init = quote_call! {
+                        #ident(#ident)
                     };
                 }
                 None => {
@@ -500,27 +528,17 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             },
         }
 
-        if prop.path.get_ident().is_some() {
-            set_props.extend(prop_init);
-        } else {
-            // trait path
-            let path = &prop.path;
-            set_props.extend(quote! {
-                {
-                    use #path;
-                    #prop_init
-                }
-            });
-        }
+        set_props.extend(quote! {
+            #attrs {
+                #custom_expand
+                #prop_init
+            }
+        });
     }
-
     let r = quote! {
         {
-            #[allow(unused_mut)]
-            let mut wgt__ = #start;
-
+            #start
             #set_props
-
             #end
         }
     };

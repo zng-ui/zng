@@ -10,7 +10,7 @@ use crate::{
     window::*,
 };
 
-use super::{Img, ImageManager, ImageVar, ImagesService, IMAGES, IMAGES_SV};
+use super::{ImageManager, ImageVar, ImagesService, Img, IMAGES, IMAGES_SV};
 
 impl ImagesService {
     fn render<N>(&mut self, render: N) -> ImageVar

@@ -34,7 +34,7 @@ async fn main_window() -> WindowCfg {
 
     let background = var(colors::BLACK);
 
-    window! {
+    Window! {
         background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
         title;
@@ -99,7 +99,7 @@ fn background_color(color: impl Var<Rgba>) -> impl UiNode {
                         background_color = c.clone();
                         size = (16, 16);
                     },
-                    text!(c.map_to_text()),
+                    Text!(c.map_to_text()),
                 ];
             };
         }
@@ -127,8 +127,8 @@ fn screenshot() -> impl UiNode {
     fn of_window() -> impl UiNode {
         use std::time::Instant;
         let enabled = var(true);
-        button! {
-            child = text!(enabled.map(|&enabled| {
+        Button! {
+            child = Text!(enabled.map(|&enabled| {
                 if enabled {
                     "screenshot".to_text()
                 } else {
@@ -168,8 +168,8 @@ fn screenshot() -> impl UiNode {
         use zero_ui::core::window::{FrameCaptureMode, FrameImageReadyArgs};
 
         let enabled = var(true);
-        button! {
-            child = text!(enabled.map(|&enabled| {
+        Button! {
+            child = Text!(enabled.map(|&enabled| {
                 if enabled {
                     "headless".to_text()
                 } else {
@@ -182,12 +182,12 @@ fn screenshot() -> impl UiNode {
 
                 println!("taking `screenshot.png` using a new headless window ..");
                 WINDOWS.open_headless(async_clmv!(enabled, {
-                    window! {
+                    Window! {
                         size = (500, 400);
                         background_color = colors::DARK_GREEN;
                         font_size = 72;
                         child_align = Align::CENTER;
-                        child = text!("No Head!");
+                        child = Text!("No Head!");
 
                         frame_capture_mode = FrameCaptureMode::Next;
                         on_frame_image_ready = async_hn_once!(|args: FrameImageReadyArgs| {
@@ -214,7 +214,7 @@ fn screenshot() -> impl UiNode {
 fn icon() -> impl UiNode {
     let icon_btn = |label: &'static str, ico: WindowIcon| {
         toggle! {
-            child = text!(label);
+            child = Text!(label);
             value = ico;
         }
     };
@@ -238,7 +238,7 @@ fn icon() -> impl UiNode {
             }),
             icon_btn(
                 "Render",
-                WindowIcon::render(|| text! {
+                WindowIcon::render(|| Text! {
                     size = (36, 36);
                     font_size = 28;
                     font_weight = FontWeight::BOLD;
@@ -257,7 +257,7 @@ fn icon() -> impl UiNode {
 fn chrome() -> impl UiNode {
     let chrome_btn = |c: WindowChrome| {
         toggle! {
-            child = text!("{c:?}");
+            child = Text!("{c:?}");
             value = c;
         }
     };
@@ -267,7 +267,7 @@ fn chrome() -> impl UiNode {
         ui_vec![
             chrome_btn(WindowChrome::Default),
             chrome_btn(WindowChrome::None),
-            text!("TODO custom"),
+            Text!("TODO custom"),
         ],
     )
 }
@@ -296,9 +296,9 @@ fn state_commands() -> impl UiNode {
 
 fn focus_control() -> impl UiNode {
     let enabled = var(true);
-    let focus_btn = button! {
+    let focus_btn = Button! {
         enabled = enabled.clone();
-        child = text!("Focus in 5s");
+        child = Text!("Focus in 5s");
         on_click = async_hn!(enabled, |_| {
             enabled.set(false);
             task::deadline(5.secs()).await;
@@ -309,9 +309,9 @@ fn focus_control() -> impl UiNode {
     };
 
     let enabled = var(true);
-    let critical_btn = button! {
+    let critical_btn = Button! {
         enabled = enabled.clone();
-        child = text!("Critical Alert in 5s");
+        child = Text!("Critical Alert in 5s");
         on_click = async_hn!(enabled, |_| {
             enabled.set(false);
             task::deadline(5.secs()).await;
@@ -322,9 +322,9 @@ fn focus_control() -> impl UiNode {
     };
 
     let enabled = var(true);
-    let info_btn = button! {
+    let info_btn = Button! {
         enabled = enabled.clone();
-        child = text!("Info Alert in 5s");
+        child = Text!("Info Alert in 5s");
         on_click = async_hn!(enabled, |_| {
             enabled.set(false);
             task::deadline(5.secs()).await;
@@ -340,7 +340,7 @@ fn focus_control() -> impl UiNode {
 fn state() -> impl UiNode {
     let state_btn = |s: WindowState| {
         toggle! {
-            child = text!("{s:?}");
+            child = Text!("{s:?}");
             value = s;
         }
     };
@@ -356,16 +356,16 @@ fn state() -> impl UiNode {
             separator(),
             state_btn(WindowState::Fullscreen),
             state_btn(WindowState::Exclusive),
-            text!("TODO video mode"),
+            Text!("TODO video mode"),
         ],
     )
 }
 
 fn visibility() -> impl UiNode {
     let visible = WINDOW_CTRL.vars().visible();
-    let btn = button! {
+    let btn = Button! {
         enabled = visible.clone();
-        child = text!("Hide for 1s");
+        child = Text!("Hide for 1s");
         on_click = async_hn!(visible, |_| {
             visible.set(false);
             println!("visible=false");
@@ -387,11 +387,11 @@ fn misc() -> impl UiNode {
         "Misc.",
         ui_vec![
             toggle! {
-                child = text!("Taskbar Visible");
+                child = Text!("Taskbar Visible");
                 checked = window_vars.taskbar_visible();
             },
             toggle! {
-                child = text!("Always on Top");
+                child = Text!("Always on Top");
                 checked = window_vars.always_on_top();
             },
             separator(),
@@ -399,21 +399,21 @@ fn misc() -> impl UiNode {
             separator(),
             {
                 let mut child_count = 0;
-                button! {
-                    child = text!("Open Child Window");
+                Button! {
+                    child = Text!("Open Child Window");
                     enabled = can_open_windows.clone();
                     on_click = hn!(|_| {
                         child_count += 1;
 
                         let parent = WINDOW.id();
                         WINDOWS.open(async move {
-                            window! {
+                            Window! {
                                 title = formatx!("Window Example - Child {child_count}");
                                 size = (400, 300);
                                 parent;
                                 child_align = Align::CENTER;
                                 start_position = StartPosition::CenterParent;
-                                child = text! {
+                                child = Text! {
                                     txt = formatx!("Child {child_count}");
                                     font_size = 20;
                                 };
@@ -424,18 +424,18 @@ fn misc() -> impl UiNode {
             },
             {
                 let mut other_count = 0;
-                button! {
-                    child = text!("Open Other Window");
+                Button! {
+                    child = Text!("Open Other Window");
                     enabled = can_open_windows;
                     on_click = hn!(|_| {
                         other_count += 1;
 
                         WINDOWS.open(async move {
-                            window! {
+                            Window! {
                                 title = formatx!("Window Example - Other {other_count}");
                                 size = (400, 300);
                                 child_align = Align::CENTER;
-                                child = text! {
+                                child = Text! {
                                     txt = formatx!("Other {other_count}");
                                     font_size = 20;
                                 };
@@ -502,7 +502,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
                 children = ui_vec![
-                    text! {
+                    Text! {
                         txt = match windows.len() {
                             1 => "Close Confirmation\n\nClose 1 window?".to_text(),
                             n => formatx!("Close Confirmation\n\nClose {n} windows?")
@@ -513,15 +513,15 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                         direction = StackDirection::left_to_right();
                         spacing = 4;
                         children = ui_vec![
-                            button! {
+                            Button! {
                                 child = strong!("Close");
                                 on_click = hn_once!(state, |_| {
                                     state.set(CloseState::Close);
                                     WINDOWS.close_together(windows).unwrap();
                                 })
                             },
-                            button! {
-                                child = text!("Cancel");
+                            Button! {
+                                child = Text!("Cancel");
                                 on_click = async_hn!(opacity, state, |_| {
                                     opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
                                     task::yield_one().await;
@@ -540,8 +540,8 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
 }
 
 fn cmd_btn(cmd: Command) -> impl UiNode {
-    button! {
-        child = text!(cmd.name_with_shortcut());
+    Button! {
+        child = Text!(cmd.name_with_shortcut());
         enabled = cmd.is_enabled();
         visibility = cmd.has_handlers().map_into();
         on_click = hn!(|_| {
@@ -554,7 +554,7 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
     stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = ui_vec![text! {
+        children = ui_vec![Text! {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
@@ -567,7 +567,7 @@ fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>,
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         toggle::selector = toggle::Selector::single(selection);
-        children = ui_vec![text! {
+        children = ui_vec![Text! {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);

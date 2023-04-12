@@ -125,7 +125,7 @@ async fn listener_window(focused_wgt: bool) -> WindowCfg {
         }
     }
 
-    window! {
+    Window! {
         zero_ui::core::widget_base::parallel = false;
         child = stack! {
             direction = StackDirection::top_to_bottom();

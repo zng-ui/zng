@@ -10,7 +10,6 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
         builder,
         is_unset: property_is_unset,
         property,
-        importance,
         when,
         ..
     } = &data;
@@ -28,6 +27,18 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     let core = crate_core();
     let name = "zero_ui::core::var::easing";
 
+    let property_ident = &property.segments.last().unwrap().ident;
+    let meta_ident = ident!("{property_ident}_meta__");
+    let property_meta = if property.get_ident().is_some() {
+        quote! {
+            #builder.#meta_ident()
+        }
+    } else {
+        quote! {
+            #property::#meta_ident(#core::widget_base::WidgetImpl::base(&mut #builder))
+        }
+    };
+
     if let Some(when) = when {
         if is_unset {
             return quote! {
@@ -40,7 +51,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
         return quote! {
             {
                 let __data__ = #core::var::types::easing_property::easing_when_data(
-                    #core::widget_builder::property_input_types!(#property),
+                    #property_meta.input_types(),
                     {
                         use #core::units::TimeUnits as _;
                         #duration
@@ -52,7 +63,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                 );
                 #when.build_action_data.push((
                     (
-                        #core::widget_builder::property_id!(#property),
+                        #property_meta.id(),
                         #name,
                     ),
                     __data__,
@@ -66,12 +77,11 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     let r = if is_unset {
         quote! {
             #core::var::types::easing_property::easing_property_unset(
-                #core::widget_builder::property_input_types!(#property)
+                #property_meta.input_types()
             );
-            #builder.push_unset_property_build_action(
-                #core::widget_builder::property_id!(#property),
+            #core::widget_base::WidgetImpl::base(#builder).builder().push_unset_property_build_action__(
+                #property_meta.id(),
                 #name,
-                #importance,
             );
             #data
         }
@@ -79,7 +89,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
         quote! {
             {
                 let __actions__ = #core::var::types::easing_property::easing_property(
-                    #core::widget_builder::property_input_types!(#property),
+                    #property_meta.input_types(),
                     {
                         use #core::units::TimeUnits as _;
                         #duration
@@ -90,10 +100,9 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                     }),
                 );
                 if !__actions__.is_empty() {
-                    #builder.push_property_build_action(
-                        #core::widget_builder::property_id!(#property),
+                    #core::widget_base::WidgetImpl::base(#builder).push_property_build_action__(
+                        #property_meta.id(),
                         #name,
-                        #importance,
                         __actions__
                     );
                 }
@@ -146,8 +155,6 @@ pub(crate) struct PropertyAttrData {
     pub is_unset: bool,
     /// path to the property function/struct.
     pub property: Path,
-    /// mut local: Importance. Only set if is property assign (has value and not in when).
-    pub importance: Option<Ident>,
     /// mut local: WhenInfo. Only set if is when assign.
     pub when: Option<Ident>,
 }
@@ -158,7 +165,6 @@ impl Parse for PropertyAttrData {
         let mut builder = None;
         let mut is_unset = false;
         let mut property = None;
-        let mut importance = None;
         let mut when = None;
 
         for item in item_mod.content.unwrap_or_else(|| non_user_error!("")).1 {
@@ -192,18 +198,6 @@ impl Parse for PropertyAttrData {
                 };
 
                 property = Some(path);
-            } else if f.sig.ident == ident!("importance_ident") {
-                let path = match expr {
-                    Expr::Path(p) => p.path,
-                    _ => non_user_error!(""),
-                };
-
-                let ident = match path.get_ident() {
-                    Some(i) => i.clone(),
-                    None => non_user_error!(""),
-                };
-
-                importance = Some(ident);
             } else if f.sig.ident == ident!("when_ident") {
                 let path = match expr {
                     Expr::Path(p) => p.path,
@@ -239,7 +233,6 @@ impl Parse for PropertyAttrData {
             builder: builder.unwrap_or_else(|| non_user_error!("")),
             is_unset,
             property: property.unwrap_or_else(|| non_user_error!("")),
-            importance,
             when,
         })
     }
@@ -258,7 +251,6 @@ impl ToTokens for PropertyAttrData {
             builder,
             is_unset,
             property,
-            importance,
             when,
         } = self;
 
@@ -266,15 +258,6 @@ impl ToTokens for PropertyAttrData {
             quote_spanned! {span=>
                 fn when_ident() {
                     #when
-                }
-            }
-        } else {
-            quote!()
-        };
-        let importance = if let Some(importance) = importance {
-            quote_spanned! {span=>
-                fn importance_ident() {
-                    #importance
                 }
             }
         } else {
@@ -297,8 +280,6 @@ impl ToTokens for PropertyAttrData {
                 }
 
                 #when
-
-                #importance
             }
         })
     }

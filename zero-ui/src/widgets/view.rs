@@ -58,7 +58,7 @@ impl<U: UiNode> View<U> {
 ///     view(n,
 ///
 ///     // initial_ui:
-///     text! {
+///     Text! {
 ///         txt_color = rgba(0, 0, 0, 0.5);
 ///         txt = "starting..";
 ///     }.boxed(),
@@ -67,7 +67,7 @@ impl<U: UiNode> View<U> {
 ///     move |n| match state {
 ///         State::Starting => {
 ///             state = State::Counting;
-///             View::Update(text! {
+///             View::Update(Text! {
 ///                 font_size = 28;
 ///                 txt = n.map(|n| n.to_text());
 ///             }.boxed())
@@ -85,7 +85,7 @@ impl<U: UiNode> View<U> {
 ///                 // so we need to update the UI.
 ///
 ///                 View::Update(
-///                     text! {
+///                     Text! {
 ///                         txt_color = rgb(0, 128, 0);
 ///                         font_size = 18;
 ///                         txt = "Congratulations!";
@@ -172,9 +172,9 @@ type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 /// ```
 /// # use zero_ui::{widgets::{WidgetFn, image, image::ImageErrorArgs, text}, core::color::colors};
 /// # let _ =
-/// image! {
+/// Image! {
 ///     source = "not_found.png";
-///     img_error_fn = WidgetFn::new(|e: ImageErrorArgs| text! {
+///     img_error_fn = WidgetFn::new(|e: ImageErrorArgs| Text! {
 ///         txt = e.error.clone();
 ///         txt_color = colors::RED;
 ///     });
@@ -397,9 +397,9 @@ pub enum DataUpdate<D> {
 /// # use zero_ui::{widgets::{wgt_fn, image, image::ImageErrorArgs, text}, core::{color::{Rgba, colors}, var::var, widget_info::Visibility}};
 /// let img_error_vis = var(Visibility::Visible);
 /// # let _ =
-/// image! {
+/// Image! {
 ///     source = "not_found.png";
-///     img_error_fn = wgt_fn!(img_error_vis, |e: ImageErrorArgs| text! {
+///     img_error_fn = wgt_fn!(img_error_vis, |e: ImageErrorArgs| Text! {
 ///         txt = e.error.clone();
 ///         txt_color = colors::RED;
 ///         visibility = img_error_vis.clone();

@@ -24,7 +24,7 @@ fn app_main() {
 
         trace_focus();
         let window_enabled = var(true);
-        window! {
+        Window! {
             title = "Focus Example";
             enabled = window_enabled.clone();
             background = commands();
@@ -92,12 +92,12 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
         children = ui_vec![
             title("Functions (F)"),
             // New Window
-            button! {
-                child = text!("New Window");
+            Button! {
+                child = Text!("New Window");
                 on_click = hn!(|_| {
                     WINDOWS.open(async {
                         let _ = WINDOW.id().set_name("other");
-                        window! {
+                        Window! {
                             title = "Other Window";
                             focus_shortcut = shortcut!(W);
                             child = stack! {
@@ -120,13 +120,13 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             // Detach Button
             {
                 let detach_focused = ArcNode::new_cyclic(|wk| {
-                    let btn = button! {
-                        child = text!("Detach Button");
+                    let btn = Button! {
+                        child = Text!("Detach Button");
                         // focus_on_init = true;
                         on_click = hn!(|_| {
                             let wwk = wk.clone();
                             WINDOWS.open(async move {
-                                window! {
+                                Window! {
                                     title = "Detached Button";
                                     child_align = Align::CENTER;
                                     child = wwk.upgrade().unwrap().take_when(true);
@@ -141,8 +141,8 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             // Disable Window
             disable_window(window_enabled.clone()),
             // Overlay Scope
-            button! {
-                child = text!("Overlay Scope");
+            Button! {
+                child = Text!("Overlay Scope");
                 on_click = hn!(|_| {
                     LAYERS.insert(LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
                 });
@@ -152,8 +152,8 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
     }
 }
 fn disable_window(window_enabled: ArcVar<bool>) -> impl UiNode {
-    button! {
-        child = text!(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
+    Button! {
+        child = Text!(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
         min_width = 140;
         on_click = async_hn!(window_enabled, |_| {
             window_enabled.set(false);
@@ -178,7 +178,7 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
                 children = ui_vec![
-                    text! {
+                    Text! {
                         txt = "Window scope is disabled so the overlay scope is the root scope.";
                         margin = 15;
                     },
@@ -187,8 +187,8 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
                         spacing = 2;
                         children = ui_vec![
                         disable_window(window_enabled),
-                        button! {
-                                child = text!("Close");
+                        Button! {
+                                child = Text!("Close");
                                 on_click = hn!(|_| {
                                     LAYERS.remove("overlay");
                                 })
@@ -234,7 +234,7 @@ fn delayed_focus() -> impl UiNode {
                 });
             }),
 
-            text! {
+            Text! {
                 id = "target";
                 padding = (7, 15);
                 corner_radius = 4;
@@ -258,8 +258,8 @@ fn delayed_btn(content: impl Into<Txt>, on_timeout: impl FnMut() + Send + 'stati
 
     let on_timeout = Arc::new(Mutex::new(Box::new(on_timeout)));
     let enabled = var(true);
-    button! {
-        child = text!(content.into());
+    Button! {
+        child = Text!(content.into());
         on_click = async_hn!(enabled, on_timeout, |_| {
             enabled.set(false);
             task::deadline(4.secs()).await;
@@ -272,14 +272,14 @@ fn delayed_btn(content: impl Into<Txt>, on_timeout: impl FnMut() + Send + 'stati
 }
 
 fn title(txt: impl IntoVar<Txt>) -> impl UiNode {
-    text! { txt; font_weight = FontWeight::BOLD; align = Align::CENTER; }
+    Text! { txt; font_weight = FontWeight::BOLD; align = Align::CENTER; }
 }
 
 fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> impl UiNode {
     let content = content.into();
     let tab_index = tab_index.into();
-    button! {
-        child = text!(content.clone());
+    Button! {
+        child = Text!(content.clone());
         tab_index;
         on_click = hn!(|_| {
             println!("Clicked {content} {tab_index:?}")
@@ -313,7 +313,7 @@ fn commands() -> impl UiNode {
         txt_color = colors::GRAY;
 
         children = cmds.into_iter().map(|cmd| {
-            text! {
+            Text! {
                 txt = cmd.name_with_shortcut();
 
                 when *#{cmd.is_enabled()} {
@@ -341,13 +341,13 @@ fn trace_focus() {
 }
 
 fn nested_focusables() -> impl UiNode {
-    button! {
-        child = text!("Nested Focusables");
+    Button! {
+        child = Text!("Nested Focusables");
 
         on_click = hn!(|args: &ClickArgs| {
             args.propagation().stop();
             WINDOWS.focus_or_open("nested-focusables", async {
-                window! {
+                Window! {
                     title = "Focus Example - Nested Focusables";
 
                     color_scheme = ColorScheme::Dark;
@@ -377,7 +377,7 @@ fn nested_focusables_group(g: char) -> impl UiNode {
     }
 }
 fn nested_focusable(g: char, column: u8, row: u8) -> impl UiNode {
-    let nested = text! {
+    let nested = Text! {
         txt = format!("Focusable {column}, {row}");
         margin = 5;
     };

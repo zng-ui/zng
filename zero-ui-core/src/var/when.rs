@@ -23,7 +23,7 @@ use super::*;
 /// let condition = var(true);
 /// let when_false = var("condition: false".to_text());
 ///
-/// let t = text!(when_var! {
+/// let t = Text!(when_var! {
 ///     condition.clone() => "condition: true".to_text(),
 ///     _ => when_false.clone(),
 /// });
@@ -41,7 +41,7 @@ use super::*;
 /// # macro_rules! text { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
 /// # let condition0 = var(true);
 /// # let condition1 = var(true);
-/// let t = text!(when_var! {
+/// let t = Text!(when_var! {
 ///     #[cfg(some_flag)]
 ///     condition0 => "is condition 0".to_text(),
 ///     #[cfg(not(some_flag))]

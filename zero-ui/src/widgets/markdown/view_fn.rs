@@ -511,7 +511,7 @@ pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
         }
         .boxed()
     } else {
-        crate::widgets::text! {
+        crate::widgets::Text! {
             txt = args.txt;
             padding = 6;
             corner_radius = 4;
@@ -592,7 +592,7 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
     use crate::prelude::*;
 
     if let Some(checked) = args.checked {
-        text! {
+        Text! {
             align = Align::TOP;
             txt = " ✓ ";
             txt_color = TEXT_COLOR_VAR.map(move |c| if checked { *c } else { c.transparent() });
@@ -603,7 +603,7 @@ pub fn default_list_item_bullet_fn(args: ListItemBulletFnArgs) -> impl UiNode {
         }
         .boxed()
     } else if let Some(n) = args.num {
-        text! {
+        Text! {
             txt = formatx!("{n}. ");
             align = Align::RIGHT;
         }
@@ -682,7 +682,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
 
     let mut alt_items = args.alt_items;
     if alt_items.is_empty() {
-        image! {
+        Image! {
             align = Align::TOP_LEFT;
             source = args.source;
         }
@@ -696,7 +696,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
             .boxed()
         };
         let alt_items = ArcNode::new(alt_items);
-        image! {
+        Image! {
             align = Align::TOP_LEFT;
             source = args.source;
             img_error_fn = wgt_fn!(|_| {
@@ -831,7 +831,7 @@ pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> impl UiNode {
         font_size = 0.7.em();
         offset = (0, (-0.5).em());
         markdown::anchor = formatx!("footnote-ref-{}", args.label);
-        child = text!("[{}]", args.label);
+        child = Text!("[{}]", args.label);
         on_click = hn!(|args: &ClickArgs| {
             args.propagation().stop();
 
@@ -867,7 +867,7 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> impl UiNode {
         markdown::anchor = formatx!("footnote-{}", args.label);
         children = ui_vec![
             link! {
-                child = text!("[^{}]", args.label);
+                child = Text!("[^{}]", args.label);
                 on_click = hn!(|args: &ClickArgs| {
                     args.propagation().stop();
 
