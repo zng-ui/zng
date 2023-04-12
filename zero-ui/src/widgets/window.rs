@@ -72,13 +72,13 @@ impl Window {
     pub fn build(&mut self) -> WindowCfg {
         let mut wgt = self.take_builder();
         WindowCfg::new_root(
-            wgt.capture_value_or_else(property_id!(self.id), WidgetId::new_unique),
-            wgt.capture_value_or_default::<StartPosition>(property_id!(self.start_position)),
-            wgt.capture_value_or_default(property_id!(self.kiosk)),
-            wgt.capture_value_or_else(property_id!(self.allow_transparency), || true),
-            wgt.capture_value_or_default::<Option<RenderMode>>(property_id!(self.render_mode)),
-            wgt.capture_value_or_default::<HeadlessMonitor>(property_id!(self.headless_monitor)),
-            wgt.capture_value_or_default(property_id!(self.start_focused)),
+            wgt.capture_value_or_else(property_id!(Self::id), WidgetId::new_unique),
+            wgt.capture_value_or_default::<StartPosition>(property_id!(Self::start_position)),
+            wgt.capture_value_or_default(property_id!(Self::kiosk)),
+            wgt.capture_value_or_else(property_id!(Self::allow_transparency), || true),
+            wgt.capture_value_or_default::<Option<RenderMode>>(property_id!(Self::render_mode)),
+            wgt.capture_value_or_default::<HeadlessMonitor>(property_id!(Self::headless_monitor)),
+            wgt.capture_value_or_default(property_id!(Self::start_focused)),
             wgt.build(),
         )
     }

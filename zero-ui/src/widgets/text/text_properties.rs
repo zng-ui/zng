@@ -1,6 +1,8 @@
 use crate::core::text::{font_features::*, *};
 use crate::prelude::new_property::*;
 
+use super::Text;
+
 context_var! {
     /// Font family of [`text`](crate::widgets::text) spans.
     pub static FONT_FAMILY_VAR: FontNames = FontNames::default();

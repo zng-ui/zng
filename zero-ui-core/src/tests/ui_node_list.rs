@@ -104,7 +104,7 @@ impl ListWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
-            let child = util::list_node(wgt.capture_ui_node_list_or_empty(crate::property_id!(self.children)));
+            let child = util::list_node(wgt.capture_ui_node_list_or_empty(crate::property_id!(Self::children)));
             wgt.set_child(child);
         });
     }

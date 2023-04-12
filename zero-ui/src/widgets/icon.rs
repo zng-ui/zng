@@ -19,6 +19,11 @@ impl Icon {
     fn on_start(&mut self) {
         self.builder().push_build_action(on_build);
     }
+
+    impl_properties! {
+        /// Spacing in between the icon and background edges or border.
+        pub fn crate::properties::padding(padding: impl IntoVar<SideOffsets>);
+    }
 }
 
 /// The glyph icon.
@@ -26,7 +31,7 @@ impl Icon {
 pub fn ico(child: impl UiNode, ico: impl IntoVar<GlyphIcon>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
-    let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(self.ico)) {
+    let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(ico)) {
         icon
     } else {
         tracing::error!("missing `icon` property");
@@ -112,31 +117,6 @@ impl_from_and_into_var! {
     }
 }
 
-pub mod icon {
-
-    #[doc(inline)]
-    pub use super::vis;
-
-    properties! {
-        pub ico(impl IntoVar<GlyphIcon>);
-
-        /// Icon size, best sizes are 18, 24, 36 or 48dip, default is 24dip.
-        ///
-        /// This is a single [`Length`] value that sets the "font size" of the icon glyph.
-        pub vis::ico_size;
-
-        /// Icon color.
-        pub vis::ico_color;
-
-        /// Spacing in between the icon and background edges or border.
-        pub crate::properties::padding;
-    }
-
-    fn include(wgt: &mut WidgetBuilder) {
-        wgt.push_build_action(on_build);
-    }
-}
-
 context_var! {
     /// Defines the size of an icon.
     ///
@@ -146,7 +126,7 @@ context_var! {
     /// Defines the color of an icon.
     ///
     /// Inherits from [`TEXT_COLOR_VAR`].
-    pub static ICON_COLOR_VAR: Rgba = TEXT_COLOR_VAR;
+    pub static ICON_COLOR_VAR: Rgba = text::TEXT_COLOR_VAR;
 }
 
 /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.

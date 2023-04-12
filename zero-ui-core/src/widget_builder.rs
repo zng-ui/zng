@@ -79,7 +79,7 @@ impl WidgetExt for WgtInfo {
 /// # Syntax
 ///
 /// * `path::property`: Gets the ID for the property function.
-/// * `self.property`: Gets the ID for the property on the `#[widget]` builder instance.
+/// * `Self::property`: Gets the ID for the property on the `#[widget(on_start)]`.
 ///
 /// # Examples
 ///
@@ -107,15 +107,9 @@ impl WidgetExt for WgtInfo {
 /// ```
 #[macro_export]
 macro_rules! property_id {
-    ($wgt:ident . $property:ident) => {{
-        $crate::property_meta!($wgt . $property).id()
-    }};
-    ($($property:ident)::+) => {{
-        $crate::property_meta!($($property)::+).id()
-    }};
-    ($($property:ident)::+::<$($generics:ty),*>) => {{
-        todo!("!!:")
-    }};
+    ($($tt:tt)*) => {
+        $crate::property_meta!($($tt)*).id()
+    }
 }
 #[doc(inline)]
 pub use crate::property_id;
@@ -125,7 +119,7 @@ pub use crate::property_id;
 /// # Syntax
 ///
 /// * `path::property`: Gets the info for the property function.
-/// * `self.property`: Gets the info for the property on the `#[widget]` builder instance.
+/// * `Self::property`: Gets the info for the property on the `#[widget(on_start)]`.
 ///
 /// # Examples
 ///
@@ -147,15 +141,9 @@ pub use crate::property_id;
 /// ```
 #[macro_export]
 macro_rules! property_info {
-    ($wgt:ident . $property:ident) => {{
-        $crate::property_meta!($wgt . $property).info()
-    }};
-    ($($property:ident)::+) => {{
-        $crate::property_meta!($($property)::+).info()
-    }};
-    ($($property:ident)::+ ::<$($generics:ty),*>) => {{
-        todo!("!!:")
-    }};
+    ($($tt:tt)*) => {
+        $crate::property_meta!($($tt)*).info()
+    }
 }
 #[doc(inline)]
 pub use crate::property_info;

@@ -2,7 +2,7 @@ use std::mem;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, *, ext::IdentExt};
+use syn::{ext::IdentExt, parse::Parse, punctuated::Punctuated, spanned::Spanned, *};
 
 use crate::util::{crate_core, set_stream_span, Attributes, Errors};
 
@@ -883,48 +883,46 @@ pub mod keyword {
 
 pub fn expand_meta(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let args = parse_macro_input!(input as MetaArgs);
+    let core = crate_core();
 
-    let r= match args {
-        MetaArgs::Method { wgt, _dot, property } => {
+    let r = match args {
+        MetaArgs::Method { self_ty, sep, property } => {
             let meta_ident = ident!("{}_meta__", property);
             quote! {
-                #wgt . #meta_ident()
+                <#self_ty as #core::widget_base::WidgetImpl> #sep info_instance__() . #meta_ident()
             }
-        },
+        }
         MetaArgs::Function { path } => {
             let ident = &path.segments.last().unwrap().ident;
             let meta_ident = ident!("{}_meta__", ident);
-            let core = crate_core();
-        
+
             quote! {
                 <#core::widget_builder::WgtInfo as #path>::#meta_ident(&#core::widget_builder::WgtInfo)
             }
-        },
+        }
     };
     r.into()
 }
 enum MetaArgs {
     Method {
-        wgt: Ident,
-        _dot: Token![.],
+        self_ty: Token![Self],
+        sep: Token![::],
         property: Ident,
     },
     Function {
         path: Path,
-    }
+    },
 }
 impl Parse for MetaArgs {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        if input.peek2(Token![.]) {
+        if input.peek(Token![Self]) {
             Ok(Self::Method {
-                wgt: Ident::parse_any(input)?,
-                _dot: input.parse()?,
+                self_ty: input.parse()?,
+                sep: input.parse()?,
                 property: input.parse()?,
             })
         } else {
-            Ok(Self::Function {
-                path: input.parse()?
-            })
+            Ok(Self::Function { path: input.parse()? })
         }
     }
 }

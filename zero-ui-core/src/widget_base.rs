@@ -145,6 +145,9 @@ pub trait WidgetImpl {
 
     #[doc(hidden)]
     fn base_ref(&self) -> &WidgetBase;
+
+    #[doc(hidden)]
+    fn info_instance__() -> Self;
 }
 impl WidgetImpl for WidgetBase {
     fn inherit(widget: WidgetType) -> Self {
@@ -157,6 +160,14 @@ impl WidgetImpl for WidgetBase {
 
     fn base_ref(&self) -> &WidgetBase {
         self
+    }
+
+    fn info_instance__() -> Self {
+        WidgetBase {
+            builder: RefCell::new(None),
+            started: false,
+            importance: Importance::INSTANCE,
+        }
     }
 }
 

@@ -84,7 +84,7 @@ impl Scrollbar {
 
         self.builder().push_build_action(|wgt| {
             // scrollbar is larger than thumb, align inserts the extra space.
-            let thumb = wgt.capture_ui_node_or_else(property_id!(self.thumb_node), || NilUiNode);
+            let thumb = wgt.capture_ui_node_or_else(property_id!(Self::thumb_node), || NilUiNode);
             let thumb = align(thumb, Align::FILL);
             wgt.set_child(thumb);
 
@@ -98,7 +98,7 @@ impl Scrollbar {
                 )
             });
 
-            let orientation = wgt.capture_var_or_else(property_id!(self.orientation), || Orientation::Vertical);
+            let orientation = wgt.capture_var_or_else(property_id!(Self::orientation), || Orientation::Vertical);
             wgt.push_intrinsic(NestGroup::CONTEXT, "scrollbar-context", move |child| {
                 with_context_var(child, ORIENTATION_VAR, orientation)
             });

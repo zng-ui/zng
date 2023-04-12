@@ -54,10 +54,10 @@ impl Stack {
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
             let child = node(
-                wgt.capture_ui_node_list_or_empty(property_id!(self.children)),
-                wgt.capture_var_or_default(property_id!(self.direction)),
-                wgt.capture_var_or_default(property_id!(self.spacing)),
-                wgt.capture_var_or_else(property_id!(self.children_align), || Align::FILL),
+                wgt.capture_ui_node_list_or_empty(property_id!(Self::children)),
+                wgt.capture_var_or_default(property_id!(Self::direction)),
+                wgt.capture_var_or_default(property_id!(Self::spacing)),
+                wgt.capture_var_or_else(property_id!(Self::children_align), || Align::FILL),
             );
             wgt.set_child(child);
         });

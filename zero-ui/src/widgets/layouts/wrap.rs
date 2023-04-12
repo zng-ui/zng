@@ -16,14 +16,14 @@ impl Wrap {
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
             let child = node(
-                wgt.capture_ui_node_list_or_empty(property_id!(self.children)),
-                wgt.capture_var_or_else(property_id!(self.spacing), || {
+                wgt.capture_ui_node_list_or_empty(property_id!(Self::children)),
+                wgt.capture_var_or_else(property_id!(Self::spacing), || {
                     LINE_SPACING_VAR.map(|s| GridSpacing {
                         column: Length::zero(),
                         row: s.clone(),
                     })
                 }),
-                wgt.capture_var_or_else(property_id!(self.children_align), || TEXT_ALIGN_VAR),
+                wgt.capture_var_or_else(property_id!(Self::children_align), || TEXT_ALIGN_VAR),
             );
             wgt.set_child(child);
         });

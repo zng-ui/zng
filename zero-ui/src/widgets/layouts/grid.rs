@@ -12,12 +12,12 @@ impl Grid {
     fn on_start(&mut self) {
         self.builder().push_build_action(|w| {
             let child = node(
-                w.capture_ui_node_list_or_empty(property_id!(self.cells)),
-                w.capture_ui_node_list_or_empty(property_id!(self.columns)),
-                w.capture_ui_node_list_or_empty(property_id!(self.rows)),
-                w.capture_var_or_else(property_id!(self.auto_grow_fn), WidgetFn::nil),
-                w.capture_var_or_else(property_id!(self.auto_grow_mode), || AutoGrowMode::Rows(u32::MAX)),
-                w.capture_var_or_default(property_id!(self.spacing)),
+                w.capture_ui_node_list_or_empty(property_id!(Self::cells)),
+                w.capture_ui_node_list_or_empty(property_id!(Self::columns)),
+                w.capture_ui_node_list_or_empty(property_id!(Self::rows)),
+                w.capture_var_or_else(property_id!(Self::auto_grow_fn), WidgetFn::nil),
+                w.capture_var_or_else(property_id!(Self::auto_grow_mode), || AutoGrowMode::Rows(u32::MAX)),
+                w.capture_var_or_default(property_id!(Self::spacing)),
             );
             w.set_child(child);
         });

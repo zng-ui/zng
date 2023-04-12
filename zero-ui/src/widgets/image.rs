@@ -37,7 +37,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
     let node = nodes::image_loading_presenter(node);
     wgt.set_child(node);
 
-    let source = wgt.capture_var::<ImageSource>(property_id!(self.source)).unwrap_or_else(|| {
+    let source = wgt.capture_var::<ImageSource>(property_id!(Self::source)).unwrap_or_else(|| {
         let error = Image::dummy(Some("no source".to_owned()));
         let error = ImageSource::Image(var(error).read_only());
         LocalVar(error).boxed()

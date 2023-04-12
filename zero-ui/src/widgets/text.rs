@@ -86,7 +86,7 @@ impl Text {
 
             wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", nodes::layout_text);
 
-            let text = wgt.capture_var_or_default(property_id!(self.txt));
+            let text = wgt.capture_var_or_default(property_id!(Self::txt));
             wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| nodes::resolve_text(child, text));
         });
     }

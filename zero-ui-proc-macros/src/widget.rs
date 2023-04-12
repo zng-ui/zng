@@ -289,6 +289,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             fn base_ref(&self) -> &#crate_core::widget_base::WidgetBase {
                 #crate_core::widget_base::WidgetImpl::base_ref(&self.base)
             }
+
+            fn info_instance__() -> Self {
+                Self {
+                    base: <#parent as #crate_core::widget_base::WidgetImpl>::info_instance__(),
+                    started: false,
+                }
+            }
         }
 
         #macro_r

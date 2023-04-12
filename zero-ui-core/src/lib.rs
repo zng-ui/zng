@@ -721,7 +721,7 @@ pub use zero_ui_proc_macros::property;
 ///
 ///     fn include(wgt: &mut WidgetBuilder) {
 ///         wgt.push_build_action(|wgt| {
-///             let bar = wgt.capture_var_or_else::<bool, _>(property_id!(self.bar), || false);
+///             let bar = wgt.capture_var_or_else::<bool, _>(property_id!(Self::bar), || false);
 ///             println!("bar: {}", bar.get());
 ///         });
 ///     }

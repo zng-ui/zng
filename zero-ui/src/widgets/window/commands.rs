@@ -71,7 +71,7 @@ mod inspector_window {
 
         let tree = WINDOWS.widget_tree(inspected).unwrap();
         let title = if let Some(title) = tree.root().inspect_property(property_id!(window::title)) {
-            title.downcast_var::<Text>(0).map(|t| formatx!("{t} - Inspector")).boxed()
+            title.downcast_var::<Txt>(0).map(|t| formatx!("{t} - Inspector")).boxed()
         } else {
             var_from("Inspector").boxed()
         };
@@ -81,14 +81,14 @@ mod inspector_window {
             var(WindowIcon::Default).boxed()
         };
 
-        window! {
+        Window! {
             parent;
             title;
             icon;
             set_inspected = inspected;
             color_scheme = ColorScheme::Dark;
-            child = scroll! {
-                child = ansi_text! { txt = inspector_text; };
+            child = Scroll! {
+                child = AnsiText! { txt = inspector_text; };
                 child_align = Align::TOP_LEFT;
                 padding = 5;
             }
