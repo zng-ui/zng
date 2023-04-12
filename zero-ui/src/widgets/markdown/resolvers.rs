@@ -12,7 +12,7 @@ use zero_ui_core::window::TransformChangedArgs;
 use crate::core::{focus::WidgetInfoFocusExt as _, image::ImageSource, text::ToText};
 use crate::prelude::new_property::*;
 use crate::widgets::scroll::WidgetInfoExt as _;
-use crate::widgets::scroll_wgt::commands::ScrollToMode;
+use crate::widgets::scroll::commands::ScrollToMode;
 
 use super::Markdown;
 

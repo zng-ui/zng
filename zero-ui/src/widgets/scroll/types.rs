@@ -59,24 +59,24 @@ context_var! {
     /// Ratio of the scroll parent viewport height to its content.
     ///
     /// The value is `viewport.height / content.height`.
-    pub(super) static SCROLL_VERTICAL_RATIO_VAR: Factor = 0.fct();
+    pub(scroll) static SCROLL_VERTICAL_RATIO_VAR: Factor = 0.fct();
 
     /// Ratio of the scroll parent viewport width to its content.
     ///
     /// The value is `viewport.width / content.width`.
-    pub(super) static SCROLL_HORIZONTAL_RATIO_VAR: Factor = 0.fct();
+    pub(scroll) static SCROLL_HORIZONTAL_RATIO_VAR: Factor = 0.fct();
 
     /// If the vertical scrollbar should be visible.
-    pub(super) static SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR: bool = false;
+    pub(scroll) static SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR: bool = false;
 
     /// If the horizontal scrollbar should be visible.
-    pub(super) static SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR: bool = false;
+    pub(scroll) static SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR: bool = false;
 
     /// Latest computed viewport size of the parent scroll.
-    pub(super) static SCROLL_VIEWPORT_SIZE_VAR: PxSize = PxSize::zero();
+    pub(scroll) static SCROLL_VIEWPORT_SIZE_VAR: PxSize = PxSize::zero();
 
     /// Latest computed content size of the parent scroll.
-    pub(super) static SCROLL_CONTENT_SIZE_VAR: PxSize = PxSize::zero();
+    pub(scroll) static SCROLL_CONTENT_SIZE_VAR: PxSize = PxSize::zero();
 
 }
 

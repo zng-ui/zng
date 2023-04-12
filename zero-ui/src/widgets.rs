@@ -52,25 +52,29 @@ pub mod rule_line;
 #[doc(inline)]
 pub use rule_line::{hr::Hr, RuleLine};
 
-mod scroll_wgt;
+pub mod scroll;
 #[doc(inline)]
-pub use scroll_wgt::scroll;
+pub use scroll::Scroll;
 
-mod switch_wgt;
+pub mod switch;
 #[doc(inline)]
-pub use switch_wgt::switch;
+pub use switch::Switch;
 
-mod text_wgt;
+pub mod text;
 #[doc(inline)]
-pub use text_wgt::{em, strong, text, text_input};
+pub use text::{Em, Strong, Text};
 
-mod tip_wgt;
+pub mod text_input;
 #[doc(inline)]
-pub use tip_wgt::*;
+pub use text_input::TextInput;
 
-mod toggle_wgt;
+pub mod tip;
 #[doc(inline)]
-pub use toggle_wgt::toggle;
+pub use tip::Tip;
+
+pub mod toggle;
+#[doc(inline)]
+pub use toggle::Toggle;
 
 pub mod style;
 #[doc(inline)]

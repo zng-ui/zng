@@ -10,7 +10,6 @@ use crate::core::{
 };
 
 use super::commands::*;
-use super::parts::*;
 use super::scroll_properties::*;
 use super::types::*;
 
