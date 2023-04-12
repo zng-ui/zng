@@ -1,8 +1,11 @@
+//! Stack widgets, properties and nodes.
+
 use crate::prelude::new_widget::*;
 
 mod types;
+pub use types::*;
+
 use crate::core::task::parking_lot::Mutex;
-use types::*;
 
 /// Stack layout.
 ///

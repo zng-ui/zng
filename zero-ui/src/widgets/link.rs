@@ -34,11 +34,11 @@ pub fn replace_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl U
 /// `style` override the parent style.
 #[property(CONTEXT, default(StyleFn::nil()))]
 pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    style_mixin::with_style_extension(child, STYLE_VAR, style)
+    style::with_style_extension(child, STYLE_VAR, style)
 }
 
 /// Link default style.
-#[widget($crate::widgets::link::vis::default_style)]
+#[widget($crate::widgets::link::DefaultStyle)]
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     #[widget(on_start)]

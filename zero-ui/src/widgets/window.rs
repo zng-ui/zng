@@ -1,7 +1,9 @@
 //!: Window widget, properties and helpers.
 
 use crate::core::focus::*;
-use crate::core::window::{HeadlessMonitor, StartPosition, WindowCfg, WindowOpenArgs};
+use crate::core::window::{
+    FrameImageReadyArgs, HeadlessMonitor, StartPosition, WindowCfg, WindowChangedArgs, WindowCloseRequestedArgs, WindowOpenArgs,
+};
 use crate::prelude::new_widget::*;
 
 pub mod commands;
@@ -39,9 +41,9 @@ impl Window {
 
             background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
             txt_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
-            focus_highlight = {
-                offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
-                widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
+            focusable::focus_highlight = {
+                offsets: focusable::FOCUS_HIGHLIGHT_OFFSETS_VAR,
+                widths: focusable::FOCUS_HIGHLIGHT_WIDTHS_VAR,
                 sides: color_scheme_map(
                     BorderSides::dashed(rgba(200, 200, 200, 1.0)),
                     BorderSides::dashed(colors::BLACK)
@@ -205,114 +207,139 @@ pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<events::widget::
     events::widget::on_deinit(child, handler)
 }
 
+/// On window position changed.
+///
+/// This event notifies every time the user or app changes the window position. You can also track the window
+/// position using the [`actual_position`] variable.
+///
+/// This property handles the same event as [`on_pre_window_moved`] so window handlers see it first.
+///
+/// [`actual_position`]: crate::core::window::WindowVars::actual_position
+/// [`on_pre_window_moved`]: fn@events::window::on_pre_window_moved
 #[property(EVENT, impl(Window))]
-pub fn on_moved(child: impl UiNode, handler: impl WidgetHandler<WindowCloseRequestedArgs>) -> impl UiNode {
+pub fn on_moved(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_moved(child, handler)
 }
 
-todo! {
+/// On window size changed.
+///
+/// This event notifies every time the user or app changes the window content area size. You can also track
+/// the window size using the [`actual_size`] variable.
+///
+/// This property handles the same event as [`on_pre_window_resized`] so window handlers see it first.
+///
+/// [`actual_size`]: crate::core::window::WindowVars::actual_size
+/// [`on_pre_window_resized`]: fn@events::window::on_pre_window_resized
+#[property(EVENT, impl(Window))]
+pub fn on_resized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
+    events::window::on_pre_window_resized(child, handler)
+}
 
-    /// On window position changed.
-    ///
-    /// This event notifies every time the user or app changes the window position. You can also track the window
-    /// position using the [`actual_position`] variable.
-    ///
-    /// This property handles the same event as [`on_pre_window_moved`] so window handlers see it first.
-    ///
-    /// [`actual_position`]: crate::core::window::WindowVars::actual_position
-    /// [`on_pre_window_moved`]: fn@events::window::on_pre_window_moved
-    pub events::window::on_pre_window_moved as on_moved;
+/// On window state changed.
+///
+/// This event notifies every time the user or app changes the window state. You can also track the window
+/// state by setting [`state`] to a read-write variable.
+///
+/// This property handles the same event as [`on_pre_window_state_changed`] so window handlers see it first.
+///
+/// [`state`]: fn@state
+/// [`on_pre_window_state_changed`]: fn@events::window::on_pre_window_state_changed
+#[property(EVENT, impl(Window))]
+pub fn on_state_changed(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
+    events::window::on_pre_window_state_changed(child, handler)
+}
 
-    /// On window size changed.
-    ///
-    /// This event notifies every time the user or app changes the window content area size. You can also track
-    /// the window size using the [`actual_size`] variable.
-    ///
-    /// This property handles the same event as [`on_pre_window_resized`] so window handlers see it first.
-    ///
-    /// [`actual_size`]: crate::core::window::WindowVars::actual_size
-    /// [`on_pre_window_resized`]: fn@events::window::on_pre_window_resized
-    pub events::window::on_pre_window_resized as on_resized;
+/// On window maximized.
+///
+/// This event notifies every time the user or app changes the window state to maximized.
+///
+/// This property handles the same event as [`on_pre_window_maximized`] so window handlers see it first.
+///
+/// [`on_pre_window_maximized`]: fn@events::window::on_pre_window_maximized
+#[property(EVENT, impl(Window))]
+pub fn on_maximized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
+    events::window::on_pre_window_maximized(child, handler)
+}
 
-    /// On window state changed.
-    ///
-    /// This event notifies every time the user or app changes the window state. You can also track the window
-    /// state by setting [`state`] to a read-write variable.
-    ///
-    /// This property handles the same event as [`on_pre_window_state_changed`] so window handlers see it first.
-    ///
-    /// [`state`]: fn@state
-    /// [`on_pre_window_state_changed`]: fn@events::window::on_pre_window_state_changed
-    pub events::window::on_pre_window_state_changed as on_state_changed;
+/// On window exited the maximized state.
+///
+/// This event notifies every time the user or app changes the window state to a different state from maximized.
+///
+/// This property handles the same event as [`on_pre_window_unmaximized`] so window handlers see it first.
+///
+/// [`on_pre_window_unmaximized`]: fn@events::window::on_pre_window_unmaximized
+#[property(EVENT, impl(Window))]
+pub fn on_unmaximized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
+    events::window::on_pre_window_unmaximized(child, handler)
+}
 
-    /// On window maximized.
-    ///
-    /// This event notifies every time the user or app changes the window state to maximized.
-    ///
-    /// This property handles the same event as [`on_pre_window_maximized`] so window handlers see it first.
-    ///
-    /// [`on_pre_window_maximized`]: fn@events::window::on_pre_window_maximized
-    pub events::window::on_pre_window_maximized as on_maximized;
+/// On window minimized.
+///
+/// This event notifies every time the user or app changes the window state to maximized.
+///
+/// This property handles the same event as [`on_pre_window_maximized`] so window handlers see it first.
+///
+/// [`on_pre_window_maximized`]: fn@events::window::on_pre_window_maximized
+#[property(EVENT, impl(Window))]
+pub fn on_minimized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
+    events::window::on_pre_window_minimized(child, handler)
+}
 
-    /// On window exited the maximized state.
-    ///
-    /// This event notifies every time the user or app changes the window state to a different state from maximized.
-    ///
-    /// This property handles the same event as [`on_pre_window_unmaximized`] so window handlers see it first.
-    ///
-    /// [`on_pre_window_unmaximized`]: fn@events::window::on_pre_window_unmaximized
-    pub events::window::on_pre_window_unmaximized as on_unmaximized;
+/// On window exited the minimized state.
+///
+/// This event notifies every time the user or app changes the window state to a different state from minimized.
+///
+/// This property handles the same event as [`on_pre_window_unminimized`] so window handlers see it first.
+///
+/// [`on_pre_window_unminimized`]: fn@events::window::on_pre_window_unminimized
+#[property(EVENT, impl(Window))]
+pub fn on_unminimized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
+    events::window::on_pre_window_unminimized(child, handler)
+}
 
-    /// On window minimized.
-    ///
-    /// This event notifies every time the user or app changes the window state to maximized.
-    ///
-    /// This property handles the same event as [`on_pre_window_maximized`] so window handlers see it first.
-    ///
-    /// [`on_pre_window_maximized`]: fn@events::window::on_pre_window_maximized
-    pub events::window::on_pre_window_minimized as on_minimized;
+/// On window state changed to [`Normal`].
+///
+/// This event notifies every time the user or app changes the window state to [`Normal`].
+///
+/// This property handles the same event as [`on_pre_window_restored`] so window handlers see it first.
+///
+/// [`Normal`]: crate::core::window::WindowState::Normal
+/// [`on_pre_window_restored`]: fn@events::window::on_pre_window_restored
+#[property(EVENT, impl(Window))]
+pub fn on_restored(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
+    events::window::on_pre_window_restored(child, handler)
+}
 
-    /// On window exited the minimized state.
-    ///
-    /// This event notifies every time the user or app changes the window state to a different state from minimized.
-    ///
-    /// This property handles the same event as [`on_pre_window_unminimized`] so window handlers see it first.
-    ///
-    /// [`on_pre_window_unminimized`]: fn@events::window::on_pre_window_unminimized
-    pub events::window::on_pre_window_unminimized as on_unminimized;
+/// On window enter one of the fullscreen states.
+///
+/// This event notifies every time the user or app changes the window state to [`Fullscreen`] or [`Exclusive`].
+///
+/// This property handles the same event as [`on_pre_window_fullscreen`] so window handlers see it first.
+///
+/// [`Fullscreen`]: crate::core::window::WindowState::Fullscreen
+/// [`Exclusive`]: crate::core::window::WindowState::Exclusive
+/// [`on_pre_window_fullscreen`]: fn@events::window::on_pre_window_fullscreen
+#[property(EVENT, impl(Window))]
+pub fn on_fullscreen(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
+    events::window::on_pre_window_fullscreen(child, handler)
+}
 
-    /// On window state changed to [`Normal`].
-    ///
-    /// This event notifies every time the user or app changes the window state to [`Normal`].
-    ///
-    /// This property handles the same event as [`on_pre_window_restored`] so window handlers see it first.
-    ///
-    /// [`Normal`]: crate::core::window::WindowState::Normal
-    /// [`on_pre_window_restored`]: fn@events::window::on_pre_window_restored
-    pub events::window::on_pre_window_restored as on_restored;
+/// On window is no longer fullscreen.
+///
+/// This event notifies every time the user or app changed the window state to one that is not fullscreen.
+///
+/// This property handles the same event as [`on_pre_window_exited_fullscreen`] so window handlers see it first.
+///
+/// [`on_pre_window_exited_fullscreen`]: fn@events::window::on_pre_window_exited_fullscreen
+#[property(EVENT, impl(Window))]
+pub fn on_exited_fullscreen(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
+    events::window::on_pre_window_exited_fullscreen(child, handler)
+}
 
-    /// On window enter one of the fullscreen states.
-    ///
-    /// This event notifies every time the user or app changes the window state to [`Fullscreen`] or [`Exclusive`].
-    ///
-    /// This property handles the same event as [`on_pre_window_fullscreen`] so window handlers see it first.
-    ///
-    /// [`Fullscreen`]: crate::core::window::WindowState::Fullscreen
-    /// [`Exclusive`]: crate::core::window::WindowState::Exclusive
-    /// [`on_pre_window_fullscreen`]: fn@events::window::on_pre_window_fullscreen
-    pub events::window::on_pre_window_fullscreen as on_fullscreen;
-
-    /// On window is no longer fullscreen.
-    ///
-    /// This event notifies every time the user or app changed the window state to one that is not fullscreen.
-    ///
-    /// This property handles the same event as [`on_pre_window_exited_fullscreen`] so window handlers see it first.
-    ///
-    /// [`on_pre_window_exited_fullscreen`]: fn@events::window::on_pre_window_exited_fullscreen
-    pub events::window::on_pre_window_exited_fullscreen as on_exited_fullscreen;
-
-    /// On window frame rendered.
-    ///
-    /// If [`frame_image_capture`](fn@frame_image_capture) is set
-    pub events::window::on_pre_frame_image_ready as on_frame_image_ready;
+/// On window frame rendered.
+///
+/// If [`frame_image_capture`](fn@frame_image_capture) is set
+#[property(EVENT, impl(Window))]
+pub fn on_frame_image_ready(child: impl UiNode, handler: impl WidgetHandler<FrameImageReadyArgs>) -> impl UiNode {
+    events::window::on_pre_frame_image_ready(child, handler)
 }

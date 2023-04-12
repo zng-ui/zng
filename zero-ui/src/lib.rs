@@ -347,8 +347,8 @@ pub mod prelude {
         pub use crate::properties::*;
         #[doc(no_inline)]
         pub use crate::widgets::text::{
-            font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, txt_align, txt_color,
-            txt_transform, word_spacing,
+            self, font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, txt_align,
+            txt_color, txt_transform, word_spacing,
         };
         #[doc(no_inline)]
         pub use crate::widgets::{

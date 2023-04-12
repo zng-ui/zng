@@ -35,7 +35,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
         }
     } else {
         quote! {
-            #property::#meta_ident(#core::widget_base::WidgetImpl::base(&mut #builder))
+            #property::#meta_ident(#core::widget_base::WidgetImpl::base(#builder))
         }
     };
 

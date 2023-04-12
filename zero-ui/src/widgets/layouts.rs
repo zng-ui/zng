@@ -4,7 +4,7 @@ pub mod grid;
 #[doc(inline)]
 pub use grid::Grid;
 
-mod stack;
+pub mod stack;
 #[doc(inline)]
 pub use stack::{h_stack, stack_nodes, stack_nodes_layout_by, v_stack, z_stack, Stack};
 
