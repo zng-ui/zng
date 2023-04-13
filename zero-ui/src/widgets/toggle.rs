@@ -61,7 +61,7 @@ context_var! {
 /// # let _scope = App::minimal();
 /// let foo = var(false);
 ///
-/// toggle! {
+/// Toggle! {
 ///     checked = foo.clone();
 ///
 ///     child = Text!(foo.map(|b| formatx!("foo = {b}")));
@@ -127,7 +127,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 /// # let _scope = App::minimal();
 /// let foo = var(Some(false));
 ///
-/// toggle! {
+/// Toggle! {
 ///     checked_opt = foo.clone();
 ///     tristate = true;
 ///
@@ -221,7 +221,7 @@ pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// toggle! {
+/// Toggle! {
 ///     checked = var(false);
 ///     // checked_opt = var(Some(false));
 ///     // value<i32> = 42;
@@ -267,7 +267,7 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 ///
 ///     spacing = 5;
 ///     children = (1..=10_i32).map(|i| {
-///         toggle! {
+///         Toggle! {
 ///             child = Text!("Item {i}");
 ///             value::<i32> = i;
 ///         }
@@ -897,9 +897,9 @@ fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
 
 /// Switch toggle style.
 ///
-/// Style a [`toggle!`] widget to look like a *switch*.
+/// Style a [`Toggle!`] widget to look like a *switch*.
 ///
-/// [`toggle!`]: mod@crate::widgets::toggle
+/// [`Toggle!`]: mod@crate::widgets::toggle
 #[widget($crate::widgets::toggle::SwitchStyle)]
 pub struct SwitchStyle(Style);
 impl SwitchStyle {

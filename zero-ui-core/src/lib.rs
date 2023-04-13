@@ -1098,6 +1098,15 @@ mod private {
 #[macro_export]
 macro_rules! defaults {
     (
+        $wgt_mut:ident;
+        $($tt:tt)*
+    ) => {
+        $crate::defaults! {
+            &mut *$wgt_mut;
+            $($tt)*
+        }
+    };
+    (
         $wgt_borrow_mut:expr;
         $($tt:tt)*
     ) => {

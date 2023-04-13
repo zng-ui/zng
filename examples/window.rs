@@ -87,7 +87,7 @@ async fn main_window() -> WindowCfg {
 
 fn background_color(color: impl Var<Rgba>) -> impl UiNode {
     fn color_btn(c: impl Var<Rgba>, select_on_init: bool) -> impl UiNode {
-        toggle! {
+        Toggle! {
             value::<Rgba> = c.clone();
             select_on_init;
             child = Stack! {
@@ -213,7 +213,7 @@ fn screenshot() -> impl UiNode {
 
 fn icon() -> impl UiNode {
     let icon_btn = |label: &'static str, ico: WindowIcon| {
-        toggle! {
+        Toggle! {
             child = Text!(label);
             value = ico;
         }
@@ -256,7 +256,7 @@ fn icon() -> impl UiNode {
 
 fn chrome() -> impl UiNode {
     let chrome_btn = |c: WindowChrome| {
-        toggle! {
+        Toggle! {
             child = Text!("{c:?}");
             value = c;
         }
@@ -339,7 +339,7 @@ fn focus_control() -> impl UiNode {
 
 fn state() -> impl UiNode {
     let state_btn = |s: WindowState| {
-        toggle! {
+        Toggle! {
             child = Text!("{s:?}");
             value = s;
         }
@@ -386,11 +386,11 @@ fn misc() -> impl UiNode {
     section(
         "Misc.",
         ui_vec![
-            toggle! {
+            Toggle! {
                 child = Text!("Taskbar Visible");
                 checked = window_vars.taskbar_visible();
             },
-            toggle! {
+            Toggle! {
                 child = Text!("Always on Top");
                 checked = window_vars.always_on_top();
             },

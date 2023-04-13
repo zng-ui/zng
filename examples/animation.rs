@@ -75,7 +75,7 @@ fn example() -> impl UiNode {
                 spacing = 2;
                 toggle::selector = toggle::Selector::single(easing_mod.clone());
                 children = {
-                    let mode = |m: easing::EasingModifierFn| toggle! {
+                    let mode = |m: easing::EasingModifierFn| Toggle! {
                         child = Text!(m.to_text());
                         value = m;
                     };

@@ -38,7 +38,7 @@ fn app_main() {
 fn icons() -> impl UiNode {
     let selected_font = var("outlined");
     fn select_font(key: &'static str) -> impl UiNode {
-        toggle! {
+        Toggle! {
             child = Text!(key);
             value::<&'static str> = key;
         }

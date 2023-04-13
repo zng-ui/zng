@@ -49,7 +49,7 @@ fn app_main() {
                 align = Align::CENTER;
                 spacing = 5;
                 children = ui_vec![
-                    toggle! {
+                    Toggle! {
                         child = Text!(checked.map(|c| formatx!("Checked: {c:?}")));
                         checked = checked.clone();
                     },
@@ -60,7 +60,7 @@ fn app_main() {
                         })
                     },
                     separator(),
-                    text_input! {
+                    TextInput! {
                         txt = txt.clone();
                         min_width = 100;
                     },
