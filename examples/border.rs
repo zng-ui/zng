@@ -114,14 +114,14 @@ mod widgets {
 
     #[property(BORDER, default(0, BorderStyle::Hidden), impl(MrBorders))]
     pub fn border0(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
-        border(child, widths,sides)
+        border(child, widths, sides)
     }
     #[property(BORDER, default(0, BorderStyle::Hidden), impl(MrBorders))]
     pub fn border1(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
-        border(child, widths,sides)
+        border(child, widths, sides)
     }
     #[property(BORDER, default(0, BorderStyle::Hidden), impl(MrBorders))]
     pub fn border2(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
-        border(child, widths,sides)
+        border(child, widths, sides)
     }
 }

@@ -93,6 +93,26 @@ impl WidgetBase {
         self.importance = Importance::INSTANCE;
     }
 
+    /// Start building a `when` block, all properties set after this call go on the when block.
+    pub fn start_when_block(&mut self) {
+        todo!("!!: ")
+    }
+
+    /// End the current `when` block, all properties set after this call go on the widget.
+    pub fn end_when_block(&mut self) {
+        self.builder.get_mut().as_mut().expect("cannot set `when` after build").push_when(
+            self.importance,
+            WhenInfo {
+                inputs: todo!(),
+                state: todo!(),
+                assigns: todo!(),
+                build_action_data: todo!(),
+                expr: todo!(),
+                location: todo!(),
+            },
+        );
+    }
+
     #[doc(hidden)]
     pub fn on_start__(&mut self) {
         if !self.started {

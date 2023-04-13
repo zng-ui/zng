@@ -1,12 +1,6 @@
 //! Toggle widget and properties.
 
-use std::{
-    any::Any,
-    error::Error,
-    fmt,
-    marker::PhantomData,
-    sync::{Arc}, borrow::Cow,
-};
+use std::{any::Any, borrow::Cow, error::Error, fmt, marker::PhantomData, sync::Arc};
 
 use task::parking_lot::Mutex;
 
@@ -820,14 +814,16 @@ pub struct DefaultStyle(Style);
 impl DefaultStyle {
     #[widget(on_start)]
     fn on_start(&mut self) {
+        use crate::widgets::button;
+
         defaults! {
             self;
 
             when *#is_checked  {
-                background_color = crate::widgets::button::vis::color_scheme_pressed(btn_vis::BASE_COLORS_VAR);
+                background_color = button::color_scheme_pressed(button::BASE_COLORS_VAR);
                 border = {
                     widths: 1,
-                    sides: crate::widgets::button::vis::color_scheme_pressed(btn_vis::BASE_COLORS_VAR).map_into(),
+                    sides: button::color_scheme_pressed(button::BASE_COLORS_VAR).map_into(),
                 };
             }
         }

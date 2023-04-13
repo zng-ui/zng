@@ -390,13 +390,13 @@ impl WgtWhen {
             while !inner.is_empty() {
                 let attrs = parse_outer_attrs(&inner, errors);
 
-                if !(inner.peek(Ident) || inner.peek(Token![super]) || inner.peek(Token![self])) {
+                if !(inner.peek(Ident::peek_any) || inner.peek(Token![super]) || inner.peek(Token![self])) {
                     errors.push(
                         "expected property path",
                         if inner.is_empty() { brace.span.join() } else { inner.span() },
                     );
                     while !(inner.is_empty()
-                        || inner.peek(Ident)
+                        || inner.peek(Ident::peek_any)
                         || inner.peek(Token![super])
                         || inner.peek(Token![self])
                         || inner.peek(Token![#]) && inner.peek(token::Bracket))
@@ -415,7 +415,7 @@ impl WgtWhen {
                         if !inner.is_empty() && p.semi.is_none() {
                             errors.push("expected `,`", inner.span());
                             while !(inner.is_empty()
-                                || input.peek(Ident)
+                                || input.peek(Ident::peek_any)
                                 || input.peek(Token![crate])
                                 || input.peek(Token![super])
                                 || input.peek(Token![self])

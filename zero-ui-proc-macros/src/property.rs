@@ -116,11 +116,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let generics = &item.sig.generics;
         let has_generics = !generics.params.empty_or_trailing();
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
-        let path_gens = if has_generics {
-            quote!(::#ty_gens)
-        } else {
-            quote!()
-        };
+        let path_gens = if has_generics { quote!(::#ty_gens) } else { quote!() };
 
         let ident_unset = ident!("unset_{}", ident);
         let ident_args = ident!("{}_args__", ident);

@@ -457,7 +457,7 @@ impl CfgWhenWgt {
             // suppress warning in all assigns.
             #[allow(non_snake_case)]
             when *#is_state {
-                live_trace = {
+                util::live_trace = {
                     #[allow(clippy::needless_late_init)]
                     let weird___name;
                     weird___name = "is_state";
@@ -992,9 +992,9 @@ pub fn allowed_in_when_without_wgt_assign2() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
         let mut wgt = EmptyWgt! {
-            // live_trace_default = "default-trace";
+            // util::live_trace_default = "default-trace";
             when *#util::is_state {
-                live_trace_default = "when-trace";
+                util::live_trace_default = "when-trace";
             }
         };
 

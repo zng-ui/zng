@@ -120,7 +120,7 @@ pub use crate::property_id;
 ///
 /// * `path::property`: Gets the info for the property function.
 /// * `Self::property`: Gets the info for the property on the `#[widget(on_start)]`.
-/// 
+///
 /// If the property is generic a `::<T>` is also required.
 ///
 /// # Examples

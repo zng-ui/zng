@@ -14,10 +14,10 @@ impl<P: WidgetImpl> FocusableMix<P> {
             self;
             focusable = true;
             when *#focus::is_focused_hgl {
-                foreground_highlight = {
-                    offsets: vis::FOCUS_HIGHLIGHT_OFFSETS_VAR,
-                    widths: vis::FOCUS_HIGHLIGHT_WIDTHS_VAR,
-                    sides: vis::FOCUS_HIGHLIGHT_SIDES_VAR,
+                crate::properties::foreground_highlight = {
+                    offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
+                    widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
+                    sides: FOCUS_HIGHLIGHT_SIDES_VAR,
                 };
             }
         }

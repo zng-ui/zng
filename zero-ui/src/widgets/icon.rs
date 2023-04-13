@@ -12,7 +12,11 @@ use std::fmt;
 /// each icon in the fonts.
 ///
 /// [`GlyphIcon`]: icon::GlyphIcon
-#[widget($crate::widgets::Icon)]
+#[widget($crate::widgets::Icon {
+    ($ico:expr) => {
+        ico = $ico;
+    }
+})]
 pub struct Icon(WidgetBase);
 impl Icon {
     #[widget(on_start)]

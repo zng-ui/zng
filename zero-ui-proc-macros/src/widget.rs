@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
-use syn::{parse::Parse, spanned::Spanned, *};
+use syn::{ext::IdentExt, parse::Parse, spanned::Spanned, *};
 
 use crate::{
     util::{self, parse_outer_attrs, ErrorRecoverable, Errors},
@@ -382,7 +382,7 @@ impl Parse for Properties {
                     whens.push(when);
                 }
             } else if input.peek(Token![pub])
-                || input.peek(Ident)
+                || input.peek(Ident::peek_any)
                 || input.peek(Token![crate])
                 || input.peek(Token![super])
                 || input.peek(Token![self])
@@ -394,7 +394,7 @@ impl Parse for Properties {
                         if !input.is_empty() && p.semi.is_none() {
                             errors.push("expected `;`", input.span());
                             while !(input.is_empty()
-                                || input.peek(Ident)
+                                || input.peek(Ident::peek_any)
                                 || input.peek(Token![crate])
                                 || input.peek(Token![super])
                                 || input.peek(Token![self])
@@ -450,112 +450,139 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut set_props = quote!();
     for prop in &p.properties {
-        let custom_expand = if prop.has_custom_attrs() {
-            prop.custom_attrs_expand(ident!("wgt__"), None)
-        } else {
-            quote!()
-        };
-        let attrs = prop.attrs.cfg_and_lints();
+        set_props.extend(prop_assign(prop, &mut p.errors));
+    }
 
-        let ident = prop.ident();
-        let path = &prop.path;
-
-        let generics = &prop.generics;
-
-        macro_rules! quote_call {
-            (#$mtd:ident ( $($args:tt)* )) => {
-                if path.get_ident().is_some() {
-                    quote! {
-                        wgt__.#$mtd #generics($($args)*);
-                    }
-                } else {
-                    quote! {
-                        #path::#$mtd #generics(#core::widget_base::WidgetImpl::base(wgt__), $($args)*);
-                    }
-                }
-            }
+    let mut set_whens = quote!();
+    for when in &p.whens {
+        let mut assigns = quote!();
+        for prop in &when.assigns {
+            assigns.extend(prop_assign(prop, &mut p.errors));
         }
 
-        let prop_init;
-
-        match &prop.value {
-            Some((_, val)) => match val {
-                widget_util::PropertyValue::Special(special, _) => {
-                    if prop.is_unset() {
-                        let unset_ident = ident_spanned!(ident.span()=> "unset_{}", ident);
-                        prop_init = quote_call! {
-                            #unset_ident()
-                        };
-                    } else {
-                        p.errors.push("unknown value, expected `unset!`", special.span());
-                        continue;
-                    }
-                }
-                widget_util::PropertyValue::Unnamed(val) => {
-                    prop_init = quote_call! {
-                        #ident(#val)
-                    };
-                }
-                widget_util::PropertyValue::Named(_, fields) => {
-                    let mut idents_sorted: Vec<_> = fields.iter().map(|f| &f.ident).collect();
-                    idents_sorted.sort();
-                    let idents = fields.iter().map(|f| &f.ident);
-                    let values = fields.iter().map(|f| &f.expr);
-                    let ident_sorted = ident_spanned!(ident.span()=> "{}_sorted__", ident);
-                    let ident_meta = ident_spanned!(ident.span()=> "{}_meta__", ident);
-
-                    let call = quote_call! {
-                        #ident_sorted(#(#idents_sorted),*)
-                    };
-                    let meta = if path.get_ident().is_some() {
-                        quote! {
-                            wgt__.#ident_meta()
-                        }
-                    } else {
-                        quote! {
-                            <#core::widget_builder::WgtInfo as #path>::#ident_meta(&#core::widget_builder::WgtInfo)
-                        }
-                    };
-                    prop_init = quote! {
-                        {
-                            let meta__ = #meta;
-                            #(
-                                let #idents = meta__.inputs().#idents(#values);
-                            )*
-                            #call
-                        }
-                    };
-                }
-            },
-            None => match prop.path.get_ident() {
-                Some(_) => {
-                    prop_init = quote_call! {
-                        #ident(#ident)
-                    };
-                }
-                None => {
-                    p.errors.push("missing value", util::path_span(&prop.path));
-                    continue;
-                }
-            },
-        }
-
-        set_props.extend(quote! {
-            #attrs {
-                #custom_expand
-                #prop_init
+        set_whens.extend(quote! {
+            {
+                #core::widget_base::WidgetImpl::base(wgt__).start_when_block();
+                #assigns
+                #core::widget_base::WidgetImpl::base(wgt__).end_when_block();
             }
         });
     }
+
+    let errors = p.errors;
+
     let r = quote! {
+        #errors
         {
             #start
             #set_props
+            #set_whens
             #end
         }
     };
 
     r.into()
+}
+
+fn prop_assign(prop: &WgtProperty, errors: &mut Errors) -> TokenStream {
+    let core = util::crate_core();
+
+    let custom_expand = if prop.has_custom_attrs() {
+        prop.custom_attrs_expand(ident!("wgt__"), None)
+    } else {
+        quote!()
+    };
+    let attrs = prop.attrs.cfg_and_lints();
+
+    let ident = prop.ident();
+    let path = &prop.path;
+
+    let generics = &prop.generics;
+
+    macro_rules! quote_call {
+        (#$mtd:ident ( $($args:tt)* )) => {
+            if path.get_ident().is_some() {
+                quote! {
+                    wgt__.#$mtd #generics($($args)*);
+                }
+            } else {
+                quote! {
+                    #path::#$mtd #generics(#core::widget_base::WidgetImpl::base(wgt__), $($args)*);
+                }
+            }
+        }
+    }
+
+    let prop_init;
+
+    match &prop.value {
+        Some((_, val)) => match val {
+            widget_util::PropertyValue::Special(special, _) => {
+                if prop.is_unset() {
+                    let unset_ident = ident_spanned!(ident.span()=> "unset_{}", ident);
+                    prop_init = quote_call! {
+                        #unset_ident()
+                    };
+                } else {
+                    errors.push("unknown value, expected `unset!`", special.span());
+                    return quote!();
+                }
+            }
+            widget_util::PropertyValue::Unnamed(val) => {
+                prop_init = quote_call! {
+                    #ident(#val)
+                };
+            }
+            widget_util::PropertyValue::Named(_, fields) => {
+                let mut idents_sorted: Vec<_> = fields.iter().map(|f| &f.ident).collect();
+                idents_sorted.sort();
+                let idents = fields.iter().map(|f| &f.ident);
+                let values = fields.iter().map(|f| &f.expr);
+                let ident_sorted = ident_spanned!(ident.span()=> "{}_sorted__", ident);
+                let ident_meta = ident_spanned!(ident.span()=> "{}_meta__", ident);
+
+                let call = quote_call! {
+                    #ident_sorted(#(#idents_sorted),*)
+                };
+                let meta = if path.get_ident().is_some() {
+                    quote! {
+                        wgt__.#ident_meta()
+                    }
+                } else {
+                    quote! {
+                        <#core::widget_builder::WgtInfo as #path>::#ident_meta(&#core::widget_builder::WgtInfo)
+                    }
+                };
+                prop_init = quote! {
+                    {
+                        let meta__ = #meta;
+                        #(
+                            let #idents = meta__.inputs().#idents(#values);
+                        )*
+                        #call
+                    }
+                };
+            }
+        },
+        None => match prop.path.get_ident() {
+            Some(_) => {
+                prop_init = quote_call! {
+                    #ident(#ident)
+                };
+            }
+            None => {
+                errors.push("missing value", util::path_span(&prop.path));
+                return quote!();
+            }
+        },
+    }
+
+    quote! {
+        #attrs {
+            #custom_expand
+            #prop_init
+        }
+    }
 }
 
 struct NewArgs {

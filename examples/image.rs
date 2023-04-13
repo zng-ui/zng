@@ -388,23 +388,23 @@ impl ImgWindow {
             //     use zero_ui::core::render::webrender_api::DebugFlags;
             //     DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
             // };
-    
+
             // render_mode = RenderMode::Software;
-    
+
             child_align = Align::CENTER;
-    
-    
+
+
             state = WindowState::Maximized;
             size = (1140, 770);// restore size
-    
+
             icon = "examples/res/image/RGB8.png";
             background = Checkerboard!();
-    
+
             color_scheme = ColorScheme::Dark;
-    
+
             // content shown by all images when loading.
             img_loading_fn = wgt_fn!(|_| loading());
-    
+
             // content shown by all images that failed to load.
             img_error_fn = wgt_fn!(|args: ImageErrorArgs| {
                 center_viewport(Text! {
@@ -419,7 +419,7 @@ impl ImgWindow {
                     };
                 })
             });
-    
+
             // button color
             button::base_colors = (rgb(0, 0, 40), rgb(0, 0, 255 - 40));
         }

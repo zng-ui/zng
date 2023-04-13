@@ -104,7 +104,7 @@ impl DefaultStyle {
             border = {
                 widths: 1,
                 sides: color_scheme_pair(BASE_COLORS_VAR).map_into()
-            }
+            };
 
             when *#is_cap_hovered {
                 #[easing(0.ms())]

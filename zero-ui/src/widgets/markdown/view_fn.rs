@@ -552,7 +552,7 @@ pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()
     } else {
-        use crate::widgets::layouts::{Grid, grid};
+        use crate::widgets::layouts::{grid, Grid};
         Grid! {
             margin = (0, 0, 0, 1.em());
             cells = args.items;
