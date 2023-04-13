@@ -746,7 +746,9 @@ impl Parse for WidgetCustomRule {
         braced!(init in input);
         let init = init.parse()?;
 
-        let _ = input.parse::<Token![;]>()?;
+        if input.peek(Token![;]) {
+            let _ = input.parse::<Token![;]>();
+        };
 
         Ok(WidgetCustomRule { rule, init })
     }

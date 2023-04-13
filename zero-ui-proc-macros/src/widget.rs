@@ -460,15 +460,17 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let ident = prop.ident();
         let path = &prop.path;
 
+        let generics = &prop.generics;
+
         macro_rules! quote_call {
             (#$mtd:ident ( $($args:tt)* )) => {
                 if path.get_ident().is_some() {
                     quote! {
-                        wgt__.#$mtd($($args)*);
+                        wgt__.#$mtd #generics($($args)*);
                     }
                 } else {
                     quote! {
-                        #path::#$mtd(#core::widget_base::WidgetImpl::base(wgt__), $($args)*);
+                        #path::#$mtd #generics(#core::widget_base::WidgetImpl::base(wgt__), $($args)*);
                     }
                 }
             }

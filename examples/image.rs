@@ -272,7 +272,7 @@ fn large_image() -> impl UiNode {
                                     Image! {
                                         source = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/757px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
                                     },
-                                    img_window::loading(),
+                                    loading(),
                                 ];
                             }
                         });
@@ -373,9 +373,7 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
 }
 
 #[zero_ui::core::widget($crate::ImgWindow {
-    (
-        $title:expr, $child:expr
-    ) => {
+    ($title:expr, $child:expr $(,)?) => {
         title = $title;
         child = $child;
     }
