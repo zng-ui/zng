@@ -1,3 +1,5 @@
+//! Markdown widget, properties and nodes..
+
 use std::mem;
 
 pub use pulldown_cmark::HeadingLevel;

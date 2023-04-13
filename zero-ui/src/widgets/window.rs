@@ -1,4 +1,4 @@
-//!: Window widget, properties and helpers.
+//!: Window widget, properties, properties and nodes..
 
 use crate::core::focus::*;
 use crate::core::window::{
@@ -71,6 +71,7 @@ impl Window {
         });
     }
 
+    /// Build a [`WindowCfg`].
     pub fn build(&mut self) -> WindowCfg {
         let mut wgt = self.take_builder();
         WindowCfg::new_root(

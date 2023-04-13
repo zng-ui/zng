@@ -1,4 +1,4 @@
-//! Thumb widget and helpers.
+//! Thumb widget, properties and nodes..
 
 use super::*;
 use crate::core::mouse::*;

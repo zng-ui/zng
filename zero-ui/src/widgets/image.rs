@@ -1,4 +1,4 @@
-//! Image widget and helpers.
+//! Image widget, properties and nodes..
 
 use crate::core::image::ImageSource;
 use crate::prelude::new_widget::*;

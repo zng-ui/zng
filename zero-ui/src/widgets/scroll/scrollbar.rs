@@ -1,4 +1,4 @@
-//! Scrollbar widget and helpers.
+//! Scrollbar widget, properties and nodes..
 
 use crate::core::mouse::{ClickMode, MouseClickArgs};
 

@@ -1,4 +1,4 @@
-//! Focusable widget mix-in and helpers.
+//! Focusable widget mix-in, properties and nodes..
 
 use crate::prelude::new_widget::*;
 

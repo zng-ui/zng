@@ -1,4 +1,4 @@
-//! Grid widgets and helpers.
+//! Grid widgets, properties and nodes..
 
 use zero_ui_core::task::parking_lot::Mutex;
 

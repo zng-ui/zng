@@ -1,4 +1,5 @@
-/// Properties and nodes used by [`Checkerboard`].
+//! Checkerboard widget, properties and nodes..
+
 use crate::prelude::new_widget::*;
 use zero_ui_core::gradient::RenderGradientStop;
 

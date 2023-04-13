@@ -1,4 +1,4 @@
-//! Glyph icon widget and helpers.
+//! Glyph icon widget, properties and nodes..
 
 use crate::prelude::new_widget::*;
 use crate::widgets::text;

@@ -1,4 +1,4 @@
-//! Switch widget and helpers.
+//! Switch widget, properties and nodes..
 
 use crate::prelude::new_widget::*;
 

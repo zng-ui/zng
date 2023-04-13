@@ -1,4 +1,4 @@
-//! ANSI text widget and helpers.
+//! ANSI text widget, properties and nodes..
 
 use zero_ui::prelude::new_widget::*;
 

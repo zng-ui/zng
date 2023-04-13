@@ -1,4 +1,4 @@
-//! Text input widget and helpers.
+//! Text input widget, properties and nodes..
 
 use crate::prelude::new_widget::*;
 

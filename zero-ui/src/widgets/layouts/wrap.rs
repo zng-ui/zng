@@ -1,4 +1,4 @@
-//! Wrap panel and helpers.
+//! Wrap panel, properties and nodes..
 
 use std::sync::Arc;
 
@@ -312,7 +312,7 @@ impl crate::crate_util::Recycle for RowInfo {
 }
 
 #[derive(Default)]
-pub struct InlineLayout {
+struct InlineLayout {
     first_wrapped: bool,
     rows: RecycleVec<RowInfo>,
     desired_size: PxSize,

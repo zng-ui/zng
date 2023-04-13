@@ -1,4 +1,4 @@
-//! Scroll widgets and helpers.
+//! Scroll widgets, properties and nodes..
 
 use crate::prelude::new_widget::*;
 
@@ -231,7 +231,6 @@ fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewp
         }
     }
 
-    use crate::core::context::UpdatesTraceUiNodeExt;
     ScrollNode {
         children: ui_vec![
             clip_to_bounds(

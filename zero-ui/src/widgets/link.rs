@@ -1,4 +1,4 @@
-//! Link widget and helpers.
+//! Link widget, properties and nodes..
 
 use crate::prelude::new_widget::*;
 

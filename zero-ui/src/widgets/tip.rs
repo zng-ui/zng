@@ -1,4 +1,4 @@
-//! Tooltip widget and helpers.
+//! Tooltip widget, properties and nodes..
 
 use crate::prelude::new_widget::*;
 

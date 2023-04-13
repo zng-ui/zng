@@ -472,6 +472,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #vis struct #ident_meta  { }
             #cfg
             #[doc(hidden)]
+            #[allow(dead_code)]
             impl #ident_meta {
                 pub fn id(&self) -> #core::widget_builder::PropertyId {
                     static ID: #core::widget_builder::StaticPropertyId = #core::widget_builder::StaticPropertyId::new_unique();
