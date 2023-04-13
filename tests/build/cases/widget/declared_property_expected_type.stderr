@@ -1,5 +1,0 @@
-error: expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, `dyn`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime
- --> cases/widget/declared_property_expected_type.rs:8:13
-  |
-8 |         foo(10);
-  |             ^^

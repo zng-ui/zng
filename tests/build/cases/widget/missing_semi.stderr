@@ -1,5 +1,0 @@
-error: expected `;`
-  --> cases/widget/missing_semi.rs:11:9
-   |
-11 |         margin = 10
-   |         ^^^^^^

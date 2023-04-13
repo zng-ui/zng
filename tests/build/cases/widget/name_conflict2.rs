@@ -1,14 +1,10 @@
-use zero_ui::core::widget;
+use zero_ui::prelude::new_widget::*;
 
-#[widget($crate::foo)]
-pub mod foo {
-    inherit!(zero_ui::core::widget_base::base);
-}
+#[widget($crate::TestWidget)]
+pub struct TestWidget(WidgetBase);
 
-#[widget($crate::foo)]
-pub mod foo {
-    inherit!(zero_ui::core::widget_base::base);
-}
+#[widget($crate::TestWidget)]
+pub struct TestWidget(WidgetBase);
 
 // the hash for the widget path is the same, so unfortunately all all generated macros end-up with the same name, at least the
 // just the second widget is highlighted?

@@ -1,9 +1,7 @@
-use zero_ui::core::widget;
+use zero_ui::prelude::new_widget::*;
 
 // path is missing
 #[widget]
-pub mod test_widget {
-    inherit!(zero_ui::core::widget_base::base);
-}
+pub struct TestWidget(WidgetBase);
 
 fn main() {}

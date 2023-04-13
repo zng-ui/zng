@@ -1,15 +1,13 @@
-use zero_ui::core::widget;
+use zero_ui::prelude::new_widget::*;
 
 #[allow(unused_macros)]
-macro_rules! foo {
+macro_rules! TestWidget {
     () => {};
 }
-pub use crate::foo;
+pub use crate::TestWidget;
 
-#[widget($crate::foo)]
-pub mod foo {
-    inherit!(zero_ui::core::widget_base::base);
-}
+#[widget($crate::TestWidget)]
+pub struct TestWidget(WidgetBase);
 
 // #[widget] expands to another `macro_rules! foo` and `pub use foo;`
 // The full call_site (line 8) gets highlighted here, that is usually

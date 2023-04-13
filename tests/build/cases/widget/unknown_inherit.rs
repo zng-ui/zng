@@ -1,8 +1,6 @@
-use zero_ui::core::widget;
+use zero_ui::prelude::new_widget::*;
 
-#[widget($crate::test_widget)]
-pub mod test_widget {
-    inherit!(super::not::a::thing);
-}
+#[widget($crate::TestWidget)]
+pub struct TestWidget(Unknown);
 
 fn main() {}
