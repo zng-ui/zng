@@ -135,7 +135,7 @@ pub fn style_fn(_child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNod
 ///         context_var! {
 ///             /// Foo style.
 ///             pub static STYLE_VAR: StyleFn = style_fn!(|_args| {
-///                 style! {
+///                 Style! {
 ///                     background_color = color_scheme_pair((colors::BLACK, colors::WHITE));
 ///                     cursor = CursorIcon::Crosshair;
 ///                 }

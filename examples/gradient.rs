@@ -17,7 +17,7 @@ fn app_main() {
             title = "Gradient Example";
             auto_size = true;
             icon = WindowIcon::render(icon);
-            child = scroll! {
+            child = Scroll! {
                 padding = 20;
                 child = Stack! {
                     direction = StackDirection::top_to_bottom();

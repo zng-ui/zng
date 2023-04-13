@@ -74,7 +74,7 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
         });
     }
     Stack! {
-        button::vis::extend_style = style_fn!(|_| style! {
+        button::extend_style = style_fn!(|_| Style! {
             padding = (0, 5);
         });
         direction = StackDirection::left_to_right();
@@ -113,8 +113,8 @@ fn basic() -> impl UiNode {
         "basic",
         ui_vec![
             Text!("Basic Text"),
-            strong!("Strong Text"),
-            em!("Emphasis Text"),
+            Strong!("Strong Text"),
+            Em!("Emphasis Text"),
             Text! {
                 txt_color = color_scheme_map(colors::LIGHT_GREEN, colors::DARK_GREEN);
                 txt = "Colored Text";

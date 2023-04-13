@@ -1,3 +1,5 @@
+//! Switch widget and helpers.
+
 use crate::prelude::new_widget::*;
 
 use std::mem;

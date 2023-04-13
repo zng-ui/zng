@@ -1,11 +1,11 @@
-//! Material icons for the [`icon!`] widget.
+//! Material icons for the [`Icon!`] widget.
 //!
 //! The constants are defined in a module for each font. The font files are embedded
 //! and can be registered using the [`MaterialFonts`] app extension.
 //!
 //! The icons are from the [Material Design Icons] project.
 //!
-//! [`icon!`]: mod@zero_ui::widgets::icon
+//! [`Icon!`]: mod@zero_ui::widgets::icon
 //! [Material Design Icons]: https://github.com/google/material-design-icons
 
 #![warn(missing_docs)]

@@ -43,7 +43,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
         size = (150, 80);
         align = Align::CENTER;
 
-        tooltip = tip!(Text!("tooltip"));
+        tooltip = Tip!(Text!("tooltip"));
 
         margin = 1;
         background_color = color_scheme_map(colors::BLACK, colors::WHITE);

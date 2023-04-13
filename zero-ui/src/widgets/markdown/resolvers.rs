@@ -202,7 +202,7 @@ pub fn try_default_link_action(args: &LinkArgs) -> bool {
 /// Note that the request is handled even if the anchor is not found.
 ///
 /// [`markdown!`]: mod@crate::widgets::markdown
-/// [`scroll!`]: mod@crate::widgets::scroll
+/// [`Scroll!`]: mod@crate::widgets::scroll
 pub fn try_scroll_link(args: &LinkArgs) -> bool {
     if args.propagation().is_stopped() {
         return false;

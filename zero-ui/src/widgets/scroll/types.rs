@@ -315,10 +315,10 @@ impl SCROLL {
 
 /// Scroll extensions for [`WidgetInfo`].
 pub trait WidgetInfoExt {
-    /// Returns `true` if the widget is a [`scroll!`](mod@super::scroll).
+    /// Returns `true` if the widget is a [`Scroll!`](mod@super::scroll).
     fn is_scroll(&self) -> bool;
 
-    /// Returns a reference to the viewport bounds if the widget is a [`scroll!`](mod@super::scroll).
+    /// Returns a reference to the viewport bounds if the widget is a [`Scroll!`](mod@super::scroll).
     fn scroll_info(&self) -> Option<ScrollInfo>;
 
     /// Gets the viewport bounds relative to the scroll widget inner bounds.

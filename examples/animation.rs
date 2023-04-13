@@ -94,7 +94,7 @@ fn example() -> impl UiNode {
                 spacing = 2;
                 columns = ui_vec![grid::Column!(1.lft()); 7];
                 auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
-                button::vis::extend_style = style_fn!(|_| style! {
+                button::extend_style = style_fn!(|_| Style! {
                     padding = 3;
                 });
                 cells = ui_vec![
@@ -246,7 +246,7 @@ fn ruler() -> impl UiNode {
     Stack! {
         children_align = Align::LEFT;
         children = (0..=300).step_by(10)
-            .map(|x| rule_line! {
+            .map(|x| RuleLine! {
                 orientation = LineOrientation::Vertical;
                 color = TEXT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
                 x = x.dip();

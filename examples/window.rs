@@ -491,8 +491,8 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 4;
 
-            button::vis::extend_style = style_fn!(|_| {
-                style! {
+            button::extend_style = style_fn!(|_| {
+                Style! {
                     padding = 4;
                     corner_radius = unset!;
                 }
@@ -514,7 +514,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                         spacing = 4;
                         children = ui_vec![
                             Button! {
-                                child = strong!("Close");
+                                child = Strong!("Close");
                                 on_click = hn_once!(state, |_| {
                                     state.set(CloseState::Close);
                                     WINDOWS.close_together(windows).unwrap();

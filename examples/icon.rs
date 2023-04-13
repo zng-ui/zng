@@ -21,12 +21,12 @@ fn app_main() {
     App::default().extend(icons::MaterialFonts).run_window(async {
         Window! {
             title = "Icon Example";
-            icon = WindowIcon::render(|| icon! {
+            icon = WindowIcon::render(|| Icon! {
                 ico = icons::filled::LIGHTBULB;
                 ico_color = colors::YELLOW;
                 drop_shadow = (0, 0), 3, colors::WHITE;
             });
-            child = scroll! {
+            child = Scroll! {
                 mode = ScrollMode::VERTICAL;
                 child = icons();
             };
@@ -47,7 +47,7 @@ fn icons() -> impl UiNode {
         let _scope = tracing::error_span!("show_font").entered();
         Wrap! {
             spacing = 5;
-            icon::vis::ico_size = 48;
+            icon::ico_size = 48;
             children = {
                 let mut r = vec![];
                 icons
@@ -115,7 +115,7 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl UiNode {
             spacing = 2;
             children_align = Align::CENTER;
             children = ui_vec![
-                icon! {
+                Icon! {
                     ico = ico.clone();
                 },
                 Text! {
@@ -167,7 +167,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                             font_family = FontName::monospace();
                             font_size = 18;
                         },
-                        sub_title("Using `icon!`:"),
+                        sub_title("Using `Icon!`:"),
                         Stack! {
                             direction = StackDirection::left_to_right();
                             spacing = 5;
@@ -178,7 +178,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                                     spacing = 3;
                                     children = ui_vec![
                                         size_label(formatx!("{size}")),
-                                        icon! {
+                                        Icon! {
                                             ico = ico.clone();
                                             ico_size = size;
 
@@ -226,7 +226,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                 Button! {
                     id = "close-btn";
                     icon::ico_size = 14;
-                    child = icon(icons::filled::CLOSE);
+                    child = Icon!(icons::filled::CLOSE);
                     align = Align::TOP_RIGHT;
                     padding = 2;
                     margin = 4;

@@ -68,14 +68,14 @@ fn disabled() -> impl UiNode {
         enabled = false;
         child = Text!("Disabled");
         id = "disabled-btn";
-        disabled_tooltip = tip!(Text!("disabled tooltip"));
+        disabled_tooltip = Tip!(Text!("disabled tooltip"));
     }
 }
 
 fn image_button() -> impl UiNode {
     Button! {
         id = "img-btn";
-        tooltip = tip!(Text!("image button"));
+        tooltip = Tip!(Text!("image button"));
         on_click = hn!(|_| println!("Clicked image button"));
         child = Stack! {
             direction = StackDirection::left_to_right();
@@ -160,18 +160,18 @@ fn toggle_buttons() -> impl UiNode {
             Toggle! {
                 child = Text!("Switch");
                 checked = var(false);
-                style_fn = style_fn!(|_| toggle::vis::switch_style!());
+                style_fn = style_fn!(|_| toggle::SwitchStyle!());
             },
             Toggle! {
                 child = Text!("Checkbox");
                 checked = var(false);
-                style_fn = style_fn!(|_| toggle::vis::check_style!());
+                style_fn = style_fn!(|_| toggle::CheckStyle!());
             },
             Toggle! {
                 child = Text!("Checkbox Tristate");
                 checked_opt = var(Some(false));
                 tristate = true;
-                style_fn = style_fn!(|_| toggle::vis::check_style!());
+                style_fn = style_fn!(|_| toggle::CheckStyle!());
             },
             Stack! {
                 direction = StackDirection::top_to_bottom();
@@ -181,17 +181,17 @@ fn toggle_buttons() -> impl UiNode {
                     Toggle! {
                         child = Text!("Radio button (Tokyo)");
                         value::<&'static str> = "Tokyo";
-                        style_fn = style_fn!(|_| toggle::vis::radio_style!());
+                        style_fn = style_fn!(|_| toggle::RadioStyle!());
                     },
                     Toggle! {
                         child = Text!("Radio button (Paris)");
                         value::<&'static str> = "Paris";
-                        style_fn = style_fn!(|_| toggle::vis::radio_style!());
+                        style_fn = style_fn!(|_| toggle::RadioStyle!());
                     },
                     Toggle! {
                         child = Text!("Radio button (London)");
                         value::<&'static str> = "London";
-                        style_fn = style_fn!(|_| toggle::vis::radio_style!());
+                        style_fn = style_fn!(|_| toggle::RadioStyle!());
                     },
                 ];
             }

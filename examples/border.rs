@@ -31,28 +31,28 @@ fn app_main() {
                 align = Align::CENTER;
                 spacing = 20;
                 children = ui_vec![
-                    widgets::mr_borders! {
+                    widgets::MrBorders! {
                         border_align = 0.pct();
                         child = Text!("border_align = 0.pct();");
                     },
-                    widgets::mr_borders! {
+                    widgets::MrBorders! {
                         border_align = (1.0 / 3.0).fct();
                         child = Text!("border_align = (1.0 / 3.0).fct();");
                     },
-                    widgets::mr_borders! {
+                    widgets::MrBorders! {
                         border_align = 50.pct();
                         child = Text!("border_align = 50.pct();");
                     },
-                    widgets::mr_borders! {
+                    widgets::MrBorders! {
                         border_align = 100.pct();
                         child = Text!("border_align = 100.pct();");
                     },
                     clip_to_bounds_demo(),
-                    widgets::mr_borders! {
+                    widgets::MrBorders! {
                         border_align = 100.pct();
-                        child = widgets::mr_borders! {
+                        child = widgets::MrBorders! {
                             border_align = 100.pct();
-                            child = widgets::mr_borders! {
+                            child = widgets::MrBorders! {
                                 border_align = 100.pct();
                                 child = Text!("Nested");
                             },
@@ -88,26 +88,40 @@ fn clip_to_bounds_demo() -> impl UiNode {
 mod widgets {
     use zero_ui::prelude::new_widget::*;
 
-    #[widget($crate::widgets::mr_borders)]
-    pub mod mr_borders {
-        use super::*;
+    #[widget($crate::widgets::MrBorders)]
+    pub struct MrBorders(Container);
+    impl MrBorders {
+        #[widget(on_start)]
+        fn on_start(&mut self) {
+            defaults! {
+                self;
+                padding = 20;
 
-        inherit!(container);
+                child_align = Align::CENTER;
 
-        properties! {
-            padding = 20;
+                background_color = colors::GREEN.darken(40.pct());
 
-            child_align = Align::CENTER;
+                border0 = 4, colors::WHITE.with_alpha(20.pct());
+                border1 = 4, colors::BLACK.with_alpha(20.pct());
+                border2 = 4, colors::WHITE.with_alpha(20.pct());
 
-            background_color = colors::GREEN.darken(40.pct());
+                foreground_highlight = 3, 1, colors::ORANGE;
 
-            border as border0 = 4, colors::WHITE.with_alpha(20.pct());
-            border as border1 = 4, colors::BLACK.with_alpha(20.pct());
-            border as border2 = 4, colors::WHITE.with_alpha(20.pct());
-
-            foreground_highlight = 3, 1, colors::ORANGE;
-
-            corner_radius = 20;
+                corner_radius = 20;
+            }
         }
+    }
+
+    #[property(BORDER, default(0, BorderStyle::Hidden), impl(MrBorders))]
+    pub fn border0(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+        border(child, widths,sides)
+    }
+    #[property(BORDER, default(0, BorderStyle::Hidden), impl(MrBorders))]
+    pub fn border1(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+        border(child, widths,sides)
+    }
+    #[property(BORDER, default(0, BorderStyle::Hidden), impl(MrBorders))]
+    pub fn border2(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
+        border(child, widths,sides)
     }
 }

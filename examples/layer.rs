@@ -83,7 +83,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                 colors::GREEN.darken(80.pct()),
                 colors::WHITE.with_alpha(80.pct()).mix_normal(colors::GREEN)
             );
-            button::vis::extend_style = style_fn!(|_| style! {
+            button::extend_style = style_fn!(|_| Style! {
                 corner_radius = unset!;
             });
             padding = 2;

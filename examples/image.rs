@@ -37,7 +37,7 @@ fn app_main() {
         })
         .unwrap();
 
-        img_window(
+        ImgWindow!(
             "Image Example",
             Stack! {
                 direction = StackDirection::left_to_right();
@@ -53,14 +53,14 @@ fn app_main() {
                                 spacing = 2;
                                 align = Align::CENTER;
                                 cells= ui_vec![
-                                    image("examples/res/image/Luma8.png"),
-                                    image("examples/res/image/Luma16.png"),
-                                    image("examples/res/image/LumaA8.png"),
-                                    image("examples/res/image/LumaA16.png"),
-                                    image("examples/res/image/RGB8.png"),
-                                    image("examples/res/image/RGB16.png"),
-                                    image("examples/res/image/RGBA8.png"),
-                                    image("examples/res/image/RGBA16.png"),
+                                    Image!("examples/res/image/Luma8.png"),
+                                    Image!("examples/res/image/Luma16.png"),
+                                    Image!("examples/res/image/LumaA8.png"),
+                                    Image!("examples/res/image/LumaA16.png"),
+                                    Image!("examples/res/image/RGB8.png"),
+                                    Image!("examples/res/image/RGB16.png"),
+                                    Image!("examples/res/image/RGBA8.png"),
+                                    Image!("examples/res/image/RGBA16.png"),
                                 ]
                           },
 
@@ -131,10 +131,10 @@ fn app_main() {
 
                                 ui_vec![
                                     sub_title("File"),
-                                    image("404.png"),
+                                    Image!("404.png"),
 
                                     sub_title("Web"),
-                                    image("https://httpbin.org/delay/5"),
+                                    Image!("https://httpbin.org/delay/5"),
                                 ]
                             ),
                             section(
@@ -253,7 +253,7 @@ fn large_image() -> impl UiNode {
         child = Text!("Large Image (205MB download)");
         on_click = hn!(|_| {
             WINDOWS.open(async {
-                img_window! {
+                ImgWindow! {
                     title = "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB, downscale to fit 8,000 × 8,000";
                     child_align = Align::FILL;
                     child = Image! {
@@ -288,9 +288,9 @@ fn panorama_image() -> impl UiNode {
         child = Text!("Panorama Image (100MB download)");
         on_click = hn!(|_| {
             WINDOWS.open(async {
-                img_window(
+                ImgWindow!(
                     "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
-                    scroll! {
+                    Scroll! {
                         mode = ScrollMode::HORIZONTAL;
                         child = Image! {
                             img_fit = ImageFit::Fill;
@@ -315,11 +315,11 @@ fn block_window_load_image() -> impl UiNode {
         on_click = hn!(|_| {
             enabled.set(false);
             WINDOWS.open(async_clmv!(enabled, {
-                img_window! {
+                ImgWindow! {
                     title = "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB";
                     state = WindowState::Normal;
 
-                    child = scroll! {
+                    child = Scroll! {
                         child = Image! {
 
                             // block window load until the image is ready to present or 5 minutes have elapsed.
@@ -372,87 +372,91 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
     }
 }
 
-#[zero_ui::core::widget($crate::img_window)]
-pub mod img_window {
-    use super::*;
-
-    inherit!(window);
-
-    properties! {
-        // renderer_debug = {
-        //     use zero_ui::core::render::webrender_api::DebugFlags;
-        //     DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
-        // };
-
-        // render_mode = RenderMode::Software;
-
-        child_align = Align::CENTER;
-
-
-        state = WindowState::Maximized;
-        window::size = (1140, 770);// restore size
-
-        window::icon = "examples/res/image/RGB8.png";
-        background = checkerboard!();
-
-        color_scheme = ColorScheme::Dark;
-
-        // content shown by all images when loading.
-        img_loading_fn = wgt_fn!(|_| loading());
-
-        // content shown by all images that failed to load.
-        img_error_fn = wgt_fn!(|args: ImageErrorArgs| {
-            center_viewport(Text! {
-                txt = args.error;
-                margin = 8;
-                align = Align::CENTER;
-                txt_color = error_color();
-                drop_shadow = {
-                    offset: (0, 0),
-                    blur_radius: 4,
-                    color: error_color().darken(5.pct()),
-                };
-            })
-        });
-
-        // button color
-        button::vis::base_colors = (rgb(0, 0, 40), rgb(0, 0, 255 - 40));
+#[zero_ui::core::widget($crate::ImgWindow {
+    (
+        $title:expr, $child:expr
+    ) => {
+        title = $title;
+        child = $child;
     }
-
-    fn loading_color() -> Rgba {
-        colors::LIGHT_GRAY
-    }
-
-    fn error_color() -> Rgba {
-        colors::RED
-    }
-
-    pub fn loading() -> impl UiNode {
-        let mut dots_count = 3;
-        let msg = TIMERS.interval(300.ms(), false).map(move |_| {
-            dots_count += 1;
-            if dots_count == 8 {
-                dots_count = 0;
-            }
-            formatx!("loading{:.^dots_count$}", "")
-        });
-
-        center_viewport(Text! {
-            txt = msg;
-            txt_color = loading_color();
-            margin = 8;
-            super::width = 80;
-            font_style = FontStyle::Italic;
-            drop_shadow = {
-                offset: (0, 0),
-                blur_radius: 4,
-                color: loading_color().darken(5.pct()),
-            };
-        })
+})]
+pub struct ImgWindow(Window);
+impl ImgWindow {
+    #[zero_ui::core::widget(on_start)]
+    fn on_start(&mut self) {
+        zero_ui::core::defaults! {
+            self;
+            // renderer_debug = {
+            //     use zero_ui::core::render::webrender_api::DebugFlags;
+            //     DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
+            // };
+    
+            // render_mode = RenderMode::Software;
+    
+            child_align = Align::CENTER;
+    
+    
+            state = WindowState::Maximized;
+            size = (1140, 770);// restore size
+    
+            icon = "examples/res/image/RGB8.png";
+            background = Checkerboard!();
+    
+            color_scheme = ColorScheme::Dark;
+    
+            // content shown by all images when loading.
+            img_loading_fn = wgt_fn!(|_| loading());
+    
+            // content shown by all images that failed to load.
+            img_error_fn = wgt_fn!(|args: ImageErrorArgs| {
+                center_viewport(Text! {
+                    txt = args.error;
+                    margin = 8;
+                    align = Align::CENTER;
+                    txt_color = error_color();
+                    drop_shadow = {
+                        offset: (0, 0),
+                        blur_radius: 4,
+                        color: error_color().darken(5.pct()),
+                    };
+                })
+            });
+    
+            // button color
+            button::base_colors = (rgb(0, 0, 40), rgb(0, 0, 255 - 40));
+        }
     }
 }
-fn img_window(title: impl IntoVar<Txt>, child: impl UiNode) -> WindowCfg {
-    img_window!(title; child)
+fn loading_color() -> Rgba {
+    colors::LIGHT_GRAY
+}
+
+fn error_color() -> Rgba {
+    colors::RED
+}
+
+pub fn loading() -> impl UiNode {
+    let mut dots_count = 3;
+    let msg = TIMERS.interval(300.ms(), false).map(move |_| {
+        dots_count += 1;
+        if dots_count == 8 {
+            dots_count = 0;
+        }
+        formatx!("loading{:.^dots_count$}", "")
+    });
+
+    center_viewport(Text! {
+        txt = msg;
+        txt_color = loading_color();
+        margin = 8;
+        width = 80;
+        font_style = FontStyle::Italic;
+        drop_shadow = {
+            offset: (0, 0),
+            blur_radius: 4,
+            color: loading_color().darken(5.pct()),
+        };
+    })
 }
 
 fn section(title: impl IntoVar<Txt>, children: impl UiNodeList) -> impl UiNode {

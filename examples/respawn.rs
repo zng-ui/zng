@@ -80,7 +80,7 @@ fn image() -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         spacing = 3;
         children = ui_vec![
-            strong!("Image:"),
+            Strong!("Image:"),
             Image! { source = "examples/res/window/icon-bytes.png"; size = (32, 32); },
         ];
     }

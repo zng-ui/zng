@@ -57,7 +57,7 @@ fn alt_scope() -> impl UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         alt_focus_scope = true;
-        button::vis::extend_style = style_fn!(|_| style! {
+        button::extend_style = style_fn!(|_| Style! {
             border = unset!;
             corner_radius = unset!;
         });
@@ -428,7 +428,7 @@ mod inspect {
                     return format!("<{p}>");
                 };
                 let wgt_mod = if let Some(b) = widget.inspector_info() {
-                    b.builder.widget_mod()
+                    b.builder.widget_type()
                 } else {
                     return format!("<{p}>");
                 };

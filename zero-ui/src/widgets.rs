@@ -44,7 +44,7 @@ pub mod link;
 #[doc(inline)]
 pub use link::Link;
 
-mod markdown;
+pub mod markdown;
 #[doc(inline)]
 pub use markdown::Markdown;
 

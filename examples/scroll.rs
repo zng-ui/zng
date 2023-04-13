@@ -20,7 +20,7 @@ fn app_main() {
         Window! {
             title = "Scroll Example";
             child = z_stack(ui_vec![
-                scroll! {
+                Scroll! {
                     id = "scroll";
                     padding = 20;
                     background_color = color_scheme_map(
