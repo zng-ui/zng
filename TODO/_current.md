@@ -1,7 +1,5 @@
 # Widget & Property Refactor
 
-* Refactor `#[property]`.
-    - Review info for generic properties (need generics match in helper macros?)
 * Refactor `#[widget]`.
     - Implement `when`.
         - For attached properties.
