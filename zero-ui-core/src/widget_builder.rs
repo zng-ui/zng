@@ -39,11 +39,11 @@ pub use crate::source_location;
 /// Use [`source_location!`] to construct.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SourceLocation {
-    /// [`file!`]
+    /// [`std::file!`]
     pub file: &'static str,
-    /// [`line!`]
+    /// [`std::line!`]
     pub line: u32,
-    /// [`Column!`]
+    /// [`std::column!`]
     pub column: u32,
 }
 impl fmt::Display for SourceLocation {

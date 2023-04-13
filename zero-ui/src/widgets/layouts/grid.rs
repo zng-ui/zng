@@ -31,22 +31,22 @@ impl Grid {
 
 /// Cell widget items.
 ///
-/// Cells can select their own column, row using the properties in the [`cell!`] widget. Note that
+/// Cells can select their own column, row using the properties in the [`Cell!`] widget. Note that
 /// you don't need to use the `cell!` widget, only the properties.
 ///
-/// Cells can also be set to span multiple columns using the [`cell!`] properties.
+/// Cells can also be set to span multiple columns using the [`Cell!`] properties.
 ///
 /// If the column or row is not explicitly set the widget is positioned in the logical index, the column
 /// `i % columns` and the row  `i / columns`.
 ///
-/// [`cell!`]: mod@cell
+/// [`Cell!`]: struct@Cell
 #[property(CHILD, capture, impl(Grid))]
 pub fn cells(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
 
 /// Column definitions.
 ///
 /// You can define columns with any widget, but the [`Column!`] widget is recommended. The column widget width defines
-/// the width of the cells assigned to it, the [`column::width`] property can be used to enforce a width, otherwise the
+/// the width of the cells assigned to it, the [`Column::width`] property can be used to enforce a width, otherwise the
 /// column is sized by the widest cell.
 ///
 /// The grid uses the [`WIDGET_SIZE`] value to select one of three layout modes for columns:
@@ -69,8 +69,7 @@ pub fn cells(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
 /// Properties like `padding` and `align` only affect the column visual, not the cells, similarly contextual properties like `text_color`
 /// don't affect the cells.
 ///
-/// [`Column!`]: mod@column
-/// [`column::width`]: fn@column::width
+/// [`Column!`]: struct@Column
 /// [`lft`]: LengthUnits::lft
 #[property(CHILD, capture, impl(Grid))]
 pub fn columns(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
@@ -143,14 +142,12 @@ pub mod column {
     /// This widget is layout to define the actual column width, it is not the parent
     /// of the cells, only the `width` and `align` properties affect the cells.
     ///
-    /// See the [`grid::columns`] property for more details.
+    /// See the [`Grid::columns`] property for more details.
     ///
     /// # Shorthand
     ///
     /// The `Column!` macro provides a shorthand init that sets the width, `grid::Column!(1.lft())` instantiates
     /// a column with width of *1 leftover*.
-    ///
-    /// [`grid::columns`]: fn@grid::columns
     #[widget($crate::widgets::layouts::grid::Column {
         ($width:expr) => {
             width = $width;
@@ -328,14 +325,12 @@ pub mod row {
     /// This widget is layout to define the actual row height, it is not the parent
     /// of the cells, only the `height` property affect the cells.
     ///
-    /// See the [`grid::rows`] property for more details.
+    /// See the [`Grid::rows`] property for more details.
     ///
     /// # Shorthand
     ///
     /// The `Row!` macro provides a shorthand init that sets the height, `grid::Row!(1.lft())` instantiates
     /// a row with height of *1 leftover*.
-    ///
-    /// [`grid::rows`]: fn@grid::rows
     #[widget($crate::widgets::layouts::grid::Row {
         ($height:expr) => {
             height = $height;
@@ -512,9 +507,7 @@ pub mod cell {
     ///
     /// This widget defines properties that position and size widgets in a [`Grid!`].
     ///
-    /// See the [`grid::cells`] property for more details.
-    ///
-    /// [`grid::cells`]: fn@grid::cells
+    /// See the [`Grid::cells`] property for more details.
     #[widget($crate::widgets::layouts::grid::Cell)]
     pub struct Cell(Container);
 

@@ -25,7 +25,7 @@ use std::{fmt, mem, ops};
 ///
 /// [`stack::children_align`]: fn@crate::widgets::layouts::stack::children_align
 /// [`stack::spacing`]: fn@crate::widgets::layouts::stack::spacing
-/// [`Stack!`]: mod@crate::widgets::layouts::stack
+/// [`Stack!`]: struct@crate::widgets::layouts::Stack
 #[derive(Default, Clone)]
 pub struct StackDirection {
     /// Point on the previous item where the next item is placed.

@@ -654,7 +654,7 @@ impl FontName {
 
     /// New font name.
     ///
-    /// Note that the inner name value is a [`Text`] so you can define a font name using `&'static str` or `String`.
+    /// Note that the inner name value is a [`Txt`] so you can define a font name using `&'static str` or `String`.
     ///
     /// Font names are case insensitive but the input casing is preserved, this casing shows during display and in
     /// the value of [`name`](Self::name).
@@ -708,7 +708,7 @@ impl FontName {
         &self.text
     }
 
-    /// Unwraps into a [`Text`].
+    /// Unwraps into a [`Txt`].
     pub fn into_text(self) -> Txt {
         self.text
     }
@@ -1412,13 +1412,13 @@ impl<'de> serde::Deserialize<'de> for Txt {
     }
 }
 
-/// A trait for converting a value to a [`Text`].
+/// A trait for converting a value to a [`Txt`].
 ///
 /// This trait is automatically implemented for any type which implements the [`ToString`] trait.
 ///
 /// You can use [`formatx!`](macro.formatx.html) to `format!` a text.
 pub trait ToText {
-    /// Converts the given value to an owned [`Text`].
+    /// Converts the given value to an owned [`Txt`].
     ///
     /// # Examples
     ///
@@ -1525,7 +1525,7 @@ pub enum UnderlinePosition {
     Descent,
 }
 
-///<span data-del-macro-root></span> Creates a [`Text`](crate::text::Text) by calling the `format!` macro and
+///<span data-del-macro-root></span> Creates a [`Txt`](crate::text::Txt) by calling the `format!` macro and
 /// wrapping the result in a `Cow::Owned`.
 ///
 /// # Examples

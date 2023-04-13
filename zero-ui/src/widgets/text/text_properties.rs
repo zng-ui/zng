@@ -329,8 +329,8 @@ pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> imp
 ///
 /// Sets the [`PARAGRAPH_SPACING_VAR`] context var.
 ///
-/// [`Text!`]: mod@crate::widgets::text
-/// [`markdown!`]: mod@crate::widgets::markdown
+/// [`Text!`]: struct@crate::widgets::Text
+/// [`markdown!`]: struct@crate::widgets::Markdown
 #[property(CONTEXT, default(PARAGRAPH_SPACING_VAR), impl(Text))]
 pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
     with_context_var(child, PARAGRAPH_SPACING_VAR, extra)
@@ -365,7 +365,7 @@ pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiN
 ///
 /// Sets the [`TEXT_ALIGN_VAR`] context var.
 ///
-/// [`Text!`]: mod@crate::widgets::text
+/// [`Text!`]: struct@crate::widgets::Text
 #[property(CONTEXT, default(TEXT_ALIGN_VAR), impl(Text))]
 pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, TEXT_ALIGN_VAR, mode)

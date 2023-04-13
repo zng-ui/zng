@@ -480,7 +480,7 @@ pub enum ImageSource {
     /// [`IMAGES`]: super::IMAGES
     Data(ImageHash, Arc<Vec<u8>>, ImageDataFormat),
 
-    /// A boxed closure that instantiates a [`Window`] that draws the image.
+    /// A boxed closure that instantiates a [`WindowCfg`] that draws the image.
     ///
     /// Use the [`render`](Self::render) or [`render_node`](Self::render_node) functions to construct this variant.
     ///

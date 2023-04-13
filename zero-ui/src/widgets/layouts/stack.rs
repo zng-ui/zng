@@ -47,8 +47,7 @@ use crate::core::task::parking_lot::Mutex;
 ///
 /// [`stack_nodes`]: fn@stack_nodes
 ///
-/// [`direction`]: fn@stack::direction
-/// [`StackDirection`]: stack::StackDirection
+/// [`direction`]: fn@direction
 /// [`z_index`]: fn@crate::prelude::z_index
 #[widget($crate::widgets::layouts::Stack)]
 pub struct Stack(WidgetBase);
@@ -479,7 +478,7 @@ fn spacing_from_direction(direction_vector: euclid::Vector2D<i8, ()>, spacing: L
 ///
 /// # `Stack!`
 ///
-/// This function is just a shortcut for [`Stack!`](mod@stack) with [`StackDirection::left_to_right`].
+/// This function is just a shortcut for [`Stack!`](struct@Stack) with [`StackDirection::left_to_right`].
 pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
@@ -502,7 +501,7 @@ pub fn h_stack(children: impl UiNodeList) -> impl UiNode {
 ///
 /// # `Stack!`
 ///
-/// This function is just a shortcut for [`Stack!`](mod@stack) with [`StackDirection::top_to_bottom`].
+/// This function is just a shortcut for [`Stack!`](struct@Stack) with [`StackDirection::top_to_bottom`].
 pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
@@ -525,7 +524,7 @@ pub fn v_stack(children: impl UiNodeList) -> impl UiNode {
 ///
 /// # `Stack!`
 ///
-/// This function is just a shortcut for [`Stack!`](mod@stack) with [`StackDirection::none`].
+/// This function is just a shortcut for [`Stack!`](struct@Stack) with [`StackDirection::none`].
 pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
     Stack! {
         children;
@@ -540,7 +539,7 @@ pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
 /// overlaying effects composed of multiple nodes, it does not do any alignment layout or z-sorting render,
 /// for a complete stack panel widget see [`Stack!`].
 ///
-/// [`Stack!`]: mod@stack
+/// [`Stack!`]: struct@Stack
 pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
     #[ui_node(struct StackNodesNode {
         children: impl UiNodeList,

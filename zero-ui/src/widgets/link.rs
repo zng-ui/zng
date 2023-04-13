@@ -18,9 +18,9 @@ impl Link {
 context_var! {
     /// Link style in a context.
     ///
-    /// Is the [`default_style!`] by default.
+    /// Is the [`DefaultStyle!`] by default.
     ///
-    /// [`default_style!`]: mod@default_style
+    /// [`DefaultStyle!`]: struct@DefaultStyle
     pub static STYLE_VAR: StyleFn = StyleFn::new(|_| DefaultStyle!());
 }
 

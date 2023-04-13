@@ -5,7 +5,7 @@
 //!
 //! The icons are from the [Material Design Icons] project.
 //!
-//! [`Icon!`]: mod@zero_ui::widgets::icon
+//! [`Icon!`]: struct@zero_ui::widgets::Icon
 //! [Material Design Icons]: https://github.com/google/material-design-icons
 
 #![warn(missing_docs)]

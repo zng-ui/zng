@@ -111,7 +111,7 @@ impl Scrollbar {
 /// Recommended widget is [`Thumb!`], but can be any widget that implements
 /// thumb behavior and tags it-self in the frame.
 ///
-/// [`Thumb!`]: struct@thumb
+/// [`Thumb!`]: struct@super::Thumb
 #[property(CHILD, capture, default(super::Thumb!()), impl(Scrollbar))]
 pub fn thumb_node(child: impl UiNode, node: impl UiNode) -> impl UiNode {}
 

@@ -590,11 +590,11 @@ pub use zero_ui_proc_macros::property;
 /// ```
 ///
 /// The example above declares an widget that exports the property `baz`, it is also automatically set to `true` and it also
-/// sets the inherited [`widget_base::base`] property `enabled` to `false`.
+/// sets the inherited [`WidgetBase`] property `enabled` to `false`.
 ///
 /// The property visibility controls if it is assignable in derived widgets or during widget instantiation, in the example above
 /// if `baz` was not `pub` it would be set on the widget but it does not get a `baz` property accessible from outside. Inherited
-/// visibility cannot be overridden, the `enabled` property is defined as `pub` in [`widget_base::base`] so it is still `pub` in the
+/// visibility cannot be overridden, the `enabled` property is defined as `pub` in [`WidgetBase`] so it is still `pub` in the
 /// widget, even though the value was changed.
 ///
 /// You can also export properties without defining a value, the default assign is not required, the property is only instantiated
@@ -1022,7 +1022,7 @@ pub use zero_ui_proc_macros::property;
 /// [`Importance`]: widget_builder::Importance
 /// [`push_build_action`]: widget_builder::WidgetBuilder::push_build_action
 /// [`UiNode`]: widget_instance::UiNode
-/// [`widget_base::base`]: mod@widget_base::base
+/// [`WidgetBase`]: struct@widget_base::WidgetBase
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;
 

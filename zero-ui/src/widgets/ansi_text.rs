@@ -5,8 +5,6 @@ use zero_ui::prelude::new_widget::*;
 /// Render text styled using ANSI scale sequences.
 ///
 /// Supports color, weight, italic and more, see [`AnsiStyle`] for the full style supported.
-///
-/// [`AnsiStyle`]: ansi_text::AnsiStyle
 #[widget($crate::widgets::AnsiText {
     ($txt:literal) => {
         txt = $crate::core::text::formatx!($txt);
@@ -54,7 +52,7 @@ mod ansi_parse {
 
     /// Represents the ANSI style of a text run.
     ///
-    /// See [`AnsiText`] for more details.
+    /// See [`AnsiText`](struct@super::AnsiText) for more details.
     #[derive(Debug, Clone)]
     pub struct AnsiStyle {
         /// Background color.
@@ -179,7 +177,7 @@ mod ansi_parse {
     ///
     /// This is the pull style parser used internally by the [`AnsiText!`] widget.
     ///
-    /// [`AnsiText!`]: mod@crate::widgets::ansi_text
+    /// [`AnsiText!`]: struct@crate::widgets::AnsiText
     pub struct AnsiTextParser<'a> {
         source: &'a str,
         /// Current style.
@@ -394,7 +392,7 @@ mod ansi_fn {
         ///
         /// The returned view is the [`AnsiText!`] child. The default is [`default_panel_fn`].
         ///
-        /// [`AnsiText!`]: mod@super::ansi_text
+        /// [`AnsiText!`]: struct@super::AnsiText
         pub static PANEL_GEN_VAR: WidgetFn<PanelFnArgs> = wgt_fn!(|args: PanelFnArgs| {
             default_panel_fn(args)
         });

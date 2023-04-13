@@ -111,7 +111,7 @@ pub fn txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {}
 ///
 /// Apart from the font weight this widget can be configured with contextual properties like [`Text!`].
 ///
-/// [`text`]: mod@text
+/// [`Text!`]: struct@Text
 #[macro_export]
 macro_rules! Strong {
     ($txt:expr) => {
@@ -138,7 +138,7 @@ pub use Strong;
 ///
 /// Apart from the font style this widget can be configured with contextual properties like [`Text!`].
 ///
-/// [`text`]: mod@text
+/// [`Text!`]: struct@Text
 #[macro_export]
 macro_rules! Em {
     ($txt:expr) => {

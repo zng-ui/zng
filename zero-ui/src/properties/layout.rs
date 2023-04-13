@@ -924,7 +924,7 @@ fn with_fill_metrics<R>(f: impl FnOnce(PxSize) -> R) -> R {
 ///
 /// Relative values are computed from the widget's height.
 ///
-/// [`Text!`]: mod@crate::widgets::text
+/// [`Text!`]: struct@crate::widgets::Text
 #[property(BORDER, default(Length::Default))]
 pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct BaselineNode {

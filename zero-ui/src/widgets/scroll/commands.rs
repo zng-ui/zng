@@ -173,7 +173,7 @@ command! {
 pub struct ScrollRequest {
     /// If the [alt factor] should be applied to the base scroll unit when scrolling.
     ///
-    /// [alt factor]: super::scroll::ALT_FACTOR_VAR
+    /// [alt factor]: super::ALT_FACTOR_VAR
     pub alternate: bool,
     /// Only scroll within this inclusive range. The range is normalized `0.0..=1.0`, the default is `(f32::MIN, f32::MAX)`.
     ///

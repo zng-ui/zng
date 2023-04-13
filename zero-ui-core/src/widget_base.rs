@@ -1,4 +1,4 @@
-//! The [`WidgetBase`], nodes and properties used in most widgets.
+//! The widget base, nodes and properties used in most widgets.
 
 use std::{any::TypeId, cell::RefCell, fmt};
 
@@ -25,7 +25,6 @@ use crate::{
 ///
 /// [`id`]: WidgetBase::id
 /// [`child`]: fn@child
-// #[widget($crate::widget_base::WidgetBase)]
 pub struct WidgetBase {
     builder: RefCell<Option<WidgetBuilder>>,
     started: bool,
@@ -33,7 +32,7 @@ pub struct WidgetBase {
     when: RefCell<Option<WhenInfo>>,
 }
 impl WidgetBase {
-    /// Gets the type of [`WidgetBase`].
+    /// Gets the type of [`WidgetBase`](struct@WidgetBase).
     pub fn widget_type() -> WidgetType {
         WidgetType {
             type_id: TypeId::of::<Self>(),
@@ -42,12 +41,12 @@ impl WidgetBase {
         }
     }
 
-    /// Starts building a new [`WidgetBase`] instance.
+    /// Starts building a new [`WidgetBase`](struct@WidgetBase) instance.
     pub fn start() -> Self {
         Self::inherit(Self::widget_type())
     }
 
-    /// Starts building a new widget derived from [`WidgetBase`].
+    /// Starts building a new widget derived from [`WidgetBase`](struct@WidgetBase).
     pub fn inherit(widget: WidgetType) -> Self {
         let builder = WidgetBuilder::new(widget);
         let mut w = Self {
@@ -216,7 +215,7 @@ pub trait WidgetImpl {
     /// The inherit function.
     fn inherit(widget: WidgetType) -> Self;
 
-    /// Reference the parent [`WidgetBase`].
+    /// Reference the parent [`WidgetBase`](struct@WidgetBase).
     fn base(&mut self) -> &mut WidgetBase;
 
     #[doc(hidden)]
@@ -284,7 +283,10 @@ impl WidgetExt for WidgetBase {
 macro_rules! WidgetBaseMacro__ {
     ($($tt:tt)*) => {
         $crate::widget_new! {
-            start { $crate::widget_base::WidgetBase::start() }
+            start {
+                let mut wgt__ = $crate::widget_base::start();
+                let wgt__ = &mut wgt__;
+            }
             end { wgt__.build() }
             new { $($tt)* }
         }
@@ -309,10 +311,10 @@ pub mod nodes {
 
     /// Capture the [`id`] property and builds the base widget.
     ///
-    /// Note that this function does not handle missing child node, it falls back to [`NilUiNode`]. The [`base`]
+    /// Note that this function does not handle missing child node, it falls back to [`NilUiNode`]. The [`WidgetBase`]
     /// widget uses the [`FillUiNode`] if none was set.
     ///
-    /// [`base`]: mod@base
+    /// [`WidgetBase`]: struct@WidgetBase
     /// [`id`]: fn@id
     pub fn build(mut wgt: WidgetBuilder) -> impl UiNode {
         let id = wgt.capture_value_or_else(property_id!(id), WidgetId::new_unique);
@@ -327,9 +329,9 @@ pub mod nodes {
     /// This node also pass through the `child` inline layout return info if the widget and child are inlining and the
     /// widget has not set inline info before delegating measure.
     ///
-    /// This node must be intrinsic at [`NestGroup::CHILD`], the [`base`] default intrinsic inserts it.
+    /// This node must be intrinsic at [`NestGroup::CHILD`], the [`WidgetBase`] default intrinsic inserts it.
     ///
-    /// [`base`]: mod@base
+    /// [`WidgetBase`]: struct@WidgetBase
     pub fn widget_child(child: impl UiNode) -> impl UiNode {
         #[ui_node(struct WidgetChildNode {
                 child: impl UiNode,
@@ -412,9 +414,9 @@ pub mod nodes {
     ///
     /// This node renders the inner transform and implements the [`HitTestMode`] for the widget.
     ///
-    /// This node must be intrinsic at [`NestGroup::BORDER`], the [`base`] default intrinsic inserts it.
+    /// This node must be intrinsic at [`NestGroup::BORDER`], the [`WidgetBase`] default intrinsic inserts it.
     ///
-    /// [`base`]: mod@base
+    /// [`WidgetBase`]: struct@WidgetBase
     pub fn widget_inner(child: impl UiNode) -> impl UiNode {
         #[derive(Default, PartialEq)]
         struct HitClips {
@@ -505,9 +507,9 @@ pub mod nodes {
     /// Create a widget node that wraps `child` and introduces a new widget context. The node defines
     /// an [`WIDGET`] context and implements the widget in each specific node method.
     ///
-    /// This node must wrap the outer-most context node in the build, it is the [`base`] widget type.
+    /// This node must wrap the outer-most context node in the build, it is the [`WidgetBase`] widget type.
     ///
-    /// [`base`]: mod@base
+    /// [`WidgetBase`]: struct@WidgetBase
     pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
         struct WidgetNode<C> {
             ctx: WidgetCtx,
@@ -851,7 +853,7 @@ context_var! {
 /// This property must be [captured] during widget build and redirected to [`WidgetBuilding::set_child`] in the container widget.
 ///
 /// [captured]: crate::widget#property-capture
-/// [`base`]: mod@base
+/// [`WidgetBase`]: struct@WidgetBase
 #[property(CHILD, capture, default(FillUiNode))]
 pub fn child(_child: impl UiNode, child: impl UiNode) -> impl UiNode {
     _child
@@ -876,10 +878,10 @@ pub fn children(_child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
 /// # Capture Only
 ///
 /// This property must be [captured] during widget build, this function only logs an error. The
-/// [`base`] widget captures this property if present.
+/// [`WidgetBase`] widget captures this property if present.
 ///
 /// [captured]: crate::widget#property-capture
-/// [`base`]: mod@base
+/// [`WidgetBase`]: struct@WidgetBase
 #[property(CONTEXT, capture, default(WidgetId::new_unique()), impl(WidgetBase))]
 pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
     _child

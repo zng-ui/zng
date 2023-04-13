@@ -14,10 +14,10 @@ use crate::prelude::new_widget::*;
 /// of the checked properties to a read-write variable enables the widget and it will set the variables
 /// on click, setting [`value`] turns the toggle in a selection item that is inserted/removed in a contextual [`selector`].
 ///
-/// [`checked`]: fn@toggle::checked
-/// [`checked_opt`]: fn@toggle::checked_opt
-/// [`value`]: fn@toggle::value
-/// [`selector`]: fn@toggle::selector
+/// [`checked`]: fn@checked
+/// [`checked_opt`]: fn@checked_opt
+/// [`value`]: fn@value
+/// [`selector`]: fn@selector
 #[widget($crate::widgets::Toggle)]
 pub struct Toggle(crate::widgets::Button);
 impl Toggle {
@@ -807,8 +807,8 @@ pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl Ui
 ///
 /// Extends the [`button::DefaultStyle`] to have the *pressed* look when [`is_checked`].
 ///
-/// [`button::DefaultStyle`]: mod@crate::widgets::button::DefaultStyle
-/// [`is_checked`]: fn@toggle::is_checked
+/// [`button::DefaultStyle`]: struct@crate::widgets::button::DefaultStyle
+/// [`is_checked`]: fn@is_checked
 #[widget($crate::widgets::toggle::DefaultStyle)]
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
@@ -895,7 +895,7 @@ fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
 ///
 /// Style a [`Toggle!`] widget to look like a *switch*.
 ///
-/// [`Toggle!`]: mod@crate::widgets::toggle
+/// [`Toggle!`]: struct@crate::widgets::Toggle
 #[widget($crate::widgets::toggle::SwitchStyle)]
 pub struct SwitchStyle(Style);
 impl SwitchStyle {

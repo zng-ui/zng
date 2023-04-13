@@ -8,7 +8,7 @@ use crate::prelude::new_widget::*;
 /// Represents a set of properties that can be applied to any styleable widget.
 ///
 /// This *widget* can be instantiated using the same syntax as any widget, but it produces a [`StyleBuilder`]
-/// instance instead of an widget. Widgets that have [`StyleMixin<P>`] can be modified using properties
+/// instance instead of an widget. Widgets that have [`StyleMix<P>`] can be modified using properties
 /// defined in a style, the properties are dynamically spliced into each widget instance.
 ///
 /// Styles must only visually affect the styled widget, this is a semantic distinction only, any property can be set
@@ -18,8 +18,6 @@ use crate::prelude::new_widget::*;
 ///
 /// Note that you can declare a custom style *widget* using the same inheritance mechanism of normal widgets, as long
 /// as they build to [`StyleBuilder`].
-///
-/// [`style_mixin`]: mod@style_mixin
 #[widget($crate::widgets::Style)]
 pub struct Style(WidgetBase);
 impl Style {
@@ -39,7 +37,7 @@ impl Style {
 /// on init, after the style is generated.
 ///
 /// Styleable widgets usually have a more elaborate style setup that supports mixing multiple contextual styles, see
-/// [`style_mixin::with_style_extension`] for a full styleable widget example.
+/// [`with_style_extension`] for a full styleable widget example.
 #[widget_mixin]
 pub struct StyleMix<P>(P);
 impl<P: WidgetImpl> StyleMix<P> {
@@ -209,7 +207,7 @@ impl UiNode for StyleNode {
 ///
 /// Use the [`Style!`] *widget* to declare.
 ///
-/// [`Style!`]: mod@style
+/// [`Style!`]: struct@Style
 #[derive(Debug)]
 pub struct StyleBuilder {
     builder: WidgetBuilder,
@@ -337,7 +335,7 @@ impl StyleFn {
 
     /// New style function that instantiates `self` and `other` and then [`extend`] `self` with `other`.
     ///
-    /// [`extend`]: Style::extend
+    /// [`extend`]: StyleBuilder::extend
     pub fn with_extend(self, other: StyleFn) -> StyleFn {
         if self.is_nil() {
             other

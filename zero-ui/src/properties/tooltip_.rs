@@ -93,7 +93,7 @@ pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) ->
 ///
 /// This tooltip only opens if the widget is enabled, see [`disabled_tooltip`] for a tooltip that only shows when the widget is disabled.
 ///
-/// [`Tip!`]: mod@crate::widgets::tip
+/// [`Tip!`]: struct@crate::widgets::Tip
 /// [`tooltip_transform`]: fn@tooltip_transform
 /// [`tooltip_delay`]: fn@tooltip_delay
 /// [`tooltip_interval`]: fn@tooltip_interval
@@ -117,7 +117,7 @@ pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 ///
 /// This tooltip only opens if the widget is enabled, see [`disabled_tooltip_fn`] for a tooltip that only shows when the widget is disabled.
 ///
-/// [`Tip!`]: mod@crate::widgets::tip
+/// [`Tip!`]: struct@crate::widgets::Tip
 /// [`tooltip_transform`]: fn@tooltip_transform
 /// [`tooltip_delay`]: fn@tooltip_delay
 /// [`tooltip_interval`]: fn@tooltip_interval

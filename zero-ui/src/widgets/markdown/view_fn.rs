@@ -378,11 +378,11 @@ pub fn table_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TableFnArgs>>)
 
 /// Widget function that converts [`PanelFnArgs`] to a widget.
 ///
-/// This generates the panel that contains all markdown blocks, it is the child of the [`markdown!`] widget.
+/// This generates the panel that contains all markdown blocks, it is the child of the [`Markdown!`] widget.
 ///
 /// Sets the [`PANEL_GEN_VAR`].
 ///
-/// [`markdown!`]: mod@crate::widgets::markdown
+/// [`Markdown!`]: struct@crate::widgets::Markdown
 #[property(CONTEXT, default(PANEL_GEN_VAR))]
 pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>) -> impl UiNode {
     with_context_var(child, PANEL_GEN_VAR, wgt_fn)
@@ -480,7 +480,7 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
 ///
 /// See [`CODE_BLOCK_GEN_VAR`] for more details.
 ///
-/// [`AnsiText!`]: mod@crate::widgets::ansi_text
+/// [`AnsiText!`]: struct@crate::widgets::AnsiText
 pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
     if args.lang == "ansi" {
         crate::widgets::AnsiText! {
@@ -547,7 +547,7 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
 ///
 /// See [`LIST_GEN_VAR`] for more details.
 ///
-/// [`Grid!`]: mod@crate::widgets::layouts::grid
+/// [`Grid!`]: struct@crate::widgets::layouts::Grid
 pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
     if args.items.is_empty() {
         NilUiNode.boxed()

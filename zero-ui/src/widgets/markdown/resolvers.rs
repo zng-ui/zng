@@ -200,9 +200,6 @@ pub fn try_default_link_action(args: &LinkArgs) -> bool {
 /// or the first focusable descendant of it, or the markdown widget or the first focusable ancestor of it.
 ///
 /// Note that the request is handled even if the anchor is not found.
-///
-/// [`markdown!`]: mod@crate::widgets::markdown
-/// [`Scroll!`]: mod@crate::widgets::scroll
 pub fn try_scroll_link(args: &LinkArgs) -> bool {
     if args.propagation().is_stopped() {
         return false;
@@ -426,9 +423,9 @@ pub trait WidgetInfoExt {
     /// [`anchor`]: fn@anchor
     fn anchor(&self) -> Option<&Txt>;
 
-    /// If this widget is a [`markdown!`].
+    /// If this widget is a [`Markdown!`].
     ///
-    /// [`markdown!`]: mod@crate::widgets::markdown
+    /// [`Markdown!`]: struct@crate::widgets::Markdown
     fn is_markdown(&self) -> bool;
 
     /// Find descendant tagged by the given anchor.

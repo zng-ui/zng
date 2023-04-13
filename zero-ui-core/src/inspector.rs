@@ -109,8 +109,8 @@ pub trait WidgetInfoInspectorExt {
     ///
     /// # Examples
     ///
-    /// Example searches for a "button" descendant, using a string search that matches the end of the [`WidgetMod::path`] and
-    /// an exact widget mod that matches the [`WidgetMod::impl_id`].
+    /// Example searches for a "button" descendant, using a string search that matches the end of the [`WidgetType::path`] and
+    /// an exact widget mod that matches the [`WidgetType::type_id`].
     ///
     /// ```
     /// # fn main() { }
@@ -226,7 +226,7 @@ pub trait InspectWidgetPattern {
     /// Returns `true` if the pattern includes the widget.
     fn matches(&self, info: &InspectorInfo) -> bool;
 }
-/// Matches if the [`WidgetMod::path`] ends with the string.
+/// Matches if the [`WidgetType::path`] ends with the string.
 impl<'s> InspectWidgetPattern for &'s str {
     fn matches(&self, info: &InspectorInfo) -> bool {
         info.builder.widget_type().path.ends_with(self)
@@ -248,9 +248,9 @@ pub trait InspectPropertyPattern {
     /// Returns `true` if the pattern includes the property.
     fn matches(&self, args: &dyn PropertyArgs, captured: bool) -> bool;
 }
-/// Matches if the [`PropertyInstInfo::name`] exactly.
+/// Matches if the [`PropertyInfo::name`] exactly.
 ///
-/// [`PropertyInstInfo::name`]: crate::widget_builder::PropertyInstInfo::name
+/// [`PropertyInfo::name`]: crate::widget_builder::PropertyInfo::name
 impl<'s> InspectPropertyPattern for &'s str {
     fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
         args.property().name == *self

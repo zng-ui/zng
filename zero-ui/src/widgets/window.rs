@@ -339,7 +339,7 @@ pub fn on_exited_fullscreen(child: impl UiNode, handler: impl WidgetHandler<Wind
 
 /// On window frame rendered.
 ///
-/// If [`frame_image_capture`](fn@frame_image_capture) is set
+/// If [`frame_capture_mode`](fn@frame_capture_mode) is set the image will be available in the event args.
 #[property(EVENT, impl(Window))]
 pub fn on_frame_image_ready(child: impl UiNode, handler: impl WidgetHandler<FrameImageReadyArgs>) -> impl UiNode {
     events::window::on_pre_frame_image_ready(child, handler)

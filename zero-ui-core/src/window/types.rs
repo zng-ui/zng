@@ -54,7 +54,7 @@ impl WindowId {
     ///
     /// [`named`]: WidgetId::named
     /// [`new_unique`]: WidgetId::new_unique
-    /// [`id`]: fn@crate::widget_base::base::id
+    /// [`id`]: fn@crate::widget_base::id
     pub fn debug_named(name: impl Into<Txt>) -> Self {
         #[cfg(debug_assertions)]
         return Self::named(name);
