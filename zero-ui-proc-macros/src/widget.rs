@@ -469,7 +469,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let (property, generics) = widget_util::split_path_generics(property).unwrap();
             let p_ident = &property.segments.last().unwrap().ident;
             let p_meta = ident_spanned!(p_ident.span()=> "{p_ident}_meta__");
-            let var_input = ident!("{p_ident}_in__");
+            let var_input = ident!("{var}_in__");
             let member_ident = ident_spanned!(property.span()=> "__w_{member}__");
 
             let member = match member {

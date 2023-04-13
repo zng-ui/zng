@@ -873,12 +873,12 @@ fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
         corner_radius = 0.1.em();
 
         txt = "✓";
-        when #{toggle::IS_CHECKED_VAR}.is_none() {
+        when #{IS_CHECKED_VAR}.is_none() {
             txt = "━";
         }
 
         txt_color = text::TEXT_COLOR_VAR.map(|c| c.transparent());
-        when #{toggle::IS_CHECKED_VAR}.unwrap_or(true) {
+        when #{IS_CHECKED_VAR}.unwrap_or(true) {
             txt_color = text::TEXT_COLOR_VAR;
         }
 
@@ -938,7 +938,7 @@ fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
 
             #[easing(150.ms())]
             x = 0.em();
-            when *#toggle::is_checked {
+            when *#is_checked {
                 x = 1.em();
             }
         };
@@ -1002,7 +1002,7 @@ fn radio_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
             background_color = text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
         }
 
-        when *#toggle::is_checked {
+        when *#is_checked {
             border = {
                 widths: 2,
                 sides: text::TEXT_COLOR_VAR.map(|c| c.with_alpha(20.pct()).into()),
