@@ -220,7 +220,7 @@ impl Parse for WgtProperty {
     }
 }
 
-fn split_path_generics(mut path: Path) -> Result<(Path, TokenStream)> {
+pub(crate) fn split_path_generics(mut path: Path) -> Result<(Path, TokenStream)> {
     path.leading_colon = None;
     if let Some(s) = path.segments.last_mut() {
         let mut generics = quote!();
@@ -588,7 +588,7 @@ impl WgtWhen {
 }
 
 #[derive(PartialEq, Eq, Hash)]
-enum WhenInputMember {
+pub(crate) enum WhenInputMember {
     Named(Ident),
     Index(usize),
 }
@@ -609,7 +609,7 @@ impl ToTokens for WhenInputMember {
     }
 }
 
-struct WhenExpr {
+pub(crate) struct WhenExpr {
     /// Map of `(property_path, member) => var_name`, example: `(id, 0) => __w_id__0`.
     pub inputs: HashMap<(syn::Path, WhenInputMember), Ident>,
     pub expr: TokenStream,

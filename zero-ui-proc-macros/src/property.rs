@@ -171,12 +171,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         if let Some((span, args)) = args_default {
             default = quote_spanned! {span=>
-                fn __default__() -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                fn __default__ #impl_gens() -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> #where_gens {
                     #ident_meta {}.args(#args)
                 }
             };
             default_fn = quote! {
-                Some(__default__)
+                Some(__default__ #path_gens)
             };
         } else {
             default = quote!();
@@ -450,6 +450,21 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         let docs = &attrs.docs;
 
+        let allowed_in_when_expr = if allowed_in_when_expr {
+            quote! {
+                pub const fn allowed_in_when_expr(&self) {}
+            }
+        } else {
+            quote!()
+        };
+        let allowed_in_when_assign = if allowed_in_when_assign {
+            quote! {
+                pub const fn allowed_in_when_assign(&self) {}
+            }
+        } else {
+            quote!()
+        };
+
         let meta = quote! {
             #cfg
             #[doc(hidden)]
@@ -458,13 +473,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #cfg
             #[doc(hidden)]
             impl #ident_meta {
-                pub const ALLOWED_IN_WHEN_EXPR: bool = #allowed_in_when_expr;
-                pub const ALLOWED_IN_WHEN_ASSIGN: bool = #allowed_in_when_assign;
-
                 pub fn id(&self) -> #core::widget_builder::PropertyId {
                     static ID: #core::widget_builder::StaticPropertyId = #core::widget_builder::StaticPropertyId::new_unique();
                     ID.get()
                 }
+
+                #allowed_in_when_expr
+                #allowed_in_when_assign
 
                 pub fn info #impl_gens(&self) -> #core::widget_builder::PropertyInfo #where_gens {
                     #core::widget_builder::PropertyInfo {
@@ -488,7 +503,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     #core::widget_builder::PropertyInputTypes::unit()
                 }
 
-                pub fn default_fn(&self) -> std::option::Option<fn () -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs>> {
+                pub fn default_fn #impl_gens(&self) -> std::option::Option<fn () -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs>> #where_gens {
                     #default
                     #default_fn
                 }

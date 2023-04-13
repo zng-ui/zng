@@ -456,7 +456,7 @@ impl CfgWhenWgt {
 
             // suppress warning in all assigns.
             #[allow(non_snake_case)]
-            when *#is_state {
+            when *#util::is_state {
                 util::live_trace = {
                     #[allow(clippy::needless_late_init)]
                     let weird___name;
@@ -467,7 +467,7 @@ impl CfgWhenWgt {
 
             // when not applied.
             #[cfg(never)]
-            when *#is_state {
+            when *#util::is_state {
                 util::live_trace = "is_never_state";
             }
         }
@@ -1094,10 +1094,10 @@ impl NameCollisionWgtWhen {
             self;
             util::live_trace = "1";
 
-            when *#is_state {
+            when *#util::is_state {
                 util::live_trace = "2";
             }
-            when *#is_state {
+            when *#util::is_state {
                 util::live_trace = "3";
             }
         }

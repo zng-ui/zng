@@ -455,16 +455,97 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut set_whens = quote!();
     for when in &p.whens {
+        let when_expr = match syn::parse2::<widget_util::WhenExpr>(when.condition_expr.clone()) {
+            Ok(w) => w,
+            Err(e) => {
+                p.errors.push_syn(e);
+                continue;
+            }
+        };
+
+        let mut when_expr_vars = quote!();
+        let mut inputs = quote!();
+        for ((property, member), var) in when_expr.inputs {
+            let (property, generics) = widget_util::split_path_generics(property).unwrap();
+            let p_ident = &property.segments.last().unwrap().ident;
+            let p_meta = ident_spanned!(p_ident.span()=> "{p_ident}_meta__");
+            let var_input = ident!("{p_ident}_in__");
+            let member_ident = ident_spanned!(property.span()=> "__w_{member}__");
+
+            let member = match member {
+                widget_util::WhenInputMember::Named(ident) => {
+                    let ident_str = ident.to_string();
+                    quote! {
+                        Named(#ident_str)
+                    }
+                }
+                widget_util::WhenInputMember::Index(i) => quote! {
+                    Index(#i)
+                },
+            };
+
+            macro_rules! quote_call {
+                (#$mtd:ident ( $($args:tt)* )) => {
+                    if property.get_ident().is_some() {
+                        quote! {
+                            wgt__.#$mtd #generics($($args)*);
+                        }
+                    } else {
+                        quote! {
+                            #property::#$mtd #generics(#core::widget_base::WidgetImpl::base(&mut *wgt__), $($args)*);
+                        }
+                    }
+                }
+            }
+
+            let get_meta = quote_call!(#p_meta());
+
+            when_expr_vars.extend(quote! {
+                let (#var_input, #var) = {
+                    let meta__ =  #get_meta
+                    meta__.allowed_in_when_expr();
+                    meta__.inputs #generics().#member_ident()
+                };
+            });
+
+            inputs.extend(quote! {
+                {
+                    let meta__ = #get_meta
+                    #core::widget_builder::WhenInput {
+                        property: meta__.id(),
+                        member: #core::widget_builder::WhenInputMember::#member,
+                        var: #var_input,
+                        property_default: meta__ .default_fn #generics(),
+                    }
+                },
+            });
+        }
+
         let mut assigns = quote!();
         for prop in &when.assigns {
             assigns.extend(prop_assign(prop, &mut p.errors));
         }
 
+        let attrs = when.attrs.cfg_and_lints();
+        let expr = when_expr.expr;
+        let expr_str = &when.condition_expr_str;
+
         set_whens.extend(quote! {
             {
-                #core::widget_base::WidgetImpl::base(wgt__).start_when_block();
+                #when_expr_vars
+                let inputs__ = std::boxed::Box::new([
+                    #inputs
+                ]);
+                #core::widget_base::WidgetImpl::base(&mut *wgt__).start_when_block(
+                    inputs__,
+                    #core::widget_builder::when_condition_expr_var! { #expr },
+                    #expr_str,
+                    #core::widget_builder::source_location!(),
+                );
+
                 #assigns
-                #core::widget_base::WidgetImpl::base(wgt__).end_when_block();
+
+                #core::widget_base::WidgetImpl::base(&mut *wgt__).end_when_block();
             }
         });
     }
@@ -507,7 +588,7 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors) -> TokenStream {
                 }
             } else {
                 quote! {
-                    #path::#$mtd #generics(#core::widget_base::WidgetImpl::base(wgt__), $($args)*);
+                    #path::#$mtd #generics(#core::widget_base::WidgetImpl::base(&mut *wgt__), $($args)*);
                 }
             }
         }
