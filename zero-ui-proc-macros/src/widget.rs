@@ -450,7 +450,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut set_props = quote!();
     for prop in &p.properties {
-        set_props.extend(prop_assign(prop, &mut p.errors));
+        set_props.extend(prop_assign(prop, &mut p.errors, false));
     }
 
     let mut set_whens = quote!();
@@ -523,7 +523,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let mut assigns = quote!();
         for prop in &when.assigns {
-            assigns.extend(prop_assign(prop, &mut p.errors));
+            assigns.extend(prop_assign(prop, &mut p.errors, true));
         }
 
         let attrs = when.attrs.cfg_and_lints();
@@ -531,7 +531,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let expr_str = &when.condition_expr_str;
 
         set_whens.extend(quote! {
-            {
+            #attrs {
                 #when_expr_vars
                 let inputs__ = std::boxed::Box::new([
                     #inputs
@@ -565,11 +565,11 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     r.into()
 }
 
-fn prop_assign(prop: &WgtProperty, errors: &mut Errors) -> TokenStream {
+fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenStream {
     let core = util::crate_core();
 
     let custom_expand = if prop.has_custom_attrs() {
-        prop.custom_attrs_expand(ident!("wgt__"), None)
+        prop.custom_attrs_expand(ident!("wgt__"), is_when)
     } else {
         quote!()
     };

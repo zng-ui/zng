@@ -491,7 +491,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         id: self.id(),
                         name: std::stringify!(#ident),
                         location: #core::widget_builder::source_location!(),
-                        default: self.default_fn(),
+                        default: self.default_fn #path_gens(),
                         new: Self::args_dyn #path_gens,
                         inputs: std::boxed::Box::new([
                             #input_info

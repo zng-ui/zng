@@ -10,7 +10,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
         builder,
         is_unset: property_is_unset,
         property,
-        when,
+        is_when,
         ..
     } = &data;
     let Args { duration, easing } = &args;
@@ -39,7 +39,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
         }
     };
 
-    if let Some(when) = when {
+    if *is_when {
         if is_unset {
             return quote! {
                 compile_error!{"cannot unset `easing` in when assign, try `#[easing(0.ms())]`"}
@@ -62,13 +62,11 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                     }),
                 );
                 let id__ = #property_meta.id();
-                #when.build_action_data.push((
-                    (
-                        id__,
-                        #name,
-                    ),
+                #core::widget_base::WidgetImpl::base(&mut *#builder).push_when_build_action_data__(
+                    id__,
+                    #name,
                     __data__,
-                ));
+                );
             }
             #data
         }
@@ -81,7 +79,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                 #property_meta.input_types()
             );
             let id__ = #property_meta.id();
-            #core::widget_base::WidgetImpl::base(#builder).builder().push_unset_property_build_action__(
+            #core::widget_base::WidgetImpl::base(&mut *#builder).builder().push_unset_property_build_action__(
                 id__,
                 #name,
             );
@@ -103,7 +101,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                 );
                 if !__actions__.is_empty() {
                     let id__ = #property_meta.id();
-                    #core::widget_base::WidgetImpl::base(#builder).push_property_build_action__(
+                    #core::widget_base::WidgetImpl::base(&mut *#builder).push_property_build_action__(
                         id__,
                         #name,
                         __actions__
@@ -158,8 +156,8 @@ pub(crate) struct PropertyAttrData {
     pub is_unset: bool,
     /// path to the property function/struct.
     pub property: Path,
-    /// mut local: WhenInfo. Only set if is when assign.
-    pub when: Option<Ident>,
+    /// If is inside `when` block.
+    pub is_when: bool,
 }
 impl Parse for PropertyAttrData {
     fn parse(input: parse::ParseStream) -> Result<Self> {
@@ -168,7 +166,7 @@ impl Parse for PropertyAttrData {
         let mut builder = None;
         let mut is_unset = false;
         let mut property = None;
-        let mut when = None;
+        let mut is_when = false;
 
         for item in item_mod.content.unwrap_or_else(|| non_user_error!("")).1 {
             let mut f = match item {
@@ -201,18 +199,18 @@ impl Parse for PropertyAttrData {
                 };
 
                 property = Some(path);
-            } else if f.sig.ident == ident!("when_ident") {
-                let path = match expr {
-                    Expr::Path(p) => p.path,
+            } else if f.sig.ident == ident!("is_when") {
+                let lit = match expr {
+                    Expr::Lit(l) => l,
                     _ => non_user_error!(""),
                 };
 
-                let ident = match path.get_ident() {
-                    Some(i) => i.clone(),
-                    None => non_user_error!(""),
+                let lit_bool = match lit.lit {
+                    Lit::Bool(b) => b,
+                    _ => non_user_error!(""),
                 };
 
-                when = Some(ident);
+                is_when = lit_bool.value();
             } else if f.sig.ident == ident!("is_unset") {
                 let lit = match expr {
                     Expr::Lit(l) => l,
@@ -236,7 +234,7 @@ impl Parse for PropertyAttrData {
             builder: builder.unwrap_or_else(|| non_user_error!("")),
             is_unset,
             property: property.unwrap_or_else(|| non_user_error!("")),
-            when,
+            is_when,
         })
     }
 }
@@ -254,18 +252,8 @@ impl ToTokens for PropertyAttrData {
             builder,
             is_unset,
             property,
-            when,
+            is_when,
         } = self;
-
-        let when = if let Some(when) = when {
-            quote_spanned! {span=>
-                fn when_ident() {
-                    #when
-                }
-            }
-        } else {
-            quote!()
-        };
 
         tokens.extend(quote_spanned! {span=>
             #(#pending_attrs)*
@@ -282,7 +270,9 @@ impl ToTokens for PropertyAttrData {
                     #is_unset
                 }
 
-                #when
+                fn is_when() {
+                    #is_when
+                }
             }
         })
     }
