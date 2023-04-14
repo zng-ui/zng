@@ -22,7 +22,7 @@ fn app_main() {
     App::default().run_window(main_window());
 }
 
-async fn main_window() -> WindowCfg {
+async fn main_window() -> WindowRoot {
     // WINDOWS.exit_on_last_close().set(false);
 
     let window_vars = WINDOW_CTRL.vars();

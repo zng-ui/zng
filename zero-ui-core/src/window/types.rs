@@ -148,12 +148,12 @@ impl fmt::Debug for StaticWindowId {
 }
 impl crate::var::IntoValue<WindowId> for &'static StaticWindowId {}
 
-/// Window startup configuration.
+/// Window root widget and configuration.
 ///
 /// More window configuration is accessible using the [`WindowVars`] type.
 ///
 /// [`WindowVars`]: crate::window::WindowVars
-pub struct WindowCfg {
+pub struct WindowRoot {
     pub(super) id: WidgetId,
     pub(super) start_position: StartPosition,
     pub(super) kiosk: bool,
@@ -163,7 +163,7 @@ pub struct WindowCfg {
     pub(super) start_focused: bool,
     pub(super) child: BoxedUiNode,
 }
-impl WindowCfg {
+impl WindowRoot {
     /// New window from a `root` node that forms the window root widget.
     ///
     /// * `root_id` - Widget ID of `root`.
@@ -176,7 +176,7 @@ impl WindowCfg {
     /// * `start_focused` - If the window is forced to be the foreground keyboard focus after opening.
     /// * `root` - The root widget's outermost `CONTEXT` node, the window uses this and the `root_id` to form the root widget.
     #[allow(clippy::too_many_arguments)]
-    pub fn new_root(
+    pub fn new(
         root_id: WidgetId,
         start_position: StartPosition,
         kiosk: bool,
@@ -186,7 +186,7 @@ impl WindowCfg {
         start_focused: bool,
         root: impl UiNode,
     ) -> Self {
-        WindowCfg {
+        WindowRoot {
             id: root_id,
             start_position,
             kiosk,
@@ -218,7 +218,7 @@ impl WindowCfg {
         start_focused: bool,
         child: impl UiNode,
     ) -> Self {
-        WindowCfg::new_root(
+        WindowRoot::new(
             root_id,
             start_position,
             kiosk,
@@ -233,7 +233,7 @@ impl WindowCfg {
     /// New test window.
     #[cfg(any(test, doc, feature = "test_util"))]
     pub fn new_test(child: impl UiNode) -> Self {
-        WindowCfg::new_container(
+        WindowRoot::new_container(
             WidgetId::named("test-window-root"),
             StartPosition::Default,
             false,

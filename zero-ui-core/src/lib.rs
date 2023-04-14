@@ -562,32 +562,32 @@ pub use zero_ui_proc_macros::property;
 /// you can use it directly, so even if you need to run code on build or define a custom type you don't need to start from scratch.
 ///
 /// # Defaults
-/// 
+///
 /// The [`defaults!`] macro can be used inside `on_start` to set properties and when conditions that are applied on the widget if not
 /// overridden by derived widgets or the widget instance code.
-/// 
+///
 /// # Impl Properties
-/// 
+///
 /// The [`impl_properties!`] macro can be used inside a `impl WgtIdent { }` block to strongly associate a property with the widget,
 /// and the [`property`] attribute has an `impl(WgtIdent)` that also strongly associates a property with the widget. These two mechanisms
 /// can be used to define properties for the widget, the impl properties are visually different in the widget macro as the have the
 /// *immutable method* style, while the other properties have the *mutable method* style.
-/// 
+///
 /// # Generated Macro
-/// 
+///
 /// The generated widget macro has the same syntax as [`properties!`], except that is also starts the widget and builds it at the end,
 /// ```
 /// # use zero_ui_core::{*, widget_base::WidgetBase};
 /// #[widget($crate::Foo)]
 /// pub struct Foo(WidgetBase);
-/// 
+///
 /// # fn main() {
 /// let wgt = Foo! {
 ///     id = "foo";
 /// };
-/// 
+///
 /// // equivalent to:
-/// 
+///
 /// let wgt = {
 ///     let mut wgt = Foo::start();
 ///     properties! {
@@ -639,7 +639,7 @@ pub use zero_ui_proc_macros::property;
 /// # use zero_ui_core::{*, widget_base::WidgetBase};
 /// # #[widget($crate::Foo)]
 /// # pub struct Foo(WidgetBase);
-/// 
+///
 /// # fn main() {
 /// let wgt = Foo! {
 ///     id = "foo";
@@ -659,14 +659,14 @@ pub use zero_ui_proc_macros::property;
 /// Note that the default single property shorthand syntax is not blocked, in the examples above `Text!(font_size)` will match
 /// the custom shorthand rule and try to set the `txt` with the `font_size` variable, without the shorthand it would create a widget without
 /// `txt` but with a set `font_size`. So a custom rule `$p:expr` is only recommended for widgets that have a property of central importance.
-/// 
+///
 /// # Widget Type
-/// 
+///
 /// A public associated function `widget_type` is also generated for the widget, it returns a [`WidgetType`] instance that describes the
 /// widget type.
 ///
 /// # Builder
-/// 
+///
 /// Two public methods are available to call in a generated widget struct, `builder` and `take_builder` that first mutable borrows the
 /// underlying [`WidgetBuilder`] and is usually used in `on_start` to insert build actions, the second finalizes the insertion of
 /// properties and returns the [`WidgetBuilder`] instance for use finalizing the build, this is usually called in custom `build` implementations.

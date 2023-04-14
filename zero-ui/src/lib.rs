@@ -156,9 +156,9 @@ pub mod prelude {
             UiNodeListChain, UiNodeVec, WidgetId, ZIndex,
         },
         window::{
-            AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition, WindowCfg,
-            WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowState, WindowVars,
-            WINDOWS, WINDOW_CTRL,
+            AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition,
+            WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowRoot, WindowState,
+            WindowVars, WINDOWS, WINDOW_CTRL,
         },
     };
 

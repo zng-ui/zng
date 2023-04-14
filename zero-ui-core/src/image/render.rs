@@ -15,7 +15,7 @@ use super::{ImageManager, ImageVar, ImagesService, Img, IMAGES, IMAGES_SV};
 impl ImagesService {
     fn render<N>(&mut self, render: N) -> ImageVar
     where
-        N: FnOnce() -> WindowCfg + Send + Sync + 'static,
+        N: FnOnce() -> WindowRoot + Send + Sync + 'static,
     {
         let result = var(Img::new_none(None));
         self.render_img(
@@ -37,7 +37,7 @@ impl ImagesService {
         let scale_factor = scale_factor.into();
         self.render(move || {
             let node = render();
-            WindowCfg::new_container(
+            WindowRoot::new_container(
                 WidgetId::new_unique(),
                 StartPosition::Default,
                 false,
@@ -52,7 +52,7 @@ impl ImagesService {
 
     pub(super) fn render_img<N>(&mut self, render: N, result: &ArcVar<Img>)
     where
-        N: FnOnce() -> WindowCfg + Send + Sync + 'static,
+        N: FnOnce() -> WindowRoot + Send + Sync + 'static,
     {
         self.render.requests.push(RenderRequest {
             render: Box::new(render),
@@ -75,7 +75,7 @@ impl IMAGES {
     /// [`IMAGE_RENDER.retain`]: IMAGE_RENDER::retain
     pub fn render<N>(&self, render: N) -> ImageVar
     where
-        N: FnOnce() -> WindowCfg + Send + Sync + 'static,
+        N: FnOnce() -> WindowRoot + Send + Sync + 'static,
     {
         IMAGES_SV.write().render(render)
     }
@@ -178,7 +178,7 @@ struct ActiveRenderer {
 }
 
 struct RenderRequest {
-    render: Box<dyn FnOnce() -> WindowCfg + Send + Sync>,
+    render: Box<dyn FnOnce() -> WindowRoot + Send + Sync>,
     image: WeakArcVar<Img>,
 }
 

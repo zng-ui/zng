@@ -2,7 +2,7 @@
 
 use crate::core::focus::*;
 use crate::core::window::{
-    FrameImageReadyArgs, HeadlessMonitor, StartPosition, WindowCfg, WindowChangedArgs, WindowCloseRequestedArgs, WindowOpenArgs,
+    FrameImageReadyArgs, HeadlessMonitor, StartPosition, WindowChangedArgs, WindowCloseRequestedArgs, WindowOpenArgs, WindowRoot,
 };
 use crate::prelude::new_widget::*;
 
@@ -15,7 +15,7 @@ pub use window_properties::*;
 
 /// A window container.
 ///
-/// The instance type is [`WindowCfg`], that can be given to the [`WINDOWS`](crate::core::window::WINDOWS) service
+/// The instance type is [`WindowRoot`], that can be given to the [`WINDOWS`](crate::core::window::WINDOWS) service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
 /// # Examples
@@ -71,10 +71,10 @@ impl Window {
         });
     }
 
-    /// Build a [`WindowCfg`].
-    pub fn build(&mut self) -> WindowCfg {
+    /// Build a [`WindowRoot`].
+    pub fn build(&mut self) -> WindowRoot {
         let mut wgt = self.take_builder();
-        WindowCfg::new_root(
+        WindowRoot::new(
             wgt.capture_value_or_else(property_id!(Self::id), WidgetId::new_unique),
             wgt.capture_value_or_default::<StartPosition>(property_id!(Self::start_position)),
             wgt.capture_value_or_default(property_id!(Self::kiosk)),
@@ -147,7 +147,7 @@ pub fn allow_transparency(child: impl UiNode, allow: impl IntoValue<bool>) -> im
 /// ```no_run
 /// use zero_ui::prelude::*;
 ///
-/// fn example() -> WindowCfg {
+/// fn example() -> WindowRoot {
 ///     let selected_mode = WINDOW_CTRL.vars().render_mode();
 ///     Window! {
 ///         title = "Render Mode";

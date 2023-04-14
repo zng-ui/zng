@@ -131,12 +131,12 @@ pub trait AppRunWindowExt {
     /// [`WINDOW`]: crate::context::WINDOW
     fn run_window<F>(self, new_window: F)
     where
-        F: Future<Output = WindowCfg> + Send + 'static;
+        F: Future<Output = WindowRoot> + Send + 'static;
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     fn run_window<F>(self, new_window: F)
     where
-        F: Future<Output = WindowCfg> + Send + 'static,
+        F: Future<Output = WindowRoot> + Send + 'static,
     {
         self.run(async move {
             WINDOWS.open(new_window);
@@ -158,7 +158,7 @@ pub trait HeadlessAppWindowExt {
     /// [`WINDOW`]: crate::context::WINDOW
     fn open_window<F>(&mut self, new_window: F) -> WindowId
     where
-        F: Future<Output = WindowCfg> + Send + 'static;
+        F: Future<Output = WindowRoot> + Send + 'static;
 
     /// Cause the headless window to think it is focused in the screen.
     fn focus_window(&mut self, window_id: WindowId);
@@ -176,12 +176,12 @@ pub trait HeadlessAppWindowExt {
     /// Open a new headless window and update the app until the window closes.
     fn run_window<F>(&mut self, new_window: F)
     where
-        F: Send + Future<Output = WindowCfg> + 'static;
+        F: Send + Future<Output = WindowRoot> + 'static;
 }
 impl HeadlessAppWindowExt for HeadlessApp {
     fn open_window<F>(&mut self, new_window: F) -> WindowId
     where
-        F: Future<Output = WindowCfg> + Send + 'static,
+        F: Future<Output = WindowRoot> + Send + 'static,
     {
         let response = WINDOWS.open(new_window);
         self.run_task(async move {
@@ -242,7 +242,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
 
     fn run_window<F>(&mut self, new_window: F)
     where
-        F: Future<Output = WindowCfg> + Send + 'static,
+        F: Future<Output = WindowRoot> + Send + 'static,
     {
         let window_id = self.open_window(new_window);
         while WINDOWS.is_open(window_id) {

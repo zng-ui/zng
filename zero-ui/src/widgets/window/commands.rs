@@ -64,7 +64,7 @@ mod inspector_window {
     use crate::core::{inspector::*, window::*};
     use crate::prelude::new_widget::*;
 
-    pub fn new(inspected: WindowId, inspector_text: ArcVar<Txt>) -> WindowCfg {
+    pub fn new(inspected: WindowId, inspector_text: ArcVar<Txt>) -> WindowRoot {
         use crate::widgets::*;
 
         let parent = WINDOWS.vars(inspected).unwrap().parent().get().unwrap_or(inspected);

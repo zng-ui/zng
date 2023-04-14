@@ -1,7 +1,6 @@
 # Widget & Property Refactor
 
 * Docs not generated for nested mix-ins. 
-* Rename `WindowCfg` to `WindowRoot`.
 * Rename `properties!` to `widget_set!`.
     - Move property syntax docs to this too.
     - Reference this when talking about the generated widget macro syntax.

@@ -509,7 +509,7 @@ mod context {
 
         use crate::window::*;
         let mut app = app.run_headless(false);
-        WINDOWS.open(async move { crate::window::WindowCfg::new_test(root) });
+        WINDOWS.open(async move { crate::window::WindowRoot::new_test(root) });
         let _ = app.update(false);
         app
     }

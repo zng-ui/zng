@@ -1637,7 +1637,7 @@ impl<E: AppExtension> TestAppBuilder<E> {
     pub fn run(self, child: impl UiNode) -> TestApp {
         self.run_window(Window!(child; id = "window root"))
     }
-    pub fn run_window(self, window: WindowCfg) -> TestApp {
+    pub fn run_window(self, window: WindowRoot) -> TestApp {
         let mut app = self.app.run_headless(false);
 
         let (focus_changed, return_focus_changed) = {

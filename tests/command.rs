@@ -87,7 +87,7 @@ fn shortcut_scoped() {
     assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 }
 
-async fn listener_window(focused_wgt: bool) -> WindowCfg {
+async fn listener_window(focused_wgt: bool) -> WindowRoot {
     #[ui_node(struct FooHandlerNode {
         handle: Option<CommandHandle>,
         handle_scoped: Option<CommandHandle>,

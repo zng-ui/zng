@@ -18,7 +18,7 @@ use crate::{
     units::*,
     var::{AnyVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar},
     widget_instance::UiNode,
-    window::{FrameCaptureMode, WindowCfg, WindowId, WINDOW_CTRL},
+    window::{FrameCaptureMode, WindowId, WindowRoot, WINDOW_CTRL},
 };
 
 pub use crate::app::view_process::{ImageDataFormat, ImageDownscale, ImagePpi};
@@ -442,7 +442,7 @@ impl std::hash::Hasher for ImageHasher {
 }
 
 // We don't use Arc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
-type RenderFn = Arc<Box<dyn Fn(&ImageRenderArgs) -> WindowCfg + Send + Sync>>;
+type RenderFn = Arc<Box<dyn Fn(&ImageRenderArgs) -> WindowRoot + Send + Sync>>;
 
 /// Arguments for the [`ImageSource::Render`] closure.
 ///
@@ -480,7 +480,7 @@ pub enum ImageSource {
     /// [`IMAGES`]: super::IMAGES
     Data(ImageHash, Arc<Vec<u8>>, ImageDataFormat),
 
-    /// A boxed closure that instantiates a [`WindowCfg`] that draws the image.
+    /// A boxed closure that instantiates a [`WindowRoot`] that draws the image.
     ///
     /// Use the [`render`](Self::render) or [`render_node`](Self::render_node) functions to construct this variant.
     ///
@@ -517,7 +517,7 @@ impl ImageSource {
     /// [`Images::render`]: crate::image::Images::render
     pub fn render<F>(new_img: F) -> Self
     where
-        F: Fn(&ImageRenderArgs) -> WindowCfg + Send + Sync + 'static,
+        F: Fn(&ImageRenderArgs) -> WindowRoot + Send + Sync + 'static,
     {
         Self::Render(
             Arc::new(Box::new(move |args| {
@@ -564,7 +564,7 @@ impl ImageSource {
         Self::render(move |args| {
             WINDOW_CTRL.vars().parent().set_ne(args.parent);
             let node = render(args);
-            WindowCfg::new_container(
+            WindowRoot::new_container(
                 crate::widget_instance::WidgetId::new_unique(),
                 crate::window::StartPosition::Default,
                 false,
