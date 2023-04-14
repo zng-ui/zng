@@ -558,8 +558,9 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let errors = p.errors;
 
     let r = quote! {
-        #errors
         {
+            #errors
+
             #start
             #set_props
             #set_whens
