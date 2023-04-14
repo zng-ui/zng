@@ -171,7 +171,7 @@ type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 /// # let _ =
 /// Image! {
 ///     source = "not_found.png";
-///     img_error_fn = WidgetFn::new(|e: image::ImageErrorArgs| Text! {
+///     img_error_fn = WidgetFn::new(|e: image::ImgErrorArgs| Text! {
 ///         txt = e.error.clone();
 ///         txt_color = colors::RED;
 ///     });
@@ -396,7 +396,7 @@ pub enum DataUpdate<D> {
 /// # let _ =
 /// Image! {
 ///     source = "not_found.png";
-///     img_error_fn = wgt_fn!(img_error_vis, |e: image::ImageErrorArgs| Text! {
+///     img_error_fn = wgt_fn!(img_error_vis, |e: image::ImgErrorArgs| Text! {
 ///         txt = e.error.clone();
 ///         txt_color = colors::RED;
 ///         visibility = img_error_vis.clone();
