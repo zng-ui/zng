@@ -8,7 +8,6 @@ use crate::core::widget_mixin;
 #[widget_mixin]
 pub struct FocusableMix<P>(P);
 impl<P: WidgetImpl> FocusableMix<P> {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;

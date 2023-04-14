@@ -6,7 +6,6 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::RuleLine)]
 pub struct RuleLine(WidgetBase);
 impl RuleLine {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(on_build);
     }
@@ -136,7 +135,6 @@ pub mod hr {
     #[widget($crate::widgets::Hr)]
     pub struct Hr(super::RuleLine);
     impl Hr {
-        #[widget(on_start)]
         fn on_start(&mut self) {
             widget_dft! {
                 self;

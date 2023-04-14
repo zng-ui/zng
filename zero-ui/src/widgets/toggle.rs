@@ -21,7 +21,6 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::Toggle)]
 pub struct Toggle(crate::widgets::Button);
 impl Toggle {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         self.style_fn(STYLE_VAR);
 
@@ -812,7 +811,6 @@ pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl Ui
 #[widget($crate::widgets::toggle::DefaultStyle)]
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         use crate::widgets::button;
 
@@ -838,7 +836,6 @@ impl DefaultStyle {
 #[widget($crate::widgets::toggle::CheckStyle)]
 pub struct CheckStyle(Style);
 impl CheckStyle {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -899,7 +896,6 @@ fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
 #[widget($crate::widgets::toggle::SwitchStyle)]
 pub struct SwitchStyle(Style);
 impl SwitchStyle {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -960,7 +956,6 @@ fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
 #[widget($crate::widgets::toggle::RadioStyle)]
 pub struct RadioStyle(Style);
 impl RadioStyle {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;

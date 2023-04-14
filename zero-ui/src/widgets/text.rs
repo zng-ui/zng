@@ -74,7 +74,6 @@ pub use text_properties::*;
 pub struct Text(WidgetBase);
 
 impl Text {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
             let child = nodes::render_text();

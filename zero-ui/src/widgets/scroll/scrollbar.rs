@@ -8,7 +8,6 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::scroll::Scrollbar)]
 pub struct Scrollbar(WidgetBase);
 impl Scrollbar {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;

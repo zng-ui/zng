@@ -18,7 +18,6 @@ use zero_ui::prelude::new_widget::*;
 })]
 pub struct AnsiText(WidgetBase);
 impl AnsiText {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;

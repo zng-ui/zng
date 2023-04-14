@@ -508,7 +508,7 @@ pub use zero_ui_proc_macros::property;
 /// # On Start
 ///
 /// The widget struct can define a method `on_start` that *includes* custom build actions in the [`WidgetBuilder`], this special
-/// method must be annotated with `#[widget(on_start)]` and will be called once for its own widget or derived widgets.
+/// method will be called once for its own widget or derived widgets.
 ///
 /// ```
 /// # fn main() { }
@@ -518,7 +518,6 @@ pub use zero_ui_proc_macros::property;
 /// pub struct Foo(WidgetBase);
 ///
 /// impl Foo {
-///     #[widget(on_start)]
 ///     fn on_start(&mut self) {
 ///         self.builder().push_build_action(|b| {
 ///             // push_intrinsic, capture_var.
@@ -702,7 +701,6 @@ pub use zero_ui_proc_macros::widget;
 /// #[widget_mixin]
 /// pub struct FocusableMix<P>(P);
 /// impl<P: WidgetImpl> FocusableMix<P> {
-///     #[widget(on_start)]
 ///     fn on_start(&mut self) {
 ///         widget_dft! {
 ///             self;
@@ -747,7 +745,6 @@ mod private {
 /// #[widget($crate::Wgt)]
 /// pub struct Wgt(WidgetBase);
 /// impl Wgt {
-///     #[widget(on_start)]
 ///     fn on_start(&mut self) {
 ///         widget_dft! {
 ///             self;
@@ -798,7 +795,7 @@ macro_rules! widget_dft {
 
 /// Sets properties and when condition on a partial widget.
 ///
-/// Note that you must use [`widget_dft!`] in `#[widget(on_start)]`, this macro is building an widget instance
+/// Note that you must use [`widget_dft!`] in `on_start`, this macro is building an widget instance
 /// with properties that are only conditionally set.
 ///
 /// # Examples

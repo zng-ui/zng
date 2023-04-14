@@ -91,7 +91,6 @@ mod widgets {
     #[widget($crate::widgets::MrBorders)]
     pub struct MrBorders(Container);
     impl MrBorders {
-        #[widget(on_start)]
         fn on_start(&mut self) {
             widget_dft! {
                 self;

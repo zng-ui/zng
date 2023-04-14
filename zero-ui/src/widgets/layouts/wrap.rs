@@ -12,7 +12,6 @@ use task::parking_lot::Mutex;
 #[widget($crate::widgets::layouts::Wrap)]
 pub struct Wrap(WidgetBase);
 impl Wrap {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
             let child = node(

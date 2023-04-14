@@ -281,7 +281,6 @@ pub mod prelude {
     /// #[widget($crate::MyWidget)]
     /// pub struct MyWidget(WidgetBase);
     /// impl MyWidget {
-    ///     #[widget(on_start)]
     ///     fn on_start(&mut self) {
     ///         widget_dft! {
     ///             self;

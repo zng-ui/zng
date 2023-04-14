@@ -37,7 +37,6 @@ pub fn implicit_inherited() {
 #[widget($crate::tests::widget::BarWgt)]
 pub struct BarWgt(crate::widget_base::WidgetBase);
 impl BarWgt {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -99,7 +98,6 @@ pub fn wgt_assign_values() {
 #[widget($crate::tests::widget::ResetWgt)]
 pub struct ResetWgt(BarWgt);
 impl ResetWgt {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -129,7 +127,6 @@ pub fn wgt_with_new_value_for_inherited() {
 #[widget($crate::tests::widget::DefaultValueWgt)]
 pub struct DefaultValueWgt(crate::widget_base::WidgetBase);
 impl DefaultValueWgt {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -263,7 +260,6 @@ pub fn wgt_same_nest_group_order() {
 #[widget($crate::tests::widget::WhenWgt)]
 pub struct WhenWgt(crate::widget_base::WidgetBase);
 impl WhenWgt {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -333,7 +329,6 @@ pub fn widget_user_when() {
 pub struct MultiWhenWgt(crate::widget_base::WidgetBase);
 
 impl MultiWhenWgt {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -376,7 +371,6 @@ pub fn wgt_multi_when() {
 #[widget($crate::tests::widget::CfgPropertyWgt)]
 pub struct CfgPropertyWgt(crate::widget_base::WidgetBase);
 impl CfgPropertyWgt {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -450,7 +444,6 @@ pub fn user_cfg_property() {
 #[widget($crate::tests::widget::CfgWhenWgt)]
 pub struct CfgWhenWgt(crate::widget_base::WidgetBase);
 impl CfgWhenWgt {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -734,7 +727,6 @@ pub fn property_nest_group_sorting_node_inherited_init() {
 #[widget($crate::tests::widget::PropertyNestGroupSortingDefaultsWgt)]
 pub struct PropertyNestGroupSortingDefaultsWgt(PropertyNestGroupSortingWgt);
 impl PropertyNestGroupSortingDefaultsWgt {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -1043,7 +1035,6 @@ pub fn generated_name_collision_in_when_assign() {
 #[widget($crate::tests::widget::NameCollisionWgtWhen)]
 pub struct NameCollisionWgtWhen(crate::widget_base::WidgetBase);
 impl NameCollisionWgtWhen {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;

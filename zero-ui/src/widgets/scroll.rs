@@ -20,7 +20,6 @@ pub use thumb::Thumb;
 #[widget($crate::widgets::Scroll)]
 pub struct Scroll(Container);
 impl Scroll {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;

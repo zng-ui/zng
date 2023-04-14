@@ -8,29 +8,9 @@ use crate::{
 };
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mixin: bool) -> proc_macro::TokenStream {
-    if let Ok(special) = syn::parse::<Ident>(args.clone()) {
-        if special == "on_start" {
-            let on_start = parse_macro_input!(input as ItemFn);
-            let ident = &on_start.sig.ident;
-
-            return quote_spanned! {special.span()=>
-                #[doc(hidden)]
-                pub fn on_start__(&mut self) {
-                    if !self.started {
-                        self.started = true;
-                        self.#ident();
-                    }
-                }
-
-                #on_start
-            }
-            .into();
-        }
-    }
-
     // the widget struct declaration.
     let struct_ = parse_macro_input!(input as ItemStruct);
-    let mut parent;
+    let parent;
 
     if let Fields::Unnamed(f) = &struct_.fields {
         if f.unnamed.len() != 1 {
@@ -52,10 +32,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let crate_core = util::crate_core();
 
     let (mixin_p, mixin_p_bounded) = if mixin {
-        parent = quote! {
-            #crate_core::widget_base::WidgetMix<#parent>
-        };
-
         if struct_.generics.params.is_empty() {
             let mut r = syn::Error::new(struct_.ident.span(), "mix-ins must have one generic `P`")
                 .to_compile_error()
@@ -263,20 +239,17 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
     let r = quote! {
         #attrs
-        #vis #struct_token #ident #mixin_p {
-            base: #parent,
-            started: bool,
-        }
+        #vis #struct_token #ident #mixin_p(#parent);
         impl #mixin_p_bounded std::ops::Deref for #ident #mixin_p {
             type Target = #parent;
 
             fn deref(&self) -> &Self::Target {
-                &self.base
+                &self.0
             }
         }
         impl #mixin_p_bounded std::ops::DerefMut for #ident #mixin_p {
             fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.base
+                &mut self.0
             }
         }
         #start_r
@@ -284,27 +257,21 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         #[doc(hidden)]
         impl #mixin_p_bounded #crate_core::widget_base::WidgetImpl for #ident #mixin_p {
             fn inherit(widget: #crate_core::widget_builder::WidgetType) -> Self {
-                let mut wgt = Self {
-                    base: <#parent as #crate_core::widget_base::WidgetImpl>::inherit(widget),
-                    started: false,
-                };
-                wgt.on_start__();
+                let mut wgt = Self(<#parent as #crate_core::widget_base::WidgetImpl>::inherit(widget));
+                wgt.on_start();
                 wgt
             }
 
             fn base(&mut self) -> &mut #crate_core::widget_base::WidgetBase {
-                #crate_core::widget_base::WidgetImpl::base(&mut self.base)
+                #crate_core::widget_base::WidgetImpl::base(&mut self.0)
             }
 
             fn base_ref(&self) -> &#crate_core::widget_base::WidgetBase {
-                #crate_core::widget_base::WidgetImpl::base_ref(&self.base)
+                #crate_core::widget_base::WidgetImpl::base_ref(&self.0)
             }
 
             fn info_instance__() -> Self {
-                Self {
-                    base: <#parent as #crate_core::widget_base::WidgetImpl>::info_instance__(),
-                    started: false,
-                }
+                Self(<#parent as #crate_core::widget_base::WidgetImpl>::info_instance__())
             }
         }
 

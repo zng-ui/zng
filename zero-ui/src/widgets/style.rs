@@ -41,7 +41,6 @@ impl Style {
 #[widget_mixin]
 pub struct StyleMix<P>(P);
 impl<P: WidgetImpl> StyleMix<P> {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         self.base().builder().set_custom_build(StyleMix::<()>::custom_build);
     }
@@ -113,7 +112,7 @@ pub fn style_fn(_child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNod
 /// #[widget($crate::Foo)]
 /// pub struct Foo(StyleMix<WidgetBase>);
 /// impl Foo {
-///     #[widget(on_start)]
+///     
 ///     fn on_start(&mut self) {
 ///         widget_dft! {
 ///             self;

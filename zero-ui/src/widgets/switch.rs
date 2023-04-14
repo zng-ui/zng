@@ -13,7 +13,6 @@ use std::mem;
 pub struct Switch(WidgetBase);
 
 impl Switch {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
             let index = wgt.capture_var_or_else(property_id!(Self::index), || 0);

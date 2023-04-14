@@ -79,7 +79,7 @@ impl WidgetExt for WgtInfo {
 /// # Syntax
 ///
 /// * `path::property`: Gets the ID for the property function.
-/// * `Self::property`: Gets the ID for the property on the `#[widget(on_start)]`.
+/// * `Self::property`: Gets the ID for the property on the ``.
 ///
 /// # Examples
 ///
@@ -119,7 +119,7 @@ pub use crate::property_id;
 /// # Syntax
 ///
 /// * `path::property`: Gets the info for the property function.
-/// * `Self::property`: Gets the info for the property on the `#[widget(on_start)]`.
+/// * `Self::property`: Gets the info for the property on the ``.
 ///
 /// If the property is generic a `::<T>` is also required.
 ///
@@ -160,7 +160,7 @@ pub use crate::property_info;
 /// # Syntax
 ///
 /// * `property::path`: Gets the info for the property function.
-/// * `Self::property`: Gets the info for the property on the `#[widget(on_start)]`.
+/// * `Self::property`: Gets the info for the property on the ``.
 #[macro_export]
 macro_rules! property_input_types {
     ($($tt:tt)*) => {

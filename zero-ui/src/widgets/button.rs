@@ -6,7 +6,6 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::Button)]
 pub struct Button(FocusableMix<StyleMix<Container>>);
 impl Button {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -87,7 +86,6 @@ pub fn color_scheme_pressed(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
 #[widget($crate::widgets::button::DefaultStyle)]
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         use crate::properties::*;
         widget_dft! {

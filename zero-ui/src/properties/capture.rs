@@ -22,7 +22,6 @@ use std::sync::Arc;
 /// #[widget($crate::Button)]
 /// pub struct Button(Container);
 /// impl Button {
-///     #[widget(on_start)]
 ///     fn on_start(&mut self) {
 ///         widget_dft! {
 ///             self;

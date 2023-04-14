@@ -17,7 +17,6 @@ use std::fmt;
 })]
 pub struct Icon(WidgetBase);
 impl Icon {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(on_build);
     }

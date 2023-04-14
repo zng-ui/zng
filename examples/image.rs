@@ -380,7 +380,6 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
 })]
 pub struct ImgWindow(Window);
 impl ImgWindow {
-    #[zero_ui::core::widget(on_start)]
     fn on_start(&mut self) {
         zero_ui::core::widget_dft! {
             self;

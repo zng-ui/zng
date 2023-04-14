@@ -26,7 +26,6 @@ pub use view_fn::*;
 })]
 pub struct Markdown(WidgetBase);
 impl Markdown {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;

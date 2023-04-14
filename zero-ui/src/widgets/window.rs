@@ -34,7 +34,6 @@ pub use window_properties::*;
 #[widget($crate::widgets::Window)]
 pub struct Window(Container);
 impl Window {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;

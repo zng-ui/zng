@@ -8,7 +8,6 @@ use scrollbar::ORIENTATION_VAR;
 #[widget($crate::widgets::scroll::Thumb)]
 pub struct Thumb(WidgetBase);
 impl Thumb {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;

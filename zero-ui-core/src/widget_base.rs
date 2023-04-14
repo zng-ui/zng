@@ -1,6 +1,6 @@
 //! The widget base, nodes and properties used in most widgets.
 
-use std::{any::TypeId, cell::RefCell, fmt, ops};
+use std::{any::TypeId, cell::RefCell, fmt};
 
 use crate::{
     context::*,
@@ -27,7 +27,6 @@ use crate::{
 /// [`child`]: fn@child
 pub struct WidgetBase {
     builder: RefCell<Option<WidgetBuilder>>,
-    started: bool,
     importance: Importance,
     when: RefCell<Option<WhenInfo>>,
 }
@@ -51,11 +50,10 @@ impl WidgetBase {
         let builder = WidgetBuilder::new(widget);
         let mut w = Self {
             builder: RefCell::new(Some(builder)),
-            started: false,
             importance: Importance::INSTANCE,
             when: RefCell::new(None),
         };
-        w.on_start__();
+        w.on_start();
         w
     }
 
@@ -121,12 +119,8 @@ impl WidgetBase {
         self.builder.get_mut().as_mut().unwrap().push_when(self.importance, when);
     }
 
-    #[doc(hidden)]
-    pub fn on_start__(&mut self) {
-        if !self.started {
-            self.started = true;
-            nodes::include_intrinsics(self.builder());
-        }
+    fn on_start(&mut self) {
+        nodes::include_intrinsics(self.builder());
     }
 
     /// Push method property.
@@ -158,14 +152,12 @@ impl WidgetBase {
     pub fn reexport__(&self, f: impl FnOnce(&mut Self)) {
         let mut inner = Self {
             builder: RefCell::new(self.builder.borrow_mut().take()),
-            started: self.started,
             importance: self.importance,
             when: RefCell::new(self.when.borrow_mut().take()),
         };
         f(&mut inner);
         *self.builder.borrow_mut() = inner.builder.into_inner().take();
         *self.when.borrow_mut() = inner.when.into_inner().take();
-        debug_assert_eq!(self.started, inner.started);
         debug_assert_eq!(self.importance, inner.importance);
     }
 
@@ -210,43 +202,6 @@ impl WidgetBase {
     }
 }
 
-/// Inserted in mix-ins to make `self.on_start__()` work when the mix-in does not implement `on_start`.
-#[doc(hidden)]
-pub struct WidgetMix<P>(P);
-impl<P> WidgetMix<P> {
-    #[doc(hidden)]
-    pub fn on_start__(&mut self) {}
-}
-impl<P> ops::Deref for WidgetMix<P> {
-    type Target = P;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<P> ops::DerefMut for WidgetMix<P> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-impl<P: WidgetImpl> WidgetImpl for WidgetMix<P> {
-    fn inherit(widget: WidgetType) -> Self {
-        Self(P::inherit(widget))
-    }
-
-    fn base(&mut self) -> &mut WidgetBase {
-        self.0.base()
-    }
-
-    fn base_ref(&self) -> &WidgetBase {
-        self.0.base_ref()
-    }
-
-    fn info_instance__() -> Self {
-        Self(P::info_instance__())
-    }
-}
-
 /// Trait implemented by all `#[widget]`.
 pub trait WidgetImpl {
     /// The inherit function.
@@ -260,6 +215,9 @@ pub trait WidgetImpl {
 
     #[doc(hidden)]
     fn info_instance__() -> Self;
+
+    #[doc(hidden)]
+    fn on_start(&mut self) {}
 }
 impl WidgetImpl for WidgetBase {
     fn inherit(widget: WidgetType) -> Self {
@@ -277,7 +235,6 @@ impl WidgetImpl for WidgetBase {
     fn info_instance__() -> Self {
         WidgetBase {
             builder: RefCell::new(None),
-            started: false,
             importance: Importance::INSTANCE,
             when: RefCell::new(None),
         }

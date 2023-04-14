@@ -8,7 +8,6 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::layouts::Grid)]
 pub struct Grid(WidgetBase);
 impl Grid {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(|w| {
             let child = node(

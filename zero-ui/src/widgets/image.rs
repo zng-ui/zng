@@ -19,7 +19,6 @@ pub mod nodes;
 })]
 pub struct Image(WidgetBase);
 impl Image {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(on_build);
     }

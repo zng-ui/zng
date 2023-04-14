@@ -6,7 +6,6 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::Link)]
 pub struct Link(crate::widgets::Button); // !!: TODO, TextMix<Button>
 impl Link {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;
@@ -41,7 +40,6 @@ pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl Ui
 #[widget($crate::widgets::link::DefaultStyle)]
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         widget_dft! {
             self;

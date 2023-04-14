@@ -52,7 +52,6 @@ use crate::core::task::parking_lot::Mutex;
 #[widget($crate::widgets::layouts::Stack)]
 pub struct Stack(WidgetBase);
 impl Stack {
-    #[widget(on_start)]
     fn on_start(&mut self) {
         self.builder().push_build_action(|wgt| {
             let child = node(
