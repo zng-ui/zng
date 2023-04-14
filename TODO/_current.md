@@ -1,12 +1,15 @@
 # Widget & Property Refactor
 
+* Docs not generated for nested mix-ins. 
 * Rename `WindowCfg` to `WindowRoot`.
-* Rename `properties!` to `extend_wgt!`.
+* Rename `properties!` to `widget_set!`.
+    - Move property syntax docs to this too.
+    - Reference this when talking about the generated widget macro syntax.
+* Better error for `defaults` and `widget_set!`.
+    - Match to compile_error when the first tokens are `path = x` or `when`.
+
 * Review names of widget items that have the widget prefix on the name.
     `ImageErrorArgs` could be `image::ErrorArgs`?
-* Docs not generated for nested mix-ins.
-* Refactor `defaults!` and `properties!` to be proc-macros directly.
-    - The `macro_rules!` indirection causes the error span to be inside the macro instead of the call site..
 * Refactor `#[widget]`.
     - Test build error for parent not a widget.
     - Where is `widget_new!` available for the widget macro?
