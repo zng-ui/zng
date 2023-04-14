@@ -2,6 +2,8 @@
 
 * Fix widget docs.
     - Mix-in parent deref not included in docs.
+        - Caused by "recursion"?
+        - See https://github.com/rust-lang/rust/pull/90183#issuecomment-950215290
     - Inject JS in the docs of widget/mix-in structs to format the properties.
     - They can be identified with the `P` tag.
         Also group in the `unset_property` methods.

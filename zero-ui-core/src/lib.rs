@@ -856,7 +856,7 @@ macro_rules! widget_dft {
 /// directly implemented on the widget or from a trait.
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*};
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_core::widget_base::WidgetBase! {
@@ -868,7 +868,7 @@ macro_rules! widget_dft {
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*};
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
@@ -886,7 +886,7 @@ macro_rules! widget_dft {
 /// An full or partial path can be used to specify exactly what extension property will be set:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*};
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_core::widget_base::WidgetBase! {
@@ -900,11 +900,11 @@ macro_rules! widget_dft {
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*};
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
-/// self::background_color::background_color(&mut *wgt, colors::BLUE);
+/// self::background_color::background_color(&mut wgt, colors::BLUE);
 /// # }
 /// ```
 ///
@@ -913,7 +913,7 @@ macro_rules! widget_dft {
 /// Properties can have multiple parameters, multiple parameters can be set using the struct init syntax:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_core::widget_base::WidgetBase! {
@@ -927,7 +927,7 @@ macro_rules! widget_dft {
 /// Note that just like in struct init the parameters don't need to be in order:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_core::widget_base::WidgetBase! {
@@ -942,7 +942,7 @@ macro_rules! widget_dft {
 /// accepting any parameter order. Note each parameter is evaluated in the order they appear, even if they are assigned in a different order after.
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// let mut eval_order = vec![];
@@ -969,7 +969,7 @@ macro_rules! widget_dft {
 /// Properties with multiple parameters don't need to be set using the named syntax:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_core::widget_base::WidgetBase! {
@@ -980,7 +980,7 @@ macro_rules! widget_dft {
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
@@ -993,7 +993,7 @@ macro_rules! widget_dft {
 /// Is a variable with the same name as a property is in context the `= name` can be omitted:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*};
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
@@ -1017,8 +1017,9 @@ macro_rules! widget_dft {
 /// The above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*};
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// let id = "name";
 /// let background_color = colors::BLUE;
@@ -1027,7 +1028,7 @@ macro_rules! widget_dft {
 /// let wgt = zero_ui_core::widget_base::WidgetBase! {
 ///     id = id;
 ///     self::background_color = background_color;
-///         border = {
+///     border = {
 ///         widths: widths,
 ///         sides: colors::RED,
 ///     };
@@ -1041,7 +1042,7 @@ macro_rules! widget_dft {
 /// unset property will not be instantiated:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let wgt = zero_ui_core::widget_base::WidgetBase! {
@@ -1052,7 +1053,7 @@ macro_rules! widget_dft {
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
@@ -1069,7 +1070,7 @@ macro_rules! widget_dft {
 /// Generic properties need a *turbofish* annotation on assign:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, color::*};
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode { child }
 /// #
 /// # fn main() {
@@ -1084,10 +1085,11 @@ macro_rules! widget_dft {
 /// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
 ///
 ///  ```
-///  # use zero_ui_core::{*, var::*, color::*};
+///  # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[property(EVENT)] pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode { child }
 /// # fn main() {
+/// # let _scope = app::App::minimal();
 /// # let wgt = zero_ui_core::widget_base::WidgetBase! {
 /// background_color = colors::RED;
 ///
@@ -1137,6 +1139,7 @@ macro_rules! widget_dft {
 ///     pub static BAR_VAR: bool = false;
 /// }
 /// # fn main() {
+/// # let _scope = app::App::minimal();
 /// # let wgt = widget_base::WidgetBase! {
 /// background_color = colors::RED;
 ///

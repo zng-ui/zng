@@ -664,17 +664,12 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
                 };
             }
         },
-        None => match prop.path.get_ident() {
-            Some(_) => {
-                prop_init = quote_call! {
-                    #ident(#ident)
-                };
-            }
-            None => {
-                errors.push("missing value", util::path_span(&prop.path));
-                return quote!();
-            }
-        },
+        None => {
+            let ident = &prop.path.segments.last().unwrap().ident;
+            prop_init = quote_call! {
+                #ident(#ident)
+            };
+        }
     }
 
     quote! {

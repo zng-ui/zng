@@ -321,7 +321,7 @@ macro_rules! WidgetBaseMacro__ {
     ($($tt:tt)*) => {
         $crate::widget_new! {
             start {
-                let mut wgt__ = $crate::widget_base::start();
+                let mut wgt__ = $crate::widget_base::WidgetBase::start();
                 let wgt__ = &mut wgt__;
             }
             end { wgt__.build() }

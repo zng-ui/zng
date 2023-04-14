@@ -117,10 +117,12 @@ pub struct PropertyField {
 }
 impl Parse for PropertyField {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        Ok(PropertyField {
-            ident: input.parse()?,
-            colon: input.parse()?,
-            expr: {
+        let ident = input.parse()?;
+        let colon;
+        let expr;
+        if input.peek(Token![:]) {
+            colon = input.parse()?;
+            expr = {
                 let mut t = quote!();
                 while !input.is_empty() {
                     if input.peek(Token![,]) {
@@ -130,8 +132,13 @@ impl Parse for PropertyField {
                     tt.to_tokens(&mut t);
                 }
                 t
-            },
-        })
+            };
+        } else {
+            colon = parse_quote!(:);
+            expr = quote!(#ident);
+        };
+
+        Ok(PropertyField { ident, colon, expr })
     }
 }
 
