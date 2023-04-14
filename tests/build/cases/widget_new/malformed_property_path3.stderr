@@ -4,8 +4,14 @@ error: expected `;`
 6 |         zero_ui::properties:margin = 0;
   |                            ^
 
-error: missing value
+error[E0425]: cannot find function `properties` in module `zero_ui::properties`
  --> cases/widget_new/malformed_property_path3.rs:6:18
   |
 6 |         zero_ui::properties:margin = 0;
-  |                  ^^^^^^^^^^
+  |                  ^^^^^^^^^^ not found in `zero_ui::properties`
+
+error[E0425]: cannot find value `properties` in this scope
+ --> cases/widget_new/malformed_property_path3.rs:6:18
+  |
+6 |         zero_ui::properties:margin = 0;
+  |                  ^^^^^^^^^^ not found in this scope
