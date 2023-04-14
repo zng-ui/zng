@@ -15,7 +15,7 @@ use crate::prelude::new_widget::*;
 pub struct Tip(StyleMix<FocusableMix<Container>>);
 impl Tip {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             hit_test_mode = false;
             style_fn = STYLE_VAR;
@@ -66,7 +66,7 @@ pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl Ui
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             crate::properties::padding = (2, 4);
             crate::properties::corner_radius = 3;

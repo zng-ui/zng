@@ -114,7 +114,7 @@ pub fn style_fn(_child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNod
 /// impl Foo {
 ///     
 ///     fn on_start(&mut self) {
-///         widget_dft! {
+///         widget_set! {
 ///             self;
 ///             style_fn = STYLE_VAR;
 ///         }

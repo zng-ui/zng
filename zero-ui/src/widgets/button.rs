@@ -7,7 +7,7 @@ use crate::prelude::new_widget::*;
 pub struct Button(FocusableMix<StyleMix<Container>>);
 impl Button {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             style_fn = STYLE_VAR;
             capture_mouse = true;
@@ -88,7 +88,7 @@ pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn on_start(&mut self) {
         use crate::properties::*;
-        widget_dft! {
+        widget_set! {
             self;
 
             padding = (7, 15);

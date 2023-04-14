@@ -35,7 +35,7 @@ pub use window_properties::*;
 pub struct Window(Container);
 impl Window {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
 
             background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));

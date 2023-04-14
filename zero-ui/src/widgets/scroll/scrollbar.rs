@@ -9,7 +9,7 @@ use crate::prelude::new_widget::*;
 pub struct Scrollbar(WidgetBase);
 impl Scrollbar {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             crate::properties::background_color = vis::BACKGROUND_VAR;
             crate::properties::click_mode = ClickMode::Repeat;

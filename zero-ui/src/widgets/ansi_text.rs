@@ -19,7 +19,7 @@ use zero_ui::prelude::new_widget::*;
 pub struct AnsiText(WidgetBase);
 impl AnsiText {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             crate::widgets::text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
         };

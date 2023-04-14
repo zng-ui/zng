@@ -562,8 +562,9 @@ pub use zero_ui_proc_macros::property;
 ///
 /// # Defaults
 ///
-/// The [`widget_dft!`] macro can be used inside `on_start` to set properties and when conditions that are applied on the widget if not
-/// overridden by derived widgets or the widget instance code.
+/// The [`widget_set!`] macro can be used inside `on_start` to set properties and when conditions that are applied on the widget if not
+/// overridden by derived widgets or the widget instance code. During the call to `on_start` the `self.importance()` value is [`Importance::WIDGET`],
+/// after it is changed to [`Importance::INSTANCE`], so just by setting properties in `on_start` they define the *default* value.
 ///
 /// # Impl Properties
 ///
@@ -702,7 +703,7 @@ pub use zero_ui_proc_macros::widget;
 /// pub struct FocusableMix<P>(P);
 /// impl<P: WidgetImpl> FocusableMix<P> {
 ///     fn on_start(&mut self) {
-///         widget_dft! {
+///         widget_set! {
 ///             self;
 ///             focusable = true;
 ///         }
@@ -735,68 +736,7 @@ mod private {
     pub trait Sealed {}
 }
 
-/// Sets the default properties and when conditions on an widget.
-///
-/// # Examples
-///
-/// ```
-/// # fn main() { }
-/// # use zero_ui_core::{*, widget_base::*};
-/// #[widget($crate::Wgt)]
-/// pub struct Wgt(WidgetBase);
-/// impl Wgt {
-///     fn on_start(&mut self) {
-///         widget_dft! {
-///             self;
-///             enabled = false;
-///         }
-///     }
-/// }
-/// ```
-///
-/// This macro has the same syntax as [`widget_set!`], it only changes the importance of property and when defined in it.
-#[macro_export]
-macro_rules! widget_dft {
-    (
-        $(#[$skip:meta])*
-        $($invalid:ident)::+ = $($tt:tt)*
-    ) => {
-        compile_error!{"expected `self;` or `&mut <wgt>;` at the beginning"}
-    };
-    (
-        $(#[$skip:meta])*
-        when $($invalid:tt)*
-    ) => {
-        compile_error!{"expected `self;` or `&mut <wgt>;` at the beginning"}
-    };
-    (
-        $wgt_mut:ident;
-        $($tt:tt)*
-    ) => {
-        $crate::widget_dft! {
-            &mut *$wgt_mut;
-            $($tt)*
-        }
-    };
-    (
-        $wgt_borrow_mut:expr;
-        $($tt:tt)*
-    ) => {
-        $crate::widget_new! {
-            start {
-                let wgt__ = $wgt_borrow_mut;
-                $crate::widget_base::WidgetImpl::base(wgt__).start_defaults();
-            }
-            end { $crate::widget_base::WidgetImpl::base(wgt__).end_defaults() }
-            new { $($tt)* }
-        }
-    };
-}
-
-/// Sets properties and when condition on a partial widget.
-///
-/// Note that you must use [`widget_dft!`] in `on_start`, this macro is building an widget instance
-/// with properties that are only conditionally set.
+/// Sets properties and when condition on a building widget.
 ///
 /// # Examples
 ///
@@ -1059,7 +999,7 @@ macro_rules! widget_dft {
 /// ```
 ///
 /// Each property method generates an auxiliary `unset_property` method, the unset is registered in the widget builder using the current
-/// importance, in [`widget_dft!`] they only unset already inherited default assigns, in [`widget_set!`] it unsets all inherited or
+/// importance, in `on_start` they only unset already inherited default assigns, in instances it unsets all inherited or
 /// previous assigns, see [`WidgetBuilder::push_unset`] for more details.
 ///
 /// # Generic Properties
@@ -1178,6 +1118,15 @@ macro_rules! widget_set {
         when = $($invalid:tt)*
     ) => {
         compile_error!{"expected `&mut <wgt>;` at the beginning"}
+    };
+    (
+        $wgt_mut:ident;
+        $($tt:tt)*
+    ) => {
+        $crate::widget_set! {
+            &mut *$wgt_mut;
+            $($tt)*
+        }
     };
     (
         $wgt_borrow_mut:expr;

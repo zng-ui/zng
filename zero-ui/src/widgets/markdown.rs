@@ -27,7 +27,7 @@ pub use view_fn::*;
 pub struct Markdown(WidgetBase);
 impl Markdown {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             on_link = hn!(|args: &LinkArgs| {
                 try_default_link_action(args);

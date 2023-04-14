@@ -9,8 +9,8 @@ use crate::{
     var::{IntoValue, Var},
     widget,
     widget_builder::WidgetBuilder,
-    widget_dft,
     widget_instance::{UiNode, WidgetId},
+    widget_set,
 };
 
 // Used in multiple tests.
@@ -38,7 +38,7 @@ pub fn implicit_inherited() {
 pub struct BarWgt(crate::widget_base::WidgetBase);
 impl BarWgt {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             bar_trace = "bar_wgt";
             foo_trace = "foo_wgt";
@@ -99,7 +99,7 @@ pub fn wgt_assign_values() {
 pub struct ResetWgt(BarWgt);
 impl ResetWgt {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             bar_trace = "reset_bar_wgt";
             foo_trace = "reset_wgt";
@@ -128,7 +128,7 @@ pub fn wgt_with_new_value_for_inherited() {
 pub struct DefaultValueWgt(crate::widget_base::WidgetBase);
 impl DefaultValueWgt {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             util::trace = "default_value_wgt";
         }
@@ -261,7 +261,7 @@ pub fn wgt_same_nest_group_order() {
 pub struct WhenWgt(crate::widget_base::WidgetBase);
 impl WhenWgt {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             util::live_trace = "boo!";
 
@@ -330,7 +330,7 @@ pub struct MultiWhenWgt(crate::widget_base::WidgetBase);
 
 impl MultiWhenWgt {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             util::live_trace = "default";
             when *#util::is_state {
@@ -372,7 +372,7 @@ pub fn wgt_multi_when() {
 pub struct CfgPropertyWgt(crate::widget_base::WidgetBase);
 impl CfgPropertyWgt {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             // property not included in widget.
             #[cfg(never)]
@@ -445,7 +445,7 @@ pub fn user_cfg_property() {
 pub struct CfgWhenWgt(crate::widget_base::WidgetBase);
 impl CfgWhenWgt {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             util::live_trace = "trace";
 
@@ -728,7 +728,7 @@ pub fn property_nest_group_sorting_node_inherited_init() {
 pub struct PropertyNestGroupSortingDefaultsWgt(PropertyNestGroupSortingWgt);
 impl PropertyNestGroupSortingDefaultsWgt {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             util::count_context = Position::next("count_context");
             util::count_context2 = Position::next("count_context2");
@@ -1036,7 +1036,7 @@ pub fn generated_name_collision_in_when_assign() {
 pub struct NameCollisionWgtWhen(crate::widget_base::WidgetBase);
 impl NameCollisionWgtWhen {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             util::live_trace = "1";
 

@@ -381,7 +381,7 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
 pub struct ImgWindow(Window);
 impl ImgWindow {
     fn on_start(&mut self) {
-        zero_ui::core::widget_dft! {
+        zero_ui::core::widget_set! {
             self;
             // renderer_debug = {
             //     use zero_ui::core::render::webrender_api::DebugFlags;

@@ -92,7 +92,7 @@ mod widgets {
     pub struct MrBorders(Container);
     impl MrBorders {
         fn on_start(&mut self) {
-            widget_dft! {
+            widget_set! {
                 self;
                 padding = 20;
 

@@ -9,7 +9,7 @@ use crate::core::widget_mixin;
 pub struct FocusableMix<P>(P);
 impl<P: WidgetImpl> FocusableMix<P> {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             focusable = true;
             when *#focus::is_focused_hgl {

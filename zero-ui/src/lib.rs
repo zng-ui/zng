@@ -282,7 +282,7 @@ pub mod prelude {
     /// pub struct MyWidget(WidgetBase);
     /// impl MyWidget {
     ///     fn on_start(&mut self) {
-    ///         widget_dft! {
+    ///         widget_set! {
     ///             self;
     ///             background_color = colors::BLUE;
     ///         }
@@ -320,7 +320,7 @@ pub mod prelude {
         pub use crate::core::{
             property, ui_node, widget,
             widget_base::{self, HitTestMode, WidgetBase, WidgetImpl},
-            widget_dft, widget_impl,
+            widget_impl,
             widget_info::{
                 InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,
                 WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,

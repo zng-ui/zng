@@ -136,7 +136,7 @@ pub mod hr {
     pub struct Hr(super::RuleLine);
     impl Hr {
         fn on_start(&mut self) {
-            widget_dft! {
+            widget_set! {
                 self;
                 orientation = LineOrientation::Horizontal;
                 color = COLOR_VAR;

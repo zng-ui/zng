@@ -7,7 +7,7 @@ use crate::prelude::new_widget::*;
 pub struct TextInput(StyleMix<text::Text>);
 impl TextInput {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
 
             txt_editable = true;
@@ -69,7 +69,7 @@ pub fn border_color_focused() -> impl Var<Rgba> {
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             padding = (7, 15);
             crate::properties::cursor = CursorIcon::Text;

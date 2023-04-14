@@ -21,7 +21,7 @@ pub use thumb::Thumb;
 pub struct Scroll(Container);
 impl Scroll {
     fn on_start(&mut self) {
-        widget_dft! {
+        widget_set! {
             self;
             child_align = Align::CENTER;
             clip_to_bounds = true;

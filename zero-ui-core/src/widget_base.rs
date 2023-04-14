@@ -50,10 +50,11 @@ impl WidgetBase {
         let builder = WidgetBuilder::new(widget);
         let mut w = Self {
             builder: RefCell::new(Some(builder)),
-            importance: Importance::INSTANCE,
+            importance: Importance::WIDGET,
             when: RefCell::new(None),
         };
         w.on_start();
+        w.importance = Importance::INSTANCE;
         w
     }
 
@@ -88,14 +89,11 @@ impl WidgetBase {
         nodes::build(wgt)
     }
 
-    /// Properties, unsets and when conditions set after this call will have [`Importance::WIDGET`].
-    pub fn start_defaults(&mut self) {
-        self.importance = Importance::WIDGET;
-    }
-
-    /// Properties, unsets and when conditions set after this call will have [`Importance::INSTANCE`].
-    pub fn end_defaults(&mut self) {
-        self.importance = Importance::INSTANCE;
+    /// Gets or sets the importance of the next property assigns, unsets or when blocks.
+    ///
+    /// Note that during the `on_start` call this is [`Importance::WIDGET`] and after it is [`Importance::INSTANCE`].
+    pub fn importance(&mut self) -> &mut Importance {
+        &mut self.importance
     }
 
     /// Start building a `when` block, all properties set after this call go on the when block.
