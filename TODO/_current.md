@@ -6,7 +6,6 @@
     - They can be identified with the `P` tag.
         Also group in the `unset_property` methods.
 
-* (Re)write property/when syntax docs in `widget_set!`.
 * Test widget generated macro in crate that does not depend on zero-ui directly.
 
 * Test all.

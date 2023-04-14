@@ -756,6 +756,8 @@ mod private {
 ///     }
 /// }
 /// ```
+///
+/// This macro has the same syntax as [`widget_set!`], it only changes the importance of property and when defined in it.
 #[macro_export]
 macro_rules! widget_dft {
     (
@@ -845,6 +847,324 @@ macro_rules! widget_dft {
 ///
 /// You should use this macro only in contexts where a widget will be build in steps, or in very hot code paths where a widget
 /// has many properties and only some will be non-default per instance.
+///
+///
+///
+/// # Property Set
+///
+/// Properties can be assigned using the `property = value;` syntax, this expands to a call to the property method, either
+/// directly implemented on the widget or from a trait.
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// id = "test";
+/// background_color = colors::BLUE;
+/// # }; }
+/// ```
+///
+/// The example above is equivalent to:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// wgt.id("test");
+/// wgt.background_color(colors::BLUE);
+/// # }
+/// ```
+///
+/// Note that `id` is an intrinsic property inherited from [`WidgetBase`], but `background_color` is an extension property declared
+/// by a [`property`] function. Extension properties require `&mut self` access to the widget, intrinsic properties only require `&self`,
+/// this is done so that IDEs that use a different style for mutable methods highlight the properties that are not intrinsic to the widget.
+///
+/// ## Path Set
+///
+/// An full or partial path can be used to specify exactly what extension property will be set:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// self::background_color = colors::BLUE;
+/// # }; }
+/// ```
+///
+/// In the example above `self::background_color` specify that an extension property that is imported in the `self` module must be set,
+/// even if the widget gets an intrinsic `background_color` property the extension property will still be used.
+///
+/// The example above is equivalent to:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// self::background_color::background_color(&mut *wgt, colors::BLUE);
+/// # }
+/// ```
+///
+/// ## Named Set
+///
+/// Properties can have multiple parameters, multiple parameters can be set using the struct init syntax:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// border = {
+///     widths: 1,
+///     sides: colors::RED,
+/// };
+/// # }; }
+/// ```
+///
+/// Note that just like in struct init the parameters don't need to be in order:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// border = {
+///     sides: colors::RED,
+///     widths: 1,
+/// };
+/// # }; }
+/// ```
+///
+/// Internally each property method has auxiliary methods that validate the member names and construct the property using sorted params, therefore
+/// accepting any parameter order. Note each parameter is evaluated in the order they appear, even if they are assigned in a different order after.
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// let mut eval_order = vec![];
+///
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// border = {
+///     sides: {
+///         eval_order.push("sides");
+///         colors::RED
+///     },
+///     widths: {
+///         eval_order.push("widths");
+///         1
+///     },
+/// };
+/// # };
+///
+/// assert_eq!(eval_order, vec!["sides", "widths"]);
+/// # }
+/// ```
+///
+/// ## Unnamed Set Multiple
+///
+/// Properties with multiple parameters don't need to be set using the named syntax:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// border = 1, colors::RED;
+/// # }; }
+/// ```
+///
+/// The example above is equivalent to:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// wgt.border(1, colors::RED);
+/// # }
+/// ```
+///
+/// ## Shorthand Set
+///
+/// Is a variable with the same name as a property is in context the `= name` can be omitted:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// let id = "name";
+/// let background_color = colors::BLUE;
+/// let widths = 1;
+///
+/// let wgt = zero_ui_core::widget_base::WidgetBase! {
+///     id;
+///     self::background_color;
+///     border = {
+///         widths,
+///         sides: colors::RED,
+///     };
+/// };
+/// # }
+/// ```
+///
+/// Note that the shorthand syntax also works for path properties and parameter names.
+///
+/// The above is equivalent to:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// let id = "name";
+/// let background_color = colors::BLUE;
+/// let widths = 1;
+///
+/// let wgt = zero_ui_core::widget_base::WidgetBase! {
+///     id = id;
+///     self::background_color = background_color;
+///         border = {
+///         widths: widths,
+///         sides: colors::RED,
+///     };
+/// };
+/// # }
+/// ```
+///
+/// # Property Unset
+///
+/// All properties can be assigned to an special value `unset!`, that *removes* a property, when the widget is build the
+/// unset property will not be instantiated:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// border = unset!;
+/// # }; }
+/// ```
+///
+/// The example above is equivalent to:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// wgt.unset_border();
+/// # }
+/// ```
+///
+/// Each property method generates an auxiliary `unset_property` method, the unset is registered in the widget builder using the current
+/// importance, in [`widget_dft!`] they only unset already inherited default assigns, in [`widget_set!`] it unsets all inherited or
+/// previous assigns, see [`WidgetBuilder::push_unset`] for more details.
+///
+/// # Generic Properties
+///
+/// Generic properties need a *turbofish* annotation on assign:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*};
+/// # #[property(CONTEXT)] pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode { child }
+/// #
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// value::<f32> = 1.0;
+/// # };}
+/// ```
+///
+/// # When
+///
+/// Conditional property assigns can be setup using `when` blocks. A `when` block has a `bool` expression and multiple property assigns,
+/// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
+///
+///  ```
+///  # use zero_ui_core::{*, var::*, color::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(EVENT)] pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// background_color = colors::RED;
+///
+/// when *#is_pressed {
+///     background_color = colors::GREEN;
+/// }
+/// # }; }
+/// ```
+///
+/// ## When Condition
+///
+/// The `when` block defines a condition expression, in the example above this is `*#is_pressed`. The expression can be any Rust expression
+/// that results in a [`bool`] value, you can reference properties in it using the `#` token followed by the property name or path and you
+/// can reference variables in it using the `#{var}` syntax. If a property or var is reference the `when` block is dynamic, updating all
+/// assigned properties when the expression result changes.
+///
+/// ### Property Reference
+///
+/// The most common `when` expression reference is a property, in the example above the `is_pressed` property is instantiated for the widget
+/// and it's input read-write var controls when the background is set to green. Note that a reference to the value is inserted in the expression
+/// so an extra deref `*` is required. A property can also be referenced with a path, `#properties::is_pressed` also works.
+///
+/// The syntax seen so far is actually a shorthand way to reference the first input of a property, the full syntax is `#is_pressed.0` or
+/// `#is_pressed.state`. You can use the extended syntax to reference inputs of properties with out than one input, the input can be
+/// reference by tuple-style index or by name. Note that if the value it self is a tuple or `struct` you need to use the extended syntax
+/// to reference a member of the value, `#foo.0.0` or `#foo.0.name`. Methods have no ambiguity, `#foo.name()` is the same as `#foo.0.name()`.
+///
+/// Not all properties can be referenced in `when` conditions, only inputs of type `impl IntoVar<T>` and `impl IntoValue<T>` are
+/// allowed, attempting to reference a different kind of input generates a compile error.
+///
+/// ### Variable Reference
+///
+/// Other variable can also be referenced, context variables or any locally declared variable can be referenced. Like with properties
+/// the variable value is inserted in the expression as a reference  so you may need to deref in case the var is a simple [`Copy`] value.
+///
+/// ```
+/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
+/// #
+/// # #[property(FILL)]
+/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// #   let _ = color;
+/// #   child
+/// # }
+/// #
+/// context_var! {
+///     pub static FOO_VAR: Vec<&'static str> = vec![];
+///     pub static BAR_VAR: bool = false;
+/// }
+/// # fn main() {
+/// # let wgt = widget_base::WidgetBase! {
+/// background_color = colors::RED;
+///
+/// when !*#{BAR_VAR} && #{FOO_VAR}.contains(&"green") {
+///     background_color = colors::GREEN;
+/// }
+/// # };}
+/// ```
+///
+/// ## When Assigns
+///
+/// Inside the `when` block a list of property assigns is expected, most properties can be assigned, but `impl IntoValue<T>` properties cannot,
+/// you also cannot `unset!` in when assigns, a compile time error happens if the property cannot be when assigned.
+///
+/// On instantiation a single instance of the property will be generated, the parameters will track the when expression state and update
+/// to the value assigned when it is `true`. When no block is `true` the value assigned to the property outside `when` blocks is used, or the property default value. When more then one block is `true` the *last* one sets the value.
+///
+/// ### Default Values
+///
+/// A when assign can be defined by a property without setting a default value, during instantiation if the property declaration has
+/// a default value it is used, or if the property was later assigned a value it is used as *default*, if it is not possible to generate
+/// a default value the property is not instantiated and the when assign is not used.
+///
+/// The same apply for properties referenced in the condition expression, note that all `is_state` properties have a default value so
+/// it is more rare that a default value is not available. If a condition property cannot be generated the entire when block is ignored.
+///
+/// [`WidgetBase`]: struct@crate::widget_base::WidgetBase
+/// [`WidgetBuilder::push_unset`]: crate::widget_builder::WidgetBuilder::push_unset
 #[macro_export]
 macro_rules! widget_set {
     (
