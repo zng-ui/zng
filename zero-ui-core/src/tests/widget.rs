@@ -6,10 +6,10 @@ use self::util::Position;
 use crate::{
     app::App,
     context::{WIDGET, WINDOW},
-    defaults, property_args, property_id,
+    defaults,
     var::{IntoValue, Var},
     widget,
-    widget_builder::{Importance, WidgetBuilder},
+    widget_builder::WidgetBuilder,
     widget_instance::{UiNode, WidgetId},
 };
 
@@ -103,6 +103,7 @@ impl ResetWgt {
     fn on_start(&mut self) {
         defaults! {
             self;
+            bar_trace = "reset_bar_wgt";
             foo_trace = "reset_wgt";
         }
     }
@@ -118,6 +119,7 @@ pub fn wgt_with_new_value_for_inherited() {
     });
 
     assert!(util::traced(&default, "reset_wgt"));
+    assert!(util::traced(&default, "reset_bar_wgt"));
     assert!(!util::traced(&default, "bar_wgt"));
 }
 
@@ -535,53 +537,6 @@ pub fn user_cfg_when() {
         WINDOW.test_update(&mut wgt, None);
 
         assert!(util::traced(&wgt, "trace"));
-    });
-}
-
-/*
- *  Tests widget captures.
- */
-#[widget($crate::tests::widget::CapturePropertiesWgt)]
-pub struct CapturePropertiesWgt(crate::widget_base::WidgetBase);
-impl CapturePropertiesWgt {
-    #[widget(on_start)]
-    fn on_start(&mut self) {
-        defaults! {
-            self;
-            util::trace = "new";
-        }
-    }
-
-    pub fn build(&mut self) -> impl crate::widget_instance::UiNode {
-        let mut wgt = self.take_builder();
-
-        let msg: &'static str = wgt.capture_value(property_id!(util::trace)).unwrap();
-        let msg = match msg {
-            "new" => "custom new",
-            "user-new" => "custom new (user)",
-            o => panic!("unexpected {o:?}"),
-        };
-        wgt.push_property(
-            Importance::WIDGET,
-            property_args! {
-                util::trace = msg;
-            },
-        );
-
-        crate::widget_base::nodes::build(wgt)
-    }
-}
-#[test]
-pub fn wgt_capture_properties() {
-    let _app = App::minimal().run_headless(false);
-
-    WINDOW.with_test_context(|| {
-        let mut wgt = CapturePropertiesWgt!();
-        wgt.init();
-
-        assert!(util::traced(&wgt, "property"));
-        assert!(util::traced(&wgt, "custom new"));
-        assert!(!util::traced(&wgt, "new"));
     });
 }
 
