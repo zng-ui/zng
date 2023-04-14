@@ -116,8 +116,19 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         (quote!(), quote!())
     };
 
-    // accumulate the most errors as possible before returning.
-    let mut errors = Errors::default();
+    // a `$crate` path to the widget struct.
+    let (struct_path, custom_rules) = if mixin {
+        (quote!(), vec![])
+    } else {
+        match syn::parse::<Args>(args) {
+            Ok(a) => (a.path.to_token_stream(), a.custom_rules),
+            Err(e) => {
+                let mut r = e.to_compile_error().to_token_stream();
+                struct_.to_tokens(&mut r);
+                return r.into();
+            }
+        }
+    };
 
     let vis = struct_.vis;
     let ident = struct_.ident;
@@ -131,14 +142,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let (macro_r, start_r) = if mixin {
         (quote!(), quote!())
     } else {
-        // a `$crate` path to the widget struct.
-        let (struct_path, custom_rules) = match syn::parse::<Args>(args) {
-            Ok(a) => (a.path, a.custom_rules),
-            Err(e) => {
-                errors.push_syn(e);
-                (quote! { $crate::missing_widget_path }, vec![])
-            }
-        };
         let struct_path_str = struct_path.to_string().replace(' ', "");
         let struct_path_slug = path_slug(&struct_path_str);
 
@@ -306,8 +309,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         }
 
         #macro_r
-
-        #errors
     };
     r.into()
 }
