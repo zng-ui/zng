@@ -599,6 +599,20 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
         }
     }
 
+    let ident_meta = ident_spanned!(ident.span()=> "{}_meta__", ident);
+
+    let when_check = if is_when {
+        let meta = quote_call!(#ident_meta());
+        quote! {
+            {
+                let meta__ = #meta
+                meta__.allowed_in_when_assign();
+            }
+        }
+    } else {
+        quote!()
+    };
+
     let prop_init;
 
     match &prop.value {
@@ -625,7 +639,6 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
                 let idents = fields.iter().map(|f| &f.ident);
                 let values = fields.iter().map(|f| &f.expr);
                 let ident_sorted = ident_spanned!(ident.span()=> "{}_sorted__", ident);
-                let ident_meta = ident_spanned!(ident.span()=> "{}_meta__", ident);
 
                 let call = quote_call! {
                     #ident_sorted(#(#idents_sorted),*)
@@ -665,6 +678,7 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
 
     quote! {
         #attrs {
+            #when_check
             #custom_expand
             #prop_init
         }

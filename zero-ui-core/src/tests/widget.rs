@@ -335,12 +335,12 @@ impl MultiWhenWgt {
     fn on_start(&mut self) {
         defaults! {
             self;
-            util::trace = "default";
+            util::live_trace = "default";
             when *#util::is_state {
-                util::trace = "state_0";
+                util::live_trace = "state_0";
             }
             when *#util::is_state {
-                util::trace = "state_1";
+                util::live_trace = "state_1";
             }
         }
     }
