@@ -59,10 +59,10 @@ context_var! {
     pub static IMAGE_CACHE_VAR: bool = true;
 
     /// Widget function for the content shown when the image does not load.
-    pub static IMAGE_ERROR_GEN_VAR: WidgetFn<ImageErrorArgs> = WidgetFn::nil();
+    pub static IMAGE_ERROR_GEN_VAR: WidgetFn<ImgErrorArgs> = WidgetFn::nil();
 
     /// Widget function for the content shown when the image is still loading.
-    pub static IMAGE_LOADING_GEN_VAR: WidgetFn<ImageLoadingArgs> = WidgetFn::nil();
+    pub static IMAGE_LOADING_GEN_VAR: WidgetFn<ImgLoadingArgs> = WidgetFn::nil();
 
     /// Custom image load and decode limits.
     ///
@@ -296,7 +296,7 @@ pub fn is_loaded(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 ///
 /// [`wgt_fn!`]: crate::widgets::wgt_fn
 #[property(CONTEXT, default(IMAGE_ERROR_GEN_VAR), impl(Image))]
-pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageErrorArgs>>) -> impl UiNode {
+pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_ERROR_GEN_VAR, wgt_fn)
 }
 
@@ -304,7 +304,7 @@ pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageError
 ///
 /// [`wgt_fn!`]: crate::widgets::wgt_fn
 #[property(CONTEXT, default(IMAGE_LOADING_GEN_VAR), impl(Image))]
-pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageLoadingArgs>>) -> impl UiNode {
+pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgLoadingArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_LOADING_GEN_VAR, wgt_fn)
 }
 
@@ -312,20 +312,20 @@ pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageLoa
 ///
 /// [`img_loading_fn`]: fn@img_loading_fn
 #[derive(Clone, Debug)]
-pub struct ImageLoadingArgs {}
+pub struct ImgLoadingArgs {}
 
 /// Arguments for [`on_load`].
 ///
 /// [`on_load`]: fn@on_load
 #[derive(Clone, Debug)]
-pub struct ImageLoadArgs {}
+pub struct ImgLoadArgs {}
 
 /// Arguments for [`on_error`] and [`img_error_fn`].
 ///
 /// [`on_error`]: fn@on_error
 /// [`img_error_fn`]: fn@img_error_fn
 #[derive(Clone, Debug)]
-pub struct ImageErrorArgs {
+pub struct ImgErrorArgs {
     /// Error message.
     pub error: Txt,
 }
@@ -343,10 +343,10 @@ pub struct ImageErrorArgs {
 ///
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
 #[property(EVENT, impl(Image))]
-pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>) -> impl UiNode {
+pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -> impl UiNode {
     #[ui_node(struct OnErrorNode {
         child: impl UiNode,
-        handler: impl WidgetHandler<ImageErrorArgs>,
+        handler: impl WidgetHandler<ImgErrorArgs>,
         error: Txt,
     })]
     impl UiNode for OnErrorNode {
@@ -356,7 +356,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
             CONTEXT_IMAGE_VAR.with(|i| {
                 if let Some(error) = i.error() {
                     self.error = error;
-                    self.handler.event(&ImageErrorArgs { error: self.error.clone() });
+                    self.handler.event(&ImgErrorArgs { error: self.error.clone() });
                 }
             });
             self.child.init();
@@ -367,7 +367,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
                 if let Some(error) = new_img.error() {
                     if self.error != error {
                         self.error = error;
-                        self.handler.event(&ImageErrorArgs { error: self.error.clone() });
+                        self.handler.event(&ImgErrorArgs { error: self.error.clone() });
                     }
                 } else {
                     self.error = "".into();
@@ -398,17 +398,17 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
 ///
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
 #[property(EVENT, impl(Image))]
-pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -> impl UiNode {
+pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> impl UiNode {
     #[ui_node(struct OnLoadNode {
         child: impl UiNode,
-        handler: impl WidgetHandler<ImageLoadArgs>,
+        handler: impl WidgetHandler<ImgLoadArgs>,
     })]
     impl UiNode for OnLoadNode {
         fn init(&mut self) {
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
             if CONTEXT_IMAGE_VAR.with(Img::is_loaded) {
-                self.handler.event(&ImageLoadArgs {});
+                self.handler.event(&ImgLoadArgs {});
             }
             self.child.init();
         }
@@ -416,7 +416,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
         fn update(&mut self, updates: &WidgetUpdates) {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
                 if new_img.is_loaded() {
-                    self.handler.event(&ImageLoadArgs {});
+                    self.handler.event(&ImgLoadArgs {});
                 }
             }
 

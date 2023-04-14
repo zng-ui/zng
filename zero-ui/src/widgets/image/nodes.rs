@@ -3,7 +3,7 @@
 use std::mem;
 
 use super::image_properties::{
-    ImageErrorArgs, ImageFit, ImageLoadingArgs, IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_GEN_VAR,
+    ImgErrorArgs, ImageFit, ImgLoadingArgs, IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_GEN_VAR,
     IMAGE_FIT_VAR, IMAGE_LIMITS_VAR, IMAGE_LOADING_GEN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_FACTOR_VAR,
     IMAGE_SCALE_PPI_VAR, IMAGE_SCALE_VAR,
 };
@@ -170,14 +170,14 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
             } else if is_new {
                 // init or fn changed.
                 if let Some(e) = CONTEXT_IMAGE_VAR.get().error() {
-                    DataUpdate::Update(ImageErrorArgs { error: e })
+                    DataUpdate::Update(ImgErrorArgs { error: e })
                 } else {
                     DataUpdate::None
                 }
             } else if let Some(new) = CONTEXT_IMAGE_VAR.get_new() {
                 // image var update.
                 if let Some(e) = new.error() {
-                    DataUpdate::Update(ImageErrorArgs { error: e })
+                    DataUpdate::Update(ImgErrorArgs { error: e })
                 } else {
                     DataUpdate::None
                 }
@@ -227,14 +227,14 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
             } else if is_new {
                 // init or fn changed.
                 if CONTEXT_IMAGE_VAR.with(Img::is_loading) {
-                    DataUpdate::Update(ImageLoadingArgs {})
+                    DataUpdate::Update(ImgLoadingArgs {})
                 } else {
                     DataUpdate::None
                 }
             } else if let Some(new) = CONTEXT_IMAGE_VAR.get_new() {
                 // image var update.
                 if new.is_loading() {
-                    DataUpdate::Update(ImageLoadingArgs {})
+                    DataUpdate::Update(ImgLoadingArgs {})
                 } else {
                     DataUpdate::None
                 }

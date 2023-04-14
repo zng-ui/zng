@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::core::task::http;
-use zero_ui::widgets::image::{img_error_fn, img_loading_fn, ImageErrorArgs};
+use zero_ui::widgets::image::{img_error_fn, img_loading_fn, ImgErrorArgs};
 use zero_ui::{
     core::image::{ImageLimits, IMAGES},
     prelude::*,
@@ -261,7 +261,7 @@ fn large_image() -> impl UiNode {
                         img_limits = Some(ImageLimits::none().with_max_encoded_len(300.megabytes()).with_max_decoded_len(3.gigabytes()));
                         img_downscale = Px(8000);
 
-                        on_error = hn!(|args: &ImageErrorArgs| {
+                        on_error = hn!(|args: &ImgErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
                         });
 
@@ -296,7 +296,7 @@ fn panorama_image() -> impl UiNode {
                             img_fit = ImageFit::Fill;
                             source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
                             img_limits = Some(ImageLimits::none().with_max_encoded_len(130.megabytes()).with_max_decoded_len(1.gigabytes()));
-                            on_error = hn!(|args: &ImageErrorArgs| {
+                            on_error = hn!(|args: &ImgErrorArgs| {
                                 tracing::error!(target: "unexpected", "{}", args.error);
                             });
                         };
@@ -330,7 +330,7 @@ fn block_window_load_image() -> impl UiNode {
                             source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
                             img_limits = Some(ImageLimits::none().with_max_encoded_len(130.megabytes()).with_max_decoded_len(1.gigabytes()));
 
-                            on_error = hn!(|args: &ImageErrorArgs| {
+                            on_error = hn!(|args: &ImgErrorArgs| {
                                 tracing::error!(target: "unexpected", "{}", args.error);
                             });
                         }
@@ -406,7 +406,7 @@ impl ImgWindow {
             img_loading_fn = wgt_fn!(|_| loading());
 
             // content shown by all images that failed to load.
-            img_error_fn = wgt_fn!(|args: ImageErrorArgs| {
+            img_error_fn = wgt_fn!(|args: ImgErrorArgs| {
                 center_viewport(Text! {
                     txt = args.error;
                     margin = 8;

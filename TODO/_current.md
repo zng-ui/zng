@@ -1,15 +1,14 @@
 # Widget & Property Refactor
 
-* Docs not generated for nested mix-ins. 
+* Fix widget docs.
+    - Mix-in parent deref not included in docs.
+    - Inject JS in the docs of widget/mix-in structs to format the properties.
+    - They can be identified with the `P` tag.
+        Also group in the `unset_property` methods.
 
-* Review names of widget items that have the widget prefix on the name.
-    `ImageErrorArgs` could be `image::ErrorArgs`?
-* Refactor `#[widget]`.
-    - Test build error for parent not a widget.
-    - Where is `widget_new!` available for the widget macro?
-* Review docs.
-    - No more property rename.
-    - `#[widget]` docs.
+* (Re)write property/when syntax docs in `widget_set!`.
+* Test widget generated macro in crate that does not depend on zero-ui directly.
+
 * Test all.
 * Merge.
 
