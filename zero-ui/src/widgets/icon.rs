@@ -22,7 +22,7 @@ impl Icon {
         self.builder().push_build_action(on_build);
     }
 
-    impl_properties! {
+    widget_impl! {
         /// Spacing in between the icon and background edges or border.
         pub fn crate::properties::padding(padding: impl IntoVar<SideOffsets>);
     }

@@ -343,7 +343,7 @@ pub use zero_ui_proc_macros::ui_node;
 /// this makes the property have priority over all others of the same name, only a derived widget can override with another strongly associated
 /// property.
 ///
-/// Note that you can use the [`impl_properties!`] in widget declarations to implement existing properties for a widget.
+/// Note that you can use the [`widget_impl!`] in widget declarations to implement existing properties for a widget.
 ///
 /// ## Capture
 ///
@@ -563,19 +563,19 @@ pub use zero_ui_proc_macros::property;
 ///
 /// # Defaults
 ///
-/// The [`defaults!`] macro can be used inside `on_start` to set properties and when conditions that are applied on the widget if not
+/// The [`widget_dft!`] macro can be used inside `on_start` to set properties and when conditions that are applied on the widget if not
 /// overridden by derived widgets or the widget instance code.
 ///
 /// # Impl Properties
 ///
-/// The [`impl_properties!`] macro can be used inside a `impl WgtIdent { }` block to strongly associate a property with the widget,
+/// The [`widget_impl!`] macro can be used inside a `impl WgtIdent { }` block to strongly associate a property with the widget,
 /// and the [`property`] attribute has an `impl(WgtIdent)` that also strongly associates a property with the widget. These two mechanisms
 /// can be used to define properties for the widget, the impl properties are visually different in the widget macro as the have the
 /// *immutable method* style, while the other properties have the *mutable method* style.
 ///
 /// # Generated Macro
 ///
-/// The generated widget macro has the same syntax as [`properties!`], except that is also starts the widget and builds it at the end,
+/// The generated widget macro has the same syntax as [`widget_set!`], except that is also starts the widget and builds it at the end,
 /// ```
 /// # use zero_ui_core::{*, widget_base::WidgetBase};
 /// #[widget($crate::Foo)]
@@ -590,7 +590,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// let wgt = {
 ///     let mut wgt = Foo::start();
-///     properties! {
+///     widget_set! {
 ///         &mut wgt;
 ///         id = "foo";
 ///     }
@@ -704,13 +704,13 @@ pub use zero_ui_proc_macros::widget;
 /// impl<P: WidgetImpl> FocusableMix<P> {
 ///     #[widget(on_start)]
 ///     fn on_start(&mut self) {
-///         defaults! {
+///         widget_dft! {
 ///             self;
 ///             focusable = true;
 ///         }
 ///     }
 ///     
-///     impl_properties! {
+///     widget_impl! {
 ///         /// If the widget can receive focus, enabled by default.
 ///         pub fn focusable(enabled: impl IntoVar<bool>);
 ///     }
@@ -749,7 +749,7 @@ mod private {
 /// impl Wgt {
 ///     #[widget(on_start)]
 ///     fn on_start(&mut self) {
-///         defaults! {
+///         widget_dft! {
 ///             self;
 ///             enabled = false;
 ///         }
@@ -757,12 +757,12 @@ mod private {
 /// }
 /// ```
 #[macro_export]
-macro_rules! defaults {
+macro_rules! widget_dft {
     (
         $wgt_mut:ident;
         $($tt:tt)*
     ) => {
-        $crate::defaults! {
+        $crate::widget_dft! {
             &mut *$wgt_mut;
             $($tt)*
         }
@@ -784,7 +784,7 @@ macro_rules! defaults {
 
 /// Sets properties and when condition on a partial widget.
 ///
-/// Note that you must use [`defaults!`] in `#[widget(on_start)]`, this macro is building an widget instance
+/// Note that you must use [`widget_dft!`] in `#[widget(on_start)]`, this macro is building an widget instance
 /// with properties that are only conditionally set.
 ///
 /// # Examples
@@ -799,13 +799,13 @@ macro_rules! defaults {
 /// let mut wgt = Wgt::start();
 ///
 /// if flag {
-///     properties! {
+///     widget_set! {
 ///         &mut wgt;
 ///         enabled = false;
 ///     }
 /// }
 ///
-/// properties! {
+/// widget_set! {
 ///     &mut wgt;
 ///     id = "wgt";
 /// }
@@ -834,7 +834,7 @@ macro_rules! defaults {
 /// You should use this macro only in contexts where a widget will be build in steps, or in very hot code paths where a widget
 /// has many properties and only some will be non-default per instance.
 #[macro_export]
-macro_rules! properties {
+macro_rules! widget_set {
     (
         $wgt_borrow_mut:expr;
         $($tt:tt)*
@@ -853,7 +853,7 @@ macro_rules! properties {
 ///
 /// This is equivalent of the `impl(Widget)` directive in the [`property`] macro, but generates
 #[macro_export]
-macro_rules! impl_properties {
+macro_rules! widget_impl {
     (
         $(
             $(#[$attr:meta])*

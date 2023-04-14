@@ -6,10 +6,10 @@ use self::util::Position;
 use crate::{
     app::App,
     context::{WIDGET, WINDOW},
-    defaults,
     var::{IntoValue, Var},
     widget,
     widget_builder::WidgetBuilder,
+    widget_dft,
     widget_instance::{UiNode, WidgetId},
 };
 
@@ -39,7 +39,7 @@ pub struct BarWgt(crate::widget_base::WidgetBase);
 impl BarWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             bar_trace = "bar_wgt";
             foo_trace = "foo_wgt";
@@ -101,7 +101,7 @@ pub struct ResetWgt(BarWgt);
 impl ResetWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             bar_trace = "reset_bar_wgt";
             foo_trace = "reset_wgt";
@@ -131,7 +131,7 @@ pub struct DefaultValueWgt(crate::widget_base::WidgetBase);
 impl DefaultValueWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             util::trace = "default_value_wgt";
         }
@@ -265,7 +265,7 @@ pub struct WhenWgt(crate::widget_base::WidgetBase);
 impl WhenWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             util::live_trace = "boo!";
 
@@ -335,7 +335,7 @@ pub struct MultiWhenWgt(crate::widget_base::WidgetBase);
 impl MultiWhenWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             util::live_trace = "default";
             when *#util::is_state {
@@ -378,7 +378,7 @@ pub struct CfgPropertyWgt(crate::widget_base::WidgetBase);
 impl CfgPropertyWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             // property not included in widget.
             #[cfg(never)]
@@ -452,7 +452,7 @@ pub struct CfgWhenWgt(crate::widget_base::WidgetBase);
 impl CfgWhenWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             util::live_trace = "trace";
 
@@ -736,7 +736,7 @@ pub struct PropertyNestGroupSortingDefaultsWgt(PropertyNestGroupSortingWgt);
 impl PropertyNestGroupSortingDefaultsWgt {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             util::count_context = Position::next("count_context");
             util::count_context2 = Position::next("count_context2");
@@ -1045,7 +1045,7 @@ pub struct NameCollisionWgtWhen(crate::widget_base::WidgetBase);
 impl NameCollisionWgtWhen {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             util::live_trace = "1";
 

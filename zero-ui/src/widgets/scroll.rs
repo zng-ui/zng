@@ -22,7 +22,7 @@ pub struct Scroll(Container);
 impl Scroll {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             child_align = Align::CENTER;
             clip_to_bounds = true;
@@ -31,7 +31,7 @@ impl Scroll {
         self.builder().push_build_action(on_build);
     }
 
-    impl_properties! {
+    widget_impl! {
         /// Content alignment when it is smaller then the viewport.
         pub fn child_align(align: impl IntoVar<Align>);
 

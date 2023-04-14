@@ -8,7 +8,7 @@ pub struct TextInput(StyleMix<text::Text>);
 impl TextInput {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
 
             txt_editable = true;
@@ -71,7 +71,7 @@ pub struct DefaultStyle(Style);
 impl DefaultStyle {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             padding = (7, 15);
             crate::properties::cursor = CursorIcon::Text;

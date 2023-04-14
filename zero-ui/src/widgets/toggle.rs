@@ -816,7 +816,7 @@ impl DefaultStyle {
     fn on_start(&mut self) {
         use crate::widgets::button;
 
-        defaults! {
+        widget_dft! {
             self;
 
             when *#is_checked  {
@@ -840,7 +840,7 @@ pub struct CheckStyle(Style);
 impl CheckStyle {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             crate::properties::child_insert_start = {
                 insert: {
@@ -901,7 +901,7 @@ pub struct SwitchStyle(Style);
 impl SwitchStyle {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             crate::properties::child_insert_start = {
                 insert: {
@@ -962,7 +962,7 @@ pub struct RadioStyle(Style);
 impl RadioStyle {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
 
             crate::properties::child_insert_start = {

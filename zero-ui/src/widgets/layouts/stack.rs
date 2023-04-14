@@ -65,7 +65,7 @@ impl Stack {
         });
     }
 
-    impl_properties! {
+    widget_impl! {
         /// Widget items.
         pub fn widget_base::children(children: impl UiNodeList);
 

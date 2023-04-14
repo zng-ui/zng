@@ -10,7 +10,7 @@ pub struct Scrollbar(WidgetBase);
 impl Scrollbar {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             crate::properties::background_color = vis::BACKGROUND_VAR;
             crate::properties::click_mode = ClickMode::Repeat;

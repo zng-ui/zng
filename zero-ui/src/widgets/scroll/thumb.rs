@@ -10,7 +10,7 @@ pub struct Thumb(WidgetBase);
 impl Thumb {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             crate::properties::background_color = rgba(200, 200, 200, 50.pct());
             capture_mouse = true;

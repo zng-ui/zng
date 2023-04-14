@@ -93,7 +93,7 @@ mod widgets {
     impl MrBorders {
         #[widget(on_start)]
         fn on_start(&mut self) {
-            defaults! {
+            widget_dft! {
                 self;
                 padding = 20;
 

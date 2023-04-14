@@ -204,9 +204,9 @@ impl WindowRoot {
     /// an internal container widget that is the parent of `child`, if it is not a widget it will still be placed in the inner
     /// nest group of the root widget.
     ///
-    /// See [`new_root`] for other parameters.
+    /// See [`new`] for other parameters.
     ///
-    /// [`new_root`]: Self::new_root
+    /// [`new`]: Self::new
     #[allow(clippy::too_many_arguments)]
     pub fn new_container(
         root_id: WidgetId,

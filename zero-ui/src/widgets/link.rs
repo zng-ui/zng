@@ -8,7 +8,7 @@ pub struct Link(crate::widgets::Button); // !!: TODO, TextMix<Button>
 impl Link {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             style_fn = STYLE_VAR;
         }
@@ -43,7 +43,7 @@ pub struct DefaultStyle(Style);
 impl DefaultStyle {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             text::txt_color = color_scheme_map(colors::LIGHT_BLUE, colors::BLUE);
             crate::properties::cursor = CursorIcon::Hand;

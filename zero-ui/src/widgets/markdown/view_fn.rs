@@ -391,25 +391,25 @@ pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>)
 fn text_view_builder(txt: Txt, style: MarkdownStyle) -> crate::widgets::Text {
     let mut builder = crate::widgets::Text::start();
 
-    properties! {
+    widget_set! {
         &mut builder;
         txt;
     }
 
     if style.strong {
-        properties! {
+        widget_set! {
             &mut builder;
             font_weight = FontWeight::BOLD;
         }
     }
     if style.emphasis {
-        properties! {
+        widget_set! {
             &mut builder;
             font_style = FontStyle::Italic;
         }
     }
     if style.strikethrough {
-        properties! {
+        widget_set! {
             &mut builder;
             strikethrough = 1, LineStyle::Solid;
         }
@@ -432,7 +432,7 @@ pub fn default_text_fn(args: TextFnArgs) -> impl UiNode {
 pub fn default_code_inline_fn(args: CodeInlineFnArgs) -> impl UiNode {
     let mut builder = text_view_builder(args.txt, args.style);
 
-    properties! {
+    widget_set! {
         &mut builder;
         font_family = ["JetBrains Mono", "Consolas", "monospace"];
         background_color = color_scheme_map(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));

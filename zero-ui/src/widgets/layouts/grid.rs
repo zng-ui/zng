@@ -23,7 +23,7 @@ impl Grid {
         });
     }
 
-    impl_properties! {
+    widget_impl! {
         /// Spacing around the grid, inside the border.
         pub fn crate::properties::padding(padding: impl IntoVar<SideOffsets>);
     }
@@ -155,7 +155,7 @@ pub mod column {
     })]
     pub struct Column(WidgetBase);
     impl Column {
-        impl_properties! {
+        widget_impl! {
             /// Column max width.
             pub fn crate::properties::max_width(max: impl IntoVar<Length>);
 
@@ -338,7 +338,7 @@ pub mod row {
     })]
     pub struct Row(WidgetBase);
     impl Row {
-        impl_properties! {
+        widget_impl! {
             /// Row max height.
             pub fn crate::properties::max_height(max: impl IntoVar<Length>);
 

@@ -8,14 +8,14 @@ pub struct Button(FocusableMix<StyleMix<Container>>);
 impl Button {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             style_fn = STYLE_VAR;
             capture_mouse = true;
         }
     }
 
-    impl_properties! {
+    widget_impl! {
         /// Button click event.
         ///
         /// # Examples
@@ -90,7 +90,7 @@ impl DefaultStyle {
     #[widget(on_start)]
     fn on_start(&mut self) {
         use crate::properties::*;
-        defaults! {
+        widget_dft! {
             self;
 
             padding = (7, 15);

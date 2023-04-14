@@ -10,7 +10,7 @@ pub struct FocusableMix<P>(P);
 impl<P: WidgetImpl> FocusableMix<P> {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             focusable = true;
             when *#focus::is_focused_hgl {
@@ -23,7 +23,7 @@ impl<P: WidgetImpl> FocusableMix<P> {
         }
     }
 
-    impl_properties! {
+    widget_impl! {
         /// If the widget can receive keyboard focus.
         ///
         /// Is enabled by default in this widget.

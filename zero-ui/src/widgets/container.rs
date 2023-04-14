@@ -13,7 +13,7 @@ impl Container {
         });
     }
 
-    impl_properties! {
+    widget_impl! {
         /// The content.
         ///
         /// Can be any type that implements [`UiNode`], any widget.

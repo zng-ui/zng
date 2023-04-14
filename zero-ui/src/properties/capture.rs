@@ -24,7 +24,7 @@ use std::sync::Arc;
 /// impl Button {
 ///     #[widget(on_start)]
 ///     fn on_start(&mut self) {
-///         defaults! {
+///         widget_dft! {
 ///             self;
 ///             // Mouse does not interact with other widgets when pressed in a button.
 ///             capture_mouse = true; //true == CaptureMode::Widget;

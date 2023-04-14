@@ -283,7 +283,7 @@ pub mod prelude {
     /// impl MyWidget {
     ///     #[widget(on_start)]
     ///     fn on_start(&mut self) {
-    ///         defaults! {
+    ///         widget_dft! {
     ///             self;
     ///             background_color = colors::BLUE;
     ///         }
@@ -319,8 +319,9 @@ pub mod prelude {
         pub use crate::core::window::{CursorIcon, WindowId, INTERACTIVITY_CHANGED_EVENT};
         #[doc(no_inline)]
         pub use crate::core::{
-            defaults, impl_properties, properties, property, ui_node, widget,
+            property, ui_node, widget,
             widget_base::{self, HitTestMode, WidgetBase, WidgetImpl},
+            widget_dft, widget_impl,
             widget_info::{
                 InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,
                 WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
@@ -330,7 +331,7 @@ pub mod prelude {
                 NilUiNode, PanelList, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeVec,
                 WidgetId, ZIndex,
             },
-            widget_mixin,
+            widget_mixin, widget_set,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};

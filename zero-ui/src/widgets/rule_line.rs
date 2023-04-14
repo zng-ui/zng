@@ -138,7 +138,7 @@ pub mod hr {
     impl Hr {
         #[widget(on_start)]
         fn on_start(&mut self) {
-            defaults! {
+            widget_dft! {
                 self;
                 orientation = LineOrientation::Horizontal;
                 color = COLOR_VAR;

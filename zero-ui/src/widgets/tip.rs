@@ -16,14 +16,14 @@ pub struct Tip(StyleMix<FocusableMix<Container>>);
 impl Tip {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             hit_test_mode = false;
             style_fn = STYLE_VAR;
         }
     }
 
-    impl_properties! {
+    widget_impl! {
         /// If the tooltip can be interacted with the mouse.
         ///
         /// This is disabled by default.
@@ -68,7 +68,7 @@ pub struct DefaultStyle(Style);
 impl DefaultStyle {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             crate::properties::padding = (2, 4);
             crate::properties::corner_radius = 3;

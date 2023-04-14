@@ -20,7 +20,7 @@ pub struct AnsiText(WidgetBase);
 impl AnsiText {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             crate::widgets::text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
         };
@@ -419,59 +419,59 @@ mod ansi_fn {
 
         let mut text = text::Text::start();
 
-        properties! {
+        widget_set! {
             &mut text;
             txt = args.txt;
         }
 
         if args.style.background_color != AnsiColor::Black {
-            properties! {
+            widget_set! {
                 &mut text;
                 background_color = args.style.background_color;
             }
         }
         if args.style.color != AnsiColor::White {
-            properties! {
+            widget_set! {
                 &mut text;
                 txt_color = args.style.color;
             }
         }
 
         if args.style.weight != AnsiWeight::Normal {
-            properties! {
+            widget_set! {
                 &mut text;
                 font_weight = args.style.weight;
             }
         }
         if args.style.italic {
-            properties! {
+            widget_set! {
                 &mut text;
                 font_style = FontStyle::Italic;
             }
         }
 
         if args.style.underline {
-            properties! {
+            widget_set! {
                 &mut text;
                 underline = 1, LineStyle::Solid;
             }
         }
         if args.style.strikethrough {
-            properties! {
+            widget_set! {
                 &mut text;
                 strikethrough = 1, LineStyle::Solid;
             }
         }
 
         if args.style.invert_color {
-            properties! {
+            widget_set! {
                 &mut text;
                 invert_color = true;
             }
         }
 
         if args.style.hidden {
-            properties! {
+            widget_set! {
                 &mut text;
                 visibility = Visibility::Hidden;
             }
@@ -483,7 +483,7 @@ mod ansi_fn {
             if interval != Duration::ZERO && interval != Duration::MAX {
                 opacity.step_oci(0.fct(), interval, usize::MAX).perm();
 
-                properties! {
+                widget_set! {
                     &mut text;
                     opacity;
                 }

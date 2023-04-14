@@ -29,7 +29,7 @@ impl Wrap {
         });
     }
 
-    impl_properties! {
+    widget_impl! {
         /// Inlined wrap items.
         pub fn widget_base::children(children: impl UiNodeList);
 

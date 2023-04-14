@@ -382,7 +382,7 @@ pub struct ImgWindow(Window);
 impl ImgWindow {
     #[zero_ui::core::widget(on_start)]
     fn on_start(&mut self) {
-        zero_ui::core::defaults! {
+        zero_ui::core::widget_dft! {
             self;
             // renderer_debug = {
             //     use zero_ui::core::render::webrender_api::DebugFlags;

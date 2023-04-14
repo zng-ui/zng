@@ -28,7 +28,7 @@ pub struct Markdown(WidgetBase);
 impl Markdown {
     #[widget(on_start)]
     fn on_start(&mut self) {
-        defaults! {
+        widget_dft! {
             self;
             on_link = hn!(|args: &LinkArgs| {
                 try_default_link_action(args);
@@ -42,7 +42,7 @@ impl Markdown {
         });
     }
 
-    impl_properties! {
+    widget_impl! {
         /// Extra space between lines.
         pub fn text::line_spacing(spacing: impl IntoVar<LineSpacing>);
         /// Extra space between paragraphs.
