@@ -121,8 +121,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let ident_unset = ident!("unset_{}", ident);
         let ident_args = ident!("{}_args__", ident);
         let ident_inputs = ident!("{}_inputs__", ident);
-        let ident_meta = ident!("{}_meta__", ident);
-        let ident_sorted = ident!("{}_sorted__", ident);
+        let ident_meta = ident!("{}_", ident);
+        let ident_sorted = ident!("{}__", ident);
 
         let default;
         let default_fn;
@@ -904,14 +904,14 @@ pub fn expand_meta(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let r = match args {
         MetaArgs::Method { self_ty, sep, property } => {
-            let meta_ident = ident!("{}_meta__", property);
+            let meta_ident = ident!("{}_", property);
             quote! {
                 <#self_ty as #core::widget_base::WidgetImpl> #sep info_instance__() . #meta_ident()
             }
         }
         MetaArgs::Function { path } => {
             let ident = &path.segments.last().unwrap().ident;
-            let meta_ident = ident!("{}_meta__", ident);
+            let meta_ident = ident!("{}_", ident);
 
             quote! {
                 <#core::widget_builder::WgtInfo as #path>::#meta_ident(&#core::widget_builder::WgtInfo)
@@ -959,8 +959,8 @@ pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let path = p.path;
     let ident = &path.segments.last().unwrap().ident;
     let ident_unset = ident!("unset_{ident}");
-    let ident_meta = ident!("{}_meta__", ident);
-    let ident_sorted = ident!("{}_sorted__", ident);
+    let ident_meta = ident!("{}_", ident);
+    let ident_sorted = ident!("{}__", ident);
     let args = p.args;
     let mut sorted_args: Vec<_> = args.iter().collect();
     sorted_args.sort_by_key(|a| &a.ident);

@@ -28,7 +28,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     let name = "zero_ui::core::var::easing";
 
     let property_ident = &property.segments.last().unwrap().ident;
-    let meta_ident = ident!("{property_ident}_meta__");
+    let meta_ident = ident!("{property_ident}_");
     let property_meta = if property.get_ident().is_some() {
         quote! {
             #builder.#meta_ident()

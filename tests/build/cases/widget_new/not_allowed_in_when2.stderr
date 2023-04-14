@@ -1,4 +1,4 @@
-error[E0599]: no method named `allowed_in_when_assign` found for struct `foo_meta__` in the current scope
+error[E0599]: no method named `allowed_in_when_assign` found for struct `foo_` in the current scope
   --> cases/widget_new/not_allowed_in_when2.rs:13:13
    |
 5  |   #[property(CONTEXT)]

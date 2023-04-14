@@ -473,7 +473,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
         for ((property, member), var) in when_expr.inputs {
             let (property, generics) = widget_util::split_path_generics(property).unwrap();
             let p_ident = &property.segments.last().unwrap().ident;
-            let p_meta = ident_spanned!(p_ident.span()=> "{p_ident}_meta__");
+            let p_meta = ident_spanned!(p_ident.span()=> "{p_ident}_");
             let var_input = ident!("{var}_in__");
             let member_ident = ident_spanned!(property.span()=> "__w_{member}__");
 
@@ -600,7 +600,7 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
         }
     }
 
-    let ident_meta = ident_spanned!(ident.span()=> "{}_meta__", ident);
+    let ident_meta = ident_spanned!(ident.span()=> "{}_", ident);
 
     let when_check = if is_when {
         let meta = quote_call!(#ident_meta());
@@ -639,7 +639,7 @@ fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenS
                 idents_sorted.sort();
                 let idents = fields.iter().map(|f| &f.ident);
                 let values = fields.iter().map(|f| &f.expr);
-                let ident_sorted = ident_spanned!(ident.span()=> "{}_sorted__", ident);
+                let ident_sorted = ident_spanned!(ident.span()=> "{}__", ident);
 
                 let call = quote_call! {
                     #ident_sorted(#(#idents_sorted),*)
