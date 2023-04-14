@@ -681,6 +681,8 @@ pub use zero_ui_proc_macros::property;
 /// [`push_build_action`]: widget_builder::WidgetBuilder::push_build_action
 /// [`UiNode`]: widget_instance::UiNode
 /// [`WidgetBase`]: struct@widget_base::WidgetBase
+/// [`Importance::WIDGET`]: widget_builder::Importance::WIDGET
+/// [`Importance::INSTANCE`]: widget_builder::Importance::INSTANCE
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;
 
