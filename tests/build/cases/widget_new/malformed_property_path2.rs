@@ -1,7 +1,7 @@
-use zero_ui::{properties::margin, widgets::wgt};
+use zero_ui::prelude::*;
 
 fn main() {
-    let _scope = zero_ui::core::app::App::minimal();
+    let _scope = App::minimal();
     let _ = Wgt! {
         margin! = 0;
     };

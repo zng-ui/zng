@@ -1,6 +1,4 @@
-use zero_ui::core::{property, widget_instance::UiNode};
-use zero_ui::properties::margin;
-use zero_ui::widgets::wgt;
+use zero_ui::prelude::{new_property::*, *};
 
 #[property(CONTEXT)]
 pub fn foo(child: impl UiNode, value: impl UiNode) -> impl UiNode {
@@ -9,7 +7,7 @@ pub fn foo(child: impl UiNode, value: impl UiNode) -> impl UiNode {
 }
 
 fn main() {
-    let _scope = zero_ui::core::app::App::minimal();
+    let _scope = App::minimal();
     let _ = Wgt! {
         margin = 0;
         when {

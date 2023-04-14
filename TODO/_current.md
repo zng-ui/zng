@@ -1,6 +1,7 @@
 # Widget & Property Refactor
 
 * Refactor `#[widget]`.
+    - Test build error for parent not a widget.
     - Where is `widget_new!` available for the widget macro?
 * Review docs.
     - No more property rename.
