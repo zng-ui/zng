@@ -79,7 +79,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
                 #property_meta.input_types()
             );
             let id__ = #property_meta.id();
-            #core::widget_base::WidgetImpl::base(&mut *#builder).builder().push_unset_property_build_action__(
+            #core::widget_base::WidgetImpl::base(&mut *#builder).push_unset_property_build_action__(
                 id__,
                 #name,
             );
