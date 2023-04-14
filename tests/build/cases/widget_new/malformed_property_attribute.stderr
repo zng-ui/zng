@@ -1,24 +1,11 @@
-error: macro expansion ignores token `compile_error` and any following
- --> cases/widget_new/malformed_property_attribute.rs:7:11
-  |
-5 |       let _w = Button! {
-  |  ______________-
-6 | |         #![allow(inner_attribute)]
-7 | |         #[!foo]
-  | |           ^
-8 | |         margin = 10;
-9 | |     };
-  | |_____- caused by the macro expansion here
-  |
-  = note: the usage of `zero_ui::core::widget_new!` is likely invalid in expression context
-help: you might be missing a semicolon here
- --> $WORKSPACE/zero-ui/src/widgets/button.rs
-  |
-  | #[widget($crate::widgets::Button)];
-  |                                   +
-
 error: expected square brackets
  --> cases/widget_new/malformed_property_attribute.rs:6:10
   |
 6 |         #![allow(inner_attribute)]
   |          ^
+
+error: expected identifier
+ --> cases/widget_new/malformed_property_attribute.rs:7:11
+  |
+7 |         #[!foo]
+  |           ^

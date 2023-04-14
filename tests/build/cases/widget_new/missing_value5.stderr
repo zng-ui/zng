@@ -1,25 +1,28 @@
 error: expected expression, found `)`
- --> cases/widget_new/missing_value5.rs:7:9
-  |
-7 |         cursor =
-  |         ^^^^^^ expected expression
+  --> cases/widget_new/missing_value5.rs:5:13
+   |
+5  |       let _ = Wgt! {
+   |  _____________^
+6  | |         cursor =
+7  | |         #[allow(unused_imports)]
+8  | |         margin = {
+...  |
+11 | |         }
+12 | |     };
+   | |_____^ expected expression
+   |
+   = note: this error originates in the macro `zero_ui::core::widget_new` which comes from the expansion of the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: expected `;`
- --> cases/widget_new/missing_value5.rs:9:9
+ --> cases/widget_new/missing_value5.rs:8:9
   |
-9 |         margin = {
+8 |         margin = {
   |         ^^^^^^
 
-warning: unused import: `cursor`
- --> cases/widget_new/missing_value5.rs:1:27
+warning: unused import: `zero_ui::core::units::PxPoint`
+ --> cases/widget_new/missing_value5.rs:9:17
   |
-1 | use zero_ui::properties::{cursor, margin};
-  |                           ^^^^^^
+9 |             use zero_ui::core::units::PxPoint;
+  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default
-
-warning: unused import: `zero_ui::core::units::PxPoint`
-  --> cases/widget_new/missing_value5.rs:10:17
-   |
-10 |             use zero_ui::core::units::PxPoint;
-   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

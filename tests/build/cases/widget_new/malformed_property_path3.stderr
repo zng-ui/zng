@@ -4,13 +4,8 @@ error: expected `;`
 6 |         zero_ui::properties:margin = 0;
   |                            ^
 
-error[E0433]: failed to resolve: use of undeclared crate or module `margin`
- --> cases/widget_new/malformed_property_path3.rs:6:29
+error: missing value
+ --> cases/widget_new/malformed_property_path3.rs:6:18
   |
 6 |         zero_ui::properties:margin = 0;
-  |                             ^^^^^^ use of undeclared crate or module `margin`
-  |
-help: consider importing this struct
-  |
-1 | use zero_ui::prelude::margin;
-  |
+  |                  ^^^^^^^^^^

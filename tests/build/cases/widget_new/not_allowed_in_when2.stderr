@@ -1,7 +1,17 @@
-error[E0080]: evaluation of constant value failed
-  --> cases/widget_new/not_allowed_in_when2.rs:19:13
+error[E0599]: no method named `allowed_in_when_assign` found for struct `foo_meta__` in the current scope
+  --> cases/widget_new/not_allowed_in_when2.rs:13:13
    |
-19 |             foo = true;
-   |             ^^^ the evaluated program panicked at 'property `foo` cannot be assigned in when', $DIR/cases/widget_new/not_allowed_in_when2.rs:19:13
+5  |   #[property(CONTEXT)]
+   |   -------------------- method `allowed_in_when_assign` not found for this struct
+...
+13 |       let _ = Wgt! {
+   |  _____________^
+14 | |         foo = false;
+15 | |         margin = 0;
+16 | |
+...  |
+20 | |         }
+21 | |     };
+   | |_____^ help: there is a method with a similar name: `allowed_in_when_expr`
    |
-   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the macro `panic` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `zero_ui::core::widget_new` which comes from the expansion of the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)

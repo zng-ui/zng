@@ -7,4 +7,4 @@ error: expected when expression
 7 | |     };
   | |_____^
   |
-  = note: this error originates in the macro `wgt` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the macro `Wgt` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1,5 +1,11 @@
-error[E0433]: failed to resolve: use of undeclared crate or module `unknown`
+error[E0599]: no method named `unknown_meta__` found for mutable reference `&mut Wgt` in the current scope
  --> cases/widget_new/unknown_property2.rs:6:9
   |
 6 |         unknown = {
-  |         ^^^^^^^ use of undeclared crate or module `unknown`
+  |         ^^^^^^^ method not found in `&mut Wgt`
+
+error[E0599]: no method named `unknown_sorted__` found for mutable reference `&mut Wgt` in the current scope
+ --> cases/widget_new/unknown_property2.rs:6:9
+  |
+6 |         unknown = {
+  |         ^^^^^^^ help: there is a method with a similar name: `id_sorted__`

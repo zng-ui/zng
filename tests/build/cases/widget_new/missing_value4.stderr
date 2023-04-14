@@ -1,22 +1,29 @@
 error: expected `;`
- --> cases/widget_new/missing_value4.rs:9:9
+ --> cases/widget_new/missing_value4.rs:8:9
   |
-9 |         margin = 0;
+8 |         margin = 0;
   |         ^^^^^^
 
-error[E0061]: this function takes 1 argument but 0 arguments were supplied
- --> cases/widget_new/missing_value4.rs:7:9
-  |
-7 |         cursor =
-  |         ^^^^^^ an argument is missing
-  |
-note: associated function defined here
- --> $WORKSPACE/zero-ui/src/properties/mouse.rs
-  |
-  | #[property(CONTEXT, default(CursorIcon::Default))]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: provide the argument
+error[E0061]: this method takes 1 argument but 0 arguments were supplied
+  --> cases/widget_new/missing_value4.rs:6:9
    |
-7  |         cursor(/* cursor */) =
-   |               ++++++++++++++
+5  |       let _ = Wgt! {
+   |  _____________-
+6  | |         cursor =
+   | |         ^^^^^^
+7  | |         // we expect these properties to be used.
+8  | |         margin = 0;
+9  | |         enabled = true;
+10 | |     };
+   | |_____- an argument is missing
+   |
+note: associated function defined here
+  --> $WORKSPACE/zero-ui/src/properties/mouse.rs
+   |
+   | pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
+   |        ^^^^^^
+help: provide the argument
+  --> $WORKSPACE/zero-ui/src/widgets.rs
+   |
+   | cursor(/* cursor */)
+   |
