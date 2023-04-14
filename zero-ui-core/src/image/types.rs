@@ -501,7 +501,7 @@ impl ImageSource {
     ///
     /// ```
     /// # use zero_ui_core::{image::ImageSource, render::RenderMode};
-    /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
+    /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// # let _ =
     /// ImageSource::render(
     ///     |args| Window! {
@@ -542,7 +542,7 @@ impl ImageSource {
     ///
     /// ```
     /// # use zero_ui_core::{image::ImageSource, render::RenderMode, units::*};
-    /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
+    /// # macro_rules! Container { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
     /// # let _ =
     /// ImageSource::render_node(
     ///     RenderMode::Software,

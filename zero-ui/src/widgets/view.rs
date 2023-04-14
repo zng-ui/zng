@@ -41,10 +41,7 @@ impl<U: UiNode> View<U> {
 /// # Examples
 ///
 /// ```
-/// use zero_ui::{
-///     core::{color::{rgb, rgba}, text::ToText, var::Var, widget_instance::UiNode},
-///     widgets::{text, text::{txt_color, font_size}, view, View},
-/// };
+/// use zero_ui::prelude::*;
 ///
 /// fn countdown(n: impl Var<usize>) -> impl UiNode {
 ///     enum State {
@@ -170,11 +167,11 @@ type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 /// Define the content that is shown when an image fails to load:
 ///
 /// ```
-/// # use zero_ui::{widgets::{WidgetFn, image, image::ImageErrorArgs, text}, core::color::colors};
+/// # use zero_ui::prelude::*;
 /// # let _ =
 /// Image! {
 ///     source = "not_found.png";
-///     img_error_fn = WidgetFn::new(|e: ImageErrorArgs| Text! {
+///     img_error_fn = WidgetFn::new(|e: image::ImageErrorArgs| Text! {
 ///         txt = e.error.clone();
 ///         txt_color = colors::RED;
 ///     });
@@ -394,12 +391,12 @@ pub enum DataUpdate<D> {
 /// Define the content that is shown when an image fails to load, capturing another variable too.
 ///
 /// ```
-/// # use zero_ui::{widgets::{wgt_fn, image, image::ImageErrorArgs, text}, core::{color::{Rgba, colors}, var::var, widget_info::Visibility}};
+/// # use zero_ui::prelude::*;
 /// let img_error_vis = var(Visibility::Visible);
 /// # let _ =
 /// Image! {
 ///     source = "not_found.png";
-///     img_error_fn = wgt_fn!(img_error_vis, |e: ImageErrorArgs| Text! {
+///     img_error_fn = wgt_fn!(img_error_vis, |e: image::ImageErrorArgs| Text! {
 ///         txt = e.error.clone();
 ///         txt_color = colors::RED;
 ///         visibility = img_error_vis.clone();

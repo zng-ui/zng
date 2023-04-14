@@ -147,7 +147,7 @@ pub fn allow_transparency(child: impl UiNode, allow: impl IntoValue<bool>) -> im
 /// ```no_run
 /// use zero_ui::prelude::*;
 ///
-/// fn example() -> Window {
+/// fn example() -> WindowCfg {
 ///     let selected_mode = WINDOW_CTRL.vars().render_mode();
 ///     Window! {
 ///         title = "Render Mode";

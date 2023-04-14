@@ -2777,10 +2777,12 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// #    child
 /// }
 ///
+/// # fn main() {
 /// assert_eq!(
 ///     property_input_types!(foo).type_id(),
 ///     PropertyInputTypes::<(BoxedVar<bool>,)>::unit().type_id(),
 /// );
+/// # }
 /// ```
 ///
 /// You can use the collected types in advanced code generation, such as attribute proc-macros targeting property assigns in widgets.
@@ -2811,7 +2813,9 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 ///     }
 /// }
 ///
+/// # fn main() {
 /// assert!((&property_input_types!(foo)).is_single_bool_var());
+/// # }
 /// ```
 ///
 /// Learn more about how this trick works and limitations

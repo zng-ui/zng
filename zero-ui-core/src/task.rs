@@ -13,8 +13,7 @@
 //!
 //! ```
 //! # use zero_ui_core::{*, var::*, gesture::*, task::{self, rayon::prelude::*}, widget_instance::*};
-//! # #[widget($crate::button)]
-//! # pub mod button { inherit!(zero_ui_core::widget_base::base); }
+//! # #[widget($crate::Button)] pub struct Button(widget_base::WidgetBase);
 //! # event_property! { pub fn click { event: CLICK_EVENT, args: ClickArgs, } }
 //! # #[property(CONTEXT)]
 //! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
@@ -89,8 +88,8 @@
 //!
 //! ```
 //! # use zero_ui_core::{*, var::*, handler::*, text::*, gesture::*, widget_instance::*};
-//! # #[widget($crate::button)]
-//! # pub mod button { inherit!(zero_ui_core::widget_base::base); }
+//! # #[widget($crate::Button)]
+//! # pub struct Button(widget_base::WidgetBase);
 //! # event_property! { pub fn click { event: CLICK_EVENT, args: ClickArgs, } }
 //! # #[property(CONTEXT)]
 //! # fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }

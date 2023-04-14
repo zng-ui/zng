@@ -11,7 +11,7 @@ pub use text_properties::*;
 /// # Examples
 ///
 /// ```
-/// use zero_ui::prelude::text;
+/// use zero_ui::prelude::*;
 ///
 /// let hello_txt = Text! {
 ///     font_family = "Arial";
@@ -24,7 +24,7 @@ pub use text_properties::*;
 /// The `Text!` macro provides shorthand syntax that matches the [`formatx!`] input, but outputs a text widget:
 ///
 /// ```
-/// # use zero_ui::prelude::text;
+/// # use zero_ui::prelude::*;
 /// let txt = Text!("Hello!");
 ///
 /// let name = "World";
@@ -40,7 +40,7 @@ pub use text_properties::*;
 /// The code abode is equivalent to:
 ///
 /// ```
-/// # use zero_ui::prelude::text;
+/// # use zero_ui::prelude::*;
 /// let txt = Text! {
 ///     txt = zero_ui::core::text::formatx!("Hello!");
 /// };

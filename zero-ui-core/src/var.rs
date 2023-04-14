@@ -697,8 +697,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///     // ...
 ///     # child
 /// }
-/// # #[widget($crate::wgt)]
-/// # mod wgt { inherit!(zero_ui_core::widget_base::base); }
+/// # #[widget($crate::Wgt)] pub struct Wgt(widget_base::WidgetBase);
 /// # fn main() {
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// // shorthand #1:
@@ -745,8 +744,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///     FooNode { child, bar: bar.into_var() }
 /// }
 ///
-/// # #[widget($crate::wgt)]
-/// # pub mod wgt { inherit!(zero_ui_core::widget_base::base); }
+/// # #[widget($crate::Wgt)] struct Wgt(widget_base::WidgetBase);
 /// # fn main() {
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// // literal assign:

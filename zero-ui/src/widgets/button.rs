@@ -27,7 +27,7 @@ impl Button {
         /// Button! {
         ///     on_click = hn!(|args: &ClickArgs| {
         ///         assert!(args.is_primary());
-        ///         println!("button {:?} clicked!", ctx.path.widget_id());
+        ///         println!("button {:?} clicked!", WIDGET.id());
         ///     });
         ///     child = Text!("Click Me!");
         /// }

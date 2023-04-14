@@ -449,8 +449,8 @@ impl ConfigService {
 /// The example demonstrates loading a config file and binding a config to a variable that is auto saves every time it changes.
 ///
 /// ```no_run
-/// # use zero_ui_core::{app::*, window::*, config::*, units::*};
-/// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
+/// # use zero_ui_core::{app::App, config::*, window::*};
+/// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
 /// App::default().run_window(async {
 ///     // load a ConfigSource.
 ///     CONFIG.load(ConfigFile::new("app.config.json"));

@@ -101,7 +101,7 @@ pub trait AppRunWindowExt {
     /// # use zero_ui_core::app::App;
     /// # use zero_ui_core::context::WINDOW;
     /// # use zero_ui_core::window::AppRunWindowExt;
-    /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
+    /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// App::default().run_window(async {
     ///     println!("starting app with window {:?}", WINDOW.id());
     ///     Window! {
@@ -116,7 +116,7 @@ pub trait AppRunWindowExt {
     /// # use zero_ui_core::app::App;
     /// # use zero_ui_core::context::WINDOW;
     /// # use zero_ui_core::window::WINDOWS;
-    /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
+    /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// App::default().run(async {
     ///     WINDOWS.open(async {
     ///         println!("starting app with window {:?}", WINDOW.id());

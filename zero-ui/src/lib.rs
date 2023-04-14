@@ -356,7 +356,7 @@ pub mod prelude {
             focusable_mix::FocusableMix,
             layouts::{stack_nodes, stack_nodes_layout_by},
             style,
-            style::{Style, StyleFn, StyleMix},
+            style::{style_fn, Style, StyleFn, StyleMix},
             wgt_fn, Container, DataUpdate, WidgetFn,
         };
     }

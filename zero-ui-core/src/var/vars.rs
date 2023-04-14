@@ -147,7 +147,7 @@ impl VARS {
     /// ```
     /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
     /// #
-    /// fn animate_text(text: &impl Var<Text>, completed: &impl Var<bool>) {
+    /// fn animate_text(text: &impl Var<Txt>, completed: &impl Var<bool>) {
     ///     let transition = animation::Transition::new(0u8, 100);
     ///     let mut prev_value = 101;
     ///     VARS.animate(clmv!(text, completed, |animation| {

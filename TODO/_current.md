@@ -1,5 +1,9 @@
 # Widget & Property Refactor
 
+* Rename `WindowCfg` to `WindowRoot`.
+* Rename `properties!` to `extend_wgt!`.
+* Review names of widget items that have the widget prefix on the name.
+    `ImageErrorArgs` could be `image::ErrorArgs`?
 * Docs not generated for nested mix-ins.
 * Refactor `defaults!` and `properties!` to be proc-macros directly.
     - The `macro_rules!` indirection causes the error span to be inside the macro instead of the call site..

@@ -18,8 +18,10 @@ use crate::{context::*, event::*, widget_instance::*, *};
 /// #   let _ = state;
 /// #   child
 /// # }
-/// # #[widget($crate::text)]
-/// # pub mod text { use super::*; inherit!(crate::widget_base::base); properties! { pub txt(impl IntoVar<Text>); } }
+/// # #[widget($crate::Text)]
+/// # pub struct Text(widget_base::WidgetBase);
+/// # #[property(CHILD, impl(Text))]
+/// # pub fn txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode { child }
 /// # fn main() {
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// let probe = state_var();
@@ -51,13 +53,8 @@ pub fn state_var() -> ArcVar<bool> {
 /// #   let _ = state;
 /// #   child
 /// # }
-/// # #[widget($crate::row)]
-/// # pub mod row {
-/// #   use super::*;
-/// #   inherit!(crate::widget_base::base);
-/// #   pub use super::get_index;
-/// #   properties! { pub background_color(impl IntoVar<Rgba>); }
-/// # }
+/// # #[widget($crate::Row)] pub struct Row(widget_base::WidgetBase);
+/// # #[property(FILL)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// let probe = getter_var::<usize>();

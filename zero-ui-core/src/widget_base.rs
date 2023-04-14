@@ -1342,7 +1342,7 @@ pub fn is_hit_testable(child: impl UiNode, state: impl IntoVar<bool>) -> impl Ui
 /// so it is auto-hidden correctly.
 ///
 /// ```
-/// # macro_rules! container { ($($tt:tt)*) => { NilUiNode }}
+/// # macro_rules! Container { ($($tt:tt)*) => { NilUiNode }}
 /// # use zero_ui_core::widget_instance::*;
 /// fn center_viewport(content: impl UiNode) -> impl UiNode {
 ///     Container! {

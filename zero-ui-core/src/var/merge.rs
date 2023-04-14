@@ -25,9 +25,9 @@ use super::{util::VarData, *};
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
-/// # macro_rules! text { ($($tt:tt)*) => { () } }
-/// let var0: ArcVar<Text> = var_from("Hello");
-/// let var1: ArcVar<Text> = var_from("World");
+/// # macro_rules! Text { ($($tt:tt)*) => { () } }
+/// let var0: ArcVar<Txt> = var_from("Hello");
+/// let var1: ArcVar<Txt> = var_from("World");
 ///
 /// let greeting_text = Text!(merge_var!(var0, var1, |a, b| formatx!("{a} {b}!")));
 /// ```

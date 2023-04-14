@@ -118,14 +118,12 @@ pub trait WidgetInfoInspectorExt {
     /// mod widgets {
     ///     use zero_ui_core::*;
     ///     
-    ///     #[widget($crate::widgets::button)]
-    ///     pub mod button {
-    ///         inherit!(zero_ui_core::widget_base::base);
-    ///     }
+    ///     #[widget($crate::widgets::Button)]
+    ///     pub struct Button(widget_base::WidgetBase);
     /// }
     /// fn demo(info: WidgetInfo) {
     /// let fuzzy = info.inspect_descendant("button");
-    /// let exact = info.inspect_descendant(widget_mod!(crate::widgets::button));
+    /// let exact = info.inspect_descendant(std::any::TypeId::of::<crate::widgets::Button>());
     /// }
     /// ```
     fn inspect_descendant<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo>;

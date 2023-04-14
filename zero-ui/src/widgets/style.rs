@@ -117,11 +117,11 @@ pub fn style_fn(_child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNod
 ///     fn on_start(&mut self) {
 ///         defaults! {
 ///             self;
-///             style_fn = vis::STYLE_VAR;
+///             style_fn = STYLE_VAR;
 ///         }
 ///     }
 /// }
-/// 
+///
 /// context_var! {
 ///    /// Foo style.
 ///    pub static STYLE_VAR: StyleFn = style_fn!(|_args| {

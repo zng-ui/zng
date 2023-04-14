@@ -17,7 +17,7 @@ use super::{types::WeakContextInitHandle, *};
 /// ```
 /// # macro_rules! fake{($($tt:tt)*) => {}}
 /// # fake! {
-/// let wgt = my_wgt! {
+/// let wgt = MyWgt! {
 ///     my_property = MY_CTX_VAR.map(|&b| !b);
 /// };
 /// # }
