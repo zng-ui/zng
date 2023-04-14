@@ -1,5 +1,6 @@
 # Widget & Property Refactor
 
+* Docs not generated for nested mix-ins.
 * Refactor `defaults!` and `properties!` to be proc-macros directly.
     - The `macro_rules!` indirection causes the error span to be inside the macro instead of the call site..
 * Refactor `#[widget]`.

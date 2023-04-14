@@ -494,7 +494,7 @@ pub use zero_ui_proc_macros::property;
 /// use zero_ui_core::widget;
 ///
 /// /// Minimal widget.
-/// #[widget($crate::foo)]
+/// #[widget($crate::Foo)]
 /// pub struct Foo(zero_ui_core::widget_base::WidgetBase);
 /// ```
 ///

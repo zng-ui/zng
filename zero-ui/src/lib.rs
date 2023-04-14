@@ -278,14 +278,15 @@ pub mod prelude {
     /// # fn main() { }
     /// use zero_ui::prelude::new_widget::*;
     ///
-    /// #[widget($crate::my_widget)]
-    /// pub mod my_widget {
-    ///     use super::*;
-    ///
-    ///     inherit!(widget_base::base);
-    ///
-    ///     properties! {
-    ///         background_color = colors::BLUE;
+    /// #[widget($crate::MyWidget)]
+    /// pub struct MyWidget(WidgetBase);
+    /// impl MyWidget {
+    ///     #[widget(on_start)]
+    ///     fn on_start(&mut self) {
+    ///         defaults! {
+    ///             self;
+    ///             background_color = colors::BLUE;
+    ///         }
     ///     }
     /// }
     /// ```

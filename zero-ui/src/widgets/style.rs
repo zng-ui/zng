@@ -110,54 +110,44 @@ pub fn style_fn(_child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNod
 /// # fn main() { }
 /// use zero_ui::prelude::new_widget::*;
 ///
-/// #[widget($crate::foo)]
-/// pub mod foo {
-///     use super::*;
-///
-///     inherit!(widget_base::base);
-///     inherit!(style_mixin);
-///
-///     properties! {
-///         /// Foo style.
-///         ///
-///         /// The style is set to [`vis::STYLE_VAR`], settings this directly replaces the style.
-///         /// You can use [`vis::replace_style`] and [`vis::extend_style`] to set or modify the
-///         /// style for all `foo` in a context.
-///         style_fn = vis::STYLE_VAR;
-///     }
-///
-///     /// Foo style and visual properties.
-///     pub mod vis {
-///         use super::*;
-///
-///         context_var! {
-///             /// Foo style.
-///             pub static STYLE_VAR: StyleFn = style_fn!(|_args| {
-///                 Style! {
-///                     background_color = color_scheme_pair((colors::BLACK, colors::WHITE));
-///                     cursor = CursorIcon::Crosshair;
-///                 }
-///             });
-///         }
-///
-///         /// Replace the contextual [`STYLE_VAR`] with `style`.
-///         #[property(CONTEXT, default(STYLE_VAR))]
-///         pub fn replace_style(
-///             child: impl UiNode,
-///             style: impl IntoVar<StyleFn>
-///         ) -> impl UiNode {
-///             with_context_var(child, STYLE_VAR, style)
-///         }
-///
-///         /// Extends the contextual [`STYLE_VAR`] with the `style` override.
-///         #[property(CONTEXT, default(StyleFn::nil()))]
-///         pub fn extend_style(
-///             child: impl UiNode,
-///             style: impl IntoVar<StyleFn>
-///         ) -> impl UiNode {
-///             style_mixin::with_style_extension(child, STYLE_VAR, style)
+/// #[widget($crate::Foo)]
+/// pub struct Foo(StyleMix<WidgetBase>);
+/// impl Foo {
+///     #[widget(on_start)]
+///     fn on_start(&mut self) {
+///         defaults! {
+///             self;
+///             style_fn = vis::STYLE_VAR;
 ///         }
 ///     }
+/// }
+/// 
+/// context_var! {
+///    /// Foo style.
+///    pub static STYLE_VAR: StyleFn = style_fn!(|_args| {
+///        Style! {
+///            background_color = color_scheme_pair((colors::BLACK, colors::WHITE));
+///            cursor = CursorIcon::Crosshair;
+///        }
+///    });
+///}
+///
+/// /// Replace the contextual [`STYLE_VAR`] with `style`.
+/// #[property(CONTEXT, default(STYLE_VAR))]
+/// pub fn replace_style(
+///     child: impl UiNode,
+///     style: impl IntoVar<StyleFn>
+/// ) -> impl UiNode {
+///     with_context_var(child, STYLE_VAR, style)
+/// }
+///
+/// /// Extends the contextual [`STYLE_VAR`] with the `style` override.
+/// #[property(CONTEXT, default(StyleFn::nil()))]
+/// pub fn extend_style(
+///     child: impl UiNode,
+///     style: impl IntoVar<StyleFn>
+/// ) -> impl UiNode {
+///     style::with_style_extension(child, STYLE_VAR, style)
 /// }
 /// ```
 pub fn with_style_extension(child: impl UiNode, style_context: ContextVar<StyleFn>, extension: impl IntoVar<StyleFn>) -> impl UiNode {
