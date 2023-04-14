@@ -1,0 +1,7 @@
+error: cannot find macro `TextMix` in this scope
+ --> cases/widget/cannot_instantiate_widget_mixin.rs:8:13
+  |
+8 |     let _ = TextMix!();
+  |             ^^^^^^^
+  |
+  = note: `TextMix` is in scope, but it is a struct, not a macro
