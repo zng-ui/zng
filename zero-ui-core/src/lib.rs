@@ -759,6 +759,18 @@ mod private {
 #[macro_export]
 macro_rules! widget_dft {
     (
+        $(#[$skip:meta])*
+        $($invalid:ident)::+ = $($tt:tt)*
+    ) => {
+        compile_error!{"expected `self;` or `&mut <wgt>;` at the beginning"}
+    };
+    (
+        $(#[$skip:meta])*
+        when $($invalid:tt)*
+    ) => {
+        compile_error!{"expected `self;` or `&mut <wgt>;` at the beginning"}
+    };
+    (
         $wgt_mut:ident;
         $($tt:tt)*
     ) => {
@@ -779,7 +791,7 @@ macro_rules! widget_dft {
             end { $crate::widget_base::WidgetImpl::base(wgt__).end_defaults() }
             new { $($tt)* }
         }
-    }
+    };
 }
 
 /// Sets properties and when condition on a partial widget.
@@ -836,6 +848,18 @@ macro_rules! widget_dft {
 #[macro_export]
 macro_rules! widget_set {
     (
+        $(#[$skip:meta])*
+        $($invalid:ident)::+ = $($tt:tt)*
+    ) => {
+        compile_error!{"expected `&mut <wgt>;` at the beginning"}
+    };
+    (
+        $(#[$skip:meta])*
+        when = $($invalid:tt)*
+    ) => {
+        compile_error!{"expected `&mut <wgt>;` at the beginning"}
+    };
+    (
         $wgt_borrow_mut:expr;
         $($tt:tt)*
     ) => {
@@ -846,7 +870,7 @@ macro_rules! widget_set {
             end { }
             new { $($tt)* }
         }
-    }
+    };
 }
 
 /// Implement a property on the widget to strongly associate it with the widget.

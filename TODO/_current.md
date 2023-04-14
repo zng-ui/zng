@@ -1,8 +1,6 @@
 # Widget & Property Refactor
 
 * Docs not generated for nested mix-ins. 
-* Better error for `widget_dft` and `widget_set!`.
-    - Match to compile_error when the first tokens are `path = x` or `when`.
 
 * Review names of widget items that have the widget prefix on the name.
     `ImageErrorArgs` could be `image::ErrorArgs`?
