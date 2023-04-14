@@ -1,6 +1,6 @@
 //! The widget base, nodes and properties used in most widgets.
 
-use std::{any::TypeId, cell::RefCell, fmt};
+use std::{any::TypeId, cell::RefCell, fmt, ops};
 
 use crate::{
     context::*,
@@ -207,6 +207,43 @@ impl WidgetBase {
             .as_mut()
             .expect("cannot push when build action data outside when blocks");
         when.build_action_data.push(((property_id, action_name), data));
+    }
+}
+
+/// Inserted in mix-ins to make `self.on_start__()` work when the mix-in does not implement `on_start`.
+#[doc(hidden)]
+pub struct WidgetMix<P>(P);
+impl<P> WidgetMix<P> {
+    #[doc(hidden)]
+    pub fn on_start__(&mut self) {}
+}
+impl<P> ops::Deref for WidgetMix<P> {
+    type Target = P;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<P> ops::DerefMut for WidgetMix<P> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl<P: WidgetImpl> WidgetImpl for WidgetMix<P> {
+    fn inherit(widget: WidgetType) -> Self {
+        Self(P::inherit(widget))
+    }
+
+    fn base(&mut self) -> &mut WidgetBase {
+        self.0.base()
+    }
+
+    fn base_ref(&self) -> &WidgetBase {
+        self.0.base_ref()
+    }
+
+    fn info_instance__() -> Self {
+        Self(P::info_instance__())
     }
 }
 

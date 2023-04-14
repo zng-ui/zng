@@ -1,9 +1,7 @@
 # Widget & Property Refactor
 
 * Refactor `#[widget]`.
-    - Implement `when`.
-        - For attached properties.
-        - For intrinsic properties.
+    - Don't cause `missing_path` error for incorrect path.
     - Where is `widget_new!` available for the widget macro?
 * Review docs.
     - No more property rename.

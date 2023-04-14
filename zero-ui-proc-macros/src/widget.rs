@@ -30,7 +30,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
     // the widget struct declaration.
     let struct_ = parse_macro_input!(input as ItemStruct);
-    let parent;
+    let mut parent;
 
     if let Fields::Unnamed(f) = &struct_.fields {
         if f.unnamed.len() != 1 {
@@ -40,7 +40,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             struct_.to_tokens(&mut r);
             return r.into();
         }
-        parent = &f.unnamed[0];
+        parent = f.unnamed[0].to_token_stream();
     } else {
         let mut r = syn::Error::new(struct_.fields.span(), "expected `struct Name(Parent);`")
             .to_compile_error()
@@ -52,6 +52,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let crate_core = util::crate_core();
 
     let (mixin_p, mixin_p_bounded) = if mixin {
+        parent = quote! {
+            #crate_core::widget_base::WidgetMix<#parent>
+        };
+
         if struct_.generics.params.is_empty() {
             let mut r = syn::Error::new(struct_.ident.span(), "mix-ins must have one generic `P`")
                 .to_compile_error()
@@ -132,7 +136,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             Ok(a) => (a.path, a.custom_rules),
             Err(e) => {
                 errors.push_syn(e);
-                (quote! { $crate::missing_widget_path}, vec![])
+                (quote! { $crate::missing_widget_path }, vec![])
             }
         };
         let struct_path_str = struct_path.to_string().replace(' ', "");
