@@ -83,7 +83,7 @@ pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) ->
 
 /// Widget tooltip.
 ///
-/// Any other widget can be used as tooltip, the recommended widget is the [`tip!`] container, it provides the tooltip style.
+/// Any other widget can be used as tooltip, the recommended widget is the [`Tip!`] container, it provides the tooltip style.
 ///
 /// # Context
 ///
@@ -93,7 +93,7 @@ pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) ->
 ///
 /// This tooltip only opens if the widget is enabled, see [`disabled_tooltip`] for a tooltip that only shows when the widget is disabled.
 ///
-/// [`tip!`]: mod@crate::widgets::tip
+/// [`Tip!`]: struct@crate::widgets::Tip
 /// [`tooltip_transform`]: fn@tooltip_transform
 /// [`tooltip_delay`]: fn@tooltip_delay
 /// [`tooltip_interval`]: fn@tooltip_interval
@@ -107,7 +107,7 @@ pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 /// Widget tooltip set as an widget function that is called every time the tooltip must be shown.
 ///
 /// The `tip` widget function is used to instantiate a new tip widget when one needs to be shown, any widget
-/// can be used as tooltip, the recommended widget is the [`tip!`] container, it provides the tooltip style.
+/// can be used as tooltip, the recommended widget is the [`Tip!`] container, it provides the tooltip style.
 ///
 /// # Context
 ///
@@ -117,7 +117,7 @@ pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 ///
 /// This tooltip only opens if the widget is enabled, see [`disabled_tooltip_fn`] for a tooltip that only shows when the widget is disabled.
 ///
-/// [`tip!`]: mod@crate::widgets::tip
+/// [`Tip!`]: struct@crate::widgets::Tip
 /// [`tooltip_transform`]: fn@tooltip_transform
 /// [`tooltip_delay`]: fn@tooltip_delay
 /// [`tooltip_interval`]: fn@tooltip_interval

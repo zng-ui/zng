@@ -30,12 +30,10 @@ use super::*;
 /// ```
 /// # use zero_ui_core::widget_instance::*;
 /// # use zero_ui_core::widget_base::*;
-/// # macro_rules! text { ($($tt:tt)*) => { NilUiNode } }
-/// # use text as foo;
-/// # use text as bar;
+/// # macro_rules! Text { ($($tt:tt)*) => { NilUiNode } }
 /// let widgets = ui_vec![
-///     foo!("Hello"),
-///     bar!("World!")
+///     Text!("Hello"),
+///     Text!("World!")
 /// ];
 /// ```
 ///
@@ -44,9 +42,8 @@ use super::*;
 /// ```
 /// # use zero_ui_core::widget_instance::*;
 /// # use zero_ui_core::widget_base::*;
-/// # macro_rules! text { ($($tt:tt)*) => { NilUiNode } }
-/// # use text as foo;
-/// let widgets = ui_vec![foo!(" . "); 10];
+/// # macro_rules! Text { ($($tt:tt)*) => { NilUiNode } }
+/// let widgets = ui_vec![Text!(" . "); 10];
 /// ```
 ///
 /// Note that this is different from `vec![item; n]`, the node is not cloned, the expression is called **n** times to

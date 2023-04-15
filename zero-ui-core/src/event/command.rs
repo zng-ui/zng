@@ -6,7 +6,7 @@ use crate::{
     crate_util::FxHashMap,
     gesture::CommandShortcutExt,
     handler::WidgetHandler,
-    text::Text,
+    text::Txt,
     ui_node,
     var::{types::ArcCowVar, *},
     widget_instance::{UiNode, WidgetId},
@@ -54,7 +54,7 @@ use super::*;
 ///     /// Represents the **foo** action.
 ///     pub static FOO_CMD = {
 ///         name: "Foo!",
-///         info: "Does the foo! thing.",
+///         info: "Does the foo thing.",
 ///         shortcut: shortcut![CTRL+F],
 ///     };
 /// }
@@ -71,7 +71,7 @@ use super::*;
 ///     /// Represents the **foo** action.
 ///     pub static FOO_CMD => |cmd| {
 ///         cmd.init_name("Foo!");
-///         cmd.init_info("Does the foo! thing.");
+///         cmd.init_info("Does the foo thing.");
 ///         cmd.init_shortcut(shortcut![CTRL+F]);
 ///     };
 /// }
@@ -889,20 +889,20 @@ pub type ReadOnlyCommandMetaVar<T> = BoxedVar<T>;
 /// Adds the [`name`](CommandNameExt) metadata.
 pub trait CommandNameExt {
     /// Gets a read-write variable that is the display name for the command.
-    fn name(self) -> CommandMetaVar<Text>;
+    fn name(self) -> CommandMetaVar<Txt>;
 
     /// Sets the initial name if it is not set.
-    fn init_name(self, name: impl Into<Text>) -> Self;
+    fn init_name(self, name: impl Into<Txt>) -> Self;
 
     /// Gets a read-only variable that formats the name and first shortcut in the following format: name (first_shortcut)
     /// Note: If no shortcuts are available this method returns the same as [`name`](Self::name)
-    fn name_with_shortcut(self) -> BoxedVar<Text>
+    fn name_with_shortcut(self) -> BoxedVar<Txt>
     where
         Self: crate::gesture::CommandShortcutExt;
 }
-static COMMAND_NAME_ID: StaticCommandMetaVarId<Text> = StaticCommandMetaVarId::new_unique();
+static COMMAND_NAME_ID: StaticCommandMetaVarId<Txt> = StaticCommandMetaVarId::new_unique();
 impl CommandNameExt for Command {
-    fn name(self) -> CommandMetaVar<Text> {
+    fn name(self) -> CommandMetaVar<Txt> {
         self.with_meta(|m| {
             m.get_var_or_insert(&COMMAND_NAME_ID, || {
                 let name = self.event.name();
@@ -924,17 +924,17 @@ impl CommandNameExt for Command {
                         lower = true;
                     }
                 }
-                Text::from(title)
+                Txt::from(title)
             })
         })
     }
 
-    fn init_name(self, name: impl Into<Text>) -> Self {
+    fn init_name(self, name: impl Into<Txt>) -> Self {
         self.with_meta(|m| m.init_var(&COMMAND_NAME_ID, name.into()));
         self
     }
 
-    fn name_with_shortcut(self) -> BoxedVar<Text>
+    fn name_with_shortcut(self) -> BoxedVar<Txt>
     where
         Self: crate::gesture::CommandShortcutExt,
     {
@@ -952,18 +952,18 @@ impl CommandNameExt for Command {
 /// Adds the [`info`](CommandInfoExt) metadata.
 pub trait CommandInfoExt {
     /// Gets a read-write variable that is a short informational string about the command.
-    fn info(self) -> CommandMetaVar<Text>;
+    fn info(self) -> CommandMetaVar<Txt>;
 
     /// Sets the initial info if it is not set.
-    fn init_info(self, info: impl Into<Text>) -> Self;
+    fn init_info(self, info: impl Into<Txt>) -> Self;
 }
-static COMMAND_INFO_ID: StaticCommandMetaVarId<Text> = StaticCommandMetaVarId::new_unique();
+static COMMAND_INFO_ID: StaticCommandMetaVarId<Txt> = StaticCommandMetaVarId::new_unique();
 impl CommandInfoExt for Command {
-    fn info(self) -> CommandMetaVar<Text> {
-        self.with_meta(|m| m.get_var_or_insert(&COMMAND_INFO_ID, Text::empty))
+    fn info(self) -> CommandMetaVar<Txt> {
+        self.with_meta(|m| m.get_var_or_insert(&COMMAND_INFO_ID, Txt::empty))
     }
 
-    fn init_info(self, info: impl Into<Text>) -> Self {
+    fn init_info(self, info: impl Into<Txt>) -> Self {
         self.with_meta(|m| m.init_var(&COMMAND_INFO_ID, info.into()));
         self
     }

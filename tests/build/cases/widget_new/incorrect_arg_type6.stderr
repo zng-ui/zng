@@ -1,20 +1,15 @@
-error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
-  --> cases/widget_new/incorrect_arg_type6.rs:11:13
+error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
+  --> cases/widget_new/incorrect_arg_type6.rs:13:23
    |
-11 |        let _ = wgt! {
-   |  ______________^
-12 | |/         simple_type = {
-13 | ||             simple_a: 42,
-14 | ||             simple_b: true,
-   | ||____________________- required by a bound introduced by this call
-15 | |          }
-16 | |      };
-   | |______^ the trait `IntoVar<u32>` is not implemented for `bool`
+13 |             simple_b: true,
+   |             --------  ^^^^ the trait `zero_ui::prelude::IntoVar<u32>` is not implemented for `bool`
+   |             |
+   |             required by a bound introduced by this call
    |
-   = help: the following other types implement trait `IntoVar<T>`:
+   = help: the following other types implement trait `zero_ui::prelude::IntoVar<T>`:
             <implementers-list>
-note: required by a bound in `simple_type::simple_b`
-  --> cases/widget_new/incorrect_arg_type6.rs:5:84
+note: required by a bound in `simple_type_inputs__::simple_b`
+  --> cases/widget_new/incorrect_arg_type6.rs:4:84
    |
-5  | pub fn simple_type(child: impl UiNode, simple_a: impl IntoVar<u32>, simple_b: impl IntoVar<u32>) -> impl UiNode {
-   |                                                                                    ^^^^^^^^^^^^ required by this bound in `simple_type::simple_b`
+4  | pub fn simple_type(child: impl UiNode, simple_a: impl IntoVar<u32>, simple_b: impl IntoVar<u32>) -> impl UiNode {
+   |                                                                                    ^^^^^^^^^^^^ required by this bound in `simple_type_inputs__::simple_b`

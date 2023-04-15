@@ -23,7 +23,7 @@ use crate::{
     context::*,
     crate_util::BoxedFut,
     task::ui::UiTask,
-    text::Text,
+    text::Txt,
     var::*,
 };
 
@@ -56,7 +56,7 @@ impl AppExtension for ConfigManager {
 }
 
 /// Key to a persistent config in [`CONFIG`].
-pub type ConfigKey = Text;
+pub type ConfigKey = Txt;
 
 /// A type that can be a [`CONFIG`] value.
 ///
@@ -449,8 +449,8 @@ impl ConfigService {
 /// The example demonstrates loading a config file and binding a config to a variable that is auto saves every time it changes.
 ///
 /// ```no_run
-/// # use zero_ui_core::{app::*, window::*, config::*, units::*};
-/// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
+/// # use zero_ui_core::{app::App, config::*, window::*};
+/// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
 /// App::default().run_window(async {
 ///     // load a ConfigSource.
 ///     CONFIG.load(ConfigFile::new("app.config.json"));
@@ -458,11 +458,11 @@ impl ConfigService {
 ///     // read the "main.count" config and bind it to a variable.
 ///     let count = CONFIG.var("main.count", || 0);
 ///
-///     window! {
+///     Window! {
 ///         title = "Persistent Counter";
 ///         padding = 20;
-///         child = button! {
-///             child = text!(count.map(|c| formatx!("Count: {c}")));
+///         child = Button! {
+///             child = Text!(count.map(|c| formatx!("Count: {c}")));
 ///             on_click = hn!(|_| {
 ///                 // modifying the var updates the "main.count" config.
 ///                 count.modify(|mut c| *c += 1).unwrap();

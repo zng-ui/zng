@@ -12,8 +12,9 @@ use crate::{
     crate_util::{FxEntry, FxHashMap, FxHashSet},
     handler::WidgetHandler,
     impl_from_and_into_var,
-    text::{formatx, Text},
+    text::{formatx, Txt},
     var::{types::AnyWhenVarBuilder, *},
+    widget_base::{WidgetBase, WidgetExt},
     widget_instance::{
         ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder,
     },
@@ -38,11 +39,11 @@ pub use crate::source_location;
 /// Use [`source_location!`] to construct.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SourceLocation {
-    /// [`file!`]
+    /// [`std::file!`]
     pub file: &'static str,
-    /// [`line!`]
+    /// [`std::line!`]
     pub line: u32,
-    /// [`column!`]
+    /// [`std::column!`]
     pub column: u32,
 }
 impl fmt::Display for SourceLocation {
@@ -61,12 +62,24 @@ macro_rules! when_condition_expr_var {
 #[doc(hidden)]
 pub use when_condition_expr_var;
 
+#[doc(hidden)]
+pub struct WgtInfo;
+impl WidgetExt for WgtInfo {
+    fn ext_property__(&mut self, _: Box<dyn PropertyArgs>) {
+        panic!("WgtInfo is for extrating info only")
+    }
+
+    fn ext_property_unset__(&mut self, _: PropertyId) {
+        panic!("WgtInfo is for extrating info only")
+    }
+}
+
 ///<span data-del-macro-root></span> New [`PropertyId`] that represents the type and name.
 ///
 /// # Syntax
 ///
-/// * `property::path`: Gets the ID for the property function.
-/// * `property::path as rename`: Gets the ID, but with the new name.
+/// * `path::property`: Gets the ID for the property function.
+/// * `Self::property`: Gets the ID for the property on the ``.
 ///
 /// # Examples
 ///
@@ -79,29 +92,24 @@ pub use when_condition_expr_var;
 /// #     child
 /// #   }
 /// # }
+/// # #[zero_ui_core::widget($crate::FooWgt)]
+/// # pub struct FooWgt(zero_ui_core::widget_base::WidgetBase);
+/// # #[property(CONTEXT, impl(FooWgt))]
+/// # pub fn bar(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
+/// #   child
+/// # }
 /// # fn main() {
 /// let foo_id = property_id!(path::foo);
-/// let renamed_id = property_id!(path::foo as bar);
+/// let bar_id = property_id!(bar);
 ///
-/// assert_ne!(foo_id, renamed_id);
-/// assert_eq!(foo_id.impl_id, renamed_id.impl_id);
-/// assert_ne!(foo_id.name, renamed_id.name);
+/// assert_ne!(foo_id, bar_id);
 /// # }
 /// ```
 #[macro_export]
 macro_rules! property_id {
-    ($($property:ident)::+) => {{
-        $($property)::+::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
-    }};
-    ($($property:ident)::+::<$($generics:ty),*>) => {{
-        $($property)::+ ::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($($property)::+)))
-    }};
-    ($($property:ident)::+ as $rename:ident) => {{
-        $($property)::+::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
-    }};
-    ($($property:ident)::+ ::<$($generics:ty),*> as $rename:ident) => {{
-        $($property)::+::<$($generics),*>::__id__($crate::widget_builder::property_id_name(stringify!($rename)))
-    }};
+    ($($tt:tt)*) => {
+        $crate::property_meta!($($tt)*).id()
+    }
 }
 #[doc(inline)]
 pub use crate::property_id;
@@ -110,7 +118,10 @@ pub use crate::property_id;
 ///
 /// # Syntax
 ///
-/// * `property::path`: Gets the info for the property function.
+/// * `path::property`: Gets the info for the property function.
+/// * `Self::property`: Gets the info for the property on the ``.
+///
+/// If the property is generic a `::<T>` is also required.
 ///
 /// # Examples
 ///
@@ -132,12 +143,12 @@ pub use crate::property_id;
 /// ```
 #[macro_export]
 macro_rules! property_info {
-    ($($property:ident)::+) => {{
-        $($property)::+::__property__()
-    }};
-    ($($property:ident)::+ ::<$($generics:ty),*>) => {{
-        $($property)::+::<$($generics),*>::__property__()
-    }};
+    ($($property:ident)::+ <$($generics:ty),*>) => {
+        $crate::property_meta!($($property)::+).info::<$($generics),*>()
+    };
+    ($($tt:tt)*) => {
+        $crate::property_meta!($($tt)*).info()
+    }
 }
 #[doc(inline)]
 pub use crate::property_info;
@@ -149,22 +160,15 @@ pub use crate::property_info;
 /// # Syntax
 ///
 /// * `property::path`: Gets the info for the property function.
+/// * `Self::property`: Gets the info for the property on the ``.
 #[macro_export]
 macro_rules! property_input_types {
-    ($($property:ident)::+) => {{
-        $($property)::+::__input_types__()
-    }};
-    ($($property:ident)::+ ::<$($generics:ty),*>) => {{
-        $($property)::+::<$($generics),*>::__input_types__()
-    }};
+    ($($tt:tt)*) => {
+        $crate::property_meta!($($tt)*).input_types()
+    }
 }
 #[doc(inline)]
 pub use crate::property_input_types;
-
-#[doc(hidden)]
-pub fn property_id_name(path: &'static str) -> &'static str {
-    path.rsplit(':').next().unwrap_or("").trim()
-}
 
 ///<span data-del-macro-root></span> New [`PropertyArgs`] box from a property and value.
 ///
@@ -185,21 +189,21 @@ pub fn property_id_name(path: &'static str) -> &'static str {
 macro_rules! property_args {
     ($($property:ident)::+ $(as $rename:ident)? = $($value:tt)*) => {
         {
-            $crate::widget_builder::property_args_getter! {
+            $crate::widget_builder::PropertyArgsGetter! {
                 $($property)::+ $(as $rename)? = $($value)*
             }
         }
     };
     ($($property:ident)::+ ::<$($generics:ty),*> $(as $rename:ident)? = $($value:tt)*) => {
         {
-            $crate::widget_builder::property_args_getter! {
+            $crate::widget_builder::PropertyArgsGetter! {
                 $($property)::+ ::<$($generics),*> $(as $rename)? = $($value)*
             }
         }
     };
     ($property:ident $(;)?) => {
         {
-            $crate::widget_builder::property_args_getter! {
+            $crate::widget_builder::PropertyArgsGetter! {
                 $property
             }
         }
@@ -208,23 +212,22 @@ macro_rules! property_args {
 #[doc(inline)]
 pub use crate::property_args;
 
-///<span data-del-macro-root></span> Gets the [`WidgetMod`] info of a widget.
+///<span data-del-macro-root></span> Gets the [`WidgetType`] info of a widget.
 #[macro_export]
-macro_rules! widget_mod {
-    ($widget_path:path) => {{
-        #[rustfmt::skip] use $widget_path::{__widget__};
-        __widget__::mod_info()
-    }};
+macro_rules! widget_type {
+    ($($widget:ident)::+) => {
+        $($widget)::+::widget_type()
+    };
 }
 #[doc(inline)]
-pub use widget_mod;
+pub use widget_type;
 
 #[doc(hidden)]
-#[crate::widget($crate::widget_builder::property_args_getter)]
-pub mod property_args_getter {
-    use super::*;
-
-    fn build(mut wgt: WidgetBuilder) -> Box<dyn PropertyArgs> {
+#[crate::widget($crate::widget_builder::PropertyArgsGetter)]
+pub struct PropertyArgsGetter(WidgetBase);
+impl PropertyArgsGetter {
+    pub fn build(&mut self) -> Box<dyn PropertyArgs> {
+        let mut wgt = self.take_builder();
         if wgt.p.items.len() > 1 {
             tracing::error!("properties ignored, `property_args!` only collects args for first property");
         }
@@ -391,27 +394,27 @@ impl NestGroup {
     /// Group name.
     ///
     /// Is a static str for values that are a group `const`, or a display format for the others.
-    pub fn name(self) -> Text {
+    pub fn name(self) -> Txt {
         if self.0 == Self::WIDGET.0 {
-            Text::from_static("WIDGET")
+            Txt::from_static("WIDGET")
         } else if self.0 == Self::CONTEXT.0 {
-            Text::from_static("CONTEXT")
+            Txt::from_static("CONTEXT")
         } else if self.0 == Self::EVENT.0 {
-            Text::from_static("EVENT")
+            Txt::from_static("EVENT")
         } else if self.0 == Self::LAYOUT.0 {
-            Text::from_static("LAYOUT")
+            Txt::from_static("LAYOUT")
         } else if self.0 == Self::SIZE.0 {
-            Text::from_static("SIZE")
+            Txt::from_static("SIZE")
         } else if self.0 == Self::BORDER.0 {
-            Text::from_static("BORDER")
+            Txt::from_static("BORDER")
         } else if self.0 == Self::FILL.0 {
-            Text::from_static("FILL")
+            Txt::from_static("FILL")
         } else if self.0 == Self::CHILD_CONTEXT.0 {
-            Text::from_static("CHILD_CONTEXT")
+            Txt::from_static("CHILD_CONTEXT")
         } else if self.0 == Self::CHILD_LAYOUT.0 {
-            Text::from_static("CHILD_LAYOUT")
+            Txt::from_static("CHILD_LAYOUT")
         } else if self.0 == Self::CHILD.0 {
-            Text::from_static("CHILD")
+            Txt::from_static("CHILD")
         } else {
             let closest = Self::ITEMS
                 .into_iter()
@@ -609,9 +612,6 @@ pub type PropertyBuildActionsWhenData = Vec<Vec<Option<WhenBuildActionData>>>;
 
 /// Args for [`PropertyInfo::new`].
 pub struct PropertyNewArgs {
-    /// Defines the [`PropertyArgs::instance`] value.
-    pub inst_info: PropertyInstInfo,
-
     /// The args vec must have a value for each input in the same order they appear in [`PropertyInfo::inputs`], types must match
     /// the input kind and type, the function panics if the types don't match or not all inputs are provided.
     ///
@@ -677,8 +677,8 @@ pub struct PropertyInfo {
     pub capture: bool,
 
     /// Unique type ID that identifies the property implementation.
-    pub impl_id: PropertyImplId,
-    /// Property original name.
+    pub id: PropertyId,
+    /// Property name.
     pub name: &'static str,
 
     /// Property declaration location.
@@ -687,7 +687,7 @@ pub struct PropertyInfo {
     /// New default property args.
     ///
     /// This is `Some(_)` only if the `#[property(_, default(..))]` was set in the property declaration.
-    pub default: Option<fn(PropertyInstInfo) -> Box<dyn PropertyArgs>>,
+    pub default: Option<fn() -> Box<dyn PropertyArgs>>,
 
     /// New property args from dynamically typed args.
     ///
@@ -710,36 +710,6 @@ impl PropertyInfo {
     }
 }
 
-/// Property instance info.
-#[derive(Debug, Clone)]
-pub struct PropertyInstInfo {
-    /// Property name in this instance.
-    ///
-    /// This can be different from [`PropertyInfo::name`] if the property was renamed by the widget.
-    pub name: &'static str,
-
-    /// Property instantiation location.
-    pub location: SourceLocation,
-}
-impl PropertyInstInfo {
-    /// No info.
-    pub fn none() -> Self {
-        PropertyInstInfo {
-            name: "",
-            location: SourceLocation {
-                file: "",
-                line: 0,
-                column: 0,
-            },
-        }
-    }
-
-    /// Returns `true` if there is no instance info.
-    pub fn is_none(&self) -> bool {
-        self.name.is_empty()
-    }
-}
-
 /// Property input info.
 #[derive(Debug, Clone)]
 pub struct PropertyInput {
@@ -756,7 +726,7 @@ impl PropertyInput {
     /// Shorter [`ty_name`].
     ///
     /// [`ty_name`]: Self::ty_name
-    pub fn display_ty_name(&self) -> Text {
+    pub fn display_ty_name(&self) -> Txt {
         pretty_type_name::pretty_type_name_str(self.ty_name).into()
     }
 }
@@ -768,9 +738,6 @@ pub trait PropertyArgs: Send + Sync {
 
     /// Property info.
     fn property(&self) -> PropertyInfo;
-
-    /// Instance info.
-    fn instance(&self) -> PropertyInstInfo;
 
     /// Gets a [`InputKind::Var`].
     ///
@@ -809,10 +776,7 @@ pub trait PropertyArgs: Send + Sync {
 impl dyn PropertyArgs + '_ {
     /// Unique ID.
     pub fn id(&self) -> PropertyId {
-        PropertyId {
-            impl_id: self.property().impl_id,
-            name: self.instance().name,
-        }
+        self.property().id
     }
 
     /// Gets a strongly typed [`value`].
@@ -853,7 +817,7 @@ impl dyn PropertyArgs + '_ {
     /// Gets the property input as a debug variable.
     ///
     /// If the input is a variable the returned variable will update with it, if not it is a static print.
-    pub fn live_debug(&self, i: usize) -> BoxedVar<Text> {
+    pub fn live_debug(&self, i: usize) -> BoxedVar<Txt> {
         let p = self.property();
         match p.inputs[i].kind {
             InputKind::Var => {
@@ -873,20 +837,20 @@ impl dyn PropertyArgs + '_ {
                 out_var.boxed()
             }
             InputKind::Value => LocalVar(formatx!("{:?}", self.value(i))).boxed(),
-            InputKind::UiNode => LocalVar(Text::from_static("<impl UiNode>")).boxed(),
-            InputKind::UiNodeList => LocalVar(Text::from_static("<impl UiNodeList>")).boxed(),
+            InputKind::UiNode => LocalVar(Txt::from_static("<impl UiNode>")).boxed(),
+            InputKind::UiNodeList => LocalVar(Txt::from_static("<impl UiNodeList>")).boxed(),
             InputKind::WidgetHandler => LocalVar(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name())).boxed(),
         }
     }
 
     /// Gets the property input current value as a debug
-    pub fn debug(&self, i: usize) -> Text {
+    pub fn debug(&self, i: usize) -> Txt {
         let p = self.property();
         match p.inputs[i].kind {
             InputKind::Var => formatx!("{:?}", self.var(i).get_any()),
             InputKind::Value => formatx!("{:?}", self.value(i)),
-            InputKind::UiNode => Text::from_static("<impl UiNode>"),
-            InputKind::UiNodeList => Text::from_static("<impl UiNodeList>"),
+            InputKind::UiNode => Txt::from_static("<impl UiNode>"),
+            InputKind::UiNodeList => Txt::from_static("<impl UiNodeList>"),
             InputKind::WidgetHandler => formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name()),
         }
     }
@@ -913,7 +877,6 @@ impl dyn PropertyArgs + '_ {
         }
 
         (p.new)(PropertyNewArgs {
-            inst_info: self.instance(),
             args,
             build_actions,
             build_actions_when_data,
@@ -1157,72 +1120,44 @@ impl_from_and_into_var! {
 }
 
 unique_id_32! {
-    /// Unique ID of a widget implementation.
-    ///
-    /// This ID identifies a widget implementation. Widgets are identified
-    /// by this ID and a module path, see [`WidgetMod`].
-    pub struct WidgetImplId;
-}
-impl fmt::Debug for WidgetImplId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("WidgetImplId").field(&self.get()).finish()
-    }
-}
-
-unique_id_32! {
     /// Unique ID of a property implementation.
-    ///
-    /// This ID identifies a property implementation, disregarding renames. Properties are identified
-    /// by this ID and a name string, see [`PropertyId`].
-    pub struct PropertyImplId;
+    pub struct PropertyId;
 }
-impl fmt::Debug for PropertyImplId {
+impl fmt::Debug for PropertyId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("PropertyImplId").field(&self.get()).finish()
+        f.debug_tuple("PropertyId").field(&self.get()).finish()
     }
 }
 
-/// Unique identifier of a property, properties with the same id override each other in a widget and are joined
-/// into a single instance is assigned in when blocks.
+/// Unique identifier of a widget type.
 ///
-/// You can use the [`property_id!`] macro to retrieve a property ID.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PropertyId {
-    /// The [`PropertyInfo::impl_id`].
-    pub impl_id: PropertyImplId,
-    /// The [`PropertyInstInfo::name`].
-    pub name: &'static str,
-}
-
-/// Unique identifier of a widget module.
+/// Equality and hash is defined by the `type_id` only.
 ///
-/// Equality and hash is defined by the `impl_id` only.
-///
-/// You can use the [`widget_mod!`] macro to get the mod info of a widget.
-#[derive(Clone, Copy)]
-pub struct WidgetMod {
-    /// The widget module unique ID.
-    pub impl_id: WidgetImplId,
-    /// The widget public module path.
+/// Widgets generated by `#[widget]` have an associated function that returns the type, `Foo::widget_type()`.
+#[derive(Clone, Copy, Debug)]
+pub struct WidgetType {
+    /// Widget type ID.
+    pub type_id: TypeId,
+    /// The widget public macro path.
     pub path: &'static str,
     /// Source code location.
     pub location: SourceLocation,
 }
-impl WidgetMod {
+impl WidgetType {
     /// Get the last part of the path.
     pub fn name(&self) -> &'static str {
         self.path.rsplit_once(':').map(|(_, n)| n).unwrap_or(self.path)
     }
 }
-impl PartialEq for WidgetMod {
+impl PartialEq for WidgetType {
     fn eq(&self, other: &Self) -> bool {
-        self.impl_id == other.impl_id
+        self.type_id == other.type_id
     }
 }
-impl Eq for WidgetMod {}
-impl std::hash::Hash for WidgetMod {
+impl Eq for WidgetType {}
+impl std::hash::Hash for WidgetType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.impl_id.hash(state);
+        self.type_id.hash(state);
     }
 }
 
@@ -1245,7 +1180,7 @@ pub struct WhenInput {
     /// Input var.
     pub var: WhenInputVar,
     /// Constructor that generates the default property instance.
-    pub property_default: Option<fn(PropertyInstInfo) -> Box<dyn PropertyArgs>>,
+    pub property_default: Option<fn() -> Box<dyn PropertyArgs>>,
 }
 impl fmt::Debug for WhenInput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1433,7 +1368,6 @@ impl<'a> fmt::Debug for &'a dyn PropertyArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("dyn PropertyArgs")
             .field("property", &self.property())
-            .field("instance", &self.instance())
             .finish_non_exhaustive()
     }
 }
@@ -1441,7 +1375,6 @@ impl fmt::Debug for Box<dyn PropertyArgs> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("dyn PropertyArgs")
             .field("property", &self.property())
-            .field("instance", &self.instance())
             .finish_non_exhaustive()
     }
 }
@@ -1504,7 +1437,7 @@ type PropertyBuildActionsVec = Vec<((PropertyId, &'static str), (Importance, Vec
 
 /// Widget instance builder.
 pub struct WidgetBuilder {
-    widget_mod: WidgetMod,
+    widget_type: WidgetType,
 
     insert_idx: u32,
     p: WidgetBuilderProperties,
@@ -1523,7 +1456,7 @@ pub struct WidgetBuilder {
 impl Clone for WidgetBuilder {
     fn clone(&self) -> Self {
         Self {
-            widget_mod: self.widget_mod,
+            widget_type: self.widget_type,
             p: WidgetBuilderProperties { items: self.items.clone() },
             p_build_actions: self.p_build_actions.clone(),
             insert_idx: self.insert_idx,
@@ -1545,6 +1478,7 @@ impl fmt::Debug for WidgetBuilder {
             }
         }
         f.debug_struct("WidgetBuilder")
+            .field("widget_type", &self.widget_type)
             .field("properties", &PropertiesDebug(&self.p))
             .field("unset", &self.unset)
             .field("whens", &self.whens)
@@ -1555,9 +1489,9 @@ impl fmt::Debug for WidgetBuilder {
 }
 impl WidgetBuilder {
     /// New empty default.
-    pub fn new(widget: WidgetMod) -> Self {
+    pub fn new(widget: WidgetType) -> Self {
         Self {
-            widget_mod: widget,
+            widget_type: widget,
             p: WidgetBuilderProperties { items: Default::default() },
             insert_idx: 0,
             unset: Default::default(),
@@ -1571,8 +1505,8 @@ impl WidgetBuilder {
     }
 
     /// The widget that started this builder.
-    pub fn widget_mod(&self) -> WidgetMod {
-        self.widget_mod
+    pub fn widget_type(&self) -> WidgetType {
+        self.widget_type
     }
 
     /// Insert/override a property.
@@ -1964,7 +1898,7 @@ impl WidgetBuilder {
             #[cfg(trace_wgt_item)]
             trace_wgt_item: true,
 
-            widget_mod: self.widget_mod,
+            widget_type: self.widget_type,
             p: self.p,
             child: None,
         };
@@ -2014,14 +1948,14 @@ pub struct WidgetBuilding {
     #[cfg(trace_wgt_item)]
     trace_wgt_item: bool,
 
-    widget_mod: WidgetMod,
+    widget_type: WidgetType,
     p: WidgetBuilderProperties,
     child: Option<BoxedUiNode>,
 }
 impl WidgetBuilding {
     /// The widget that started this builder.
-    pub fn widget_mod(&self) -> WidgetMod {
-        self.widget_mod
+    pub fn widget_type(&self) -> WidgetType {
+        self.widget_type
     }
 
     /// If an innermost node is defined.
@@ -2233,10 +2167,7 @@ impl WidgetBuilding {
                 if let Some(i) = self.property_index(input.property) {
                     inputs.push(Input { input, item_idx: i })
                 } else if let Some(default) = input.property_default {
-                    let args = default(PropertyInstInfo {
-                        name: input.property.name,
-                        location: when.location,
-                    });
+                    let args = default();
                     self.p.items.push(WidgetItemPositioned {
                         position: NestPosition::property(args.property().group),
                         insert_idx: u32::MAX,
@@ -2267,7 +2198,7 @@ impl WidgetBuilding {
                     assign_info = assign.property();
                     i = idx;
                 } else if let Some(default) = assign.property().default {
-                    let args = default(assign.instance());
+                    let args = default();
                     assign_info = args.property();
                     i = self.p.items.len();
                     self.p.items.push(WidgetItemPositioned {
@@ -2448,7 +2379,6 @@ impl WidgetBuilding {
             }
 
             *args = (args.property().new)(PropertyNewArgs {
-                inst_info: args.instance(),
                 args: builder,
                 build_actions: actions,
                 build_actions_when_data: b_actions_data,
@@ -2533,7 +2463,7 @@ impl WidgetBuilding {
 
         #[cfg(trace_widget)]
         if self.trace_widget {
-            let name = self.widget_mod.name();
+            let name = self.widget_type.name();
             node = node
                 .trace(move |mtd| crate::context::UpdatesTrace::widget_span(crate::context::WIDGET.id(), name, mtd))
                 .boxed();
@@ -2847,10 +2777,12 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// #    child
 /// }
 ///
+/// # fn main() {
 /// assert_eq!(
 ///     property_input_types!(foo).type_id(),
 ///     PropertyInputTypes::<(BoxedVar<bool>,)>::unit().type_id(),
 /// );
+/// # }
 /// ```
 ///
 /// You can use the collected types in advanced code generation, such as attribute proc-macros targeting property assigns in widgets.
@@ -2881,7 +2813,9 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 ///     }
 /// }
 ///
+/// # fn main() {
 /// assert!((&property_input_types!(foo)).is_single_bool_var());
+/// # }
 /// ```
 ///
 /// Learn more about how this trick works and limitations

@@ -1,23 +1,24 @@
 //! Common widgets.
 
 pub mod layouts;
-pub mod mixins;
 
-mod ansi_text_wgt;
-#[doc(inline)]
-pub use ansi_text_wgt::ansi_text;
+pub mod focusable_mix;
 
-mod button_wgt;
+pub mod ansi_text;
 #[doc(inline)]
-pub use button_wgt::button;
+pub use ansi_text::AnsiText;
 
-mod checkerboard_wgt;
+pub mod button;
 #[doc(inline)]
-pub use checkerboard_wgt::checkerboard;
+pub use button::Button;
 
-mod container_wgt;
+pub mod checkerboard;
 #[doc(inline)]
-pub use container_wgt::container;
+pub use checkerboard::Checkerboard;
+
+mod container;
+#[doc(inline)]
+pub use container::Container;
 
 mod flood;
 #[doc(inline)]
@@ -31,63 +32,65 @@ pub use gradient::{
     repeating_conic_gradient, repeating_linear_gradient, repeating_radial_gradient,
 };
 
-mod image_wgt;
+pub mod image;
 #[doc(inline)]
-pub use image_wgt::image;
+pub use image::Image;
 
-mod icon_wgt;
+pub mod icon;
 #[doc(inline)]
-pub use icon_wgt::icon;
+pub use icon::Icon;
 
-mod link_wgt;
+pub mod link;
 #[doc(inline)]
-pub use link_wgt::link;
+pub use link::Link;
 
-mod markdown_wgt;
+pub mod markdown;
 #[doc(inline)]
-pub use markdown_wgt::markdown;
+pub use markdown::Markdown;
 
-mod rule_line_wgt;
+pub mod rule_line;
 #[doc(inline)]
-pub use rule_line_wgt::{hr, rule_line};
+pub use rule_line::{hr::Hr, RuleLine};
 
-mod scroll_wgt;
+pub mod scroll;
 #[doc(inline)]
-pub use scroll_wgt::scroll;
+pub use scroll::Scroll;
 
-mod switch_wgt;
+pub mod switch;
 #[doc(inline)]
-pub use switch_wgt::switch;
+pub use switch::Switch;
 
-mod text_wgt;
+pub mod text;
 #[doc(inline)]
-pub use text_wgt::{em, strong, text, text_input};
+pub use text::{Em, Strong, Text};
 
-mod tip_wgt;
+pub mod text_input;
 #[doc(inline)]
-pub use tip_wgt::*;
+pub use text_input::TextInput;
 
-mod toggle_wgt;
+pub mod tip;
 #[doc(inline)]
-pub use toggle_wgt::toggle;
+pub use tip::Tip;
 
-mod style_wgt;
+pub mod toggle;
 #[doc(inline)]
-pub use style_wgt::style;
+pub use toggle::Toggle;
+
+pub mod style;
+#[doc(inline)]
+pub use style::Style;
 
 mod view;
 #[doc(inline)]
 pub use view::*;
 
-mod window_wgt;
+pub mod window;
 #[doc(inline)]
-pub use window_wgt::window;
+pub use window::Window;
 
 /// Minimal widget.
 ///
 /// You can use this to create a quick new custom widget that is only used in one code place and can be created entirely
 /// by properties and `when` conditions.
-#[crate::core::widget($crate::widgets::wgt)]
-pub mod wgt {
-    inherit!(::zero_ui_core::widget_base::base);
-}
+#[crate::core::widget($crate::widgets::Wgt)]
+pub struct Wgt(crate::core::widget_base::WidgetBase);

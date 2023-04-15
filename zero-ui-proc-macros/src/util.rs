@@ -314,11 +314,6 @@ impl Errors {
         }
     }
 
-    /// Push all compile errors in `errors`.
-    pub fn extend(&mut self, errors: Errors) {
-        self.tokens.extend(errors.tokens)
-    }
-
     pub fn is_empty(&self) -> bool {
         self.tokens.is_empty()
     }

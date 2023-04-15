@@ -1,10 +1,7 @@
-error: cannot instantiate mix-in
- --> cases/widget/cannot_instantiate_widget_mixin.rs:3:1
+error: cannot find macro `TextMix` in this scope
+ --> cases/widget/cannot_instantiate_widget_mixin.rs:8:13
   |
-3 | #[widget_mixin($crate::test_mixin)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-...
-8 |     let _ = test_mixin!();
-  |             ------------- in this macro invocation
+8 |     let _ = TextMix!();
+  |             ^^^^^^^
   |
-  = note: this error originates in the macro `$crate::test_mixin` which comes from the expansion of the macro `test_mixin` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: `TextMix` is in scope, but it is a struct, not a macro

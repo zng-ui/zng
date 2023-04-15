@@ -1,0 +1,11 @@
+error: expected square brackets
+ --> cases/widget_new/malformed_property_attribute.rs:6:10
+  |
+6 |         #![allow(inner_attribute)]
+  |          ^
+
+error: expected identifier
+ --> cases/widget_new/malformed_property_attribute.rs:7:11
+  |
+7 |         #[!foo]
+  |           ^

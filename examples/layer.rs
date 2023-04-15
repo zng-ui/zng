@@ -24,7 +24,7 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Layer Example";
 
             // zero_ui::properties::inspector::show_bounds = true;
@@ -33,7 +33,7 @@ fn app_main() {
             // you can use the pre-init to insert layered widgets
             // before the first render.
             on_pre_init = hn!(|_| {
-                LAYERS.insert(LayerIndex::TOP_MOST - 100, text! {
+                LAYERS.insert(LayerIndex::TOP_MOST - 100, Text! {
                     hit_test_mode = HitTestMode::Disabled;
                     txt = "on_pre_init";
                     font_size = 72;
@@ -45,7 +45,7 @@ fn app_main() {
             });
 
             child_align = Align::CENTER;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children = ui_vec![
@@ -60,8 +60,8 @@ fn app_main() {
 }
 
 fn overlay_example() -> impl UiNode {
-    button! {
-        child = text!("TOP_MOST");
+    Button! {
+        child = Text!("TOP_MOST");
         on_click = hn!(|_| {
             LAYERS.insert(LayerIndex::TOP_MOST, overlay("overlay", 0));
         });
@@ -69,12 +69,12 @@ fn overlay_example() -> impl UiNode {
 }
 fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
     let id = id.into();
-    container! {
+    Container! {
         id;
         modal = true;
         background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
-        child = container! {
+        child = Container! {
             offset = (offset, offset);
             focus_scope = true;
             tab_nav = TabNav::Cycle;
@@ -83,31 +83,31 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
                 colors::GREEN.darken(80.pct()),
                 colors::WHITE.with_alpha(80.pct()).mix_normal(colors::GREEN)
             );
-            button::vis::extend_style = style_fn!(|_| style! {
+            button::extend_style = style_fn!(|_| Style! {
                 corner_radius = unset!;
             });
             padding = 2;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::RIGHT;
                 children = ui_vec![
-                    text! {
+                    Text! {
                         txt = "Overlay inserted in the TOP_MOST layer.";
                         margin = 15;
                     },
-                    stack! {
+                    Stack! {
                         direction = StackDirection::left_to_right();
                         spacing = 2;
                         children = ui_vec![
-                            button! {
+                            Button! {
                                 visibility = offset < 50;
-                                child = text!("Open Another");
+                                child = Text!("Open Another");
                                 on_click = hn!(|_| {
                                     LAYERS.insert(LayerIndex::TOP_MOST, overlay(WidgetId::new_unique(), offset + 10));
                                 })
                             },
-                            button! {
-                                child = text!("Remove");
+                            Button! {
+                                child = Text!("Remove");
                                 on_click = hn!(|_| {
                                     LAYERS.remove(id);
                                 })
@@ -122,7 +122,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
 
 fn layer_index_example() -> impl UiNode {
     // demonstrates that the z-order is not affected by the order of insertion.
-    stack! {
+    Stack! {
         direction = StackDirection::left_to_right();
         spacing = 5;
         children = ui_vec![
@@ -134,13 +134,13 @@ fn layer_index_example() -> impl UiNode {
 }
 fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
     let label = formatx!("Layer {n}");
-    button! {
-        child = text!(label.clone());
+    Button! {
+        child = Text!(label.clone());
         on_click = async_hn!(label, |_| {
             let id = WidgetId::new_unique();
-            LAYERS.insert(n, container! {
+            LAYERS.insert(n, Container! {
                 id;
-                child = text! {
+                child = Text! {
                     txt = label.clone();
                     txt_color = rgb(0.92, 0.92, 0.92);
                     font_size = 16;
@@ -192,15 +192,15 @@ fn anchor_example() -> impl UiNode {
         })
     });
 
-    button! {
+    Button! {
         id = "anchor";
-        child = text!("Anchored");
+        child = Text!("Anchored");
 
         margin = (60, 0);
         align = Align::CENTER;
 
         on_mouse_enter = hn!(|_| {
-            LAYERS.insert_anchored(LayerIndex::ADORNER, "anchor", anchor_mode.clone(), text! {
+            LAYERS.insert_anchored(LayerIndex::ADORNER, "anchor", anchor_mode.clone(), Text! {
                 id = "anchored";
                 txt = "Example";
                 txt_color = rgb(0.92, 0.92, 0.92);
@@ -222,21 +222,21 @@ fn anchor_example() -> impl UiNode {
 
 fn transform_anchor_example() -> impl UiNode {
     let mut insert = true;
-    button! {
+    Button! {
         id = "t-anchor";
-        child = text!("Transform Anchored");
+        child = Text!("Transform Anchored");
 
         rotate = 20.deg();
         scale = 110.pct();
 
         on_click = hn!(|_| {
             if insert {
-                LAYERS.insert_anchored(LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), container! {
+                LAYERS.insert_anchored(LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), Container! {
                     id = "t-anchored";
                     child_align = Align::TOP_LEFT;
                     border = 1, colors::GREEN.lighten(30.pct());
                     hit_test_mode = HitTestMode::Disabled;
-                    child = text! {
+                    child = Text! {
                         y = -(2.dip() + 100.pct());
                         txt = "example";
                         font_weight = FontWeight::BOLD;

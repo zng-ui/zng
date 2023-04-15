@@ -48,11 +48,23 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 
 #[doc(hidden)]
 #[proc_macro]
+pub fn property_meta(input: TokenStream) -> TokenStream {
+    property::expand_meta(input)
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn property_impl(input: TokenStream) -> TokenStream {
+    property::expand_impl(input)
+}
+
+#[doc(hidden)]
+#[proc_macro]
 pub fn hex_color(input: TokenStream) -> TokenStream {
     hex_color::expand(input)
 }
 
-/// Expands a module to a widget module and macro.
+/// Expands a struct to a widget and macro.
 ///
 /// # Full Documentation
 ///
@@ -62,7 +74,7 @@ pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
     widget::expand(args, input, false)
 }
 
-/// Expands a module to a widget mix-in module and macro.
+/// Expands a generic struct to a widget mix-in.
 ///
 /// # Full Documentation
 ///

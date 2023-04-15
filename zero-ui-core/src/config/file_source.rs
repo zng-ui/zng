@@ -170,7 +170,7 @@ impl ConfigFile {
                     }
 
                     // load
-                    let mut data: HashMap<Text, JsonValue>;
+                    let mut data: HashMap<Txt, JsonValue>;
                     let mut data_version;
                     {
                         let mut file = fs::OpenOptions::new()
@@ -306,7 +306,7 @@ impl ConfigFile {
 
                                 if data_version != version {
                                     // try reload.
-                                    let d: Result<HashMap<Text, JsonValue>, ConfigError> = (|| {
+                                    let d: Result<HashMap<Txt, JsonValue>, ConfigError> = (|| {
                                         let mut file = fs::File::open(&file)?;
                                         let map = serde_json::from_reader(&mut BufReader::new(&mut file))?;
                                         Ok(map)

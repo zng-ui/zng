@@ -1,547 +1,283 @@
-use std::mem;
-
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
-use syn::{parse::Parse, spanned::Spanned, *};
+use syn::{ext::IdentExt, parse::Parse, spanned::Spanned, *};
 
 use crate::{
-    util::{self, parse_outer_attrs, path_span, ErrorRecoverable, Errors},
+    util::{self, parse_outer_attrs, ErrorRecoverable, Errors},
     widget_util::{self, WgtProperty, WgtWhen},
 };
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mixin: bool) -> proc_macro::TokenStream {
-    // the widget mod declaration.
-    let mod_ = parse_macro_input!(input as ItemMod);
+    // the widget struct declaration.
+    let struct_ = parse_macro_input!(input as ItemStruct);
+    let parent;
 
-    if mod_.content.is_none() {
-        let mut r = syn::Error::new(mod_.semi.span(), "only modules with inline content are supported")
+    if let Fields::Unnamed(f) = &struct_.fields {
+        if f.unnamed.len() != 1 {
+            let mut r = syn::Error::new(struct_.fields.span(), "expected `struct Name(Parent);`")
+                .to_compile_error()
+                .to_token_stream();
+            struct_.to_tokens(&mut r);
+            return r.into();
+        }
+        parent = f.unnamed[0].to_token_stream();
+    } else {
+        let mut r = syn::Error::new(struct_.fields.span(), "expected `struct Name(Parent);`")
             .to_compile_error()
             .to_token_stream();
-
-        mod_.to_tokens(&mut r);
-
+        struct_.to_tokens(&mut r);
         return r.into();
     }
 
-    let (mod_braces, items) = mod_.content.unwrap();
-
-    // accumulate the most errors as possible before returning.
-    let mut errors = Errors::default();
-
     let crate_core = util::crate_core();
 
-    let vis = mod_.vis;
-    let ident = mod_.ident;
-    let mod_token = mod_.mod_token;
-    let mut attrs = util::Attributes::new(mod_.attrs);
-    attrs.tag_doc("W", "This module is also a widget macro");
-
-    if mixin && !ident.to_string().ends_with("_mixin") {
-        errors.push("mix-in names must end with suffix `_mixin`", ident.span());
-    }
-
-    // a `$crate` path to the widget module.
-    let (mod_path, custom_rules) = match syn::parse::<Args>(args) {
-        Ok(a) => (a.path, a.custom_rules),
-        Err(e) => {
-            errors.push_syn(e);
-            (quote! { $crate::missing_widget_path}, vec![])
+    let (mixin_p, mixin_p_bounded) = if mixin {
+        if struct_.generics.params.is_empty() {
+            let mut r = syn::Error::new(struct_.ident.span(), "mix-ins must have one generic `P`")
+                .to_compile_error()
+                .to_token_stream();
+            struct_.to_tokens(&mut r);
+            return r.into();
+        } else if struct_.generics.params.len() > 1 {
+            let mut r = syn::Error::new(struct_.generics.span(), "mix-ins must have one generic `P` only")
+                .to_compile_error()
+                .to_token_stream();
+            struct_.to_tokens(&mut r);
+            return r.into();
         }
-    };
-    let mod_path_str = mod_path.to_string().replace(' ', "");
-    let mod_path_slug = mod_path_slug(&mod_path_str);
-
-    let val_span = util::last_span(mod_path.clone());
-    let validate_path_ident = ident_spanned!(val_span=> "__widget_path_{mod_path_slug}__");
-    let validate_path = quote_spanned! {val_span=>
-        #[doc(hidden)]
-        #[allow(non_camel_case_types)]
-        pub enum #validate_path_ident { }
-
-        #[doc(hidden)]
-        #[allow(unused)]
-        mod __validate_path__ {
-            macro_rules! #validate_path_ident {
-                () => {
-                    pub use #mod_path::#validate_path_ident;
-                }
+        match struct_.generics.params.first().unwrap() {
+            GenericParam::Lifetime(l) => {
+                let mut r = syn::Error::new(l.span(), "mix-ins must have one generic `P` only")
+                    .to_compile_error()
+                    .to_token_stream();
+                struct_.to_tokens(&mut r);
+                return r.into();
             }
-            #validate_path_ident!{}
+            GenericParam::Const(c) => {
+                let mut r = syn::Error::new(c.span(), "mix-ins must have one generic `P` only")
+                    .to_compile_error()
+                    .to_token_stream();
+                struct_.to_tokens(&mut r);
+                return r.into();
+            }
+
+            GenericParam::Type(t) => {
+                if !t.bounds.is_empty() || t.default.is_some() {
+                    let mut r = syn::Error::new(t.span(), "mix-ins must have one unbounded generic `P`")
+                        .to_compile_error()
+                        .to_token_stream();
+                    struct_.to_tokens(&mut r);
+                    return r.into();
+                }
+                if let Some(where_) = &struct_.generics.where_clause {
+                    let mut r = syn::Error::new(where_.span(), "mix-ins must have one unbounded generic `P`")
+                        .to_compile_error()
+                        .to_token_stream();
+                    struct_.to_tokens(&mut r);
+                    return r.into();
+                }
+
+                let id = &t.ident;
+                (quote!(<#id>), quote!(<#id : #crate_core::widget_base::WidgetImpl>))
+            }
+        }
+    } else {
+        if !struct_.generics.params.is_empty() {
+            let mut r = syn::Error::new(struct_.generics.span(), "widgets cannot be generic")
+                .to_compile_error()
+                .to_token_stream();
+            struct_.to_tokens(&mut r);
+            return r.into();
+        }
+        (quote!(), quote!())
+    };
+
+    // a `$crate` path to the widget struct.
+    let (struct_path, custom_rules) = if mixin {
+        (quote!(), vec![])
+    } else {
+        match syn::parse::<Args>(args) {
+            Ok(a) => (a.path.to_token_stream(), a.custom_rules),
+            Err(e) => {
+                let mut r = e.to_compile_error().to_token_stream();
+                struct_.to_tokens(&mut r);
+                return r.into();
+            }
         }
     };
 
-    let custom_rules = {
-        let mut tt = quote!();
-        for widget_util::WidgetCustomRule { rule, init } in custom_rules {
-            tt.extend(quote! {
-                (#rule) => {
-                    #mod_path! {
-                        #init
+    let vis = struct_.vis;
+    let ident = struct_.ident;
+    let mut attrs = util::Attributes::new(struct_.attrs);
+    if !mixin {
+        attrs.tag_doc("W", "This struct is also a widget macro");
+    }
+
+    let struct_token = struct_.struct_token;
+
+    let (macro_r, start_r) = if mixin {
+        (quote!(), quote!())
+    } else {
+        let struct_path_str = struct_path.to_string().replace(' ', "");
+        let struct_path_slug = path_slug(&struct_path_str);
+
+        let val_span = util::last_span(struct_path.clone());
+        let validate_path_ident = ident_spanned!(val_span=> "__widget_path_{struct_path_slug}__");
+        let validate_path = quote_spanned! {val_span=>
+            #[doc(hidden)]
+            #[allow(unused)]
+            #[allow(non_snake_case)]
+            mod #validate_path_ident {
+                macro_rules! #validate_path_ident {
+                    () => {
+                        use #struct_path;
                     }
-                };
-            })
-        }
-        tt
-    };
-
-    let WidgetItems {
-        uses,
-        inherits,
-        mut properties,
-        mut include_fn,
-        mut build_fn,
-        others,
-    } = WidgetItems::new(items, &mut errors);
-
-    let mut include_item_imports = quote!();
-
-    let mut has_parent = false;
-
-    for inh in &inherits {
-        let is_parent = !inh.has_mixin_suffix();
-        if has_parent && is_parent {
-            errors.push("can only inherit from one widget and multiple mix-ins", inh.path.span());
-            continue;
-        }
-
-        has_parent |= is_parent;
-        let attrs = &inh.attrs;
-        let path = &inh.path;
-        include_item_imports.extend(quote_spanned! {path_span(path)=>
-            #(#attrs)*
-            #path::include(__wgt__);
-        });
-    }
-
-    let mut custom_include_docs = vec![];
-
-    if let Some(include) = &mut include_fn {
-        let attrs = util::Attributes::new(mem::take(&mut include.attrs));
-        custom_include_docs = attrs.docs;
-        include.attrs.extend(attrs.cfg);
-        include.attrs.extend(attrs.lints);
-        include.attrs.extend(attrs.inline);
-        include.attrs.extend(attrs.others);
-        include.vis = Visibility::Inherited;
-        include.sig.ident = ident_spanned!(include.sig.ident.span()=> "__wgt_include__");
-        include_item_imports.extend(quote_spanned! {include.span()=>
-            self::__wgt_include__(__wgt__);
-        });
-    }
-
-    let mut capture_decl = quote!();
-    let mut pre_bind = quote!();
-
-    for prop in properties.iter_mut().flat_map(|i| i.properties.iter_mut()) {
-        capture_decl.extend(prop.declare_capture());
-        pre_bind.extend(prop.pre_bind_args(false, None, ""));
-    }
-    for (i, when) in properties.iter_mut().flat_map(|i| i.whens.iter_mut()).enumerate() {
-        pre_bind.extend(when.pre_bind(false, i));
-    }
-
-    let mut include_items = quote!();
-
-    let builder = ident!("__wgt__");
-    let importance = ident!("__importance__");
-
-    for prop in properties.iter().flat_map(|i| i.properties.iter()) {
-        let custom_expand = if prop.has_custom_attrs() {
-            prop.custom_attrs_expand(builder.clone(), None, Some(importance.clone()))
-        } else {
-            quote!()
+                }
+                #validate_path_ident!{}
+            }
         };
 
-        if prop.has_args() {
-            let attrs = prop.attrs.cfg_and_lints();
-            let args = prop.args_new(quote!(#crate_core::widget_builder));
+        let custom_rules = {
+            let mut tt = quote!();
+            for widget_util::WidgetCustomRule { rule, init } in custom_rules {
+                tt.extend(quote! {
+                    (#rule) => {
+                        #struct_path! {
+                            #init
+                        }
+                    };
+                })
+            }
+            tt
+        };
 
-            include_items.extend(quote! {
-                #attrs
-                {
-                    let mut #importance = #crate_core::widget_builder::Importance::WIDGET;
-                    { #custom_expand }
-                    __wgt__.push_property(#importance, #args);
+        let macro_ident = ident!("__wgt_{}__", struct_path_slug);
+
+        // rust-analyzer does not find the macro if we don't set the call_site here.
+        let struct_path = util::set_stream_span(struct_path, Span::call_site());
+
+        let macro_new = quote! {
+            #crate_core::widget_new! {
+                start {
+                    let mut wgt__ = #struct_path::start();
+                    let wgt__ = &mut wgt__;
                 }
-            });
-        } else if prop.is_unset() {
-            let attrs = prop.attrs.cfg_and_lints();
-            let id = prop.property_id();
-
-            include_items.extend(quote! {
-                #attrs
-                {
-                    let mut #importance = #crate_core::widget_builder::Importance::WIDGET;
-                    { #custom_expand }
-                    __wgt__.push_unset(#importance, #id);
-                }
-            });
-        }
-    }
-
-    let builder = ident!("__wgt__");
-    let when_info = ident!("__when__");
-
-    for when in properties.iter().flat_map(|i| i.whens.iter()) {
-        let attrs = when.attrs.cfg_and_lints();
-        let args = when.when_new(quote!(#crate_core::widget_builder));
-        let custom_attr_expand = when.custom_assign_expand(&builder, &when_info);
-        include_items.extend(quote! {
-            #attrs
-            {
-                let mut #when_info = #args;
-                { #custom_attr_expand }
-                __wgt__.push_when(#crate_core::widget_builder::Importance::WIDGET, #when_info);
-            }
-        });
-    }
-
-    let macro_if_mixin = if mixin {
-        quote! {
-            (zero_ui_widget: if mixin { $($tt:tt)* }) => {
-                $($tt)*
-            };
-            (zero_ui_widget: if !mixin { $($tt:tt)* }) => {
-                // ignore
-            };
-        }
-    } else {
-        quote! {
-            (zero_ui_widget: if !mixin { $($tt:tt)* }) => {
-                $($tt)*
-            };
-            (zero_ui_widget: if mixin { $($tt:tt)* }) => {
-                // ignore
-            };
-        }
-    };
-
-    let build = if mixin {
-        if let Some(build) = &build_fn {
-            errors.push("mix-ins cannot have a build function", build.sig.ident.span());
-        }
-
-        let error = "mixin-in cannot inherit from full widget";
-        let mut check = quote!();
-        for inh in inherits.iter() {
-            let path = &inh.path;
-            check.extend(quote_spanned! {path_span(path)=>
-                #path! {
-                    zero_ui_widget: if !mixin {
-                        std::compile_error!{#error}
-                    }
-                }
-            });
-        }
-
-        check
-    } else if let Some(build) = &mut build_fn {
-        let attrs = util::Attributes::new(mem::take(&mut build.attrs));
-        let docs = attrs.docs;
-        build.attrs.extend(attrs.cfg);
-        build.attrs.extend(attrs.lints);
-        build.attrs.extend(attrs.inline);
-        build.attrs.extend(attrs.others);
-        build.vis = Visibility::Inherited;
-        build.sig.ident = ident_spanned!(build.sig.ident.span()=> "__build__");
-        let out = &build.sig.output;
-        quote_spanned! {build.span()=>
-            /// Build the widget.
-            ///
-            /// The widget macro calls this function to build the widget instance.
-            ///
-            #(#docs)*
-            pub fn build(builder: #crate_core::widget_builder::WidgetBuilder) #out {
-                self::__build__(builder)
-            }
-        }
-    } else if let Some(inh) = inherits.iter().find(|m| !m.has_mixin_suffix()) {
-        let path = &inh.path;
-        let id = path.segments.last().map(|s| &s.ident).unwrap();
-        let error = format!("cannot inherit build from `{id}`, it is a mix-in\nmix-ins with suffix `_mixin` are ignored when inheriting build, but this one was renamed");
-        quote_spanned! {path_span(path)=>
-            #path! {
-                zero_ui_widget: if mixin {
-                    std::compile_error!{ #error }
-                }
-            }
-            #path! {
-                zero_ui_widget: if !mixin {
-                    #[doc(inline)]
-                    #[allow(unused_imports)]
-                    pub use #path::build;
-                }
-            }
-        }
-    } else {
-        errors.push(
-            "missing `fn build(WidgetBuilder) -> T` function, must be provided or inherited",
-            ident.span(),
-        );
-        quote! {
-            /// placeholder
-            pub fn build(_: #crate_core::widget_builder::WidgetBuilder) -> #crate_core::widget_instance::NilUiNode {
-                #crate_core::widget_instance::NilUiNode
-            }
-        }
-    };
-
-    let mut inherit_export = quote!();
-
-    for Inherit { attrs, path } in &inherits {
-        inherit_export.extend(quote_spanned! {path_span(path)=>
-            #(#attrs)*
-            #[allow(unused_imports)]
-            #[doc(no_inline)]
-            pub use #path::*;
-        });
-    }
-    for p in properties.iter().flat_map(|p| p.properties.iter()) {
-        inherit_export.extend(p.reexport());
-    }
-
-    let macro_ident = ident!("__wgt_{}__", mod_path_slug);
-
-    let docs_span = properties.first().map(|p| p.properties_span).unwrap_or_else(Span::call_site);
-
-    let mut doc_inherits = quote!();
-    let mut doc_assigns = quote!();
-    let mut doc_unsets = quote!();
-    let mut doc_whens = quote!();
-
-    for Inherit { path, .. } in &inherits {
-        if doc_inherits.is_empty() {
-            doc_inherits.extend(quote_spanned! {docs_span=>
-                ///
-                /// ## Inherits
-                ///
-                /// These other includes functions are also called by the include function.
-                ///
-            });
-        }
-
-        let path = path.to_token_stream().to_string().replace(' ', "");
-        let doc = format!("* [`{path}::include`](fn@{path}::include)");
-        doc_inherits.extend(quote_spanned! {docs_span=>
-            #[doc = #doc]
-        });
-    }
-
-    for p in &properties {
-        for p in &p.properties {
-            if p.is_unset() {
-                if doc_unsets.is_empty() {
-                    doc_unsets.extend(quote_spanned! {docs_span=>
-                        ///
-                        /// ## Unsets
-                        ///
-                        /// These properties are unset by the include function.
-                        ///
-                    });
-                }
-                let doc = format!("* [`{0}`](fn@{0})", p.ident());
-                doc_unsets.extend(quote_spanned! {docs_span=>
-                    #[doc=#doc]
-                });
-            } else if p.has_args() {
-                if doc_assigns.is_empty() {
-                    doc_assigns.extend(quote_spanned! {docs_span=>
-                        ///
-                        /// ## Assigns
-                        ///
-                        /// These properties are set by the include function.
-                        ///
-                    });
-                }
-
-                let doc = if p.is_private() {
-                    let path = p.path.to_token_stream().to_string().replace(' ', "");
-                    format!("* [`{}`](fn@{path})", p.ident())
-                } else {
-                    format!("* [`{0}`](fn@{0})", p.ident())
-                };
-                doc_assigns.extend(quote_spanned! {docs_span=>
-                    #[doc=#doc]
-                });
-            }
-        }
-        for w in &p.whens {
-            if doc_whens.is_empty() {
-                doc_whens.extend(quote_spanned! {docs_span=>
-                    ///
-                    /// ## Whens
-                    ///
-                    /// These when conditionals are set by the include function.
-                    ///
-                });
-            }
-            let doc = format!("* `when {}`", w.condition_expr_str);
-            doc_whens.extend(quote_spanned! {docs_span=>
-                ///
-                #[doc=#doc]
-                ///
-            });
-            for p in &w.assigns {
-                let path = p.path.to_token_stream().to_string().replace(' ', "");
-                let doc = format!("   * [`{0}`](fn@{path})", p.ident());
-                doc_whens.extend(quote_spanned! {docs_span=>
-                    #[doc=#doc]
-                });
-            }
-        }
-    }
-
-    let docs_intro = if mixin {
-        quote_spanned! {docs_span=>
-            /// Include mix-in built-ins.
-            ///
-            /// This function is called by all widgets that inherit from this mix-in.
-            ///
-            #(#custom_include_docs)*
-            ///
-            /// # Included
-            ///
-            /// These items are included in the builder by this function.
-        }
-    } else {
-        quote_spanned! {docs_span=>
-            /// Include widget built-ins.
-            ///
-            /// The widget macro calls this function to start building the widget. This function is also called by
-            /// inheritor widgets.
-            ///
-            #(#custom_include_docs)*
-            ///
-            /// # Included
-            ///
-            /// These items are included in the builder by this function.
-        }
-    };
-
-    let mod_items = quote! {
-        #validate_path
-
-        // custom items
-        #(#others)*
-
-        // use items (after custom items in case of custom macro_rules re-export)
-        #(#uses)*
-
-        #inherit_export
-        #capture_decl
-
-        #include_fn
-
-        #docs_intro
-        #doc_assigns
-        #doc_unsets
-        #doc_whens
-        #doc_inherits
-        pub fn include(builder: &mut #crate_core::widget_builder::WidgetBuilder) {
-            let __wgt__ = builder;
-            #include_item_imports
-            #pre_bind
-            #include_items
-        }
-
-        #build_fn
-        #build
-
-        #[doc(hidden)]
-        #[allow(unused_imports)]
-        pub mod __widget__ {
-            pub use #crate_core::{widget_new, widget_builder};
-
-            pub fn mod_info() -> widget_builder::WidgetMod {
-                static impl_id: widget_builder::StaticWidgetImplId = widget_builder::StaticWidgetImplId::new_unique();
-
-                widget_builder::WidgetMod {
-                    impl_id: impl_id.get(),
-                    path: #mod_path_str,
-                    location: widget_builder::source_location!(),
-                }
-            }
-
-            pub fn new() -> widget_builder::WidgetBuilder {
-                let mut wgt = widget_builder::WidgetBuilder::new(mod_info());
-                super::include(&mut wgt);
-                wgt
-            }
-        }
-    };
-
-    let mut mod_block = quote!();
-    mod_braces.surround(&mut mod_block, |t| t.extend(mod_items));
-
-    // rust-analyzer does not find the macro if we don't set the call_site here.
-    let mod_path = util::set_stream_span(mod_path, Span::call_site());
-
-    let macro_new = if mixin {
-        quote! {
-            std::compile_error!{"cannot instantiate mix-in"}
-        }
-    } else {
-        quote! {
-            #mod_path::__widget__::widget_new! {
-                widget { #mod_path }
+                end { wgt__.build() }
                 new { $($tt)* }
             }
-        }
-    };
+        };
 
-    let macro_docs = if util::is_rust_analyzer() {
-        let docs = &attrs.docs;
-        quote! {
-            #(#docs)*
-        }
-    } else {
-        quote! {
+        let macro_docs = if util::is_rust_analyzer() {
+            let docs = &attrs.docs;
+            quote! {
+                #(#docs)*
+            }
+        } else {
+            quote! {
+                #[doc(hidden)]
+            }
+        };
+
+        let r = quote! {
+            #macro_docs
+            #[macro_export]
+            macro_rules! #macro_ident {
+                // actual new
+                (zero_ui_widget: $($tt:tt)*) => {
+                    #macro_new
+                };
+
+                // enforce normal syntax, property = <expr> ..
+                ($(#[$attr:meta])* $property:ident = $($rest:tt)*) => {
+                    #struct_path! {
+                        zero_ui_widget: $(#[$attr])* $property = $($rest)*
+                    }
+                };
+                // enforce normal syntax, when <expr> { .. } ..
+                ($(#[$attr:meta])* when $($rest:tt)*) => {
+                    #struct_path! {
+                        zero_ui_widget: $(#[$attr])* when $($rest)*
+                    }
+                };
+
+                // custom rules, can be (<expr>), why we need enforce some rules
+                #custom_rules
+
+                // fallback, single property shorthand or error.
+                ($($tt:tt)*) => {
+                    #struct_path! {
+                        zero_ui_widget: $($tt)*
+                    }
+                };
+            }
             #[doc(hidden)]
-        }
+            #[allow(unused_imports)]
+            #vis use #macro_ident as #ident;
+            #validate_path
+        };
+
+        let start_r = quote! {
+            impl #mixin_p_bounded #ident #mixin_p {
+                /// Start building a new instance.
+                pub fn start() -> Self {
+                    <Self as #crate_core::widget_base::WidgetImpl>::inherit(Self::widget_type())
+                }
+
+                /// Gets the widget type info.
+                pub fn widget_type() -> #crate_core::widget_builder::WidgetType {
+                    #crate_core::widget_builder::WidgetType {
+                        type_id: std::any::TypeId::of::<Self>(),
+                        path: #struct_path_str,
+                        location: #crate_core::widget_builder::source_location!(),
+                    }
+                }
+            }
+        };
+
+        (r, start_r)
     };
 
     let r = quote! {
         #attrs
-        #vis #mod_token #ident #mod_block
+        #vis #struct_token #ident #mixin_p(#parent);
+        impl #mixin_p_bounded std::ops::Deref for #ident #mixin_p {
+            type Target = #parent;
 
-        #macro_docs
-        #[macro_export]
-        macro_rules! #macro_ident {
-            // inherit util
-            #macro_if_mixin
-            // actual new
-            (zero_ui_widget: $($tt:tt)*) => {
-                #macro_new
-            };
-
-            // enforce normal syntax, property = <expr> ..
-            ($(#[$attr:meta])* $property:ident = $($rest:tt)*) => {
-                #mod_path! {
-                    zero_ui_widget: $(#[$attr])* $property = $($rest)*
-                }
-            };
-            // enforce normal syntax, when <expr> { .. } ..
-            ($(#[$attr:meta])* when $($rest:tt)*) => {
-                #mod_path! {
-                    zero_ui_widget: $(#[$attr])* when $($rest)*
-                }
-            };
-
-            // custom rules, can be (<expr>), why we need enforce some rules
-            #custom_rules
-
-            // fallback, single property shorthand or error.
-            ($($tt:tt)*) => {
-                #mod_path! {
-                    zero_ui_widget: $($tt)*
-                }
-            };
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
         }
-        #[doc(hidden)]
-        #[allow(unused_imports)]
-        #vis use #macro_ident as #ident;
+        impl #mixin_p_bounded std::ops::DerefMut for #ident #mixin_p {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.0
+            }
+        }
+        #start_r
 
-        #errors
+        #[doc(hidden)]
+        impl #mixin_p_bounded #crate_core::widget_base::WidgetImpl for #ident #mixin_p {
+            fn inherit(widget: #crate_core::widget_builder::WidgetType) -> Self {
+                let mut wgt = Self(<#parent as #crate_core::widget_base::WidgetImpl>::inherit(widget));
+                *#crate_core::widget_base::WidgetImpl::base(&mut wgt).importance() = #crate_core::widget_builder::Importance::WIDGET;
+                wgt.on_start();
+                *#crate_core::widget_base::WidgetImpl::base(&mut wgt).importance() = #crate_core::widget_builder::Importance::INSTANCE;
+                wgt
+            }
+
+            fn base(&mut self) -> &mut #crate_core::widget_base::WidgetBase {
+                #crate_core::widget_base::WidgetImpl::base(&mut self.0)
+            }
+
+            fn base_ref(&self) -> &#crate_core::widget_base::WidgetBase {
+                #crate_core::widget_base::WidgetImpl::base_ref(&self.0)
+            }
+
+            fn info_instance__() -> Self {
+                Self(<#parent as #crate_core::widget_base::WidgetImpl>::info_instance__())
+            }
+        }
+
+        #macro_r
     };
     r.into()
 }
@@ -573,7 +309,7 @@ impl Parse for Args {
                             let rules = raw_parts.pop().unwrap().to_token_stream();
                             custom_rules = syn::parse2::<widget_util::WidgetCustomRules>(rules)?.rules;
                         }
-                        for part in raw_parts {
+                        for part in &raw_parts {
                             part.to_tokens(&mut path);
                         }
 
@@ -600,99 +336,8 @@ impl Parse for Args {
     }
 }
 
-struct WidgetItems {
-    uses: Vec<ItemUse>,
-    inherits: Vec<Inherit>,
-    properties: Vec<Properties>,
-    include_fn: Option<ItemFn>,
-    build_fn: Option<ItemFn>,
-    others: Vec<Item>,
-}
-impl WidgetItems {
-    fn new(items: Vec<Item>, errors: &mut Errors) -> Self {
-        let mut uses = vec![];
-        let mut inherits = vec![];
-        let mut properties = vec![];
-        let mut include_fn = None;
-        let mut build_fn = None;
-        let mut others = vec![];
-
-        for item in items {
-            match item {
-                Item::Use(use_) => {
-                    uses.push(use_);
-                }
-                // match properties!
-                Item::Macro(ItemMacro { mac, ident: None, .. }) if mac.path.get_ident().map(|i| i == "properties").unwrap_or(false) => {
-                    match syn::parse2::<Properties>(mac.tokens) {
-                        Ok(mut p) => {
-                            errors.extend(mem::take(&mut p.errors));
-                            p.properties_span = path_span(&mac.path);
-                            properties.push(p)
-                        }
-                        Err(e) => errors.push_syn(e),
-                    }
-                }
-                // match inherit!
-                Item::Macro(ItemMacro {
-                    mac, attrs, ident: None, ..
-                }) if mac.path.get_ident().map(|i| i == "inherit").unwrap_or(false) => match parse2::<Inherit>(mac.tokens) {
-                    Ok(mut ps) => {
-                        ps.attrs.extend(attrs);
-                        inherits.push(ps)
-                    }
-                    Err(e) => errors.push_syn(e),
-                },
-
-                // match fn include(..)
-                Item::Fn(fn_) if fn_.sig.ident == "include" => {
-                    include_fn = Some(fn_);
-                }
-                // match fn build(..)
-                Item::Fn(fn_) if fn_.sig.ident == "build" => {
-                    build_fn = Some(fn_);
-                }
-                // other user items.
-                item => others.push(item),
-            }
-        }
-
-        WidgetItems {
-            uses,
-            inherits,
-            properties,
-            include_fn,
-            build_fn,
-            others,
-        }
-    }
-}
-
-struct Inherit {
-    attrs: Vec<Attribute>,
-    path: Path,
-}
-impl Inherit {
-    fn has_mixin_suffix(&self) -> bool {
-        self.path
-            .segments
-            .last()
-            .map(|s| s.ident.to_string().ends_with("_mixin"))
-            .unwrap_or(false)
-    }
-}
-impl Parse for Inherit {
-    fn parse(input: parse::ParseStream) -> syn::Result<Self> {
-        Ok(Inherit {
-            attrs: vec![],
-            path: input.parse()?,
-        })
-    }
-}
-
 struct Properties {
     errors: Errors,
-    properties_span: Span,
     properties: Vec<WgtProperty>,
     whens: Vec<WgtWhen>,
 }
@@ -711,7 +356,7 @@ impl Parse for Properties {
                     whens.push(when);
                 }
             } else if input.peek(Token![pub])
-                || input.peek(Ident)
+                || input.peek(Ident::peek_any)
                 || input.peek(Token![crate])
                 || input.peek(Token![super])
                 || input.peek(Token![self])
@@ -723,7 +368,7 @@ impl Parse for Properties {
                         if !input.is_empty() && p.semi.is_none() {
                             errors.push("expected `;`", input.span());
                             while !(input.is_empty()
-                                || input.peek(Ident)
+                                || input.peek(Ident::peek_any)
                                 || input.peek(Token![crate])
                                 || input.peek(Token![super])
                                 || input.peek(Token![self])
@@ -752,16 +397,11 @@ impl Parse for Properties {
             }
         }
 
-        Ok(Properties {
-            errors,
-            properties_span: Span::call_site(),
-            properties,
-            whens,
-        })
+        Ok(Properties { errors, properties, whens })
     }
 }
 
-fn mod_path_slug(path: &str) -> String {
+fn path_slug(path: &str) -> String {
     path.replace("crate", "")
         .replace("::", "_")
         .replace('$', "")
@@ -774,98 +414,252 @@ fn mod_path_slug(path: &str) -> String {
 */
 
 pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let NewArgs { widget, properties: mut p } = parse_macro_input!(args as NewArgs);
+    let NewArgs {
+        start,
+        end,
+        properties: mut p,
+    } = parse_macro_input!(args as NewArgs);
 
-    let mut pre_bind = quote!();
-    for prop in &mut p.properties {
-        pre_bind.extend(prop.pre_bind_args(true, None, ""));
+    let core = util::crate_core();
 
-        if !matches!(&prop.vis, Visibility::Inherited) {
-            p.errors.push("cannot reexport property from instance", prop.vis.span());
-        }
+    let mut set_props = quote!();
+    for prop in &p.properties {
+        set_props.extend(prop_assign(prop, &mut p.errors, false));
     }
-    for (i, when) in p.whens.iter_mut().enumerate() {
-        pre_bind.extend(when.pre_bind(true, i));
-    }
 
-    let mut init = quote!();
-
-    let builder = ident!("__wgt__");
-    let when = ident!("__when__");
-    let importance = ident!("__importance__");
-
-    for p in &p.properties {
-        let custom_expand = if p.has_custom_attrs() {
-            p.custom_attrs_expand(builder.clone(), None, Some(importance.clone()))
-        } else {
-            quote!()
+    let mut set_whens = quote!();
+    for when in &p.whens {
+        let when_expr = match syn::parse2::<widget_util::WhenExpr>(when.condition_expr.clone()) {
+            Ok(w) => w,
+            Err(e) => {
+                p.errors.push_syn(e);
+                continue;
+            }
         };
 
-        let attrs = p.attrs.cfg_and_lints();
-        if p.is_unset() {
-            let id = p.property_id();
-            init.extend(quote! {
-                #attrs
-                {
-                    let mut #importance = #widget::__widget__::widget_builder::Importance::INSTANCE;
-                    { #custom_expand }
-                    __wgt__.push_unset(#importance, #id);
+        let mut when_expr_vars = quote!();
+        let mut inputs = quote!();
+        for ((property, member), var) in when_expr.inputs {
+            let (property, generics) = widget_util::split_path_generics(property).unwrap();
+            let p_ident = &property.segments.last().unwrap().ident;
+            let p_meta = ident_spanned!(p_ident.span()=> "{p_ident}_");
+            let var_input = ident!("{var}_in__");
+            let member_ident = ident_spanned!(property.span()=> "__w_{member}__");
+
+            let member = match member {
+                widget_util::WhenInputMember::Named(ident) => {
+                    let ident_str = ident.to_string();
+                    quote! {
+                        Named(#ident_str)
+                    }
                 }
+                widget_util::WhenInputMember::Index(i) => quote! {
+                    Index(#i)
+                },
+            };
+
+            macro_rules! quote_call {
+                (#$mtd:ident ( $($args:tt)* )) => {
+                    if property.get_ident().is_some() {
+                        quote! {
+                            wgt__.#$mtd #generics($($args)*);
+                        }
+                    } else {
+                        quote! {
+                            #property::#$mtd #generics(#core::widget_base::WidgetImpl::base(&mut *wgt__), $($args)*);
+                        }
+                    }
+                }
+            }
+
+            let get_meta = quote_call!(#p_meta());
+
+            when_expr_vars.extend(quote! {
+                let (#var_input, #var) = {
+                    let meta__ =  #get_meta
+                    meta__.allowed_in_when_expr();
+                    meta__.inputs #generics().#member_ident()
+                };
             });
-        } else if p.has_args() {
-            let args = p.args_new(quote!(#widget::__widget__::widget_builder));
-            init.extend(quote! {
-                #attrs
+
+            inputs.extend(quote! {
                 {
-                    let mut #importance = #widget::__widget__::widget_builder::Importance::INSTANCE;
-                    { #custom_expand }
-                    __wgt__.push_property(#importance, #args);
-                }
+                    let meta__ = #get_meta
+                    #core::widget_builder::WhenInput {
+                        property: meta__.id(),
+                        member: #core::widget_builder::WhenInputMember::#member,
+                        var: #var_input,
+                        property_default: meta__ .default_fn #generics(),
+                    }
+                },
             });
         }
-    }
 
-    for w in &p.whens {
-        let attrs = w.attrs.cfg_and_lints();
-        let args = w.when_new(quote!(#widget::__widget__::widget_builder));
-        let custom_expr = w.custom_assign_expand(&builder, &when);
-        init.extend(quote! {
-            #attrs
-            {
-                let mut #when = #args;
-                { #custom_expr }
-                __wgt__.push_when(#widget::__widget__::widget_builder::Importance::INSTANCE, #when);
+        let mut assigns = quote!();
+        for prop in &when.assigns {
+            assigns.extend(prop_assign(prop, &mut p.errors, true));
+        }
+
+        let attrs = when.attrs.cfg_and_lints();
+        let expr = when_expr.expr;
+        let expr_str = &when.condition_expr_str;
+
+        set_whens.extend(quote! {
+            #attrs {
+                #when_expr_vars
+                let inputs__ = std::boxed::Box::new([
+                    #inputs
+                ]);
+                #core::widget_base::WidgetImpl::base(&mut *wgt__).start_when_block(
+                    inputs__,
+                    #core::widget_builder::when_condition_expr_var! { #expr },
+                    #expr_str,
+                    #core::widget_builder::source_location!(),
+                );
+
+                #assigns
+
+                #core::widget_base::WidgetImpl::base(&mut *wgt__).end_when_block();
             }
         });
     }
 
-    p.errors.to_tokens(&mut init);
+    let errors = p.errors;
 
     let r = quote! {
         {
-            #pre_bind
+            #errors
 
-            let mut __wgt__ = #widget::__widget__::new();
-            {
-                #[allow(unused_imports)]
-                use #widget::*;
-                #init
-            }
-            #widget::build(__wgt__)
+            #start
+            #set_props
+            #set_whens
+            #end
         }
     };
 
     r.into()
 }
 
+fn prop_assign(prop: &WgtProperty, errors: &mut Errors, is_when: bool) -> TokenStream {
+    let core = util::crate_core();
+
+    let custom_expand = if prop.has_custom_attrs() {
+        prop.custom_attrs_expand(ident!("wgt__"), is_when)
+    } else {
+        quote!()
+    };
+    let attrs = prop.attrs.cfg_and_lints();
+
+    let ident = prop.ident();
+    let path = &prop.path;
+
+    let generics = &prop.generics;
+
+    macro_rules! quote_call {
+        (#$mtd:ident ( $($args:tt)* )) => {
+            if path.get_ident().is_some() {
+                quote! {
+                    wgt__.#$mtd #generics($($args)*);
+                }
+            } else {
+                quote! {
+                    #path::#$mtd #generics(#core::widget_base::WidgetImpl::base(&mut *wgt__), $($args)*);
+                }
+            }
+        }
+    }
+
+    let ident_meta = ident_spanned!(ident.span()=> "{}_", ident);
+
+    let when_check = if is_when {
+        let meta = quote_call!(#ident_meta());
+        quote! {
+            {
+                let meta__ = #meta
+                meta__.allowed_in_when_assign();
+            }
+        }
+    } else {
+        quote!()
+    };
+
+    let prop_init;
+
+    match &prop.value {
+        Some((_, val)) => match val {
+            widget_util::PropertyValue::Special(special, _) => {
+                if prop.is_unset() {
+                    let unset_ident = ident_spanned!(ident.span()=> "unset_{}", ident);
+                    prop_init = quote_call! {
+                        #unset_ident()
+                    };
+                } else {
+                    errors.push("unknown value, expected `unset!`", special.span());
+                    return quote!();
+                }
+            }
+            widget_util::PropertyValue::Unnamed(val) => {
+                prop_init = quote_call! {
+                    #ident(#val)
+                };
+            }
+            widget_util::PropertyValue::Named(_, fields) => {
+                let mut idents_sorted: Vec<_> = fields.iter().map(|f| &f.ident).collect();
+                idents_sorted.sort();
+                let idents = fields.iter().map(|f| &f.ident);
+                let values = fields.iter().map(|f| &f.expr);
+                let ident_sorted = ident_spanned!(ident.span()=> "{}__", ident);
+
+                let call = quote_call! {
+                    #ident_sorted(#(#idents_sorted),*)
+                };
+                let meta = if path.get_ident().is_some() {
+                    quote! {
+                        wgt__.#ident_meta()
+                    }
+                } else {
+                    quote! {
+                        <#core::widget_builder::WgtInfo as #path>::#ident_meta(&#core::widget_builder::WgtInfo)
+                    }
+                };
+                prop_init = quote! {
+                    {
+                        let meta__ = #meta;
+                        #(
+                            let #idents = meta__.inputs().#idents(#values);
+                        )*
+                        #call
+                    }
+                };
+            }
+        },
+        None => {
+            let ident = &prop.path.segments.last().unwrap().ident;
+            prop_init = quote_call! {
+                #ident(#ident)
+            };
+        }
+    }
+
+    quote! {
+        #attrs {
+            #when_check
+            #custom_expand
+            #prop_init
+        }
+    }
+}
+
 struct NewArgs {
-    widget: TokenStream,
+    start: TokenStream,
+    end: TokenStream,
     properties: Properties,
 }
 impl Parse for NewArgs {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         Ok(Self {
-            widget: non_user_braced!(input, "widget").parse().unwrap(),
+            start: non_user_braced!(input, "start").parse().unwrap(),
+            end: non_user_braced!(input, "end").parse().unwrap(),
             properties: non_user_braced!(input, "new").parse()?,
         })
     }

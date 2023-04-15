@@ -32,9 +32,9 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Foo Example";
-            child = text!("Bar");
+            child = Text!("Bar");
         }
     })
 }

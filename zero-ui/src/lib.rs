@@ -30,10 +30,10 @@
 //!
 //!     App::default().run_window(async {
 //!         let size = var_from((800, 600));
-//!         window! {
+//!         Window! {
 //!             title = size.map(|s: &Size| formatx!("Button Example - {s}"));
 //!             size;
-//!             child = button! {
+//!             child = Button! {
 //!                 on_click = hn!(|_| {
 //!                     println!("Button clicked!");
 //!                 });
@@ -41,7 +41,7 @@
 //!                 size = (300, 200);
 //!                 align = Align::CENTER;
 //!                 font_size = 28;
-//!                 child = text!("Click Me!");
+//!                 child = Text!("Click Me!");
 //!             }
 //!         }
 //!     })
@@ -135,8 +135,8 @@ pub mod prelude {
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
                 NumVariant,
             },
-            formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Hyphens, Justify, LineBreak, Text,
-            TextTransformFn, ToText, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak, FONTS,
+            formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Hyphens, Justify, LineBreak,
+            TextTransformFn, ToText, Txt, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak, FONTS,
         },
         timer::TIMERS,
         units::{
@@ -156,9 +156,9 @@ pub mod prelude {
             UiNodeListChain, UiNodeVec, WidgetId, ZIndex,
         },
         window::{
-            AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition, Window,
-            WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowState, WindowVars,
-            WINDOWS, WINDOW_CTRL,
+            AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition,
+            WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowRoot, WindowState,
+            WindowVars, WINDOWS, WINDOW_CTRL,
         },
     };
 
@@ -244,7 +244,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::task::{self, rayon::prelude::*, ui::UiTask};
         #[doc(no_inline)]
-        pub use crate::core::text::Text;
+        pub use crate::core::text::Txt;
         #[doc(no_inline)]
         pub use crate::core::units::{self, *};
         #[doc(no_inline)]
@@ -278,14 +278,14 @@ pub mod prelude {
     /// # fn main() { }
     /// use zero_ui::prelude::new_widget::*;
     ///
-    /// #[widget($crate::my_widget)]
-    /// pub mod my_widget {
-    ///     use super::*;
-    ///
-    ///     inherit!(widget_base::base);
-    ///
-    ///     properties! {
-    ///         background_color = colors::BLUE;
+    /// #[widget($crate::MyWidget)]
+    /// pub struct MyWidget(WidgetBase);
+    /// impl MyWidget {
+    ///     fn on_start(&mut self) {
+    ///         widget_set! {
+    ///             self;
+    ///             background_color = colors::BLUE;
+    ///         }
     ///     }
     /// }
     /// ```
@@ -301,7 +301,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::handler::*;
         #[doc(no_inline)]
-        pub use crate::core::image::Image;
+        pub use crate::core::image::Img;
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
@@ -319,7 +319,8 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::{
             property, ui_node, widget,
-            widget_base::{self, HitTestMode},
+            widget_base::{self, HitTestMode, WidgetBase, WidgetImpl},
+            widget_impl,
             widget_info::{
                 InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,
                 WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
@@ -329,7 +330,7 @@ pub mod prelude {
                 NilUiNode, PanelList, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeVec,
                 WidgetId, ZIndex,
             },
-            widget_mixin,
+            widget_mixin, widget_set,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
@@ -346,20 +347,17 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::properties::*;
         #[doc(no_inline)]
-        pub use crate::widgets::mixins::*;
-        #[doc(no_inline)]
         pub use crate::widgets::text::{
-            font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, txt_align, txt_color,
-            txt_transform, word_spacing,
+            self, font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, txt_align,
+            txt_color, txt_transform, word_spacing,
         };
         #[doc(no_inline)]
         pub use crate::widgets::{
-            container,
+            focusable_mix::FocusableMix,
             layouts::{stack_nodes, stack_nodes_layout_by},
-            mixins::style_mixin,
             style,
-            style::{style_fn, StyleFn},
-            wgt_fn, DataUpdate, WidgetFn,
+            style::{style_fn, Style, StyleFn, StyleMix},
+            wgt_fn, Container, DataUpdate, WidgetFn,
         };
     }
 }

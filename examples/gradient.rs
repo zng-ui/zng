@@ -13,13 +13,13 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Gradient Example";
             auto_size = true;
             icon = WindowIcon::render(icon);
-            child = scroll! {
+            child = Scroll! {
                 padding = 20;
-                child = stack! {
+                child = Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
                     children = ui_vec![
@@ -37,7 +37,7 @@ fn app_main() {
 }
 
 fn title(title: &'static str) -> impl UiNode {
-    text! {
+    Text! {
         txt = title;
         font_size = 18.pt();
     }
@@ -166,12 +166,12 @@ fn stack_linear() -> impl UiNode {
 
 fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
     let name = name.to_text();
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         children = ui_vec![
-            text!(name),
-            container! {
+            Text!(name),
+            Container! {
                 size = (180, 180);
                 child = gradient;
             }
@@ -180,7 +180,7 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl UiNode {
 }
 
 fn sample_line(children: impl UiNodeList) -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::left_to_right();
         spacing = 5;
         children;
@@ -188,13 +188,13 @@ fn sample_line(children: impl UiNodeList) -> impl UiNode {
 }
 
 fn icon() -> impl UiNode {
-    container! {
+    Container! {
         size = (36, 36);
         background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
         corner_radius = 6;
         font_size = 28;
         font_weight = FontWeight::BOLD;
         child_align = Align::CENTER;
-        child = text!("G");
+        child = Text!("G");
     }
 }

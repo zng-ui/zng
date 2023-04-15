@@ -16,9 +16,9 @@ use zero_ui::prelude::new_property::*;
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// button! {
+/// Button! {
 ///     margin = 10;
-///     child = text!("Click Me!")
+///     child = Text!("Click Me!")
 /// }
 /// # ;
 /// ```
@@ -29,10 +29,10 @@ use zero_ui::prelude::new_property::*;
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// container! {
-///     child = button! {
+/// Container! {
+///     child = Button! {
 ///         margin = (10, 5.pct());
-///         child = text!("Click Me!")
+///         child = Text!("Click Me!")
 ///     };
 ///     margin = (1, 2, 3, 4);
 /// }
@@ -93,10 +93,10 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 /// #
-/// container! {
-///     child = button! {
+/// Container! {
+///     child = Button! {
 ///         align = Align::TOP;
-///         child = text!("Click Me!")
+///         child = Text!("Click Me!")
 ///     };
 /// }
 /// # ;
@@ -156,9 +156,9 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 ///
-/// button! {
+/// Button! {
 ///     offset = (100, 20.pct());
-///     child = text!("Click Me!")
+///     child = Text!("Click Me!")
 /// }
 /// # ;
 /// ```
@@ -210,9 +210,9 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 ///
-/// button! {
+/// Button! {
 ///     x = 20.pct();
-///     child = text!("Click Me!")
+///     child = Text!("Click Me!")
 /// };
 /// # ;
 /// ```
@@ -261,9 +261,9 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 ///
-/// button! {
+/// Button! {
 ///     y = 20.pct();
-///     child = text!("Click Me!")
+///     child = Text!("Click Me!")
 /// }
 /// # ;
 /// ```
@@ -319,8 +319,8 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// # let _scope = App::minimal();
 /// # let label = formatx!("");
 ///
-/// button! {
-///     child = text!(label);
+/// Button! {
+///     child = Text!(label);
 ///     min_size = (100, 50);
 /// }
 /// # ;
@@ -384,8 +384,8 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 /// # let _scope = App::minimal();
 /// # let label = formatx!("");
 ///
-/// button! {
-///     child = text!(label);
+/// Button! {
+///     child = Text!(label);
 ///     min_width = 100;
 /// }
 /// # ;
@@ -448,9 +448,9 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # let btn_content = text!("");
+/// # let btn_content = Text!("");
 /// #
-/// button! {
+/// Button! {
 ///     child = btn_content;
 ///     min_height = 50;
 /// }
@@ -514,9 +514,9 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # let btn_content = text!("");
+/// # let btn_content = Text!("");
 /// #
-/// button! {
+/// Button! {
 ///     child = btn_content;
 ///     max_size = (200, 100);
 /// }
@@ -577,9 +577,9 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # let btn_content = text!("");
+/// # let btn_content = Text!("");
 ///
-/// button! {
+/// Button! {
 ///     child = btn_content;
 ///     max_width = 200;
 /// }
@@ -643,9 +643,9 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # let btn_content = text!("");
+/// # let btn_content = Text!("");
 ///
-/// button! {
+/// Button! {
 ///     child = btn_content;
 ///     max_height = 100;
 /// }
@@ -710,10 +710,10 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// button! {
+/// Button! {
 ///     background_color = rgb(255, 0, 0);
 ///     size = (200, 300);
-///     child = text!("200x300 red");
+///     child = Text!("200x300 red");
 /// }
 /// # ;
 /// ```
@@ -781,10 +781,10 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// button! {
+/// Button! {
 ///     background_color = rgb(255, 0, 0);
 ///     width = 200;
-///     child = text!("200x? red");
+///     child = Text!("200x? red");
 /// }
 /// # ;
 /// ```
@@ -853,10 +853,10 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// button! {
+/// Button! {
 ///     background_color = rgb(255, 0, 0);
 ///     height = 300;
-///     child = text!("?x300 red");
+///     child = Text!("?x300 red");
 /// }
 /// # ;
 /// ```
@@ -920,11 +920,11 @@ fn with_fill_metrics<R>(f: impl FnOnce(PxSize) -> R) -> R {
 /// Set or overwrite the baseline of the widget.
 ///
 /// The `baseline` is a vertical offset from the bottom edge of the widget's inner bounds up, it defines the
-/// line where the widget naturally *sits*, some widgets like [`text!`] have a non-zero default baseline, most others leave it at zero.
+/// line where the widget naturally *sits*, some widgets like [`Text!`] have a non-zero default baseline, most others leave it at zero.
 ///
 /// Relative values are computed from the widget's height.
 ///
-/// [`text!`]: mod@crate::widgets::text
+/// [`Text!`]: struct@crate::widgets::Text
 #[property(BORDER, default(Length::Default))]
 pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNode {
     #[ui_node(struct BaselineNode {
@@ -1446,7 +1446,7 @@ pub fn child_insert_end(child: impl UiNode, insert: impl UiNode, spacing: impl I
 pub enum WidgetLength {
     /// Evaluates to [`PxConstraints2d::fill_size`] when measured, can serve as a request for *size-to-fit*.
     ///
-    /// The `grid!` widget uses this to fit the column and row widgets to *their* cells, as they don't
+    /// The `Grid!` widget uses this to fit the column and row widgets to *their* cells, as they don't
     /// logically own the cells, this fit needs to be computed by the parent panel.
     #[default]
     Default,

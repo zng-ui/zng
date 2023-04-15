@@ -18,11 +18,11 @@ use super::hit_test_mode;
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
-/// container! {
+/// Container! {
 ///     child = foo();
-///     background = text! {
+///     background = Text! {
 ///         txt = "CUSTOM BACKGROUND";
 ///         font_size = 72;
 ///         txt_color = colors::LIGHT_GRAY;
@@ -82,9 +82,9 @@ pub fn background_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
-/// container! {
+/// Container! {
 ///     child = foo();
 ///     background_color = hex!(#ADF0B0);
 /// }
@@ -106,9 +106,9 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
-/// container! {
+/// Container! {
 ///     child = foo();
 ///     background_gradient = {
 ///         axis: 90.deg(),
@@ -136,9 +136,9 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
-/// container! {
+/// Container! {
 ///     child = foo();
 ///     background_radial = {
 ///         center: (50.pct(), 80.pct()),
@@ -172,9 +172,9 @@ pub fn background_radial(
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
-/// container! {
+/// Container! {
 ///     child = foo();
 ///     background_conic = {
 ///         center: (50.pct(), 80.pct()),
@@ -210,11 +210,11 @@ pub fn background_conic(
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
-/// container! {
+/// Container! {
 ///     child = foo();
-///     foreground = text! {
+///     foreground = Text! {
 ///         txt = "TRIAL";
 ///         font_size = 72;
 ///         txt_color = colors::BLACK;
@@ -275,8 +275,8 @@ pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> 
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
-/// container! {
+/// # fn foo() -> impl UiNode { Wgt!() }
+/// Container! {
 ///     child = foo();
 ///     foreground_highlight = {
 ///         offsets: 3,
@@ -379,9 +379,9 @@ pub fn foreground_highlight(
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
-/// container! {
+/// Container! {
 ///     child = foo();
 ///     foreground_color = rgba(0, 240, 0, 10.pct())
 /// }
@@ -405,9 +405,9 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// ```
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
-/// # fn foo() -> impl UiNode { wgt!() }
+/// # fn foo() -> impl UiNode { Wgt!() }
 /// #
-/// container! {
+/// Container! {
 ///     child = foo();
 ///     foreground_gradient = {
 ///         axis: (0, 0).to(0, 10),
@@ -441,16 +441,16 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// # use zero_ui::prelude::*;
 /// # let _scope = App::minimal();
 /// #
-/// container! {
+/// Container! {
 ///     background_color = rgb(255, 0, 0);
 ///     size = (200, 300);
 ///     corner_radius = 5;
 ///     clip_to_bounds = true;
-///     child = container! {
+///     child = Container! {
 ///         background_color = rgb(0, 255, 0);
 ///         // fixed size ignores the layout available size.
 ///         size = (1000, 1000);
-///         child = text!("1000x1000 green clipped to 200x300");
+///         child = Text!("1000x1000 green clipped to 200x300");
 ///     };
 /// }
 /// # ;

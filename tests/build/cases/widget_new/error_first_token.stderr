@@ -1,11 +1,11 @@
 error: expected property or when
- --> cases/widget_new/error_first_token.rs:6:9
+ --> cases/widget_new/error_first_token.rs:5:9
   |
-6 |         =
+5 |         =
   |         ^
 
 error: expected property path
-  --> cases/widget_new/error_first_token.rs:13:13
+  --> cases/widget_new/error_first_token.rs:12:13
    |
-13 |             =
+12 |             =
    |             ^

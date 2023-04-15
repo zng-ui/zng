@@ -1,13 +1,13 @@
 //! Layout widgets.
 
-mod grid_wgt;
+pub mod grid;
 #[doc(inline)]
-pub use grid_wgt::grid;
+pub use grid::Grid;
 
-mod stack_wgt;
+pub mod stack;
 #[doc(inline)]
-pub use stack_wgt::{h_stack, stack, stack_nodes, stack_nodes_layout_by, v_stack, z_stack};
+pub use stack::{h_stack, stack_nodes, stack_nodes_layout_by, v_stack, z_stack, Stack};
 
-mod wrap_wgt;
+pub mod wrap;
 #[doc(inline)]
-pub use wrap_wgt::wrap;
+pub use wrap::Wrap;

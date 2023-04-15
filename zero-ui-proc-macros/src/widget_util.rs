@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt, mem};
 
-use proc_macro2::{Ident, Span, TokenStream, TokenTree};
+use proc_macro2::{Ident, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use syn::{
     ext::IdentExt,
@@ -19,15 +19,10 @@ use crate::{
 pub struct WgtProperty {
     /// Attributes.
     pub attrs: Attributes,
-    /// Reexport visibility.
-    pub vis: Visibility,
     /// Path to property.
     pub path: Path,
-    pub capture_decl: Option<CaptureDeclaration>,
     /// The ::<T> part of the path, if present it is removed from `path`.
     pub generics: TokenStream,
-    /// Optional property rename.
-    pub rename: Option<(Token![as], Ident)>,
     /// Optional value, if not defined the property must be assigned to its own name.
     pub value: Option<(Token![=], PropertyValue)>,
     /// Optional terminator.
@@ -36,25 +31,7 @@ pub struct WgtProperty {
 impl WgtProperty {
     /// Gets the property name.
     pub fn ident(&self) -> &Ident {
-        if let Some((_, id)) = &self.rename {
-            id
-        } else {
-            &self.path.segments.last().unwrap().ident
-        }
-    }
-
-    /// Generate PropertyId init code.
-    pub fn property_id(&self) -> TokenStream {
-        let path = &self.path;
-        let ident = self.ident();
-        let ident_str = ident.to_string();
-        quote_spanned! {path_span(path)=>
-            #path::__id__(#ident_str)
-        }
-    }
-
-    pub fn is_private(&self) -> bool {
-        matches!(&self.vis, Visibility::Inherited)
+        &self.path.segments.last().unwrap().ident
     }
 
     /// Gets if this property is assigned `unset!`.
@@ -66,238 +43,13 @@ impl WgtProperty {
         }
     }
 
-    /// Gets if this property has args.
-    pub fn has_args(&self) -> bool {
-        matches!(&self.value, Some((_, PropertyValue::Unnamed(_) | PropertyValue::Named(_, _))))
-    }
-
-    fn location_span(&self) -> Span {
-        // if we just use the path span, go to rust-analyzer go-to-def gets confused.
-        if let Some((eq, _)) = &self.value {
-            eq.span()
-        } else if let Some((as_, _)) = &self.rename {
-            as_.span()
-        } else if let Some(s) = &self.semi {
-            s.span()
-        } else {
-            self.path.span()
-        }
-    }
-
-    /// Converts values to `let` bindings that are returned.
-    pub fn pre_bind_args(&mut self, shorthand_init_enabled: bool, extra_attrs: Option<&Attributes>, extra_prefix: &str) -> TokenStream {
-        let prefix = if let Some((_, id)) = &self.rename {
-            format!("__{extra_prefix}as_{id}_")
-        } else {
-            let path_str = self.path.to_token_stream().to_string().replace(' ', "").replace("::", "_i_");
-            format!("__{extra_prefix}p_{path_str}_")
-        };
-
-        let mut attrs = self.attrs.cfg_and_lints();
-        if let Some(extra) = extra_attrs {
-            attrs.extend(extra.cfg_and_lints())
-        }
-
-        let mut r = quote!();
-        if let Some((eq, val)) = &mut self.value {
-            match val {
-                PropertyValue::Unnamed(args) => {
-                    let args_exprs = mem::replace(args, quote!());
-                    match syn::parse2::<UnamedArgs>(args_exprs.clone()) {
-                        Ok(a) => {
-                            for (i, arg) in a.args.into_iter().enumerate() {
-                                let ident = ident_spanned!(eq.span()=> "{prefix}{i}__");
-                                args.extend(quote!(#ident,));
-                                r.extend(quote! {
-                                    #attrs
-                                    let #ident = {#arg};
-                                });
-                            }
-                        }
-                        Err(_) => {
-                            // let natural error happen, this helps Rust-Analyzer auto-complete.
-                            *args = args_exprs;
-                        }
-                    };
-                }
-                PropertyValue::Named(_, args) => {
-                    for arg in args {
-                        let expr = mem::replace(&mut arg.expr, quote!());
-                        let ident = ident_spanned!(eq.span()=> "{prefix}{}__", arg.ident);
-                        arg.expr = quote!(#ident);
-                        r.extend(quote! {
-                            #attrs
-                            let #ident = {#expr};
-                        });
-                    }
-                }
-                PropertyValue::Special(_, _) => {}
-            }
-        } else if shorthand_init_enabled && (self.rename.is_some() || self.path.get_ident().is_some()) {
-            let ident = self.ident().clone();
-            let let_ident = ident!("{prefix}0__");
-            self.value = Some((parse_quote!(=), PropertyValue::Unnamed(quote!(#let_ident))));
-            r.extend(quote! {
-                #attrs
-                let #let_ident = #ident;
-            });
-        }
-        r
-    }
-
-    pub fn reexport(&self) -> TokenStream {
-        if self.capture_decl.is_some() {
-            return quote!();
-        }
-
-        let vis = match self.vis.clone() {
-            Visibility::Inherited => {
-                if self.rename.is_some() || self.path.get_ident().is_none() {
-                    // so at least the widget can use it after pre-bind.
-                    Visibility::Inherited
-                } else {
-                    // already in context
-                    return quote!();
-                }
-            }
-            vis => vis,
-        };
-
-        let path = &self.path;
-
-        let name = match &self.rename {
-            Some((as_, id_)) => quote!(#as_ #id_),
-            None => {
-                let id_ = self.ident();
-                quote_spanned!(id_.span()=> as #id_)
-            }
-        };
-        let attrs = self.attrs.cfg_and_lints();
-        let clippy_nag = quote!(#[allow(clippy::useless_attribute)]);
-
-        quote_spanned! {self.path.span()=>
-            #clippy_nag
-            #attrs
-            #[allow(unused_imports)]
-            #[doc(inline)]
-            #vis use #path #name;
-        }
-    }
-
-    /// Declares capture property if it is one.
-    pub fn declare_capture(&self) -> TokenStream {
-        if let Some(decl) = &self.capture_decl {
-            let mut errors = Errors::default();
-            if !self.generics.is_empty() {
-                errors.push("new capture shorthand cannot have explicit generics", self.generics.span());
-            }
-            if let Some((as_, _)) = &self.rename {
-                errors.push("new capture properties cannot be renamed", as_.span());
-            }
-            if self.path.get_ident().is_none() {
-                errors.push("new capture properties must have a single ident", self.path.span());
-            }
-            let default_args = match &self.value {
-                Some((_, val)) => match val {
-                    PropertyValue::Unnamed(val) => Some(val),
-                    PropertyValue::Special(id, _) => {
-                        errors.push("cannot `{id}` new capture property", id.span());
-                        None
-                    }
-                    PropertyValue::Named(brace, _) => {
-                        errors.push("expected unnamed default", brace.span.join());
-                        None
-                    }
-                },
-                None => None,
-            };
-
-            if errors.is_empty() {
-                let ident = self.path.get_ident().unwrap().clone();
-
-                let ty = &decl.ty;
-                let vis = match self.vis.clone() {
-                    Visibility::Inherited => {
-                        // so at least the widget can get the `property_id!`.
-                        parse_quote!(pub(super))
-                    }
-                    vis => vis,
-                };
-                let core = util::crate_core();
-
-                let default = if let Some(default_args) = default_args {
-                    quote! {
-                        , default(#default_args)
-                    }
-                } else {
-                    quote!()
-                };
-
-                let attrs = &self.attrs;
-                quote_spanned! {ident.span()=>
-                    #attrs
-                    #[#core::property(CONTEXT, capture #default)]
-                    #vis fn #ident(__child__: impl #core::widget_instance::UiNode, #ident: #ty) -> impl #core::widget_instance::UiNode {
-                        __child__
-                    }
-                }
-            } else {
-                errors.to_token_stream()
-            }
-        } else {
-            quote!()
-        }
-    }
-
-    /// Gets the property args new code.
-    pub fn args_new(&self, wgt_builder_mod: TokenStream) -> TokenStream {
-        let path = &self.path;
-        let generics = &self.generics;
-        let ident = self.ident();
-        let ident_str = ident.to_string();
-        let instance = quote_spanned! {self.location_span()=>
-            #wgt_builder_mod::PropertyInstInfo {
-                name: #ident_str,
-                location: #wgt_builder_mod::source_location!(),
-            }
-        };
-        if let Some((_, val)) = &self.value {
-            match val {
-                PropertyValue::Special(_, _) => non_user_error!("no args for special value"),
-                PropertyValue::Unnamed(args) => quote_spanned! {path_span(path)=>
-                    #path #generics::__new__(#args).__build__(#instance)
-                },
-                PropertyValue::Named(_, args) => {
-                    let mut idents_sorted: Vec<_> = args.iter().map(|f| &f.ident).collect();
-                    idents_sorted.sort();
-                    let idents = args.iter().map(|f| &f.ident);
-                    let exprs = args.iter().map(|f| &f.expr);
-                    quote_spanned! {path_span(path)=>
-                        {
-                            #(
-                                let #idents = #path #generics::#idents(#exprs);
-                            )*
-
-                            #path #generics::__new_sorted__(#(#idents_sorted),*).__build__(#instance)
-                        }
-                    }
-                }
-            }
-        } else {
-            let ident = self.ident();
-            quote! {
-                #path #generics::__new__(#ident).__build__(#instance)
-            }
-        }
-    }
-
     /// If `custom_attrs_expand` is needed.
     pub fn has_custom_attrs(&self) -> bool {
         !self.attrs.others.is_empty()
     }
 
     /// Gets custom attributes expansion data if any was present in the property.
-    pub fn custom_attrs_expand(&self, builder: Ident, when: Option<Ident>, importance: Option<Ident>) -> TokenStream {
+    pub fn custom_attrs_expand(&self, builder: Ident, is_when: bool) -> TokenStream {
         debug_assert!(self.has_custom_attrs());
 
         let attrs = &self.attrs.others;
@@ -308,9 +60,8 @@ impl WgtProperty {
             data_ident: ident!("__property_custom_expand_data_p_{}__", path_slug),
             builder,
             is_unset: self.is_unset(),
-            when,
+            is_when,
             property: self.path.clone(),
-            importance,
         }
         .to_token_stream()
     }
@@ -319,7 +70,6 @@ impl Parse for WgtProperty {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let attrs = Attribute::parse_outer(input)?;
 
-        let vis = input.parse()?;
         let path: Path = input.parse()?;
         if input.peek(Token![!]) {
             // cause error.
@@ -327,13 +77,6 @@ impl Parse for WgtProperty {
         }
         let (path, generics) = split_path_generics(path)?;
 
-        let capture_decl = if input.peek(token::Paren) { Some(input.parse()?) } else { None };
-
-        let rename = if input.peek(Token![as]) {
-            Some((input.parse()?, input.parse()?))
-        } else {
-            None
-        };
         let value = if input.peek(Token![=]) {
             Some((input.parse()?, input.parse()?))
         } else {
@@ -342,18 +85,15 @@ impl Parse for WgtProperty {
 
         Ok(WgtProperty {
             attrs: Attributes::new(attrs),
-            vis,
             path,
-            capture_decl,
             generics,
-            rename,
             value,
             semi: input.parse()?,
         })
     }
 }
 
-fn split_path_generics(mut path: Path) -> Result<(Path, TokenStream)> {
+pub(crate) fn split_path_generics(mut path: Path) -> Result<(Path, TokenStream)> {
     path.leading_colon = None;
     if let Some(s) = path.segments.last_mut() {
         let mut generics = quote!();
@@ -377,10 +117,12 @@ pub struct PropertyField {
 }
 impl Parse for PropertyField {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        Ok(PropertyField {
-            ident: input.parse()?,
-            colon: input.parse()?,
-            expr: {
+        let ident = input.parse()?;
+        let colon;
+        let expr;
+        if input.peek(Token![:]) {
+            colon = input.parse()?;
+            expr = {
                 let mut t = quote!();
                 while !input.is_empty() {
                     if input.peek(Token![,]) {
@@ -390,20 +132,13 @@ impl Parse for PropertyField {
                     tt.to_tokens(&mut t);
                 }
                 t
-            },
-        })
-    }
-}
+            };
+        } else {
+            colon = parse_quote!(:);
+            expr = quote!(#ident);
+        };
 
-/// Property assign declares a new capture-only.
-pub struct CaptureDeclaration {
-    ty: Type,
-}
-impl Parse for CaptureDeclaration {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        let inner;
-        parenthesized!(inner in input);
-        Ok(Self { ty: inner.parse()? })
+        Ok(PropertyField { ident, colon, expr })
     }
 }
 
@@ -535,13 +270,13 @@ impl WgtWhen {
             while !inner.is_empty() {
                 let attrs = parse_outer_attrs(&inner, errors);
 
-                if !(inner.peek(Ident) || inner.peek(Token![super]) || inner.peek(Token![self])) {
+                if !(inner.peek(Ident::peek_any) || inner.peek(Token![super]) || inner.peek(Token![self])) {
                     errors.push(
                         "expected property path",
                         if inner.is_empty() { brace.span.join() } else { inner.span() },
                     );
                     while !(inner.is_empty()
-                        || inner.peek(Ident)
+                        || inner.peek(Ident::peek_any)
                         || inner.peek(Token![super])
                         || inner.peek(Token![self])
                         || inner.peek(Token![#]) && inner.peek(token::Bracket))
@@ -560,7 +295,7 @@ impl WgtWhen {
                         if !inner.is_empty() && p.semi.is_none() {
                             errors.push("expected `,`", inner.span());
                             while !(inner.is_empty()
-                                || input.peek(Ident)
+                                || input.peek(Ident::peek_any)
                                 || input.peek(Token![crate])
                                 || input.peek(Token![super])
                                 || input.peek(Token![self])
@@ -569,12 +304,6 @@ impl WgtWhen {
                                 // skip to next property.
                                 let _ = inner.parse::<TokenTree>();
                             }
-                        }
-                        if !matches!(p.vis, Visibility::Inherited) {
-                            errors.push("cannot reexport property from when assign", p.vis.span());
-                        }
-                        if let Some(decl) = &p.capture_decl {
-                            errors.push("cannot declare capture property in when assign", decl.ty.span());
                         }
 
                         if let Some((_, PropertyValue::Special(s, _))) = &p.value {
@@ -614,132 +343,10 @@ impl WgtWhen {
             assigns,
         })
     }
-
-    pub fn pre_bind(&mut self, shorthand_init_enabled: bool, when_index: usize) -> TokenStream {
-        let prefix = format!("w{when_index}_");
-        let mut r = quote!();
-        for p in &mut self.assigns {
-            r.extend(p.pre_bind_args(shorthand_init_enabled, Some(&self.attrs), &prefix));
-        }
-        r
-    }
-
-    /// Expand to a init, expects pre-bind variables.
-    pub fn when_new(&self, wgt_builder_mod: TokenStream) -> TokenStream {
-        let when_expr = match syn::parse2::<WhenExpr>(self.condition_expr.clone()) {
-            Ok(w) => w,
-            Err(e) => {
-                let mut errors = Errors::default();
-                errors.push_syn(e);
-                return errors.to_token_stream();
-            }
-        };
-
-        let mut var_decl = quote!();
-        let mut inputs = quote!();
-
-        for ((property, member), var) in when_expr.inputs {
-            let (property, generics) = split_path_generics(property).unwrap();
-            let var_input = ident!("{var}_in");
-
-            let path_span = path_span(&property);
-            let member_ident = ident_spanned!(path_span=> "__w_{member}__");
-            var_decl.extend(quote_spanned! {path_span=>
-                let (#var_input, #var) = #property #generics::#member_ident();
-            });
-
-            let p_ident = &property.segments.last().unwrap().ident;
-            let member = match member {
-                WhenInputMember::Named(ident) => {
-                    let ident_str = ident.to_string();
-                    quote! {
-                        Named(#ident_str)
-                    }
-                }
-                WhenInputMember::Index(i) => quote! {
-                    Index(#i)
-                },
-            };
-            let p_ident_str = p_ident.to_string();
-            let error = format!("property `{p_ident_str}` cannot be read in when expr");
-            inputs.extend(quote! {
-                {
-                    const _: () = if !#property #generics::ALLOWED_IN_WHEN_EXPR {
-                        panic!(#error)
-                    };
-
-                    #wgt_builder_mod::WhenInput {
-                        property: #property #generics::__id__(#p_ident_str),
-                        member: #wgt_builder_mod::WhenInputMember::#member,
-                        var: #var_input,
-                        property_default: #property #generics::__default_fn__(),
-                    }
-                },
-            });
-        }
-
-        let mut assigns = quote!();
-        let mut assigns_error = quote!();
-        for a in &self.assigns {
-            if !a.has_args() {
-                continue;
-            }
-
-            let args = a.args_new(wgt_builder_mod.clone());
-            let generics = &a.generics;
-            let cfg = &a.attrs.cfg;
-            let attrs = a.attrs.cfg_and_lints();
-            assigns.extend(quote! {
-                #attrs
-                #args,
-            });
-
-            let path = &a.path;
-            let error = format!("property `{}` cannot be assigned in when", a.ident());
-            assigns_error.extend(quote_spanned! {path_span(path)=>
-                #cfg
-                const _: () = if !#path #generics::ALLOWED_IN_WHEN_ASSIGN {
-                    panic!(#error);
-                };
-            });
-        }
-
-        let expr = when_expr.expr;
-        let expr_str = &self.condition_expr_str;
-
-        quote! {
-            {
-                #var_decl
-                #assigns_error
-                #wgt_builder_mod::WhenInfo {
-                    inputs: std::boxed::Box::new([
-                        #inputs
-                    ]),
-                    state: #wgt_builder_mod::when_condition_expr_var! { #expr },
-                    assigns: std::vec![
-                        #assigns
-                    ],
-                    build_action_data: std::vec![],
-                    expr: #expr_str,
-                    location: #wgt_builder_mod::source_location!(),
-                }
-            }
-        }
-    }
-
-    pub fn custom_assign_expand(&self, builder: &Ident, when: &Ident) -> TokenStream {
-        let mut r = quote!();
-        for a in &self.assigns {
-            if a.has_custom_attrs() {
-                r.extend(a.custom_attrs_expand(builder.clone(), Some(when.clone()), None));
-            }
-        }
-        r
-    }
 }
 
 #[derive(PartialEq, Eq, Hash)]
-enum WhenInputMember {
+pub(crate) enum WhenInputMember {
     Named(Ident),
     Index(usize),
 }
@@ -760,7 +367,7 @@ impl ToTokens for WhenInputMember {
     }
 }
 
-struct WhenExpr {
+pub(crate) struct WhenExpr {
     /// Map of `(property_path, member) => var_name`, example: `(id, 0) => __w_id__0`.
     pub inputs: HashMap<(syn::Path, WhenInputMember), Ident>,
     pub expr: TokenStream,
@@ -852,17 +459,6 @@ impl Parse for WhenExpr {
     }
 }
 
-struct UnamedArgs {
-    args: Punctuated<Expr, Token![,]>,
-}
-impl Parse for UnamedArgs {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        Ok(Self {
-            args: Punctuated::parse_terminated(input)?,
-        })
-    }
-}
-
 pub struct WidgetCustomRules {
     pub rules: Vec<WidgetCustomRule>,
 }
@@ -897,7 +493,9 @@ impl Parse for WidgetCustomRule {
         braced!(init in input);
         let init = init.parse()?;
 
-        let _ = input.parse::<Token![;]>()?;
+        if input.peek(Token![;]) {
+            let _ = input.parse::<Token![;]>();
+        };
 
         Ok(WidgetCustomRule { rule, init })
     }

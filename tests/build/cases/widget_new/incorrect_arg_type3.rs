@@ -1,10 +1,8 @@
-use zero_ui::core::units::*;
-use zero_ui::properties::background_gradient;
-use zero_ui::widgets::wgt;
+use zero_ui::prelude::*;
 
 fn main() {
-    let _scope = zero_ui::core::app::App::minimal();
-    let _ = wgt! {
+    let _scope = App::minimal();
+    let _ = Wgt! {
         background_gradient = 0.deg(), true
     };
 }

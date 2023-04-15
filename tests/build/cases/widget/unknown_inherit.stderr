@@ -1,15 +1,14 @@
-error[E0433]: failed to resolve: could not find `not` in the crate root
- --> cases/widget/unknown_inherit.rs:5:21
+error[E0412]: cannot find type `Unknown` in this scope
+ --> cases/widget/unknown_inherit.rs:4:23
   |
-5 |     inherit!(super::not::a::thing);
-  |                     ^^^ could not find `not` in the crate root
-
-error[E0432]: unresolved import `$crate::test_widget::__widget_path__test_widget__`
- --> cases/widget/unknown_inherit.rs:3:10
+4 | pub struct TestWidget(Unknown);
+  |                       ^^^^^^^ not found in this scope
   |
-3 | #[widget($crate::test_widget)]
-  |          ^^^^^^^^-----------
-  |                  |
-  |                  in this macro invocation
+help: there is an enum variant `core::fmt::rt::v1::Alignment::Unknown` and 3 others; try using the variant's enum
   |
-  = note: this error originates in the macro `__widget_path__test_widget__` (in Nightly builds, run with -Z macro-backtrace for more info)
+4 | pub struct TestWidget(core::fmt::rt::v1::Alignment);
+  |                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 | pub struct TestWidget(crate::unic_langid::LanguageIdentifierError);
+  |                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4 | pub struct TestWidget(std::fmt::rt::v1::Alignment);
+  |                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~

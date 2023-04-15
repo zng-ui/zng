@@ -1,13 +1,5 @@
 error: unknown special value,  expected `unset!`
- --> cases/widget_new/unknown_special_value.rs:7:18
+ --> cases/widget_new/unknown_special_value.rs:6:18
   |
-7 |         margin = foo!;
+6 |         margin = foo!;
   |                  ^^^
-
-warning: unused import: `zero_ui::properties::margin`
- --> cases/widget_new/unknown_special_value.rs:1:5
-  |
-1 | use zero_ui::properties::margin;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default

@@ -13,7 +13,7 @@ use crate::crate_util::{IdNameError, NameIdMap, PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, EVENTS};
 use crate::image::ImageManager;
 use crate::task::ui::UiTask;
-use crate::text::Text;
+use crate::text::Txt;
 use crate::timer::TimersService;
 use crate::units::Deadline;
 use crate::var::VARS;
@@ -58,7 +58,7 @@ impl AppId {
     }
 
     /// Returns the name associated with the id or `""`.
-    pub fn name(self) -> Text {
+    pub fn name(self) -> Txt {
         Self::name_map().get_name(self)
     }
 
@@ -70,7 +70,7 @@ impl AppId {
     ///
     /// [`NameUsed`]: IdNameError::NameUsed
     /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
-    pub fn set_name(self, name: impl Into<Text>) -> Result<(), IdNameError<Self>> {
+    pub fn set_name(self, name: impl Into<Txt>) -> Result<(), IdNameError<Self>> {
         Self::name_map().set(name.into(), self)
     }
 }

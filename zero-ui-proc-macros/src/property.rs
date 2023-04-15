@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, *};
 
-use crate::util::{self, crate_core, set_stream_span, Attributes, Errors};
+use crate::util::{crate_core, set_stream_span, Attributes, Errors};
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut errors = Errors::default();
@@ -17,12 +17,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 nest_group: parse_quote!(CONTEXT),
                 capture: false,
                 default: None,
+                impl_for: None,
             }
         }
     };
 
     let nest_group = args.nest_group;
     let capture = args.capture;
+    let impl_for = args.impl_for;
 
     let mut item = match parse::<ItemFn>(input.clone()) {
         Ok(i) => i,
@@ -114,6 +116,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let generics = &item.sig.generics;
         let has_generics = !generics.params.empty_or_trailing();
         let (impl_gens, ty_gens, where_gens) = generics.split_for_impl();
+        let path_gens = if has_generics { quote!(::#ty_gens) } else { quote!() };
+
+        let ident_unset = ident!("unset_{}", ident);
+        let ident_args = ident!("{}_args__", ident);
+        let ident_inputs = ident!("{}_inputs__", ident);
+        let ident_meta = ident!("{}_", ident);
+        let ident_sorted = ident!("{}__", ident);
 
         let default;
         let default_fn;
@@ -161,14 +170,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         };
 
         if let Some((span, args)) = args_default {
-            let new = quote_spanned!(span=> Self::__new__);
-            default = quote! {
-                pub fn __default__(info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    #new(#args).__build__(info)
+            default = quote_spanned! {span=>
+                fn __default__ #impl_gens() -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> #where_gens {
+                    #ident_meta {}.args(#args)
                 }
             };
             default_fn = quote! {
-                Some(Self::__default__)
+                Some(__default__ #path_gens)
             };
         } else {
             default = quote!();
@@ -217,7 +225,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             match kind {
                 InputKind::Var => {
                     input_to_storage.push(quote! {
-                        Self::#ident(#ident)
+                        self.inputs().#ident(#ident)
                     });
                     get_var.extend(quote! {
                         #i => &self.#ident,
@@ -226,7 +234,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         std::clone::Clone::clone(&self.#ident),
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #storage_ty {
+                        pub fn #ident #impl_gens(&self, #ident: #input_ty) -> #storage_ty #where_gens {
                             #core::widget_builder::var_to_args(#ident)
                         }
                     });
@@ -237,12 +245,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident()
-                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
+                        pub fn #get_ident #impl_gens(&self)
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) #where_gens {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
-                        pub fn #get_ident_i()
-                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
+                        pub fn #get_ident_i #impl_gens(&self)
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) #where_gens {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
                     });
@@ -250,10 +258,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 InputKind::Value => {
                     allowed_in_when_assign = false;
                     input_to_storage.push(quote! {
-                        Self::#ident(#ident)
+                        self.inputs().#ident(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #storage_ty {
+                        pub fn #ident #impl_gens(&self, #ident: #input_ty) -> #storage_ty #where_gens {
                             #core::widget_builder::value_to_args(#ident)
                         }
                     });
@@ -270,12 +278,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident()
-                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
+                        pub fn #get_ident #impl_gens(&self)
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) #where_gens {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
-                        pub fn #get_ident_i()
-                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) {
+                        pub fn #get_ident_i #impl_gens(&self)
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#info_ty>) #where_gens {
                             #core::widget_builder::WhenInputVar::new::<#info_ty>()
                         }
                     });
@@ -286,7 +294,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #core::widget_builder::ui_node_to_args(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #core::widget_instance::BoxedUiNode {
+                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget_instance::BoxedUiNode {
                             #core::widget_instance::UiNode::boxed(#ident)
                         }
                     });
@@ -303,11 +311,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident()
+                        pub fn #get_ident(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeInWhenExprError>) {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeInWhenExprError>()
                         }
-                        pub fn #get_ident_i()
+                        pub fn #get_ident_i(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeInWhenExprError>) {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeInWhenExprError>()
                         }
@@ -319,7 +327,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #core::widget_builder::ui_node_list_to_args(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #core::widget_instance::BoxedUiNodeList {
+                        pub fn #ident(&self, #ident: #input_ty) -> #core::widget_instance::BoxedUiNodeList {
                             #core::widget_instance::UiNodeList::boxed(#ident)
                         }
                     });
@@ -336,11 +344,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident()
+                        pub fn #get_ident(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeListInWhenExprError>) {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeListInWhenExprError>()
                         }
-                        pub fn #get_ident_i()
+                        pub fn #get_ident_i(&self)
                         -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::UiNodeListInWhenExprError>) {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::UiNodeListInWhenExprError>()
                         }
@@ -352,7 +360,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #core::widget_builder::widget_handler_to_args(#ident)
                     });
                     named_into.extend(quote! {
-                        pub fn #ident(#ident: #input_ty) -> #input_ty {
+                        pub fn #ident #impl_gens(&self, #ident: #input_ty) -> #input_ty #where_gens {
                             #ident
                         }
                     });
@@ -369,12 +377,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident = ident!("__w_{ident}__");
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
-                        pub fn #get_ident()
-                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::WidgetHandlerInWhenExprError>) {
+                        pub fn #get_ident #impl_gens(&self)
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::WidgetHandlerInWhenExprError>) #where_gens {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::WidgetHandlerInWhenExprError>()
                         }
-                        pub fn #get_ident_i()
-                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::WidgetHandlerInWhenExprError>) {
+                        pub fn #get_ident_i #impl_gens(&self)
+                        -> (#core::widget_builder::WhenInputVar, impl #core::var::Var<#core::widget_builder::WidgetHandlerInWhenExprError>) #where_gens {
                             #core::widget_builder::WhenInputVar::new::<#core::widget_builder::WidgetHandlerInWhenExprError>()
                         }
                     });
@@ -435,121 +443,118 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         let mut sorted_inputs: Vec<_> = inputs[1..].iter().collect();
         sorted_inputs.sort_by_key(|i| &i.ident);
-        let sorted_idents = sorted_inputs.iter().map(|i| &i.ident);
-        let sorted_tys = sorted_inputs.iter().map(|i| &i.ty);
+        let sorted_idents: Vec<_> = sorted_inputs.iter().map(|i| &i.ident).collect();
+        let sorted_tys: Vec<_> = sorted_inputs.iter().map(|i| &i.ty).collect();
 
         let node_instance = ident_spanned!(output_span=> "__node__");
 
-        let struct_docs = if util::is_rust_analyzer() {
-            let docs = &attrs.docs;
+        let docs = &attrs.docs;
+
+        let allowed_in_when_expr = if allowed_in_when_expr {
             quote! {
-                #(#docs)*
+                pub const fn allowed_in_when_expr(&self) {}
             }
         } else {
+            quote!()
+        };
+        let allowed_in_when_assign = if allowed_in_when_assign {
             quote! {
-                #[doc(hidden)]
+                pub const fn allowed_in_when_assign(&self) {}
             }
+        } else {
+            quote!()
         };
 
-        quote! {
+        let meta = quote! {
             #cfg
-            #struct_docs
-            #[derive(std::clone::Clone)]
+            #[doc(hidden)]
             #[allow(non_camel_case_types)]
-            #vis struct #ident #impl_gens #where_gens {
-                __instance__: #core::widget_builder::PropertyInstInfo,
-                #(#input_idents: #storage_tys),*
-            }
+            #vis struct #ident_meta  { }
             #cfg
-            impl #impl_gens #ident #ty_gens #where_gens {
-                pub const ALLOWED_IN_WHEN_EXPR: bool = #allowed_in_when_expr;
-                pub const ALLOWED_IN_WHEN_ASSIGN: bool = #allowed_in_when_assign;
-
-                #[doc(hidden)]
-                pub fn __id__(name: &'static str) -> #core::widget_builder::PropertyId {
-                    static impl_id: #core::widget_builder::StaticPropertyImplId = #core::widget_builder::StaticPropertyImplId::new_unique();
-
-                    #core::widget_builder::PropertyId {
-                        impl_id: impl_id.get(),
-                        name,
-                    }
+            #[doc(hidden)]
+            #[allow(dead_code)]
+            impl #ident_meta {
+                pub fn id(&self) -> #core::widget_builder::PropertyId {
+                    static ID: #core::widget_builder::StaticPropertyId = #core::widget_builder::StaticPropertyId::new_unique();
+                    ID.get()
                 }
 
-                #[doc(hidden)]
-                pub fn __property__() -> #core::widget_builder::PropertyInfo {
+                #allowed_in_when_expr
+                #allowed_in_when_assign
+
+                pub fn info #impl_gens(&self) -> #core::widget_builder::PropertyInfo #where_gens {
                     #core::widget_builder::PropertyInfo {
                         group: {
                             use #core::widget_builder::nest_group_items::*;
                             #nest_group
                         },
                         capture: #capture,
-                        impl_id: Self::__id__("").impl_id,
+                        id: self.id(),
                         name: std::stringify!(#ident),
                         location: #core::widget_builder::source_location!(),
-                        default: #default_fn,
-                        new: Self::__new_dyn__,
+                        default: self.default_fn #path_gens(),
+                        new: Self::args_dyn #path_gens,
                         inputs: std::boxed::Box::new([
                             #input_info
                         ]),
                     }
                 }
 
-                #[doc(hidden)]
-                pub const fn __input_types__() -> #core::widget_builder::PropertyInputTypes<(#(#storage_tys,)*)> {
+                #vis const fn input_types #impl_gens(&self) ->  #core::widget_builder::PropertyInputTypes<(#(#storage_tys,)*)> #where_gens {
                     #core::widget_builder::PropertyInputTypes::unit()
                 }
 
-                #[allow(clippy::too_many_arguments)]
-                pub fn __new__(
+                pub fn default_fn #impl_gens(&self) -> std::option::Option<fn () -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs>> #where_gens {
+                    #default
+                    #default_fn
+                }
+
+                #vis fn args #impl_gens(
+                    &self,
                     #(#input_idents: #input_tys),*
-                ) -> Self {
-                    Self {
-                        __instance__: #core::widget_builder::PropertyInstInfo::none(),
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> #where_gens {
+                    std::boxed::Box::new(#ident_args {
                         #(#input_idents: #input_to_storage),*
-                    }
+                    })
                 }
 
-                #[allow(clippy::too_many_arguments)]
-                pub fn __new_sorted__(#(#sorted_idents: #sorted_tys),*) -> Self {
-                    Self::__new__(#(#input_idents),*)
+                #vis fn args_sorted #impl_gens(
+                    &self,
+                    #(#sorted_idents: #sorted_tys),*
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> #where_gens {
+                    self.args(#(#input_idents),*)
                 }
 
-                pub fn __new_dyn__(
+                fn args_dyn #impl_gens(
                     __args__: #core::widget_builder::PropertyNewArgs,
-                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
+                ) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> #where_gens {
                     let mut __inputs__ = __args__.args.into_iter();
-                    Box::new(Self {
-                        __instance__: __args__.inst_info,
+                    Box::new(#ident_args #path_gens {
                         #(#input_idents: { #input_new_dyn },)*
                     })
                 }
 
-                pub fn __build__(mut self, info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
-                    self.__instance__ = info;
-                    Box::new(self)
+                pub fn inputs(&self) -> #ident_inputs {
+                    #ident_inputs { }
                 }
-
-                #default
-
-                pub fn __default_fn__() -> std::option::Option<fn (info: #core::widget_builder::PropertyInstInfo) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs>> {
-                    #default_fn
-                }
-
-                #named_into
-                #get_when_input
+            }
+        };
+        let args = quote! {
+            #cfg
+            #[doc(hidden)]
+            #[derive(std::clone::Clone)]
+            #[allow(non_camel_case_types)]
+            #vis struct #ident_args #impl_gens #where_gens {
+                #(#input_idents: #storage_tys),*
             }
             #cfg
-            impl #impl_gens #core::widget_builder::PropertyArgs for #ident #ty_gens #where_gens {
+            impl #impl_gens #core::widget_builder::PropertyArgs for #ident_args #ty_gens #where_gens {
                 fn clone_boxed(&self) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
                     Box::new(std::clone::Clone::clone(self))
                 }
 
                 fn property(&self) -> #core::widget_builder::PropertyInfo {
-                    Self::__property__()
-                }
-
-                fn instance(&self) -> #core::widget_builder::PropertyInstInfo {
-                    std::clone::Clone::clone(&self.__instance__)
+                    #ident_meta { }.info #path_gens()
                 }
 
                 fn instantiate(&self, __child__: #core::widget_instance::BoxedUiNode) -> #core::widget_instance::BoxedUiNode {
@@ -563,6 +568,116 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #get_ui_node_list
                 #get_widget_handler
             }
+        };
+        let inputs = quote! {
+            #cfg
+            #[doc(hidden)]
+            #[allow(non_camel_case_types)]
+            #vis struct #ident_inputs { }
+            #cfg
+            impl #ident_inputs {
+                #named_into
+                #get_when_input
+            }
+        };
+
+        let direct_impl = if let Some(impl_for) = impl_for {
+            let mut target = impl_for.target;
+            let (generics_impl, generics) = match &target.segments.last().unwrap().arguments {
+                PathArguments::None => (quote!(), quote!()),
+                PathArguments::AngleBracketed(b) => {
+                    if b.args.is_empty() {
+                        (quote!(), quote!())
+                    } else if b.args.len() > 1 {
+                        errors.push("only `<P>` generics is allowed", b.span());
+                        (quote!(), quote!())
+                    } else {
+                        target.segments.last_mut().unwrap().arguments = PathArguments::None;
+                        (quote!(<P: #core::widget_base::WidgetImpl>), quote!(<P>))
+                    }
+                }
+                PathArguments::Parenthesized(p) => {
+                    errors.push("only `<P>` generics is allowed", p.span());
+                    (quote!(), quote!())
+                }
+            };
+            quote! {
+                #cfg
+                impl #generics_impl #target #generics {
+                    #(#docs)*
+                    #vis fn #ident #impl_gens(&self, #(#input_idents: #input_tys),*) #where_gens {
+                        let args = #ident_meta { }.args(#(#input_idents),*);
+                        #core::widget_base::WidgetImpl::base_ref(self).mtd_property__(args)
+                    }
+
+                    /// Unset the property.
+                    #[allow(dead_code)]
+                    #vis fn #ident_unset(&self) {
+                        #core::widget_base::WidgetImpl::base_ref(self).mtd_property_unset__(#ident_meta { }.id())
+                    }
+
+                    #[doc(hidden)]
+                    #[allow(dead_code)]
+                    #vis fn #ident_sorted #impl_gens(&mut self, #(#sorted_idents: #sorted_tys),*) #where_gens {
+                        let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
+                        #core::widget_base::WidgetImpl::base_ref(self).mtd_property__(args)
+                    }
+
+                    #[doc(hidden)]
+                    #[allow(dead_code)]
+                    #vis fn #ident_meta(&self) -> #ident_meta {
+                        #ident_meta { }
+                    }
+                }
+            }
+        } else {
+            quote!()
+        };
+
+        quote! {
+            #direct_impl
+
+            #cfg
+            #[doc(hidden)]
+            #[allow(non_camel_case_types)]
+            #vis trait #ident: #core::widget_base::WidgetExt {
+                type MetaType;
+
+                #(#docs)*
+                #[allow(clippy::too_many_arguments)]
+                fn #ident #impl_gens(&mut self, #(#input_idents: #input_tys),*) #where_gens {
+                    let args = #ident_meta { }.args(#(#input_idents),*);
+                    self.ext_property__(args)
+                }
+
+                /// Unset the property.
+                fn #ident_unset(&mut self) {
+                    self.ext_property_unset__(#ident_meta {}.id())
+                }
+
+                #[doc(hidden)]
+                fn #ident_sorted #impl_gens(&mut self, #(#sorted_idents: #sorted_tys),*) #where_gens {
+                    let args = #ident_meta { }.args_sorted(#(#sorted_idents),*);
+                    self.ext_property__(args)
+                }
+
+                #[doc(hidden)]
+                fn #ident_meta(&self) -> #ident_meta {
+                    #ident_meta { }
+                }
+            }
+            #cfg
+            impl self::#ident for #core::widget_base::WidgetBase {
+                type MetaType = ();
+            }
+            #cfg
+            impl self::#ident for #core::widget_builder::WgtInfo {
+                type MetaType = #ident_meta;
+            }
+
+            #meta
+            #args
+            #inputs
         }
     } else {
         quote!()
@@ -581,6 +696,7 @@ struct Args {
     nest_group: Expr,
     capture: bool,
     default: Option<Default>,
+    impl_for: Option<ImplFor>,
 }
 impl Parse for Args {
     fn parse(input: parse::ParseStream) -> Result<Self> {
@@ -594,6 +710,11 @@ impl Parse for Args {
                 false
             },
             default: if input.peek(Token![,]) && input.peek2(Token![default]) {
+                Some(input.parse()?)
+            } else {
+                None
+            },
+            impl_for: if input.peek(Token![,]) && (input.peek2(Token![impl]) || input.peek2(Token![for])) {
                 Some(input.parse()?)
             } else {
                 None
@@ -616,6 +737,20 @@ impl Parse for Default {
             default,
             args: Punctuated::parse_terminated(&inner)?,
         })
+    }
+}
+
+struct ImplFor {
+    target: Path,
+}
+impl Parse for ImplFor {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        let _: Token![,] = input.parse()?;
+        let _: Token![impl] = input.parse()?;
+        let inner;
+        parenthesized!(inner in input);
+
+        Ok(ImplFor { target: inner.parse()? })
     }
 }
 
@@ -761,4 +896,153 @@ impl Input {
 
 pub mod keyword {
     syn::custom_keyword!(capture);
+}
+
+pub fn expand_meta(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let args = parse_macro_input!(input as MetaArgs);
+    let core = crate_core();
+
+    let r = match args {
+        MetaArgs::Method { self_ty, sep, property } => {
+            let meta_ident = ident!("{}_", property);
+            quote! {
+                <#self_ty as #core::widget_base::WidgetImpl> #sep info_instance__() . #meta_ident()
+            }
+        }
+        MetaArgs::Function { path } => {
+            let ident = &path.segments.last().unwrap().ident;
+            let meta_ident = ident!("{}_", ident);
+
+            quote! {
+                <#core::widget_builder::WgtInfo as #path>::#meta_ident(&#core::widget_builder::WgtInfo)
+            }
+        }
+    };
+    r.into()
+}
+enum MetaArgs {
+    Method {
+        self_ty: Token![Self],
+        sep: Token![::],
+        property: Ident,
+    },
+    Function {
+        path: Path,
+    },
+}
+impl Parse for MetaArgs {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        if input.peek(Token![Self]) {
+            Ok(Self::Method {
+                self_ty: input.parse()?,
+                sep: input.parse()?,
+                property: input.parse()?,
+            })
+        } else {
+            Ok(Self::Function { path: input.parse()? })
+        }
+    }
+}
+
+pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let p = parse_macro_input!(input as PropertyImplArgs);
+    if p.args.empty_or_trailing() {
+        return quote_spanned! {p.path.span()=>
+            compile_error!("missing args")
+        }
+        .into();
+    }
+
+    let attrs = Attributes::new(p.attrs);
+    let cfg = &attrs.cfg;
+    let vis = p.vis;
+    let path = p.path;
+    let ident = &path.segments.last().unwrap().ident;
+    let ident_unset = ident!("unset_{ident}");
+    let ident_meta = ident!("{}_", ident);
+    let ident_sorted = ident!("{}__", ident);
+    let args = p.args;
+    let mut sorted_args: Vec<_> = args.iter().collect();
+    sorted_args.sort_by_key(|a| &a.ident);
+
+    let arg_idents = args.iter().map(|a| &a.ident);
+    let sorted_idents: Vec<_> = sorted_args.iter().map(|a| &a.ident).collect();
+    let sorted_tys = sorted_args.iter().map(|a| &a.ty);
+
+    let core = crate_core();
+
+    let r = quote! {
+        #attrs
+        #vis fn #ident(&self, #args) {
+            #core::widget_base::WidgetImpl::base_ref(self).reexport__(|base__| {
+                #path::#ident(base__, #(#arg_idents),*);
+            });
+        }
+
+        /// Unset the property.
+        #cfg
+        #[allow(dead_code)]
+        #vis fn #ident_unset(&self) {
+            #core::widget_base::WidgetImpl::base_ref(self).reexport__(|base__| {
+                #path::#ident_unset(base__);
+            });
+        }
+
+        #[doc(hidden)]
+        #cfg
+        #[allow(dead_code)]
+        #vis fn #ident_sorted(&self, #(#sorted_idents: #sorted_tys),*) {
+            #core::widget_base::WidgetImpl::base_ref(self).reexport__(|base__| {
+                #path::#ident_sorted(base__, #(#sorted_idents),*);
+            });
+        }
+
+        #[doc(hidden)]
+        #cfg
+        #[allow(dead_code)]
+        #vis fn #ident_meta(&self) -> <#core::widget_builder::WgtInfo as #path>::MetaType {
+            <#core::widget_builder::WgtInfo as #path>::#ident_meta(&#core::widget_builder::WgtInfo)
+        }
+    };
+    r.into()
+}
+
+struct PropertyImplArgs {
+    attrs: Vec<Attribute>,
+    vis: syn::Visibility,
+    path: Path,
+    args: Punctuated<SimpleFnArg, Token![,]>,
+}
+impl Parse for PropertyImplArgs {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        Ok(Self {
+            attrs: Attribute::parse_outer(&non_user_braced!(input, "attrs"))?,
+            vis: non_user_braced!(input, "vis").parse().unwrap(),
+            path: non_user_braced!(input, "path").parse()?,
+            args: Punctuated::parse_terminated(&non_user_braced!(input, "args"))?,
+        })
+    }
+}
+
+#[derive(Clone)]
+struct SimpleFnArg {
+    ident: Ident,
+    _s: Token![:],
+    ty: Type,
+}
+impl ToTokens for SimpleFnArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ident.to_tokens(tokens);
+        self._s.to_tokens(tokens);
+        self.ty.to_tokens(tokens);
+    }
+}
+impl Parse for SimpleFnArg {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        Ok(Self {
+            ident: input.parse()?,
+            _s: input.parse()?,
+            ty: input.parse()?,
+        })
+    }
 }

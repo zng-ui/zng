@@ -57,7 +57,7 @@
 /// # #[derive(Debug, Clone)]
 /// # pub struct FooValue;
 /// # impl_from_and_into_var! { fn from(b: bool) -> FooValue { FooValue } }
-/// # #[widget($crate::bar)] pub mod bar { inherit!(zero_ui_core::widget_base::base); }
+/// # #[widget($crate::Bar)] pub struct Bar(widget_base::WidgetBase);
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, value: impl IntoVar<FooValue>) -> impl UiNode {
 ///     // ..
@@ -66,7 +66,7 @@
 ///
 /// # fn main() {
 /// # let _ =
-/// bar! {
+/// Bar! {
 ///     foo = true;
 /// }
 /// # ;

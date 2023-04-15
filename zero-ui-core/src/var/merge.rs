@@ -25,11 +25,11 @@ use super::{util::VarData, *};
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
-/// # macro_rules! text { ($($tt:tt)*) => { () } }
-/// let var0: ArcVar<Text> = var_from("Hello");
-/// let var1: ArcVar<Text> = var_from("World");
+/// # macro_rules! Text { ($($tt:tt)*) => { () } }
+/// let var0: ArcVar<Txt> = var_from("Hello");
+/// let var1: ArcVar<Txt> = var_from("World");
 ///
-/// let greeting_text = text!(merge_var!(var0, var1, |a, b| formatx!("{a} {b}!")));
+/// let greeting_text = Text!(merge_var!(var0, var1, |a, b| formatx!("{a} {b}!")));
 /// ```
 #[macro_export]
 macro_rules! merge_var {
@@ -250,7 +250,7 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
         VarPtr::new_arc(&self.0)
     }
 
-    fn get_debug(&self) -> crate::text::Text {
+    fn get_debug(&self) -> crate::text::Txt {
         self.with(var_debug)
     }
 
@@ -258,7 +258,7 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
         Var::modify(self, var_touch)
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>> {
         Var::map(self, var_debug)
     }
 }

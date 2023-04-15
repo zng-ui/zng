@@ -1,6 +1,6 @@
-//! The [`base`](mod@base) and properties used in most widgets.
+//! The widget base, nodes and properties used in most widgets.
 
-use std::fmt;
+use std::{any::TypeId, cell::RefCell, fmt};
 
 use crate::{
     context::*,
@@ -10,7 +10,6 @@ use crate::{
     ui_node,
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
-    widget,
     widget_builder::*,
     widget_info::*,
     widget_instance::*,
@@ -24,23 +23,64 @@ use crate::{
 /// The base widget also provides a default function that captures the [`id`] and handles missing child node by capturing
 /// [`child`] or falling back to [`FillUiNode`].
 ///
-/// [`id`]: fn@id
+/// [`id`]: WidgetBase::id
 /// [`child`]: fn@child
-#[widget($crate::widget_base::base)]
-pub mod base {
-    use super::*;
-
-    properties! {
-        pub super::id;
-        pub super::enabled;
-        pub super::visibility;
+pub struct WidgetBase {
+    builder: RefCell<Option<WidgetBuilder>>,
+    importance: Importance,
+    when: RefCell<Option<WhenInfo>>,
+}
+impl WidgetBase {
+    /// Gets the type of [`WidgetBase`](struct@WidgetBase).
+    pub fn widget_type() -> WidgetType {
+        WidgetType {
+            type_id: TypeId::of::<Self>(),
+            path: "$crate::widget_base::WidgetBase",
+            location: source_location!(),
+        }
     }
 
-    fn include(wgt: &mut WidgetBuilder) {
-        nodes::include_intrinsics(wgt);
+    /// Starts building a new [`WidgetBase`](struct@WidgetBase) instance.
+    pub fn start() -> Self {
+        Self::inherit(Self::widget_type())
     }
 
-    fn build(mut wgt: WidgetBuilder) -> impl UiNode {
+    /// Starts building a new widget derived from [`WidgetBase`](struct@WidgetBase).
+    pub fn inherit(widget: WidgetType) -> Self {
+        let builder = WidgetBuilder::new(widget);
+        let mut w = Self {
+            builder: RefCell::new(Some(builder)),
+            importance: Importance::WIDGET,
+            when: RefCell::new(None),
+        };
+        w.on_start();
+        w.importance = Importance::INSTANCE;
+        w
+    }
+
+    /// Direct reference the widget builder.
+    pub fn builder(&mut self) -> &mut WidgetBuilder {
+        self.builder.get_mut().as_mut().expect("already built")
+    }
+
+    /// Direct reference the current `when` block.
+    pub fn when(&mut self) -> Option<&mut WhenInfo> {
+        self.when.get_mut().as_mut()
+    }
+
+    /// Gets the widget builder.
+    ///
+    /// After this call trying to set a property will panic.
+    pub fn take_builder(&mut self) -> WidgetBuilder {
+        assert!(self.when.get_mut().is_none(), "cannot take builder with `when` pending");
+        self.builder.get_mut().take().expect("builder already taken")
+    }
+
+    /// Build the widget.
+    ///
+    /// After this call trying to set a property will panic.
+    pub fn build(&mut self) -> impl UiNode {
+        let mut wgt = self.take_builder();
         wgt.push_build_action(|wgt| {
             if !wgt.has_child() {
                 wgt.set_child(FillUiNode);
@@ -48,11 +88,208 @@ pub mod base {
         });
         nodes::build(wgt)
     }
+
+    /// Gets or sets the importance of the next property assigns, unsets or when blocks.
+    ///
+    /// Note that during the `on_start` call this is [`Importance::WIDGET`] and after it is [`Importance::INSTANCE`].
+    pub fn importance(&mut self) -> &mut Importance {
+        &mut self.importance
+    }
+
+    /// Start building a `when` block, all properties set after this call go on the when block.
+    pub fn start_when_block(&mut self, inputs: Box<[WhenInput]>, state: BoxedVar<bool>, expr: &'static str, location: SourceLocation) {
+        assert!(self.builder.get_mut().is_some(), "cannot start `when` after build");
+        assert!(self.when.get_mut().is_none(), "cannot nest `when` blocks");
+
+        *self.when.get_mut() = Some(WhenInfo {
+            inputs,
+            state,
+            assigns: vec![],
+            build_action_data: vec![],
+            expr,
+            location,
+        });
+    }
+
+    /// End the current `when` block, all properties set after this call go on the widget.
+    pub fn end_when_block(&mut self) {
+        let when = self.when.get_mut().take().expect("no current `when` block to end");
+        self.builder.get_mut().as_mut().unwrap().push_when(self.importance, when);
+    }
+
+    fn on_start(&mut self) {
+        nodes::include_intrinsics(self.builder());
+    }
+
+    /// Push method property.
+    #[doc(hidden)]
+    pub fn mtd_property__(&self, args: Box<dyn PropertyArgs>) {
+        if let Some(when) = &mut *self.when.borrow_mut() {
+            when.assigns.push(args);
+        } else {
+            self.builder
+                .borrow_mut()
+                .as_mut()
+                .expect("cannot set after build")
+                .push_property(self.importance, args);
+        }
+    }
+
+    /// Push method unset property.
+    #[doc(hidden)]
+    pub fn mtd_property_unset__(&self, id: PropertyId) {
+        assert!(self.when.borrow().is_none(), "cannot unset in when assign");
+        self.builder
+            .borrow_mut()
+            .as_mut()
+            .expect("cannot unset after build")
+            .push_unset(self.importance, id);
+    }
+
+    #[doc(hidden)]
+    pub fn reexport__(&self, f: impl FnOnce(&mut Self)) {
+        let mut inner = Self {
+            builder: RefCell::new(self.builder.borrow_mut().take()),
+            importance: self.importance,
+            when: RefCell::new(self.when.borrow_mut().take()),
+        };
+        f(&mut inner);
+        *self.builder.borrow_mut() = inner.builder.into_inner().take();
+        *self.when.borrow_mut() = inner.when.into_inner().take();
+        debug_assert_eq!(self.importance, inner.importance);
+    }
+
+    #[doc(hidden)]
+    pub fn push_unset_property_build_action__(&mut self, property_id: PropertyId, action_name: &'static str) {
+        assert!(self.when.get_mut().is_none(), "cannot unset build actions in when assigns");
+
+        self.builder
+            .get_mut()
+            .as_mut()
+            .expect("cannot unset build actions after build")
+            .push_unset_property_build_action(property_id, action_name, self.importance);
+    }
+
+    #[doc(hidden)]
+    pub fn push_property_build_action__(
+        &mut self,
+        property_id: PropertyId,
+        action_name: &'static str,
+        input_actions: Vec<Box<dyn AnyPropertyBuildAction>>,
+    ) {
+        assert!(
+            self.when.get_mut().is_none(),
+            "cannot push property build action in `when`, use `push_when_build_action_data__`"
+        );
+
+        self.builder
+            .get_mut()
+            .as_mut()
+            .expect("cannot unset build actions after build")
+            .push_property_build_action(property_id, action_name, self.importance, input_actions);
+    }
+
+    #[doc(hidden)]
+    pub fn push_when_build_action_data__(&mut self, property_id: PropertyId, action_name: &'static str, data: WhenBuildAction) {
+        let when = self
+            .when
+            .get_mut()
+            .as_mut()
+            .expect("cannot push when build action data outside when blocks");
+        when.build_action_data.push(((property_id, action_name), data));
+    }
 }
 
-/// Basic nodes for widgets, some used in [`base`].
+/// Trait implemented by all `#[widget]`.
+pub trait WidgetImpl {
+    /// The inherit function.
+    fn inherit(widget: WidgetType) -> Self;
+
+    /// Reference the parent [`WidgetBase`](struct@WidgetBase).
+    fn base(&mut self) -> &mut WidgetBase;
+
+    #[doc(hidden)]
+    fn base_ref(&self) -> &WidgetBase;
+
+    #[doc(hidden)]
+    fn info_instance__() -> Self;
+
+    #[doc(hidden)]
+    fn on_start(&mut self) {}
+}
+impl WidgetImpl for WidgetBase {
+    fn inherit(widget: WidgetType) -> Self {
+        Self::inherit(widget)
+    }
+
+    fn base(&mut self) -> &mut WidgetBase {
+        self
+    }
+
+    fn base_ref(&self) -> &WidgetBase {
+        self
+    }
+
+    fn info_instance__() -> Self {
+        WidgetBase {
+            builder: RefCell::new(None),
+            importance: Importance::INSTANCE,
+            when: RefCell::new(None),
+        }
+    }
+}
+
+#[doc(hidden)]
+pub trait WidgetExt {
+    #[doc(hidden)]
+    fn ext_property__(&mut self, args: Box<dyn PropertyArgs>);
+    #[doc(hidden)]
+    fn ext_property_unset__(&mut self, id: PropertyId);
+}
+impl WidgetExt for WidgetBase {
+    fn ext_property__(&mut self, args: Box<dyn PropertyArgs>) {
+        if let Some(when) = self.when.get_mut() {
+            when.assigns.push(args);
+        } else {
+            self.builder
+                .get_mut()
+                .as_mut()
+                .expect("cannot set after build")
+                .push_property(self.importance, args);
+        }
+    }
+
+    fn ext_property_unset__(&mut self, id: PropertyId) {
+        assert!(self.when.get_mut().is_none(), "cannot unset in when blocks");
+
+        self.builder
+            .get_mut()
+            .as_mut()
+            .expect("cannot unset after build")
+            .push_unset(self.importance, id);
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! WidgetBaseMacro__ {
+    ($($tt:tt)*) => {
+        $crate::widget_new! {
+            start {
+                let mut wgt__ = $crate::widget_base::WidgetBase::start();
+                let wgt__ = &mut wgt__;
+            }
+            end { wgt__.build() }
+            new { $($tt)* }
+        }
+    }
+}
+#[doc(hidden)]
+pub use WidgetBaseMacro__ as WidgetBase;
+
+/// Basic nodes for widgets, some used in [`WidgetBase`].
 ///
-/// [`base`]: mod@base
+/// [`WidgetBase`]: struct@WidgetBase
 pub mod nodes {
     use super::*;
 
@@ -66,10 +303,10 @@ pub mod nodes {
 
     /// Capture the [`id`] property and builds the base widget.
     ///
-    /// Note that this function does not handle missing child node, it falls back to [`NilUiNode`]. The [`base`]
+    /// Note that this function does not handle missing child node, it falls back to [`NilUiNode`]. The [`WidgetBase`]
     /// widget uses the [`FillUiNode`] if none was set.
     ///
-    /// [`base`]: mod@base
+    /// [`WidgetBase`]: struct@WidgetBase
     /// [`id`]: fn@id
     pub fn build(mut wgt: WidgetBuilder) -> impl UiNode {
         let id = wgt.capture_value_or_else(property_id!(id), WidgetId::new_unique);
@@ -84,9 +321,9 @@ pub mod nodes {
     /// This node also pass through the `child` inline layout return info if the widget and child are inlining and the
     /// widget has not set inline info before delegating measure.
     ///
-    /// This node must be intrinsic at [`NestGroup::CHILD`], the [`base`] default intrinsic inserts it.
+    /// This node must be intrinsic at [`NestGroup::CHILD`], the [`WidgetBase`] default intrinsic inserts it.
     ///
-    /// [`base`]: mod@base
+    /// [`WidgetBase`]: struct@WidgetBase
     pub fn widget_child(child: impl UiNode) -> impl UiNode {
         #[ui_node(struct WidgetChildNode {
                 child: impl UiNode,
@@ -169,9 +406,9 @@ pub mod nodes {
     ///
     /// This node renders the inner transform and implements the [`HitTestMode`] for the widget.
     ///
-    /// This node must be intrinsic at [`NestGroup::BORDER`], the [`base`] default intrinsic inserts it.
+    /// This node must be intrinsic at [`NestGroup::BORDER`], the [`WidgetBase`] default intrinsic inserts it.
     ///
-    /// [`base`]: mod@base
+    /// [`WidgetBase`]: struct@WidgetBase
     pub fn widget_inner(child: impl UiNode) -> impl UiNode {
         #[derive(Default, PartialEq)]
         struct HitClips {
@@ -262,9 +499,9 @@ pub mod nodes {
     /// Create a widget node that wraps `child` and introduces a new widget context. The node defines
     /// an [`WIDGET`] context and implements the widget in each specific node method.
     ///
-    /// This node must wrap the outer-most context node in the build, it is the [`base`] widget type.
+    /// This node must wrap the outer-most context node in the build, it is the [`WidgetBase`] widget type.
     ///
-    /// [`base`]: mod@base
+    /// [`WidgetBase`]: struct@WidgetBase
     pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
         struct WidgetNode<C> {
             ctx: WidgetCtx,
@@ -608,7 +845,7 @@ context_var! {
 /// This property must be [captured] during widget build and redirected to [`WidgetBuilding::set_child`] in the container widget.
 ///
 /// [captured]: crate::widget#property-capture
-/// [`base`]: mod@base
+/// [`WidgetBase`]: struct@WidgetBase
 #[property(CHILD, capture, default(FillUiNode))]
 pub fn child(_child: impl UiNode, child: impl UiNode) -> impl UiNode {
     _child
@@ -633,11 +870,11 @@ pub fn children(_child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
 /// # Capture Only
 ///
 /// This property must be [captured] during widget build, this function only logs an error. The
-/// [`base`] widget captures this property if present.
+/// [`WidgetBase`] widget captures this property if present.
 ///
 /// [captured]: crate::widget#property-capture
-/// [`base`]: mod@base
-#[property(CONTEXT, capture, default(WidgetId::new_unique()))]
+/// [`WidgetBase`]: struct@WidgetBase
+#[property(CONTEXT, capture, default(WidgetId::new_unique()), impl(WidgetBase))]
 pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
     _child
 }
@@ -673,7 +910,7 @@ pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
 /// [`interactive`]: fn@interactive
 /// [`is_enabled`]: fn@is_enabled
 /// [`is_disabled`]: fn@is_disabled
-#[property(CONTEXT, default(true))]
+#[property(CONTEXT, default(true), impl(WidgetBase))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct EnabledNode {
         child: impl UiNode,
@@ -800,7 +1037,7 @@ pub fn is_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode
 /// [`is_hidden`]: fn@is_hidden
 /// [`is_collapsed`]: fn@is_collapsed
 /// [`WidgetInfo::visibility`]: crate::widget_info::WidgetInfo::visibility
-#[property(CONTEXT, default(true))]
+#[property(CONTEXT, default(true), impl(WidgetBase))]
 pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
     #[ui_node(struct VisibilityNode {
         child: impl UiNode,
@@ -1060,10 +1297,10 @@ pub fn is_hit_testable(child: impl UiNode, state: impl IntoVar<bool>) -> impl Ui
 /// so it is auto-hidden correctly.
 ///
 /// ```
-/// # macro_rules! container { ($($tt:tt)*) => { NilUiNode }}
+/// # macro_rules! Container { ($($tt:tt)*) => { NilUiNode }}
 /// # use zero_ui_core::widget_instance::*;
 /// fn center_viewport(content: impl UiNode) -> impl UiNode {
-///     container! {
+///     Container! {
 ///         zero_ui::core::widget_base::can_auto_hide = false;
 ///
 ///         x = zero_ui::widgets::scroll::SCROLL_HORIZONTAL_OFFSET_VAR.map(|&fct| Length::Relative(fct) - 1.vw() * fct);

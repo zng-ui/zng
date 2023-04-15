@@ -1,6 +1,5 @@
-use zero_ui::core::{property, var::IntoValue, widget_instance::UiNode};
-use zero_ui::properties::{margin, states::is_pressed};
-use zero_ui::widgets::wgt;
+use zero_ui::prelude::{new_property::*, *};
+
 struct NotVarValue;
 
 #[property(CONTEXT)]
@@ -10,8 +9,8 @@ pub fn foo(child: impl UiNode, value: impl IntoValue<bool>) -> impl UiNode {
 }
 
 fn main() {
-    let _scope = zero_ui::core::app::App::minimal();
-    let _ = wgt! {
+    let _scope = App::minimal();
+    let _ = Wgt! {
         foo = false;
         margin = 0;
 

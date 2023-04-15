@@ -35,11 +35,11 @@ mod inspector_only {
 #[cfg(inspector)]
 pub(crate) use inspector_only::*;
 
-use std::sync::Arc;
+use std::{any::TypeId, sync::Arc};
 
 use crate::{
     context::{StaticStateId, WIDGET},
-    widget_builder::{InputKind, NestGroup, PropertyArgs, PropertyId, PropertyImplId, WidgetBuilder, WidgetImplId, WidgetMod},
+    widget_builder::{InputKind, NestGroup, PropertyArgs, PropertyId, WidgetBuilder, WidgetType},
     widget_info::WidgetInfo,
 };
 
@@ -109,8 +109,8 @@ pub trait WidgetInfoInspectorExt {
     ///
     /// # Examples
     ///
-    /// Example searches for a "button" descendant, using a string search that matches the end of the [`WidgetMod::path`] and
-    /// an exact widget mod that matches the [`WidgetMod::impl_id`].
+    /// Example searches for a "button" descendant, using a string search that matches the end of the [`WidgetType::path`] and
+    /// an exact widget mod that matches the [`WidgetType::type_id`].
     ///
     /// ```
     /// # fn main() { }
@@ -118,14 +118,12 @@ pub trait WidgetInfoInspectorExt {
     /// mod widgets {
     ///     use zero_ui_core::*;
     ///     
-    ///     #[widget($crate::widgets::button)]
-    ///     pub mod button {
-    ///         inherit!(zero_ui_core::widget_base::base);
-    ///     }
+    ///     #[widget($crate::widgets::Button)]
+    ///     pub struct Button(widget_base::WidgetBase);
     /// }
     /// fn demo(info: WidgetInfo) {
     /// let fuzzy = info.inspect_descendant("button");
-    /// let exact = info.inspect_descendant(widget_mod!(crate::widgets::button));
+    /// let exact = info.inspect_descendant(std::any::TypeId::of::<crate::widgets::Button>());
     /// }
     /// ```
     fn inspect_descendant<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo>;
@@ -226,20 +224,20 @@ pub trait InspectWidgetPattern {
     /// Returns `true` if the pattern includes the widget.
     fn matches(&self, info: &InspectorInfo) -> bool;
 }
-/// Matches if the [`WidgetMod::path`] ends with the string.
+/// Matches if the [`WidgetType::path`] ends with the string.
 impl<'s> InspectWidgetPattern for &'s str {
     fn matches(&self, info: &InspectorInfo) -> bool {
-        info.builder.widget_mod().path.ends_with(self)
+        info.builder.widget_type().path.ends_with(self)
     }
 }
-impl InspectWidgetPattern for WidgetImplId {
+impl InspectWidgetPattern for TypeId {
     fn matches(&self, info: &InspectorInfo) -> bool {
-        info.builder.widget_mod().impl_id == *self
+        info.builder.widget_type().type_id == *self
     }
 }
-impl InspectWidgetPattern for WidgetMod {
+impl InspectWidgetPattern for WidgetType {
     fn matches(&self, info: &InspectorInfo) -> bool {
-        info.builder.widget_mod().impl_id == self.impl_id
+        info.builder.widget_type().type_id == self.type_id
     }
 }
 
@@ -248,21 +246,16 @@ pub trait InspectPropertyPattern {
     /// Returns `true` if the pattern includes the property.
     fn matches(&self, args: &dyn PropertyArgs, captured: bool) -> bool;
 }
-/// Matches if the [`PropertyInstInfo::name`] exactly.
+/// Matches if the [`PropertyInfo::name`] exactly.
 ///
-/// [`PropertyInstInfo::name`]: crate::widget_builder::PropertyInstInfo::name
+/// [`PropertyInfo::name`]: crate::widget_builder::PropertyInfo::name
 impl<'s> InspectPropertyPattern for &'s str {
     fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
-        args.instance().name == *self
+        args.property().name == *self
     }
 }
 impl InspectPropertyPattern for PropertyId {
     fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
         args.id() == *self
-    }
-}
-impl InspectPropertyPattern for PropertyImplId {
-    fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
-        args.property().impl_id == *self
     }
 }

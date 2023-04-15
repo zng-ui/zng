@@ -1,6 +1,6 @@
 //! Crate visible macros and utilities.
 
-use crate::{text::Text, units::Deadline};
+use crate::{text::Txt, units::Deadline};
 use rand::Rng;
 use rayon::prelude::*;
 use rustc_hash::FxHasher;
@@ -916,10 +916,10 @@ pub const fn fx_set_new<K>() -> FxHashSet<K> {
     hashbrown::HashSet::with_hasher(BuildFxHasher::new())
 }
 
-/// Bidirectional map between a `Text` and a [`unique_id!`] generated id type.
+/// Bidirectional map between a `Txt` and a [`unique_id!`] generated id type.
 pub struct NameIdMap<I> {
-    name_to_id: HashMap<Text, I>,
-    id_to_name: IdMap<I, Text>,
+    name_to_id: HashMap<Txt, I>,
+    id_to_name: IdMap<I, Txt>,
 }
 impl<I> NameIdMap<I>
 where
@@ -932,7 +932,7 @@ where
         }
     }
 
-    pub fn set(&mut self, name: Text, id: I) -> Result<(), IdNameError<I>> {
+    pub fn set(&mut self, name: Txt, id: I) -> Result<(), IdNameError<I>> {
         if name.is_empty() {
             return Ok(());
         }
@@ -956,7 +956,7 @@ where
         }
     }
 
-    pub fn get_id_or_insert(&mut self, name: Text, new_unique: impl FnOnce() -> I) -> I {
+    pub fn get_id_or_insert(&mut self, name: Txt, new_unique: impl FnOnce() -> I) -> I {
         if name.is_empty() {
             return new_unique();
         }
@@ -971,7 +971,7 @@ where
         }
     }
 
-    pub fn new_named(&mut self, name: Text, new_unique: impl FnOnce() -> I) -> Result<I, IdNameError<I>> {
+    pub fn new_named(&mut self, name: Txt, new_unique: impl FnOnce() -> I) -> Result<I, IdNameError<I>> {
         if name.is_empty() {
             Ok(new_unique())
         } else {
@@ -987,7 +987,7 @@ where
         }
     }
 
-    pub fn get_name(&self, id: I) -> Text {
+    pub fn get_name(&self, id: I) -> Txt {
         self.id_to_name.get(&id).cloned().unwrap_or_default()
     }
 }
@@ -998,7 +998,7 @@ pub enum IdNameError<I: Clone + Copy + fmt::Debug> {
     /// The id is already named, id names are permanent.
     ///
     /// The associated value if the id name.
-    AlreadyNamed(Text),
+    AlreadyNamed(Txt),
     /// The name is already used for another id, names must be unique.
     ///
     /// The associated value if the named id.

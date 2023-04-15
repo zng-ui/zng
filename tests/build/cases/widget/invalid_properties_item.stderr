@@ -1,5 +1,0 @@
-error: expected property or when
- --> cases/widget/invalid_properties_item.rs:8:9
-  |
-8 |         {}
-  |         ^

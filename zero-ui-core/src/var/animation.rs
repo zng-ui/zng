@@ -46,8 +46,7 @@ pub mod easing;
 ///
 /// ```
 /// # use zero_ui_core::{*, var::*, color::*, widget_instance::*, units::SideOffsets};
-/// # #[widget($crate::foo)]
-/// # pub mod foo { inherit!(zero_ui_core::widget_base::base); }
+/// # #[widget($crate::Foo)] pub struct Foo(widget_base::WidgetBase);
 /// # #[property(FILL, default(colors::BLACK))]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
 /// #    child
@@ -57,7 +56,7 @@ pub mod easing;
 /// #    child
 /// # }
 /// # fn main() {
-/// foo! {
+/// Foo! {
 ///     #[easing(300.ms(), expo)] // set/override the easing.
 ///     background_color = colors::RED;
 ///

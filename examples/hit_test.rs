@@ -6,11 +6,11 @@ fn main() {
     zero_ui_view::init();
 
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Hit-Test Example";
 
             child_align = Align::CENTER;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::left_to_right();
                 spacing = 14;
                 children = ui_vec![
@@ -24,14 +24,14 @@ fn main() {
 }
 
 fn example(mode: HitTestMode) -> impl UiNode {
-    container! {
+    Container! {
         hit_test_mode = mode;
 
         on_click = hn!(mode, |_| {
             println!("Clicked {mode:?}");
         });
 
-        child = text!("{:#?}", mode);
+        child = Text!("{:#?}", mode);
         padding = 40;
         corner_radius = 40;
         // background_color = colors::GRAY;

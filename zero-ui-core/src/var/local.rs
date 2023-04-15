@@ -80,7 +80,7 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         VarPtr::new_never_eq(self)
     }
 
-    fn get_debug(&self) -> crate::text::Text {
+    fn get_debug(&self) -> crate::text::Txt {
         self.with(var_debug)
     }
 
@@ -88,7 +88,7 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         Var::modify(self, var_touch)
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>> {
         Var::map(self, var_debug)
     }
 }

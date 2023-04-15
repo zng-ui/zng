@@ -14,7 +14,7 @@ use crate::{
     context::{LayoutMetrics, LayoutPassId, WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW},
     crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
-    image::{Image, ImageVar, IMAGES},
+    image::{ImageVar, Img, IMAGES},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::FONTS,
     timer::TIMERS,
@@ -27,9 +27,9 @@ use crate::{
 
 use super::{
     commands::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, TransformChangedArgs, Window, WindowChangedArgs,
-    WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS_CHANGED_EVENT, TRANSFORM_CHANGED_EVENT,
-    WINDOWS, WINDOW_CHANGED_EVENT,
+    FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, TransformChangedArgs, WindowChangedArgs,
+    WindowChrome, WindowIcon, WindowId, WindowMode, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS_CHANGED_EVENT,
+    TRANSFORM_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -63,7 +63,7 @@ struct HeadedCtrl {
     root_font_size: Dip,
 }
 impl HeadedCtrl {
-    pub fn new(vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, commands: WindowCommands, content: WindowRoot) -> Self {
         Self {
             window: None,
             waiting_view: false,
@@ -1037,7 +1037,7 @@ struct HeadlessWithRendererCtrl {
     var_bindings: VarHandles,
 }
 impl HeadlessWithRendererCtrl {
-    pub fn new(vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, commands: WindowCommands, content: WindowRoot) -> Self {
         Self {
             surface: None,
             waiting_view: false,
@@ -1281,7 +1281,7 @@ struct HeadlessCtrl {
     var_bindings: VarHandles,
 }
 impl HeadlessCtrl {
-    pub fn new(vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, commands: WindowCommands, content: WindowRoot) -> Self {
         Self {
             vars: vars.clone(),
             headless_monitor: content.headless_monitor,
@@ -1471,7 +1471,7 @@ struct ContentCtrl {
     previous_transforms: IdMap<WidgetId, PxTransform>,
 }
 impl ContentCtrl {
-    pub fn new(vars: WindowVars, commands: WindowCommands, window: Window) -> Self {
+    pub fn new(vars: WindowVars, commands: WindowCommands, window: WindowRoot) -> Self {
         Self {
             vars,
             commands,
@@ -1594,7 +1594,7 @@ impl ContentCtrl {
                     }
                 }
 
-                let image = args.frame_image.as_ref().cloned().map(Image::new);
+                let image = args.frame_image.as_ref().cloned().map(Img::new);
 
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), args.window_id, args.frame_id, image);
                 FRAME_IMAGE_READY_EVENT.notify(args);
@@ -1855,7 +1855,7 @@ enum WindowCtrlMode {
     HeadlessWithRenderer(HeadlessWithRendererCtrl),
 }
 impl WindowCtrl {
-    pub fn new(vars: &WindowVars, commands: WindowCommands, mode: WindowMode, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, commands: WindowCommands, mode: WindowMode, content: WindowRoot) -> Self {
         WindowCtrl(match mode {
             WindowMode::Headed => WindowCtrlMode::Headed(HeadedCtrl::new(vars, commands, content)),
             WindowMode::Headless => WindowCtrlMode::Headless(HeadlessCtrl::new(vars, commands, content)),

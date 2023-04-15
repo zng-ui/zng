@@ -19,11 +19,11 @@ use super::*;
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
-/// # macro_rules! text { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
+/// # macro_rules! Text { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
 /// let condition = var(true);
 /// let when_false = var("condition: false".to_text());
 ///
-/// let t = text!(when_var! {
+/// let t = Text!(when_var! {
 ///     condition.clone() => "condition: true".to_text(),
 ///     _ => when_false.clone(),
 /// });
@@ -38,10 +38,10 @@ use super::*;
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
-/// # macro_rules! text { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
+/// # macro_rules! Text { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
 /// # let condition0 = var(true);
 /// # let condition1 = var(true);
-/// let t = text!(when_var! {
+/// let t = Text!(when_var! {
 ///     #[cfg(some_flag)]
 ///     condition0 => "is condition 0".to_text(),
 ///     #[cfg(not(some_flag))]
@@ -474,7 +474,7 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
         VarPtr::new_arc(&self.0)
     }
 
-    fn get_debug(&self) -> crate::text::Text {
+    fn get_debug(&self) -> crate::text::Txt {
         self.with(var_debug)
     }
 
@@ -482,7 +482,7 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
         Var::modify(self, var_touch)
     }
 
-    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>> {
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>> {
         Var::map(self, var_debug)
     }
 }

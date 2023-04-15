@@ -58,11 +58,11 @@ pub trait Font {
 /// # Image API
 ///
 /// The default image API is provided by [`ImageManager`] that is included
-/// in the app default extensions. The default image type is [`Image`] that implements this trait.
+/// in the app default extensions. The default image type is [`Img`] that implements this trait.
 ///
 /// [`ImageManager`]: crate::image::ImageManager
-/// [`Image`]: crate::image::Image
-pub trait Image {
+/// [`Img`]: crate::image::Img
+pub trait Img {
     /// Gets the image key in the `renderer` namespace.
     ///
     /// The image must be loaded asynchronously by `self` and does not need to
@@ -87,7 +87,9 @@ pub trait Image {
 /// If and image is constantly rendered at a different scale you should considered scaling it on the CPU using a
 /// slower but more complex algorithm or pre-scaling it before including in the app.
 ///
-/// You can use the [`Image`] type to re-scale an image, image widgets probably can be configured to do this too.
+/// You can use the [`Img`] type to re-scale an image, image widgets probably can be configured to do this too.
+///
+/// [`Img`]: crate::image::Img
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ImageRendering {
@@ -1047,7 +1049,7 @@ impl FrameBuilder {
     }
 
     /// Push an image.
-    pub fn push_image(&mut self, clip_rect: PxRect, img_size: PxSize, image: &impl Image, rendering: ImageRendering) {
+    pub fn push_image(&mut self, clip_rect: PxRect, img_size: PxSize, image: &impl Img, rendering: ImageRendering) {
         expect_inner!(self.push_image);
 
         if let Some(r) = &self.renderer {
@@ -2367,7 +2369,7 @@ impl_from_and_into_var! {
 }
 
 impl_from_and_into_var! {
-    fn from(profiler: crate::text::Text) -> RendererDebug {
+    fn from(profiler: crate::text::Txt) -> RendererDebug {
         RendererDebug::profiler(profiler)
     }
 }

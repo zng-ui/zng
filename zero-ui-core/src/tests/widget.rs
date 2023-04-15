@@ -6,17 +6,16 @@ use self::util::Position;
 use crate::{
     app::App,
     context::{WIDGET, WINDOW},
-    var::Var,
+    var::{IntoValue, Var},
     widget,
+    widget_builder::WidgetBuilder,
     widget_instance::{UiNode, WidgetId},
-    widget_mixin,
+    widget_set,
 };
 
 // Used in multiple tests.
-#[widget($crate::tests::widget::empty_wgt)]
-pub mod empty_wgt {
-    inherit!(crate::widget_base::base);
-}
+#[widget($crate::tests::widget::EmptyWgt)]
+pub struct EmptyWgt(crate::widget_base::WidgetBase);
 
 /*
  * Tests the implicitly inherited properties.
@@ -25,57 +24,57 @@ pub mod empty_wgt {
 pub fn implicit_inherited() {
     let _app = App::minimal().run_headless(false);
     let expected = WidgetId::new_unique();
-    let wgt = empty_wgt! {
+    let wgt = EmptyWgt! {
         id = expected;
     };
     let actual = wgt.with_context(|| WIDGET.id()).expect("expected widget");
     assert_eq!(expected, actual);
 }
 
-// Mixin used in inherit tests.
-#[widget_mixin($crate::tests::widget::foo_mixin)]
-pub mod foo_mixin {
-    use super::util;
-
-    properties! {
-        pub util::trace as foo_trace = "foo_mixin";
-    }
-}
-
 /*
  * Tests the inherited properties' default values and assigns.
  */
-#[widget($crate::tests::widget::bar_wgt)]
-pub mod bar_wgt {
-    use super::{foo_mixin, util};
-
-    inherit!(crate::widget_base::base);
-    inherit!(foo_mixin);
-
-    properties! {
-        pub util::trace as bar_trace = "bar_wgt";
+#[widget($crate::tests::widget::BarWgt)]
+pub struct BarWgt(crate::widget_base::WidgetBase);
+impl BarWgt {
+    fn on_start(&mut self) {
+        widget_set! {
+            self;
+            bar_trace = "bar_wgt";
+            foo_trace = "foo_wgt";
+        }
     }
 }
+#[crate::property(CONTEXT)]
+pub fn foo_trace(child: impl UiNode, trace: impl crate::var::IntoValue<&'static str>) -> impl UiNode {
+    util::trace(child, trace)
+}
+
+#[crate::property(CONTEXT, impl(BarWgt))]
+pub fn bar_trace(child: impl UiNode, trace: impl crate::var::IntoValue<&'static str>) -> impl UiNode {
+    util::trace(child, trace)
+}
+
 #[test]
-pub fn wgt_with_mixin_default_values() {
+pub fn wgt_default_values() {
     let _app = App::minimal().run_headless(false);
 
-    let mut default = bar_wgt!();
+    let mut default = BarWgt!();
 
     WINDOW.with_test_context(|| {
         default.init();
     });
 
     // test default values used.
-    assert!(util::traced(&default, "foo_mixin"));
+    assert!(util::traced(&default, "foo_wgt"));
     assert!(util::traced(&default, "bar_wgt"));
 }
 #[test]
-pub fn wgt_with_mixin_assign_values() {
+pub fn wgt_assign_values() {
     let _app = App::minimal().run_headless(false);
 
     let foo_trace = "foo!";
-    let mut default = bar_wgt! {
+    let mut default = BarWgt! {
         foo_trace; // shorthand assign test.
         bar_trace = "bar!";
     };
@@ -89,103 +88,50 @@ pub fn wgt_with_mixin_assign_values() {
     assert!(util::traced(&default, "bar!"));
 
     // test default values not used.
-    assert!(!util::traced(&default, "foo_mixin"));
+    assert!(!util::traced(&default, "foo_wgt"));
     assert!(!util::traced(&default, "bar_wgt"));
 }
 
 /*
  * Tests changing the default value of the inherited property.
  */
-#[widget($crate::tests::widget::reset_wgt)]
-pub mod reset_wgt {
-    inherit!(crate::widget_base::base);
-    inherit!(super::foo_mixin);
-
-    properties! {
-        foo_trace = "reset_wgt"
+#[widget($crate::tests::widget::ResetWgt)]
+pub struct ResetWgt(BarWgt);
+impl ResetWgt {
+    fn on_start(&mut self) {
+        widget_set! {
+            self;
+            bar_trace = "reset_bar_wgt";
+            foo_trace = "reset_wgt";
+        }
     }
 }
+
 #[test]
 pub fn wgt_with_new_value_for_inherited() {
     let _app = App::minimal().run_headless(false);
 
-    let mut default = reset_wgt!();
+    let mut default = ResetWgt!();
     WINDOW.with_test_context(|| {
         default.init();
     });
 
     assert!(util::traced(&default, "reset_wgt"));
-    assert!(!util::traced(&default, "foo_mixin"));
-}
-
-/*
- * Tests new property from inherited property.
- */
-#[widget($crate::tests::widget::alias_inherit_wgt)]
-pub mod alias_inherit_wgt {
-    inherit!(crate::widget_base::base);
-    inherit!(super::foo_mixin);
-
-    properties! {
-        pub super::foo_mixin::foo_trace as alias_trace = "alias_inherit_wgt"
-    }
-}
-#[test]
-pub fn wgt_alias_inherit() {
-    let _app = App::minimal().run_headless(false);
-
-    let mut default = alias_inherit_wgt!();
-    WINDOW.with_test_context(|| {
-        default.init();
-
-        assert!(util::traced(&default, "foo_mixin"));
-        assert!(util::traced(&default, "alias_inherit_wgt"));
-
-        let mut assigned = alias_inherit_wgt!(
-            foo_trace = "foo!";
-            alias_trace = "alias!";
-        );
-        assigned.init();
-
-        assert!(util::traced(&assigned, "foo!"));
-        assert!(util::traced(&assigned, "alias!"));
-    });
-}
-
-/*
- * Tests the property name when declared from path.
- */
-#[widget($crate::tests::widget::property_from_path_wgt)]
-pub mod property_from_path_wgt {
-    inherit!(crate::widget_base::base);
-
-    properties! {
-        pub super::util::trace;
-    }
-}
-#[test]
-pub fn wgt_property_from_path() {
-    let _app = App::minimal().run_headless(false);
-
-    WINDOW.with_test_context(|| {
-        let mut assigned = property_from_path_wgt!(
-            trace = "trace!";
-        );
-        assigned.init();
-
-        assert!(util::traced(&assigned, "trace!"));
-    });
+    assert!(util::traced(&default, "reset_bar_wgt"));
+    assert!(!util::traced(&default, "bar_wgt"));
 }
 
 /*
  * Test unsetting default value.
  */
-#[widget($crate::tests::widget::default_value_wgt)]
-pub mod default_value_wgt {
-    inherit!(crate::widget_base::base);
-
-    properties! {
-        pub super::util::trace = "default_value_wgt";
+#[widget($crate::tests::widget::DefaultValueWgt)]
+pub struct DefaultValueWgt(crate::widget_base::WidgetBase);
+impl DefaultValueWgt {
+    fn on_start(&mut self) {
+        widget_set! {
+            self;
+            util::trace = "default_value_wgt";
+        }
     }
 }
 #[test]
@@ -193,13 +139,13 @@ pub fn unset_default_value() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
-        let mut default = default_value_wgt!();
+        let mut default = DefaultValueWgt!();
         default.init();
 
         assert!(util::traced(&default, "default_value_wgt"));
 
-        let mut no_default = default_value_wgt! {
-            trace = unset!;
+        let mut no_default = DefaultValueWgt! {
+            util::trace = unset!;
         };
         no_default.init();
 
@@ -216,7 +162,7 @@ pub fn value_init_order() {
 
     WINDOW.with_test_context(|| {
         Position::reset();
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
             util::count_border = Position::next("count_border");
             util::count_context = Position::next("count_context");
         };
@@ -236,7 +182,7 @@ pub fn wgt_child_property_init_order() {
 
     WINDOW.with_test_context(|| {
         Position::reset();
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
             util::count_border = Position::next("count_border");
             util::count_child_layout = Position::next("count_child_layout");
             util::count_context = Position::next("count_context");
@@ -260,22 +206,26 @@ pub fn wgt_child_property_init_order() {
 /*
  * Tests the ordering of properties of the same nest group.
  */
-#[widget($crate::tests::widget::same_nest_group_order_wgt)]
-pub mod same_nest_group_order_wgt {
-    inherit!(crate::widget_base::base);
+#[widget($crate::tests::widget::SameNestGroupOrderWgt)]
+pub struct SameNestGroupOrderWgt(crate::widget_base::WidgetBase);
 
-    properties! {
-        pub super::util::count_border as border_a;
-        pub super::util::count_border as border_b;
-    }
+#[crate::property(BORDER)]
+pub fn border_a(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    util::count_border(child, count)
 }
+
+#[crate::property(BORDER)]
+pub fn border_b(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    util::count_border(child, count)
+}
+
 #[test]
 pub fn wgt_same_nest_group_order() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
         Position::reset();
-        let mut wgt = same_nest_group_order_wgt! {
+        let mut wgt = SameNestGroupOrderWgt! {
             border_a = Position::next("border_a");
             border_b = Position::next("border_b");
         };
@@ -293,7 +243,7 @@ pub fn wgt_same_nest_group_order() {
         Position::reset();
         // order of declaration(in the widget) doesn't impact the order of evaluation,
         // only the order of use does (in here).
-        let mut wgt = same_nest_group_order_wgt! {
+        let mut wgt = SameNestGroupOrderWgt! {
             border_b = Position::next("border_b");
             border_a = Position::next("border_a");
         };
@@ -307,18 +257,17 @@ pub fn wgt_same_nest_group_order() {
 /*
  *  Tests widget when.
  */
-#[widget($crate::tests::widget::when_wgt)]
-pub mod when_wgt {
-    inherit!(crate::widget_base::base);
+#[widget($crate::tests::widget::WhenWgt)]
+pub struct WhenWgt(crate::widget_base::WidgetBase);
+impl WhenWgt {
+    fn on_start(&mut self) {
+        widget_set! {
+            self;
+            util::live_trace = "boo!";
 
-    pub use super::util::is_state;
-    pub use super::util::live_trace as msg;
-
-    properties! {
-        msg = "boo!";
-
-        when *#is_state {
-            msg = "ok.";
+            when *#util::is_state {
+                util::live_trace = "ok.";
+            }
         }
     }
 }
@@ -327,7 +276,7 @@ pub fn wgt_when() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
-        let mut wgt = when_wgt!();
+        let mut wgt = WhenWgt!();
         WINDOW.test_init(&mut wgt);
 
         assert!(util::traced(&wgt, "boo!"));
@@ -349,7 +298,7 @@ pub fn widget_user_when() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
             util::live_trace = "A";
 
             when *#util::is_state {
@@ -376,18 +325,20 @@ pub fn widget_user_when() {
 /*
  * Tests multiple widget whens
  */
-#[widget($crate::tests::widget::multi_when_wgt)]
-pub mod multi_when_wgt {
-    inherit!(crate::widget_base::base);
+#[widget($crate::tests::widget::MultiWhenWgt)]
+pub struct MultiWhenWgt(crate::widget_base::WidgetBase);
 
-    use super::util::{is_state, live_trace as trace};
-    properties! {
-        trace = "default";
-        when *#is_state {
-            trace = "state_0";
-        }
-        when *#is_state {
-            trace = "state_1";
+impl MultiWhenWgt {
+    fn on_start(&mut self) {
+        widget_set! {
+            self;
+            util::live_trace = "default";
+            when *#util::is_state {
+                util::live_trace = "state_0";
+            }
+            when *#util::is_state {
+                util::live_trace = "state_1";
+            }
         }
     }
 }
@@ -396,7 +347,7 @@ pub fn wgt_multi_when() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
-        let mut wgt = multi_when_wgt!();
+        let mut wgt = MultiWhenWgt!();
         wgt.init();
 
         assert!(util::traced(&wgt, "default"));
@@ -417,33 +368,43 @@ pub fn wgt_multi_when() {
 /*
  * Tests widget property attributes.
  */
-#[widget($crate::tests::widget::cfg_property_wgt)]
-pub mod cfg_property_wgt {
-    inherit!(crate::widget_base::base);
+#[widget($crate::tests::widget::CfgPropertyWgt)]
+pub struct CfgPropertyWgt(crate::widget_base::WidgetBase);
+impl CfgPropertyWgt {
+    fn on_start(&mut self) {
+        widget_set! {
+            self;
+            // property not included in widget.
+            #[cfg(never)]
+            never_trace = "never-trace";
 
-    use super::util::trace;
-
-    properties! {
-        // property not included in widget.
-        #[cfg(never)]
-        trace as never_trace = "never-trace";
-
-        // suppress warning.
-        #[allow(non_snake_case)]
-        trace as always_trace = {
-            #[allow(clippy::needless_late_init)]
-            let weird___name;
-            weird___name = "always-trace";
-            weird___name
-        };
+            // suppress warning.
+            #[allow(non_snake_case)]
+            always_trace = {
+                #[allow(clippy::needless_late_init)]
+                let weird___name;
+                weird___name = "always-trace";
+                weird___name
+            };
+        }
     }
 }
+#[cfg(never)]
+#[crate::property(CONTEXT)]
+pub fn never_trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+    util::trace(child, trace)
+}
+#[crate::property(CONTEXT)]
+pub fn always_trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
+    util::trace(child, trace)
+}
+
 #[test]
 pub fn wgt_cfg_property() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
-        let mut wgt = cfg_property_wgt!();
+        let mut wgt = CfgPropertyWgt!();
         wgt.init();
 
         assert!(util::traced(&wgt, "always-trace"));
@@ -455,10 +416,7 @@ pub fn user_cfg_property() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
-        #[allow(unused_imports)]
-        use util::trace as never_trace;
-        use util::trace as always_trace;
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
             // property not set.
             #[cfg(never)]
             never_trace = "never-trace";
@@ -483,30 +441,30 @@ pub fn user_cfg_property() {
 /*
  * Tests widget when attributes.
  */
-#[widget($crate::tests::widget::cfg_when_wgt)]
-pub mod cfg_when_wgt {
-    inherit!(crate::widget_base::base);
+#[widget($crate::tests::widget::CfgWhenWgt)]
+pub struct CfgWhenWgt(crate::widget_base::WidgetBase);
+impl CfgWhenWgt {
+    fn on_start(&mut self) {
+        widget_set! {
+            self;
+            util::live_trace = "trace";
 
-    use super::util::{is_state, live_trace};
+            // suppress warning in all assigns.
+            #[allow(non_snake_case)]
+            when *#util::is_state {
+                util::live_trace = {
+                    #[allow(clippy::needless_late_init)]
+                    let weird___name;
+                    weird___name = "is_state";
+                    weird___name
+                };
+            }
 
-    properties! {
-        live_trace = "trace";
-
-        // suppress warning in all assigns.
-        #[allow(non_snake_case)]
-        when *#is_state {
-            live_trace = {
-                #[allow(clippy::needless_late_init)]
-                let weird___name;
-                weird___name = "is_state";
-                weird___name
-            };
-        }
-
-        // when not applied.
-        #[cfg(never)]
-        when *#is_state {
-            live_trace = "is_never_state";
+            // when not applied.
+            #[cfg(never)]
+            when *#util::is_state {
+                util::live_trace = "is_never_state";
+            }
         }
     }
 }
@@ -515,7 +473,7 @@ pub fn wgt_cfg_when() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
-        let mut wgt = cfg_when_wgt!();
+        let mut wgt = CfgWhenWgt!();
 
         wgt.init();
 
@@ -539,7 +497,7 @@ pub fn user_cfg_when() {
     let _app = App::minimal().run_headless(false);
 
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
             util::live_trace = "trace";
 
             when *#util::is_state {
@@ -576,110 +534,29 @@ pub fn user_cfg_when() {
 }
 
 /*
- *  Tests widget captures.
- */
-#[widget($crate::tests::widget::capture_properties_wgt)]
-pub mod capture_properties_wgt {
-    inherit!(crate::widget_base::base);
-
-    use crate::widget_builder::*;
-
-    properties! {
-        pub super::util::trace as new_trace = "new";
-        pub super::util::trace as property_trace = "property";
-    }
-
-    fn build(mut wgt: WidgetBuilder) -> impl crate::widget_instance::UiNode {
-        let msg: &'static str = wgt.capture_value(property_id!(self::new_trace)).unwrap();
-        let msg = match msg {
-            "new" => "custom new",
-            "user-new" => "custom new (user)",
-            o => panic!("unexpected {o:?}"),
-        };
-        wgt.push_property(
-            Importance::WIDGET,
-            property_args! {
-                super::util::trace as build_trace = msg;
-            },
-        );
-
-        crate::widget_base::nodes::build(wgt)
-    }
-}
-#[test]
-pub fn wgt_capture_properties() {
-    let _app = App::minimal().run_headless(false);
-
-    WINDOW.with_test_context(|| {
-        let mut wgt = capture_properties_wgt!();
-        wgt.init();
-
-        assert!(util::traced(&wgt, "property"));
-        assert!(util::traced(&wgt, "custom new"));
-        assert!(!util::traced(&wgt, "new"));
-    });
-}
-#[test]
-pub fn wgt_capture_properties_reassign() {
-    let _app = App::minimal().run_headless(false);
-
-    WINDOW.with_test_context(|| {
-        let mut wgt = capture_properties_wgt! {
-            property_trace = "user-property";
-            new_trace = "user-new";
-        };
-        wgt.init();
-
-        assert!(util::traced(&wgt, "user-property"));
-        assert!(util::traced(&wgt, "custom new (user)"));
-
-        assert!(!util::traced(&wgt, "new"));
-        assert!(!util::traced(&wgt, "user-new"));
-    });
-}
-
-/*
  * Tests order properties are inited and applied.
  */
 
-#[widget($crate::tests::widget::property_nest_group_sorting_wgt)]
-pub mod property_nest_group_sorting_wgt {
-    inherit!(crate::widget_base::base);
-
-    properties! {
-        pub super::util::count_border as count_border2;
-        pub super::util::count_border as count_border1;
-        pub super::util::count_child_context as count_child_context2;
-        pub super::util::count_child_context as count_child_context1;
-        pub super::util::count_child_layout as count_child_layout2;
-        pub super::util::count_child_layout as count_child_layout1;
-        pub super::util::count_context as count_context2;
-        pub super::util::count_context as count_context1;
-        pub super::util::count_layout as count_layout2;
-        pub super::util::count_layout as count_layout1;
-        pub super::util::count_size as count_size2;
-        pub super::util::count_size as count_size1;
-        pub super::util::on_count as count_event2;
-        pub super::util::on_count as count_event1;
-    }
-}
+#[widget($crate::tests::widget::PropertyNestGroupSortingWgt)]
+pub struct PropertyNestGroupSortingWgt(crate::widget_base::WidgetBase);
+impl PropertyNestGroupSortingWgt {}
 fn property_nest_group_sorting_init1() -> impl UiNode {
-    property_nest_group_sorting_wgt! {
-        count_border1 = Position::next("count_border1");
-        count_border2 = Position::next("count_border2");
-        count_size1 = Position::next("count_size1");
-        count_size2 = Position::next("count_size2");
-        count_layout1 = Position::next("count_layout1");
-        count_layout2 = Position::next("count_layout2");
-        count_event1 = Position::next("count_event1");
-        count_event2 = Position::next("count_event2");
-        count_context1 = Position::next("count_context1");
-        count_context2 = Position::next("count_context2");
+    PropertyNestGroupSortingWgt! {
+        util::count_border = Position::next("count_border");
+        util::count_border2 = Position::next("count_border2");
+        util::count_size = Position::next("count_size");
+        util::count_size2 = Position::next("count_size2");
+        util::count_layout = Position::next("count_layout");
+        util::count_layout2 = Position::next("count_layout2");
+        util::count_event = Position::next("count_event");
+        util::count_event2 = Position::next("count_event2");
+        util::count_context = Position::next("count_context");
+        util::count_context2 = Position::next("count_context2");
 
-        count_child_layout1 = Position::next("count_child_layout1");
-        count_child_layout2 = Position::next("count_child_layout2");
-        count_child_context1 = Position::next("count_child_context1");
-        count_child_context2 = Position::next("count_child_context2");
+        util::count_child_layout = Position::next("count_child_layout");
+        util::count_child_layout2 = Position::next("count_child_layout2");
+        util::count_child_context = Position::next("count_child_context");
+        util::count_child_context2 = Position::next("count_child_context2");
     }
 }
 #[test]
@@ -696,41 +573,41 @@ pub fn property_nest_group_sorting_value_init1() {
         pretty_assertions::assert_eq!(
             util::sorted_value_init(&wgt),
             [
-                "count_border1",
+                "count_border",
                 "count_border2",
-                "count_size1",
+                "count_size",
                 "count_size2",
-                "count_layout1",
+                "count_layout",
                 "count_layout2",
-                "count_event1",
+                "count_event",
                 "count_event2",
-                "count_context1",
+                "count_context",
                 "count_context2",
-                "count_child_layout1",
+                "count_child_layout",
                 "count_child_layout2",
-                "count_child_context1",
+                "count_child_context",
                 "count_child_context2",
             ]
         );
     });
 }
 fn property_nest_group_sorting_init2() -> impl UiNode {
-    property_nest_group_sorting_wgt! {
-        count_child_context1 = Position::next("count_child_context1");
-        count_child_context2 = Position::next("count_child_context2");
-        count_child_layout1 = Position::next("count_child_layout1");
-        count_child_layout2 = Position::next("count_child_layout2");
+    PropertyNestGroupSortingWgt! {
+        util::count_child_context = Position::next("count_child_context");
+        util::count_child_context2 = Position::next("count_child_context2");
+        util::count_child_layout = Position::next("count_child_layout");
+        util::count_child_layout2 = Position::next("count_child_layout2");
 
-        count_context1 = Position::next("count_context1");
-        count_context2 = Position::next("count_context2");
-        count_event1 = Position::next("count_event1");
-        count_event2 = Position::next("count_event2");
-        count_layout1 = Position::next("count_layout1");
-        count_layout2 = Position::next("count_layout2");
-        count_size1 = Position::next("count_size1");
-        count_size2 = Position::next("count_size2");
-        count_border1 = Position::next("count_border1");
-        count_border2 = Position::next("count_border2");
+        util::count_context = Position::next("count_context");
+        util::count_context2 = Position::next("count_context2");
+        util::count_event = Position::next("count_event");
+        util::count_event2 = Position::next("count_event2");
+        util::count_layout = Position::next("count_layout");
+        util::count_layout2 = Position::next("count_layout2");
+        util::count_size = Position::next("count_size");
+        util::count_size2 = Position::next("count_size2");
+        util::count_border = Position::next("count_border");
+        util::count_border2 = Position::next("count_border2");
     }
 }
 #[test]
@@ -747,19 +624,19 @@ pub fn property_nest_group_sorting_value_init2() {
         pretty_assertions::assert_eq!(
             util::sorted_value_init(&wgt),
             [
-                "count_child_context1",
+                "count_child_context",
                 "count_child_context2",
-                "count_child_layout1",
+                "count_child_layout",
                 "count_child_layout2",
-                "count_context1",
+                "count_context",
                 "count_context2",
-                "count_event1",
+                "count_event",
                 "count_event2",
-                "count_layout1",
+                "count_layout",
                 "count_layout2",
-                "count_size1",
+                "count_size",
                 "count_size2",
-                "count_border1",
+                "count_border",
                 "count_border2",
             ]
         );
@@ -773,19 +650,19 @@ fn assert_node_order(wgt: &impl UiNode) {
         [
             // each property wraps the next one and takes a position number before
             // delegating to the next property (child node).
-            "count_context1",
+            "count_context",
             "count_context2",
-            "count_event1",
+            "count_event",
             "count_event2",
-            "count_layout1",
+            "count_layout",
             "count_layout2",
-            "count_size1",
+            "count_size",
             "count_size2",
-            "count_border1",
+            "count_border",
             "count_border2",
-            "count_child_context1",
+            "count_child_context",
             "count_child_context2",
-            "count_child_layout1",
+            "count_child_layout",
             "count_child_layout2",
         ]
     );
@@ -815,32 +692,31 @@ pub fn property_nest_group_sorting_node_init2() {
         assert_node_order(&wgt);
     });
 }
-#[widget($crate::tests::widget::property_nest_group_sorting_inherited_wgt)]
-pub mod property_nest_group_sorting_inherited_wgt {
-    inherit!(super::property_nest_group_sorting_wgt);
-}
+#[widget($crate::tests::widget::PropertyNestGroupSortingInheritedWgt)]
+pub struct PropertyNestGroupSortingInheritedWgt(PropertyNestGroupSortingWgt);
+
 #[test]
 pub fn property_nest_group_sorting_node_inherited_init() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
         Position::reset();
 
-        let mut wgt = property_nest_group_sorting_inherited_wgt! {
-            count_child_context1 = Position::next("count_child_context1");
-            count_child_context2 = Position::next("count_child_context2");
-            count_child_layout1 = Position::next("count_child_layout1");
-            count_child_layout2 = Position::next("count_child_layout2");
+        let mut wgt = PropertyNestGroupSortingInheritedWgt! {
+            util::count_child_context = Position::next("count_child_context");
+            util::count_child_context2 = Position::next("count_child_context2");
+            util::count_child_layout = Position::next("count_child_layout");
+            util::count_child_layout2 = Position::next("count_child_layout2");
 
-            count_context1 = Position::next("count_context1");
-            count_context2 = Position::next("count_context2");
-            count_event1 = Position::next("count_event1");
-            count_event2 = Position::next("count_event2");
-            count_layout1 = Position::next("count_layout1");
-            count_layout2 = Position::next("count_layout2");
-            count_size1 = Position::next("count_size1");
-            count_size2 = Position::next("count_size2");
-            count_border1 = Position::next("count_border1");
-            count_border2 = Position::next("count_border2");
+            util::count_context = Position::next("count_context");
+            util::count_context2 = Position::next("count_context2");
+            util::count_event = Position::next("count_event");
+            util::count_event2 = Position::next("count_event2");
+            util::count_layout = Position::next("count_layout");
+            util::count_layout2 = Position::next("count_layout2");
+            util::count_size = Position::next("count_size");
+            util::count_size2 = Position::next("count_size2");
+            util::count_border = Position::next("count_border");
+            util::count_border2 = Position::next("count_border2");
         };
         wgt.init();
 
@@ -848,28 +724,28 @@ pub fn property_nest_group_sorting_node_inherited_init() {
     });
 }
 
-#[widget($crate::tests::widget::property_nest_group_sorting_defaults_wgt)]
-pub mod property_nest_group_sorting_defaults_wgt {
-    use super::util::Position;
+#[widget($crate::tests::widget::PropertyNestGroupSortingDefaultsWgt)]
+pub struct PropertyNestGroupSortingDefaultsWgt(PropertyNestGroupSortingWgt);
+impl PropertyNestGroupSortingDefaultsWgt {
+    fn on_start(&mut self) {
+        widget_set! {
+            self;
+            util::count_context = Position::next("count_context");
+            util::count_context2 = Position::next("count_context2");
+            util::count_event = Position::next("count_event");
+            util::count_event2 = Position::next("count_event2");
+            util::count_layout = Position::next("count_layout");
+            util::count_layout2 = Position::next("count_layout2");
+            util::count_size = Position::next("count_size");
+            util::count_size2 = Position::next("count_size2");
+            util::count_border = Position::next("count_border");
+            util::count_border2 = Position::next("count_border2");
 
-    inherit!(super::property_nest_group_sorting_wgt);
-
-    properties! {
-        count_context1 = Position::next("count_context1");
-        count_context2 = Position::next("count_context2");
-        count_event1 = Position::next("count_event1");
-        count_event2 = Position::next("count_event2");
-        count_layout1 = Position::next("count_layout1");
-        count_layout2 = Position::next("count_layout2");
-        count_size1 = Position::next("count_size1");
-        count_size2 = Position::next("count_size2");
-        count_border1 = Position::next("count_border1");
-        count_border2 = Position::next("count_border2");
-
-        count_child_context1 = Position::next("count_child_context1");
-        count_child_context2 = Position::next("count_child_context2");
-        count_child_layout1 = Position::next("count_child_layout1");
-        count_child_layout2 = Position::next("count_child_layout2");
+            util::count_child_context = Position::next("count_child_context");
+            util::count_child_context2 = Position::next("count_child_context2");
+            util::count_child_layout = Position::next("count_child_layout");
+            util::count_child_layout2 = Position::next("count_child_layout2");
+        }
     }
 }
 #[test]
@@ -878,7 +754,7 @@ pub fn property_nest_group_sorting_defaults() {
     WINDOW.with_test_context(|| {
         Position::reset();
 
-        let mut wgt = property_nest_group_sorting_defaults_wgt!();
+        let mut wgt = PropertyNestGroupSortingDefaultsWgt!();
         wgt.init();
         assert_node_order(&wgt);
     });
@@ -892,7 +768,7 @@ pub fn property_nest_group_sorting_defaults() {
 pub fn when_property_member_default() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
            util::duo_members = "a", "b";
            util::live_trace = "";
            when {
@@ -912,7 +788,7 @@ pub fn when_property_member_default() {
 pub fn when_property_member_index() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
            util::duo_members = "a", "b";
            util::live_trace = "";
            when {
@@ -933,7 +809,7 @@ pub fn when_property_member_index() {
 pub fn when_property_member_named() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
            util::duo_members = "a", "b";
            util::live_trace = "";
            when {
@@ -954,7 +830,7 @@ pub fn when_property_member_named() {
 pub fn when_property_member_default_method() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
            util::duo_members = "a", "b";
            util::live_trace = "";
            when {
@@ -973,7 +849,7 @@ pub fn when_property_member_default_method() {
 pub fn when_property_member_indexed_method() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
            util::duo_members = "a", "b";
            util::live_trace = "";
            when {
@@ -989,11 +865,11 @@ pub fn when_property_member_indexed_method() {
     });
 }
 
-#[widget($crate::tests::widget::get_builder)]
-pub mod get_builder {
-    use crate::widget_builder::WidgetBuilder;
-
-    fn build(mut wgt: WidgetBuilder) -> WidgetBuilder {
+#[widget($crate::tests::widget::GetBuilder)]
+pub struct GetBuilder(crate::widget_base::WidgetBase);
+impl GetBuilder {
+    pub fn build(&mut self) -> WidgetBuilder {
+        let mut wgt = self.take_builder();
         wgt.set_custom_build(crate::widget_base::nodes::build);
         wgt
     }
@@ -1004,7 +880,7 @@ pub fn when_reuse() {
     let test = |pass: &str| {
         let _app = App::minimal().run_headless(false);
         WINDOW.with_test_context(|| {
-            let builder = get_builder! {
+            let builder = GetBuilder! {
                 util::live_trace = "false";
 
                 when *#util::is_state {
@@ -1032,55 +908,6 @@ pub fn when_reuse() {
 }
 
 /*
-* Inherit override
-*/
-#[widget_mixin($crate::tests::widget::inherit_override_a_mixin)]
-pub mod inherit_override_a_mixin {
-    use super::util::trace;
-
-    properties! {
-        trace = "base_a::property";
-    }
-}
-#[widget_mixin($crate::tests::widget::inherit_override_b_mixin)]
-pub mod inherit_override_b_mixin {
-    use super::util::trace;
-
-    properties! {
-        trace = "base_b::property";
-    }
-}
-#[widget($crate::tests::widget::inherit_override_wgt1)]
-pub mod inherit_override_wgt1 {
-    inherit!(crate::widget_base::base);
-    inherit!(super::inherit_override_a_mixin);
-    inherit!(super::inherit_override_b_mixin);
-}
-#[widget($crate::tests::widget::inherit_override_wgt2)]
-pub mod inherit_override_wgt2 {
-    inherit!(crate::widget_base::base);
-    inherit!(super::inherit_override_b_mixin);
-    inherit!(super::inherit_override_a_mixin);
-}
-#[test]
-pub fn inherit_override() {
-    let _app = App::minimal().run_headless(false);
-    WINDOW.with_test_context(|| {
-        let mut wgt = inherit_override_wgt1!();
-
-        wgt.init();
-        assert!(util::traced(&wgt, "base_b::property"));
-        assert!(!util::traced(&wgt, "base_a::property"));
-
-        let mut wgt = inherit_override_wgt2!();
-
-        wgt.init();
-        assert!(!util::traced(&wgt, "base_b::property"));
-        assert!(util::traced(&wgt, "base_a::property"));
-    });
-}
-
-/*
 * Property Default Value
 */
 
@@ -1088,7 +915,7 @@ pub fn inherit_override() {
 pub fn allowed_in_when_without_wgt_assign1() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
             // util::live_trace_default = "default-trace";
             when *#util::is_state {
                 util::live_trace_default = "when-trace";
@@ -1107,23 +934,14 @@ pub fn allowed_in_when_without_wgt_assign1() {
     });
 }
 
-#[widget($crate::tests::widget::declare_prop_with_default_wgt)]
-pub mod declare_prop_with_default_wgt {
-    inherit!(crate::widget_base::base);
-
-    properties! {
-        pub super::util::live_trace_default as trace;
-    }
-}
-
 #[test]
 pub fn allowed_in_when_without_wgt_assign2() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = declare_prop_with_default_wgt! {
-            // live_trace_default = "default-trace";
+        let mut wgt = EmptyWgt! {
+            // util::live_trace_default = "default-trace";
             when *#util::is_state {
-                trace = "when-trace";
+                util::live_trace_default = "when-trace";
             }
         };
 
@@ -1154,7 +972,7 @@ pub fn util_live_trace(
 pub fn generated_name_collision() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
             util::live_trace = "!";
             util_live_trace = false;
         };
@@ -1170,7 +988,7 @@ pub fn generated_name_collision() {
 pub fn generated_name_collision_in_when() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
             util::live_trace = "1";
             when *#util::is_state {
                 util::live_trace = "2";
@@ -1194,7 +1012,7 @@ pub fn generated_name_collision_in_when() {
 pub fn generated_name_collision_in_when_assign() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = empty_wgt! {
+        let mut wgt = EmptyWgt! {
             util::live_trace = "0";
             util_live_trace = false;
 
@@ -1214,20 +1032,20 @@ pub fn generated_name_collision_in_when_assign() {
     });
 }
 
-#[widget($crate::tests::widget::name_collision_wgt_when)]
-pub mod name_collision_wgt_when {
-    inherit!(crate::widget_base::base);
+#[widget($crate::tests::widget::NameCollisionWgtWhen)]
+pub struct NameCollisionWgtWhen(crate::widget_base::WidgetBase);
+impl NameCollisionWgtWhen {
+    fn on_start(&mut self) {
+        widget_set! {
+            self;
+            util::live_trace = "1";
 
-    use super::util::{is_state, live_trace};
-
-    properties! {
-        live_trace = "1";
-
-        when *#is_state {
-            live_trace = "2";
-        }
-        when *#is_state {
-            live_trace = "3";
+            when *#util::is_state {
+                util::live_trace = "2";
+            }
+            when *#util::is_state {
+                util::live_trace = "3";
+            }
         }
     }
 }
@@ -1235,7 +1053,7 @@ pub mod name_collision_wgt_when {
 pub fn name_collision_wgt_when() {
     let _app = App::minimal().run_headless(false);
     WINDOW.with_test_context(|| {
-        let mut wgt = name_collision_wgt_when!();
+        let mut wgt = NameCollisionWgtWhen!();
 
         wgt.init();
         util::set_state(&mut wgt, true);
@@ -1262,33 +1080,27 @@ mod macro_rules_generated {
         };
         ([$dollar:tt] $name:ident) => {
             #[widget($dollar crate::tests::widget::macro_rules_generated::$name)]
-            pub mod $name {
-                use crate::var::IntoVar;
-                use crate::widget_instance::UiNode;
+            pub struct $name($crate::widget_base::WidgetBase);
 
-                inherit!($crate::widget_base::base);
-
-                #[$crate::property(CONTEXT)]
-                pub fn margin(child: impl UiNode, margin: impl IntoVar<$crate::units::SideOffsets>) -> impl UiNode {
-                    let _ = margin;
-                    child
-                }
-
-                properties! {
-                    margin;
-                }
+            #[$crate::property(CONTEXT, impl($name))]
+            pub fn margin(
+                child: impl $crate::widget_instance::UiNode,
+                margin: impl $crate::var::IntoVar<$crate::units::SideOffsets>
+            ) -> impl $crate::widget_instance::UiNode {
+                let _ = margin;
+                child
             }
         }
     }
 
     test! {
-        bar
+        Bar
     }
 }
 
 #[test]
 fn macro_rules_generated() {
-    let _ = macro_rules_generated::bar! {
+    let _ = macro_rules_generated::Bar! {
         margin = 10;
     };
 }
@@ -1345,11 +1157,17 @@ pub mod util {
         }
     }
 
-    pub use count as count_context;
-
     /// Same as [`count`] but in `CHILD_CONTEXT` group.
     #[property(CHILD_CONTEXT)]
     pub fn count_child_context(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
+    /// Same as [`count`] but in `CHILD_CONTEXT` group.
+    #[property(CHILD_CONTEXT)]
+    pub fn count_child_context2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
             value_pos: count.into(),
@@ -1364,10 +1182,26 @@ pub mod util {
             value_pos: count.into(),
         }
     }
+    /// Same as [`count`] but in `CHILD_LAYOUT` group.
+    #[property(CHILD_LAYOUT)]
+    pub fn count_child_layout2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
 
     /// Same as [`count`] but in `BORDER` group.
     #[property(BORDER)]
     pub fn count_border(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
+    /// Same as [`count`] but in `BORDER` group.
+    #[property(BORDER)]
+    pub fn count_border2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
             value_pos: count.into(),
@@ -1382,6 +1216,31 @@ pub mod util {
             value_pos: count.into(),
         }
     }
+    /// Same as [`count`] but in `LAYOUT` group.
+    #[property(LAYOUT)]
+    pub fn count_layout2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
+
+    /// Same as [`count`] but in `CONTEXT` group.
+    #[property(CONTEXT)]
+    pub fn count_context(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
+    /// Same as [`count`] but in `CONTEXT` group.
+    #[property(CONTEXT)]
+    pub fn count_context2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
 
     /// Same as [`count`] but in `SIZE` group.
     #[property(SIZE)]
@@ -1391,10 +1250,26 @@ pub mod util {
             value_pos: count.into(),
         }
     }
+    /// Same as [`count`] but in `SIZE` group.
+    #[property(SIZE)]
+    pub fn count_size2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
 
     /// Same as [`count`] but in `EVENT` group.
     #[property(EVENT)]
-    pub fn on_count(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+    pub fn count_event(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        CountNode {
+            child,
+            value_pos: count.into(),
+        }
+    }
+    /// Same as [`count`] but in `EVENT` group.
+    #[property(EVENT)]
+    pub fn count_event2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         CountNode {
             child,
             value_pos: count.into(),

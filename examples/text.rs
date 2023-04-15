@@ -20,17 +20,17 @@ fn app_main() {
     App::default().run_window(async {
         let fs = var(Length::Pt(11.0));
 
-        window! {
+        Window! {
             zero_ui::core::widget_base::parallel = false;
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             child = z_stack(ui_vec![
-                stack! {
+                Stack! {
                     font_size = fs.easing(150.ms(), easing::linear);
                     direction = StackDirection::left_to_right();
                     align = Align::CENTER;
                     spacing = 40;
                     children = ui_vec![
-                        stack! {
+                        Stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
                             children = ui_vec![
@@ -38,7 +38,7 @@ fn app_main() {
                                 defaults(),
                             ];
                         },
-                        stack! {
+                        Stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
                             children = ui_vec![
@@ -48,7 +48,7 @@ fn app_main() {
                                 letter_spacing(),
                             ];
                         },
-                        stack! {
+                        Stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
                             children = ui_vec![
@@ -57,7 +57,7 @@ fn app_main() {
                         }
                     ];
                 },
-                container! {
+                Container! {
                     align = Align::TOP;
                     margin = 10;
                     child = font_size(fs);
@@ -73,8 +73,8 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
             *s.to_mut() += Length::Pt(change);
         });
     }
-    stack! {
-        button::vis::extend_style = style_fn!(|_| style! {
+    Stack! {
+        button::extend_style = style_fn!(|_| Style! {
             padding = (0, 5);
         });
         direction = StackDirection::left_to_right();
@@ -83,8 +83,8 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
         background_color = color_scheme_map(rgba(0, 0, 0, 40.pct()), rgba(1., 1., 1., 40.pct()));
         padding = 4;
         children = ui_vec![
-            button! {
-                child = text!("-");
+            Button! {
+                child = Text!("-");
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Minus), shortcut!(NumpadSubtract)];
@@ -92,11 +92,11 @@ fn font_size(font_size: ArcVar<Length>) -> impl UiNode {
                     change_size(&font_size, -1.0)
                 });
             },
-            text! {
+            Text! {
                 txt = font_size.map(|s| formatx!("{s}"));
             },
-            button! {
-                child = text!("+");
+            Button! {
+                child = Text!("+");
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Plus), shortcut!(NumpadAdd)];
@@ -112,10 +112,10 @@ fn basic() -> impl UiNode {
     section(
         "basic",
         ui_vec![
-            text!("Basic Text"),
-            strong!("Strong Text"),
-            em!("Emphasis Text"),
-            text! {
+            Text!("Basic Text"),
+            Strong!("Strong Text"),
+            Em!("Emphasis Text"),
+            Text! {
                 txt_color = color_scheme_map(colors::LIGHT_GREEN, colors::DARK_GREEN);
                 txt = "Colored Text";
 
@@ -131,12 +131,12 @@ fn line_height() -> impl UiNode {
     section(
         "line_height",
         ui_vec![
-            text! {
+            Text! {
                 txt = "Default: 'Émp Giga Ç'";
                 background_color = colors::LIGHT_BLUE;
                 txt_color = colors::BLACK;
             },
-            text! {
+            Text! {
                 txt = "150%: 'Émp Giga Ç'";
                 background_color = colors::LIGHT_BLUE;
                 txt_color = colors::BLACK;
@@ -149,8 +149,8 @@ fn line_height() -> impl UiNode {
 fn line_spacing() -> impl UiNode {
     section(
         "line_spacing",
-        ui_vec![container! {
-            child = text! {
+        ui_vec![Container! {
+            child = Text! {
                 txt = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 txt_wrap = false;
@@ -169,7 +169,7 @@ fn line_spacing() -> impl UiNode {
 fn word_spacing() -> impl UiNode {
     section(
         "word_spacing",
-        ui_vec![text! {
+        ui_vec![Text! {
             txt = "Word spacing\n\thover to change";
             background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
@@ -184,7 +184,7 @@ fn word_spacing() -> impl UiNode {
 fn letter_spacing() -> impl UiNode {
     section(
         "letter_spacing",
-        ui_vec![text! {
+        ui_vec![Text! {
             txt = "Letter spacing\n\thover to change";
             background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
@@ -200,21 +200,21 @@ fn decoration_lines() -> impl UiNode {
     section(
         "Decorations",
         ui_vec![
-            text! {
+            Text! {
                 txt = "Overline, 1, Dotted,\ndefault color";
                 overline = 1, LineStyle::Dotted;
 
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);
             },
-            text! {
+            Text! {
                 txt = "Strikethrough, 1, Solid,\ndefault color";
                 strikethrough = 1, LineStyle::Solid;
 
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);
             },
-            text! {
+            Text! {
                 txt = "Strikethrough, 4, Double,\ndifferent color";
                 strikethrough = 4, LineStyle::Double;
                 strikethrough_color = colors::RED;
@@ -222,14 +222,14 @@ fn decoration_lines() -> impl UiNode {
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);
             },
-            text! {
+            Text! {
                 txt = "Underline, 1, Solid,\ndefault color";
                 underline = 1, LineStyle::Solid;
 
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);
             },
-            text! {
+            Text! {
                 txt = "Underline, 1, Solid,\ndefault color, skip spaces";
                 underline = 1, LineStyle::Solid;
                 underline_skip = UnderlineSkip::SPACES;
@@ -237,7 +237,7 @@ fn decoration_lines() -> impl UiNode {
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);
             },
-            text! {
+            Text! {
                 txt = "Underline, 1, Solid,\ndefault color, descent";
                 underline = 1, LineStyle::Solid;
                 underline_position = UnderlinePosition::Descent;
@@ -245,7 +245,7 @@ fn decoration_lines() -> impl UiNode {
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);
             },
-            text! {
+            Text! {
                 txt = "Underline, 3, wavy,\ndifferent color, no skip";
                 underline = 3, LineStyle::Wavy(1.0);
                 underline_color = colors::GREEN;
@@ -271,19 +271,19 @@ fn defaults() -> impl UiNode {
             )
             .map(|f| match f.done() {
                 Some(f) => f.best().family_name().to_text(),
-                None => Text::empty(),
+                None => Txt::empty(),
             });
 
-        stack! {
+        Stack! {
             direction = StackDirection::left_to_right();
             children_align = Align::BASELINE_LEFT;
             children = ui_vec![
-                text!(if title.is_empty() {
+                Text!(if title.is_empty() {
                     formatx!("{font_family}: ")
                 } else {
                     formatx!("{title}: ")
                 }),
-                text! {
+                Text! {
                     txt = font_name;
                     font_family;
                 }
@@ -307,10 +307,10 @@ fn defaults() -> impl UiNode {
 }
 
 fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
-        children = ui_vec![text! {
+        children = ui_vec![Text! {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);

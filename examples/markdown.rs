@@ -23,12 +23,12 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Markdown Example";
-            child = scroll! {
+            child = Scroll! {
                 mode = ScrollMode::VERTICAL;
                 padding = 10;
-                child = markdown! {
+                child = Markdown! {
                     md = std::fs::read_to_string("examples/res/markdown/sample.md").unwrap_or_else(|e| e.to_string());
 
                     // allow limited image download and read.

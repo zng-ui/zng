@@ -1,19 +1,22 @@
-error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
-  --> cases/widget_new/malformed_fields2.rs:6:13
+error[E0061]: this method takes 1 argument but 0 arguments were supplied
+ --> cases/widget_new/malformed_fields2.rs:7:13
+  |
+5 |       let _ = Wgt! {
+  |  _____________-
+6 | |         margin = {
+7 | |             margin:
+  | |             ^^^^^^
+8 | |         };
+9 | |     };
+  | |_____- an argument is missing
+  |
+note: associated function defined here
+ --> $WORKSPACE/zero-ui/src/properties/layout.rs
+  |
+  | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+  |                                   ^^^^^^
+help: provide the argument
+  --> $WORKSPACE/zero-ui/src/widgets.rs
    |
-6  |        let _ = wgt! {
-   |  ______________^
-7  | |/         margin = {
-8  | ||             margin:
-   | ||__________________- required by a bound introduced by this call
-9  | |          };
-10 | |      };
-   | |______^ the trait `IntoVar<SideOffsets>` is not implemented for `()`
+   | margin(/* margin */)
    |
-   = help: the following other types implement trait `IntoVar<T>`:
-            <implementers-list>
-note: required by a bound in `margin::margin`
-  --> $WORKSPACE/zero-ui/src/properties/layout.rs
-   |
-   | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
-   |                                                ^^^^^^^^^^^^^^^^^^^^ required by this bound in `margin::margin`

@@ -1,5 +1,0 @@
-error: expected `,`
- --> cases/widget/malformed_property_type3.rs:8:19
-  |
-8 |         foo(bool<!?>) = 10;
-  |                   ^

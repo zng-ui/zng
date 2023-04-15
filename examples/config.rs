@@ -30,9 +30,9 @@ fn app_main() {
 
         trace_status(&status);
 
-        window! {
+        Window! {
             title = if std::env::var("MOVE-TO").is_err() { "Config Example" } else { "Config Example - Other Process" };
-            background = text! {
+            background = Text! {
                 txt = status.map_to_text();
                 margin = 10;
                 font_family = "monospace";
@@ -44,37 +44,37 @@ fn app_main() {
                     txt_color = colors::RED;
                 }
             };
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 align = Align::CENTER;
                 spacing = 5;
                 children = ui_vec![
-                    toggle! {
-                        child = text!(checked.map(|c| formatx!("Checked: {c:?}")));
+                    Toggle! {
+                        child = Text!(checked.map(|c| formatx!("Checked: {c:?}")));
                         checked = checked.clone();
                     },
-                    button! {
-                        child = text!(count.map(|c| formatx!("Count: {c:?}")));
+                    Button! {
+                        child = Text!(count.map(|c| formatx!("Count: {c:?}")));
                         on_click = hn!(count, |_| {
                             count.modify(|c| *c.to_mut() += 1).unwrap();
                         })
                     },
                     separator(),
-                    text_input! {
+                    TextInput! {
                         txt = txt.clone();
                         min_width = 100;
                     },
                     separator(),
-                    button! {
-                        child = text!("Reset");
+                    Button! {
+                        child = Text!("Reset");
                         on_click = hn!(|_| {
                             checked.set_ne(false).unwrap();
                             count.set_ne(0).unwrap();
                             txt.set_ne("Save this").unwrap();
                         })
                     },
-                    button! {
-                        child = text!("Open Another Process");
+                    Button! {
+                        child = Text!("Open Another Process");
                         on_click = hn!(|_| {
                             let offset = Dip::new(30);
                             let pos = WINDOW_CTRL.vars().actual_position().get() + DipVector::new(offset, offset);
@@ -108,7 +108,7 @@ fn app_main() {
 }
 
 fn separator() -> impl UiNode {
-    hr! {
+    Hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
         line_style = LineStyle::Dashed;

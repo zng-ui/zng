@@ -21,17 +21,17 @@ fn app_main() {
         set_fallback_font().await;
 
         let calc = var(Calculator::default());
-        window! {
+        Window! {
             title = "Calculator";
             // zero_ui::properties::inspector::show_bounds = true;
             resizable = false;
             auto_size = true;
             padding = 5;
-            child = stack! {
+            child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 spacing = 5;
                 children = ui_vec![
-                    text! {
+                    Text! {
                         txt = calc.map_ref(|c| c.text());
                         align = Align::RIGHT;
                         font_size = 32.pt();
@@ -55,10 +55,10 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
     let b_back = btn_backspace(calc.clone());
     let b_equal = btn_eval(calc.clone());
 
-    grid! {
+    Grid! {
         spacing = 2;
-        columns = ui_vec![grid::column!(1.lft()); 4];
-        auto_grow_fn = wgt_fn!(|_| grid::row!(1.lft()));
+        columns = ui_vec![grid::Column!(1.lft()); 4];
+        auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
         font_size = 14.pt();
         cells = ui_vec![
             b_squre,  b_sroot,  b_clear,  b_back,
@@ -71,37 +71,37 @@ fn controls(calc: ArcVar<Calculator>) -> impl UiNode {
 }
 
 fn btn_square(calc: ArcVar<Calculator>) -> impl UiNode {
-    button! {
+    Button! {
         on_click = hn!(|_| calc.modify(| c|c.to_mut().square()));
-        child = text!("x²");
+        child = Text!("x²");
     }
 }
 
 fn btn_square_root(calc: ArcVar<Calculator>) -> impl UiNode {
-    button! {
+    Button! {
         on_click = hn!(|_| calc.modify(| c|c.to_mut().square_root()));
-        child = text!("√x");
+        child = Text!("√x");
     }
 }
 
 fn btn_clear(calc: ArcVar<Calculator>) -> impl UiNode {
-    button! {
+    Button! {
         on_click = hn!(|_| calc.modify(| c|c.to_mut().clear()));
         click_shortcut = shortcut!(Escape);
-        child = text!("C");
+        child = Text!("C");
     }
 }
 
 fn btn_backspace(calc: ArcVar<Calculator>) -> impl UiNode {
-    button! {
+    Button! {
         on_click = hn!(|_| calc.modify(|c|c.to_mut().backspace()));
         click_shortcut = shortcut!(Backspace);
-        child = text!("⌫");
+        child = Text!("⌫");
     }
 }
 
 fn btn(calc: ArcVar<Calculator>, c: char) -> impl UiNode {
-    button! {
+    Button! {
         on_click = hn!(|_| {
             calc.modify(move |b| b.to_mut().push(c))
         });
@@ -110,27 +110,27 @@ fn btn(calc: ArcVar<Calculator>, c: char) -> impl UiNode {
             assert!(!shortcuts.0.is_empty());
             shortcuts
         };
-        child = text!(c.to_string());
+        child = Text!(c.to_string());
     }
 }
 
 fn btn_eval(calc: ArcVar<Calculator>) -> impl UiNode {
-    button! {
+    Button! {
         on_click = hn!(|_| calc.modify(|c|c.to_mut().eval()));
         click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
-        child = text!("=");
+        child = Text!("=");
     }
 }
 
 #[derive(Default, Clone, Debug)]
 struct Calculator {
-    buffer: Text,
+    buffer: Txt,
     error: bool,
 }
 impl Calculator {
-    pub fn text(&self) -> &Text {
+    pub fn text(&self) -> &Txt {
         if self.buffer.is_empty() {
-            static ZERO: Text = Text::from_static("0");
+            static ZERO: Txt = Txt::from_static("0");
             &ZERO
         } else {
             &self.buffer

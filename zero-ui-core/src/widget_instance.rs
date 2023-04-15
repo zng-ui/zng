@@ -18,7 +18,7 @@ use crate::{
 use crate::{crate_util::NameIdMap, units::*};
 use crate::{
     render::{FrameBuilder, FrameUpdate},
-    text::Text,
+    text::Txt,
     ui_node,
 };
 
@@ -61,7 +61,7 @@ impl WidgetId {
     /// If the `name` is already associated with an id, returns it.
     /// If the `name` is new, generates a new id and associated it with the name.
     /// If `name` is an empty string just returns a new id.
-    pub fn named(name: impl Into<Text>) -> Self {
+    pub fn named(name: impl Into<Txt>) -> Self {
         Self::name_map().get_id_or_insert(name.into(), Self::new_unique)
     }
 
@@ -73,8 +73,8 @@ impl WidgetId {
     ///
     /// [`named`]: WidgetId::named
     /// [`new_unique`]: WidgetId::new_unique
-    /// [`id`]: fn@crate::widget_base::base::id
-    pub fn debug_named(name: impl Into<Text>) -> Self {
+    /// [`id`]: fn@crate::widget_base::id
+    pub fn debug_named(name: impl Into<Txt>) -> Self {
         #[cfg(debug_assertions)]
         return Self::named(name);
 
@@ -91,12 +91,12 @@ impl WidgetId {
     /// If the `name` is an empty string just returns a new id.
     ///
     /// [`NameUsed`]: IdNameError::NameUsed
-    pub fn named_new(name: impl Into<Text>) -> Result<Self, IdNameError<Self>> {
+    pub fn named_new(name: impl Into<Txt>) -> Result<Self, IdNameError<Self>> {
         Self::name_map().new_named(name.into(), Self::new_unique)
     }
 
     /// Returns the name associated with the id or `""`.
-    pub fn name(self) -> Text {
+    pub fn name(self) -> Txt {
         Self::name_map().get_name(self)
     }
 
@@ -108,7 +108,7 @@ impl WidgetId {
     ///
     /// [`NameUsed`]: IdNameError::NameUsed
     /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
-    pub fn set_name(self, name: impl Into<Text>) -> Result<(), IdNameError<Self>> {
+    pub fn set_name(self, name: impl Into<Txt>) -> Result<(), IdNameError<Self>> {
         Self::name_map().set(name.into(), self)
     }
 }
@@ -156,7 +156,7 @@ impl_from_and_into_var! {
         WidgetId::named(name)
     }
     /// Calls [`WidgetId::named`].
-    fn from(name: Text) -> WidgetId {
+    fn from(name: Txt) -> WidgetId {
         WidgetId::named(name)
     }
 }

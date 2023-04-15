@@ -531,19 +531,19 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// Note that you can't store this or actually get unsafe access to the var internals, this is only for comparison.
     fn var_ptr(&self) -> VarPtr;
 
-    /// Get the value as a debug [`Text`].
+    /// Get the value as a debug [`Txt`].
     ///
-    /// [`Text`]: crate::text::Text
-    fn get_debug(&self) -> crate::text::Text;
+    /// [`Txt`]: crate::text::Txt
+    fn get_debug(&self) -> crate::text::Txt;
 
     /// Causes a variable update without actually changing the variable value.
     fn touch(&self) -> Result<(), VarIsReadOnlyError>;
 
-    /// Create a [`map`] that converts from `T` to a [`Text`] debug print.
+    /// Create a [`map`] that converts from `T` to a [`Txt`] debug print.
     ///
     /// [`map`]: Var::map
-    /// [`Text`]: crate::text::Text
-    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>>;
+    /// [`Txt`]: crate::text::Txt
+    fn map_debug(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>>;
 }
 
 /// Represents an [`AnyVar`] *pointer* that can be used for comparison.
@@ -697,22 +697,21 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///     // ...
 ///     # child
 /// }
-/// # #[widget($crate::wgt)]
-/// # mod wgt { inherit!(zero_ui_core::widget_base::base); }
+/// # #[widget($crate::Wgt)] pub struct Wgt(widget_base::WidgetBase);
 /// # fn main() {
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// // shorthand #1:
-/// let w = wgt! {
+/// let w = Wgt! {
 ///     size = (800, 600);
 /// };
 ///
 /// // shorthand #2:
-/// let w = wgt! {
+/// let w = Wgt! {
 ///     size = (800.1, 600.2);
 /// };
 ///
 /// // full:
-/// let w = wgt! {
+/// let w = Wgt! {
 ///     size = Size { width: 800.0, height: 600.0 };
 /// };
 /// # }
@@ -745,23 +744,22 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 ///     FooNode { child, bar: bar.into_var() }
 /// }
 ///
-/// # #[widget($crate::wgt)]
-/// # pub mod wgt { inherit!(zero_ui_core::widget_base::base); }
+/// # #[widget($crate::Wgt)] struct Wgt(widget_base::WidgetBase);
 /// # fn main() {
 /// # let _scope = zero_ui_core::app::App::minimal();
 /// // literal assign:
-/// let wgt = wgt! {
+/// let wgt = Wgt! {
 ///     foo = 42;
 /// };
 ///
 /// // variable assign:
 /// let variable = var(42);
-/// let wgt = wgt! {
+/// let wgt = Wgt! {
 ///     foo = variable;
 /// };
 ///
 /// // widget when:
-/// let wgt = wgt! {
+/// let wgt = Wgt! {
 ///     foo = 42;
 ///
 ///     when !*#enabled {
@@ -956,10 +954,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.with(Clone::clone)
     }
 
-    /// Gets the value as a display [`Text`].
+    /// Gets the value as a display [`Txt`].
     ///
-    /// [`Text`]: crate::text::Text
-    fn get_text(&self) -> crate::text::Text
+    /// [`Txt`]: crate::text::Txt
+    fn get_text(&self) -> crate::text::Txt
     where
         T: fmt::Display,
     {
@@ -1105,12 +1103,12 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.map(|v| v.clone().into())
     }
 
-    /// Creates a [`map`] that converts from `T` to [`Text`] using [`ToText`].
+    /// Creates a [`map`] that converts from `T` to [`Txt`] using [`ToText`].
     ///
     /// [`map`]: Var::map
-    /// [`Text`]: crate::text::Text
+    /// [`Txt`]: crate::text::Txt
     /// [`ToText`]: crate::text::ToText
-    fn map_to_text(&self) -> types::ContextualizedVar<crate::text::Text, ReadOnlyArcVar<crate::text::Text>>
+    fn map_to_text(&self) -> types::ContextualizedVar<crate::text::Txt, ReadOnlyArcVar<crate::text::Txt>>
     where
         T: crate::text::ToText,
     {
@@ -1746,7 +1744,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// ```
     /// # use zero_ui_core::{var::*, units::*, text::*};
-    /// # fn demo(text_var: impl Var<Text>) {
+    /// # fn demo(text_var: impl Var<Txt>) {
     /// let steps = (0..=100).step_by(5).map(|i| (i.pct().fct(), formatx!("{i}%"))).collect();
     /// # let _ =
     /// text_var.steps(steps, 5.secs(), easing::linear)
@@ -1988,7 +1986,7 @@ where
     var_value.to_mut();
 }
 
-fn var_debug<T>(value: &T) -> crate::text::Text
+fn var_debug<T>(value: &T) -> crate::text::Txt
 where
     T: VarValue,
 {

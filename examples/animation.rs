@@ -17,7 +17,7 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        window! {
+        Window! {
             title = "Animation Example";
             padding = 10;
             child_align = Align::CENTER;
@@ -45,18 +45,18 @@ fn example() -> impl UiNode {
     use easing::EasingModifierFn::*;
     let easing_mod = var(EaseOut);
 
-    stack! {
+    Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 10;
         children_align = Align::TOP;
         children = ui_vec![
-            container! {
+            Container! {
                 id = "demo";
                 width = 301;
                 background = ruler();
                 margin = (0, 0, 40, 0);
                 child_align = Align::LEFT;
-                child = wgt! {
+                child = Wgt! {
                     id = "ball";
                     size = (40, 40);
                     corner_radius = 20;
@@ -69,14 +69,14 @@ fn example() -> impl UiNode {
                     }
                 };
             },
-            stack! {
+            Stack! {
                 id = "mod-menu";
                 direction = StackDirection::left_to_right();
                 spacing = 2;
                 toggle::selector = toggle::Selector::single(easing_mod.clone());
                 children = {
-                    let mode = |m: easing::EasingModifierFn| toggle! {
-                        child = text!(m.to_text());
+                    let mode = |m: easing::EasingModifierFn| Toggle! {
+                        child = Text!(m.to_text());
                         value = m;
                     };
                     ui_vec![
@@ -89,12 +89,12 @@ fn example() -> impl UiNode {
                     ]
                 }
             },
-            grid! {
+            Grid! {
                 id = "easing-menu";
                 spacing = 2;
-                columns = ui_vec![grid::column!(1.lft()); 7];
-                auto_grow_fn = wgt_fn!(|_| grid::row!(1.lft()));
-                button::vis::extend_style = style_fn!(|_| style! {
+                columns = ui_vec![grid::Column!(1.lft()); 7];
+                auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
+                button::extend_style = style_fn!(|_| Style! {
                     padding = 3;
                 });
                 cells = ui_vec![
@@ -114,8 +114,8 @@ fn example() -> impl UiNode {
                     ease_btn(&x, &color, "none", easing::none, &easing_mod),
                 ]
             },
-            button! {
-                child = text!("reset");
+            Button! {
+                child = Text!("reset");
                 foreground_highlight = {
                     offsets: -2,
                     widths: 1,
@@ -134,7 +134,7 @@ fn example() -> impl UiNode {
 fn ease_btn(
     l: &ArcVar<Length>,
     color: &ArcVar<Rgba>,
-    name: impl Into<Text>,
+    name: impl Into<Txt>,
     easing: impl Fn(EasingTime) -> EasingStep + Copy + Send + Sync + 'static,
     easing_mod: &ArcVar<easing::EasingModifierFn>,
 ) -> impl UiNode {
@@ -147,16 +147,16 @@ fn ease_btn(
 
     use easing::EasingModifierFn::*;
 
-    button! {
-        child = stack! {
+    Button! {
+        child = Stack! {
             direction = StackDirection::top_to_bottom();
             spacing = 2;
             children_align = Align::TOP;
             children = ui_vec![
-                text!(name.into()),
-                image! {
+                Text!(name.into()),
+                Image! {
                     img_scale_ppi = true;
-                    img_loading_fn = wgt_fn!(|_| wgt! {
+                    img_loading_fn = wgt_fn!(|_| Wgt! {
                         size = (64, 64);
                         margin = 10;
                     });
@@ -193,7 +193,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 let y = size.1 * (1.fct() - y_fct);
 
                 children.push(
-                    wgt! {
+                    Wgt! {
                         offset = (x, y);
                         size = (3, 3);
                         corner_radius = 2;
@@ -212,7 +212,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
 
             #[allow(clippy::precedence)]
             children.push(
-                text! {
+                Text! {
                     txt = "v";
                     font_size = 12;
                     font_style = FontStyle::Italic;
@@ -222,7 +222,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 .boxed(),
             );
             children.push(
-                text! {
+                Text! {
                     txt = "t";
                     font_size = 12;
                     font_style = FontStyle::Italic;
@@ -231,7 +231,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
                 }
                 .boxed(),
             );
-            stack! {
+            Stack! {
                 children_align = Align::TOP_LEFT;
                 children;
                 size;
@@ -243,10 +243,10 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static) -> Im
 }
 
 fn ruler() -> impl UiNode {
-    stack! {
+    Stack! {
         children_align = Align::LEFT;
         children = (0..=300).step_by(10)
-            .map(|x| rule_line! {
+            .map(|x| RuleLine! {
                 orientation = LineOrientation::Vertical;
                 color = TEXT_COLOR_VAR.map(|c| c.with_alpha(40.pct()));
                 x = x.dip();

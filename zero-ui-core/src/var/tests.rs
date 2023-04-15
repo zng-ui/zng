@@ -423,23 +423,32 @@ mod context {
     use crate::{app::*, context::*, text::*, var::*, widget_instance::*, *};
 
     context_var! {
-        static TEST_VAR: Text = "";
+        static TEST_VAR: Txt = "";
     }
 
     app_local! {
-        static PROBE_ID: Text = const { Text::empty() };
+        static PROBE_ID: Txt = const { Txt::empty() };
     }
 
     #[property(CONTEXT, default(TEST_VAR))]
-    fn test_prop(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
+    fn test_prop(child: impl UiNode, value: impl IntoVar<Txt>) -> impl UiNode {
         with_context_var(child, TEST_VAR, value)
     }
 
+    #[property(CONTEXT, default(TEST_VAR))]
+    fn test_prop_a(child: impl UiNode, value: impl IntoVar<Txt>) -> impl UiNode {
+        test_prop(child, value)
+    }
+    #[property(CONTEXT, default(TEST_VAR))]
+    fn test_prop_b(child: impl UiNode, value: impl IntoVar<Txt>) -> impl UiNode {
+        test_prop(child, value)
+    }
+
     #[property(CONTEXT)]
-    fn probe(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
+    fn probe(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
         #[ui_node(struct ProbeNode {
             child: impl UiNode,
-            var: impl Var<Text>,
+            var: impl Var<Txt>,
         })]
         impl UiNode for ProbeNode {
             fn init(&mut self) {
@@ -451,6 +460,14 @@ mod context {
             child,
             var: var.into_var(),
         }
+    }
+    #[property(CONTEXT)]
+    fn probe_a(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
+        probe(child, var)
+    }
+    #[property(CONTEXT)]
+    fn probe_b(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
+        probe(child, var)
     }
 
     #[property(EVENT)]
@@ -473,31 +490,25 @@ mod context {
         OnInitNode { child, handler }
     }
 
-    #[widget($crate::var::tests::context::test_wgt)]
-    mod test_wgt {
-        use super::*;
-
-        inherit!(crate::widget_base::base);
-
-        properties! {
-            pub crate::widget_base::child;
-        }
-
-        fn include(wgt: &mut widget_builder::WidgetBuilder) {
-            wgt.push_build_action(|wgt| {
-                if let Some(child) = wgt.capture_ui_node(property_id!(self::child)) {
+    #[widget($crate::var::tests::context::TestWgt)]
+    struct TestWgt(crate::widget_base::WidgetBase);
+    impl TestWgt {
+        fn on_start(&mut self) {
+            self.builder().push_build_action(|wgt| {
+                if let Some(child) = wgt.capture_ui_node(property_id!(child)) {
                     wgt.set_child(child);
                 }
             });
         }
     }
+    use widget_base::child;
 
     fn test_app(app: AppExtended<impl AppExtension>, root: impl UiNode) -> HeadlessApp {
         test_log();
 
         use crate::window::*;
         let mut app = app.run_headless(false);
-        WINDOWS.open(async move { crate::window::Window::new_test(root) });
+        WINDOWS.open(async move { crate::window::WindowRoot::new_test(root) });
         let _ = app.update(false);
         app
     }
@@ -506,32 +517,32 @@ mod context {
     fn context_var_basic() {
         let _test = test_app(
             App::default(),
-            test_wgt! {
+            TestWgt! {
                 test_prop = "test!";
 
-                child = test_wgt! {
+                child = TestWgt! {
                     probe = TEST_VAR;
                 }
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("test!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("test!"));
     }
 
     #[test]
     fn context_var_map() {
         let _test = test_app(
             App::default(),
-            test_wgt! {
+            TestWgt! {
                 test_prop = "test!";
 
-                child = test_wgt! {
+                child = TestWgt! {
                     probe = TEST_VAR.map(|t| formatx!("map {t}"));
                 }
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("map test!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("map test!"));
     }
 
     #[test]
@@ -541,26 +552,24 @@ mod context {
         // mapped context var should depend on the context.
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
-        use self::test_prop as test_prop_a;
-        use self::test_prop as test_prop_b;
 
         let _test = test_app(
             app,
-            test_wgt! {
+            TestWgt! {
                 test_prop_a = "A!";
 
-                child = test_wgt! {
+                child = TestWgt! {
                     probe = mapped.clone();
                     test_prop_b = "B!";
 
-                    child = test_wgt! {
+                    child = TestWgt! {
                         probe = mapped;
                     }
                 }
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("map B!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("map B!"));
     }
 
     #[test]
@@ -571,18 +580,18 @@ mod context {
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
         let _test = test_app(
             app,
-            test_wgt! {
+            TestWgt! {
                 test_prop = "A!";
 
-                child = test_wgt! {
+                child = TestWgt! {
                     probe = mapped.clone();
                     test_prop = "B!";
 
-                    child = test_wgt! {
+                    child = TestWgt! {
                         probe = mapped.clone();
                         test_prop = "C!";
 
-                        child = test_wgt! {
+                        child = TestWgt! {
                             probe = mapped;
                             test_prop = "D!";
                         }
@@ -591,7 +600,7 @@ mod context {
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("map C!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("map C!"));
     }
 
     #[test]
@@ -600,26 +609,23 @@ mod context {
 
         // sanity check for `context_var_map_cloned`
 
-        use self::test_prop as test_prop_a;
-        use self::test_prop as test_prop_b;
-
         let _test = test_app(
             app,
-            test_wgt! {
+            TestWgt! {
                 test_prop_a = "A!";
 
-                child = test_wgt! {
+                child = TestWgt! {
                     probe = TEST_VAR.map(|t| formatx!("map {t}"));
                     test_prop_b = "B!";
 
-                    child = test_wgt! {
+                    child = TestWgt! {
                         probe = TEST_VAR.map(|t| formatx!("map {t}"));
                     }
                 }
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("map B!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("map B!"));
     }
 
     #[test]
@@ -639,14 +645,10 @@ mod context {
         let app = App::default();
 
         let mapped = TEST_VAR.map(|t| formatx!("map {t}"));
-        use self::probe as probe_a;
-        use self::probe as probe_b;
-        use self::test_prop as test_prop_a;
-        use self::test_prop as test_prop_b;
 
         let _test = test_app(
             app,
-            test_wgt! {
+            TestWgt! {
                 test_prop_a = "A!";
                 probe_a = mapped.clone();
                 test_prop_b = "B!";
@@ -654,14 +656,14 @@ mod context {
             },
         );
 
-        assert_eq!(&*PROBE_ID.read(), &Text::from("map B!"));
+        assert_eq!(&*PROBE_ID.read(), &Txt::from("map B!"));
     }
 
     #[test]
     fn context_var_set() {
         let mut app = test_app(App::default(), NilUiNode);
 
-        let backing_var = var(Text::from(""));
+        let backing_var = var(Txt::from(""));
 
         TEST_VAR.with_context_var(ContextInitHandle::new(), backing_var.clone(), || {
             let t = TEST_VAR;
@@ -682,7 +684,7 @@ mod context {
 
         let mut test = test_app(
             app,
-            test_wgt! {
+            TestWgt! {
                 test_prop = input_var.clone();
                 on_init = hn_once!(other_var, |_| {
                     TEST_VAR.bind(&other_var).perm();

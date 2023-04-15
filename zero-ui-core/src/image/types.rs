@@ -14,11 +14,11 @@ use crate::{
     impl_from_and_into_var,
     render::RenderMode,
     task::{self, SignalOnce},
-    text::Text,
+    text::Txt,
     units::*,
     var::{AnyVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar},
     widget_instance::UiNode,
-    window::{FrameCaptureMode, Window, WindowId, WINDOW_CTRL},
+    window::{FrameCaptureMode, WindowId, WindowRoot, WINDOW_CTRL},
 };
 
 pub use crate::app::view_process::{ImageDataFormat, ImageDownscale, ImagePpi};
@@ -71,31 +71,31 @@ pub enum ProxyRemoveResult {
     Removed,
 }
 
-/// Represents an [`Image`] tracked by the [`IMAGES`] cache.
+/// Represents an [`Img`] tracked by the [`IMAGES`] cache.
 ///
 /// The variable updates when the image updates.
 ///
 /// [`IMAGES`]: super::IMAGES
-pub type ImageVar = ReadOnlyArcVar<Image>;
+pub type ImageVar = ReadOnlyArcVar<Img>;
 
 /// State of an [`ImageVar`].
 ///
 /// Each instance of this struct represent a single state,
 #[derive(Debug, Clone)]
-pub struct Image {
+pub struct Img {
     pub(super) view: OnceCell<ViewImage>,
     render_keys: Arc<Mutex<Vec<RenderImage>>>,
     pub(super) done_signal: SignalOnce,
     pub(super) cache_key: Option<ImageHash>,
 }
-impl PartialEq for Image {
+impl PartialEq for Img {
     fn eq(&self, other: &Self) -> bool {
         self.view == other.view
     }
 }
-impl Image {
+impl Img {
     pub(super) fn new_none(cache_key: Option<ImageHash>) -> Self {
-        Image {
+        Img {
             view: OnceCell::new(),
             render_keys: Arc::default(),
             done_signal: SignalOnce::new(),
@@ -108,7 +108,7 @@ impl Image {
         let sig = view.done_signal();
         let v = OnceCell::new();
         let _ = v.set(view);
-        Image {
+        Img {
             view: v,
             render_keys: Arc::default(),
             done_signal: sig,
@@ -146,9 +146,9 @@ impl Image {
     }
 
     /// Returns an error message if the image failed to load.
-    pub fn error(&self) -> Option<Text> {
+    pub fn error(&self) -> Option<Txt> {
         match self.view.get() {
-            Some(v) => v.error().map(Text::from),
+            Some(v) => v.error().map(Txt::from),
             None => None,
         }
     }
@@ -290,7 +290,7 @@ impl Image {
         task::wait(move || fs::write(path, &data[..])).await
     }
 }
-impl crate::render::Image for Image {
+impl crate::render::Img for Img {
     fn image_key(&self, renderer: &ViewRenderer) -> ImageKey {
         if self.is_loaded() {
             use crate::render::webrender_api::*;
@@ -442,7 +442,7 @@ impl std::hash::Hasher for ImageHasher {
 }
 
 // We don't use Arc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
-type RenderFn = Arc<Box<dyn Fn(&ImageRenderArgs) -> Window + Send + Sync>>;
+type RenderFn = Arc<Box<dyn Fn(&ImageRenderArgs) -> WindowRoot + Send + Sync>>;
 
 /// Arguments for the [`ImageSource::Render`] closure.
 ///
@@ -466,7 +466,7 @@ pub enum ImageSource {
     ///
     /// Image equality is defined by the URI and ACCEPT string.
     #[cfg(http)]
-    Download(crate::task::http::Uri, Option<Text>),
+    Download(crate::task::http::Uri, Option<Txt>),
     /// Static bytes for an encoded or decoded image.
     ///
     /// Image equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
@@ -480,7 +480,7 @@ pub enum ImageSource {
     /// [`IMAGES`]: super::IMAGES
     Data(ImageHash, Arc<Vec<u8>>, ImageDataFormat),
 
-    /// A boxed closure that instantiates a [`Window`] that draws the image.
+    /// A boxed closure that instantiates a [`WindowRoot`] that draws the image.
     ///
     /// Use the [`render`](Self::render) or [`render_node`](Self::render_node) functions to construct this variant.
     ///
@@ -501,14 +501,14 @@ impl ImageSource {
     ///
     /// ```
     /// # use zero_ui_core::{image::ImageSource, render::RenderMode};
-    /// # macro_rules! window { ($($tt:tt)*) => { unimplemented!() } }
+    /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// # let _ =
     /// ImageSource::render(
-    ///     |args| window! {
+    ///     |args| Window! {
     ///         size = (500, 400);
     ///         parent = args.parent;
     ///         background_color = colors::GREEN;
-    ///         child = text!("Rendered!");
+    ///         child = Text!("Rendered!");
     ///     }
     /// )
     /// # ;
@@ -517,7 +517,7 @@ impl ImageSource {
     /// [`Images::render`]: crate::image::Images::render
     pub fn render<F>(new_img: F) -> Self
     where
-        F: Fn(&ImageRenderArgs) -> Window + Send + Sync + 'static,
+        F: Fn(&ImageRenderArgs) -> WindowRoot + Send + Sync + 'static,
     {
         Self::Render(
             Arc::new(Box::new(move |args| {
@@ -542,14 +542,14 @@ impl ImageSource {
     ///
     /// ```
     /// # use zero_ui_core::{image::ImageSource, render::RenderMode, units::*};
-    /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
+    /// # macro_rules! Container { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
     /// # let _ =
     /// ImageSource::render_node(
     ///     RenderMode::Software,
-    ///     |_args| container! {
+    ///     |_args| Container! {
     ///         size = (500, 400);
     ///         background_color = colors::GREEN;
-    ///         child = text!("Rendered!");
+    ///         child = Text!("Rendered!");
     ///     }
     /// )
     /// # ;
@@ -564,7 +564,7 @@ impl ImageSource {
         Self::render(move |args| {
             WINDOW_CTRL.vars().parent().set_ne(args.parent);
             let node = render(args);
-            Window::new_container(
+            WindowRoot::new_container(
                 crate::widget_instance::WidgetId::new_unique(),
                 crate::window::StartPosition::Default,
                 false,
@@ -577,9 +577,7 @@ impl ImageSource {
         })
     }
 
-    /// Returns the image hash, unless the source is [`Image`].
-    ///
-    /// [`Image`]: Self::Image
+    /// Returns the image hash, unless the source is [`Img`].
     pub fn hash128(&self, downscale: Option<ImageDownscale>) -> Option<ImageHash> {
         match self {
             ImageSource::Read(p) => Some(Self::hash128_read(p, downscale)),
@@ -625,7 +623,7 @@ impl ImageSource {
     ///
     /// [`Download`]: Self::Download
     #[cfg(http)]
-    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Text>, downscale: Option<ImageDownscale>) -> ImageHash {
+    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Txt>, downscale: Option<ImageDownscale>) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         1u8.hash(&mut h);
@@ -748,7 +746,7 @@ impl_from_and_into_var! {
        s.as_str().into()
     }
     /// Same as conversion from `&str`.
-    fn from(s: Text) -> ImageSource {
+    fn from(s: Txt) -> ImageSource {
         s.as_str().into()
     }
     /// From encoded data of [`Unknown`] format.
@@ -979,7 +977,7 @@ pub type UriFilter = ImageSourceFilter<crate::task::http::Uri>;
 #[cfg(http)]
 impl UriFilter {
     /// Allow any file from the `host` site.
-    pub fn allow_host(host: impl Into<Text>) -> Self {
+    pub fn allow_host(host: impl Into<Txt>) -> Self {
         let host = host.into();
         UriFilter::custom(move |u| u.authority().map(|a| a.host() == host).unwrap_or(false))
     }

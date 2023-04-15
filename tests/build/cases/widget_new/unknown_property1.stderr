@@ -1,5 +1,5 @@
-error[E0433]: failed to resolve: use of undeclared crate or module `unknown`
+error[E0599]: no method named `unknown` found for mutable reference `&mut Wgt` in the current scope
  --> cases/widget_new/unknown_property1.rs:6:9
   |
 6 |         unknown = 0;
-  |         ^^^^^^^ use of undeclared crate or module `unknown`
+  |         ^^^^^^^ method not found in `&mut Wgt`

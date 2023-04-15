@@ -60,7 +60,7 @@ pub mod window;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_proc_macros::widget_new;
+pub use zero_ui_proc_macros::{property_impl, property_meta, widget_new};
 
 /// Expands an `impl` block into an [`UiNode`] trait implementation or new node declaration.
 ///
@@ -275,7 +275,7 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// # Attribute
 ///
-/// The property attribute has one required argument and two optional.
+/// The property attribute has one required argument and three optional.
 ///
 /// ## Nest Group
 ///
@@ -317,7 +317,7 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// ## Default
 ///
-/// The last argument is an optional `default(args..)`. It defines the value to use when the property must be instantiated and no value was provided.
+/// The next argument is an optional `default(args..)`. It defines the value to use when the property must be instantiated and no value was provided.
 /// The defaults should cause the property to behave as if it is not set, as the default value will be used in widgets that only set the
 /// property in `when` blocks.
 ///
@@ -335,6 +335,15 @@ pub use zero_ui_proc_macros::ui_node;
 /// block if will only be visible when it is active.
 ///
 /// For properties with multiple inputs the default args may be defined in a comma separated list of params, `default(dft0, dft1, ..)`.
+///
+/// ## Impl For
+///
+/// The last argument is an optional `impl(<widget-type>)`, it generates `impl <widget-type>` methods for the property strongly associating
+/// the property with the widget, users can set this property on the widget or descendants without needing to import the property. Note that
+/// this makes the property have priority over all others of the same name, only a derived widget can override with another strongly associated
+/// property.
+///
+/// Note that you can use the [`widget_impl!`] in widget declarations to implement existing properties for a widget.
 ///
 /// ## Capture
 ///
@@ -465,72 +474,52 @@ pub use zero_ui_proc_macros::ui_node;
 #[doc(inline)]
 pub use zero_ui_proc_macros::property;
 
-/// Expands a module to a widget module and macro.
+/// Expands a struct to a widget struct and macro.
 ///
-/// Each widget is a module and macro pair that construct a [`WidgetBuilder`] and instantiates a custom widget type.  Widgets
-/// can *inherit* from one other widget and from multiple [mix-ins](macro@widget_mixin), they can define properties with and without
-/// a default value and can add build actions to the [`WidgetBuilder`] that generates intrinsic nodes that define the widget behavior.
+/// Each widget is a struct and macro pair that construct a [`WidgetBuilder`] and instantiates a custom widget type.  Widgets
+/// *inherit* from one other widget, they can have intrinsic nodes and default properties and can build to a custom output type,
+/// the `#[property(.., impl(Widget))]` macro can be used to declare intrinsic properties that are always available in a widget.
 ///
 /// # Attribute
 ///
-/// The widget attribute must be placed in a `mod name { }` module declaration, only modules with inline content are supported, mods
-/// with content in other files will cause a compile time error. You also cannot set the attribute from the inside `#!`, this  is a
-/// limitation of the Rust compiler.
+/// The widget attribute must be placed in a `struct Name(Parent);` struct declaration, only struct following the exact pattern are allowed,
+/// different struct syntaxes will generate a compile error.
 ///
-/// The attribute requires one argument, it must be a macro style `$crate` path to the widget module, this is used in the generated macro
-/// to find the module during instantiation. The path must be to the *public* path to the module, that is, the same path that will be used
-/// to import the widget macro.  After the required widget path [custom rules] for the generated macro can be declared.
+/// The attribute requires one argument, it must be a macro style `$crate` path to the widget struct, this is used in the generated macro
+/// to find the struct during instantiation. The path must be to the *public* path to the struct, that is, the same path that will be used
+/// to import the widget. After the required widget path [custom rules] for the generated macro can be declared.
 ///
 /// ```
 /// # fn main() { }
 /// use zero_ui_core::widget;
 ///
 /// /// Minimal widget.
-/// #[widget($crate::foo)]
-/// pub mod foo {
-///     inherit!(zero_ui_core::widget_base::base);
-/// }
-/// ```
-///
-/// Because Rust does not allow custom inner attributes you cannot have a file per widget, the main zero-ui crate works around this
-/// by declaring the widget in a private `name_wgt.rs` and then re-exporting it. For example, the code above can be placed in a
-/// `foo_wgt.rs` file and then re-exported in the `lib.rs` file using:
-///
-/// ```
-/// # macro_rules! demo {() => {
-/// mod foo_wgt;
-/// #[doc(inline)]
-/// pub use foo_wgt::*;
-/// # }}
+/// #[widget($crate::Foo)]
+/// pub struct Foo(zero_ui_core::widget_base::WidgetBase);
 /// ```
 ///
 /// # Inherit
 ///
-/// Inside the widget module the `inherit!` pseudo-macro can be used *import* another widget and multiple mix-ins. All properties
-/// in the other widget are imported and re-exported, the widget [include](#include) function is called before the widget's own and
-/// the [build](#build) function is used if the widget does not override it.
+/// The widget struct one unnamed member must be a path to the parent widget type, all widgets must inherit from another or the
+/// [`WidgetBase`], the parent widget(s) intrinsic properties and nodes are all included in the new widget. The intrinsic
+/// properties are included by deref, the new widget will dereference to the parent widget, during widget build auto-deref will select
+/// the property methods first, this mechanism even allows for property overrides.
 ///
-/// Apart from some special cases widgets should always inherit from another, in case no specific parent is needed the widget should
-/// inherit from [`widget_base::base`]. The base widget implements the minimal collaborative layout and render mechanisms that are
-/// expected by properties and other widgets.
+/// # On Start
 ///
-/// # Include
-///
-/// The widget module can define a function that *includes* custom build actions in the [`WidgetBuilder`] that is generated during
-/// [instantiation](#instantiation).
+/// The widget struct can define a method `on_start` that *includes* custom build actions in the [`WidgetBuilder`], this special
+/// method will be called once for its own widget or derived widgets.
 ///
 /// ```
 /// # fn main() { }
 /// use zero_ui_core::{widget, widget_base::*, widget_builder::*};
 ///
-/// #[widget($crate::foo)]
-/// pub mod foo {
-///     use super::*;
+/// #[widget($crate::Foo)]
+/// pub struct Foo(WidgetBase);
 ///
-///     inherit!(base);
-///
-///     fn include(wgt: &mut WidgetBuilder) {
-///         wgt.push_build_action(|wgt| {
+/// impl Foo {
+///     fn on_start(&mut self) {
+///         self.builder().push_build_action(|b| {
 ///             // push_intrinsic, capture_var.
 ///         });
 ///     }
@@ -538,427 +527,75 @@ pub use zero_ui_proc_macros::property;
 /// ```
 ///
 /// The example above demonstrate the function used to [`push_build_action`]. This is the primary mechanism for widgets to define their
-/// own behavior that does not depend on properties. Note that the widget inherits from [`widget_base::base`], during [instantiation](#instantiation)
-/// of `foo!` the base include is called first, then the `foo!` include is called.
+/// own behavior that does not depend on properties. Note that the widget inherits from [`WidgetBase`], during [instantiation](#instantiation)
+/// of `Foo!` the base `on_start` is called first, then the `Foo!` `on_start` is called.
 ///
-/// The function does not need to be `pub`, but the widget attribute will generate a `pub` include function that calls this function,
-/// inherited includes and property builds. This generated `pub fn include` is visible in docs with sections about the properties and
-/// inherits it builds documented, if you place docs in the custom `include` they are incorporated in the generated docs after the
-/// first paragraph.
+/// The method does not need to be `pub`, and is not required.
 ///
 /// # Build
 ///
-/// The widget module can define a function that *builds* the final widget instance.
+/// The widget struct can define a method that *builds* the final widget instance.
 ///
 /// ```
 /// # fn main() { }
 /// use zero_ui_core::{widget, widget_base, widget_builder::*, widget_instance::*};
 ///
-/// #[widget($crate::foo)]
-/// pub mod foo {
-///     use super::*;
+/// #[widget($crate::Foo)]
+/// pub struct Foo(widget_base::WidgetBase);
 ///
-///     inherit!(widget_base::base);
-///
-///     fn build(wgt: WidgetBuilder) -> impl UiNode {
-///         widget_base::nodes::build(wgt)
+/// impl Foo {
+///     /// Custom build.
+///     pub fn build(&mut self) -> impl UiNode {
+///         widget_base::nodes::build(self.take_builder())
 ///     }
 /// }
 /// ```
 ///
-/// The build function takes the [`WidgetBuilder`] already loaded with includes and properties, the function can define its own
-/// return type, this is the **widget type**. If the build function is not defined the inherited parent build function is used,
-/// if the widget does not inherit from any other the build function is required, and a compile error is shown if it is missing.
+/// The build method must have the same visibility as the widget, and can define its own
+/// return type, this is the **widget type**. If the build method is not defined the inherited parent build method is used.
 ///
-/// Unlike the [include](#include) function, the widget only has one `build`, if defined it overrides the parent `build`. Most widgets
-/// don't define their own build, leaving it to be inherited from [`widget_base::base`]. The base type is an opaque `impl UiNode`, normal
+/// Unlike the [on_start](#on-start) method, the widget only has one `build`, if defined it overrides the parent `build`. Most widgets
+/// don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base type is an opaque `impl UiNode`, normal
 /// widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets, the widget outer-node also must implement
 /// the widget context, to ensure that the widget is correctly placed in the UI tree. The base widget implementation is in [`widget_base::nodes::widget`],
 /// you can use it directly, so even if you need to run code on build or define a custom type you don't need to start from scratch.
 ///
-/// The function does not need to be `pub`, but the widget attribute will make it `pub` and add some minimal docs, if you place
-/// docs in the custom `build` they are incorporated after the generated docs.
+/// # Defaults
 ///
-/// # Properties
+/// The [`widget_set!`] macro can be used inside `on_start` to set properties and when conditions that are applied on the widget if not
+/// overridden by derived widgets or the widget instance code. During the call to `on_start` the `self.importance()` value is [`Importance::WIDGET`],
+/// after it is changed to [`Importance::INSTANCE`], so just by setting properties in `on_start` they define the *default* value.
 ///
-/// Inside the widget module the `properties!` pseudo-macro can used to declare properties of the widget. The properties can
-/// be assigned, renamed and exported as widget properties.
+/// # Impl Properties
 ///
+/// The [`widget_impl!`] macro can be used inside a `impl WgtIdent { }` block to strongly associate a property with the widget,
+/// and the [`property`] attribute has an `impl(WgtIdent)` that also strongly associates a property with the widget. These two mechanisms
+/// can be used to define properties for the widget, the impl properties are visually different in the widget macro as the have the
+/// *immutable method* style, while the other properties have the *mutable method* style.
+///
+/// # Generated Macro
+///
+/// The generated widget macro has the same syntax as [`widget_set!`], except that is also starts the widget and builds it at the end,
 /// ```
-/// # fn main() { }
-/// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
+/// # use zero_ui_core::{*, widget_base::WidgetBase};
+/// #[widget($crate::Foo)]
+/// pub struct Foo(WidgetBase);
 ///
-/// #[property(CONTEXT)]
-/// pub fn bar(child: impl UiNode, val: impl IntoVar<bool>) -> impl UiNode {
-///   let _ = val;
-///   child
-/// }
-///
-/// #[widget($crate::foo)]
-/// pub mod foo {
-///     inherit!(super::widget_base::base);
-///
-///     properties! {
-///         /// Baz property docs.
-///         pub super::bar as baz = true;
-///         // inherited property
-///         enabled = false;
-///     }
-/// }
-/// ```
-///
-/// The example above declares an widget that exports the property `baz`, it is also automatically set to `true` and it also
-/// sets the inherited [`widget_base::base`] property `enabled` to `false`.
-///
-/// The property visibility controls if it is assignable in derived widgets or during widget instantiation, in the example above
-/// if `baz` was not `pub` it would be set on the widget but it does not get a `baz` property accessible from outside. Inherited
-/// visibility cannot be overridden, the `enabled` property is defined as `pub` in [`widget_base::base`] so it is still `pub` in the
-/// widget, even though the value was changed.
-///
-/// You can also export properties without defining a value, the default assign is not required, the property is only instantiated
-/// if it is assigned in the final widget instance, but by exporting the property it is available in the widget macro by name without
-/// needing a `use` import.
-///
-/// ## Unset
-///
-/// If an inherited property is assigned a value you can *unset* this value by assigning the property with the special value `unset!`.
-///
-/// ```
-/// # fn main() { }
-/// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
-/// #
-/// # #[property(CONTEXT)]
-/// # pub fn baz(child: impl UiNode, val: impl IntoVar<bool>) -> impl UiNode {
-/// #   let _ = val;
-/// #   child
-/// # }
-/// #
-/// # #[widget($crate::foo)]
-/// # pub mod foo {
-/// #     inherit!(super::widget_base::base);
-/// #
-/// #     properties! {
-/// #         pub super::baz = true;
-/// #     }
-/// # }
-/// #[widget($crate::bar)]
-/// pub mod bar {
-///     inherit!(crate::foo);
-///     
-///     properties! {
-///         baz = unset!;
-///     }
-/// }
-/// ```
-///
-/// In the example above the widget `bar` inherits the `foo` widget that defines and sets the `baz` property. Instances of the
-/// `bar` property will not include an instance of `baz` because it was `unset!`. Note that this does not remove the property
-/// the `bar` widget still exports the `baz` property, it just does not have a default value anymore.
-///
-/// An `unset!` assign also removes all `when` assigns to the same property, this is unlike normal assigns that just override the
-/// *default* value of the property, merged with the `when` assigns.
-///
-/// ## Multiple Inputs
-///
-/// Some properties have multiple inputs, you can use a different syntax to assign each input by name or as a comma separated list.
-/// In the example below the property `anb` has two inputs `a` and `b`, they are assigned by name in the `named` property and by
-/// position in the `unnamed` property. Note that the order of inputs can be swapped in the named init.
-///
-/// ```
-/// # fn main() { }
-/// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
-///
-/// #[property(CONTEXT)]
-/// pub fn anb(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<bool>) -> impl UiNode {
-/// #   child
-/// }
-///
-/// #[widget($crate::foo)]
-/// pub mod foo {
-///     inherit!(super::widget_base::base);
-///
-///     properties! {
-///         pub super::anb as named = {
-///             b: false,
-///             a: true,
-///         };
-///         pub super::anb as unnamed = true, false;
-///     }
-/// }
-/// ```
-///
-/// ## Generics
-///
-/// Some properties have named generics, the unnamed `impl` generics are inferred, but the named types must be defined using the *turbo-fish*
-/// syntax if you want to set a value.
-///
-/// ```
-/// # fn main() { }
-/// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
-///
-/// #[property(CONTEXT)]
-/// pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
-/// #   child
-/// }
-///
-/// #[widget($crate::foo)]
-/// pub mod foo {
-///     inherit!(super::widget_base::base);
-///
-///     properties! {
-///         pub super::value::<bool> = true;
-///     }
-/// }
-/// ```
-///
-/// Note that the property is not exported with the generics, the generic type must be specified in all other assigns, properties
-/// are also only identified by their source and name, so an assign with different type still replaces the value.
-///
-/// ## Capture Only
-///
-/// Properties can be *captured* during build using the capture methods of [`WidgetBuilding`], captured properties are not
-/// instantiated, the args are redirected to the intrinsic implementation of the widget. Every property can be captured, but
-/// some properties are always intrinsic to the widget and cannot have a standalone implementation. You can declare *capture-only*
-/// properties using the syntax `pub name(T)`, this expands to a [capture-only](property#capture-only) property that is
-/// exported by the widget.
-///
-/// ```
-/// # fn main() { }
-/// use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
-///
-/// #[widget($crate::foo)]
-/// pub mod foo {
-///     use super::*;
-///
-///     inherit!(widget_base::base);
-///
-///     properties! {
-///         /// Docs.
-///         pub bar(impl IntoVar<bool>) = false;
-///     }
-///
-///     fn include(wgt: &mut WidgetBuilder) {
-///         wgt.push_build_action(|wgt| {
-///             let bar = wgt.capture_var_or_else::<bool, _>(property_id!(self::bar), || false);
-///             println!("bar: {}", bar.get());
-///         });
-///     }
-/// }
-/// ```
-///
-/// In the example above `bar` expands to:
-///
-/// ```
-/// # fn main() { }
-/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, var::*};
-/// #[doc(hidden)]
-/// #[property(CONTEXT, capture, default(false))]
-/// pub fn __bar__(__child__: impl UiNode, bar: impl IntoVar<bool>) -> impl UiNode {
-///     __child__
-/// }
-/// # macro_rules! demo { () => {
-/// properties! {
-///     /// Docs.
-///     pub __bar__ as bar;
-/// }
-/// # }}
-/// ```
-///
-/// The capture property is re-exported in the widget, and a build action captures it and prints the value. Usually in
-/// a captured variable is used in intrinsic nodes that implement a core feature of the widget.
-///
-/// This shorthand capture property can only have one unnamed input, the input type can be any of the types allowed in property inputs. If
-/// the property is assigned the value is used as the property default and a normal property assign is also inserted.
-///
-/// ## When
-///
-/// Conditional property assigns can be setup using `when` blocks. A `when` block has a `bool` expression and multiple property assigns,
-/// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
-///
-/// ```
-/// # fn main() { }
-/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
-/// #
-/// # #[property(FILL)]
-/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-/// #   let _ = color;
-/// #   child
-/// # }
-/// #
-/// # #[property(LAYOUT)]
-/// # pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-/// #   let _ = state;
-/// #   child
-/// # }
-/// #
-/// # #[widget($crate::foo)]
-/// # pub mod foo {
-/// #     use super::*;
-/// #
-/// #     inherit!(widget_base::base);
-/// #
-/// properties! {
-///     background_color = colors::RED;
-///
-///     when *#is_pressed {
-///         background_color = colors::GREEN;
-///     }
-/// }
-/// # }
-/// ```
-///
-/// ### When Condition
-///
-/// The `when` block defines a condition expression, in the example above this is `*#is_pressed`. The expression can be any Rust expression
-/// that results in a [`bool`] value, you can reference properties in it using the `#` token followed by the property name or path and you
-/// can reference variables in it using the `#{var}` syntax. If a property or var is reference the `when` block is dynamic, updating all
-/// assigned properties when the expression result changes.
-///
-/// ### Property Reference
-///
-/// The most common `when` expression reference is a property, in the example above the `is_pressed` property is instantiated for the widget
-/// and it's input read-write var controls when the background is set to green. Note that a reference to the value is inserted in the expression
-/// so an extra deref `*` is required. A property can also be referenced with a path, `#properties::is_pressed` also works.
-///
-/// The syntax seen so far is actually a shorthand way to reference the first input of a property, the full syntax is `#is_pressed.0` or
-/// `#is_pressed.state`. You can use the extended syntax to reference inputs of properties with out than one input, the input can be
-/// reference by tuple-style index or by name. Note that if the value it self is a tuple or `struct` you need to use the extended syntax
-/// to reference a member of the value, `#foo.0.0` or `#foo.0.name`. Methods have no ambiguity, `#foo.name()` is the same as `#foo.0.name()`.
-///
-/// Not all properties can be referenced in `when` conditions, only inputs of type `impl IntoVar<T>` and `impl IntoValue<T>` are
-/// allowed, attempting to reference a different kind of input generates a compile error.
-///
-/// ### Variable Reference
-///
-/// Other variable can also be referenced, in a widget declaration only context variables due to placement, but in widget instances any locally
-/// declared variable can be referenced. Like with properties the variable value is inserted in the expression as a reference  so you may need
-/// to deref in case the var is a simple [`Copy`] value.
-///
-/// ```
-/// # fn main() { }
-/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
-/// #
-/// # #[property(FILL)]
-/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-/// #   let _ = color;
-/// #   child
-/// # }
-/// #
-/// context_var! {
-///     pub static FOO_VAR: Vec<&'static str> = vec![];
-///     pub static BAR_VAR: bool = false;
-/// }
-/// #
-/// # #[widget($crate::foo)]
-/// # pub mod foo {
-/// #     use super::*;
-/// #
-/// #     inherit!(widget_base::base);
-///
-/// properties! {
-///     background_color = colors::RED;
-///
-///     when !*#{BAR_VAR} && #{FOO_VAR}.contains(&"green") {
-///         background_color = colors::GREEN;
-///     }
-/// }
-/// # }
-/// ```
-///
-/// ### When Assigns
-///
-/// Inside the `when` block a list of property assigns is expected, only properties with all inputs of type `impl IntoVar<T>` can ne assigned
-/// in `when` blocks, you also cannot `unset!` in when assigns. On instantiation a single instance of the property will be generated, the input
-/// vars will track the when expression state and update to the value assigned in the block when it is `true`. When no block is `true` the value
-/// assigned to the property outside `when` blocks is used, or the property default value. When more then one block is `true` the *last* one
-/// sets the value.
-///
-/// ### Default Values
-///
-/// A when assign can be defined by a property without setting a default value, during instantiation if the property declaration has
-/// a default value it is used, or if the property was later assigned a value it is used as *default*, if it is not possible to generate
-/// a default value the property is not instantiated and the when assign is not used.
-///
-/// The same apply for properties referenced in the condition expression, note that all `is_state` properties have a default value so
-/// it is more rare that a default value is not available. If a condition property cannot be generated the entire when block is ignored.
-///
-/// # Instantiation
-///
-/// After the widget macro attribute expands you can still use the module like any other mod, but you can also use it like a macro that
-/// accepts property inputs like the `properties!` pseudo-macro, except for the visibility control.
-///
-/// ```
-/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
-/// #
-/// # #[property(CONTEXT)]
-/// # pub fn bar(child: impl UiNode, val: impl var::IntoVar<bool>) -> impl UiNode {
-/// #   let _ = val;
-/// #   child
-/// # }
-/// #
-/// # #[property(LAYOUT)]
-/// # pub fn margin(child: impl UiNode, val: impl var::IntoVar<u32>) -> impl UiNode {
-/// #   let _ = val;
-/// #   child
-/// # }
-/// #
-/// # #[property(FILL)]
-/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-/// #   let _ = color;
-/// #   child
-/// # }
-/// #
-/// # #[property(LAYOUT)]
-/// # pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-/// #   let _ = state;
-/// #   child
-/// # }
-/// #
-/// # #[widget($crate::foo)]
-/// # pub mod foo {
-/// #     inherit!(super::widget_base::base);
-/// #
-/// #     properties! {
-/// #         /// Baz property docs.
-/// #         pub super::bar as baz = true;
-/// #         // inherited property
-/// #         enabled = false;
-/// #     }
-/// # }
 /// # fn main() {
-/// # let _scope = app::App::minimal();
-/// let wgt = foo! {
-///     baz = false;
-///     margin = 10;
-///     
-///     when *#is_pressed {
-///         background_color = colors::GREEN;
+/// let wgt = Foo! {
+///     id = "foo";
+/// };
+///
+/// // equivalent to:
+///
+/// let wgt = {
+///     let mut wgt = Foo::start();
+///     widget_set! {
+///         &mut wgt;
+///         id = "foo";
 ///     }
+///     wgt.build()
 /// };
-/// # }
-/// ```
-///
-/// In the example above  the `baz` property is imported from the `foo!` widget, all widget properties are imported inside the
-/// widget macro call, and `foo` exported `pub bar as baz`. The value of `baz` is changed for this instance, the instance also
-/// gets a new property `margin`, that was not defined in the widget.
-///
-/// Most of the features of `properties!` can be used in the widget macro, you can `unset!` properties or rename then using the `original as name`
-/// syntax. You can also setup `when` conditions, as demonstrated above, the `background_color` is `GREEN` when `is_pressed`, these properties
-/// also don't need to be defined in the widget before use, but if they are they are used instead of the contextual imports.
-///
-/// ## Init Shorthand
-///
-/// The generated instantiation widget macro also support the *init shorthand* syntax, where the name of a `let` variable defines the property
-/// name and value. In the example below the `margin` property is set on the widget with the value of `margin`.
-///
-/// ```
-/// # macro_rules! demo {
-/// # () => {
-/// let margin = 10;
-/// let wgt = foo! {
-///     margin;
-/// };
-/// # };
 /// # }
 /// ```
 ///
@@ -983,36 +620,30 @@ pub use zero_ui_proc_macros::property;
 /// Example of a text widget that declares a shorthand syntax to implicitly set a `txt` property:
 ///
 /// ```
-/// #[zero_ui_core::widget($crate::text {
-///     ($txt:expr) => {
-///         txt = $txt;
+/// # use zero_ui_core::{*, widget_base::WidgetBase};
+/// #[widget($crate::Foo {
+///     ($id:tt) => {
+///         id = $id;
 ///     };
 /// })]
-/// pub mod text {
-/// #   use zero_ui_core::{text::Text, var::IntoVar};
-/// #    inherit!(zero_ui_core::widget_base::base);
-///     // ..
-///
-///     properties! {
-///         pub txt(impl IntoVar<Text>);
-///     }
-/// }
+/// pub struct Foo(WidgetBase);
 ///
 /// # fn main() {
-/// let wgt = text!("Hello!");
+/// let wgt = Foo!("foo");
 /// # }
 /// ```
 ///
 /// The macro instance above is equivalent to:
 ///
 /// ```
-/// # macro_rules! demo {
-/// # () => {
-/// let margin = 10;
-/// let wgt = text! {
-///     txt = "Hello!";
+/// # use zero_ui_core::{*, widget_base::WidgetBase};
+/// # #[widget($crate::Foo)]
+/// # pub struct Foo(WidgetBase);
+///
+/// # fn main() {
+/// let wgt = Foo! {
+///     id = "foo";
 /// };
-/// # };
 /// # }
 /// ```
 ///
@@ -1025,36 +656,78 @@ pub use zero_ui_proc_macros::property;
 /// * `$(#[$attr:meta])* $property:ident = $($rest:tt)*`, blocks all custom `$ident = $tt*` patterns.
 /// * `$(#[$attr:meta])* when $($rest:tt)*`, blocks all custom `when $tt*` patterns.
 ///
-/// Note that the default single property shorthand syntax is not blocked, in the examples above `text!(font_size)` will match
+/// Note that the default single property shorthand syntax is not blocked, in the examples above `Text!(font_size)` will match
 /// the custom shorthand rule and try to set the `txt` with the `font_size` variable, without the shorthand it would create a widget without
 /// `txt` but with a set `font_size`. So a custom rule `$p:expr` is only recommended for widgets that have a property of central importance.
 ///
-/// # More Details
+/// # Widget Type
 ///
-/// See the [`WidgetBuilder`], [`WidgetBuilding`], [`NestGroup`] and [`Importance`] for more details of how the parts expanded from this macro are
-/// put together to form a widget instance.
+/// A public associated function `widget_type` is also generated for the widget, it returns a [`WidgetType`] instance that describes the
+/// widget type.
+///
+/// # Builder
+///
+/// Two public methods are available to call in a generated widget struct, `builder` and `take_builder` that first mutable borrows the
+/// underlying [`WidgetBuilder`] and is usually used in `on_start` to insert build actions, the second finalizes the insertion of
+/// properties and returns the [`WidgetBuilder`] instance for use finalizing the build, this is usually called in custom `build` implementations.
+///
+/// See the [`WidgetBuilder`], [`WidgetBuilding`], [`NestGroup`] and [`Importance`] for more details.
 ///
 /// [`WidgetBuilder`]: widget_builder::WidgetBuilder
+/// [`WidgetType`]: widget_builder::WidgetType
 /// [`WidgetBuilding`]: widget_builder::WidgetBuilding
 /// [`NestGroup`]: widget_builder::NestGroup
 /// [`Importance`]: widget_builder::Importance
 /// [`push_build_action`]: widget_builder::WidgetBuilder::push_build_action
 /// [`UiNode`]: widget_instance::UiNode
-/// [`widget_base::base`]: mod@widget_base::base
+/// [`WidgetBase`]: struct@widget_base::WidgetBase
+/// [`Importance::WIDGET`]: widget_builder::Importance::WIDGET
+/// [`Importance::INSTANCE`]: widget_builder::Importance::INSTANCE
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;
 
-/// Expands a module to a widget mix-in module.
+/// Expands a struct to a widget mix-in.
 ///
-/// Widget mix-ins can only be inherited by other widgets and mix-ins, they cannot be instantiated. Widgets can only
-/// inherit from one other widget, but they can inherit from many mix-ins. All mix-in names must have the `_mixin` suffix,
-/// this is validated at compile time. Mix-ins represent a set of properties and build actions that adds a complex feature to an widget,
-/// something that cannot be implemented as a single property.
+/// Widget mix-ins can be inserted on a widgets inheritance chain, but they cannot be instantiated directly. Unlike
+/// the full widgets it defines its parent as a generic type, that must be filled with a real widget when used.
 ///
-/// See the [`#[widget(..)]`][#widget] documentation for how to declare, the same syntax and items are expected
-/// by this macro, except the `build` function.
+/// By convention mix-ins have the prefix `Mix` and the generic parent is named `P`. The `P` must not have any generic bounds
+/// in the declaration, the expansion will bound it to [`widget_base::WidgetImpl`].
 ///
-/// [#widget]: macro@widget
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::{*, widget_instance::*, var::*, widget_base::*};
+/// # #[property(CONTEXT)] pub fn focusable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
+/// #
+/// /// Make a widget capable of receiving keyboard focus.
+/// #[widget_mixin]
+/// pub struct FocusableMix<P>(P);
+/// impl<P: WidgetImpl> FocusableMix<P> {
+///     fn on_start(&mut self) {
+///         widget_set! {
+///             self;
+///             focusable = true;
+///         }
+///     }
+///     
+///     widget_impl! {
+///         /// If the widget can receive focus, enabled by default.
+///         pub fn focusable(enabled: impl IntoVar<bool>);
+///     }
+/// }
+///
+/// /// Foo is focusable.
+/// #[widget($crate::Foo)]
+/// pub struct Foo(FocusableMix<WidgetBase>);
+/// # fn main() { }
+/// ```
+///
+/// The example above declares a mix-in `FocusableMix<P>` and an widget `Foo`, the mix-in is used as a parent of the widget, only
+/// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable`.
+///
+/// All widget `impl` items can be declared in a mix-in, including the `fn build(&mut self) -> T`, multiple mix-ins can be inherited
+/// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`, mix-ins cannot inherit even from other mix-ins.
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget_mixin;
 
@@ -1063,4 +736,432 @@ mod tests;
 mod private {
     // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
     pub trait Sealed {}
+}
+
+/// Sets properties and when condition on a building widget.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::{*, widget_base::*};
+/// # #[widget($crate::Wgt)]
+/// #  pub struct Wgt(WidgetBase);
+/// # fn main() {
+/// # let flag = true;
+///
+/// let mut wgt = Wgt::start();
+///
+/// if flag {
+///     widget_set! {
+///         &mut wgt;
+///         enabled = false;
+///     }
+/// }
+///
+/// widget_set! {
+///     &mut wgt;
+///     id = "wgt";
+/// }
+///
+/// let wgt = wgt.build();
+/// # }
+/// ```
+///
+/// In the example above the widget will always build with custom `id`, but only will set `enabled = false` when `flag` is `true`.
+///
+/// Note that properties are designed to have a default *neutral* value that behaves as if unset, in the example case you could more easily write:
+///
+/// ```
+/// # use zero_ui_core::{*, widget_base::*};
+/// # #[widget($crate::Wgt)]
+/// #  pub struct Wgt(WidgetBase);
+/// # fn main() {
+/// # let flag = true;
+/// let wgt = Wgt! {
+///     enabled = !flag;
+///     id = "wgt";
+/// };
+/// # }
+/// ```
+///
+/// You should use this macro only in contexts where a widget will be build in steps, or in very hot code paths where a widget
+/// has many properties and only some will be non-default per instance.
+///
+///
+///
+/// # Property Set
+///
+/// Properties can be assigned using the `property = value;` syntax, this expands to a call to the property method, either
+/// directly implemented on the widget or from a trait.
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// id = "test";
+/// background_color = colors::BLUE;
+/// # }; }
+/// ```
+///
+/// The example above is equivalent to:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// wgt.id("test");
+/// wgt.background_color(colors::BLUE);
+/// # }
+/// ```
+///
+/// Note that `id` is an intrinsic property inherited from [`WidgetBase`], but `background_color` is an extension property declared
+/// by a [`property`] function. Extension properties require `&mut self` access to the widget, intrinsic properties only require `&self`,
+/// this is done so that IDEs that use a different style for mutable methods highlight the properties that are not intrinsic to the widget.
+///
+/// ## Path Set
+///
+/// An full or partial path can be used to specify exactly what extension property will be set:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// self::background_color = colors::BLUE;
+/// # }; }
+/// ```
+///
+/// In the example above `self::background_color` specify that an extension property that is imported in the `self` module must be set,
+/// even if the widget gets an intrinsic `background_color` property the extension property will still be used.
+///
+/// The example above is equivalent to:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// self::background_color::background_color(&mut wgt, colors::BLUE);
+/// # }
+/// ```
+///
+/// ## Named Set
+///
+/// Properties can have multiple parameters, multiple parameters can be set using the struct init syntax:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// border = {
+///     widths: 1,
+///     sides: colors::RED,
+/// };
+/// # }; }
+/// ```
+///
+/// Note that just like in struct init the parameters don't need to be in order:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// border = {
+///     sides: colors::RED,
+///     widths: 1,
+/// };
+/// # }; }
+/// ```
+///
+/// Internally each property method has auxiliary methods that validate the member names and construct the property using sorted params, therefore
+/// accepting any parameter order. Note each parameter is evaluated in the order they appear, even if they are assigned in a different order after.
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// let mut eval_order = vec![];
+///
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// border = {
+///     sides: {
+///         eval_order.push("sides");
+///         colors::RED
+///     },
+///     widths: {
+///         eval_order.push("widths");
+///         1
+///     },
+/// };
+/// # };
+///
+/// assert_eq!(eval_order, vec!["sides", "widths"]);
+/// # }
+/// ```
+///
+/// ## Unnamed Set Multiple
+///
+/// Properties with multiple parameters don't need to be set using the named syntax:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// border = 1, colors::RED;
+/// # }; }
+/// ```
+///
+/// The example above is equivalent to:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// wgt.border(1, colors::RED);
+/// # }
+/// ```
+///
+/// ## Shorthand Set
+///
+/// Is a variable with the same name as a property is in context the `= name` can be omitted:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// let id = "name";
+/// let background_color = colors::BLUE;
+/// let widths = 1;
+///
+/// let wgt = zero_ui_core::widget_base::WidgetBase! {
+///     id;
+///     self::background_color;
+///     border = {
+///         widths,
+///         sides: colors::RED,
+///     };
+/// };
+/// # }
+/// ```
+///
+/// Note that the shorthand syntax also works for path properties and parameter names.
+///
+/// The above is equivalent to:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// let id = "name";
+/// let background_color = colors::BLUE;
+/// let widths = 1;
+///
+/// let wgt = zero_ui_core::widget_base::WidgetBase! {
+///     id = id;
+///     self::background_color = background_color;
+///     border = {
+///         widths: widths,
+///         sides: colors::RED,
+///     };
+/// };
+/// # }
+/// ```
+///
+/// # Property Unset
+///
+/// All properties can be assigned to an special value `unset!`, that *removes* a property, when the widget is build the
+/// unset property will not be instantiated:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// border = unset!;
+/// # }; }
+/// ```
+///
+/// The example above is equivalent to:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # fn main() {
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// wgt.unset_border();
+/// # }
+/// ```
+///
+/// Each property method generates an auxiliary `unset_property` method, the unset is registered in the widget builder using the current
+/// importance, in `on_start` they only unset already inherited default assigns, in instances it unsets all inherited or
+/// previous assigns, see [`WidgetBuilder::push_unset`] for more details.
+///
+/// # Generic Properties
+///
+/// Generic properties need a *turbofish* annotation on assign:
+///
+/// ```
+/// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode { child }
+/// #
+/// # fn main() {
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// value::<f32> = 1.0;
+/// # };}
+/// ```
+///
+/// # When
+///
+/// Conditional property assigns can be setup using `when` blocks. A `when` block has a `bool` expression and multiple property assigns,
+/// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
+///
+///  ```
+///  # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
+/// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(EVENT)] pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode { child }
+/// # fn main() {
+/// # let _scope = app::App::minimal();
+/// # let wgt = zero_ui_core::widget_base::WidgetBase! {
+/// background_color = colors::RED;
+///
+/// when *#is_pressed {
+///     background_color = colors::GREEN;
+/// }
+/// # }; }
+/// ```
+///
+/// ## When Condition
+///
+/// The `when` block defines a condition expression, in the example above this is `*#is_pressed`. The expression can be any Rust expression
+/// that results in a [`bool`] value, you can reference properties in it using the `#` token followed by the property name or path and you
+/// can reference variables in it using the `#{var}` syntax. If a property or var is reference the `when` block is dynamic, updating all
+/// assigned properties when the expression result changes.
+///
+/// ### Property Reference
+///
+/// The most common `when` expression reference is a property, in the example above the `is_pressed` property is instantiated for the widget
+/// and it's input read-write var controls when the background is set to green. Note that a reference to the value is inserted in the expression
+/// so an extra deref `*` is required. A property can also be referenced with a path, `#properties::is_pressed` also works.
+///
+/// The syntax seen so far is actually a shorthand way to reference the first input of a property, the full syntax is `#is_pressed.0` or
+/// `#is_pressed.state`. You can use the extended syntax to reference inputs of properties with out than one input, the input can be
+/// reference by tuple-style index or by name. Note that if the value it self is a tuple or `struct` you need to use the extended syntax
+/// to reference a member of the value, `#foo.0.0` or `#foo.0.name`. Methods have no ambiguity, `#foo.name()` is the same as `#foo.0.name()`.
+///
+/// Not all properties can be referenced in `when` conditions, only inputs of type `impl IntoVar<T>` and `impl IntoValue<T>` are
+/// allowed, attempting to reference a different kind of input generates a compile error.
+///
+/// ### Variable Reference
+///
+/// Other variable can also be referenced, context variables or any locally declared variable can be referenced. Like with properties
+/// the variable value is inserted in the expression as a reference  so you may need to deref in case the var is a simple [`Copy`] value.
+///
+/// ```
+/// # use zero_ui_core::{*, widget_builder::*, widget_instance::*, color::*, var::*};
+/// #
+/// # #[property(FILL)]
+/// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+/// #   let _ = color;
+/// #   child
+/// # }
+/// #
+/// context_var! {
+///     pub static FOO_VAR: Vec<&'static str> = vec![];
+///     pub static BAR_VAR: bool = false;
+/// }
+/// # fn main() {
+/// # let _scope = app::App::minimal();
+/// # let wgt = widget_base::WidgetBase! {
+/// background_color = colors::RED;
+///
+/// when !*#{BAR_VAR} && #{FOO_VAR}.contains(&"green") {
+///     background_color = colors::GREEN;
+/// }
+/// # };}
+/// ```
+///
+/// ## When Assigns
+///
+/// Inside the `when` block a list of property assigns is expected, most properties can be assigned, but `impl IntoValue<T>` properties cannot,
+/// you also cannot `unset!` in when assigns, a compile time error happens if the property cannot be when assigned.
+///
+/// On instantiation a single instance of the property will be generated, the parameters will track the when expression state and update
+/// to the value assigned when it is `true`. When no block is `true` the value assigned to the property outside `when` blocks is used, or the property default value. When more then one block is `true` the *last* one sets the value.
+///
+/// ### Default Values
+///
+/// A when assign can be defined by a property without setting a default value, during instantiation if the property declaration has
+/// a default value it is used, or if the property was later assigned a value it is used as *default*, if it is not possible to generate
+/// a default value the property is not instantiated and the when assign is not used.
+///
+/// The same apply for properties referenced in the condition expression, note that all `is_state` properties have a default value so
+/// it is more rare that a default value is not available. If a condition property cannot be generated the entire when block is ignored.
+///
+/// [`WidgetBase`]: struct@crate::widget_base::WidgetBase
+/// [`WidgetBuilder::push_unset`]: crate::widget_builder::WidgetBuilder::push_unset
+#[macro_export]
+macro_rules! widget_set {
+    (
+        $(#[$skip:meta])*
+        $($invalid:ident)::+ = $($tt:tt)*
+    ) => {
+        compile_error!{"expected `&mut <wgt>;` at the beginning"}
+    };
+    (
+        $(#[$skip:meta])*
+        when = $($invalid:tt)*
+    ) => {
+        compile_error!{"expected `&mut <wgt>;` at the beginning"}
+    };
+    (
+        $wgt_mut:ident;
+        $($tt:tt)*
+    ) => {
+        $crate::widget_set! {
+            &mut *$wgt_mut;
+            $($tt)*
+        }
+    };
+    (
+        $wgt_borrow_mut:expr;
+        $($tt:tt)*
+    ) => {
+        $crate::widget_new! {
+            start {
+                let wgt__ = $wgt_borrow_mut;
+            }
+            end { }
+            new { $($tt)* }
+        }
+    };
+}
+
+/// Implement a property on the widget to strongly associate it with the widget.
+///
+/// This is equivalent of the `impl(Widget)` directive in the [`property`] macro, but generates
+#[macro_export]
+macro_rules! widget_impl {
+    (
+        $(
+            $(#[$attr:meta])*
+            $vis:vis fn $($property:ident)::+ ($($arg:ident : $arg_ty:ty)*);
+        )+
+    ) => {
+        $(
+            $crate::property_impl! {
+                attrs { $(#[$attr])* }
+                vis { $vis }
+                path { $($property)::* }
+                args { $($arg:$arg_ty),* }
+            }
+        )+
+    }
 }

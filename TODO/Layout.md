@@ -5,7 +5,7 @@
 ## Inline Align::FILL
 
 * Support `Justify`, enabled by `Align::FILL`.
-* Implement fill/justify in `wrap!`.
+* Implement fill/justify in `Wrap!`.
   - Use segments API to control spacing all from the parent?
     - Remove `first_max_fill` and `last_max_fill`.
 

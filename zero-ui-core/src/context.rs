@@ -21,7 +21,7 @@ use crate::{
     formatx,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     render::ReuseRange,
-    text::Text,
+    text::Txt,
     timer::TIMERS_SV,
     units::*,
     var::{AnyVar, VarHandle, VarHandles, VARS},
@@ -759,7 +759,7 @@ impl WIDGET {
     /// the widget types if the inspector metadata is found for the widget.
     ///
     /// This method does not panic if called outside of an widget.
-    pub fn trace_path(&self) -> Text {
+    pub fn trace_path(&self) -> Txt {
         if let Some(w_id) = WINDOW.try_id() {
             if let Some(id) = self.try_id() {
                 let tree = WINDOW.widget_tree();
@@ -774,7 +774,7 @@ impl WIDGET {
         } else if let Some(id) = self.try_id() {
             formatx!("<no-window>//{id:?}")
         } else {
-            Text::from("<no-widget>")
+            Txt::from("<no-widget>")
         }
     }
 
@@ -784,7 +784,7 @@ impl WIDGET {
     /// type if the inspector metadata is found for the widget.
     ///
     /// This method does not panic if called outside of an widget.
-    pub fn trace_id(&self) -> Text {
+    pub fn trace_id(&self) -> Txt {
         if let Some(id) = self.try_id() {
             if WINDOW.try_id().is_some() {
                 let tree = WINDOW.widget_tree();
@@ -797,7 +797,7 @@ impl WIDGET {
                 formatx!("{id:?}")
             }
         } else {
-            Text::from("<no-widget>")
+            Txt::from("<no-widget>")
         }
     }
 

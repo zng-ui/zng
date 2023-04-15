@@ -87,7 +87,7 @@ fn shortcut_scoped() {
     assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 }
 
-async fn listener_window(focused_wgt: bool) -> Window {
+async fn listener_window(focused_wgt: bool) -> WindowRoot {
     #[ui_node(struct FooHandlerNode {
         handle: Option<CommandHandle>,
         handle_scoped: Option<CommandHandle>,
@@ -125,17 +125,17 @@ async fn listener_window(focused_wgt: bool) -> Window {
         }
     }
 
-    window! {
+    Window! {
         zero_ui::core::widget_base::parallel = false;
-        child = stack! {
+        child = Stack! {
             direction = StackDirection::top_to_bottom();
             children = ui_vec![
-                container! {
+                Container! {
                     id = "test-widget";
                     size = (100, 100);
                     child = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
                 },
-                container! {
+                Container! {
                     id = "other-widget";
                     size = (100, 100);
                     focusable = focused_wgt;

@@ -1,9 +1,9 @@
-use zero_ui::core::widget_mixin;
+use zero_ui::prelude::new_widget::*;
 
-#[widget_mixin($crate::test_mixin)]
-pub mod test_mixin {}
+#[widget_mixin]
+pub struct TextMix<P>(P);
 
 fn main() {
     let _scope = zero_ui::core::app::App::minimal();
-    let _ = test_mixin!();
+    let _ = TextMix!();
 }

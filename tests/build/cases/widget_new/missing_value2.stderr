@@ -1,16 +1,20 @@
-error[E0061]: this function takes 1 argument but 0 arguments were supplied
- --> cases/widget_new/missing_value2.rs:7:9
+error[E0061]: this method takes 1 argument but 0 arguments were supplied
+ --> cases/widget_new/missing_value2.rs:6:9
   |
-7 |         margin =
-  |         ^^^^^^ an argument is missing
+5 |       let _ = Wgt! {
+  |  _____________-
+6 | |         margin =
+  | |         ^^^^^^
+7 | |     };
+  | |_____- an argument is missing
   |
 note: associated function defined here
  --> $WORKSPACE/zero-ui/src/properties/layout.rs
   |
-  | #[property(LAYOUT, default(0))]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+  | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+  |        ^^^^^^
 help: provide the argument
+  --> $WORKSPACE/zero-ui/src/widgets.rs
    |
-7  |         margin(/* margin */) =
-   |               ++++++++++++++
+   | margin(/* margin */)
+   |

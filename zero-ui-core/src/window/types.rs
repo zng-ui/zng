@@ -10,9 +10,9 @@ use parking_lot::Mutex;
 use crate::{
     crate_util::{IdSet, NameIdMap},
     event::{event, event_args},
-    image::{Image, ImageDataFormat, ImageSource, ImageVar},
+    image::{ImageDataFormat, ImageSource, ImageVar, Img},
     render::{FrameId, RenderMode},
-    text::Text,
+    text::Txt,
     units::*,
     var::*,
     widget_info::{Interactivity, WidgetInfoTree, WidgetPath},
@@ -42,7 +42,7 @@ impl WindowId {
     /// If the `name` is already associated with an id, returns it.
     /// If the `name` is new, generates a new id and associated it with the name.
     /// If `name` is an empty string just returns a new id.
-    pub fn named(name: impl Into<Text>) -> Self {
+    pub fn named(name: impl Into<Txt>) -> Self {
         Self::name_map().get_id_or_insert(name.into(), Self::new_unique)
     }
 
@@ -54,8 +54,8 @@ impl WindowId {
     ///
     /// [`named`]: WidgetId::named
     /// [`new_unique`]: WidgetId::new_unique
-    /// [`id`]: fn@crate::widget_base::base::id
-    pub fn debug_named(name: impl Into<Text>) -> Self {
+    /// [`id`]: fn@crate::widget_base::id
+    pub fn debug_named(name: impl Into<Txt>) -> Self {
         #[cfg(debug_assertions)]
         return Self::named(name);
 
@@ -72,12 +72,12 @@ impl WindowId {
     /// If the `name` is an empty string just returns a new id.
     ///
     /// [`NameUsed`]: IdNameError::NameUsed
-    pub fn named_new(name: impl Into<Text>) -> Result<Self, IdNameError<Self>> {
+    pub fn named_new(name: impl Into<Txt>) -> Result<Self, IdNameError<Self>> {
         Self::name_map().new_named(name.into(), Self::new_unique)
     }
 
     /// Returns the name associated with the id or `""`.
-    pub fn name(self) -> Text {
+    pub fn name(self) -> Txt {
         Self::name_map().get_name(self)
     }
 
@@ -89,7 +89,7 @@ impl WindowId {
     ///
     /// [`NameUsed`]: IdNameError::NameUsed
     /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
-    pub fn set_name(self, name: impl Into<Text>) -> Result<(), IdNameError<Self>> {
+    pub fn set_name(self, name: impl Into<Txt>) -> Result<(), IdNameError<Self>> {
         Self::name_map().set(name.into(), self)
     }
 }
@@ -137,7 +137,7 @@ impl_from_and_into_var! {
         WindowId::named(name)
     }
     /// Calls [`WindowId::named`].
-    fn from(name: Text) -> WindowId {
+    fn from(name: Txt) -> WindowId {
         WindowId::named(name)
     }
 }
@@ -148,12 +148,12 @@ impl fmt::Debug for StaticWindowId {
 }
 impl crate::var::IntoValue<WindowId> for &'static StaticWindowId {}
 
-/// Window startup configuration.
+/// Window root widget and configuration.
 ///
 /// More window configuration is accessible using the [`WindowVars`] type.
 ///
 /// [`WindowVars`]: crate::window::WindowVars
-pub struct Window {
+pub struct WindowRoot {
     pub(super) id: WidgetId,
     pub(super) start_position: StartPosition,
     pub(super) kiosk: bool,
@@ -163,7 +163,7 @@ pub struct Window {
     pub(super) start_focused: bool,
     pub(super) child: BoxedUiNode,
 }
-impl Window {
+impl WindowRoot {
     /// New window from a `root` node that forms the window root widget.
     ///
     /// * `root_id` - Widget ID of `root`.
@@ -176,7 +176,7 @@ impl Window {
     /// * `start_focused` - If the window is forced to be the foreground keyboard focus after opening.
     /// * `root` - The root widget's outermost `CONTEXT` node, the window uses this and the `root_id` to form the root widget.
     #[allow(clippy::too_many_arguments)]
-    pub fn new_root(
+    pub fn new(
         root_id: WidgetId,
         start_position: StartPosition,
         kiosk: bool,
@@ -186,7 +186,7 @@ impl Window {
         start_focused: bool,
         root: impl UiNode,
     ) -> Self {
-        Window {
+        WindowRoot {
             id: root_id,
             start_position,
             kiosk,
@@ -204,9 +204,9 @@ impl Window {
     /// an internal container widget that is the parent of `child`, if it is not a widget it will still be placed in the inner
     /// nest group of the root widget.
     ///
-    /// See [`new_root`] for other parameters.
+    /// See [`new`] for other parameters.
     ///
-    /// [`new_root`]: Self::new_root
+    /// [`new`]: Self::new
     #[allow(clippy::too_many_arguments)]
     pub fn new_container(
         root_id: WidgetId,
@@ -218,7 +218,7 @@ impl Window {
         start_focused: bool,
         child: impl UiNode,
     ) -> Self {
-        Window::new_root(
+        WindowRoot::new(
             root_id,
             start_position,
             kiosk,
@@ -233,7 +233,7 @@ impl Window {
     /// New test window.
     #[cfg(any(test, doc, feature = "test_util"))]
     pub fn new_test(child: impl UiNode) -> Self {
-        Window::new_container(
+        WindowRoot::new_container(
             WidgetId::named("test-window-root"),
             StartPosition::Default,
             false,
@@ -470,16 +470,16 @@ impl WindowIcon {
     ///
     /// ```
     /// # use zero_ui_core::{window::WindowIcon, render::RenderMode};
-    /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
+    /// # macro_rules! Container { ($($tt:tt)*) => { zero_ui_core::widget_instance::NilUiNode } }
     /// # let _ =
     /// WindowIcon::render(
-    ///     || container! {
+    ///     || Container! {
     ///         size = (36, 36);
     ///         background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
     ///         corner_radius = 6;
     ///         font_size = 28;
     ///         font_weight = FontWeight::BOLD;
-    ///         child = text!("A");
+    ///         child = Text!("A");
     ///     }
     /// )
     /// # ;
@@ -524,7 +524,7 @@ impl_from_and_into_var! {
         ImageSource::from(s).into()
     }
     /// Same as conversion from `&str`.
-    fn from(s: Text) -> WindowIcon {
+    fn from(s: Txt) -> WindowIcon {
         ImageSource::from(s).into()
     }
     /// From encoded data of [`Unknown`] format.
@@ -751,7 +751,7 @@ event_args! {
         pub frame_id: FrameId,
 
         /// The frame pixels if it was requested when the frame request was sent to the view process.
-        pub frame_image: Option<Image>,
+        pub frame_image: Option<Img>,
 
         ..
 

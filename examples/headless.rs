@@ -21,7 +21,7 @@ fn headless_example() {
     let mut app = App::default().run_headless(true);
 
     app.run_window(async {
-        window! {
+        Window! {
             // the window content is the image.
             child = image();
             auto_size = true;
@@ -55,7 +55,7 @@ fn headless_example() {
 
 // A 800x600 "Hello World!" with a fancy background.
 fn image() -> impl UiNode {
-    container! {
+    Container! {
         size = (800, 600);
 
         background = stack_nodes({
@@ -79,7 +79,7 @@ fn image() -> impl UiNode {
             ]
         });
 
-        child = text! {
+        child = Text! {
             align = Align::CENTER;
             txt = "Hello World!";
             font_size = 72;
@@ -109,7 +109,7 @@ fn images_render() {
     let img = IMAGES.render_node(RenderMode::Software, 1.fct(), image);
 
     app.run_task(async move {
-        while img.with(Image::is_loading) {
+        while img.with(Img::is_loading) {
             img.wait_new().await;
         }
         let img = img.get();

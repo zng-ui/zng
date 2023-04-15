@@ -107,7 +107,7 @@ impl std::hash::Hash for EventPropagationHandle {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{event::event_args, widget_info::WidgetPath, text::{Text, formatx}};
+/// # use zero_ui_core::{event::event_args, widget_info::WidgetPath, text::{Txt, formatx}};
 ///
 /// event_args! {
 ///     /// My event arguments.
@@ -126,7 +126,7 @@ impl std::hash::Hash for EventPropagationHandle {
 ///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.
 ///         ///
 ///         /// The error type can be any type that implement `Debug`.
-///         fn validate(&self) -> Result<(), Text> {
+///         fn validate(&self) -> Result<(), Txt> {
 ///             if self.arg.contains("error") {
 ///                 return Err(formatx!("invalid arg `{}`", self.arg));
 ///             }
