@@ -43,7 +43,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl UiNode {
 pub fn cross_length(child: impl UiNode, length: impl IntoVar<Length>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
-    let cross_length = wgt.capture_var_or_default::<Length>(property_id!(cross_length));
+    let cross_length = wgt.capture_var_or_else::<Length, _>(property_id!(cross_length), || 16);
     wgt.push_intrinsic(NestGroup::SIZE, "orientation-size", move |child| {
         size(
             child,

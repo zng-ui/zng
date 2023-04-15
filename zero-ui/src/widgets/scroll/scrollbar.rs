@@ -13,77 +13,12 @@ impl Scrollbar {
             self;
             crate::properties::background_color = vis::BACKGROUND_VAR;
             crate::properties::click_mode = ClickMode::Repeat;
-            crate::properties::events::mouse::on_mouse_click = {
-                use std::cmp::Ordering;
-
-                let mut ongoing_direction = Ordering::Equal;
-                hn!(|args: &MouseClickArgs| {
-                    use crate::widgets::scroll::*;
-                    use crate::core::window::WINDOW_CTRL;
-
-                    let orientation = ORIENTATION_VAR.get();
-                    let bounds = WIDGET.bounds().inner_bounds();
-                    let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
-                    let position = args.position.to_px(scale_factor.0);
-
-                    let (offset, mid_pt, mid_offset) = match orientation {
-                        Orientation::Vertical => (
-                            bounds.origin.y + bounds.size.height * SCROLL_VERTICAL_OFFSET_VAR.get(),
-                            position.y,
-                            position.y.0 as f32 / bounds.size.height.0 as f32,
-                        ),
-                        Orientation::Horizontal => (
-                            bounds.origin.x + bounds.size.width * SCROLL_HORIZONTAL_OFFSET_VAR.get(),
-                            position.x,
-                            position.x.0 as f32 /bounds.size.width.0 as f32,
-                        )
-                    };
-
-                    let direction = mid_pt.cmp(&offset);
-
-                    // don't overshoot the pointer.
-                    let clamp = match direction {
-                        Ordering::Less => (mid_offset, 1.0),
-                        Ordering::Greater => (0.0, mid_offset),
-                        Ordering::Equal => (0.0, 0.0),
-                    };
-                    let request = commands::ScrollRequest {
-                        clamp,
-                        ..Default::default()
-                    };
-
-                    if args.click_count.get() == 1 {
-                        ongoing_direction = direction;
-                    }
-                    if ongoing_direction == direction {
-                        match orientation {
-                            Orientation::Vertical => {
-                                match direction {
-                                    Ordering::Less => commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify_param(request),
-                                    Ordering::Greater => commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify_param(request),
-                                    Ordering::Equal => {},
-                                }
-                            },
-                            Orientation::Horizontal => {
-                                match direction {
-                                    Ordering::Less => commands::PAGE_LEFT_CMD.scoped(SCROLL.id()).notify_param(request),
-                                    Ordering::Greater => commands::PAGE_RIGHT_CMD.scoped(SCROLL.id()).notify_param(request),
-                                    Ordering::Equal => {},
-                                }
-                            }
-                        }
-
-
-                    }
-
-                    args.propagation().stop();
-                })
-            };
+            crate::properties::events::mouse::on_mouse_click = scroll_click_handler();
         }
 
         self.builder().push_build_action(|wgt| {
             // scrollbar is larger than thumb, align inserts the extra space.
-            let thumb = wgt.capture_ui_node_or_else(property_id!(Self::thumb_node), || NilUiNode);
+            let thumb = wgt.capture_ui_node_or_else(property_id!(Self::thumb), || super::Thumb!());
             let thumb = align(thumb, Align::FILL);
             wgt.set_child(thumb);
 
@@ -112,7 +47,7 @@ impl Scrollbar {
 ///
 /// [`Thumb!`]: struct@super::Thumb
 #[property(CHILD, capture, default(super::Thumb!()), impl(Scrollbar))]
-pub fn thumb_node(child: impl UiNode, node: impl UiNode) -> impl UiNode {}
+pub fn thumb(child: impl UiNode, node: impl UiNode) -> impl UiNode {}
 
 /// Scrollbar orientation.
 ///
@@ -150,4 +85,65 @@ pub enum Orientation {
     Horizontal,
     /// Bar fills the in the ***y*** dimension and scrolls top-bottom.
     Vertical,
+}
+
+fn scroll_click_handler() -> impl WidgetHandler<MouseClickArgs> {
+    use std::cmp::Ordering;
+
+    let mut ongoing_direction = Ordering::Equal;
+    hn!(|args: &MouseClickArgs| {
+        use crate::core::window::WINDOW_CTRL;
+        use crate::widgets::scroll::*;
+
+        let orientation = ORIENTATION_VAR.get();
+        let bounds = WIDGET.bounds().inner_bounds();
+        let scale_factor = WINDOW_CTRL.vars().scale_factor().get();
+        let position = args.position.to_px(scale_factor.0);
+
+        let (offset, mid_pt, mid_offset) = match orientation {
+            Orientation::Vertical => (
+                bounds.origin.y + bounds.size.height * SCROLL_VERTICAL_OFFSET_VAR.get(),
+                position.y,
+                position.y.0 as f32 / bounds.size.height.0 as f32,
+            ),
+            Orientation::Horizontal => (
+                bounds.origin.x + bounds.size.width * SCROLL_HORIZONTAL_OFFSET_VAR.get(),
+                position.x,
+                position.x.0 as f32 / bounds.size.width.0 as f32,
+            ),
+        };
+
+        let direction = mid_pt.cmp(&offset);
+
+        // don't overshoot the pointer.
+        let clamp = match direction {
+            Ordering::Less => (mid_offset, 1.0),
+            Ordering::Greater => (0.0, mid_offset),
+            Ordering::Equal => (0.0, 0.0),
+        };
+        let request = commands::ScrollRequest {
+            clamp,
+            ..Default::default()
+        };
+
+        if args.click_count.get() == 1 {
+            ongoing_direction = direction;
+        }
+        if ongoing_direction == direction {
+            match orientation {
+                Orientation::Vertical => match direction {
+                    Ordering::Less => commands::PAGE_UP_CMD.scoped(SCROLL.id()).notify_param(request),
+                    Ordering::Greater => commands::PAGE_DOWN_CMD.scoped(SCROLL.id()).notify_param(request),
+                    Ordering::Equal => {}
+                },
+                Orientation::Horizontal => match direction {
+                    Ordering::Less => commands::PAGE_LEFT_CMD.scoped(SCROLL.id()).notify_param(request),
+                    Ordering::Greater => commands::PAGE_RIGHT_CMD.scoped(SCROLL.id()).notify_param(request),
+                    Ordering::Equal => {}
+                },
+            }
+        }
+
+        args.propagation().stop();
+    })
 }

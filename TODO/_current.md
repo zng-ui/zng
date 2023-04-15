@@ -1,23 +1,3 @@
-# Widget & Property Refactor
-
-* Fix widget docs.
-    - Mix-in parent deref not included in docs.
-        - Caused by "recursion"?
-        - See https://github.com/rust-lang/rust/pull/90183#issuecomment-950215290
-    - Inject JS in the docs of widget/mix-in structs to format the properties.
-    - They can be identified with the `P` tag.
-        Also group in the `unset_property` methods.
-
-* Test widget generated macro in crate that does not depend on zero-ui directly.
-
-* Test all.
-* Merge.
-
-* Update webrender to `60af5fde8115ea5f088c0c2ae07faeae95675200` fx112.
-* Review `DefaultStyle` and `base_colors`.
-
-# Other
-
 * Cursor position for tooltip is lagging to far behind.
     - Observed this in Firefox too, maybe there is nothing to do?
     - Make a system call to get the cursor position and compare it with the MOUSE var, just to see if we are not lagging more then "normal".
@@ -47,3 +27,17 @@
 
 * Review all docs.
     - Mentions of threads in particular.
+
+# Continue Widget Refactor
+
+* Update webrender to `60af5fde8115ea5f088c0c2ae07faeae95675200` fx112.
+* Review `DefaultStyle` and `base_colors`.
+* Fix widget docs.
+    - Mix-in parent deref not included in docs.
+        - Caused by "recursion"?
+        - See https://github.com/rust-lang/rust/pull/90183#issuecomment-950215290
+    - Inject JS in the docs of widget/mix-in structs to format the properties.
+    - They can be identified with the `P` tag.
+        Also group in the `unset_property` methods.
+
+* Test widget generated macro in crate that does not depend on zero-ui directly.

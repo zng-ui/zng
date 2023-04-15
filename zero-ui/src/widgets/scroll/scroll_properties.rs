@@ -84,7 +84,7 @@ context_var! {
 fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
     wgt_fn!(|args: ScrollBarArgs| {
         Scrollbar! {
-            thumb_node = Thumb! {
+            thumb = Thumb! {
                 viewport_ratio = args.viewport_ratio();
                 offset = args.offset();
             };
