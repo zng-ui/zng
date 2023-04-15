@@ -1,0 +1,10 @@
+[package]
+name = "app-detached"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lib-detached = { path = "../lib-detached" }
+# either of those is required, must be same dependency of `lib-detached`.
+# zero-ui = { path = "../../../zero-ui" }
+zero-ui-core = { path = "../../../zero-ui-core" }

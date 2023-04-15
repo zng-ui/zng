@@ -184,6 +184,8 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
                                     return Ok(FoundCrate::Name(name.replace('-', "_")));
                                 }
                             }
+                        } else if name == orig_name {
+                            return Ok(FoundCrate::Name(orig_name.replace('-', "_")));
                         }
                     }
                 }

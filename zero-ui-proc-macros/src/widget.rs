@@ -259,7 +259,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             fn inherit(widget: #crate_core::widget_builder::WidgetType) -> Self {
                 let mut wgt = Self(<#parent as #crate_core::widget_base::WidgetImpl>::inherit(widget));
                 *#crate_core::widget_base::WidgetImpl::base(&mut wgt).importance() = #crate_core::widget_builder::Importance::WIDGET;
-                wgt.on_start();
+                {
+                    use #crate_core::widget_base::WidgetImpl;
+                    wgt.on_start();
+                }
                 *#crate_core::widget_base::WidgetImpl::base(&mut wgt).importance() = #crate_core::widget_builder::Importance::INSTANCE;
                 wgt
             }

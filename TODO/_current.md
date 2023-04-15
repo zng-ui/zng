@@ -29,7 +29,6 @@
 
 # Continue Widget Refactor
 
-* Review `DefaultStyle` and `base_colors`.
 * Fix widget docs.
     - Mix-in parent deref not included in docs.
         - Caused by "recursion"?
@@ -37,5 +36,3 @@
     - Inject JS in the docs of widget/mix-in structs to format the properties.
     - They can be identified with the `P` tag.
         Also group in the `unset_property` methods.
-
-* Test widget generated macro in crate that does not depend on zero-ui directly.

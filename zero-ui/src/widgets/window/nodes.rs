@@ -539,10 +539,10 @@ event_args! {
 }
 
 /// Event that a layered widget receives when it is about to be removed.
-/// 
+///
 /// You can stop the [`LayerRemoveRequestedArgs::propagation`] to cancel the remove. Note that after cancel
 /// you can request remove again.
-/// 
+///
 /// This event property must be set on the outer-most widget inserted in [`LAYERS`], the event does not propagate
 /// to descendants of the layered widget.
 #[property(EVENT)]
@@ -570,7 +570,7 @@ pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler
                     true => {
                         WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
                         list.remove(WIDGET.id());
-                    },
+                    }
                     false => {
                         WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
                     }
