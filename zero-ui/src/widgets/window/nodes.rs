@@ -1081,6 +1081,12 @@ impl AnchorMode {
         self.corner_radius = corner_radius;
         self
     }
+
+    /// Returns the mode with `viewport_bound` set.
+    pub fn with_viewport_bound(mut self, viewport_bound: bool) -> Self {
+        self.viewport_bound = viewport_bound;
+        self
+    }
 }
 impl Default for AnchorMode {
     /// Transform `InnerOffset` top-left, size infinite, copy visibility and corner-radius.
