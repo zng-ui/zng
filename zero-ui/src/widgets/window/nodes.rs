@@ -517,8 +517,58 @@ fn adjust_viewport_bound(transform: PxTransform, widget: &impl UiNode) -> PxTran
     transform.then_translate(correction.cast())
 }
 
+#[derive(Clone, Debug, Default)]
+enum LayerRemove {
+    #[default]
+    Allowed,
+    Request,
+    Requested(EditableUiNodeListRef),
+}
+
 static WINDOW_LAYERS_ID: StaticStateId<LayersCtx> = StaticStateId::new_unique();
 static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
+static LAYER_REMOVE_ID: StaticStateId<LayerRemove> = StaticStateId::new_unique();
+
+event_args! {
+    pub struct LayerRemoveRequestedArgs {
+        ..
+        fn delivery_list(&self, _delivery_list: &mut UpdateDeliveryList) {}
+    }
+}
+
+#[property(EVENT)]
+pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler<LayerRemoveRequestedArgs>) -> impl UiNode {
+    #[ui_node(struct LayerRemoveRequestedNode {
+        child: impl UiNode,
+        handler: impl WidgetHandler<LayerRemoveRequestedArgs>,
+    })]
+    impl UiNode for LayerRemoveRequestedNode {
+        fn init(&mut self) {
+            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
+            self.child.init()
+        }
+
+        fn deinit(&mut self) {
+            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
+            self.child.deinit()
+        }
+
+        fn update(&mut self, updates: &WidgetUpdates) {
+            if let LayerRemove::Requested(list) = WIDGET.get_state(&LAYER_REMOVE_ID).unwrap_or_default() {
+                let args = LayerRemoveRequestedArgs::now();
+                self.handler.event(&args);
+                if !args.propagation().is_stopped() {
+                    WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
+                    list.remove(WIDGET.id());
+                }
+            } else {
+                self.child.update(updates);
+            }
+        }
+    }
+
+    LayerRemoveRequestedNode { child, handler }
+}
 
 /// Wrap around the window outer-most event node to create the layers.
 ///
@@ -530,9 +580,9 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
 
     #[ui_node(struct LayersNode {
         children: crate::core::widget_instance::UiNodeListChainImpl<
-            UiNodeVec, 
+            UiNodeVec,
             SortingList<
-                EditableUiNodeList, 
+                EditableUiNodeList,
                 SortFn,
             >,
         >,
@@ -559,22 +609,50 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
 
                 if !removes.is_empty() {
                     editable_list.retain_mut(|n| {
-                        let rmv = n.with_context(|| {
-                            let id = WIDGET.id();
-                            removes.iter().any(|i| *i == id)                            
-                        }).unwrap_or(false);
-
-                        if rmv {
-                            println!("!!: removed");
-                            n.deinit();
-                            WIDGET.info();
-                            changed = true;
+                        enum Action {
+                            Remove,
+                            Update,
+                            Retain,
                         }
+                        let action = n
+                            .with_context(|| {
+                                let id = WIDGET.id();
+                                if removes.iter().any(|i| *i == id) {
+                                    let state = WIDGET.get_state(&LAYER_REMOVE_ID).unwrap_or_default();
+                                    match state {
+                                        LayerRemove::Allowed => Action::Remove,
+                                        LayerRemove::Request => {
+                                            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Requested(self.layered.clone()));
+                                            Action::Update
+                                        }
+                                        LayerRemove::Requested(_) => Action::Retain,
+                                    }
+                                } else {
+                                    Action::Retain
+                                }
+                            })
+                            .unwrap_or(Action::Retain);
 
-                        !rmv
+                        match action {
+                            Action::Remove => {
+                                n.deinit();
+                                WIDGET.info();
+                                changed = true;
+                                false
+                            }
+                            Action::Update => {
+                                let mut delivery_list = UpdateDeliveryList::new_any();
+                                n.with_context(|| {
+                                    delivery_list.insert_wgt(&WIDGET.info());
+                                });
+                                n.update(&WidgetUpdates::new(delivery_list));
+                                true
+                            }
+                            Action::Retain => true,
+                        }
                     });
-                }                
-            } 
+                }
+            }
 
             self.children.update_all(updates, &mut changed);
 

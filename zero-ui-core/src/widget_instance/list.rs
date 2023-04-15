@@ -1185,7 +1185,7 @@ impl EditableUiNodeList {
     }
 
     /// Take the list of pending remove requests, the widgets will not be removed on the next update.
-    pub fn take_remove_requests(&mut self) ->  Vec<WidgetId> {
+    pub fn take_remove_requests(&mut self) -> Vec<WidgetId> {
         self.ctrl.take_remove_requests()
     }
 
@@ -1423,7 +1423,7 @@ impl UiNodeList for EditableUiNodeList {
 type NodeMoveToFn = fn(usize, usize) -> usize;
 
 /// Represents a sender to an [`EditableUiNodeList`].
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct EditableUiNodeListRef(Arc<Mutex<EditRequests>>);
 struct EditRequests {
     target: Option<WidgetId>,
@@ -1435,6 +1435,20 @@ struct EditRequests {
     clear: bool,
 
     alive: bool,
+}
+impl fmt::Debug for EditRequests {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EditRequests")
+            .field("target", &self.target)
+            .field("insert.len", &self.insert.len())
+            .field("push.len", &self.push.len())
+            .field("remove", &self.remove)
+            .field("move_index", &self.move_index)
+            .field("move_id", &self.move_id)
+            .field("clear", &self.clear)
+            .field("alive", &self.alive)
+            .finish()
+    }
 }
 impl EditableUiNodeListRef {
     fn new() -> Self {
