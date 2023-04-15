@@ -240,14 +240,14 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let r = quote! {
         #attrs
         #vis #struct_token #ident #mixin_p(#parent);
-        impl #mixin_p_bounded std::ops::Deref for #ident #mixin_p {
+        impl #mixin_p std::ops::Deref for #ident #mixin_p {
             type Target = #parent;
 
             fn deref(&self) -> &Self::Target {
                 &self.0
             }
         }
-        impl #mixin_p_bounded std::ops::DerefMut for #ident #mixin_p {
+        impl #mixin_p std::ops::DerefMut for #ident #mixin_p {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.0
             }

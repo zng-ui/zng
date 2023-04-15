@@ -530,12 +530,21 @@ static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 static LAYER_REMOVE_ID: StaticStateId<LayerRemove> = StaticStateId::new_unique();
 
 event_args! {
+    /// Arguments for [`on_layer_remove_requested`].
     pub struct LayerRemoveRequestedArgs {
         ..
+        /// No target, only the layered widget receives the event.
         fn delivery_list(&self, _delivery_list: &mut UpdateDeliveryList) {}
     }
 }
 
+/// Event that a layered widget receives when it is about to be removed.
+/// 
+/// You can stop the [`LayerRemoveRequestedArgs::propagation`] to cancel the remove. Note that after cancel
+/// you can request remove again.
+/// 
+/// This event property must be set on the outer-most widget inserted in [`LAYERS`], the event does not propagate
+/// to descendants of the layered widget.
 #[property(EVENT)]
 pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler<LayerRemoveRequestedArgs>) -> impl UiNode {
     #[ui_node(struct LayerRemoveRequestedNode {
@@ -557,9 +566,14 @@ pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler
             if let LayerRemove::Requested(list) = WIDGET.get_state(&LAYER_REMOVE_ID).unwrap_or_default() {
                 let args = LayerRemoveRequestedArgs::now();
                 self.handler.event(&args);
-                if !args.propagation().is_stopped() {
-                    WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
-                    list.remove(WIDGET.id());
+                match args.propagation().is_stopped() {
+                    true => {
+                        WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
+                        list.remove(WIDGET.id());
+                    },
+                    false => {
+                        WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
+                    }
                 }
             } else {
                 self.child.update(updates);

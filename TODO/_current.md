@@ -1,7 +1,9 @@
 * Layer fade-out.
-    - Make `LAYERS.remove` notify the widget that it's about to be removed as an `on_remove` event ?
-    - Continue impl in `LayersNode`, set a state on the layer widget that signals remove state:
-        - `LayerRmv::Allowed/Request/Requested(ListRef)`
+    - Test `on_layer_remove_requested`.
+    - Implement `layer_remove_delay` using `on_layer_remove_requested`.
+    - Implement `is_layer_removing`.
+        - Using both delay and this flag a fade-out effect can be easily implemented 
+          just by setting properties with `#[easing(..)]` an a `when` condition.
 
 * Review `Transitionable::chase`, not needed anymore?
 * Review Dip units used in computed values.
