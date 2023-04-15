@@ -15,7 +15,7 @@ Use `git pull --recurse-submodules` to update.
 
 From the `./webrender` submodule we use the `webrender`, `webrender_api` and `swgl` crates.
 
-The current *version* is the latest commit that was included in the Firefox 111.0 release, currently we are manually
+The current *version* is the latest commit that was included in the Firefox 112.0 release, currently we are manually
 searching this commit, it would be nice to have `do` find the latest commit for the latest Firefox stable TODO.
 
 The steps to update manually:
@@ -23,6 +23,6 @@ The steps to update manually:
 1 - Follow the `[ghsync]` link for the Mozilla central auto-merge commits to find the latest that is in the
     milestone we are interested in.
 2 - Checkout this commit in the `./webrender` sub-module.
-    `git fetch` and `git checkout 9387b6da8f1b43dac0bd0e62273265104f7a8593`
+    `git fetch` and `git checkout 60af5fde8115ea5f088c0c2ae07faeae95675200`
 
-The current commit is this one: [`https://github.com/servo/webrender/commit/9387b6da8f1b43dac0bd0e62273265104f7a8593`]
+The current commit is this one: [`https://github.com/servo/webrender/commit/60af5fde8115ea5f088c0c2ae07faeae95675200`]

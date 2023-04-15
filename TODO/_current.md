@@ -27,7 +27,6 @@
 
 # Continue Widget Refactor
 
-* Update webrender to `60af5fde8115ea5f088c0c2ae07faeae95675200` fx112.
 * Review `DefaultStyle` and `base_colors`.
 * Fix widget docs.
     - Mix-in parent deref not included in docs.
