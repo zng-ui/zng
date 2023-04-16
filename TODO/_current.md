@@ -1,5 +1,3 @@
-* _test inspector L_Ctrl not released.
-
 * Layer fade-out.
     - Tooltip does not receive `on_layer_remove_requested` because of internal anon widget around the tip node.
     - Implement `layer_remove_delay` using `on_layer_remove_requested`.
