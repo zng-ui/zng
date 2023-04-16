@@ -7,6 +7,8 @@ use crate::{
     widget_util::{self, WgtProperty, WgtWhen},
 };
 
+static DOCS_JS: &'static str = include_str!("../js/widget.js");
+
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mixin: bool) -> proc_macro::TokenStream {
     // the widget struct declaration.
     let struct_ = parse_macro_input!(input as ItemStruct);
@@ -237,8 +239,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         (r, start_r)
     };
 
+    let docs_js = format!("\n\n<script>\n{DOCS_JS}\n</script>");
+
     let r = quote! {
         #attrs
+        #[doc=#docs_js]
         #vis #struct_token #ident #mixin_p(#parent);
         impl #mixin_p std::ops::Deref for #ident #mixin_p {
             type Target = #parent;

@@ -30,11 +30,10 @@
 # Continue Widget Refactor
 
 * Fix widget docs.
-    - Mix-in parent deref not included in docs.
-        - Caused by "recursion"?
-        - See https://github.com/rust-lang/rust/pull/90183#issuecomment-950215290
-    - Inject JS in the docs of widget/mix-in structs to format the properties.
-    - They can be identified with the `P` tag.
-        Also group in the `unset_property` methods.
+    - Refactor side-bar.
+    - Refactor properties methods to have macro assign signature?
+    - Refactor Mix title to only include the mix struct.
+        - Fetch inner mixes because Rust-Doc does not auto include these.
+    - Hide property overrides.
 
 * Implement `TextMix<P>` or even more segmented mix-ins, use then in `Link` and other text widgets?
