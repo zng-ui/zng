@@ -1411,6 +1411,11 @@ impl<'de> serde::Deserialize<'de> for Txt {
         String::deserialize(deserializer).map(Txt::from)
     }
 }
+impl AsRef<[u8]> for Txt {
+    fn as_ref(&self) -> &[u8] {
+        self.as_str().as_ref()
+    }
+}
 
 /// A trait for converting a value to a [`Txt`].
 ///

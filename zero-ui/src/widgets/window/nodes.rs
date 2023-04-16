@@ -567,12 +567,12 @@ pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler
                 let args = LayerRemoveRequestedArgs::now();
                 self.handler.event(&args);
                 match args.propagation().is_stopped() {
-                    true => {
+                    true => {                        
+                        WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
+                    }
+                    false => {                        
                         WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
                         list.remove(WIDGET.id());
-                    }
-                    false => {
-                        WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
                     }
                 }
             } else {

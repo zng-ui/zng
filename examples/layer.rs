@@ -156,7 +156,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl UiNode {
                 hit_test_mode = HitTestMode::Disabled;
             });
 
-            task::deadline(2.secs()).await; // wait fade-out
+            task::deadline(2.secs()).await;
 
             LAYERS.remove(id);
         });

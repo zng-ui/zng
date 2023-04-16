@@ -364,7 +364,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         LinkType::Shortcut => {}
                         LinkType::ShortcutUnknown => {}
                         LinkType::Autolink | LinkType::Email => {
-                            let url = html_escape::decode_html_entities(url.as_ref());
+                            let url = html_escape::decode_html_entities(&url);
                             inlines.push(text_view(TextFnArgs {
                                 txt: url.to_text(),
                                 style: MarkdownStyle {
