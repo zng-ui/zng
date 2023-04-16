@@ -208,9 +208,7 @@ impl AppExtension for KeyboardManager {
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
             if args.new_focus.is_none() {
                 let mut kb = KEYBOARD_SV.write();
-
-                kb.modifiers.set_ne(ModifiersState::empty());
-                kb.current_modifiers.clear();
+                kb.clear_modifiers();
                 kb.codes.set_ne(vec![]);
                 kb.keys.set_ne(vec![]);
 
@@ -225,8 +223,7 @@ impl AppExtension for KeyboardManager {
             ));
 
             if args.is_respawn {
-                kb.modifiers.set_ne(ModifiersState::empty());
-                kb.current_modifiers.clear();
+                kb.clear_modifiers();
                 kb.codes.set_ne(vec![]);
                 kb.keys.set_ne(vec![]);
 
@@ -411,6 +408,17 @@ impl KeyboardService {
             self.current_modifiers.remove(&key);
         }
 
+        let new_modifiers = self.current_modifiers();
+
+        if prev_modifiers != new_modifiers {
+            self.modifiers.set(new_modifiers);
+            MODIFIERS_CHANGED_EVENT.notify(ModifiersChangedArgs::now(prev_modifiers, new_modifiers));
+        }
+    }
+
+    fn clear_modifiers(&mut self) {
+        let prev_modifiers = self.current_modifiers();
+        self.current_modifiers.clear();
         let new_modifiers = self.current_modifiers();
 
         if prev_modifiers != new_modifiers {

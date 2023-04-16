@@ -1,3 +1,5 @@
+* _test inspector L_Ctrl not released.
+
 * Layer fade-out.
     - Tooltip does not receive `on_layer_remove_requested` because of internal anon widget around the tip node.
     - Implement `layer_remove_delay` using `on_layer_remove_requested`.
@@ -36,3 +38,5 @@
     - Inject JS in the docs of widget/mix-in structs to format the properties.
     - They can be identified with the `P` tag.
         Also group in the `unset_property` methods.
+
+* Implement `TextMix<P>` or even more segmented mix-ins, use then in `Link` and other text widgets?

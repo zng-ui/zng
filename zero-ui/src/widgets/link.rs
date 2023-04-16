@@ -4,7 +4,7 @@ use crate::prelude::new_widget::*;
 
 /// A clickable inline element.
 #[widget($crate::widgets::Link)]
-pub struct Link(crate::widgets::Button); // !!: TODO, TextMix<Button>
+pub struct Link(crate::widgets::Button);
 impl Link {
     fn widget_intrinsic(&mut self) {
         widget_set! {
