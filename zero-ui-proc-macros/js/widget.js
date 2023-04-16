@@ -31,7 +31,7 @@ function refactorProperties(sectionId) {
     let propertiesList = this.document.createElement('div');
     propertiesList.id = 'properties' + derefIdPrefix + '-list';
 
-    // insert all property sections before first impl section.
+    // insert property sections before first impl sections.
     let insertPoint = this.document.querySelector('#properties-insert-pt');
     if (insertPoint == null) {
         insertPoint = this.document.createElement('div');
@@ -40,25 +40,26 @@ function refactorProperties(sectionId) {
     }
     insertPoint.parentElement.insertBefore(propertiesList, insertPoint);
     insertPoint.parentElement.insertBefore(properties, propertiesList);
-
-    implementationsList.querySelectorAll("div.impl-items").forEach(function (e) {
+    
+    propertiesList.innerHTML = "<div class='impl-items'></div>";
+    propertiesList = propertiesList.firstChild;
+    implementationsList.querySelectorAll("details.method-toggle").forEach(function (e) {
         let t = e.querySelector("strong[title='This method is a widget property']");
         if (t != null) {
             t.remove();
-            e.style.marginBottom = "0.75em";
             propertiesList.appendChild(e);
         }
     });
 
     // remove empty sections
-    implementationsList.querySelectorAll("section.impl").forEach(function (e) {
-        let details = e.parentElement.parentElement;
-        if (details.querySelector("section.method") == null) {
-            details.remove();
-        }
-    });
-    if (!implementationsList.hasChildNodes()) {
+    if (implementationsList.querySelector("section.method") == null) {
         implementationsList.remove();
         implementations.remove();
+    } else {
+        implementationsList.querySelectorAll("details.implementors-toggle").forEach(function(e) {
+            if (e.querySelector("section.method") == null) {
+                e.remove();
+            }
+        });
     }
 }
