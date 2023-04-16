@@ -30,10 +30,9 @@
 # Continue Widget Refactor
 
 * Fix widget docs.
-    - Refactor side-bar.
     - Refactor properties methods to have macro assign signature?
+        - Change anchor names from `#method-name` to `#property-name`?
     - Refactor Mix title to only include the mix struct.
         - Fetch inner mixes because Rust-Doc does not auto include these.
-    - Hide property overrides.
 
 * Implement `TextMix<P>` or even more segmented mix-ins, use then in `Link` and other text widgets?
