@@ -389,7 +389,7 @@ pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>)
 }
 
 fn text_view_builder(txt: Txt, style: MarkdownStyle) -> crate::widgets::Text {
-    let mut builder = crate::widgets::Text::start();
+    let mut builder = crate::widgets::Text::widget_new();
 
     widget_set! {
         &mut builder;
@@ -423,7 +423,7 @@ fn text_view_builder(txt: Txt, style: MarkdownStyle) -> crate::widgets::Text {
 /// See [`TEXT_GEN_VAR`] for more details.
 pub fn default_text_fn(args: TextFnArgs) -> impl UiNode {
     let mut builder = text_view_builder(args.txt, args.style);
-    builder.build()
+    builder.widget_build()
 }
 
 /// Default inlined code text view.
@@ -438,7 +438,7 @@ pub fn default_code_inline_fn(args: CodeInlineFnArgs) -> impl UiNode {
         background_color = color_scheme_map(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
     }
 
-    builder.build()
+    builder.widget_build()
 }
 
 /// Default inlined link view.

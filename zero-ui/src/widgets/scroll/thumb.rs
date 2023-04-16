@@ -8,7 +8,7 @@ use scrollbar::ORIENTATION_VAR;
 #[widget($crate::widgets::scroll::Thumb)]
 pub struct Thumb(WidgetBase);
 impl Thumb {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             crate::properties::background_color = rgba(200, 200, 200, 50.pct());
@@ -24,7 +24,7 @@ impl Thumb {
             }
         }
 
-        self.builder().push_build_action(on_build);
+        self.widget_builder().push_build_action(on_build);
     }
 }
 

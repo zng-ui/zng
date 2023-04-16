@@ -505,9 +505,9 @@ pub use zero_ui_proc_macros::property;
 /// properties are included by deref, the new widget will dereference to the parent widget, during widget build auto-deref will select
 /// the property methods first, this mechanism even allows for property overrides.
 ///
-/// # On Start
+/// # Intrinsic
 ///
-/// The widget struct can define a method `on_start` that *includes* custom build actions in the [`WidgetBuilder`], this special
+/// The widget struct can define a method `widget_intrinsic` that *includes* custom build actions in the [`WidgetBuilder`], this special
 /// method will be called once for its own widget or derived widgets.
 ///
 /// ```
@@ -518,8 +518,8 @@ pub use zero_ui_proc_macros::property;
 /// pub struct Foo(WidgetBase);
 ///
 /// impl Foo {
-///     fn on_start(&mut self) {
-///         self.builder().push_build_action(|b| {
+///     fn widget_intrinsic(&mut self) {
+///         self.widget_builder().push_build_action(|b| {
 ///             // push_intrinsic, capture_var.
 ///         });
 ///     }
@@ -528,7 +528,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// The example above demonstrate the function used to [`push_build_action`]. This is the primary mechanism for widgets to define their
 /// own behavior that does not depend on properties. Note that the widget inherits from [`WidgetBase`], during [instantiation](#instantiation)
-/// of `Foo!` the base `on_start` is called first, then the `Foo!` `on_start` is called.
+/// of `Foo!` the base `widget_intrinsic` is called first, then the `Foo!` `widget_intrinsic` is called.
 ///
 /// The method does not need to be `pub`, and is not required.
 ///
@@ -545,8 +545,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// impl Foo {
 ///     /// Custom build.
-///     pub fn build(&mut self) -> impl UiNode {
-///         widget_base::nodes::build(self.take_builder())
+///     pub fn widget_build(&mut self) -> impl UiNode {
+///         widget_base::nodes::build(self.widget_take())
 ///     }
 /// }
 /// ```
@@ -554,17 +554,18 @@ pub use zero_ui_proc_macros::property;
 /// The build method must have the same visibility as the widget, and can define its own
 /// return type, this is the **widget type**. If the build method is not defined the inherited parent build method is used.
 ///
-/// Unlike the [on_start](#on-start) method, the widget only has one `build`, if defined it overrides the parent `build`. Most widgets
-/// don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base type is an opaque `impl UiNode`, normal
-/// widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets, the widget outer-node also must implement
-/// the widget context, to ensure that the widget is correctly placed in the UI tree. The base widget implementation is in [`widget_base::nodes::widget`],
-/// you can use it directly, so even if you need to run code on build or define a custom type you don't need to start from scratch.
+/// Unlike the [widget_intrinsic](#intrinsic) method, the widget only has one `widget_build`, if defined it overrides the parent
+/// `widget_build`. Most widgets don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base type
+/// is an opaque `impl UiNode`, normal widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets,
+/// the widget outer-node also must implement the widget context, to ensure that the widget is correctly placed in the UI tree.
+/// The base widget implementation is in [`widget_base::nodes::widget`], you can use it directly, so even if you need to run code
+/// on build or define a custom type you don't need to start from scratch.
 ///
 /// # Defaults
 ///
-/// The [`widget_set!`] macro can be used inside `on_start` to set properties and when conditions that are applied on the widget if not
-/// overridden by derived widgets or the widget instance code. During the call to `on_start` the `self.importance()` value is [`Importance::WIDGET`],
-/// after it is changed to [`Importance::INSTANCE`], so just by setting properties in `on_start` they define the *default* value.
+/// The [`widget_set!`] macro can be used inside `widget_intrinsic` to set properties and when conditions that are applied on the widget if not
+/// overridden by derived widgets or the widget instance code. During the call to `widget_intrinsic` the `self.importance()` value is [`Importance::WIDGET`],
+/// after it is changed to [`Importance::INSTANCE`], so just by setting properties in `widget_intrinsic` they define the *default* value.
 ///
 /// # Impl Properties
 ///
@@ -589,12 +590,12 @@ pub use zero_ui_proc_macros::property;
 /// // equivalent to:
 ///
 /// let wgt = {
-///     let mut wgt = Foo::start();
+///     let mut wgt = Foo::widget_new();
 ///     widget_set! {
 ///         &mut wgt;
 ///         id = "foo";
 ///     }
-///     wgt.build()
+///     wgt.widget_build()
 /// };
 /// # }
 /// ```
@@ -668,8 +669,8 @@ pub use zero_ui_proc_macros::property;
 /// # Builder
 ///
 /// Two public methods are available to call in a generated widget struct, `builder` and `take_builder` that first mutable borrows the
-/// underlying [`WidgetBuilder`] and is usually used in `on_start` to insert build actions, the second finalizes the insertion of
-/// properties and returns the [`WidgetBuilder`] instance for use finalizing the build, this is usually called in custom `build` implementations.
+/// underlying [`WidgetBuilder`] and is usually used in `widget_intrinsic` to insert build actions, the second finalizes the insertion of
+/// properties and returns the [`WidgetBuilder`] instance for use finalizing the build, this is usually called in custom `widget_build` implementations.
 ///
 /// See the [`WidgetBuilder`], [`WidgetBuilding`], [`NestGroup`] and [`Importance`] for more details.
 ///
@@ -704,7 +705,7 @@ pub use zero_ui_proc_macros::widget;
 /// #[widget_mixin]
 /// pub struct FocusableMix<P>(P);
 /// impl<P: WidgetImpl> FocusableMix<P> {
-///     fn on_start(&mut self) {
+///     fn widget_intrinsic(&mut self) {
 ///         widget_set! {
 ///             self;
 ///             focusable = true;
@@ -726,7 +727,7 @@ pub use zero_ui_proc_macros::widget;
 /// The example above declares a mix-in `FocusableMix<P>` and an widget `Foo`, the mix-in is used as a parent of the widget, only
 /// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable`.
 ///
-/// All widget `impl` items can be declared in a mix-in, including the `fn build(&mut self) -> T`, multiple mix-ins can be inherited
+/// All widget `impl` items can be declared in a mix-in, including the `fn widget_build(&mut self) -> T`, multiple mix-ins can be inherited
 /// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`, mix-ins cannot inherit even from other mix-ins.
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget_mixin;
@@ -749,7 +750,7 @@ mod private {
 /// # fn main() {
 /// # let flag = true;
 ///
-/// let mut wgt = Wgt::start();
+/// let mut wgt = Wgt::widget_new();
 ///
 /// if flag {
 ///     widget_set! {
@@ -763,7 +764,7 @@ mod private {
 ///     id = "wgt";
 /// }
 ///
-/// let wgt = wgt.build();
+/// let wgt = wgt.widget_build();
 /// # }
 /// ```
 ///
@@ -810,7 +811,7 @@ mod private {
 /// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::widget_new();
 /// wgt.id("test");
 /// wgt.background_color(colors::BLUE);
 /// # }
@@ -842,7 +843,7 @@ mod private {
 /// # use zero_ui_core::{*, var::*, color::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::widget_new();
 /// self::background_color::background_color(&mut wgt, colors::BLUE);
 /// # }
 /// ```
@@ -922,7 +923,7 @@ mod private {
 /// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::widget_new();
 /// wgt.border(1, colors::RED);
 /// # }
 /// ```
@@ -995,13 +996,13 @@ mod private {
 /// # use zero_ui_core::{*, var::*, color::*, units::*, widget_instance::*};
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::start();
+/// # let mut wgt = zero_ui_core::widget_base::WidgetBase::widget_new();
 /// wgt.unset_border();
 /// # }
 /// ```
 ///
 /// Each property method generates an auxiliary `unset_property` method, the unset is registered in the widget builder using the current
-/// importance, in `on_start` they only unset already inherited default assigns, in instances it unsets all inherited or
+/// importance, in `widget_intrinsic` they only unset already inherited default assigns, in instances it unsets all inherited or
 /// previous assigns, see [`WidgetBuilder::push_unset`] for more details.
 ///
 /// # Generic Properties
@@ -1135,11 +1136,11 @@ macro_rules! widget_set {
         $($tt:tt)*
     ) => {
         $crate::widget_new! {
-            start {
+            new {
                 let wgt__ = $wgt_borrow_mut;
             }
-            end { }
-            new { $($tt)* }
+            build { }
+            set { $($tt)* }
         }
     };
 }

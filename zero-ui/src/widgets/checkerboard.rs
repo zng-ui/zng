@@ -9,8 +9,8 @@ use zero_ui_core::gradient::RenderGradientStop;
 #[widget($crate::widgets::Checkerboard)]
 pub struct Checkerboard(WidgetBase);
 impl Checkerboard {
-    fn on_start(&mut self) {
-        self.builder().push_build_action(|wgt| wgt.set_child(self::node()));
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(|wgt| wgt.set_child(self::node()));
     }
 }
 

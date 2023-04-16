@@ -8,8 +8,8 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::layouts::Grid)]
 pub struct Grid(WidgetBase);
 impl Grid {
-    fn on_start(&mut self) {
-        self.builder().push_build_action(|w| {
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(|w| {
             let child = node(
                 w.capture_ui_node_list_or_empty(property_id!(Self::cells)),
                 w.capture_ui_node_list_or_empty(property_id!(Self::columns)),

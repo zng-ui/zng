@@ -281,7 +281,7 @@ pub mod prelude {
     /// #[widget($crate::MyWidget)]
     /// pub struct MyWidget(WidgetBase);
     /// impl MyWidget {
-    ///     fn on_start(&mut self) {
+    ///     fn widget_intrinsic(&mut self) {
     ///         widget_set! {
     ///             self;
     ///             background_color = colors::BLUE;

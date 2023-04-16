@@ -17,8 +17,8 @@ use std::fmt;
 })]
 pub struct Icon(WidgetBase);
 impl Icon {
-    fn on_start(&mut self) {
-        self.builder().push_build_action(on_build);
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(on_build);
     }
 
     widget_impl! {

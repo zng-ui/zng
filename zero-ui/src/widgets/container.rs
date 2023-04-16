@@ -4,8 +4,8 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::Container)]
 pub struct Container(WidgetBase);
 impl Container {
-    fn on_start(&mut self) {
-        self.builder().push_build_action(|wgt| {
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(|wgt| {
             if let Some(child) = wgt.capture_ui_node(property_id!(crate::core::widget_base::child)) {
                 wgt.set_child(child);
             }

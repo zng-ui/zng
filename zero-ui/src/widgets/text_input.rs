@@ -6,7 +6,7 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::TextInput)]
 pub struct TextInput(StyleMix<text::Text>);
 impl TextInput {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
 
@@ -68,7 +68,7 @@ pub fn border_color_focused() -> impl Var<Rgba> {
 #[widget($crate::widgets::text_input::DefaultStyle)]
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             padding = (7, 15);

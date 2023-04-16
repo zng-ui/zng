@@ -85,14 +85,14 @@ error[E0119]: conflicting implementations of trait `zero_ui::prelude::new_widget
   |
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0592]: duplicate definitions with name `start`
+error[E0592]: duplicate definitions with name `widget_new`
  --> cases/widget/name_conflict2.rs:3:1
   |
 3 | #[widget($crate::TestWidget)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `start`
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `widget_new`
 ...
 6 | #[widget($crate::TestWidget)]
-  | ----------------------------- other definition for `start`
+  | ----------------------------- other definition for `widget_new`
   |
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 

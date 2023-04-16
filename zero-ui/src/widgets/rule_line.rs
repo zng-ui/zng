@@ -6,8 +6,8 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::RuleLine)]
 pub struct RuleLine(WidgetBase);
 impl RuleLine {
-    fn on_start(&mut self) {
-        self.builder().push_build_action(on_build);
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(on_build);
     }
 }
 
@@ -135,7 +135,7 @@ pub mod hr {
     #[widget($crate::widgets::Hr)]
     pub struct Hr(super::RuleLine);
     impl Hr {
-        fn on_start(&mut self) {
+        fn widget_intrinsic(&mut self) {
             widget_set! {
                 self;
                 orientation = LineOrientation::Horizontal;

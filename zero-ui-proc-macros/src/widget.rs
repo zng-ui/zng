@@ -158,12 +158,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
         let macro_new = quote! {
             #crate_core::widget_new! {
-                start {
-                    let mut wgt__ = #struct_path::start();
+                new {
+                    let mut wgt__ = #struct_path::widget_new();
                     let wgt__ = &mut wgt__;
                 }
-                end { wgt__.build() }
-                new { $($tt)* }
+                build { wgt__.widget_build() }
+                set { $($tt)* }
             }
         };
 
@@ -219,7 +219,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         let start_r = quote! {
             impl #mixin_p_bounded #ident #mixin_p {
                 /// Start building a new instance.
-                pub fn start() -> Self {
+                pub fn widget_new() -> Self {
                     <Self as #crate_core::widget_base::WidgetImpl>::inherit(Self::widget_type())
                 }
 
@@ -258,12 +258,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         impl #mixin_p_bounded #crate_core::widget_base::WidgetImpl for #ident #mixin_p {
             fn inherit(widget: #crate_core::widget_builder::WidgetType) -> Self {
                 let mut wgt = Self(<#parent as #crate_core::widget_base::WidgetImpl>::inherit(widget));
-                *#crate_core::widget_base::WidgetImpl::base(&mut wgt).importance() = #crate_core::widget_builder::Importance::WIDGET;
+                *#crate_core::widget_base::WidgetImpl::base(&mut wgt).widget_importance() = #crate_core::widget_builder::Importance::WIDGET;
                 {
                     use #crate_core::widget_base::WidgetImpl;
-                    wgt.on_start();
+                    wgt.widget_intrinsic();
                 }
-                *#crate_core::widget_base::WidgetImpl::base(&mut wgt).importance() = #crate_core::widget_builder::Importance::INSTANCE;
+                *#crate_core::widget_base::WidgetImpl::base(&mut wgt).widget_importance() = #crate_core::widget_builder::Importance::INSTANCE;
                 wgt
             }
 
@@ -661,9 +661,9 @@ struct NewArgs {
 impl Parse for NewArgs {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         Ok(Self {
-            start: non_user_braced!(input, "start").parse().unwrap(),
-            end: non_user_braced!(input, "end").parse().unwrap(),
-            properties: non_user_braced!(input, "new").parse()?,
+            start: non_user_braced!(input, "new").parse().unwrap(),
+            end: non_user_braced!(input, "build").parse().unwrap(),
+            properties: non_user_braced!(input, "set").parse()?,
         })
     }
 }

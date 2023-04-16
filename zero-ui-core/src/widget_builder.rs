@@ -226,8 +226,8 @@ pub use widget_type;
 #[crate::widget($crate::widget_builder::PropertyArgsGetter)]
 pub struct PropertyArgsGetter(WidgetBase);
 impl PropertyArgsGetter {
-    pub fn build(&mut self) -> Box<dyn PropertyArgs> {
-        let mut wgt = self.take_builder();
+    pub fn widget_build(&mut self) -> Box<dyn PropertyArgs> {
+        let mut wgt = self.widget_take();
         if wgt.p.items.len() > 1 {
             tracing::error!("properties ignored, `property_args!` only collects args for first property");
         }

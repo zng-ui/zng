@@ -34,7 +34,7 @@ pub use window_properties::*;
 #[widget($crate::widgets::Window)]
 pub struct Window(Container);
 impl Window {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
 
@@ -58,7 +58,7 @@ impl Window {
             font_size = crate::widgets::text::FONT_SIZE_VAR;
         }
 
-        self.builder().push_build_action(|wgt| {
+        self.widget_builder().push_build_action(|wgt| {
             #[cfg(inspector)]
             {
                 let can_inspect = wgt.capture_var_or_else(property_id!(can_inspect), || true);
@@ -71,8 +71,8 @@ impl Window {
     }
 
     /// Build a [`WindowRoot`].
-    pub fn build(&mut self) -> WindowRoot {
-        let mut wgt = self.take_builder();
+    pub fn widget_build(&mut self) -> WindowRoot {
+        let mut wgt = self.widget_take();
         WindowRoot::new(
             wgt.capture_value_or_else(property_id!(Self::id), WidgetId::new_unique),
             wgt.capture_value_or_default::<StartPosition>(property_id!(Self::start_position)),

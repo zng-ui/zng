@@ -19,8 +19,8 @@ pub mod nodes;
 })]
 pub struct Image(WidgetBase);
 impl Image {
-    fn on_start(&mut self) {
-        self.builder().push_build_action(on_build);
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(on_build);
     }
 }
 

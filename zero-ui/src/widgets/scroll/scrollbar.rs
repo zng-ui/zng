@@ -8,7 +8,7 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::scroll::Scrollbar)]
 pub struct Scrollbar(WidgetBase);
 impl Scrollbar {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             crate::properties::background_color = vis::BACKGROUND_VAR;
@@ -16,7 +16,7 @@ impl Scrollbar {
             crate::properties::events::mouse::on_mouse_click = scroll_click_handler();
         }
 
-        self.builder().push_build_action(|wgt| {
+        self.widget_builder().push_build_action(|wgt| {
             // scrollbar is larger than thumb, align inserts the extra space.
             let thumb = wgt.capture_ui_node_or_else(property_id!(Self::thumb), || super::Thumb!());
             let thumb = align(thumb, Align::FILL);

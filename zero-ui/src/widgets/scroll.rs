@@ -20,14 +20,14 @@ pub use thumb::Thumb;
 #[widget($crate::widgets::Scroll)]
 pub struct Scroll(Container);
 impl Scroll {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             child_align = Align::CENTER;
             clip_to_bounds = true;
             focusable = true;
         }
-        self.builder().push_build_action(on_build);
+        self.widget_builder().push_build_action(on_build);
     }
 
     widget_impl! {

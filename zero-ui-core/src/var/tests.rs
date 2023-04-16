@@ -493,8 +493,8 @@ mod context {
     #[widget($crate::var::tests::context::TestWgt)]
     struct TestWgt(crate::widget_base::WidgetBase);
     impl TestWgt {
-        fn on_start(&mut self) {
-            self.builder().push_build_action(|wgt| {
+        fn widget_intrinsic(&mut self) {
+            self.widget_builder().push_build_action(|wgt| {
                 if let Some(child) = wgt.capture_ui_node(property_id!(child)) {
                     wgt.set_child(child);
                 }

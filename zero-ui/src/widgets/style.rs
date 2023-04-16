@@ -22,8 +22,8 @@ use crate::prelude::new_widget::*;
 pub struct Style(WidgetBase);
 impl Style {
     /// Build the style.
-    pub fn build(&mut self) -> StyleBuilder {
-        StyleBuilder::from_builder(self.take_builder())
+    pub fn widget_build(&mut self) -> StyleBuilder {
+        StyleBuilder::from_builder(self.widget_take())
     }
 }
 
@@ -41,8 +41,8 @@ impl Style {
 #[widget_mixin]
 pub struct StyleMix<P>(P);
 impl<P: WidgetImpl> StyleMix<P> {
-    fn on_start(&mut self) {
-        self.base().builder().set_custom_build(StyleMix::<()>::custom_build);
+    fn widget_intrinsic(&mut self) {
+        self.base().widget_builder().set_custom_build(StyleMix::<()>::custom_build);
     }
 }
 impl<P> StyleMix<P> {
@@ -113,7 +113,7 @@ pub fn style_fn(_child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNod
 /// pub struct Foo(StyleMix<WidgetBase>);
 /// impl Foo {
 ///     
-///     fn on_start(&mut self) {
+///     fn widget_intrinsic(&mut self) {
 ///         widget_set! {
 ///             self;
 ///             style_fn = STYLE_VAR;

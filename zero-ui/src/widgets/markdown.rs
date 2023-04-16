@@ -26,7 +26,7 @@ pub use view_fn::*;
 })]
 pub struct Markdown(WidgetBase);
 impl Markdown {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             on_link = hn!(|args: &LinkArgs| {
@@ -34,7 +34,7 @@ impl Markdown {
             });
         };
 
-        self.builder().push_build_action(|wgt| {
+        self.widget_builder().push_build_action(|wgt| {
             let md = wgt.capture_var_or_default(property_id!(md));
             let child = markdown_node(md);
             wgt.set_child(child.boxed());

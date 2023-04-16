@@ -101,8 +101,8 @@ pub fn par_each_ctx() {
 #[widget($crate::tests::ui_node_list::ListWgt)]
 pub struct ListWgt(crate::widget_base::WidgetBase);
 impl ListWgt {
-    fn on_start(&mut self) {
-        self.builder().push_build_action(|wgt| {
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(|wgt| {
             let child = util::list_node(wgt.capture_ui_node_list_or_empty(crate::property_id!(Self::children)));
             wgt.set_child(child);
         });

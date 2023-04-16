@@ -41,37 +41,25 @@ impl WidgetBase {
     }
 
     /// Starts building a new [`WidgetBase`](struct@WidgetBase) instance.
-    pub fn start() -> Self {
+    pub fn widget_new() -> Self {
         Self::inherit(Self::widget_type())
     }
 
-    /// Starts building a new widget derived from [`WidgetBase`](struct@WidgetBase).
-    pub fn inherit(widget: WidgetType) -> Self {
-        let builder = WidgetBuilder::new(widget);
-        let mut w = Self {
-            builder: RefCell::new(Some(builder)),
-            importance: Importance::WIDGET,
-            when: RefCell::new(None),
-        };
-        w.on_start();
-        w.importance = Importance::INSTANCE;
-        w
-    }
-
     /// Direct reference the widget builder.
-    pub fn builder(&mut self) -> &mut WidgetBuilder {
+    pub fn widget_builder(&mut self) -> &mut WidgetBuilder {
         self.builder.get_mut().as_mut().expect("already built")
     }
 
     /// Direct reference the current `when` block.
-    pub fn when(&mut self) -> Option<&mut WhenInfo> {
+    pub fn widget_when(&mut self) -> Option<&mut WhenInfo> {
         self.when.get_mut().as_mut()
     }
 
-    /// Gets the widget builder.
+    /// Takes the widget builder, finishing the widget macro build.
     ///
-    /// After this call trying to set a property will panic.
-    pub fn take_builder(&mut self) -> WidgetBuilder {
+    /// After this call trying to set a property using `self` will panic,
+    /// the returned builder can still be manipulated directly.
+    pub fn widget_take(&mut self) -> WidgetBuilder {
         assert!(self.when.get_mut().is_none(), "cannot take builder with `when` pending");
         self.builder.get_mut().take().expect("builder already taken")
     }
@@ -79,8 +67,8 @@ impl WidgetBase {
     /// Build the widget.
     ///
     /// After this call trying to set a property will panic.
-    pub fn build(&mut self) -> impl UiNode {
-        let mut wgt = self.take_builder();
+    pub fn widget_build(&mut self) -> impl UiNode {
+        let mut wgt = self.widget_take();
         wgt.push_build_action(|wgt| {
             if !wgt.has_child() {
                 wgt.set_child(FillUiNode);
@@ -91,8 +79,8 @@ impl WidgetBase {
 
     /// Gets or sets the importance of the next property assigns, unsets or when blocks.
     ///
-    /// Note that during the `on_start` call this is [`Importance::WIDGET`] and after it is [`Importance::INSTANCE`].
-    pub fn importance(&mut self) -> &mut Importance {
+    /// Note that during the `widget_intrinsic` call this is [`Importance::WIDGET`] and after it is [`Importance::INSTANCE`].
+    pub fn widget_importance(&mut self) -> &mut Importance {
         &mut self.importance
     }
 
@@ -117,8 +105,8 @@ impl WidgetBase {
         self.builder.get_mut().as_mut().unwrap().push_when(self.importance, when);
     }
 
-    fn on_start(&mut self) {
-        nodes::include_intrinsics(self.builder());
+    fn widget_intrinsic(&mut self) {
+        nodes::include_intrinsics(self.widget_builder());
     }
 
     /// Push method property.
@@ -215,11 +203,19 @@ pub trait WidgetImpl {
     fn info_instance__() -> Self;
 
     #[doc(hidden)]
-    fn on_start(&mut self) {}
+    fn widget_intrinsic(&mut self) {}
 }
 impl WidgetImpl for WidgetBase {
     fn inherit(widget: WidgetType) -> Self {
-        Self::inherit(widget)
+        let builder = WidgetBuilder::new(widget);
+        let mut w = Self {
+            builder: RefCell::new(Some(builder)),
+            importance: Importance::WIDGET,
+            when: RefCell::new(None),
+        };
+        w.widget_intrinsic();
+        w.importance = Importance::INSTANCE;
+        w
     }
 
     fn base(&mut self) -> &mut WidgetBase {
@@ -275,12 +271,12 @@ impl WidgetExt for WidgetBase {
 macro_rules! WidgetBaseMacro__ {
     ($($tt:tt)*) => {
         $crate::widget_new! {
-            start {
-                let mut wgt__ = $crate::widget_base::WidgetBase::start();
+            new {
+                let mut wgt__ = $crate::widget_base::WidgetBase::widget_new();
                 let wgt__ = &mut wgt__;
             }
-            end { wgt__.build() }
-            new { $($tt)* }
+            build { wgt__.widget_build() }
+            set { $($tt)* }
         }
     }
 }

@@ -21,13 +21,13 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::Toggle)]
 pub struct Toggle(crate::widgets::Button);
 impl Toggle {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             style_fn = STYLE_VAR;
         }
 
-        self.builder().push_build_action(|wgt| {
+        self.widget_builder().push_build_action(|wgt| {
             if let Some(p) = wgt.property_mut(property_id!(Self::checked_opt)) {
                 p.position.index = u16::MAX; // force property to be inside tristate.
             }
@@ -814,7 +814,7 @@ pub fn extend_style(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl Ui
 #[widget($crate::widgets::toggle::DefaultStyle)]
 pub struct DefaultStyle(crate::widgets::button::DefaultStyle);
 impl DefaultStyle {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         use crate::widgets::button;
 
         widget_set! {
@@ -839,7 +839,7 @@ impl DefaultStyle {
 #[widget($crate::widgets::toggle::CheckStyle)]
 pub struct CheckStyle(Style);
 impl CheckStyle {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             crate::properties::child_insert_start = {
@@ -899,7 +899,7 @@ fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
 #[widget($crate::widgets::toggle::SwitchStyle)]
 pub struct SwitchStyle(Style);
 impl SwitchStyle {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             crate::properties::child_insert_start = {
@@ -959,7 +959,7 @@ fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
 #[widget($crate::widgets::toggle::RadioStyle)]
 pub struct RadioStyle(Style);
 impl RadioStyle {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
 

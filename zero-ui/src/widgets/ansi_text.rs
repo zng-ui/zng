@@ -18,13 +18,13 @@ use zero_ui::prelude::new_widget::*;
 })]
 pub struct AnsiText(WidgetBase);
 impl AnsiText {
-    fn on_start(&mut self) {
+    fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             crate::widgets::text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
         };
 
-        self.builder().push_build_action(|wgt| {
+        self.widget_builder().push_build_action(|wgt| {
             let txt = wgt.capture_var_or_default(property_id!(txt));
             let child = ansi_node(txt);
             wgt.set_child(child.boxed());
@@ -416,7 +416,7 @@ mod ansi_fn {
     pub fn default_text_fn(args: TextFnArgs) -> impl UiNode {
         use crate::prelude::*;
 
-        let mut text = text::Text::start();
+        let mut text = text::Text::widget_new();
 
         widget_set! {
             &mut text;
@@ -489,7 +489,7 @@ mod ansi_fn {
             }
         }
 
-        text.build()
+        text.widget_build()
     }
 
     /// Default [`LINE_GEN_VAR`].

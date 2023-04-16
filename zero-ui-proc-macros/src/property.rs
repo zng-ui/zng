@@ -39,7 +39,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     };
     let mut attrs = Attributes::new(mem::take(&mut item.attrs));
+    let mut mtd_attrs = Attributes::new(vec![]);
+    mtd_attrs.docs = attrs.docs.clone();
+
     attrs.tag_doc("P", "This function is also a widget property");
+    mtd_attrs.tag_doc("P", "This method is a widget property");
 
     if item.sig.inputs.len() < 2 {
         errors.push(
@@ -601,6 +605,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     (quote!(), quote!())
                 }
             };
+            let docs = &mtd_attrs.docs;
             quote! {
                 #cfg
                 impl #generics_impl #target #generics {
@@ -610,7 +615,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #core::widget_base::WidgetImpl::base_ref(self).mtd_property__(args)
                     }
 
-                    /// Unset the property.
+                    #[doc(hidden)]
                     #[allow(dead_code)]
                     #vis fn #ident_unset(&self) {
                         #core::widget_base::WidgetImpl::base_ref(self).mtd_property_unset__(#ident_meta { }.id())
@@ -953,7 +958,9 @@ pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .into();
     }
 
-    let attrs = Attributes::new(p.attrs);
+    let mut attrs = Attributes::new(p.attrs);
+    attrs.tag_doc("P", "This method is a widget property");
+
     let cfg = &attrs.cfg;
     let vis = p.vis;
     let path = p.path;
@@ -981,6 +988,7 @@ pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         /// Unset the property.
         #cfg
+        #[doc(hidden)]
         #[allow(dead_code)]
         #vis fn #ident_unset(&self) {
             #core::widget_base::WidgetImpl::base_ref(self).reexport__(|base__| {
@@ -988,8 +996,8 @@ pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             });
         }
 
-        #[doc(hidden)]
         #cfg
+        #[doc(hidden)]
         #[allow(dead_code)]
         #vis fn #ident_sorted(&self, #(#sorted_idents: #sorted_tys),*) {
             #core::widget_base::WidgetImpl::base_ref(self).reexport__(|base__| {
@@ -997,8 +1005,8 @@ pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             });
         }
 
-        #[doc(hidden)]
         #cfg
+        #[doc(hidden)]
         #[allow(dead_code)]
         #vis fn #ident_meta(&self) -> <#core::widget_builder::WgtInfo as #path>::MetaType {
             <#core::widget_builder::WgtInfo as #path>::#ident_meta(&#core::widget_builder::WgtInfo)

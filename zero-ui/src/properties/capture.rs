@@ -22,7 +22,7 @@ use std::sync::Arc;
 /// #[widget($crate::Button)]
 /// pub struct Button(Container);
 /// impl Button {
-///     fn on_start(&mut self) {
+///     fn widget_intrinsic(&mut self) {
 ///         widget_set! {
 ///             self;
 ///             // Mouse does not interact with other widgets when pressed in a button.

@@ -74,8 +74,8 @@ pub use text_properties::*;
 pub struct Text(WidgetBase);
 
 impl Text {
-    fn on_start(&mut self) {
-        self.builder().push_build_action(|wgt| {
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(|wgt| {
             let child = nodes::render_text();
             let child = nodes::render_caret(child);
             let child = nodes::render_overlines(child);
