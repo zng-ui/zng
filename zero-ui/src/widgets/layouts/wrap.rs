@@ -30,14 +30,14 @@ impl Wrap {
 
     widget_impl! {
         /// Inlined wrap items.
-        pub fn widget_base::children(children: impl UiNodeList);
+        pub widget_base::children(children: impl UiNodeList);
 
         /// Alignment of children in this widget and of nested wrap panels and texts.
         ///
         /// Note that this only sets the [`children_align`] if that property is not set (default) or is set to [`TEXT_ALIGN_VAR`].
         ///
         /// [`children_align`]: fn@children_align
-        pub fn crate::widgets::text::txt_align(align: impl IntoVar<Align>);
+        pub crate::widgets::text::txt_align(align: impl IntoVar<Align>);
 
         /// Spacing in-between rows of this widget and of nested wrap panels and texts.
         ///
@@ -46,7 +46,7 @@ impl Wrap {
         ///
         /// [`row_spacing`]: fn@crate::widgets::text::row_spacing
         /// [`LINE_SPACING_VAR`]: crate::widgets::text::LINE_SPACING_VAR
-        pub fn crate::widgets::text::line_spacing(spacing: impl IntoVar<Length>);
+        pub crate::widgets::text::line_spacing(spacing: impl IntoVar<Length>);
     }
 }
 

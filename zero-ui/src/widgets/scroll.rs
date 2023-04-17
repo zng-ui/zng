@@ -32,15 +32,15 @@ impl Scroll {
 
     widget_impl! {
         /// Content alignment when it is smaller then the viewport.
-        pub fn child_align(align: impl IntoVar<Align>);
+        pub child_align(align: impl IntoVar<Align>);
 
         /// Clip content to only be visible within the scroll bounds, including under scrollbars.
         ///
         /// Enabled by default.
-        pub fn clip_to_bounds(clip: impl IntoVar<bool>);
+        pub clip_to_bounds(clip: impl IntoVar<bool>);
 
         /// Enables keyboard controls.
-        pub fn focusable(focusable: impl IntoVar<bool>);
+        pub focusable(focusable: impl IntoVar<bool>);
     }
 }
 

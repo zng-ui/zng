@@ -18,15 +18,15 @@ impl Container {
         /// Can be any type that implements [`UiNode`], any widget.
         ///
         /// [`UiNode`]: crate::core::widget_instance::UiNode
-        pub fn crate::core::widget_base::child(child: impl UiNode);
+        pub crate::core::widget_base::child(child: impl UiNode);
 
         /// Spacing around content, inside the border.
-        pub fn crate::properties::padding(padding: impl IntoVar<SideOffsets>);
+        pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
 
         /// Content alignment.
-        pub fn crate::properties::child_align(align: impl IntoVar<Align>);
+        pub crate::properties::child_align(align: impl IntoVar<Align>);
 
         /// Content overflow clipping.
-        pub fn crate::properties::clip_to_bounds(clip: impl IntoVar<bool>);
+        pub crate::properties::clip_to_bounds(clip: impl IntoVar<bool>);
     }
 }

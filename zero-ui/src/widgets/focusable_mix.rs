@@ -26,7 +26,7 @@ impl<P: WidgetImpl> FocusableMix<P> {
         /// If the widget can receive keyboard focus.
         ///
         /// Is enabled by default in this widget.
-        pub fn crate::properties::focus::focusable(focusable: impl IntoVar<bool>);
+        pub crate::properties::focus::focusable(focusable: impl IntoVar<bool>);
     }
 }
 

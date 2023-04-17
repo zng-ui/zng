@@ -26,7 +26,7 @@ impl Tip {
         /// If the tooltip can be interacted with the mouse.
         ///
         /// This is disabled by default.
-        pub fn crate::properties::hit_test_mode(mode: impl IntoVar<HitTestMode>);
+        pub crate::properties::hit_test_mode(mode: impl IntoVar<HitTestMode>);
     }
 }
 

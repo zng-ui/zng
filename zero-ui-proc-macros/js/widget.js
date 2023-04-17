@@ -64,7 +64,10 @@
                     t.remove();
                     let mtdSignature = mtdAnchor.parentElement;
                     // same sintax as `widget_impl!`
-                    mtdSignature.innerHTML = mtdSignature.innerHTML.replace('<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self,', '').replace('&amp;self, ', '') + ';';
+                    mtdSignature.innerHTML = mtdSignature.innerHTML
+                        .replace('fn ', '')
+                        .replace('<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self,', '')
+                        .replace('&amp;self, ', '') + ';';
                     propertiesList.appendChild(e);
 
                 }

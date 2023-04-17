@@ -43,9 +43,9 @@ impl Markdown {
 
     widget_impl! {
         /// Extra space between lines.
-        pub fn text::line_spacing(spacing: impl IntoVar<LineSpacing>);
+        pub text::line_spacing(spacing: impl IntoVar<LineSpacing>);
         /// Extra space between paragraphs.
-        pub fn text::paragraph_spacing(spacing: impl IntoVar<LineSpacing>);
+        pub text::paragraph_spacing(spacing: impl IntoVar<LineSpacing>);
     }
 }
 

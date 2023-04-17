@@ -92,7 +92,7 @@ impl Text {
 
     widget_impl! {
         /// Spacing in-between the text and borders.
-        pub fn crate::properties::padding(padding: impl IntoVar<SideOffsets>);
+        pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
     }
 }
 

@@ -23,7 +23,7 @@ impl Icon {
 
     widget_impl! {
         /// Spacing in between the icon and background edges or border.
-        pub fn crate::properties::padding(padding: impl IntoVar<SideOffsets>);
+        pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
     }
 }
 

@@ -24,7 +24,7 @@ impl Grid {
 
     widget_impl! {
         /// Spacing around the grid, inside the border.
-        pub fn crate::properties::padding(padding: impl IntoVar<SideOffsets>);
+        pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
     }
 }
 
@@ -156,13 +156,13 @@ pub mod column {
     impl Column {
         widget_impl! {
             /// Column max width.
-            pub fn crate::properties::max_width(max: impl IntoVar<Length>);
+            pub crate::properties::max_width(max: impl IntoVar<Length>);
 
             /// Column min width.
-            pub fn crate::properties::min_width(min: impl IntoVar<Length>);
+            pub crate::properties::min_width(min: impl IntoVar<Length>);
 
             /// Column width.
-            pub fn crate::properties::width(width: impl IntoVar<Length>);
+            pub crate::properties::width(width: impl IntoVar<Length>);
         }
     }
 
@@ -339,13 +339,13 @@ pub mod row {
     impl Row {
         widget_impl! {
             /// Row max height.
-            pub fn crate::properties::max_height(max: impl IntoVar<Length>);
+            pub crate::properties::max_height(max: impl IntoVar<Length>);
 
             /// Row min height.
-            pub fn crate::properties::min_height(max: impl IntoVar<Length>);
+            pub crate::properties::min_height(max: impl IntoVar<Length>);
 
             /// Row height.
-            pub fn crate::properties::height(max: impl IntoVar<Length>);
+            pub crate::properties::height(max: impl IntoVar<Length>);
         }
     }
 

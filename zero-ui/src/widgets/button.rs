@@ -32,12 +32,12 @@ impl Button {
         /// }
         /// # ;
         /// ```
-        pub fn crate::properties::events::gesture::on_click(handler: impl WidgetHandler<crate::core::gesture::ClickArgs>);
+        pub crate::properties::events::gesture::on_click(handler: impl WidgetHandler<crate::core::gesture::ClickArgs>);
 
         /// If pointer interaction with other widgets is blocked while the button is pressed.
         ///
         /// Enabled by default in this widget.
-        pub fn crate::properties::capture_mouse(mode: impl IntoVar<crate::core::mouse::CaptureMode>);
+        pub crate::properties::capture_mouse(mode: impl IntoVar<crate::core::mouse::CaptureMode>);
     }
 }
 

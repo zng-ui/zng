@@ -714,7 +714,7 @@ pub use zero_ui_proc_macros::widget;
 ///     
 ///     widget_impl! {
 ///         /// If the widget can receive focus, enabled by default.
-///         pub fn focusable(enabled: impl IntoVar<bool>);
+///         pub focusable(enabled: impl IntoVar<bool>);
 ///     }
 /// }
 ///
@@ -1153,7 +1153,7 @@ macro_rules! widget_impl {
     (
         $(
             $(#[$attr:meta])*
-            $vis:vis fn $($property:ident)::+ ($($arg:ident : $arg_ty:ty)*);
+            $vis:vis $($property:ident)::+ ($($arg:ident : $arg_ty:ty)*);
         )+
     ) => {
         $(
