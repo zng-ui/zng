@@ -10,6 +10,11 @@
     - Things like `MOUSE.position` are pretty useless without the scale_factor.
     - Real problem is having to retrieve the scale factor?
 
+* External layout and render updates.
+    - Work the same way as normal updates, with the `WidgetUpdates` list, but in the layout and render cycle.
+    - Use this to implement special subscriptions that automatically layout/render a widget, saving an update
+      cycle.
+
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?
     - No `UiNodeList::info_all`?

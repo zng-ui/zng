@@ -1,18 +1,59 @@
 (function () {
-    addEventListener("DOMContentLoaded", function () {
-        refactorProperties('implementations');
-        this.document.querySelectorAll('h2').forEach(function (d) {
-            if (d.id.startsWith('deref-methods')) {
-                refactorProperties(d.id);
-            }
-        });
-        refactorSidebar();
+    addEventListener("DOMContentLoaded", async function () {
+        let inherits = [];
+        await refactorDocument(this.document, inherits, new Set());
+        mergeInherits(inherits);
     });
 
     var PROPERTIES = new Set();
 
-    function refactorProperties(sectionId) {
-        let implementations = this.document.getElementById(sectionId);
+    // * `doc` - The document, can be this.document or a fetched doc.
+    // * `inherits` - Array of `{ link, page }`, link is HTML str of the parent link, .
+    // * `fetchUrls` - Set of fetch URLs, used to avoid infinite recursion.
+    async function refactorDocument(doc, inherits, fetchUrls) {
+        refactorSections(doc, fetchUrls);
+        refactorSidebar(doc);
+        await fetchInherits(doc, inherits, fetchUrls);
+    }
+
+    function refactorSections(doc, fetchUrls) {
+        refactorProperties(doc, 'implementations');
+        doc.querySelectorAll('h2').forEach(function (d) {
+            if (d.id.startsWith('deref-methods')) {
+                let skipFirst = true;
+                let insertPoint = d.nextElementSibling.nextElementSibling;
+                d.querySelectorAll('a.struct').forEach(function (a) {
+                    if (skipFirst) {
+                        skipFirst = false;
+                        return;
+                    }
+
+                    if (fetchUrls.has(a.href)) {
+                        return;
+                    }
+                    fetchUrls.add(a.href);
+
+                    // unloaded mix-in parent
+
+                    let title = doc.createElement('h2');
+                    title.innerHTML = 'Inherits from ' + a.outerHTML;
+                    title.classList.add('inherit-fetch');
+                    insertPoint.parentElement.insertBefore(title, insertPoint);
+
+                    let section = doc.createElement('div');
+                    section.innerText = 'Loading...';
+                    insertPoint.parentElement.insertBefore(section, insertPoint);
+
+                    insertPoint = section.nextElementSibling;
+                    a.remove();
+                });
+                refactorProperties(doc, d.id);
+            }
+        });
+    }
+
+    function refactorProperties(doc, sectionId) {
+        let implementations = doc.getElementById(sectionId);
         if (implementations == null) {
             return;
         }
@@ -31,18 +72,18 @@
             derefFrom = ' from ' + implementations.querySelector('span a:nth-of-type(2)').outerHTML;
         }
 
-        let properties = this.document.createElement('h2');
+        let properties = doc.createElement('h2');
         properties.id = 'properties' + derefIdPrefix;
         properties.classList.add('small-section-header');
         properties.innerHTML = 'Properties' + derefFrom + '<a href="#' + properties.id + '" class="anchor">§</a>';
 
-        let propertiesList = this.document.createElement('div');
+        let propertiesList = doc.createElement('div');
         propertiesList.id = 'properties' + derefIdPrefix + '-list';
 
         // insert property sections before first impl sections.
-        let insertPoint = this.document.querySelector('#properties-insert-pt');
+        let insertPoint = doc.querySelector('#properties-insert-pt');
         if (insertPoint == null) {
-            insertPoint = this.document.createElement('div');
+            insertPoint = doc.createElement('div');
             insertPoint.id = 'properties-insert-pt';
             implementations.parentElement.insertBefore(insertPoint, implementations);
         }
@@ -88,14 +129,14 @@
         }
     }
 
-    function refactorSidebar() {
-        let sideBar = this.document.querySelector('div.sidebar-elems section');
+    function refactorSidebar(doc) {
+        let sideBar = doc.querySelector('div.sidebar-elems section');
         let repeats = new Set();
 
         sideBar.querySelectorAll('h3').forEach(function (e) {
             if (e.innerText == "Methods" || e.innerText.indexOf("Methods from") !== -1) {
                 let mtdList = e.nextSibling;
-                let propList = this.document.createElement('ul');
+                let propList = doc.createElement('ul');
                 mtdList.querySelectorAll('a').forEach(function (a) {
                     if (PROPERTIES.has(a.innerText)) {
                         if (repeats.has(a.innerText)) {
@@ -111,14 +152,14 @@
                     propList.classList.add('block');
 
                     // insert property sections before first impl sections.
-                    let insertPoint = this.document.querySelector('#properties-side-insert-pt');
+                    let insertPoint = doc.querySelector('#properties-side-insert-pt');
                     if (insertPoint == null) {
-                        insertPoint = this.document.createElement('div');
+                        insertPoint = doc.createElement('div');
                         insertPoint.id = 'properties-side-insert-pt';
                         sideBar.insertBefore(insertPoint, e);
                     }
 
-                    let title = this.document.createElement('h3');
+                    let title = doc.createElement('h3');
                     let mtdsFrom = e.innerText.indexOf("Target=");
                     if (mtdsFrom !== -1) {
                         let cutStart = mtdsFrom + "Target=".length;
@@ -140,6 +181,63 @@
                     }
                 }
             }
+        });
+    }
+
+    async function fetchInherits(doc, inherits) {
+        for (e of doc.querySelectorAll('h2.inherit-fetch')) {
+            let page;
+            let url = e.querySelector('a').href;
+            let place = e.nextElementSibling;
+            try {
+                page = await fetch(url);
+                var parser = new DOMParser();
+                page = parser.parseFromString(await page.text(), 'text/html');
+
+                let baseEl = page.createElement('base');
+                baseEl.setAttribute('href', url);
+                page.head.append(baseEl);
+            } catch (error) {
+                place.innerText = error;
+                continue;
+            }
+            e.classList.remove('inherit-fetch');
+
+            let link = e.querySelector('a').outerHTML;
+            inherits.push({
+                link, page
+            });
+
+            await refactorDocument(page, inherits);
+
+            place.remove();
+            e.remove();
+        }
+    }
+
+    function mergeInherits(inherits) {
+        let insertPoint = this.document.getElementById("properties-insert-pt");
+        inherits.forEach(function (e) {
+            let parentProps = e.page.getElementById('properties');
+            if (parentProps != null) {
+
+                let title = this.document.createElement('h2');
+                title.classList.add("small-section-header");
+
+                title.innerHTML = e.link;
+                let name = title.querySelector('a').innerText;
+                title.id = 'properties-' + name;
+
+                title.innerHTML = "Properties from " + e.link + '<a href="#properties-' + name + '" class="anchor">§</a></h2>';
+
+                insertPoint.parentElement.insertBefore(title, insertPoint);
+            }
+
+            e.page.querySelectorAll('h2.small-section-header').forEach(function (e) {
+                if (e.id.indexOf('properties-') !== -1) {
+                    insertPoint.parentElement.insertBefore(e, insertPoint);
+                }
+            });
         });
     }
 })();
