@@ -47,13 +47,13 @@ impl Scroll {
 /// Clip content to only be visible within the viewport, not under scrollbars.
 ///
 /// Disabled by default.
-#[property(CONTEXT, capture, default(false), impl(Scroll))]
+#[property(CONTEXT, capture, default(false), widget_impl(Scroll))]
 pub fn clip_to_viewport(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {}
 
 /// Scroll mode.
 ///
 /// By default scrolls in both dimensions.
-#[property(CONTEXT, capture, default(ScrollMode::ALL), impl(Scroll))]
+#[property(CONTEXT, capture, default(ScrollMode::ALL), widget_impl(Scroll))]
 pub fn mode(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {

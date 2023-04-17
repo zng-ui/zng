@@ -29,7 +29,6 @@
 
 # Continue Widget Refactor
 
-* Review `widget_impl!`, no need for the `fn`?
 * Fix widget docs.
     - Refactor Mix.
         - Collect mix parents, generate a visual section for each.

@@ -719,7 +719,7 @@ impl Parse for Args {
             } else {
                 None
             },
-            impl_for: if input.peek(Token![,]) && (input.peek2(Token![impl]) || input.peek2(Token![for])) {
+            impl_for: if input.peek(Token![,]) && (input.peek2(keyword::widget_impl) || input.peek2(Token![for])) {
                 Some(input.parse()?)
             } else {
                 None
@@ -751,7 +751,7 @@ struct ImplFor {
 impl Parse for ImplFor {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let _: Token![,] = input.parse()?;
-        let _: Token![impl] = input.parse()?;
+        let _: keyword::widget_impl = input.parse()?;
         let inner;
         parenthesized!(inner in input);
 
@@ -901,6 +901,7 @@ impl Input {
 
 pub mod keyword {
     syn::custom_keyword!(capture);
+    syn::custom_keyword!(widget_impl);
 }
 
 pub fn expand_meta(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

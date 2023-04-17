@@ -33,7 +33,7 @@ impl AnsiText {
 }
 
 /// ANSI text.
-#[property(CONTEXT, capture, impl(AnsiText))]
+#[property(CONTEXT, capture, widget_impl(AnsiText))]
 pub fn txt(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode {}
 
 pub use ansi_parse::*;

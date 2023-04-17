@@ -870,7 +870,7 @@ pub fn children(_child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
 ///
 /// [captured]: crate::widget#property-capture
 /// [`WidgetBase`]: struct@WidgetBase
-#[property(CONTEXT, capture, default(WidgetId::new_unique()), impl(WidgetBase))]
+#[property(CONTEXT, capture, default(WidgetId::new_unique()), widget_impl(WidgetBase))]
 pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
     _child
 }
@@ -906,7 +906,7 @@ pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
 /// [`interactive`]: fn@interactive
 /// [`is_enabled`]: fn@is_enabled
 /// [`is_disabled`]: fn@is_disabled
-#[property(CONTEXT, default(true), impl(WidgetBase))]
+#[property(CONTEXT, default(true), widget_impl(WidgetBase))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct EnabledNode {
         child: impl UiNode,
@@ -1033,7 +1033,7 @@ pub fn is_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode
 /// [`is_hidden`]: fn@is_hidden
 /// [`is_collapsed`]: fn@is_collapsed
 /// [`WidgetInfo::visibility`]: crate::widget_info::WidgetInfo::visibility
-#[property(CONTEXT, default(true), impl(WidgetBase))]
+#[property(CONTEXT, default(true), widget_impl(WidgetBase))]
 pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
     #[ui_node(struct VisibilityNode {
         child: impl UiNode,

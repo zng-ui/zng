@@ -108,7 +108,7 @@ impl ListWgt {
         });
     }
 }
-#[crate::property(CHILD, capture, impl(ListWgt))]
+#[crate::property(CHILD, capture, widget_impl(ListWgt))]
 pub fn children(child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
     child
 }

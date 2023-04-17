@@ -50,7 +50,7 @@ pub fn foo_trace(child: impl UiNode, trace: impl crate::var::IntoValue<&'static 
     util::trace(child, trace)
 }
 
-#[crate::property(CONTEXT, impl(BarWgt))]
+#[crate::property(CONTEXT, widget_impl(BarWgt))]
 pub fn bar_trace(child: impl UiNode, trace: impl crate::var::IntoValue<&'static str>) -> impl UiNode {
     util::trace(child, trace)
 }
@@ -1082,7 +1082,7 @@ mod macro_rules_generated {
             #[widget($dollar crate::tests::widget::macro_rules_generated::$name)]
             pub struct $name($crate::widget_base::WidgetBase);
 
-            #[$crate::property(CONTEXT, impl($name))]
+            #[$crate::property(CONTEXT, widget_impl($name))]
             pub fn margin(
                 child: impl $crate::widget_instance::UiNode,
                 margin: impl $crate::var::IntoVar<$crate::units::SideOffsets>

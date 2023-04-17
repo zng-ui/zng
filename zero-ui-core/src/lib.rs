@@ -478,7 +478,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// Each widget is a struct and macro pair that construct a [`WidgetBuilder`] and instantiates a custom widget type.  Widgets
 /// *inherit* from one other widget, they can have intrinsic nodes and default properties and can build to a custom output type,
-/// the `#[property(.., impl(Widget))]` macro can be used to declare intrinsic properties that are always available in a widget.
+/// the `#[property(.., widget_impl(Widget))]` macro can be used to declare intrinsic properties that are always available in a widget.
 ///
 /// # Attribute
 ///

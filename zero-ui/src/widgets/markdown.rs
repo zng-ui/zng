@@ -50,7 +50,7 @@ impl Markdown {
 }
 
 /// Markdown text.
-#[property(CONTEXT, capture, impl(Markdown))]
+#[property(CONTEXT, capture, widget_impl(Markdown))]
 pub fn md(child: impl UiNode, md: impl IntoVar<Txt>) -> impl UiNode {}
 
 /// Implements the markdown parsing and view generation, configured by contextual properties.

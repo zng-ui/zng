@@ -68,7 +68,7 @@ context_var! {
 /// Note that you can read the checked state of the widget using [`is_checked`].
 ///
 /// [`is_checked`]: fn@is_checked
-#[property(CONTEXT, default(false), impl(Toggle))]
+#[property(CONTEXT, default(false), widget_impl(Toggle))]
 pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct CheckedNode {
         child: impl UiNode,
@@ -131,7 +131,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 /// }
 /// # ;
 /// ```
-#[property(CONTEXT, default(None), impl(Toggle))]
+#[property(CONTEXT, default(None), widget_impl(Toggle))]
 pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
     #[ui_node(struct CheckedOptNode {
         child: impl UiNode,
@@ -200,7 +200,7 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
 /// This is not enabled by default.
 ///
 /// [`checked_opt`]: fn@checked_opt
-#[property(CONTEXT, default(IS_TRISTATE_VAR), impl(Toggle))]
+#[property(CONTEXT, default(IS_TRISTATE_VAR), widget_impl(Toggle))]
 pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IS_TRISTATE_VAR, enabled)
 }
@@ -234,7 +234,7 @@ pub fn tristate(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode 
 /// [`checked`]: fn@checked
 /// [`checked_opt`]: fn@checked_opt
 /// [`value`]: fn@value.
-#[property(EVENT, impl(Toggle))]
+#[property(EVENT, widget_impl(Toggle))]
 pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_is_state(child, IS_CHECKED_VAR.map(|s| *s == Some(true)), state)
 }
@@ -280,7 +280,7 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// the contextual [`Selector`] is used to implement the behavior.
 ///
 /// [`selector`]: fn@selector
-#[property(CONTEXT, impl(Toggle))]
+#[property(CONTEXT, widget_impl(Toggle))]
 pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
     #[ui_node(struct ValueNode<T: VarValue + PartialEq> {
         child: impl UiNode,
@@ -449,7 +449,7 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
 /// selector so the [`value`] property only works if a contextual selector is present.
 ///
 /// [`value`]: fn@value
-#[property(CONTEXT, default(Selector::nil()), impl(Toggle))]
+#[property(CONTEXT, default(Selector::nil()), widget_impl(Toggle))]
 pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
     with_context_local(child, &SELECTOR, selector)
 }
@@ -457,7 +457,7 @@ pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl 
 /// If [`value`] is selected when the widget that has the value is inited.
 ///
 /// [`value`]: fn@value
-#[property(CONTEXT, default(SELECT_ON_INIT_VAR), impl(Toggle))]
+#[property(CONTEXT, default(SELECT_ON_INIT_VAR), widget_impl(Toggle))]
 pub fn select_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, SELECT_ON_INIT_VAR, enabled)
 }
@@ -465,7 +465,7 @@ pub fn select_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
 /// If [`value`] is deselected when the widget that has the value is deinited and the value was selected.
 ///
 /// [`value`]: fn@value
-#[property(CONTEXT, default(DESELECT_ON_DEINIT_VAR), impl(Toggle))]
+#[property(CONTEXT, default(DESELECT_ON_DEINIT_VAR), widget_impl(Toggle))]
 pub fn deselect_on_deinit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, DESELECT_ON_DEINIT_VAR, enabled)
 }
@@ -473,7 +473,7 @@ pub fn deselect_on_deinit(child: impl UiNode, enabled: impl IntoVar<bool>) -> im
 /// If [`value`] selects the new value when the variable changes and the previous value was selected.
 ///
 /// [`value`]: fn@value
-#[property(CONTEXT, default(SELECT_ON_NEW_VAR), impl(Toggle))]
+#[property(CONTEXT, default(SELECT_ON_NEW_VAR), widget_impl(Toggle))]
 pub fn select_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, SELECT_ON_NEW_VAR, enabled)
 }
@@ -481,7 +481,7 @@ pub fn select_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// If [`value`] deselects the previously selected value when the variable changes.
 ///
 /// [`value`]: fn@value
-#[property(CONTEXT, default(DESELECT_ON_NEW_VAR), impl(Toggle))]
+#[property(CONTEXT, default(DESELECT_ON_NEW_VAR), widget_impl(Toggle))]
 pub fn deselect_on_new(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, DESELECT_ON_NEW_VAR, enabled)
 }
@@ -918,7 +918,7 @@ context_var! {
 }
 
 /// Spacing between the switch and the content.
-#[property(CONTEXT, default(SWITCH_SPACING_VAR), impl(SwitchStyle))]
+#[property(CONTEXT, default(SWITCH_SPACING_VAR), widget_impl(SwitchStyle))]
 pub fn switch_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, SWITCH_SPACING_VAR, spacing)
 }
@@ -980,7 +980,7 @@ context_var! {
 }
 
 /// Spacing between the radio and the content.
-#[property(CONTEXT, default(RADIO_SPACING_VAR), impl(RadioStyle))]
+#[property(CONTEXT, default(RADIO_SPACING_VAR), widget_impl(RadioStyle))]
 pub fn radio_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, RADIO_SPACING_VAR, spacing)
 }

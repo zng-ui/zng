@@ -46,13 +46,13 @@ impl Scrollbar {
 /// thumb behavior and tags it-self in the frame.
 ///
 /// [`Thumb!`]: struct@super::Thumb
-#[property(CHILD, capture, default(super::Thumb!()), impl(Scrollbar))]
+#[property(CHILD, capture, default(super::Thumb!()), widget_impl(Scrollbar))]
 pub fn thumb(child: impl UiNode, node: impl UiNode) -> impl UiNode {}
 
 /// Scrollbar orientation.
 ///
 /// This sets the scrollbar alignment to fill its axis and take the cross-length from the thumb.
-#[property(CONTEXT, capture, default(Orientation::Vertical), impl(Scrollbar))]
+#[property(CONTEXT, capture, default(Orientation::Vertical), widget_impl(Scrollbar))]
 pub fn orientation(child: impl UiNode, orientation: impl IntoVar<Orientation>) -> impl UiNode {}
 
 context_var! {

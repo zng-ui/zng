@@ -31,15 +31,15 @@ impl Thumb {
 /// Viewport/content ratio.
 ///
 /// This becomes the height for vertical and width for horizontal.
-#[property(LAYOUT, capture, impl(Thumb))]
+#[property(LAYOUT, capture, widget_impl(Thumb))]
 pub fn viewport_ratio(child: impl UiNode, ratio: impl IntoVar<Factor>) -> impl UiNode {}
 
 /// Content offset.
-#[property(LAYOUT, capture, impl(Thumb))]
+#[property(LAYOUT, capture, widget_impl(Thumb))]
 pub fn offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl UiNode {}
 
 /// Width if orientation is vertical, otherwise height if orientation is horizontal.
-#[property(SIZE, capture, default(16), impl(Thumb))]
+#[property(SIZE, capture, default(16), widget_impl(Thumb))]
 pub fn cross_length(child: impl UiNode, length: impl IntoVar<Length>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {

@@ -87,21 +87,21 @@ impl Window {
 }
 
 /// Window position when it opens.
-#[property(LAYOUT, capture, impl(Window))]
+#[property(LAYOUT, capture, widget_impl(Window))]
 pub fn start_position(child: impl UiNode, position: impl IntoValue<StartPosition>) -> impl UiNode {}
 
 /// If the Inspector can be opened for this window.
 ///
 /// The default value is `true`, but only applies if built with the `inspector` feature.
 #[cfg(inspector)]
-#[property(LAYOUT, capture, impl(Window))]
+#[property(LAYOUT, capture, widget_impl(Window))]
 pub fn can_inspect(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {}
 
 /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
 ///
 /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
 /// is taken from the monitor. In headless mode these values can be configured manually.
-#[property(LAYOUT, capture, impl(Window))]
+#[property(LAYOUT, capture, widget_impl(Window))]
 pub fn headless_monitor(child: impl UiNode, monitor: impl IntoValue<HeadlessMonitor>) -> impl UiNode {}
 
 /// If the window is forced to be the foreground keyboard focus after opening.
@@ -109,7 +109,7 @@ pub fn headless_monitor(child: impl UiNode, monitor: impl IntoValue<HeadlessMoni
 /// By default the windows manager decides if the window will receive focus after opening, usually it is focused
 /// only if the process that started the window already has focus. Setting the property to `true` ensures that focus
 /// is moved to the new window, potentially stealing the focus from other apps and disrupting the user.
-#[property(CONTEXT, capture, impl(Window))]
+#[property(CONTEXT, capture, widget_impl(Window))]
 pub fn start_focused(child: impl UiNode, enabled: impl IntoValue<bool>) -> impl UiNode {}
 
 /// Lock-in kiosk mode.
@@ -120,7 +120,7 @@ pub fn start_focused(child: impl UiNode, enabled: impl IntoValue<bool>) -> impl 
 /// Note that this does not configure the windows manager,
 /// you still need to setup a kiosk environment, it does not block `ALT+TAB`. This just stops the
 /// app itself from accidentally exiting kiosk mode.
-#[property(CONTEXT, capture, impl(Window))]
+#[property(CONTEXT, capture, widget_impl(Window))]
 pub fn kiosk(child: impl UiNode, kiosk: impl IntoValue<bool>) -> impl UiNode {}
 
 /// If semi-transparent content is "see-through", mixin with the OS pixels "behind" the window.
@@ -134,7 +134,7 @@ pub fn kiosk(child: impl UiNode, kiosk: impl IntoValue<bool>) -> impl UiNode {}
 ///
 /// [`clear_color`]: fn@clear_color
 /// [`background_color`]: fn@background_color
-#[property(CONTEXT, capture, impl(Window))]
+#[property(CONTEXT, capture, widget_impl(Window))]
 pub fn allow_transparency(child: impl UiNode, allow: impl IntoValue<bool>) -> impl UiNode {}
 
 /// Render performance mode overwrite for this window, if set to `None` the [`WINDOWS.default_render_mode`] is used.
@@ -160,7 +160,7 @@ pub fn allow_transparency(child: impl UiNode, allow: impl IntoValue<bool>) -> im
 /// see [`RenderMode`] for more details about each mode and fallbacks.
 ///
 /// [`WINDOWS.default_render_mode`]: crate::core::window::WINDOWS::default_render_mode
-#[property(CONTEXT, capture, impl(Window))]
+#[property(CONTEXT, capture, widget_impl(Window))]
 pub fn render_mode(child: impl UiNode, mode: impl IntoValue<Option<RenderMode>>) -> impl UiNode {}
 
 /// Event just after the window opens.
@@ -170,7 +170,7 @@ pub fn render_mode(child: impl UiNode, mode: impl IntoValue<Option<RenderMode>>)
 /// This property handles the same event as [`on_pre_window_open`] so window handlers see it first.
 ///
 /// [`on_pre_window_open`]: fn@events::window::on_pre_window_open
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_open(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) -> impl UiNode {
     events::window::on_pre_window_open(child, handler)
 }
@@ -185,7 +185,7 @@ pub fn on_open(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) 
 ///
 /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
 /// [`on_pre_window_load`]: fn@events::window::on_pre_window_load
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) -> impl UiNode {
     events::window::on_pre_window_load(child, handler)
 }
@@ -194,7 +194,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) 
 ///
 /// This event notifies every time the user or the app tries to close the window, you can stop propagation
 /// to stop the window from being closed.
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_close_requested(child: impl UiNode, handler: impl WidgetHandler<WindowCloseRequestedArgs>) -> impl UiNode {
     events::window::on_window_close_requested(child, handler)
 }
@@ -202,7 +202,7 @@ pub fn on_close_requested(child: impl UiNode, handler: impl WidgetHandler<Window
 /// On window deinited.
 ///
 /// This event notifies once after the window content is deinited because it is closing.
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<events::widget::OnDeinitArgs>) -> impl UiNode {
     events::widget::on_deinit(child, handler)
 }
@@ -216,7 +216,7 @@ pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<events::widget::
 ///
 /// [`actual_position`]: crate::core::window::WindowVars::actual_position
 /// [`on_pre_window_moved`]: fn@events::window::on_pre_window_moved
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_moved(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_moved(child, handler)
 }
@@ -230,7 +230,7 @@ pub fn on_moved(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArg
 ///
 /// [`actual_size`]: crate::core::window::WindowVars::actual_size
 /// [`on_pre_window_resized`]: fn@events::window::on_pre_window_resized
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_resized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_resized(child, handler)
 }
@@ -244,7 +244,7 @@ pub fn on_resized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedA
 ///
 /// [`state`]: fn@state
 /// [`on_pre_window_state_changed`]: fn@events::window::on_pre_window_state_changed
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_state_changed(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_state_changed(child, handler)
 }
@@ -256,7 +256,7 @@ pub fn on_state_changed(child: impl UiNode, handler: impl WidgetHandler<WindowCh
 /// This property handles the same event as [`on_pre_window_maximized`] so window handlers see it first.
 ///
 /// [`on_pre_window_maximized`]: fn@events::window::on_pre_window_maximized
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_maximized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_maximized(child, handler)
 }
@@ -268,7 +268,7 @@ pub fn on_maximized(child: impl UiNode, handler: impl WidgetHandler<WindowChange
 /// This property handles the same event as [`on_pre_window_unmaximized`] so window handlers see it first.
 ///
 /// [`on_pre_window_unmaximized`]: fn@events::window::on_pre_window_unmaximized
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_unmaximized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_unmaximized(child, handler)
 }
@@ -280,7 +280,7 @@ pub fn on_unmaximized(child: impl UiNode, handler: impl WidgetHandler<WindowChan
 /// This property handles the same event as [`on_pre_window_maximized`] so window handlers see it first.
 ///
 /// [`on_pre_window_maximized`]: fn@events::window::on_pre_window_maximized
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_minimized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_minimized(child, handler)
 }
@@ -292,7 +292,7 @@ pub fn on_minimized(child: impl UiNode, handler: impl WidgetHandler<WindowChange
 /// This property handles the same event as [`on_pre_window_unminimized`] so window handlers see it first.
 ///
 /// [`on_pre_window_unminimized`]: fn@events::window::on_pre_window_unminimized
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_unminimized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_unminimized(child, handler)
 }
@@ -305,7 +305,7 @@ pub fn on_unminimized(child: impl UiNode, handler: impl WidgetHandler<WindowChan
 ///
 /// [`Normal`]: crate::core::window::WindowState::Normal
 /// [`on_pre_window_restored`]: fn@events::window::on_pre_window_restored
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_restored(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_restored(child, handler)
 }
@@ -319,7 +319,7 @@ pub fn on_restored(child: impl UiNode, handler: impl WidgetHandler<WindowChanged
 /// [`Fullscreen`]: crate::core::window::WindowState::Fullscreen
 /// [`Exclusive`]: crate::core::window::WindowState::Exclusive
 /// [`on_pre_window_fullscreen`]: fn@events::window::on_pre_window_fullscreen
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_fullscreen(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_fullscreen(child, handler)
 }
@@ -331,7 +331,7 @@ pub fn on_fullscreen(child: impl UiNode, handler: impl WidgetHandler<WindowChang
 /// This property handles the same event as [`on_pre_window_exited_fullscreen`] so window handlers see it first.
 ///
 /// [`on_pre_window_exited_fullscreen`]: fn@events::window::on_pre_window_exited_fullscreen
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_exited_fullscreen(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
     events::window::on_pre_window_exited_fullscreen(child, handler)
 }
@@ -339,7 +339,7 @@ pub fn on_exited_fullscreen(child: impl UiNode, handler: impl WidgetHandler<Wind
 /// On window frame rendered.
 ///
 /// If [`frame_capture_mode`](fn@frame_capture_mode) is set the image will be available in the event args.
-#[property(EVENT, impl(Window))]
+#[property(EVENT, widget_impl(Window))]
 pub fn on_frame_image_ready(child: impl UiNode, handler: impl WidgetHandler<FrameImageReadyArgs>) -> impl UiNode {
     events::window::on_pre_frame_image_ready(child, handler)
 }

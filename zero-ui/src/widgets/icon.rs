@@ -28,7 +28,7 @@ impl Icon {
 }
 
 /// The glyph icon.
-#[property(CONTEXT, capture, impl(Icon))]
+#[property(CONTEXT, capture, widget_impl(Icon))]
 pub fn ico(child: impl UiNode, ico: impl IntoVar<GlyphIcon>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
@@ -131,13 +131,13 @@ context_var! {
 }
 
 /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.
-#[property(CONTEXT, default(ICON_SIZE_VAR), impl(Icon))]
+#[property(CONTEXT, default(ICON_SIZE_VAR), widget_impl(Icon))]
 pub fn ico_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, ICON_SIZE_VAR, size)
 }
 
 /// Sets the [`ICON_COLOR_VAR`] that affects all icons inside the widget.
-#[property(CONTEXT, default(ICON_COLOR_VAR), impl(Icon))]
+#[property(CONTEXT, default(ICON_COLOR_VAR), widget_impl(Icon))]
 pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, ICON_COLOR_VAR, color)
 }

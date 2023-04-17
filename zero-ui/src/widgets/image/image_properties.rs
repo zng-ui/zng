@@ -113,7 +113,7 @@ context_var! {
 /// This property sets the [`IMAGE_FIT_VAR`].
 ///
 /// [`fit`]: fn@crate::widgets::image::fit
-#[property(CONTEXT, default(IMAGE_FIT_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_FIT_VAR), widget_impl(Image))]
 pub fn img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
     with_context_var(child, IMAGE_FIT_VAR, fit)
 }
@@ -126,7 +126,7 @@ pub fn img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
 ///
 /// [`img_scale_ppi`]: fn@img_scale_ppi
 /// [`scale`]: fn@crate::widgets::image::scale
-#[property(CONTEXT, default(IMAGE_SCALE_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_SCALE_VAR), widget_impl(Image))]
 pub fn img_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_VAR, scale)
 }
@@ -140,7 +140,7 @@ pub fn img_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNo
 /// This is enabled by default.
 ///
 /// [`img_crop`]: fn@img_crop
-#[property(CONTEXT, default(IMAGE_SCALE_FACTOR_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_SCALE_FACTOR_VAR), widget_impl(Image))]
 pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_FACTOR_VAR, enabled)
 }
@@ -159,7 +159,7 @@ pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 /// [`MONITORS`]: zero_ui::core::window::MONITORS
 ///
 /// [`scape_ppi`]: fn@crate::widgets::image::scape_ppi
-#[property(CONTEXT, default(IMAGE_SCALE_PPI_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_SCALE_PPI_VAR), widget_impl(Image))]
 pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_PPI_VAR, enabled)
 }
@@ -178,7 +178,7 @@ pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// [`BOTTOM`]: Align::BOTTOM
 ///
 /// [`img_align`]: fn@crate::widgets::image::img_align
-#[property(CONTEXT, default(IMAGE_ALIGN_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_ALIGN_VAR), widget_impl(Image))]
 pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, IMAGE_ALIGN_VAR, fit)
 }
@@ -192,7 +192,7 @@ pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
 ///
 /// [`offset`]: fn@crate::properties::offset
 /// [`img_offset`]: fn@crate::widgets::image::img_offset
-#[property(CONTEXT, default(IMAGE_OFFSET_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_OFFSET_VAR), widget_impl(Image))]
 pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
     with_context_var(child, IMAGE_OFFSET_VAR, offset)
 }
@@ -208,7 +208,7 @@ pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNo
 /// [`img_scale_ppi`]: #fn@img_scale_ppi
 /// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas///
 /// [`crop`]: fn@crate::widgets::image::crop
-#[property(CONTEXT, default(IMAGE_CROP_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_CROP_VAR), widget_impl(Image))]
 pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
     with_context_var(child, IMAGE_CROP_VAR, crop)
 }
@@ -228,7 +228,7 @@ pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
 /// This is [`ImageRendering::Auto`] by default.
 ///
 /// [`rendering`]: fn@crate::widgets::image::rendering
-#[property(CONTEXT, default(IMAGE_RENDERING_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_RENDERING_VAR), widget_impl(Image))]
 pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>) -> impl UiNode {
     with_context_var(child, IMAGE_RENDERING_VAR, rendering)
 }
@@ -245,7 +245,7 @@ pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>
 ///
 /// [`source`]: fn@crate::widgets::image::source
 /// [`IMAGES`]: zero_ui::core::image::IMAGES
-#[property(CONTEXT, default(IMAGE_CACHE_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_CACHE_VAR), widget_impl(Image))]
 pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_CACHE_VAR, enabled)
 }
@@ -258,7 +258,7 @@ pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
 ///
 /// [`IMAGES.limits`]: crate::core::image::IMAGES::limits
 /// [`img_downscale`]: fn@img_downscale
-#[property(CONTEXT, default(IMAGE_LIMITS_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_LIMITS_VAR), widget_impl(Image))]
 pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
     with_context_var(child, IMAGE_LIMITS_VAR, limits)
 }
@@ -275,19 +275,19 @@ pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>)
 ///
 /// [`IMAGES.limits`]: crate::core::image::IMAGES::limits
 /// [`img_limits`]: fn@img_limits
-#[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR), widget_impl(Image))]
 pub fn img_downscale(child: impl UiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> impl UiNode {
     with_context_var(child, IMAGE_DOWNSCALE_VAR, downscale)
 }
 
 /// If the [`CONTEXT_IMAGE_VAR`] is an error.
-#[property(LAYOUT)]
+#[property(LAYOUT, widget_impl(Image))]
 pub fn is_error(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_is_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_error()), state)
 }
 
 /// If the [`CONTEXT_IMAGE_VAR`] is a successfully loaded image.
-#[property(LAYOUT)]
+#[property(LAYOUT, widget_impl(Image))]
 pub fn is_loaded(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_is_state(child, CONTEXT_IMAGE_VAR.map(|m| m.is_loaded()), state)
 }
@@ -295,7 +295,7 @@ pub fn is_loaded(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
 /// [`wgt_fn!`]: crate::widgets::wgt_fn
-#[property(CONTEXT, default(IMAGE_ERROR_GEN_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_ERROR_GEN_VAR), widget_impl(Image))]
 pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_ERROR_GEN_VAR, wgt_fn)
 }
@@ -303,7 +303,7 @@ pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorAr
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
 /// [`wgt_fn!`]: crate::widgets::wgt_fn
-#[property(CONTEXT, default(IMAGE_LOADING_GEN_VAR), impl(Image))]
+#[property(CONTEXT, default(IMAGE_LOADING_GEN_VAR), widget_impl(Image))]
 pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgLoadingArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_LOADING_GEN_VAR, wgt_fn)
 }
@@ -342,7 +342,7 @@ pub struct ImgErrorArgs {
 /// # Route
 ///
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
-#[property(EVENT, impl(Image))]
+#[property(EVENT, widget_impl(Image))]
 pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -> impl UiNode {
     #[ui_node(struct OnErrorNode {
         child: impl UiNode,
@@ -397,7 +397,7 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -
 /// # Route
 ///
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
-#[property(EVENT, impl(Image))]
+#[property(EVENT, widget_impl(Image))]
 pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> impl UiNode {
     #[ui_node(struct OnLoadNode {
         child: impl UiNode,
@@ -431,7 +431,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> 
 ///
 /// If the image widget is in the initial window content a [`WindowLoadingHandle`] is used to delay the window
 /// visually opening until the source loads, fails to load or a timeout elapses. By default `true` sets the timeout to 1 second.
-#[property(LAYOUT, default(false), impl(Image))]
+#[property(LAYOUT, default(false), widget_impl(Image))]
 pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
     #[ui_node(struct ImageBlockWindowLoadNode {
         child: impl UiNode,

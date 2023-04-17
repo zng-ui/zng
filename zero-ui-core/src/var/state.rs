@@ -20,7 +20,7 @@ use crate::{context::*, event::*, widget_instance::*, *};
 /// # }
 /// # #[widget($crate::Text)]
 /// # pub struct Text(widget_base::WidgetBase);
-/// # #[property(CHILD, impl(Text))]
+/// # #[property(CHILD, widget_impl(Text))]
 /// # pub fn txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode { child }
 /// # fn main() {
 /// # let _scope = zero_ui_core::app::App::minimal();

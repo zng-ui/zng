@@ -94,7 +94,7 @@ impl WidgetExt for WgtInfo {
 /// # }
 /// # #[zero_ui_core::widget($crate::FooWgt)]
 /// # pub struct FooWgt(zero_ui_core::widget_base::WidgetBase);
-/// # #[property(CONTEXT, impl(FooWgt))]
+/// # #[property(CONTEXT, widget_impl(FooWgt))]
 /// # pub fn bar(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
 /// #   child
 /// # }

@@ -43,7 +43,7 @@ context_var! {
 #[property(
     CONTEXT,
     default(FOCUS_HIGHLIGHT_OFFSETS_VAR, FOCUS_HIGHLIGHT_WIDTHS_VAR, FOCUS_HIGHLIGHT_SIDES_VAR),
-    impl(FocusableMix<P>)
+    widget_impl(FocusableMix<P>)
 )]
 pub fn focus_highlight(
     child: impl UiNode,

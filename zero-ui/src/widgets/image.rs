@@ -27,7 +27,7 @@ impl Image {
 /// The image source.
 ///
 /// Can be a file path, an URI, binary included in the app and more.
-#[property(CONTEXT, capture, impl(Image))]
+#[property(CONTEXT, capture, widget_impl(Image))]
 pub fn source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {

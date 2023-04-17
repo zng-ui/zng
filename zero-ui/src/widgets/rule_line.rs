@@ -12,15 +12,15 @@ impl RuleLine {
 }
 
 /// Line orientation.
-#[property(CONTEXT, capture, default(LineOrientation::Horizontal), impl(RuleLine))]
+#[property(CONTEXT, capture, default(LineOrientation::Horizontal), widget_impl(RuleLine))]
 pub fn orientation(child: impl UiNode, orientation: impl IntoVar<LineOrientation>) -> impl UiNode {}
 
 /// Line color.
-#[property(CONTEXT, capture, default(rgb(0, 0, 0)), impl(RuleLine))]
+#[property(CONTEXT, capture, default(rgb(0, 0, 0)), widget_impl(RuleLine))]
 pub fn color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {}
 
 /// Line stroke thickness.
-#[property(CONTEXT, capture, default(1), impl(RuleLine))]
+#[property(CONTEXT, capture, default(1), widget_impl(RuleLine))]
 pub fn stroke_thickness(child: impl UiNode, thickness: impl IntoVar<Length>) -> impl UiNode {}
 
 /// Line length.
@@ -28,11 +28,11 @@ pub fn stroke_thickness(child: impl UiNode, thickness: impl IntoVar<Length>) -> 
 /// Set to [`Default`] to fill available length without requesting any length.
 ///
 /// [`Default`]: Length::Default
-#[property(CONTEXT, capture, default(Length::Default), impl(RuleLine))]
+#[property(CONTEXT, capture, default(Length::Default), widget_impl(RuleLine))]
 pub fn length(child: impl UiNode, length: impl IntoVar<Length>) -> impl UiNode {}
 
 /// Line style.
-#[property(CONTEXT, capture, default(LineStyle::Solid), impl(RuleLine))]
+#[property(CONTEXT, capture, default(LineStyle::Solid), widget_impl(RuleLine))]
 pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
