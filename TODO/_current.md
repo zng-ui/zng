@@ -36,16 +36,10 @@
 
 * Fix widget docs.
     - Refactor Mix.
-        - Collect mix parents, generate a visual section for each.
-            - Show `loading..` or something while fetching, the important bit is the link to parent that can
-              be used in offline mode, because fetch will not work in that case.
-        - Fetch inner mixes because Rust-Doc does not auto include these.
-        - Fetch needs to be applied in inherit order, to continue the PROPERTIES override check.
-        - Not all parents are linked directly, the inner-most type of the mix-ins may need to fetch too.
-        - Avoid fetching the same mix-min parent more then once too, a widget can inherited from `FooMix<Bar>` when
-          `Bar` already is `FooMix<WidgetBase>`.
+    - Fetched parent methods (need to cleanup associated functions and generate a Deref<Target=T> where Deref is linked).
 
     - Have a fancy tooltip that shows how to call the property in the macro.
         - Same style as the notable trait?
 
+* Make more properties impl widgets (like all the base properties).
 * Implement `TextMix<P>` or even more segmented mix-ins, use then in `Link` and other text widgets?

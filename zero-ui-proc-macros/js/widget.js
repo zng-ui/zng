@@ -217,7 +217,9 @@
 
     function mergeInherits(inherits) {
         let insertPoint = this.document.getElementById("properties-insert-pt");
+        let sideInsertPoint = this.document.getElementById("properties-side-insert-pt");
         inherits.forEach(function (e) {
+            let side = e.page.querySelector('.sidebar-elems');
             let parentProps = e.page.getElementById('properties');
             if (parentProps != null) {
 
@@ -227,15 +229,78 @@
                 title.innerHTML = e.link;
                 let name = title.querySelector('a').innerText;
                 title.id = 'properties-' + name;
-
                 title.innerHTML = "Properties from " + e.link + '<a href="#properties-' + name + '" class="anchor">§</a></h2>';
 
                 insertPoint.parentElement.insertBefore(title, insertPoint);
+                insertPoint.parentElement.insertBefore(parentProps.nextElementSibling, insertPoint);
+
+                let sideTitle = side.querySelector('h3');
+                let sideTitleA = sideTitle.querySelector('a');
+                sideTitleA.innerText = title.innerText;
+                sideTitleA.href = '#properties-' + name;
+                let sideList = side.querySelector('ul');
+
+                sideInsertPoint.parentElement.insertBefore(sideTitle, sideInsertPoint);
+                sideInsertPoint.parentElement.insertBefore(sideList, sideInsertPoint);
             }
 
             e.page.querySelectorAll('h2.small-section-header').forEach(function (e) {
                 if (e.id.indexOf('properties-') !== -1) {
+                    let list = e.nextElementSibling;
                     insertPoint.parentElement.insertBefore(e, insertPoint);
+                    insertPoint.parentElement.insertBefore(list, insertPoint);
+                }
+            });
+            side.querySelectorAll('h3').forEach(function (e) {
+                if (e.querySelector('a').href.indexOf('#properties-') !== -1) {
+                    let sideList = e.nextElementSibling;
+                    sideInsertPoint.parentElement.insertBefore(e, sideInsertPoint);
+                    sideInsertPoint.parentElement.insertBefore(sideList, sideInsertPoint);
+                }
+            });
+
+            let methodsInsertPoint = null;
+            this.document.querySelectorAll('h2.small-section-header').forEach(function(e) {
+                if (e.id.indexOf('deref-methods-') !== -1) {
+                    methodsInsertPoint = e;
+                }
+            });
+            if (methodsInsertPoint === null) {
+                let impls = this.document.getElementById('implementations');
+                if (impls !== null) {
+                    methodsInsertPoint = impls.nextElementSibling.nextElementSibling;
+                } else {
+                    methodsInsertPoint = insertPoint.nextElementSibling;
+                }
+            } else {
+                methodsInsertPoint = methodsInsertPoint.nextElementSibling.nextElementSibling;
+            }
+
+            e.page.querySelectorAll('h2.small-section-header').forEach(function(e) {
+                if (e.id.indexOf('deref-methods-') !== -1) {
+                    let list = e.nextElementSibling;
+                    methodsInsertPoint.parentElement.insertBefore(e, methodsInsertPoint);
+                    methodsInsertPoint.parentElement.insertBefore(list, methodsInsertPoint);
+                }
+            });
+
+            let methodsSideInsertPoint = null;
+            sideInsertPoint.parentElement.querySelectorAll('h3').forEach(function(e) {
+                let href = e.querySelector('a').href;
+                if (href.indexOf('#deref-methods-') !== -1 || href.indexOf('#implementations') !== -1) {
+                    methodsSideInsertPoint = e;
+                }
+            });
+            if (methodsSideInsertPoint === null) {
+                methodsSideInsertPoint = sideInsertPoint.nextElementSibling;
+            } else {
+                methodsSideInsertPoint = methodsSideInsertPoint.nextElementSibling.nextElementSibling;
+            }
+            side.querySelectorAll('h3').forEach(function(e) {
+                if (e.querySelector('a').href.indexOf('#deref-methods-') !== -1) {
+                    let sideList = e.nextElementSibling;
+                    methodsSideInsertPoint.parentElement.insertBefore(e, methodsSideInsertPoint);
+                    methodsSideInsertPoint.parentElement.insertBefore(sideList, methodsSideInsertPoint);
                 }
             });
         });
