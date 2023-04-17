@@ -1,4 +1,4 @@
-//!: Window widget, properties, properties and nodes..
+//! Window widget, properties, properties and nodes..
 
 use crate::core::focus::*;
 use crate::core::window::{

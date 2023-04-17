@@ -30,9 +30,20 @@
 # Continue Widget Refactor
 
 * Fix widget docs.
+    - Refactor Mix.
+        - Collect mix parents, generate a visual section for each.
+            - Show `loading..` or something while fetching, the important bit is the link to parent that can
+              be used in offline mode, because fetch will not work in that case.
+        - Fetch inner mixes because Rust-Doc does not auto include these.
+        - Fetch needs to be applied in inherit order, to continue the PROPERTIES override check.
+        - Not all parents are linked directly, the inner-most type of the mix-ins can have a parents
+          of their own.
+        - Avoid fetching the same mix-min parent more then once too, a widget can inherited from `FooMix<Bar>` when
+          `Bar` already is `FooMix<WidgetBase>`.
+
     - Refactor properties methods to have macro assign signature?
         - Change anchor names from `#method-name` to `#property-name`?
-    - Refactor Mix title to only include the mix struct.
-        - Fetch inner mixes because Rust-Doc does not auto include these.
+        - Maybe hiding to much, also using the call syntax on declaration is weird.
+            - Maybe we can have a fancy tooltip that shows how to call the property in the macro.
 
 * Implement `TextMix<P>` or even more segmented mix-ins, use then in `Link` and other text widgets?
