@@ -33,8 +33,6 @@
 
 # Continue Widget Refactor
 
-* Link to fetched `WidgetBase` does not work in `Button`.
-
 * Review `Link` widget.
     - Link should be a `Button` style?
         - Like `Toggle` has different styles.

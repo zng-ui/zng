@@ -202,10 +202,6 @@
                 page = await fetch(url);
                 var parser = new DOMParser();
                 page = parser.parseFromString(await page.text(), 'text/html');
-
-                let baseEl = page.createElement('base');
-                baseEl.setAttribute('href', url);
-                page.head.append(baseEl);
             } catch (error) {
                 place.innerText = error;
                 continue;

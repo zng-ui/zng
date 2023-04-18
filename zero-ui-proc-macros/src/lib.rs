@@ -6,6 +6,9 @@
 #[macro_use]
 extern crate quote;
 
+#[macro_use]
+extern crate lazy_static;
+
 use proc_macro::TokenStream;
 
 #[macro_use]

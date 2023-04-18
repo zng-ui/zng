@@ -7,7 +7,13 @@ use crate::{
     widget_util::{self, WgtProperty, WgtWhen},
 };
 
-static DOCS_JS: &str = include_str!("../js/widget.js");
+lazy_static! {
+    static ref DOCS_JS: String = {
+        let js = include_str!("../js/widget.js");
+        let js = minifier::js::minify(js);
+        format!("<script>{js}</script>")
+    };
+}
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mixin: bool) -> proc_macro::TokenStream {
     // the widget struct declaration.
@@ -241,7 +247,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         (r, start_r)
     };
 
-    let docs_js = format!("\n\n<script>\n{DOCS_JS}\n</script>");
+    let docs_js = DOCS_JS.as_str();
 
     let r = quote! {
         #attrs
