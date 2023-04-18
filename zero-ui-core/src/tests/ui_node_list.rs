@@ -40,7 +40,6 @@ pub fn init_many() {
         assert_eq!(count, i);
         count += 1;
         threads.insert(util::get_init_thread(wgt));
-        true
     });
     assert_eq!(count, 1000);
     assert!(threads.len() > 1);

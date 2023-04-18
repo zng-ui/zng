@@ -205,7 +205,6 @@ impl WidgetInfoInspectorExt for WidgetInfo {
                         let mut found = false;
                         list.for_each_ctx(|_| {
                             found = WIDGET.id() == id;
-                            !found
                         });
                         if found {
                             return Some((args.id(), i));

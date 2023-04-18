@@ -222,66 +222,35 @@ impl WhenUiNodeList {
 }
 
 impl UiNodeList for WhenUiNodeList {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&BoxedUiNode) -> R,
-    {
-        self.children().with_node(index, f)
-    }
-
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R,
     {
-        self.children_mut_with_handles().0.with_node_mut(index, f)
+        self.children_mut_with_handles().0.with_node(index, f)
     }
 
-    fn for_each<F>(&self, f: F)
+    fn for_each<F>(&mut self, f: F)
     where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
+        F: FnMut(usize, &mut BoxedUiNode),
     {
-        self.children().for_each(f)
+        self.children_mut_with_handles().0.for_each(f)
     }
 
-    fn for_each_mut<F>(&mut self, f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        self.children_mut_with_handles().0.for_each_mut(f)
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
-    {
-        self.children().par_each(f)
-    }
-
-    fn par_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
-        self.children_mut_with_handles().0.par_each_mut(f)
+        self.children_mut_with_handles().0.par_each(f)
     }
 
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        self.children().par_fold(f, identity, fold)
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
     where
         T: Send,
         F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
         I: Fn() -> T + Send + Sync,
         O: Fn(T, T) -> T + Send + Sync,
     {
-        self.children_mut_with_handles().0.par_fold_mut(f, identity, fold)
+        self.children_mut_with_handles().0.par_fold(f, identity, fold)
     }
 
     fn len(&self) -> usize {

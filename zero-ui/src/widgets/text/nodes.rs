@@ -1,9 +1,6 @@
 //! UI nodes used for building a text widget.
 
-use std::{
-    fmt,
-    sync::Arc,
-};
+use std::{fmt, sync::Arc};
 
 use atomic::{Atomic, Ordering};
 use font_features::FontVariations;

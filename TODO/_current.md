@@ -1,13 +1,3 @@
-* More mut node and list.
-    - Refactor all to only have mutable versions of method pair currently `for_each` and `par_each` mut.
-
-* Direct layout and render updates.
-    - Work the same way as normal updates, with the `WidgetUpdates` list, but in the layout and render cycle.
-    - Use this to implement special subscriptions that automatically layout/render a widget, saving an update
-      cycle.
-
-# Other
-
 * Layer fade-out.
     - Implement `layer_remove_delay` using `on_layer_remove_requested`.
     - Implement `is_layer_removing`.
@@ -35,3 +25,8 @@
 
 * Review all docs.
     - Mentions of threads in particular.
+
+* Direct layout and render updates.
+    - Work the same way as normal updates, with the `WidgetUpdates` list, but in the layout and render cycle.
+    - Use this to implement special subscriptions that automatically layout/render a widget, saving an update
+      cycle.

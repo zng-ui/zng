@@ -611,7 +611,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
         fn update(&mut self, updates: &WidgetUpdates) {
             let mut changed = false;
             {
-                let editable_list = self.children.1.list_mut();
+                let editable_list = self.children.1.list();
 
                 let removes = editable_list.take_remove_requests();
 
@@ -670,16 +670,15 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
         }
 
         fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node_mut(0, |n| n.measure(wm))
+            self.children.with_node(0, |n| n.measure(wm))
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();
-            self.children.for_each_mut(|i, n| {
+            self.children.for_each(|i, n| {
                 let s = n.layout(wl);
                 if i == 0 {
                     size = s;
                 }
-                true
             });
             size
         }

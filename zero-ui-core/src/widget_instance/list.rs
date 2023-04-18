@@ -1,5 +1,4 @@
 use std::{
-    cell::{Cell, RefCell},
     cmp::Ordering,
     mem, ops,
     sync::{
@@ -72,81 +71,28 @@ macro_rules! ui_vec {
 pub use crate::ui_vec;
 
 impl UiNodeList for Vec<BoxedUiNode> {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&BoxedUiNode) -> R,
-    {
-        f(&self[index])
-    }
-
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R,
     {
         f(&mut self[index])
     }
 
-    fn for_each<F>(&self, mut f: F)
+    fn for_each<F>(&mut self, mut f: F)
     where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
+        F: FnMut(usize, &mut BoxedUiNode),
     {
-        for (i, node) in self.iter().enumerate() {
-            if !f(i, node) {
-                break;
-            }
-        }
+        self.iter_mut().enumerate().for_each(|(i, n)| f(i, n))
     }
 
-    fn for_each_mut<F>(&mut self, mut f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        for (i, node) in self.iter_mut().enumerate() {
-            if !f(i, node) {
-                break;
-            }
-        }
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
-    {
-        tracing::warn!("`par_each` fallback to `for_each`, use a `Sync` list like `PanelList` or `Mutex<impl UiNodeList>` to use `par_each` in parallel");
-        self.for_each(|i, n| {
-            f(i, n);
-            true
-        })
-    }
-
-    fn par_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
         self.par_iter_mut().enumerate().with_ctx().for_each(|(i, n)| f(i, n));
     }
 
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        tracing::warn!("`par_each_fold` fallback to `for_each`, use a `Sync` list like `PanelList` or `Mutex<impl UiNodeList>` to use `par_each` in parallel");
-
-        let mut res = Some(identity());
-        self.for_each(|i, n| {
-            let b = f(i, n);
-            let a = res.take().unwrap();
-            let r = fold(a, b);
-            res = Some(r);
-            true
-        });
-        res.unwrap()
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
     where
         T: Send,
         F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
@@ -244,66 +190,35 @@ impl IntoIterator for UiNodeVec {
 }
 
 impl UiNodeList for UiNodeVec {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
-        F: FnOnce(&BoxedUiNode) -> R,
+        F: FnOnce(&mut BoxedUiNode) -> R,
     {
         self.0.with_node(index, f)
     }
 
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn for_each<F>(&mut self, f: F)
     where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        self.0.with_node_mut(index, f)
-    }
-
-    fn for_each<F>(&self, f: F)
-    where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
+        F: FnMut(usize, &mut BoxedUiNode),
     {
         self.0.for_each(f)
     }
 
-    fn for_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        self.0.for_each_mut(f)
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
         self.0.par_each(f)
     }
 
-    fn par_each_mut<F>(&mut self, f: F)
-    where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    {
-        self.0.par_each_mut(f)
-    }
-
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        self.0.par_fold(f, identity, fold)
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
     where
         T: Send,
         F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
         I: Fn() -> T + Send + Sync,
         O: Fn(T, T) -> T + Send + Sync,
     {
-        self.0.par_fold_mut(f, identity, fold)
+        self.0.par_fold(f, identity, fold)
     }
 
     fn len(&self) -> usize {
@@ -341,9 +256,9 @@ impl<A: UiNodeList> UiNodeListChain for A {
 /// Implements [`UiNodeListChain`].
 pub struct UiNodeListChainImpl<A: UiNodeList, B: UiNodeList>(pub A, pub B);
 impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
-        F: FnOnce(&BoxedUiNode) -> R,
+        F: FnOnce(&mut BoxedUiNode) -> R,
     {
         assert_bounds(self.len(), index);
 
@@ -354,82 +269,24 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         }
     }
 
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn for_each<F>(&mut self, mut f: F)
     where
-        F: FnOnce(&mut BoxedUiNode) -> R,
+        F: FnMut(usize, &mut BoxedUiNode),
     {
-        assert_bounds(self.len(), index);
-
-        if index < self.0.len() {
-            self.0.with_node_mut(index, f)
-        } else {
-            self.1.with_node_mut(index - self.0.len(), f)
-        }
-    }
-
-    fn for_each<F>(&self, mut f: F)
-    where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
-    {
-        let mut continue_iter = true;
-        self.0.for_each(|i, n| {
-            continue_iter = f(i, n);
-            continue_iter
-        });
-
-        if continue_iter {
-            let offset = self.0.len();
-            self.1.for_each(move |i, n| f(i + offset, n))
-        }
-    }
-
-    fn for_each_mut<F>(&mut self, mut f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        let mut continue_iter = true;
-        self.0.for_each_mut(|i, n| {
-            continue_iter = f(i, n);
-            continue_iter
-        });
-
-        if continue_iter {
-            let offset = self.0.len();
-            self.1.for_each_mut(move |i, n| f(i + offset, n))
-        }
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
-    {
+        self.0.for_each(&mut f);
         let offset = self.0.len();
-        self.0.par_each(&f);
-        self.1.par_each(|i, n| f(i + offset, n));
+        self.1.for_each(move |i, n| f(i + offset, n))
     }
 
-    fn par_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
         let offset = self.0.len();
-        task::join(|| self.0.par_each_mut(&f), || self.1.par_each_mut(|i, n| f(i + offset, n)));
+        task::join(|| self.0.par_each(&f), || self.1.par_each(|i, n| f(i + offset, n)));
     }
 
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        let offset = self.0.len();
-        let a = self.0.par_fold(&f, &identity, &fold);
-        let b = self.1.par_fold(|i, n| f(i + offset, n), &identity, &fold);
-        fold(a, b)
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
     where
         T: Send,
         F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
@@ -438,8 +295,8 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     {
         let offset = self.0.len();
         let (a, b) = task::join(
-            || self.0.par_fold_mut(&f, &identity, &fold),
-            || self.1.par_fold_mut(|i, n| f(i + offset, n), &identity, &fold),
+            || self.0.par_fold(&f, &identity, &fold),
+            || self.1.par_fold(|i, n| f(i + offset, n), &identity, &fold),
         );
         fold(a, b)
     }
@@ -562,7 +419,7 @@ where
 {
     list: L,
 
-    map: RefCell<Vec<usize>>,
+    map: Vec<usize>,
     sort: S,
 }
 impl<L, S> SortingList<L, S>
@@ -572,15 +429,11 @@ where
 {
     /// New from list and sort function.
     pub fn new(list: L, sort: S) -> Self {
-        Self {
-            list,
-            map: RefCell::new(vec![]),
-            sort,
-        }
+        Self { list, map: vec![], sort }
     }
 
-    fn update_map(&self) {
-        let mut map = self.map.borrow_mut();
+    fn update_map(&mut self) {
+        let map = &mut self.map;
         let len = self.list.len();
 
         if len == 0 {
@@ -588,53 +441,37 @@ where
         } else if map.len() != len {
             map.clear();
             map.extend(0..len);
-            map.sort_by(|&a, &b| self.list.with_node(a, |a| self.list.with_node(b, |b| (self.sort)(a, b))))
+            let mut taken_a = NilUiNode.boxed();
+            map.sort_by(|&a, &b| {
+                self.list.with_node(a, |a| mem::swap(a, &mut taken_a));
+                let result = self.list.with_node(b, |b| (self.sort)(&taken_a, b));
+
+                self.list.with_node(a, |a| mem::swap(a, &mut taken_a));
+
+                result
+            })
         }
     }
-
-    /// Borrow the inner list.
-    pub fn list(&self) -> &L {
-        &self.list
-    }
-
     /// Mutable borrow the inner list.
     ///
     /// You must call [`invalidate_sort`] if any modification may have affected sort without changing the list length.
     ///
     /// [`invalidate_sort`]: Self::invalidate_sort
-    pub fn list_mut(&mut self) -> &mut L {
+    pub fn list(&mut self) -> &mut L {
         &mut self.list
     }
 
     /// Invalidate the sort, the list will resort on the nest time the sorted positions are needed.
     ///
     /// Note that you can also invalidate sort from the inside using [`SortingListParent::invalidate_sort`].
-    pub fn invalidate_sort(&self) {
-        self.map.borrow_mut().clear()
+    pub fn invalidate_sort(&mut self) {
+        self.map.clear()
     }
 
-    fn with_map<R>(&self, f: impl FnOnce(&[usize], &L) -> R) -> R {
+    fn with_map<R>(&mut self, f: impl FnOnce(&[usize], &mut L) -> R) -> R {
         self.update_map();
 
-        let (r, resort) = SortingListParent::with(|| {
-            let map = self.map.borrow();
-            f(&map, &self.list)
-        });
-
-        if resort {
-            self.invalidate_sort();
-        }
-
-        r
-    }
-
-    fn with_map_mut<R>(&mut self, f: impl FnOnce(&[usize], &mut L) -> R) -> R {
-        self.update_map();
-
-        let (r, resort) = SortingListParent::with(|| {
-            let map = self.map.borrow();
-            f(&map, &mut self.list)
-        });
+        let (r, resort) = SortingListParent::with(|| f(&self.map, &mut self.list));
 
         if resort {
             self.invalidate_sort();
@@ -648,70 +485,35 @@ where
     L: UiNodeList,
     S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + Send + 'static,
 {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
-        F: FnOnce(&BoxedUiNode) -> R,
+        F: FnOnce(&mut BoxedUiNode) -> R,
     {
         self.with_map(|map, list| list.with_node(map[index], f))
     }
 
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn for_each<F>(&mut self, mut f: F)
     where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        self.with_map_mut(|map, list| list.with_node_mut(map[index], f))
-    }
-
-    fn for_each<F>(&self, mut f: F)
-    where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
+        F: FnMut(usize, &mut BoxedUiNode),
     {
         self.with_map(|map, list| {
             for (index, map) in map.iter().enumerate() {
-                if !list.with_node(*map, |n| f(index, n)) {
-                    break;
-                }
+                list.with_node(*map, |n| f(index, n))
             }
         });
     }
 
-    fn for_each_mut<F>(&mut self, mut f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        self.with_map_mut(|map, list| {
-            for (index, map) in map.iter().enumerate() {
-                if !list.with_node_mut(*map, |n| f(index, n)) {
-                    break;
-                }
-            }
-        });
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
-    {
-        self.for_each(move |i, n| {
-            f(i, n);
-            true
-        })
-    }
-
-    fn par_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
-        self.for_each_mut(move |i, n| {
-            f(i, n);
-            true
-        })
+        self.for_each(f)
     }
 
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
     where
         T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
+        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
         I: Fn() -> T + Send + Sync,
         O: Fn(T, T) -> T + Send + Sync,
     {
@@ -721,25 +523,6 @@ where
             let a = res.take().unwrap();
             let r = fold(a, b);
             res = Some(r);
-            true
-        });
-        res.unwrap()
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        let mut res = Some(identity());
-        self.for_each_mut(|i, n| {
-            let b = f(i, n);
-            let a = res.take().unwrap();
-            let r = fold(a, b);
-            res = Some(r);
-            true
         });
         res.unwrap()
     }
@@ -756,7 +539,7 @@ where
         let start = vec.len();
         self.list.drain_into(vec);
         vec[start..].sort_by(&self.sort);
-        self.map.get_mut().clear();
+        self.map.clear();
     }
 
     fn init_all(&mut self) {
@@ -1329,66 +1112,35 @@ impl ops::DerefMut for EditableUiNodeList {
     }
 }
 impl UiNodeList for EditableUiNodeList {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
-        F: FnOnce(&BoxedUiNode) -> R,
+        F: FnOnce(&mut BoxedUiNode) -> R,
     {
         self.vec.with_node(index, f)
     }
 
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn for_each<F>(&mut self, f: F)
     where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        self.vec.with_node_mut(index, f)
-    }
-
-    fn for_each<F>(&self, f: F)
-    where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
+        F: FnMut(usize, &mut BoxedUiNode),
     {
         self.vec.for_each(f)
     }
 
-    fn for_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        self.vec.for_each_mut(f)
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
         self.vec.par_each(f)
     }
 
-    fn par_each_mut<F>(&mut self, f: F)
-    where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    {
-        self.vec.par_each_mut(f)
-    }
-
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        self.vec.par_fold(f, identity, fold)
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
     where
         T: Send,
         F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
         I: Fn() -> T + Send + Sync,
         O: Fn(T, T) -> T + Send + Sync,
     {
-        self.vec.par_fold_mut(f, identity, fold)
+        self.vec.par_fold(f, identity, fold)
     }
 
     fn len(&self) -> usize {
@@ -1627,25 +1379,17 @@ fn many_list_index(lists: &Vec<BoxedUiNodeList>, index: usize) -> (usize, usize)
 }
 
 impl UiNodeList for Vec<BoxedUiNodeList> {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
-        F: FnOnce(&BoxedUiNode) -> R,
+        F: FnOnce(&mut BoxedUiNode) -> R,
     {
         let (l, i) = many_list_index(self, index);
         self[l].with_node(i, f)
     }
 
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn for_each<F>(&mut self, mut f: F)
     where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        let (l, i) = many_list_index(self, index);
-        self[l].with_node_mut(i, f)
-    }
-
-    fn for_each<F>(&self, mut f: F)
-    where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
+        F: FnMut(usize, &mut BoxedUiNode),
     {
         let mut offset = 0;
         for list in self {
@@ -1654,27 +1398,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
         }
     }
 
-    fn for_each_mut<F>(&mut self, mut f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        let mut offset = 0;
-        for list in self {
-            list.for_each_mut(|i, n| f(i + offset, n));
-            offset += list.len();
-        }
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
-    {
-        for list in self {
-            list.par_each(&f);
-        }
-    }
-
-    fn par_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
@@ -1684,33 +1408,14 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
             for list in self {
                 let len = list.len();
                 s.spawn(move |_| {
-                    list.par_each_mut(move |i, n| f(i + offset, n));
+                    list.par_each(move |i, n| f(i + offset, n));
                 });
                 offset += len;
             }
         });
     }
 
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        let mut offset = 0;
-        let mut res = Some(identity());
-        for list in self {
-            let b = list.par_fold(|i, n| f(i + offset, n), &identity, &fold);
-            let a = res.take().unwrap();
-            let r = fold(a, b);
-            res = Some(r);
-            offset += list.len();
-        }
-        res.unwrap()
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
     where
         T: Send,
         F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
@@ -1726,12 +1431,12 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
                 let b = pair.next().unwrap();
                 let offset_b = offset + a.len();
                 let (a, b) = task::join(
-                    || a.par_fold_mut(|i, n| f(i + offset, n), &identity, &fold),
-                    || b.par_fold_mut(|i, n| f(i + offset_b, n), &identity, &fold),
+                    || a.par_fold(|i, n| f(i + offset, n), &identity, &fold),
+                    || b.par_fold(|i, n| f(i + offset_b, n), &identity, &fold),
                 );
                 fold(a, b)
             } else {
-                list[0].par_fold_mut(|i, n| f(i + offset, n), &identity, &fold)
+                list[0].par_fold(|i, n| f(i + offset, n), &identity, &fold)
             };
 
             let a = res.take().unwrap();
@@ -1844,13 +1549,13 @@ pub struct PanelList<D = DefaultPanelListData>
 where
     D: PanelListData,
 {
-    list: Mutex<BoxedUiNodeList>, // Mutex to ensure `par_each` is actually parallel
-    data: Vec<Mutex<D>>,          // Mutex to implement `par_each_mut`.
+    list: BoxedUiNodeList,
+    data: Vec<Mutex<D>>, // Mutex to implement `par_each_mut`.
 
     offset_key: FrameValueKey<PxTransform>,
 
-    z_map: RefCell<Vec<u64>>,
-    z_naturally_sorted: Cell<bool>,
+    z_map: Vec<u64>,
+    z_naturally_sorted: bool,
 }
 impl PanelList<DefaultPanelListData> {
     /// New from `list` and default data.
@@ -1871,16 +1576,16 @@ where
                 d.resize_with(list.len(), Default::default);
                 d
             },
-            list: Mutex::new(list.boxed()),
+            list: list.boxed(),
             offset_key: FrameValueKey::new_unique(),
-            z_map: RefCell::new(vec![]),
-            z_naturally_sorted: Cell::new(false),
+            z_map: vec![],
+            z_naturally_sorted: false,
         }
     }
 
     /// Into list and associated data.
     pub fn into_parts(self) -> (BoxedUiNodeList, Vec<Mutex<D>>, FrameValueKey<PxTransform>) {
-        (self.list.into_inner(), self.data, self.offset_key)
+        (self.list, self.data, self.offset_key)
     }
 
     /// New from list and associated data.
@@ -1891,77 +1596,41 @@ where
     pub fn from_parts(list: BoxedUiNodeList, data: Vec<Mutex<D>>, offset_key: FrameValueKey<PxTransform>) -> Self {
         assert_eq!(list.len(), data.len());
         Self {
-            list: Mutex::new(list),
+            list,
             data,
             offset_key,
-            z_map: RefCell::new(vec![]),
-            z_naturally_sorted: Cell::new(false),
+            z_map: vec![],
+            z_naturally_sorted: false,
         }
     }
 
-    /// Visit the specific node and data, panic if `index` is out of bounds.
-    pub fn with_node<R, F>(&self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&BoxedUiNode, &D) -> R,
-    {
-        let data = self.data(index);
-        self.list.with_node(index, move |n| f(n, &data))
-    }
-
     /// Visit the specific node, panic if `index` is out of bounds.
-    pub fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    pub fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode, &mut D) -> R,
     {
         let data = self.data[index].get_mut();
-        self.list.with_node_mut(index, move |n| f(n, data))
+        self.list.with_node(index, move |n| f(n, data))
     }
 
-    /// Calls `f` for each node in the list with the index and associated data,
-    /// return `true` to continue iterating, return `false` to stop.
-    pub fn for_each<F>(&self, mut f: F)
+    /// Calls `f` for each node in the list with the index and associated data.
+    pub fn for_each<F>(&mut self, mut f: F)
     where
-        F: FnMut(usize, &BoxedUiNode, &D) -> bool,
-    {
-        self.list.for_each(move |i, n| f(i, n, &self.data(i)))
-    }
-
-    /// Calls `f` for each node in the list with the index and associated data,
-    /// return `true` to continue iterating, return `false` to stop.
-    pub fn for_each_mut<F>(&mut self, mut f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode, &mut D) -> bool,
+        F: FnMut(usize, &mut BoxedUiNode, &mut D),
     {
         let data = &mut self.data;
-        self.list.for_each_mut(move |i, n| f(i, n, data[i].get_mut()))
+        self.list.for_each(move |i, n| f(i, n, data[i].get_mut()))
     }
 
     /// Calls `f` for each node in the list with the index and associated data in parallel,
     /// return `true` to continue iterating, return `false` to stop.
-    pub fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode, &D) + Send + Sync,
-        D: Sync,
-    {
-        let data = &self.data;
-        self.list.par_each(|i, n| {
-            f(
-                i,
-                n,
-                &data[i].try_lock().unwrap_or_else(|| panic!("data for `{i}` is already locked")),
-            )
-        })
-    }
-
-    /// Calls `f` for each node in the list with the index and associated data in parallel,
-    /// return `true` to continue iterating, return `false` to stop.
-    pub fn par_each_mut<F>(&mut self, f: F)
+    pub fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode, &mut D) + Send + Sync,
         D: Sync,
     {
         let data = &self.data;
-        self.list.par_each_mut(|i, n| {
+        self.list.par_each(|i, n| {
             f(
                 i,
                 n,
@@ -2017,47 +1686,23 @@ where
     }
 
     /// Iterate over the list in the Z order.
-    pub fn for_each_z_sorted(&self, mut f: impl FnMut(usize, &BoxedUiNode, &D) -> bool) {
-        if self.z_naturally_sorted.get() {
+    pub fn for_each_z_sorted(&mut self, mut f: impl FnMut(usize, &mut BoxedUiNode, &mut D)) {
+        if self.z_naturally_sorted {
             self.for_each(f)
         } else {
-            if self.z_map.borrow().len() != self.list.len() {
+            if self.z_map.len() != self.list.len() {
                 self.z_sort();
             }
 
-            if self.z_naturally_sorted.get() {
-                self.for_each(f);
-            } else {
-                for &index in self.z_map.borrow().iter() {
-                    let index = index as usize;
-                    if !self.list.with_node(index, |node| f(index, node, &self.data(index))) {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    /// Iterate over the list in the Z order.
-    pub fn for_each_z_sorted_mut(&mut self, mut f: impl FnMut(usize, &mut BoxedUiNode, &mut D) -> bool) {
-        if self.z_naturally_sorted.get() {
-            self.for_each_mut(f)
-        } else {
-            if self.z_map.borrow().len() != self.list.len() {
-                self.z_sort();
-            }
-
-            for &index in self.z_map.borrow().iter() {
+            for &index in self.z_map.iter() {
                 let index = index as usize;
                 let data = self.data[index].get_mut();
-                if !self.list.with_node_mut(index, |node| f(index, node, data)) {
-                    break;
-                }
+                self.list.with_node(index, |node| f(index, node, data));
             }
         }
     }
 
-    fn z_sort(&self) {
+    fn z_sort(&mut self) {
         // We pack *z* and *i* as u32s in one u64 then create the sorted lookup table if
         // observed `[I].Z < [I-1].Z`, also records if any `Z != DEFAULT`:
         //
@@ -2086,11 +1731,9 @@ where
             need_map |= z < prev_z;
             has_non_default_zs |= z != ZIndex::DEFAULT;
             prev_z = z;
-
-            true
         });
 
-        self.z_naturally_sorted.set(!need_map);
+        self.z_naturally_sorted = !need_map;
 
         if need_map {
             z_and_i.sort_unstable();
@@ -2099,38 +1742,27 @@ where
                 *z &= u32::MAX as u64;
             }
 
-            *self.z_map.borrow_mut() = z_and_i;
+            self.z_map = z_and_i;
         } else {
-            self.z_map.borrow_mut().clear();
+            self.z_map.clear();
         }
     }
 
     /// Gets the `index` sorted in the `list`.
-    pub fn z_map(&self, index: usize) -> usize {
-        if self.z_naturally_sorted.get() {
+    pub fn z_map(&mut self, index: usize) -> usize {
+        if self.z_naturally_sorted {
             return index;
         }
 
-        if self.z_map.borrow().len() != self.list.len() {
+        if self.z_map.len() != self.list.len() {
             self.z_sort();
         }
 
-        self.z_map.borrow()[index] as usize
+        self.z_map[index] as usize
     }
 
     /// Reference the associated data.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `index` is already in use.
-    pub fn data(&self, index: usize) -> parking_lot::MutexGuard<D> {
-        self.data[index]
-            .try_lock()
-            .unwrap_or_else(|| panic!("data for `{index}` is already locked"))
-    }
-
-    /// Mutable reference the associated data.
-    pub fn data_mut(&mut self, index: usize) -> &mut D {
+    pub fn data(&mut self, index: usize) -> &mut D {
         self.data[index].get_mut()
     }
 
@@ -2145,66 +1777,35 @@ impl<D> UiNodeList for PanelList<D>
 where
     D: PanelListData,
 {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
-        F: FnOnce(&BoxedUiNode) -> R,
+        F: FnOnce(&mut BoxedUiNode) -> R,
     {
         self.list.with_node(index, f)
     }
 
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn for_each<F>(&mut self, f: F)
     where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        self.list.with_node_mut(index, f)
-    }
-
-    fn for_each<F>(&self, f: F)
-    where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
+        F: FnMut(usize, &mut BoxedUiNode),
     {
         self.list.for_each(f)
     }
 
-    fn for_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        self.list.for_each_mut(f)
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
         self.list.par_each(f)
     }
 
-    fn par_each_mut<F>(&mut self, f: F)
-    where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    {
-        self.list.par_each_mut(f)
-    }
-
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        self.list.par_fold(f, identity, fold)
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
     where
         T: Send,
         F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
         I: Fn() -> T + Send + Sync,
         O: Fn(T, T) -> T + Send + Sync,
     {
-        self.list.par_fold_mut(f, identity, fold)
+        self.list.par_fold(f, identity, fold)
     }
 
     fn len(&self) -> usize {
@@ -2218,14 +1819,14 @@ where
     fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
         self.list.drain_into(vec);
         self.data.clear();
-        self.z_map.get_mut().clear();
-        self.z_naturally_sorted.set(true);
+        self.z_map.clear();
+        self.z_naturally_sorted = true;
     }
 
     fn init_all(&mut self) {
-        self.z_map.get_mut().clear();
+        self.z_map.clear();
         let resort = Z_INDEX.with(WIDGET.id(), || self.list.init_all());
-        self.z_naturally_sorted.set(!resort);
+        self.z_naturally_sorted = !resort;
         self.data.resize_with(self.list.len(), Default::default);
     }
 
@@ -2244,9 +1845,9 @@ where
             observer,
         };
         let resort = Z_INDEX.with(WIDGET.id(), || self.list.update_all(updates, &mut observer));
-        if resort || (observer.changed && self.z_naturally_sorted.get()) {
-            self.z_map.get_mut().clear();
-            self.z_naturally_sorted.set(false);
+        if resort || (observer.changed && self.z_naturally_sorted) {
+            self.z_map.clear();
+            self.z_naturally_sorted = false;
             WIDGET.render();
         }
         self.data.resize_with(self.list.len(), Default::default);
@@ -2254,7 +1855,7 @@ where
 
     fn render_all(&mut self, frame: &mut FrameBuilder) {
         let offset_key = self.offset_key;
-        self.for_each_z_sorted_mut(|i, child, data| {
+        self.for_each_z_sorted(|i, child, data| {
             let offset = data.child_offset();
             if data.define_reference_frame() {
                 frame.push_reference_frame(
@@ -2271,14 +1872,12 @@ where
                     child.render(frame);
                 });
             }
-
-            true
         });
     }
 
     fn render_update_all(&mut self, update: &mut FrameUpdate) {
         let offset_key = self.offset_key;
-        self.for_each_mut(|i, child, data| {
+        self.for_each(|i, child, data| {
             let offset = data.child_offset();
             if data.define_reference_frame() {
                 update.with_transform(offset_key.update_child(i as u32, offset.into(), false), true, |update| {
@@ -2289,7 +1888,6 @@ where
                     child.render_update(update);
                 });
             }
-            true
         });
     }
 }

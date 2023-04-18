@@ -82,7 +82,7 @@ impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
         let index = self.index.get();
         if index < self.options.len() {
-            self.options.with_node_mut(index, |n| n.measure(wm))
+            self.options.with_node(index, |n| n.measure(wm))
         } else {
             PxSize::zero()
         }
@@ -94,7 +94,7 @@ impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
 
         let index = self.index.get();
         if index < self.options.len() {
-            self.options.with_node_mut(index, |n| n.layout(wl))
+            self.options.with_node(index, |n| n.layout(wl))
         } else {
             PxSize::zero()
         }
@@ -103,13 +103,13 @@ impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
     fn render(&mut self, frame: &mut FrameBuilder) {
         let index = self.index.get();
         if index < self.options.len() {
-            self.options.with_node_mut(index, |n| n.render(frame))
+            self.options.with_node(index, |n| n.render(frame))
         }
     }
     fn render_update(&mut self, update: &mut FrameUpdate) {
         let index = self.index.get();
         if index < self.options.len() {
-            self.options.with_node_mut(index, |n| n.render_update(update));
+            self.options.with_node(index, |n| n.render_update(update));
         }
     }
 }

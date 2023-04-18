@@ -41,13 +41,13 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     })]
     impl UiNode for BackgroundNode {
         fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node_mut(1, |n| n.measure(wm))
+            self.children.with_node(1, |n| n.measure(wm))
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.children.with_node_mut(1, |n| n.layout(wl));
+            let size = self.children.with_node(1, |n| n.layout(wl));
 
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
-                self.children.with_node_mut(0, |n| n.layout(wl));
+                self.children.with_node(0, |n| n.layout(wl));
             });
             size
         }
@@ -234,12 +234,12 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     })]
     impl UiNode for ForegroundNode {
         fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node_mut(0, |n| n.measure(wm))
+            self.children.with_node(0, |n| n.measure(wm))
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.children.with_node_mut(0, |n| n.layout(wl));
+            let size = self.children.with_node(0, |n| n.layout(wl));
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
-                self.children.with_node_mut(1, |n| n.layout(wl));
+                self.children.with_node(1, |n| n.layout(wl));
             });
             size
         }

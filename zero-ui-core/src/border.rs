@@ -898,7 +898,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             let offsets = self.offsets.layout();
             BORDER.measure_with_border(offsets, || {
                 LAYOUT.with_sub_size(PxSize::new(offsets.horizontal(), offsets.vertical()), || {
-                    self.children.with_node_mut(0, |n| LAYOUT.disable_inline(wm, n))
+                    self.children.with_node(0, |n| LAYOUT.disable_inline(wm, n))
                 })
             })
         }
@@ -928,12 +928,12 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 wl.translate(PxVector::new(offsets.left, offsets.top));
 
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                self.border_rect.size = LAYOUT.with_sub_size(taken_size, || self.children.with_node_mut(0, |n| n.layout(wl)));
+                self.border_rect.size = LAYOUT.with_sub_size(taken_size, || self.children.with_node(0, |n| n.layout(wl)));
 
                 // layout border visual
                 LAYOUT.with_constraints(PxConstraints2d::new_exact_size(self.border_rect.size), || {
                     BORDER.with_border_layout(self.border_rect, offsets, || {
-                        self.children.with_node_mut(1, |n| n.layout(wl));
+                        self.children.with_node(1, |n| n.layout(wl));
                     });
                 });
             });
@@ -942,16 +942,16 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
         }
 
         fn render(&mut self, frame: &mut FrameBuilder) {
-            self.children.with_node_mut(0, |c| c.render(frame));
+            self.children.with_node(0, |c| c.render(frame));
             BORDER.with_border_layout(self.border_rect, self.render_offsets, || {
-                self.children.with_node_mut(1, |c| c.render(frame));
+                self.children.with_node(1, |c| c.render(frame));
             });
         }
 
         fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.children.with_node_mut(0, |c| c.render_update(update));
+            self.children.with_node(0, |c| c.render_update(update));
             BORDER.with_border_layout(self.border_rect, self.render_offsets, || {
-                self.children.with_node_mut(1, |c| c.render_update(update));
+                self.children.with_node(1, |c| c.render_update(update));
             })
         }
     }

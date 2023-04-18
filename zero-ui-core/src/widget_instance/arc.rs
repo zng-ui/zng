@@ -280,9 +280,11 @@ impl<L: UiNodeList> ArcNodeList<L> {
     }
 
     /// Iterate over node contexts, if the list can be locked and the node is a full widget.
-    pub fn for_each_ctx(&self, mut f: impl FnMut(usize) -> bool) {
-        if let Some(list) = self.0.item.try_lock() {
-            list.for_each(|i, n| n.with_context(|| f(i)).unwrap_or(true))
+    pub fn for_each_ctx(&self, mut f: impl FnMut(usize)) {
+        if let Some(mut list) = self.0.item.try_lock() {
+            list.for_each(|i, n| {
+                n.with_context(|| f(i));
+            })
         }
     }
 }
@@ -579,69 +581,36 @@ mod impls {
     }
 
     impl<U: UiNodeList, T: TakeOn> UiNodeList for TakeSlot<U, T> {
-        fn with_node<R, F>(&self, index: usize, f: F) -> R
-        where
-            F: FnOnce(&BoxedUiNode) -> R,
-        {
-            self.delegate_owned(move |l| l.with_node(index, f))
-                .unwrap_or_else(|| panic!("index `{index}` is >= len `0`"))
-        }
-
-        fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+        fn with_node<R, F>(&mut self, index: usize, f: F) -> R
         where
             F: FnOnce(&mut BoxedUiNode) -> R,
         {
-            self.delegate_owned_mut(move |l| l.with_node_mut(index, f))
+            self.delegate_owned_mut(move |l| l.with_node(index, f))
                 .unwrap_or_else(|| panic!("index `{index}` is >= len `0`"))
         }
 
-        fn for_each<F>(&self, f: F)
+        fn for_each<F>(&mut self, f: F)
         where
-            F: FnMut(usize, &BoxedUiNode) -> bool,
+            F: FnMut(usize, &mut BoxedUiNode),
         {
-            self.delegate_owned(|l| l.for_each(f));
+            self.delegate_owned_mut(|l| l.for_each(f));
         }
 
-        fn for_each_mut<F>(&mut self, f: F)
-        where
-            F: FnMut(usize, &mut BoxedUiNode) -> bool,
-        {
-            self.delegate_owned_mut(|l| l.for_each_mut(f));
-        }
-
-        fn par_each<F>(&self, f: F)
-        where
-            F: Fn(usize, &BoxedUiNode) + Send + Sync,
-        {
-            self.delegate_owned(|l| l.par_each(f));
-        }
-
-        fn par_each_mut<F>(&mut self, f: F)
+        fn par_each<F>(&mut self, f: F)
         where
             F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
         {
-            self.delegate_owned_mut(|l| l.par_each_mut(f));
+            self.delegate_owned_mut(|l| l.par_each(f));
         }
 
-        fn par_fold<R, F, I, O>(&self, f: F, identity: I, fold: O) -> R
-        where
-            R: Send,
-            F: Fn(usize, &BoxedUiNode) -> R + Send + Sync,
-            I: Fn() -> R + Send + Sync,
-            O: Fn(R, R) -> R + Send + Sync,
-        {
-            self.delegate_owned(|l| l.par_fold(f, &identity, fold)).unwrap_or_else(identity)
-        }
-
-        fn par_fold_mut<R, F, I, O>(&mut self, f: F, identity: I, fold: O) -> R
+        fn par_fold<R, F, I, O>(&mut self, f: F, identity: I, fold: O) -> R
         where
             R: Send,
             F: Fn(usize, &mut BoxedUiNode) -> R + Send + Sync,
             I: Fn() -> R + Send + Sync,
             O: Fn(R, R) -> R + Send + Sync,
         {
-            self.delegate_owned_mut(|l| l.par_fold_mut(f, &identity, fold))
-                .unwrap_or_else(identity)
+            self.delegate_owned_mut(|l| l.par_fold(f, &identity, fold)).unwrap_or_else(identity)
         }
 
         fn len(&self) -> usize {

@@ -410,53 +410,26 @@ pub trait UiNode: Any + Send {
 /// [`for_each_mut`]: UiNodeList::for_each_mut
 pub trait UiNodeList: UiNodeListBoxed {
     /// Visit the specific node, panic if `index` is out of bounds.
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&BoxedUiNode) -> R;
-
-    /// Visit the specific node, panic if `index` is out of bounds.
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R;
 
-    /// Calls `f` for each node in the list with the index, return `true` to continue iterating, return `false` to stop.
-    fn for_each<F>(&self, f: F)
+    /// Calls `f` for each node in the list with the index.
+    fn for_each<F>(&mut self, f: F)
     where
-        F: FnMut(usize, &BoxedUiNode) -> bool;
-
-    /// Calls `f` for each node in the list with the index, return `true` to continue iterating, return `false` to stop.
-    fn for_each_mut<F>(&mut self, f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool;
+        F: FnMut(usize, &mut BoxedUiNode);
 
     /// Calls `f` for each node in the list with the index in parallel.
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync;
-
-    /// Calls `f` for each node in the list with the index in parallel.
-    fn par_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync;
-
-    /// Calls `f` for each node in the list with the index in parallel, folds the results of `f` using the `identity` value
-    /// and `fold` operation.
-    ///
-    /// Note that the `identity` may be used more than one time, it should produce a *neutral* value such that it does not affect the
-    /// result of a `fold` call with a real value.
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync;
 
     /// Calls `f` for each node in the list with the index in parallel, folds the results of `f` using the `identity` initial value
     /// and `fold` operation.
     ///
     /// Note that the `identity` may be used more than one time, it should produce a *neutral* value such that it does not affect the
     /// result of a `fold` call with a real value.
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
     where
         T: Send,
         F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
@@ -484,13 +457,12 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn init_all(&mut self) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INIT) {
-            self.par_each_mut(|_, c| {
+            self.par_each(|_, c| {
                 c.init();
             });
         } else {
-            self.for_each_mut(|_, c| {
+            self.for_each(|_, c| {
                 c.init();
-                true
             })
         }
     }
@@ -502,13 +474,12 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn deinit_all(&mut self) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::DEINIT) {
-            self.par_each_mut(|_, c| {
+            self.par_each(|_, c| {
                 c.deinit();
             });
         } else {
-            self.for_each_mut(|_, c| {
+            self.for_each(|_, c| {
                 c.deinit();
-                true
             });
         }
     }
@@ -522,13 +493,12 @@ pub trait UiNodeList: UiNodeListBoxed {
         let _ = observer;
 
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::UPDATE) {
-            self.par_each_mut(|_, c| {
+            self.par_each(|_, c| {
                 c.update(updates);
             });
         } else {
-            self.for_each_mut(|_, c| {
+            self.for_each(|_, c| {
                 c.update(updates);
-                true
             });
         }
     }
@@ -540,13 +510,12 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// [`for_each_mut`]: UiNodeList::for_each_mut
     fn event_all(&mut self, update: &EventUpdate) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::EVENT) {
-            self.par_each_mut(|_, c| {
+            self.par_each(|_, c| {
                 c.event(update);
             });
         } else {
-            self.for_each_mut(|_, c| {
+            self.for_each(|_, c| {
                 c.event(update);
-                true
             });
         }
     }
@@ -560,13 +529,12 @@ pub trait UiNodeList: UiNodeListBoxed {
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
     {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-            self.par_fold_mut(|i, n| measure(i, n, &mut WidgetMeasure::new()), PxSize::zero, fold_size)
+            self.par_fold(|i, n| measure(i, n, &mut WidgetMeasure::new()), PxSize::zero, fold_size)
         } else {
             let mut size = PxSize::zero();
-            self.for_each_mut(|i, n| {
+            self.for_each(|i, n| {
                 let b = measure(i, n, wm);
                 size = fold_size(size, b);
-                true
             });
             size
         }
@@ -583,7 +551,7 @@ pub trait UiNodeList: UiNodeListBoxed {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
             // fold a tuple of `(wl, size)`
             let swl = &wl;
-            let (pwl, size) = self.par_fold_mut(
+            let (pwl, size) = self.par_fold(
                 move |i, n| {
                     let mut pwl = swl.start_par();
                     let size = layout(i, n, &mut pwl);
@@ -596,10 +564,9 @@ pub trait UiNodeList: UiNodeListBoxed {
             size
         } else {
             let mut size = PxSize::zero();
-            self.for_each_mut(|i, n| {
+            self.for_each(|i, n| {
                 let b = layout(i, n, wl);
                 size = fold_size(size, b);
-                true
             });
             size
         }
@@ -615,9 +582,8 @@ pub trait UiNodeList: UiNodeListBoxed {
         // if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
         //     todo!("parallel render");
         // }
-        self.for_each_mut(|_, c| {
+        self.for_each(|_, c| {
             c.render(frame);
-            true
         })
     }
 
@@ -631,9 +597,8 @@ pub trait UiNodeList: UiNodeListBoxed {
         // if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
         //     todo!("parallel render_update");
         // }
-        self.for_each_mut(|_, c| {
+        self.for_each(|_, c| {
             c.render_update(update);
-            true
         })
     }
     /// Downcast to `L`, if `self` is `L` or `self` is a [`BoxedUiNodeList`] that is `L`.
@@ -658,16 +623,8 @@ pub trait UiNodeList: UiNodeListBoxed {
         self.type_id()
     }
 
-    /// Access to `dyn Any` methods.
-    fn as_any(&self) -> &dyn Any
-    where
-        Self: Sized,
-    {
-        self
-    }
-
     /// Access to mut `dyn Any` methods.
-    fn as_any_mut(&mut self) -> &mut dyn Any
+    fn as_any(&mut self) -> &mut dyn Any
     where
         Self: Sized,
     {
@@ -691,9 +648,8 @@ pub mod ui_node_list_default {
         // if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INFO) {
         //     todo!("parallel info");
         // }
-        list.for_each_mut(|_, c| {
+        list.for_each(|_, c| {
             c.info(info);
-            true
         });
     }
 
@@ -818,12 +774,9 @@ impl<U: UiNode> UiNodeBoxed for U {
 
 #[doc(hidden)]
 pub trait UiNodeListBoxed: Any + Send {
-    fn with_node_boxed(&self, index: usize, f: &mut dyn FnMut(&BoxedUiNode));
-    fn with_node_mut_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode));
-    fn for_each_boxed(&self, f: &mut dyn FnMut(usize, &BoxedUiNode) -> bool);
-    fn for_each_mut_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode) -> bool);
-    fn par_each_boxed(&self, f: &(dyn Fn(usize, &BoxedUiNode) + Send + Sync));
-    fn par_each_mut_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync));
+    fn with_node_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode));
+    fn for_each_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode));
+    fn par_each_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync));
     fn measure_each_boxed(
         &mut self,
         wm: &mut WidgetMeasure,
@@ -846,32 +799,19 @@ pub trait UiNodeListBoxed: Any + Send {
     fn render_update_all_boxed(&mut self, update: &mut FrameUpdate);
     fn actual_type_id_boxed(&self) -> TypeId;
     fn into_any_boxed(self: Box<Self>) -> Box<dyn Any>;
-    fn as_any_boxed(&self) -> &dyn Any;
-    fn as_any_mut_boxed(&mut self) -> &mut dyn Any;
+    fn as_any_boxed(&mut self) -> &mut dyn Any;
 }
 impl<L: UiNodeList> UiNodeListBoxed for L {
-    fn with_node_boxed(&self, index: usize, f: &mut dyn FnMut(&BoxedUiNode)) {
+    fn with_node_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode)) {
         self.with_node(index, f)
     }
 
-    fn with_node_mut_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode)) {
-        self.with_node_mut(index, f)
-    }
-
-    fn for_each_boxed(&self, f: &mut dyn FnMut(usize, &BoxedUiNode) -> bool) {
+    fn for_each_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode)) {
         self.for_each(f);
     }
 
-    fn for_each_mut_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode) -> bool) {
-        self.for_each_mut(f);
-    }
-
-    fn par_each_boxed(&self, f: &(dyn Fn(usize, &BoxedUiNode) + Send + Sync)) {
+    fn par_each_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync)) {
         self.par_each(f)
-    }
-
-    fn par_each_mut_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync)) {
-        self.par_each_mut(f)
     }
 
     fn measure_each_boxed(
@@ -932,12 +872,8 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
         self
     }
 
-    fn as_any_boxed(&self) -> &dyn Any {
+    fn as_any_boxed(&mut self) -> &mut dyn Any {
         self.as_any()
-    }
-
-    fn as_any_mut_boxed(&mut self) -> &mut dyn Any {
-        self.as_any_mut()
     }
 }
 
@@ -1032,77 +968,31 @@ impl UiNode for BoxedUiNode {
 }
 
 impl UiNodeList for BoxedUiNodeList {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&BoxedUiNode) -> R,
-    {
-        let mut f = Some(f);
-        let mut r = None;
-        self.as_ref().with_node_boxed(index, &mut |n| r = Some((f.take().unwrap())(n)));
-        r.unwrap()
-    }
-
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R,
     {
         let mut f = Some(f);
         let mut r = None;
-        self.as_mut().with_node_mut_boxed(index, &mut |n| r = Some((f.take().unwrap())(n)));
+        self.as_mut().with_node_boxed(index, &mut |n| r = Some((f.take().unwrap())(n)));
         r.unwrap()
     }
 
-    fn for_each<F>(&self, mut f: F)
+    fn for_each<F>(&mut self, mut f: F)
     where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
+        F: FnMut(usize, &mut BoxedUiNode),
     {
-        self.as_ref().for_each_boxed(&mut f);
+        self.as_mut().for_each_boxed(&mut f)
     }
 
-    fn for_each_mut<F>(&mut self, mut f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        self.as_mut().for_each_mut_boxed(&mut f)
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
-    {
-        self.as_ref().par_each_boxed(&f)
-    }
-
-    fn par_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
-        self.as_mut().par_each_mut_boxed(&f)
+        self.as_mut().par_each_boxed(&f)
     }
 
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        let res = Mutex::new(Some(identity()));
-
-        self.par_each(|i, item| {
-            let b = f(i, item);
-
-            let mut res = res.lock();
-            let a = res.take().unwrap();
-
-            let r = fold(a, b);
-            *res = Some(r);
-        });
-
-        res.into_inner().unwrap()
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
     where
         T: Send,
         F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
@@ -1111,7 +1001,7 @@ impl UiNodeList for BoxedUiNodeList {
     {
         let res = Mutex::new(Some(identity()));
 
-        self.par_each_mut(|i, item| {
+        self.par_each(|i, item| {
             let b = f(i, item);
 
             let mut res = res.lock();
@@ -1180,18 +1070,11 @@ impl UiNodeList for BoxedUiNodeList {
         self.as_mut().layout_each_boxed(wl, &layout, &fold_size)
     }
 
-    fn as_any(&self) -> &dyn Any
+    fn as_any(&mut self) -> &mut dyn Any
     where
         Self: Sized,
     {
-        self.as_ref().as_any_boxed()
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any
-    where
-        Self: Sized,
-    {
-        self.as_mut().as_any_mut_boxed()
+        self.as_mut().as_any_boxed()
     }
 }
 
@@ -1293,23 +1176,7 @@ impl<U: UiNode> UiNode for Option<U> {
 }
 
 impl UiNodeList for Option<BoxedUiNode> {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&BoxedUiNode) -> R,
-    {
-        match self {
-            Some(node) => {
-                assert_bounds(1, index);
-                f(node)
-            }
-            None => {
-                assert_bounds(0, index);
-                unreachable!()
-            }
-        }
-    }
-
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R,
     {
@@ -1325,34 +1192,16 @@ impl UiNodeList for Option<BoxedUiNode> {
         }
     }
 
-    fn for_each<F>(&self, mut f: F)
+    fn for_each<F>(&mut self, mut f: F)
     where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
+        F: FnMut(usize, &mut BoxedUiNode),
     {
         if let Some(node) = self {
             f(0, node);
         }
     }
 
-    fn for_each_mut<F>(&mut self, mut f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        if let Some(node) = self {
-            f(0, node);
-        }
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
-    {
-        if let Some(node) = self {
-            f(0, node);
-        }
-    }
-
-    fn par_each_mut<F>(&mut self, f: F)
+    fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
     {
@@ -1361,21 +1210,7 @@ impl UiNodeList for Option<BoxedUiNode> {
         }
     }
 
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, _: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        if let Some(node) = self {
-            f(0, node)
-        } else {
-            identity()
-        }
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, _: O) -> T
+    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, _: O) -> T
     where
         T: Send,
         F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
@@ -1430,286 +1265,6 @@ impl UiNode for NilUiNode {
 pub struct FillUiNode;
 #[ui_node(none)]
 impl UiNode for FillUiNode {}
-
-impl<U: UiNode> UiNode for Mutex<U> {
-    fn init(&mut self) {
-        self.get_mut().init()
-    }
-
-    fn deinit(&mut self) {
-        self.get_mut().deinit()
-    }
-
-    fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        self.get_mut().info(info)
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        self.get_mut().event(update)
-    }
-
-    fn update(&mut self, updates: &WidgetUpdates) {
-        self.get_mut().update(updates)
-    }
-
-    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        self.get_mut().measure(wm)
-    }
-
-    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        self.get_mut().layout(wl)
-    }
-
-    fn render(&mut self, frame: &mut FrameBuilder) {
-        self.get_mut().render(frame)
-    }
-
-    fn render_update(&mut self, update: &mut FrameUpdate) {
-        self.get_mut().render_update(update)
-    }
-
-    fn is_widget(&self) -> bool {
-        self.lock().is_widget()
-    }
-
-    fn with_context<R, F>(&self, f: F) -> Option<R>
-    where
-        F: FnOnce() -> R,
-    {
-        self.lock().with_context(f)
-    }
-
-    fn into_widget(self) -> BoxedUiNode
-    where
-        Self: Sized,
-    {
-        use crate::widget_base::nodes;
-
-        if self.is_widget() {
-            return self.boxed();
-        }
-
-        let node = nodes::widget_inner(self.cfg_boxed());
-        let wgt = nodes::widget(node, WidgetId::new_unique());
-        wgt.boxed()
-    }
-}
-impl<L: UiNodeList> UiNodeList for Mutex<L> {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&BoxedUiNode) -> R,
-    {
-        self.lock().with_node(index, f)
-    }
-
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        self.get_mut().with_node_mut(index, f)
-    }
-
-    fn for_each<F>(&self, f: F)
-    where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
-    {
-        self.lock().for_each(f)
-    }
-
-    fn for_each_mut<F>(&mut self, f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        self.get_mut().for_each_mut(f)
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
-    {
-        // in case `L` is not `Sync`
-        self.lock().par_each_mut(move |i, n| f(i, n))
-    }
-
-    fn par_each_mut<F>(&mut self, f: F)
-    where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    {
-        self.get_mut().par_each_mut(f)
-    }
-
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        self.lock().par_fold_mut(move |i, n| f(i, n), identity, fold)
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        self.get_mut().par_fold_mut(f, identity, fold)
-    }
-
-    fn len(&self) -> usize {
-        self.lock().len()
-    }
-
-    fn boxed(self) -> BoxedUiNodeList {
-        Box::new(self)
-    }
-
-    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-        self.get_mut().drain_into(vec)
-    }
-
-    fn init_all(&mut self) {
-        self.get_mut().init_all()
-    }
-
-    fn deinit_all(&mut self) {
-        self.get_mut().deinit_all()
-    }
-
-    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        self.get_mut().update_all(updates, observer)
-    }
-
-    fn event_all(&mut self, update: &EventUpdate) {
-        self.get_mut().event_all(update)
-    }
-
-    fn measure_each<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
-    where
-        F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
-        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-    {
-        self.get_mut().measure_each(wm, measure, fold_size)
-    }
-
-    fn layout_each<F, S>(&mut self, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
-    where
-        F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
-        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
-    {
-        self.get_mut().layout_each(wl, layout, fold_size)
-    }
-
-    fn render_all(&mut self, frame: &mut FrameBuilder) {
-        self.get_mut().render_all(frame)
-    }
-
-    fn render_update_all(&mut self, update: &mut FrameUpdate) {
-        self.get_mut().render_update_all(update)
-    }
-}
-impl<L: UiNodeList> UiNodeList for std::sync::Mutex<L> {
-    fn with_node<R, F>(&self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&BoxedUiNode) -> R,
-    {
-        self.lock().unwrap().with_node(index, f)
-    }
-
-    fn with_node_mut<R, F>(&mut self, index: usize, f: F) -> R
-    where
-        F: FnOnce(&mut BoxedUiNode) -> R,
-    {
-        self.get_mut().unwrap().with_node_mut(index, f)
-    }
-
-    fn for_each<F>(&self, f: F)
-    where
-        F: FnMut(usize, &BoxedUiNode) -> bool,
-    {
-        self.lock().unwrap().for_each(f)
-    }
-
-    fn for_each_mut<F>(&mut self, f: F)
-    where
-        F: FnMut(usize, &mut BoxedUiNode) -> bool,
-    {
-        self.get_mut().unwrap().for_each_mut(f)
-    }
-
-    fn par_each<F>(&self, f: F)
-    where
-        F: Fn(usize, &BoxedUiNode) + Send + Sync,
-    {
-        // in case `L` is not `Sync`
-        self.lock().unwrap().par_each_mut(move |i, n| f(i, n))
-    }
-
-    fn par_each_mut<F>(&mut self, f: F)
-    where
-        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
-    {
-        self.get_mut().unwrap().par_each_mut(f)
-    }
-
-    fn par_fold<T, F, I, O>(&self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        self.lock().unwrap().par_fold_mut(move |i, n| f(i, n), identity, fold)
-    }
-
-    fn par_fold_mut<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
-    where
-        T: Send,
-        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
-        I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
-    {
-        self.get_mut().unwrap().par_fold_mut(f, identity, fold)
-    }
-
-    fn len(&self) -> usize {
-        self.lock().unwrap().len()
-    }
-
-    fn boxed(self) -> BoxedUiNodeList {
-        Box::new(self)
-    }
-
-    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
-        self.get_mut().unwrap().drain_into(vec)
-    }
-
-    fn init_all(&mut self) {
-        self.get_mut().unwrap().init_all()
-    }
-
-    fn deinit_all(&mut self) {
-        self.get_mut().unwrap().deinit_all()
-    }
-
-    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-        self.get_mut().unwrap().update_all(updates, observer)
-    }
-
-    fn event_all(&mut self, update: &EventUpdate) {
-        self.get_mut().unwrap().event_all(update)
-    }
-
-    fn render_all(&mut self, frame: &mut FrameBuilder) {
-        self.get_mut().unwrap().render_all(frame)
-    }
-
-    fn render_update_all(&mut self, update: &mut FrameUpdate) {
-        self.get_mut().unwrap().render_update_all(update)
-    }
-}
 
 #[cfg(test)]
 mod tests {

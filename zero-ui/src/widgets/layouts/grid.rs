@@ -718,8 +718,8 @@ impl GridInfo {
 }
 
 fn downcast_auto(cols_or_rows: &mut BoxedUiNodeList) -> &mut Vec<BoxedUiNode> {
-    cols_or_rows.as_any_mut().downcast_mut::<Vec<BoxedUiNodeList>>().unwrap()[1]
-        .as_any_mut()
+    cols_or_rows.as_any().downcast_mut::<Vec<BoxedUiNodeList>>().unwrap()[1]
+        .as_any()
         .downcast_mut()
         .unwrap()
 }
@@ -758,8 +758,6 @@ impl GridNode {
             } else {
                 max_custom = max_custom.max(n);
             }
-
-            true // continue
         });
 
         let mut imaginary_cols = 0;
@@ -842,24 +840,22 @@ impl GridNode {
 
         // Set index for column and row.
         let columns_len = self.children[0].len() + imaginary_cols;
-        self.children[0].for_each_mut(|i, c| {
+        self.children[0].for_each(|i, c| {
             c.with_context(|| {
                 let prev = WIDGET.set_state(&column::INDEX_ID, (i, columns_len));
                 if prev != Some((i, columns_len)) {
                     WIDGET.update();
                 }
             });
-            true
         });
         let rows_len = self.children[1].len() + imaginary_rows;
-        self.children[1].for_each_mut(|i, r| {
+        self.children[1].for_each(|i, r| {
             r.with_context(|| {
                 let prev = WIDGET.set_state(&row::INDEX_ID, (i, rows_len));
                 if prev != Some((i, rows_len)) {
                     WIDGET.update();
                 }
             });
-            true
         });
 
         self.info.columns.resize(columns_len, ColumnInfo::default());
@@ -927,7 +923,7 @@ impl GridNode {
         let mut has_leftover_cols = false;
         let mut has_leftover_rows = false;
 
-        columns.for_each_mut(|ci, col| {
+        columns.for_each(|ci, col| {
             let col_kind = WIDGET_SIZE.get_wgt(col).width;
 
             let col_info = &mut info.columns[ci];
@@ -949,10 +945,8 @@ impl GridNode {
                     col_info.meta = ColRowMeta::exact();
                 }
             }
-
-            true
         });
-        rows.for_each_mut(|ri, row| {
+        rows.for_each(|ri, row| {
             let row_kind = WIDGET_SIZE.get_wgt(row).height;
 
             let row_info = &mut info.rows[ri];
@@ -974,8 +968,6 @@ impl GridNode {
                     row_info.meta = ColRowMeta::exact();
                 }
             }
-
-            true
         });
 
         // Measure cells when needed, collect widest/tallest.
@@ -984,10 +976,10 @@ impl GridNode {
         let columns_len = info.columns.len();
         if has_default || (fill_x.is_none() && has_leftover_cols) || (fill_y.is_none() && has_leftover_rows) {
             let c = LAYOUT.constraints();
-            cells.for_each_mut(|i, cell| {
+            cells.for_each(|i, cell| {
                 let cell_info = cell::CellInfo::get_wgt(cell);
                 if cell_info.column_span > 1 || cell_info.row_span > 1 {
-                    return true; // continue;
+                    return; // continue;
                 }
                 let cell_info = cell_info.actual(i, columns_len);
 
@@ -1035,8 +1027,6 @@ impl GridNode {
 
                     row.height = row.height.max(size.height);
                 }
-
-                true //continue;
             });
         }
 
@@ -1131,7 +1121,7 @@ impl GridNode {
 
                     if i < view_columns_len {
                         let size = LAYOUT.with_constraints(LAYOUT.constraints().with_fill_x(true).with_max_x(col.width), || {
-                            columns.with_node_mut(i, |col| col.measure(wm))
+                            columns.with_node(i, |col| col.measure(wm))
                         });
 
                         if col.width != size.width {
@@ -1260,7 +1250,7 @@ impl GridNode {
 
                     if i < view_rows_len {
                         let size = LAYOUT.with_constraints(LAYOUT.constraints().with_fill_y(true).with_max_y(row.height), || {
-                            rows.with_node_mut(i, |row| row.measure(wm))
+                            rows.with_node(i, |row| row.measure(wm))
                         });
 
                         if row.height != size.height {
@@ -1342,7 +1332,7 @@ impl GridNode {
         let columns = children.next().unwrap();
         let rows = children.next().unwrap();
         let cells = children.next().unwrap();
-        let cells: &mut PanelList = cells.as_any_mut().downcast_mut().unwrap();
+        let cells: &mut PanelList = cells.as_any().downcast_mut().unwrap();
 
         let info = &info;
 
@@ -1418,10 +1408,10 @@ impl GridNode {
         let mut children = self.children.iter_mut();
         let columns = children.next().unwrap();
         let rows = children.next().unwrap();
-        let cells : &mut PanelList = children.next().unwrap().as_any_mut().downcast_mut().unwrap();
+        let cells: &mut PanelList = children.next().unwrap().as_any().downcast_mut().unwrap();
         let offset_key = cells.offset_key();
 
-        columns.for_each_mut(|i, child| {
+        columns.for_each(|i, child| {
             let offset = PxVector::new(info.columns[i].x, Px(0));
             frame.push_reference_frame(
                 (offset_key, i as u32).into(),
@@ -1432,10 +1422,9 @@ impl GridNode {
                     child.render(frame);
                 },
             );
-            true
         });
         let i_extra = columns.len();
-        rows.for_each_mut(|i, child| {
+        rows.for_each(|i, child| {
             let offset = PxVector::new(Px(0), info.rows[i].y);
             frame.push_reference_frame(
                 (offset_key, (i + i_extra) as u32).into(),
@@ -1446,10 +1435,9 @@ impl GridNode {
                     child.render(frame);
                 },
             );
-            true
         });
         let i_extra = i_extra + rows.len();
-        cells.for_each_z_sorted_mut(|i, child, data| {
+        cells.for_each_z_sorted(|i, child, data| {
             if data.define_reference_frame {
                 frame.push_reference_frame(
                     (offset_key, (i + i_extra) as u32).into(),
@@ -1463,7 +1451,6 @@ impl GridNode {
             } else {
                 frame.push_child(data.child_offset, |frame| child.render(frame));
             }
-            true
         });
     }
 
@@ -1473,23 +1460,21 @@ impl GridNode {
         let mut children = self.children.iter_mut();
         let columns = children.next().unwrap();
         let rows = children.next().unwrap();
-        let cells: &mut PanelList = children.next().unwrap().as_any_mut().downcast_mut().unwrap();
+        let cells: &mut PanelList = children.next().unwrap().as_any().downcast_mut().unwrap();
 
-        columns.for_each_mut(|i, child| {
+        columns.for_each(|i, child| {
             let offset = PxVector::new(info.columns[i].x, Px(0));
             update.with_transform_value(&offset.into(), |update| {
                 child.render_update(update);
             });
-            true
         });
-        rows.for_each_mut(|i, child| {
+        rows.for_each(|i, child| {
             let offset = PxVector::new(Px(0), info.rows[i].y);
             update.with_transform_value(&offset.into(), |update| {
                 child.render_update(update);
             });
-            true
         });
-        cells.for_each_mut(|_, child, data| {
+        cells.for_each(|_, child, data| {
             if data.define_reference_frame {
                 update.with_transform_value(&data.child_offset.into(), |update| {
                     child.render_update(update);
@@ -1499,8 +1484,6 @@ impl GridNode {
                     child.render_update(update);
                 })
             }
-
-            true
         })
     }
 }

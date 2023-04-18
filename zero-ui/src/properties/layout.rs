@@ -1154,13 +1154,13 @@ pub fn child_insert(
             let c = LAYOUT.constraints();
             if self.place.get().is_x_axis() {
                 let mut spacing = self.spacing.layout_x();
-                let insert_size = self.children.with_node_mut(1, |n| {
+                let insert_size = self.children.with_node(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || LAYOUT.disable_inline(wm, n))
                 });
                 if insert_size.width == Px(0) {
                     spacing = Px(0);
                 }
-                let child_size = self.children.with_node_mut(0, |n| {
+                let child_size = self.children.with_node(0, |n| {
                     LAYOUT.with_constraints(c.with_less_x(insert_size.width + spacing), || LAYOUT.disable_inline(wm, n))
                 });
 
@@ -1170,13 +1170,13 @@ pub fn child_insert(
                 )
             } else {
                 let mut spacing = self.spacing.layout_y();
-                let insert_size = self.children.with_node_mut(1, |n| {
+                let insert_size = self.children.with_node(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || LAYOUT.disable_inline(wm, n))
                 });
                 if insert_size.height == Px(0) {
                     spacing = Px(0);
                 }
-                let child_size = self.children.with_node_mut(0, |n| {
+                let child_size = self.children.with_node(0, |n| {
                     LAYOUT.with_constraints(c.with_less_y(insert_size.height + spacing), || LAYOUT.disable_inline(wm, n))
                 });
                 if child_size.height == Px(0) {
@@ -1204,13 +1204,13 @@ pub fn child_insert(
                         let wm = &mut wm;
                         let mut spacing = spacing;
 
-                        let insert_size = self.children.with_node_mut(1, |n| {
+                        let insert_size = self.children.with_node(1, |n| {
                             LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || n.measure(wm))
                         });
                         if insert_size.width == Px(0) {
                             spacing = Px(0);
                         }
-                        let child_size = self.children.with_node_mut(0, |n| {
+                        let child_size = self.children.with_node(0, |n| {
                             LAYOUT.with_constraints(c.with_less_x(insert_size.width + spacing), || n.measure(wm))
                         });
 
@@ -1218,7 +1218,7 @@ pub fn child_insert(
                     }
 
                     let mut spacing = spacing;
-                    let insert_size = self.children.with_node_mut(1, |n| {
+                    let insert_size = self.children.with_node(1, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -1231,7 +1231,7 @@ pub fn child_insert(
                     if insert_size.width == Px(0) {
                         spacing = Px(0);
                     }
-                    let child_size = self.children.with_node_mut(0, |n| {
+                    let child_size = self.children.with_node(0, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -1274,13 +1274,13 @@ pub fn child_insert(
                         let wm = &mut wm;
                         let mut spacing = spacing;
 
-                        let insert_size = self.children.with_node_mut(1, |n| {
+                        let insert_size = self.children.with_node(1, |n| {
                             LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || n.measure(wm))
                         });
                         if insert_size.height == Px(0) {
                             spacing = Px(0);
                         }
-                        let child_size = self.children.with_node_mut(0, |n| {
+                        let child_size = self.children.with_node(0, |n| {
                             LAYOUT.with_constraints(c.with_less_y(insert_size.height + spacing), || n.measure(wm))
                         });
 
@@ -1288,7 +1288,7 @@ pub fn child_insert(
                     }
 
                     let mut spacing = spacing;
-                    let insert_size = self.children.with_node_mut(1, |n| {
+                    let insert_size = self.children.with_node(1, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -1301,7 +1301,7 @@ pub fn child_insert(
                     if insert_size.height == Px(0) {
                         spacing = Px(0);
                     }
-                    let child_size = self.children.with_node_mut(0, |n| {
+                    let child_size = self.children.with_node(0, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -1337,7 +1337,7 @@ pub fn child_insert(
         }
 
         fn render(&mut self, frame: &mut FrameBuilder) {
-            self.children.for_each_mut(|i, child| {
+            self.children.for_each(|i, child| {
                 if i as u8 == self.offset_child {
                     frame.push_reference_frame(
                         self.offset_key.into(),
@@ -1351,12 +1351,11 @@ pub fn child_insert(
                 } else {
                     child.render(frame);
                 }
-                true
             })
         }
 
         fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.children.for_each_mut(|i, child| {
+            self.children.for_each(|i, child| {
                 if i as u8 == self.offset_child {
                     update.with_transform(self.offset_key.update(self.offset.into(), false), true, |update| {
                         child.render_update(update);
@@ -1364,7 +1363,6 @@ pub fn child_insert(
                 } else {
                     child.render_update(update);
                 }
-                true
             })
         }
     }

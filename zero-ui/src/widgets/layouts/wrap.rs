@@ -547,7 +547,7 @@ impl InlineLayout {
             let mut next_row_i = 1;
             let mut row_segs_i_start = 0;
 
-            children.for_each_mut(|i, child, o| {
+            children.for_each(|i, child, o| {
                 if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
                     // new row
                     if let Some(inline) = wl.inline() {
@@ -583,7 +583,7 @@ impl InlineLayout {
                     if child_desired_size.is_empty() {
                         // collapsed, continue.
                         wl.collapse_child(i);
-                        return true;
+                        return;
                     }
 
                     let mut child_first = PxRect::from_size(child_inline.first);
@@ -707,7 +707,7 @@ impl InlineLayout {
                         // collapsed, continue.
                         o.child_offset = PxVector::zero();
                         o.define_reference_frame = false;
-                        return true;
+                        return;
                     }
 
                     let mut offset = PxVector::new(row_advance, Px(0));
@@ -722,8 +722,6 @@ impl InlineLayout {
                     o.define_reference_frame = define_ref_frame;
                     row_advance += size.width + spacing.column;
                 }
-
-                true
             });
 
             if let Some(inline) = wl.inline() {
@@ -752,7 +750,7 @@ impl InlineLayout {
             .with_max_x(child_inline_constrain);
         let mut row = self.rows.new_item();
         LAYOUT.with_constraints(child_constraints, || {
-            children.for_each_mut(|i, child, _| {
+            children.for_each(|i, child, _| {
                 let mut inline_constrain = child_inline_constrain;
                 let mut wrap_clear_min = Px(0);
                 if self.rows.is_empty() && !self.first_wrapped {
@@ -773,7 +771,7 @@ impl InlineLayout {
                 if size.is_empty() {
                     row.item_segs.push(ItemSegsInfo::new_collapsed());
                     // collapsed, continue.
-                    return true;
+                    return;
                 }
 
                 if let Some(inline) = inline {
@@ -850,8 +848,6 @@ impl InlineLayout {
                     row.first_child = i;
                     row.item_segs.push(ItemSegsInfo::new_block(size.width));
                 }
-
-                true
             });
         });
 

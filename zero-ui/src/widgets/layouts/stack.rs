@@ -5,8 +5,6 @@ use crate::prelude::new_widget::*;
 mod types;
 pub use types::*;
 
-use crate::core::task::parking_lot::Mutex;
-
 /// Stack layout.
 ///
 /// Without [`direction`] this is a Z layering stack, with direction the traditional vertical and horizontal *stack panels*
@@ -258,14 +256,14 @@ impl StackNode {
 
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
-                self.children.for_each_mut(|_, c, _| {
+                self.children.for_each(|_, c, _| {
                     // already parallel measured widgets, only measure other nodes.
                     let size = match c.with_context(|| WIDGET.bounds().measure_outer_size()) {
                         Some(wgt_size) => wgt_size,
                         None => c.measure(wm),
                     };
                     if size.is_empty() {
-                        return true; // continue, skip collapsed
+                        return; // continue, skip collapsed
                     }
 
                     let offset = direction.layout(item_rect, size) + child_spacing;
@@ -277,8 +275,6 @@ impl StackNode {
                     item_bounds.min = item_bounds.min.min(item_box.min);
                     item_bounds.max = item_bounds.max.max(item_box.max);
                     child_spacing = spacing;
-
-                    true
                 });
             },
         );
@@ -324,7 +320,7 @@ impl StackNode {
                 // layout other nodes and position everything.
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
-                self.children.for_each_mut(|_, c, o| {
+                self.children.for_each(|_, c, o| {
                     let size = match c.with_context(|| WIDGET.bounds().outer_size()) {
                         Some(wgt_size) => wgt_size,
                         None => {
@@ -337,7 +333,7 @@ impl StackNode {
                     if size.is_empty() {
                         o.child_offset = PxVector::zero();
                         o.define_reference_frame = false;
-                        return true; // continue, skip collapsed
+                        return; // continue, skip collapsed
                     }
 
                     let offset = direction.layout(item_rect, size) + child_spacing;
@@ -350,8 +346,6 @@ impl StackNode {
                     item_bounds.min = item_bounds.min.min(item_box.min);
                     item_bounds.max = item_bounds.max.max(item_box.max);
                     child_spacing = spacing;
-
-                    true //continue
                 });
             },
         );
@@ -363,7 +357,7 @@ impl StackNode {
         let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(LAYOUT.direction());
         let align_baseline = children_align.is_baseline();
 
-        self.children.for_each_mut(|_, c, o| {
+        self.children.for_each(|_, c, o| {
             let (size, baseline) = c
                 .with_context(|| {
                     let bounds = WIDGET.bounds();
@@ -377,8 +371,6 @@ impl StackNode {
             if align_baseline {
                 o.child_offset.y += baseline;
             }
-
-            true
         });
 
         panel_size
@@ -544,7 +536,7 @@ pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
 
     StackNodesNode {
         // Mutex to enable parallel measure
-        children: Mutex::new(nodes),
+        children: nodes,
     }
     .cfg_boxed()
 }
@@ -586,7 +578,7 @@ pub fn stack_nodes_layout_by(
 
                 self.children.measure_each(wm, |_, n, wm| n.measure(wm), PxSize::max)
             } else {
-                let index_size = self.children.with_node_mut(index, |n| n.measure(wm));
+                let index_size = self.children.with_node(index, |n| n.measure(wm));
                 let constraints = (self.constraints)(LAYOUT.metrics().constraints(), index, index_size);
                 LAYOUT.with_constraints(constraints, || {
                     self.children.measure_each(
@@ -616,7 +608,7 @@ pub fn stack_nodes_layout_by(
 
                 self.children.layout_each(wl, |_, n, wl| n.layout(wl), PxSize::max)
             } else {
-                let index_size = self.children.with_node_mut(index, |n| n.layout(wl));
+                let index_size = self.children.with_node(index, |n| n.layout(wl));
                 let constraints = (self.constraints)(LAYOUT.metrics().constraints(), index, index_size);
                 LAYOUT.with_constraints(constraints, || {
                     self.children.layout_each(
@@ -635,7 +627,7 @@ pub fn stack_nodes_layout_by(
         }
     }
     StackNodesFillNode {
-        children: Mutex::new(nodes),
+        children: nodes,
         index: index.into_var(),
         constraints,
     }
