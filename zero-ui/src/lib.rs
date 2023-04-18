@@ -270,7 +270,7 @@ pub mod prelude {
         pub use crate::widgets::{layouts::stack_nodes, wgt_fn, DataUpdate, WidgetFn};
     }
 
-    /// All the types you need to declare a new widget or widget mix-in.
+    /// All the types you need to declare a new widget or widget mixin.
     ///
     /// Use glob import (`*`) and start implement your custom widgets.
     ///

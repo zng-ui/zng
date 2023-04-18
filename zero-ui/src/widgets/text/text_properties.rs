@@ -3,7 +3,7 @@ use crate::prelude::{new_property::*, new_widget::widget_mixin};
 
 /// Basic text font properties.
 ///
-/// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+/// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// See also [`FontFeaturesMix<P>`] for the other font properties.
 ///
@@ -168,7 +168,7 @@ pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl U
 
 /// Text color properties.
 ///
-/// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+/// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
@@ -191,7 +191,7 @@ pub fn txt_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
 
 /// Text align, justify.
 ///
-/// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+/// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
@@ -232,7 +232,7 @@ pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl 
 
 /// Text wrap, hyphenation.
 ///
-/// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+/// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
@@ -322,7 +322,7 @@ pub fn hyphen_char(child: impl UiNode, hyphen: impl IntoVar<Txt>) -> impl UiNode
 
 /// Text underline, overline and strikethrough lines.
 ///
-/// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+/// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
@@ -427,7 +427,7 @@ pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> imp
 
 /// Text spacing properties.
 ///
-/// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+/// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// See also [`ParagraphMix<P>`] for paragraph spacing.
 ///
@@ -559,7 +559,7 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
 
 /// Text transform properties.
 ///
-/// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+/// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
@@ -582,7 +582,7 @@ pub fn txt_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn
 
 /// Language and text direction properties.
 ///
-/// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+/// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
@@ -652,7 +652,7 @@ pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -
 
 /// Advanced font config, features, kerning, variations and more.
 ///
-/// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+/// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
@@ -849,7 +849,7 @@ pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) ->
 
 /// Text edit properties.
 ///
-/// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+/// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
@@ -882,7 +882,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 
 /// Text paragraph properties.
 ///
-/// Note that the [`Text!`] widget does not include this mix-in, as raw text does not encode
+/// Note that the [`Text!`] widget does not include this mixin, as raw text does not encode
 /// paragraph breaks, other rich text widgets can include it to configure paragraphs.
 ///
 /// [`Text!`]: struct@crate::widgets::Text

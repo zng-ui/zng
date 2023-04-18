@@ -32,7 +32,7 @@
                     }
                     fetchUrls.add(a.href);
 
-                    // unloaded mix-in parent
+                    // unloaded mixin parent
 
                     let title = doc.createElement('h2');
                     title.innerHTML = 'Inherits from ' + a.outerHTML;

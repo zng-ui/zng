@@ -74,7 +74,7 @@ pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
     widget::expand(args, input, false)
 }
 
-/// Expands a generic struct to a widget mix-in.
+/// Expands a generic struct to a widget mixin.
 ///
 /// # Full Documentation
 ///

@@ -112,7 +112,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     let ident = struct_.ident;
     let mut attrs = util::Attributes::new(struct_.attrs);
     if mixin {
-        attrs.tag_doc("M", "This struct is also a widget mix-in");
+        attrs.tag_doc("m", "This struct is also a widget mixin");
     } else {
         attrs.tag_doc("W", "This struct is also a widget macro");
     }

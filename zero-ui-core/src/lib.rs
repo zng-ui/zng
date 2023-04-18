@@ -687,7 +687,7 @@ pub use zero_ui_proc_macros::property;
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget;
 
-/// Expands a struct to a widget mix-in.
+/// Expands a struct to a widget mixin.
 ///
 /// Widget mix-ins can be inserted on a widgets inheritance chain, but they cannot be instantiated directly. Unlike
 /// the full widgets it defines its parent as a generic type, that must be filled with a real widget when used.
@@ -724,10 +724,10 @@ pub use zero_ui_proc_macros::widget;
 /// # fn main() { }
 /// ```
 ///
-/// The example above declares a mix-in `FocusableMix<P>` and an widget `Foo`, the mix-in is used as a parent of the widget, only
+/// The example above declares a mixin `FocusableMix<P>` and an widget `Foo`, the mixin is used as a parent of the widget, only
 /// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable`.
 ///
-/// All widget `impl` items can be declared in a mix-in, including the `fn widget_build(&mut self) -> T`, multiple mix-ins can be inherited
+/// All widget `impl` items can be declared in a mixin, including the `fn widget_build(&mut self) -> T`, multiple mix-ins can be inherited
 /// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`, mix-ins cannot inherit even from other mix-ins.
 #[doc(inline)]
 pub use zero_ui_proc_macros::widget_mixin;

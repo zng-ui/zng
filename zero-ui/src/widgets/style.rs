@@ -27,12 +27,12 @@ impl Style {
     }
 }
 
-/// Styleable widget mix-in.
+/// Styleable widget mixin.
 ///
 /// Widgets that inherit from this one have a `style_fn` property that can be set to a [`style_fn!`]
 /// that generates properties that are dynamically injected into the widget to alter its appearance.
 ///
-/// The style mix-in drastically affects the widget build process, only the `style_fn` property and `when` condition
+/// The style mixin drastically affects the widget build process, only the `style_fn` property and `when` condition
 /// properties that affects it are instantiated with the widget, all the other properties and intrinsic nodes are instantiated
 /// on init, after the style is generated.
 ///
@@ -46,7 +46,7 @@ impl<P: WidgetImpl> StyleMix<P> {
     }
 }
 impl<P> StyleMix<P> {
-    /// The custom build that is set on intrinsic by the mix-in.
+    /// The custom build that is set on intrinsic by the mixin.
     pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
         // 1 - "split_off" the property `style`
         //     this moves the property and any `when` that affects it to a new widget builder.
