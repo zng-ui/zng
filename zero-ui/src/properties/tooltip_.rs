@@ -1,5 +1,8 @@
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{fmt, mem};
+
+use zero_ui_core::task::parking_lot::Mutex;
 
 use crate::core::{mouse::MOUSE_HOVERED_EVENT, timer::DeadlineVar};
 
@@ -137,11 +140,7 @@ pub fn tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) 
 ///
 /// This property behaves like [`tooltip`], but the tooltip only opens if the widget is disabled.
 ///
-/// Note that the `tip` widget will be opened in a disabled context, so the tip style can use [`is_disabled`]
-/// to provide an alternative look.
-///
 /// [`tooltip`]: fn@tooltip
-/// [`is_disabled`]: fn@is_disabled
 #[property(EVENT)]
 pub fn disabled_tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
     disabled_tooltip_fn(child, WidgetFn::singleton(tip))
@@ -151,11 +150,7 @@ pub fn disabled_tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 ///
 /// This property behaves like [`tooltip_fn`], but the tooltip only opens if the widget is disabled.
 ///
-/// Note that the `tip` widget will be opened in a disabled context, so the tip style can use [`is_disabled`]
-/// to provide an alternative look.
-///
 /// [`tooltip_fn`]: fn@tooltip
-/// [`is_disabled`]: fn@is_disabled
 #[property(EVENT, default(WidgetFn::nil()))]
 pub fn disabled_tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> impl UiNode {
     TooltipNode {
@@ -184,7 +179,7 @@ enum TooltipState {
     Closed,
     Delay(DeadlineVar),
     /// Tip layer ID and duration deadline.
-    Open(WidgetId, Option<DeadlineVar>),
+    Open(Arc<Mutex<Option<WidgetId>>>, Option<DeadlineVar>),
 }
 impl fmt::Debug for TooltipState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -210,8 +205,8 @@ impl UiNode for TooltipNode {
 
     fn deinit(&mut self) {
         self.child.deinit();
-        if let TooltipState::Open(id, _) = mem::take(&mut self.state) {
-            LAYERS.remove(id);
+        if let TooltipState::Open(tooltip_id, _) = mem::take(&mut self.state) {
+            LAYERS.remove(tooltip_id.lock().unwrap());
             TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
         }
     }
@@ -220,21 +215,22 @@ impl UiNode for TooltipNode {
         self.child.event(update);
 
         if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-            if let TooltipState::Open(t, _) = &self.state {
-                if !WINDOW.widget_tree().contains(*t) {
+            if let TooltipState::Open(tooltip_id, _) = &self.state {
+                if !WINDOW.widget_tree().contains(tooltip_id.lock().unwrap()) {
                     // already closed (from the layer probably)
                     self.state = TooltipState::Closed;
                 }
             }
             match &self.state {
                 TooltipState::Open(tooltip_id, _) => {
+                    let tooltip_id = tooltip_id.lock().unwrap();
                     if !args
                         .target
                         .as_ref()
-                        .map(|t| t.contains(*tooltip_id) || t.contains(WIDGET.id()))
+                        .map(|t| t.contains(tooltip_id) || t.contains(WIDGET.id()))
                         .unwrap_or(true)
                     {
-                        LAYERS.remove(*tooltip_id);
+                        LAYERS.remove(tooltip_id);
                         TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
                         self.state = TooltipState::Closed;
                     }
@@ -278,13 +274,13 @@ impl UiNode for TooltipNode {
                 if let Some(t) = &timer {
                     if let Some(t) = t.get_new() {
                         if t.has_elapsed() {
-                            LAYERS.remove(*tooltip_id);
+                            LAYERS.remove(tooltip_id.lock().unwrap());
                             TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
                             self.state = TooltipState::Closed;
                         }
                     }
                 } else if let Some(func) = self.tip.get_new() {
-                    LAYERS.remove(*tooltip_id);
+                    LAYERS.remove(tooltip_id.lock().unwrap());
                     *tooltip_id = open_tooltip(func, self.disabled_only);
                 }
             }
@@ -299,25 +295,14 @@ impl UiNode for TooltipNode {
         }
     }
 }
-fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> WidgetId {
-    let mut child = func(TooltipArgs { disabled }).boxed();
-
-    if !child.is_widget() {
-        let node = widget_base::nodes::widget_inner(child);
-
-        // set hit test mode so that it's only hit-testable if the child is hit-testable
-        let node = hit_test_mode(node, HitTestMode::Visual);
-        let node = widget_base::enabled(node, !disabled);
-
-        child = widget_base::nodes::widget(node, WidgetId::new_unique()).boxed();
-    }
+fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> Arc<Mutex<Option<WidgetId>>> {
+    let child_id = Arc::new(Mutex::new(None));
 
     let tooltip = TooltipLayerNode {
-        child,
+        child: func(TooltipArgs { disabled }).boxed(),
+        child_id: child_id.clone(),
         anchor_id: WIDGET.id(),
     };
-
-    let id = tooltip.with_context(|| WIDGET.id()).unwrap();
 
     let mode = AnchorMode {
         transform: AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left()),
@@ -330,7 +315,7 @@ fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> WidgetId {
 
     LAYERS.insert_anchored(LayerIndex::TOP_MOST, tooltip.anchor_id, mode, tooltip);
 
-    id
+    child_id
 }
 
 fn duration_timer() -> Option<DeadlineVar> {
@@ -345,7 +330,8 @@ fn duration_timer() -> Option<DeadlineVar> {
 }
 
 #[ui_node(struct TooltipLayerNode {
-    child: impl UiNode,
+    child: BoxedUiNode,
+    child_id: Arc<Mutex<Option<WidgetId>>>,
     anchor_id: WidgetId,
 })]
 impl UiNode for TooltipLayerNode {
@@ -360,7 +346,23 @@ impl UiNode for TooltipLayerNode {
         self.with_context(|| {
             WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
         });
-        self.child.init()
+        self.child.init();
+
+        if !self.child.is_widget() {
+            self.child.deinit();
+
+            let node = widget_base::nodes::widget_inner(std::mem::replace(&mut self.child, NilUiNode.boxed()));
+            // set hit test mode so that it's only hit-testable if the child is hit-testable
+            let node = hit_test_mode(node, HitTestMode::Visual);
+
+            self.child = widget_base::nodes::widget(node, WidgetId::new_unique()).boxed();
+
+            self.child.init();
+        }
+
+        self.child.with_context(|| {
+            *self.child_id.lock() = Some(WIDGET.id());
+        });
     }
 
     fn event(&mut self, update: &EventUpdate) {

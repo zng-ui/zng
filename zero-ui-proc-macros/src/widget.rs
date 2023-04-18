@@ -7,7 +7,7 @@ use crate::{
     widget_util::{self, WgtProperty, WgtWhen},
 };
 
-static DOCS_JS: &'static str = include_str!("../js/widget.js");
+static DOCS_JS: &str = include_str!("../js/widget.js");
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mixin: bool) -> proc_macro::TokenStream {
     // the widget struct declaration.

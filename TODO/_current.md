@@ -1,5 +1,4 @@
 * Layer fade-out.
-    - Tooltip does not receive `on_layer_remove_requested` because of internal anon widget around the tip node.
     - Implement `layer_remove_delay` using `on_layer_remove_requested`.
     - Implement `is_layer_removing`.
         - Using both delay and this flag a fade-out effect can be easily implemented 
