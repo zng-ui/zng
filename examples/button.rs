@@ -160,18 +160,18 @@ fn toggle_buttons() -> impl UiNode {
             Toggle! {
                 child = Text!("Switch");
                 checked = var(false);
-                style_fn = style_fn!(|_| toggle::SwitchStyle!());
+                style_fn = toggle::SwitchStyle!();
             },
             Toggle! {
                 child = Text!("Checkbox");
                 checked = var(false);
-                style_fn = style_fn!(|_| toggle::CheckStyle!());
+                style_fn = toggle::CheckStyle!();
             },
             Toggle! {
                 child = Text!("Checkbox Tristate");
                 checked_opt = var(Some(false));
                 tristate = true;
-                style_fn = style_fn!(|_| toggle::CheckStyle!());
+                style_fn = toggle::CheckStyle!();
             },
             Stack! {
                 direction = StackDirection::top_to_bottom();
@@ -181,17 +181,17 @@ fn toggle_buttons() -> impl UiNode {
                     Toggle! {
                         child = Text!("Radio button (Tokyo)");
                         value::<&'static str> = "Tokyo";
-                        style_fn = style_fn!(|_| toggle::RadioStyle!());
+                        style_fn = toggle::RadioStyle!();
                     },
                     Toggle! {
                         child = Text!("Radio button (Paris)");
                         value::<&'static str> = "Paris";
-                        style_fn = style_fn!(|_| toggle::RadioStyle!());
+                        style_fn = toggle::RadioStyle!();
                     },
                     Toggle! {
                         child = Text!("Radio button (London)");
                         value::<&'static str> = "London";
-                        style_fn = style_fn!(|_| toggle::RadioStyle!());
+                        style_fn = toggle::RadioStyle!();
                     },
                 ];
             }

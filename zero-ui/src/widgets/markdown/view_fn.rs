@@ -460,7 +460,8 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
             .boxed()
         };
 
-        crate::widgets::Link! {
+        crate::widgets::Button! {
+            style_fn = crate::widgets::button::LinkStyle!();
             child = items;
 
             on_click = hn!(|args: &ClickArgs| {
@@ -807,7 +808,8 @@ pub fn default_footnote_ref_fn(args: FootnoteRefFnArgs) -> impl UiNode {
     use crate::widgets::*;
 
     let url = formatx!("#footnote-{}", args.label);
-    Link! {
+    Button! {
+        style_fn = button::LinkStyle!();
         font_size = 0.7.em();
         offset = (0, (-0.5).em());
         markdown::anchor = formatx!("footnote-ref-{}", args.label);
@@ -846,7 +848,8 @@ pub fn default_footnote_def_fn(args: FootnoteDefFnArgs) -> impl UiNode {
         spacing = 0.5.em();
         anchor = formatx!("footnote-{}", args.label);
         children = ui_vec![
-            Link! {
+            Button! {
+                style_fn = button::LinkStyle!();
                 child = Text!("[^{}]", args.label);
                 on_click = hn!(|args: &ClickArgs| {
                     args.propagation().stop();

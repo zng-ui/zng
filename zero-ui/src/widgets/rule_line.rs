@@ -159,19 +159,19 @@ pub mod hr {
     }
 
     /// Sets the [`COLOR_VAR`] that affects all horizontal rules inside the widget.
-    #[property(CONTEXT, default(COLOR_VAR), widget_impl(Hr))]
+    #[property(CONTEXT, default(COLOR_VAR))]
     pub fn color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
         with_context_var(child, COLOR_VAR, color)
     }
 
     /// Sets the [`STROKE_THICKNESS_VAR`] that affects all horizontal rules inside the widget.
-    #[property(CONTEXT, default(STROKE_THICKNESS_VAR), widget_impl(Hr))]
+    #[property(CONTEXT, default(STROKE_THICKNESS_VAR))]
     pub fn stroke_thickness(child: impl UiNode, thickness: impl IntoVar<Length>) -> impl UiNode {
         with_context_var(child, STROKE_THICKNESS_VAR, thickness)
     }
 
     /// Sets the [`LINE_STYLE_VAR`] that affects all horizontal rules inside the widget.
-    #[property(CONTEXT, default(LINE_STYLE_VAR), widget_impl(Hr))]
+    #[property(CONTEXT, default(LINE_STYLE_VAR))]
     pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
         with_context_var(child, LINE_STYLE_VAR, style)
     }

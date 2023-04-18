@@ -57,10 +57,10 @@ fn alt_scope() -> impl UiNode {
     Stack! {
         direction = StackDirection::left_to_right();
         alt_focus_scope = true;
-        button::extend_style = style_fn!(|_| Style! {
+        button::extend_style = Style! {
             border = unset!;
             corner_radius = unset!;
-        });
+        };
         children = ui_vec![
             button("alt", TabIndex::AUTO),
             button("scope", TabIndex::AUTO),

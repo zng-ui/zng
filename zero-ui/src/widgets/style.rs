@@ -48,14 +48,14 @@ impl<P: WidgetImpl> StyleMix<P> {
 impl<P> StyleMix<P> {
     /// The custom build that is set on intrinsic by the mixin.
     pub fn custom_build(mut wgt: WidgetBuilder) -> BoxedUiNode {
-        // 1 - "split_off" the property `style`
+        // 1 - "split_off" the property `style_fn`
         //     this moves the property and any `when` that affects it to a new widget builder.
         let style_id = property_id!(style_fn);
         let mut style_builder = WidgetBuilder::new(wgt.widget_type());
-        wgt.split_off([style_id], &mut style_builder);
+        wgt.split_off([style_id, style_id], &mut style_builder);
 
         if style_builder.has_properties() {
-            // 2.a - There was a `style` property, build a "mini widget" that is only the style property
+            // 2.a - There was a `style_fn` property, build a "mini widget" that is only the style property
             //       and when condition properties that affect it.
 
             #[cfg(trace_widget)]
@@ -83,7 +83,8 @@ impl<P> StyleMix<P> {
         }
     }
 }
-/// Style function used for the widget.
+
+/// Replaces the widget's style with an style function.
 ///
 /// Properties and `when` conditions in the generated style are applied to the widget as
 /// if they where set on it. Note that changing the style causes the widget info tree to rebuild,
@@ -92,6 +93,11 @@ impl<P> StyleMix<P> {
 /// The style property it-self can be affected by `when` conditions set on the widget, this works to a limited
 /// extent as only the style and when condition properties is loaded to evaluate, so a when condition that depends
 /// on the full widget context will not work.
+///
+/// You can also set this property to an style instance directly, it will always work when you have an instance
+/// of the style per widget instance, but if the style is used in multiple widgets properties with cloneable
+/// values will be cloned, properties with node values will be moved to the last usage place, breaking the style
+/// in previous instances. When in doubt use [`style_fn!`], it always works.
 ///
 /// Is `nil` by default.
 #[property(WIDGET, capture, default(StyleFn::nil()), widget_impl(StyleMix<P>))]
@@ -197,7 +203,7 @@ impl UiNode for StyleNode {
 /// Use the [`Style!`] *widget* to declare.
 ///
 /// [`Style!`]: struct@Style
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StyleBuilder {
     builder: WidgetBuilder,
 }
@@ -260,6 +266,12 @@ impl From<WidgetBuilder> for StyleBuilder {
         StyleBuilder::from_builder(p)
     }
 }
+impl_from_and_into_var! {
+    /// Singleton.
+    fn from(style: StyleBuilder) -> StyleFn {
+        StyleFn::singleton(style)
+    }
+}
 
 /// Arguments for [`StyleFn`] closure.
 ///
@@ -298,6 +310,16 @@ impl StyleFn {
                 Some(style)
             }
         })))
+    }
+
+    /// New style function that returns clones of `style`.
+    ///
+    /// Note that if the `style` contains properties with node values the nodes will be moved to
+    /// the last usage of the style, as nodes can't be cloned.
+    ///
+    /// Also note that the `style` will stay in memory for the lifetime of the `StyleFn`.
+    pub fn singleton(style: StyleBuilder) -> Self {
+        Self::new(move |_| style.clone())
     }
 
     /// Call the function to create a style for the styleable widget in the context.

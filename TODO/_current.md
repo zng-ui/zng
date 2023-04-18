@@ -30,10 +30,3 @@
 
 * Review all docs.
     - Mentions of threads in particular.
-
-# Continue Widget Refactor
-
-* Review `Link` widget.
-    - Link should be a `Button` style?
-        - Like `Toggle` has different styles.
-    - Or it should be a clickable `Text`.

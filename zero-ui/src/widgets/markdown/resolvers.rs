@@ -294,7 +294,9 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         child = Stack! {
             direction = StackDirection::left_to_right();
             children = ui_vec![
-                Link! {
+                Button! {
+                    style_fn = button::LinkStyle!();
+
                     focus_on_init = true;
 
                     child = Text!(url);

@@ -94,9 +94,7 @@ fn example() -> impl UiNode {
                 spacing = 2;
                 columns = ui_vec![grid::Column!(1.lft()); 7];
                 auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
-                button::extend_style = style_fn!(|_| Style! {
-                    padding = 3;
-                });
+                button::extend_style = Style! { padding = 3 };
                 cells = ui_vec![
                     ease_btn(&x, &color, "linear", easing::linear, &easing_mod),
                     ease_btn(&x, &color, "quad", easing::quad, &easing_mod),

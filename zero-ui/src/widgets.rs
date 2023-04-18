@@ -40,10 +40,6 @@ pub mod icon;
 #[doc(inline)]
 pub use icon::Icon;
 
-pub mod link;
-#[doc(inline)]
-pub use link::Link;
-
 pub mod markdown;
 #[doc(inline)]
 pub use markdown::Markdown;
