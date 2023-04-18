@@ -87,7 +87,7 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let font_size = FONT_SIZE_VAR.get();
             let font_size_px = font_size.layout_dft_x(LAYOUT.root_font_size());
             if font_size_px >= Px(0) {
@@ -634,7 +634,7 @@ pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -
             }
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             LAYOUT.with_direction(self.direction.get(), || self.child.measure(wm))
         }
 

@@ -1,7 +1,5 @@
 //! Grid widgets, properties and nodes..
 
-use zero_ui_core::task::parking_lot::Mutex;
-
 use crate::prelude::new_widget::*;
 
 /// Grid layout with cells of variable sizes.
@@ -733,13 +731,12 @@ fn downcast_auto(cols_or_rows: &mut BoxedUiNodeList) -> &mut Vec<BoxedUiNode> {
     #[var] auto_grow_mode: impl Var<AutoGrowMode>,
     #[var] spacing: impl Var<GridSpacing>,
 
-    info: Mutex<GridInfo>,
+    info: GridInfo,
 })]
 impl GridNode {
     fn collapse_info(&mut self) {
-        let info = self.info.get_mut();
-        info.columns.clear();
-        info.rows.clear();
+        self.info.columns.clear();
+        self.info.rows.clear();
     }
 
     // add/remove info entries, auto-grow/shrink
@@ -865,9 +862,8 @@ impl GridNode {
             true
         });
 
-        let info = self.info.get_mut();
-        info.columns.resize(columns_len, ColumnInfo::default());
-        info.rows.resize(rows_len, RowInfo::default());
+        self.info.columns.resize(columns_len, ColumnInfo::default());
+        self.info.rows.resize(rows_len, RowInfo::default());
     }
 
     #[UiNode]
@@ -908,9 +904,8 @@ impl GridNode {
         }
     }
 
-    fn layout_info(&self, wm: &mut WidgetMeasure) -> (PxGridSpacing, PxSize) {
-        let mut info = self.info.lock();
-        let info = &mut *info;
+    fn layout_info(&mut self, wm: &mut WidgetMeasure) -> (PxGridSpacing, PxSize) {
+        let info = &mut self.info;
         if info.is_collapse() {
             return (PxGridSpacing::zero(), PxSize::zero());
         }
@@ -921,7 +916,7 @@ impl GridNode {
         let fill_x = constraints.x.fill_or_exact();
         let fill_y = constraints.y.fill_or_exact();
 
-        let mut children = self.children.iter();
+        let mut children = self.children.iter_mut();
         let columns = children.next().unwrap();
         let rows = children.next().unwrap();
         let cells = children.next().unwrap();
@@ -932,7 +927,7 @@ impl GridNode {
         let mut has_leftover_cols = false;
         let mut has_leftover_rows = false;
 
-        columns.for_each(|ci, col| {
+        columns.for_each_mut(|ci, col| {
             let col_kind = WIDGET_SIZE.get_wgt(col).width;
 
             let col_info = &mut info.columns[ci];
@@ -957,7 +952,7 @@ impl GridNode {
 
             true
         });
-        rows.for_each(|ri, row| {
+        rows.for_each_mut(|ri, row| {
             let row_kind = WIDGET_SIZE.get_wgt(row).height;
 
             let row_info = &mut info.rows[ri];
@@ -989,7 +984,7 @@ impl GridNode {
         let columns_len = info.columns.len();
         if has_default || (fill_x.is_none() && has_leftover_cols) || (fill_y.is_none() && has_leftover_rows) {
             let c = LAYOUT.constraints();
-            cells.for_each(|i, cell| {
+            cells.for_each_mut(|i, cell| {
                 let cell_info = cell::CellInfo::get_wgt(cell);
                 if cell_info.column_span > 1 || cell_info.row_span > 1 {
                     return true; // continue;
@@ -1136,7 +1131,7 @@ impl GridNode {
 
                     if i < view_columns_len {
                         let size = LAYOUT.with_constraints(LAYOUT.constraints().with_fill_x(true).with_max_x(col.width), || {
-                            columns.with_node(i, |col| col.measure(wm))
+                            columns.with_node_mut(i, |col| col.measure(wm))
                         });
 
                         if col.width != size.width {
@@ -1265,7 +1260,7 @@ impl GridNode {
 
                     if i < view_rows_len {
                         let size = LAYOUT.with_constraints(LAYOUT.constraints().with_fill_y(true).with_max_y(row.height), || {
-                            rows.with_node(i, |row| row.measure(wm))
+                            rows.with_node_mut(i, |row| row.measure(wm))
                         });
 
                         if row.height != size.height {
@@ -1324,7 +1319,7 @@ impl GridNode {
     }
 
     #[UiNode]
-    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
         if let Some(size) = LAYOUT.constraints().fill_or_exact() {
             size
         } else {
@@ -1337,7 +1332,7 @@ impl GridNode {
         let (spacing, grid_size) = self.layout_info(&mut WidgetMeasure::new());
         let c = LAYOUT.constraints();
 
-        let info = self.info.get_mut();
+        let info = &mut self.info;
         if info.is_collapse() {
             wl.collapse_descendants();
             return LAYOUT.constraints().fill_or_exact().unwrap_or_default();
@@ -1417,12 +1412,16 @@ impl GridNode {
     }
 
     #[UiNode]
-    fn render(&self, frame: &mut FrameBuilder) {
-        let info = self.info.lock();
-        let cells: &PanelList = self.children[2].as_any().downcast_ref().unwrap();
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        let info = &self.info;
+
+        let mut children = self.children.iter_mut();
+        let columns = children.next().unwrap();
+        let rows = children.next().unwrap();
+        let cells : &mut PanelList = children.next().unwrap().as_any_mut().downcast_mut().unwrap();
         let offset_key = cells.offset_key();
 
-        self.children[0].for_each(|i, child| {
+        columns.for_each_mut(|i, child| {
             let offset = PxVector::new(info.columns[i].x, Px(0));
             frame.push_reference_frame(
                 (offset_key, i as u32).into(),
@@ -1435,8 +1434,8 @@ impl GridNode {
             );
             true
         });
-        let i_extra = self.children[0].len();
-        self.children[1].for_each(|i, child| {
+        let i_extra = columns.len();
+        rows.for_each_mut(|i, child| {
             let offset = PxVector::new(Px(0), info.rows[i].y);
             frame.push_reference_frame(
                 (offset_key, (i + i_extra) as u32).into(),
@@ -1449,8 +1448,8 @@ impl GridNode {
             );
             true
         });
-        let i_extra = i_extra + self.children[1].len();
-        cells.for_each_z_sorted(|i, child, data| {
+        let i_extra = i_extra + rows.len();
+        cells.for_each_z_sorted_mut(|i, child, data| {
             if data.define_reference_frame {
                 frame.push_reference_frame(
                     (offset_key, (i + i_extra) as u32).into(),
@@ -1469,25 +1468,28 @@ impl GridNode {
     }
 
     #[UiNode]
-    fn render_update(&self, update: &mut FrameUpdate) {
-        let info = self.info.lock();
-        let cells: &PanelList = self.children[2].as_any().downcast_ref().unwrap();
+    fn render_update(&mut self, update: &mut FrameUpdate) {
+        let info = &self.info;
+        let mut children = self.children.iter_mut();
+        let columns = children.next().unwrap();
+        let rows = children.next().unwrap();
+        let cells: &mut PanelList = children.next().unwrap().as_any_mut().downcast_mut().unwrap();
 
-        self.children[0].for_each(|i, child| {
+        columns.for_each_mut(|i, child| {
             let offset = PxVector::new(info.columns[i].x, Px(0));
             update.with_transform_value(&offset.into(), |update| {
                 child.render_update(update);
             });
             true
         });
-        self.children[1].for_each(|i, child| {
+        rows.for_each_mut(|i, child| {
             let offset = PxVector::new(Px(0), info.rows[i].y);
             update.with_transform_value(&offset.into(), |update| {
                 child.render_update(update);
             });
             true
         });
-        cells.for_each(|_, child, data| {
+        cells.for_each_mut(|_, child, data| {
             if data.define_reference_frame {
                 update.with_transform_value(&data.child_offset.into(), |update| {
                     child.render_update(update);

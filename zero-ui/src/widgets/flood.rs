@@ -13,7 +13,7 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
                 WIDGET.render_update();
             }
         }
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             LAYOUT.constraints().fill_size()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
@@ -25,14 +25,14 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
             final_size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.push_color(
                 PxRect::from_size(self.final_size),
                 self.frame_key.bind_var(&self.color, |&c| c.into()),
             );
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             update.update_color_opt(self.frame_key.update_var(&self.color, |&c| c.into()));
         }
     }

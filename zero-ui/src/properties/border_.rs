@@ -25,7 +25,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
             }
         }
 
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             LAYOUT.constraints().fill_size()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
@@ -33,7 +33,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
             LAYOUT.constraints().fill_size()
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             let (rect, offsets) = BORDER.border_layout();
             frame.push_border(rect, offsets, self.sides.get(), self.corners);
         }

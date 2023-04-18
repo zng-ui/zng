@@ -536,8 +536,8 @@ mod impls {
             self.on_deinit();
         }
 
-        fn info(&self, info: &mut WidgetInfoBuilder) {
-            self.delegate_owned(|n| n.info(info));
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
+            self.delegate_owned_mut(|n| n.info(info));
         }
 
         fn event(&mut self, update: &EventUpdate) {
@@ -550,20 +550,20 @@ mod impls {
             self.delegate_owned_mut_with_handles(|n| n.update(updates));
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            self.delegate_owned(|n| n.measure(wm)).unwrap_or_default()
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+            self.delegate_owned_mut(|n| n.measure(wm)).unwrap_or_default()
         }
 
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             self.delegate_owned_mut(|n| n.layout(wl)).unwrap_or_default()
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            self.delegate_owned(|n| n.render(frame));
+        fn render(&mut self, frame: &mut FrameBuilder) {
+            self.delegate_owned_mut(|n| n.render(frame));
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
-            self.delegate_owned(|n| n.render_update(update));
+        fn render_update(&mut self, update: &mut FrameUpdate) {
+            self.delegate_owned_mut(|n| n.render_update(update));
         }
 
         fn is_widget(&self) -> bool {
@@ -677,12 +677,12 @@ mod impls {
             self.delegate_owned_mut_with_handles(|l| l.update_all(updates, observer));
         }
 
-        fn render_all(&self, frame: &mut FrameBuilder) {
-            self.delegate_owned(|l| l.render_all(frame));
+        fn render_all(&mut self, frame: &mut FrameBuilder) {
+            self.delegate_owned_mut(|l| l.render_all(frame));
         }
 
-        fn render_update_all(&self, update: &mut FrameUpdate) {
-            self.delegate_owned(|l| l.render_update_all(update));
+        fn render_update_all(&mut self, update: &mut FrameUpdate) {
+            self.delegate_owned_mut(|l| l.render_update_all(update));
         }
     }
 }

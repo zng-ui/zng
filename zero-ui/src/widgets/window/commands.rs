@@ -102,7 +102,7 @@ mod inspector_window {
             inspected: WindowId,
         })]
         impl UiNode for InspectedNode {
-            fn info(&self, info: &mut WidgetInfoBuilder) {
+            fn info(&mut self, info: &mut WidgetInfoBuilder) {
                 assert!(WIDGET.parent_id().is_none());
                 info.meta().set(&INSPECTED_ID, self.inspected);
                 self.child.info(info);

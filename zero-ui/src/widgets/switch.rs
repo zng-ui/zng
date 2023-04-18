@@ -1,8 +1,8 @@
 //! Switch widget, properties and nodes..
 
-use crate::prelude::new_widget::*;
-
 use std::mem;
+
+use crate::prelude::new_widget::*;
 
 /// Switch visibility of children nodes using an index variable.
 ///
@@ -36,10 +36,7 @@ struct SwitchNode<I, W> {
     options: W,
     collapse: bool,
 }
-#[ui_node(
-    delegate_list = &self.options,
-    delegate_list_mut = &mut self.options,
-)]
+#[ui_node(delegate_list = &mut self.options)]
 impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
     fn update(&mut self, updates: &WidgetUpdates) {
         if self.index.is_new() {
@@ -82,10 +79,10 @@ impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
         }
     }
 
-    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
         let index = self.index.get();
         if index < self.options.len() {
-            self.options.with_node(index, |n| n.measure(wm))
+            self.options.with_node_mut(index, |n| n.measure(wm))
         } else {
             PxSize::zero()
         }
@@ -103,16 +100,16 @@ impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
         }
     }
 
-    fn render(&self, frame: &mut FrameBuilder) {
+    fn render(&mut self, frame: &mut FrameBuilder) {
         let index = self.index.get();
         if index < self.options.len() {
-            self.options.with_node(index, |n| n.render(frame))
+            self.options.with_node_mut(index, |n| n.render(frame))
         }
     }
-    fn render_update(&self, update: &mut FrameUpdate) {
+    fn render_update(&mut self, update: &mut FrameUpdate) {
         let index = self.index.get();
         if index < self.options.len() {
-            self.options.with_node(index, |n| n.render_update(update));
+            self.options.with_node_mut(index, |n| n.render_update(update));
         }
     }
 }

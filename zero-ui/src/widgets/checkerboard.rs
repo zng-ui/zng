@@ -91,7 +91,7 @@ pub fn node() -> impl UiNode {
             }
         }
 
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             LAYOUT.constraints().fill_size()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
@@ -120,7 +120,7 @@ pub fn node() -> impl UiNode {
             self.final_size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.push_conic_gradient(
                 PxRect::from_size(self.final_size),
                 self.center,

@@ -6,8 +6,6 @@ use crate::{crate_util::RecycleVec, prelude::new_widget::*};
 
 use crate::widgets::text::{LINE_SPACING_VAR, TEXT_ALIGN_VAR};
 
-use task::parking_lot::Mutex;
-
 /// Wrapping inline layout.
 #[widget($crate::widgets::layouts::Wrap)]
 pub struct Wrap(WidgetBase);
@@ -100,7 +98,7 @@ pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSp
                 UPDATES.layout();
             }
         }
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             self.size.layout()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
@@ -131,7 +129,7 @@ pub fn lazy_sample(children_len: impl IntoVar<usize>, spacing: impl IntoVar<Grid
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let child_size = self.child.measure(wm);
             InlineLayout::estimate_measure(wm, self.children_len.get(), child_size, self.spacing.layout())
         }
@@ -152,7 +150,7 @@ pub fn lazy_sample(children_len: impl IntoVar<usize>, spacing: impl IntoVar<Grid
     children: PanelList,
     #[var] spacing: impl Var<GridSpacing>,
     #[var] children_align: impl Var<Align>,
-    layout: Mutex<InlineLayout>
+    layout: InlineLayout,
 })]
 impl UiNode for WrapNode {
     fn update(&mut self, updates: &WidgetUpdates) {
@@ -164,17 +162,15 @@ impl UiNode for WrapNode {
         }
     }
 
-    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
         let spacing = self.spacing.layout();
-        self.layout.lock().measure(wm, &self.children, self.children_align.get(), spacing)
+        self.layout.measure(wm, &mut self.children, self.children_align.get(), spacing)
     }
 
     #[allow_(zero_ui::missing_delegate)] // false positive
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
         let spacing = self.spacing.layout();
-        self.layout
-            .get_mut()
-            .layout(wl, &mut self.children, self.children_align.get(), spacing)
+        self.layout.layout(wl, &mut self.children, self.children_align.get(), spacing)
     }
 }
 
@@ -408,7 +404,7 @@ impl InlineLayout {
         }
     }
 
-    pub fn measure(&mut self, wm: &mut WidgetMeasure, children: &PanelList, child_align: Align, spacing: PxGridSpacing) -> PxSize {
+    pub fn measure(&mut self, wm: &mut WidgetMeasure, children: &mut PanelList, child_align: Align, spacing: PxGridSpacing) -> PxSize {
         let metrics = LAYOUT.metrics();
         let constraints = metrics.constraints();
 
@@ -739,7 +735,7 @@ impl InlineLayout {
         constraints.clamp_size(PxSize::new(panel_width, panel_height))
     }
 
-    fn measure_rows(&mut self, metrics: &LayoutMetrics, children: &PanelList, child_align: Align, spacing: PxGridSpacing) {
+    fn measure_rows(&mut self, metrics: &LayoutMetrics, children: &mut PanelList, child_align: Align, spacing: PxGridSpacing) {
         self.rows.begin_reuse();
         self.bidi_layout_fresh = false;
 
@@ -756,7 +752,7 @@ impl InlineLayout {
             .with_max_x(child_inline_constrain);
         let mut row = self.rows.new_item();
         LAYOUT.with_constraints(child_constraints, || {
-            children.for_each(|i, child, _| {
+            children.for_each_mut(|i, child, _| {
                 let mut inline_constrain = child_inline_constrain;
                 let mut wrap_clear_min = Px(0);
                 if self.rows.is_empty() && !self.first_wrapped {

@@ -508,7 +508,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         }
     }
 
-    fn render_all(&self, frame: &mut FrameBuilder) {
+    fn render_all(&mut self, frame: &mut FrameBuilder) {
         // if PARALLEL_VAR.get().contains(Parallel::RENDER) {
         //     todo!("parallel render");
         // }
@@ -516,7 +516,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         self.1.render_all(frame);
     }
 
-    fn render_update_all(&self, update: &mut FrameUpdate) {
+    fn render_update_all(&mut self, update: &mut FrameUpdate) {
         // if PARALLEL_VAR.get().contains(Parallel::RENDER) {
         //     todo!("parallel render_update");
         // }
@@ -1814,7 +1814,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
         }
     }
 
-    fn render_all(&self, frame: &mut FrameBuilder) {
+    fn render_all(&mut self, frame: &mut FrameBuilder) {
         // if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
         //     todo!("parallel render");
         // }
@@ -1823,7 +1823,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
         }
     }
 
-    fn render_update_all(&self, update: &mut FrameUpdate) {
+    fn render_update_all(&mut self, update: &mut FrameUpdate) {
         // if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
         //     todo!("parallel render_update");
         // }
@@ -1973,9 +1973,9 @@ where
     /// Call `measure` for each node and combines the final size using `fold_size`.
     ///
     /// The call to `measure` can be parallel if [`Parallel::LAYOUT`] is enabled, the inputs are the child index, node, data and the [`WidgetMeasure`].
-    pub fn measure_each<F, S>(&self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
+    pub fn measure_each<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
     where
-        F: Fn(usize, &BoxedUiNode, &D, &mut WidgetMeasure) -> PxSize + Send + Sync,
+        F: Fn(usize, &mut BoxedUiNode, &D, &mut WidgetMeasure) -> PxSize + Send + Sync,
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
     {
         let data = &self.data;
@@ -2252,13 +2252,14 @@ where
         self.data.resize_with(self.list.len(), Default::default);
     }
 
-    fn render_all(&self, frame: &mut FrameBuilder) {
-        self.for_each_z_sorted(|i, child, data| {
+    fn render_all(&mut self, frame: &mut FrameBuilder) {
+        let offset_key = self.offset_key;
+        self.for_each_z_sorted_mut(|i, child, data| {
             let offset = data.child_offset();
             if data.define_reference_frame() {
                 frame.push_reference_frame(
-                    (self.offset_key, i as u32).into(),
-                    self.offset_key.bind_child(i as u32, offset.into(), false),
+                    (offset_key, i as u32).into(),
+                    offset_key.bind_child(i as u32, offset.into(), false),
                     true,
                     true,
                     |frame| {
@@ -2275,11 +2276,12 @@ where
         });
     }
 
-    fn render_update_all(&self, update: &mut FrameUpdate) {
-        self.for_each(|i, child, data| {
+    fn render_update_all(&mut self, update: &mut FrameUpdate) {
+        let offset_key = self.offset_key;
+        self.for_each_mut(|i, child, data| {
             let offset = data.child_offset();
             if data.define_reference_frame() {
-                update.with_transform(self.offset_key.update_child(i as u32, offset.into(), false), true, |update| {
+                update.with_transform(offset_key.update_child(i as u32, offset.into(), false), true, |update| {
                     child.render_update(update);
                 });
             } else {

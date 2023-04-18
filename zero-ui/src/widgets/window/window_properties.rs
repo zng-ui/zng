@@ -139,11 +139,11 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
             }
             self.child.update(updates);
         }
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.set_clear_color(self.clear_color.get().into());
             self.child.render(frame);
         }
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             update.set_clear_color(self.clear_color.get().into());
             self.child.render_update(update);
         }

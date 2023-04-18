@@ -666,7 +666,7 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
         child: impl UiNode,
     })]
     impl UiNode for CornerRadiusNode {
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -758,7 +758,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             self.child.update(updates);
         }
 
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             let offsets = BORDER.inner_offsets();
             let align = BORDER_ALIGN_VAR.get();
 
@@ -806,8 +806,8 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             fill_bounds
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            let render_clipped = |frame: &mut FrameBuilder| {
+        fn render(&mut self, frame: &mut FrameBuilder) {
+            let mut render_clipped = |frame: &mut FrameBuilder| {
                 let bounds = PxRect::from_size(self.clip_bounds);
                 frame.push_clips(
                     |c| {
@@ -842,7 +842,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             if self.define_ref_frame {
                 update.with_transform(self.offset_key.update(self.offset.into(), false), false, |update| {
                     self.child.render_update(update);
@@ -894,11 +894,11 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             self.children.update_all(updates, &mut ());
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let offsets = self.offsets.layout();
             BORDER.measure_with_border(offsets, || {
                 LAYOUT.with_sub_size(PxSize::new(offsets.horizontal(), offsets.vertical()), || {
-                    self.children.with_node(0, |n| LAYOUT.disable_inline(wm, n))
+                    self.children.with_node_mut(0, |n| LAYOUT.disable_inline(wm, n))
                 })
             })
         }
@@ -941,17 +941,17 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             self.border_rect.size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            self.children.with_node(0, |c| c.render(frame));
+        fn render(&mut self, frame: &mut FrameBuilder) {
+            self.children.with_node_mut(0, |c| c.render(frame));
             BORDER.with_border_layout(self.border_rect, self.render_offsets, || {
-                self.children.with_node(1, |c| c.render(frame));
+                self.children.with_node_mut(1, |c| c.render(frame));
             });
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
-            self.children.with_node(0, |c| c.render_update(update));
+        fn render_update(&mut self, update: &mut FrameUpdate) {
+            self.children.with_node_mut(0, |c| c.render_update(update));
             BORDER.with_border_layout(self.border_rect, self.render_offsets, || {
-                self.children.with_node(1, |c| c.render_update(update));
+                self.children.with_node_mut(1, |c| c.render_update(update));
             })
         }
     }

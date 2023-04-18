@@ -56,10 +56,10 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let margin = self.margin.layout();
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
-            LAYOUT.with_sub_size(size_increment, || LAYOUT.disable_inline(wm, &self.child))
+            LAYOUT.with_sub_size(size_increment, || LAYOUT.disable_inline(wm, &mut self.child))
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let margin = self.margin.layout();
@@ -119,10 +119,10 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let align = self.alignment.get();
             let child_size = LAYOUT.with_constraints(align.child_constraints(LAYOUT.constraints()), || {
-                LAYOUT.disable_inline(wm, &self.child)
+                LAYOUT.disable_inline(wm, &mut self.child)
             });
             align.measure(child_size, LAYOUT.constraints())
         }
@@ -182,7 +182,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -236,7 +236,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -287,7 +287,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -348,10 +348,10 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let c = LAYOUT.constraints();
             let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || self.min_size.layout());
-            let size = LAYOUT.with_constraints(c.with_min_size(min), || LAYOUT.disable_inline(wm, &self.child));
+            let size = LAYOUT.with_constraints(c.with_min_size(min), || LAYOUT.disable_inline(wm, &mut self.child));
             size.max(min)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -412,10 +412,10 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let c = LAYOUT.constraints();
             let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || self.min_width.layout_x());
-            let mut size = LAYOUT.with_constraints(c.with_min_x(min), || LAYOUT.disable_inline(wm, &self.child));
+            let mut size = LAYOUT.with_constraints(c.with_min_x(min), || LAYOUT.disable_inline(wm, &mut self.child));
             size.width = size.width.max(min);
             size
         }
@@ -478,10 +478,10 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let c = LAYOUT.constraints();
             let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || self.min_height.layout_y());
-            let mut size = LAYOUT.with_constraints(c.with_min_y(min), || LAYOUT.disable_inline(wm, &self.child));
+            let mut size = LAYOUT.with_constraints(c.with_min_y(min), || LAYOUT.disable_inline(wm, &mut self.child));
             size.height = size.height.max(min);
             size
         }
@@ -545,9 +545,11 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let max = with_fill_metrics(|d| self.max_size.layout_dft(d));
-            let size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_size(max), || LAYOUT.disable_inline(wm, &self.child));
+            let size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_size(max), || {
+                LAYOUT.disable_inline(wm, &mut self.child)
+            });
             size.min(max)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -607,10 +609,10 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let max = with_fill_metrics(|d| self.max_width.layout_dft_x(d.width));
 
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_x(max), || LAYOUT.disable_inline(wm, &self.child));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_x(max), || LAYOUT.disable_inline(wm, &mut self.child));
             size.width = size.width.min(max);
             size
         }
@@ -673,10 +675,10 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let max = with_fill_metrics(|d| self.max_height.layout_dft_y(d.height));
 
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_y(max), || LAYOUT.disable_inline(wm, &self.child));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_y(max), || LAYOUT.disable_inline(wm, &mut self.child));
             size.height = size.height.min(max);
             size
         }
@@ -750,10 +752,10 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             });
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let size = with_fill_metrics(|d| self.size.layout_dft(d));
             let size = LAYOUT.constraints().clamp_size(size);
-            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || LAYOUT.disable_inline(wm, &self.child));
+            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || LAYOUT.disable_inline(wm, &mut self.child));
             size
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -818,11 +820,11 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
             });
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let width = with_fill_metrics(|d| self.width.layout_dft_x(d.width));
             let c = LAYOUT.constraints();
             let width = c.x.clamp(width);
-            let mut size = LAYOUT.with_constraints(c.with_exact_x(width), || LAYOUT.disable_inline(wm, &self.child));
+            let mut size = LAYOUT.with_constraints(c.with_exact_x(width), || LAYOUT.disable_inline(wm, &mut self.child));
             size.width = width;
             size
         }
@@ -890,11 +892,11 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
             });
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let height = with_fill_metrics(|dft| self.height.layout_dft_y(dft.height));
             let c = LAYOUT.constraints();
             let height = c.y.clamp(height);
-            let mut size = LAYOUT.with_constraints(c.with_new_exact_y(height), || LAYOUT.disable_inline(wm, &self.child));
+            let mut size = LAYOUT.with_constraints(c.with_new_exact_y(height), || LAYOUT.disable_inline(wm, &mut self.child));
             size.height = height;
             size
         }
@@ -939,7 +941,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -975,9 +977,9 @@ pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNo
         #[var] sticky: impl Var<bool>,
     })]
     impl UiNode for StickyWidthNode {
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let min = WIDGET.bounds().inner_size().width;
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || LAYOUT.disable_inline(wm, &self.child));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || LAYOUT.disable_inline(wm, &mut self.child));
             size.width = size.width.max(min);
             size
         }
@@ -1006,9 +1008,9 @@ pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiN
         #[var] sticky: impl Var<bool>,
     })]
     impl UiNode for StickyHeightNode {
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let min = WIDGET.bounds().inner_size().height;
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || LAYOUT.disable_inline(wm, &self.child));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || LAYOUT.disable_inline(wm, &mut self.child));
             size.height = size.height.max(min);
             size
         }
@@ -1037,9 +1039,11 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
         #[var] sticky: impl Var<bool>,
     })]
     impl UiNode for StickyHeightNode {
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let min = WIDGET.bounds().inner_size();
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || LAYOUT.disable_inline(wm, &self.child));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || {
+                LAYOUT.disable_inline(wm, &mut self.child)
+            });
             size = size.max(min);
             size
         }
@@ -1146,17 +1150,17 @@ pub fn child_insert(
             }
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let c = LAYOUT.constraints();
             if self.place.get().is_x_axis() {
                 let mut spacing = self.spacing.layout_x();
-                let insert_size = self.children.with_node(1, |n| {
+                let insert_size = self.children.with_node_mut(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || LAYOUT.disable_inline(wm, n))
                 });
                 if insert_size.width == Px(0) {
                     spacing = Px(0);
                 }
-                let child_size = self.children.with_node(0, |n| {
+                let child_size = self.children.with_node_mut(0, |n| {
                     LAYOUT.with_constraints(c.with_less_x(insert_size.width + spacing), || LAYOUT.disable_inline(wm, n))
                 });
 
@@ -1166,13 +1170,13 @@ pub fn child_insert(
                 )
             } else {
                 let mut spacing = self.spacing.layout_y();
-                let insert_size = self.children.with_node(1, |n| {
+                let insert_size = self.children.with_node_mut(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || LAYOUT.disable_inline(wm, n))
                 });
                 if insert_size.height == Px(0) {
                     spacing = Px(0);
                 }
-                let child_size = self.children.with_node(0, |n| {
+                let child_size = self.children.with_node_mut(0, |n| {
                     LAYOUT.with_constraints(c.with_less_y(insert_size.height + spacing), || LAYOUT.disable_inline(wm, n))
                 });
                 if child_size.height == Px(0) {
@@ -1200,13 +1204,13 @@ pub fn child_insert(
                         let wm = &mut wm;
                         let mut spacing = spacing;
 
-                        let insert_size = self.children.with_node(1, |n| {
+                        let insert_size = self.children.with_node_mut(1, |n| {
                             LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || n.measure(wm))
                         });
                         if insert_size.width == Px(0) {
                             spacing = Px(0);
                         }
-                        let child_size = self.children.with_node(0, |n| {
+                        let child_size = self.children.with_node_mut(0, |n| {
                             LAYOUT.with_constraints(c.with_less_x(insert_size.width + spacing), || n.measure(wm))
                         });
 
@@ -1270,13 +1274,13 @@ pub fn child_insert(
                         let wm = &mut wm;
                         let mut spacing = spacing;
 
-                        let insert_size = self.children.with_node(1, |n| {
+                        let insert_size = self.children.with_node_mut(1, |n| {
                             LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || n.measure(wm))
                         });
                         if insert_size.height == Px(0) {
                             spacing = Px(0);
                         }
-                        let child_size = self.children.with_node(0, |n| {
+                        let child_size = self.children.with_node_mut(0, |n| {
                             LAYOUT.with_constraints(c.with_less_y(insert_size.height + spacing), || n.measure(wm))
                         });
 
@@ -1332,8 +1336,8 @@ pub fn child_insert(
             }
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
-            self.children.for_each(|i, child| {
+        fn render(&mut self, frame: &mut FrameBuilder) {
+            self.children.for_each_mut(|i, child| {
                 if i as u8 == self.offset_child {
                     frame.push_reference_frame(
                         self.offset_key.into(),
@@ -1351,8 +1355,8 @@ pub fn child_insert(
             })
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
-            self.children.for_each(|i, child| {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
+            self.children.for_each_mut(|i, child| {
                 if i as u8 == self.offset_child {
                     update.with_transform(self.offset_key.update(self.offset.into(), false), true, |update| {
                         child.render_update(update);

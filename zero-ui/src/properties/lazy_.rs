@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::{fmt, mem};
 
 use crate::prelude::new_property::*;
@@ -13,7 +12,7 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
         children: vec![],
         not_inited: Some(child.boxed()),
         mode: mode.into_var(),
-        in_viewport: AtomicBool::new(false),
+        in_viewport: false,
     }
 }
 
@@ -179,14 +178,14 @@ impl fmt::Debug for LazyMode {
 
     #[var]
     mode: impl Var<LazyMode>,
-    in_viewport: AtomicBool,
+    in_viewport: bool,
 })]
 impl UiNode for LazyNode {
     fn init(&mut self) {
         self.auto_subs();
 
         if let LazyMode::Enabled { placeholder, deinit, .. } = self.mode.get() {
-            if mem::take(self.in_viewport.get_mut()) {
+            if mem::take(&mut self.in_viewport) {
                 // init
 
                 if deinit {
@@ -224,7 +223,7 @@ impl UiNode for LazyNode {
         self.children.clear(); // drop placeholder, if any
     }
 
-    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
         let mut size = self.children[0].measure(wm);
 
         if self.not_inited.is_none() && self.children.len() == 2 {
@@ -371,7 +370,7 @@ impl UiNode for LazyNode {
         size
     }
 
-    fn render(&self, frame: &mut FrameBuilder) {
+    fn render(&mut self, frame: &mut FrameBuilder) {
         if self.not_inited.is_some() {
             // not inited, just verify
 
@@ -379,16 +378,15 @@ impl UiNode for LazyNode {
             let outer_bounds = WIDGET.bounds().outer_bounds();
             let viewport = frame.auto_hide_rect();
 
-            let in_viewport = if intersect_mode == ScrollMode::VERTICAL {
+            self.in_viewport = if intersect_mode == ScrollMode::VERTICAL {
                 outer_bounds.min_y() < viewport.max_y() && outer_bounds.max_y() > viewport.min_y()
             } else if intersect_mode == ScrollMode::HORIZONTAL {
                 outer_bounds.min_x() < viewport.max_x() && outer_bounds.max_x() > viewport.min_x()
             } else {
                 outer_bounds.intersects(&viewport)
             };
-            if in_viewport {
+            if self.in_viewport {
                 // request init
-                self.in_viewport.store(true, Ordering::Relaxed);
                 WIDGET.reinit();
             }
         } else if self.children.len() == 2 {
@@ -398,16 +396,15 @@ impl UiNode for LazyNode {
             let viewport = frame.auto_hide_rect();
             let outer_bounds = WIDGET.bounds().outer_bounds();
 
-            let in_viewport = if intersect_mode == ScrollMode::VERTICAL {
+            self.in_viewport = if intersect_mode == ScrollMode::VERTICAL {
                 outer_bounds.min_y() < viewport.max_y() && outer_bounds.max_y() > viewport.min_y()
             } else if intersect_mode == ScrollMode::HORIZONTAL {
                 outer_bounds.min_x() < viewport.max_x() && outer_bounds.max_x() > viewport.min_x()
             } else {
                 outer_bounds.intersects(&viewport)
             };
-            if !in_viewport {
+            if !self.in_viewport {
                 // request deinit
-                self.in_viewport.store(false, Ordering::Relaxed);
                 WIDGET.reinit();
             } else {
                 self.children[1].render(frame);
@@ -418,10 +415,10 @@ impl UiNode for LazyNode {
         }
     }
 
-    fn render_update(&self, update: &mut FrameUpdate) {
+    fn render_update(&mut self, update: &mut FrameUpdate) {
         if self.not_inited.is_none() {
             // child is actual child
-            self.children.last().unwrap().render_update(update);
+            self.children.last_mut().unwrap().render_update(update);
         }
     }
 }

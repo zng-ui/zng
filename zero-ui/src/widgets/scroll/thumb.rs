@@ -158,7 +158,7 @@ fn thumb_layout(child: impl UiNode) -> impl UiNode {
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {

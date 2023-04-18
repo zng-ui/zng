@@ -325,8 +325,6 @@ impl std::hash::Hash for WeakContextInitHandle {
 }
 pub use helpers::*;
 mod helpers {
-    use std::cell::RefCell;
-
     use crate::{context::*, event::*, render::*, var::*, widget_info::*, widget_instance::*, *};
 
     /// Helper for declaring properties that sets a context var.
@@ -412,70 +410,63 @@ mod helpers {
             child: impl UiNode,
             context_var: ContextVar<T>,
             id: Option<ContextInitHandle>,
-            value: RefCell<Option<Arc<BoxedVar<T>>>>,
+            value: Option<Arc<BoxedVar<T>>>,
         })]
         impl WithContextVarNode {
-            fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
-                let mut value = self.value.borrow_mut();
+            fn with<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
                 self.context_var
-                    .with_context(self.id.clone().expect("node not inited"), &mut value, || mtd(&self.child))
-            }
-
-            fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-                let value = self.value.get_mut();
-                self.context_var
-                    .with_context(self.id.clone().expect("not not inited"), value, || mtd(&mut self.child))
+                    .with_context(self.id.clone().expect("not not inited"), &mut self.value, || mtd(&mut self.child))
             }
 
             #[UiNode]
             fn init(&mut self) {
                 if self.id.is_none() {
                     self.id = Some(ContextInitHandle::new());
-                    let value = self.value.get_mut().as_mut().unwrap();
+                    let value = self.value.as_mut().unwrap();
                     let value = Arc::get_mut(value).unwrap();
                     *value = value.clone().actual_var();
                 }
-                self.with_mut(|c| c.init())
+                self.with(|c| c.init())
             }
 
             #[UiNode]
             fn deinit(&mut self) {
-                self.with_mut(|c| c.deinit());
+                self.with(|c| c.deinit());
                 self.id = None;
             }
 
             #[UiNode]
-            fn info(&self, info: &mut WidgetInfoBuilder) {
+            fn info(&mut self, info: &mut WidgetInfoBuilder) {
                 self.with(|c| c.info(info))
             }
 
             #[UiNode]
             fn event(&mut self, update: &crate::event::EventUpdate) {
-                self.with_mut(|c| c.event(update))
+                self.with(|c| c.event(update))
             }
 
             #[UiNode]
             fn update(&mut self, updates: &WidgetUpdates) {
-                self.with_mut(|c| c.update(updates))
+                self.with(|c| c.update(updates))
             }
 
             #[UiNode]
-            fn measure(&self, wm: &mut WidgetMeasure) -> units::PxSize {
+            fn measure(&mut self, wm: &mut WidgetMeasure) -> units::PxSize {
                 self.with(|c| c.measure(wm))
             }
 
             #[UiNode]
             fn layout(&mut self, wl: &mut WidgetLayout) -> units::PxSize {
-                self.with_mut(|c| c.layout(wl))
+                self.with(|c| c.layout(wl))
             }
 
             #[UiNode]
-            fn render(&self, frame: &mut FrameBuilder) {
+            fn render(&mut self, frame: &mut FrameBuilder) {
                 self.with(|c| c.render(frame))
             }
 
             #[UiNode]
-            fn render_update(&self, update: &mut FrameUpdate) {
+            fn render_update(&mut self, update: &mut FrameUpdate) {
                 self.with(|c| c.render_update(update))
             }
         }
@@ -483,7 +474,7 @@ mod helpers {
             child: child.cfg_boxed(),
             context_var,
             id: None,
-            value: RefCell::new(Some(Arc::new(value.into_var().boxed()))),
+            value: Some(Arc::new(value.into_var().boxed())),
         }
     }
 
@@ -503,23 +494,16 @@ mod helpers {
             context_var: ContextVar<T>,
             id: Option<ContextInitHandle>,
             init_value: impl FnMut() -> BoxedVar<T> + Send + 'static,
-            value: RefCell<Option<Arc<BoxedVar<T>>>>,
+            value: Option<Arc<BoxedVar<T>>>,
         })]
         impl WithContextVarInitNode {
-            fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
-                let mut value = self.value.borrow_mut();
+            fn with<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
                 self.context_var
-                    .with_context(self.id.clone().expect("node not inited"), &mut *value, move || mtd(&self.child))
-            }
-
-            fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-                let var = self.value.get_mut();
-                self.context_var
-                    .with_context(self.id.clone().expect("node not inited"), var, || mtd(&mut self.child))
+                    .with_context(self.id.clone().expect("node not inited"), &mut self.value, || mtd(&mut self.child))
             }
 
             #[UiNode]
-            fn info(&self, info: &mut WidgetInfoBuilder) {
+            fn info(&mut self, info: &mut WidgetInfoBuilder) {
                 self.with(|c| c.info(info));
             }
 
@@ -528,43 +512,43 @@ mod helpers {
                 if self.id.is_none() {
                     self.id = Some(ContextInitHandle::new());
                 }
-                *self.value.get_mut() = Some(Arc::new((self.init_value)().actual_var()));
-                self.with_mut(|c| c.init());
+                self.value = Some(Arc::new((self.init_value)().actual_var()));
+                self.with(|c| c.init());
             }
 
             #[UiNode]
             fn deinit(&mut self) {
-                self.with_mut(|c| c.deinit());
-                *self.value.get_mut() = None;
+                self.with(|c| c.deinit());
+                self.value = None;
             }
 
             #[UiNode]
             fn update(&mut self, updates: &WidgetUpdates) {
-                self.with_mut(|c| c.update(updates));
+                self.with(|c| c.update(updates));
             }
 
             #[UiNode]
             fn event(&mut self, update: &EventUpdate) {
-                self.with_mut(|c| c.event(update));
+                self.with(|c| c.event(update));
             }
 
             #[UiNode]
-            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
                 self.with(|c| c.measure(wm))
             }
 
             #[UiNode]
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-                self.with_mut(|c| c.layout(wl))
+                self.with(|c| c.layout(wl))
             }
 
             #[UiNode]
-            fn render(&self, frame: &mut FrameBuilder) {
+            fn render(&mut self, frame: &mut FrameBuilder) {
                 self.with(|c| c.render(frame));
             }
 
             #[UiNode]
-            fn render_update(&self, update: &mut FrameUpdate) {
+            fn render_update(&mut self, update: &mut FrameUpdate) {
                 self.with(|c| c.render_update(update));
             }
         }
@@ -573,7 +557,7 @@ mod helpers {
             context_var: var,
             id: None,
             init_value,
-            value: RefCell::new(None),
+            value: None,
         }
         .cfg_boxed()
     }
@@ -587,59 +571,55 @@ mod helpers {
             id: Option<ContextInitHandle>,
         })]
         impl WithNewContextInitHandleNode {
-            fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
-                self.id.as_ref().expect("node not inited").with_context(|| mtd(&self.child))
-            }
-
-            fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
+            fn with<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
                 self.id
                     .get_or_insert_with(ContextInitHandle::new)
                     .with_context(|| mtd(&mut self.child))
             }
 
             #[UiNode]
-            fn info(&self, info: &mut WidgetInfoBuilder) {
+            fn info(&mut self, info: &mut WidgetInfoBuilder) {
                 self.with(|c| c.info(info));
             }
 
             #[UiNode]
             fn init(&mut self) {
-                self.with_mut(|c| c.init());
+                self.with(|c| c.init());
             }
 
             #[UiNode]
             fn deinit(&mut self) {
-                self.with_mut(|c| c.deinit());
+                self.with(|c| c.deinit());
                 self.id = None;
             }
 
             #[UiNode]
             fn update(&mut self, updates: &WidgetUpdates) {
-                self.with_mut(|c| c.update(updates));
+                self.with(|c| c.update(updates));
             }
 
             #[UiNode]
             fn event(&mut self, update: &EventUpdate) {
-                self.with_mut(|c| c.event(update));
+                self.with(|c| c.event(update));
             }
 
             #[UiNode]
-            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
                 self.with(|c| c.measure(wm))
             }
 
             #[UiNode]
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-                self.with_mut(|c| c.layout(wl))
+                self.with(|c| c.layout(wl))
             }
 
             #[UiNode]
-            fn render(&self, frame: &mut FrameBuilder) {
+            fn render(&mut self, frame: &mut FrameBuilder) {
                 self.with(|c| c.render(frame));
             }
 
             #[UiNode]
-            fn render_update(&self, update: &mut FrameUpdate) {
+            fn render_update(&mut self, update: &mut FrameUpdate) {
                 self.with(|c| c.render_update(update));
             }
         }

@@ -40,8 +40,8 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
         children: impl UiNodeList,
     })]
     impl UiNode for BackgroundNode {
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node(1, |n| n.measure(wm))
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+            self.children.with_node_mut(1, |n| n.measure(wm))
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.with_node_mut(1, |n| n.layout(wl));
@@ -233,8 +233,8 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
         children: impl UiNodeList,
     })]
     impl UiNode for ForegroundNode {
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node(0, |n| n.measure(wm))
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+            self.children.with_node_mut(0, |n| n.measure(wm))
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.with_node_mut(0, |n| n.layout(wl));
@@ -315,7 +315,7 @@ pub fn foreground_highlight(
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -352,7 +352,7 @@ pub fn foreground_highlight(
             size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             self.child.render(frame);
             frame.push_border(self.render_bounds, self.render_widths, self.sides.get(), self.render_radius);
         }
@@ -473,7 +473,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -490,7 +490,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             bounds
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             if self.clip.get() {
                 frame.push_clips(
                     |c| {
@@ -596,7 +596,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
             }
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             match self.mode.get() {
                 InlineMode::Allow => self.child.measure(wm),
                 InlineMode::Inline => {
@@ -610,7 +610,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                 }
                 InlineMode::Block => {
                     // disable inline, method also disables in `WidgetMeasure`
-                    LAYOUT.disable_inline(wm, &self.child)
+                    LAYOUT.disable_inline(wm, &mut self.child)
                 }
             }
         }

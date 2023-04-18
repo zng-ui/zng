@@ -1,7 +1,6 @@
 //! UI nodes used for building a text widget.
 
 use std::{
-    cell::{Cell, RefCell},
     fmt,
     sync::Arc,
 };
@@ -13,7 +12,6 @@ use super::text_properties::*;
 use crate::core::{
     focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
     keyboard::{CHAR_INPUT_EVENT, KEYBOARD},
-    task::parking_lot::Mutex,
     text::*,
     window::{WindowLoadingHandle, WINDOW_CTRL},
 };
@@ -176,16 +174,13 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
         child: C,
         text: T,
         faces: Option<LoadingFontFaceList>,
-        resolved: Mutex<Option<ResolvedText>>,
+        resolved: Option<ResolvedText>,
         event_handles: EventHandles,
         caret_opacity_handle: Option<VarHandle>,
     }
     impl<C: UiNode, T> ResolveTextNode<C, T> {
-        fn with_mut<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
-            RESOLVED_TEXT.with_context_opt(self.resolved.get_mut(), || f(&mut self.child))
-        }
-        fn with<R>(&self, f: impl FnOnce(&C) -> R) -> R {
-            RESOLVED_TEXT.with_context_opt(&mut *self.resolved.lock(), || f(&self.child))
+        fn with<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
+            RESOLVED_TEXT.with_context_opt(&mut self.resolved, || f(&mut self.child))
         }
     }
     impl<C: UiNode, T: Var<Txt>> UiNode for ResolveTextNode<C, T> {
@@ -251,7 +246,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 var(0.fct()).read_only()
             };
 
-            *self.resolved.get_mut() = Some(ResolvedText {
+            self.resolved = Some(ResolvedText {
                 synthesis: FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight),
                 faces,
                 text: SegmentedText::new(text, DIRECTION_VAR.get()),
@@ -265,10 +260,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(WIDGET.id()));
             }
 
-            self.with_mut(|c| c.init())
+            self.with(|c| c.init())
         }
 
-        fn info(&self, info: &mut WidgetInfoBuilder) {
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
             if TEXT_EDITABLE_VAR.get() {
                 FocusInfoBuilder::new(info).focusable(true);
             }
@@ -279,8 +274,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             self.event_handles.clear();
             self.caret_opacity_handle = None;
             self.faces = None;
-            self.with_mut(|c| c.deinit());
-            *self.resolved.get_mut() = None;
+            self.with(|c| c.deinit());
+            self.resolved = None;
         }
 
         fn event(&mut self, update: &EventUpdate) {
@@ -293,7 +288,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                     let new_animation = KEYBOARD.caret_animation();
                     self.caret_opacity_handle = Some(new_animation.subscribe(WIDGET.id()));
-                    self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
+                    self.resolved.as_mut().unwrap().caret_opacity = new_animation;
 
                     if args.is_backspace() {
                         let _ = self.text.modify(move |t| {
@@ -313,10 +308,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     if args.is_focused(WIDGET.id()) {
                         let new_animation = KEYBOARD.caret_animation();
                         self.caret_opacity_handle = Some(new_animation.subscribe(WIDGET.id()));
-                        self.resolved.get_mut().as_mut().unwrap().caret_opacity = new_animation;
+                        self.resolved.as_mut().unwrap().caret_opacity = new_animation;
                     } else {
                         self.caret_opacity_handle = None;
-                        self.resolved.get_mut().as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
+                        self.resolved.as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
                     }
                 }
             } else if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
@@ -330,7 +325,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 if faces.is_done() {
                     let faces = faces.rsp().unwrap();
 
-                    let r = self.resolved.get_mut().as_mut().unwrap();
+                    let r = self.resolved.as_mut().unwrap();
 
                     if r.faces != faces {
                         r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight);
@@ -343,11 +338,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     self.faces = Some(LoadingFontFaceList::new(faces));
                 }
             }
-            self.with_mut(|c| c.event(update))
+            self.with(|c| c.event(update))
         }
 
         fn update(&mut self, updates: &WidgetUpdates) {
-            let r = self.resolved.get_mut().as_mut().unwrap();
+            let r = self.resolved.as_mut().unwrap();
 
             // update `r.text`, affects layout.
             if self.text.is_new() || TEXT_TRANSFORM_VAR.is_new() || WHITE_SPACE_VAR.is_new() || LANG_VAR.is_new() {
@@ -433,23 +428,23 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 }
             }
 
-            self.with_mut(|c| c.update(updates))
+            self.with(|c| c.update(updates))
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.with(|c| c.measure(wm))
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.with_mut(|c| c.layout(wl));
-            self.resolved.get_mut().as_mut().unwrap().reshape = false;
+            let size = self.with(|c| c.layout(wl));
+            self.resolved.as_mut().unwrap().reshape = false;
             size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             self.with(|c| c.render(frame))
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             self.with(|c| c.render_update(update))
         }
     }
@@ -457,7 +452,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
         child: child.cfg_boxed(),
         text: text.into_var(),
         faces: None,
-        resolved: Mutex::new(None),
+        resolved: None,
         event_handles: EventHandles::default(),
         caret_opacity_handle: None,
     }
@@ -755,20 +750,17 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
     #[ui_node(struct LayoutTextNode {
         child: impl UiNode,
-        txt: Mutex<FinalText>,
+        txt: FinalText,
     })]
     impl LayoutTextNode {
-        fn with_mut<R>(&mut self, f: impl FnOnce(&mut T_child) -> R) -> R {
-            LAYOUT_TEXT.with_context_opt(&mut self.txt.get_mut().txt, || f(&mut self.child))
-        }
-        fn with(&self, f: impl FnOnce(&T_child)) {
-            LAYOUT_TEXT.with_context_opt(&mut self.txt.lock().txt, || f(&self.child))
+        fn with<R>(&mut self, f: impl FnOnce(&mut T_child) -> R) -> R {
+            LAYOUT_TEXT.with_context_opt(&mut self.txt.txt, || f(&mut self.child))
         }
 
         #[UiNode]
         fn init(&mut self) {
             // other subscriptions are handled by the `resolve_text` node.
-            let txt = self.txt.get_mut();
+            let txt = &mut self.txt;
             txt.shaping_args.lang = LANG_VAR.get();
             txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into();
             txt.shaping_args.line_break = LINE_BREAK_VAR.get();
@@ -783,13 +775,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         #[UiNode]
         fn deinit(&mut self) {
             self.child.deinit();
-            self.txt.get_mut().txt = None;
+            self.txt.txt = None;
         }
 
         #[UiNode]
         fn update(&mut self, updates: &WidgetUpdates) {
             if FONT_SIZE_VAR.is_new() || FONT_VARIATIONS_VAR.is_new() {
-                self.txt.get_mut().pending.insert(Layout::RESHAPE);
+                self.txt.pending.insert(Layout::RESHAPE);
                 WIDGET.layout();
             }
 
@@ -800,7 +792,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 || TAB_LENGTH_VAR.is_new()
                 || LANG_VAR.is_new()
             {
-                let txt = self.txt.get_mut();
+                let txt = &mut self.txt;
                 txt.shaping_args.lang = LANG_VAR.get();
                 txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into(); // will be set in layout too.
                 txt.pending.insert(Layout::RESHAPE);
@@ -808,7 +800,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if UNDERLINE_POSITION_VAR.is_new() || UNDERLINE_SKIP_VAR.is_new() {
-                self.txt.get_mut().pending.insert(Layout::UNDERLINE);
+                self.txt.pending.insert(Layout::UNDERLINE);
                 WIDGET.layout();
             }
 
@@ -817,7 +809,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if let Some(lb) = LINE_BREAK_VAR.get_new() {
-                let txt = self.txt.get_mut();
+                let txt = &mut self.txt;
                 if txt.shaping_args.line_break != lb {
                     txt.shaping_args.line_break = lb;
                     txt.pending.insert(Layout::RESHAPE);
@@ -826,7 +818,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if let Some(wb) = WORD_BREAK_VAR.get_new() {
-                let txt = self.txt.get_mut();
+                let txt = &mut self.txt;
                 if txt.shaping_args.word_break != wb {
                     txt.shaping_args.word_break = wb;
                     txt.pending.insert(Layout::RESHAPE);
@@ -835,7 +827,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if let Some(h) = HYPHENS_VAR.get_new() {
-                let txt = self.txt.get_mut();
+                let txt = &mut self.txt;
                 if txt.shaping_args.hyphens != h {
                     txt.shaping_args.hyphens = h;
                     txt.pending.insert(Layout::RESHAPE);
@@ -844,7 +836,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if let Some(c) = HYPHEN_CHAR_VAR.get_new() {
-                let txt = self.txt.get_mut();
+                let txt = &mut self.txt;
                 txt.shaping_args.hyphen_char = c;
                 if Hyphens::None != txt.shaping_args.hyphens {
                     txt.pending.insert(Layout::RESHAPE);
@@ -853,12 +845,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if TEXT_WRAP_VAR.is_new() {
-                self.txt.get_mut().pending.insert(Layout::RESHAPE);
+                self.txt.pending.insert(Layout::RESHAPE);
                 WIDGET.layout();
             }
 
             FONT_FEATURES_VAR.with_new(|f| {
-                let txt = self.txt.get_mut();
+                let txt = &mut self.txt;
                 txt.shaping_args.font_features = f.finalize();
                 txt.pending.insert(Layout::RESHAPE);
                 WIDGET.layout();
@@ -868,8 +860,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         #[UiNode]
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            let mut txt = self.txt.lock();
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+            let txt = &mut self.txt;
             let metrics = LAYOUT.metrics();
 
             if let Some(size) = txt.measure(&metrics) {
@@ -919,7 +911,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
         #[UiNode]
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let txt = self.txt.get_mut();
+            let txt = &mut self.txt;
 
             let metrics = LAYOUT.metrics();
             let resolved_txt = RESOLVED_TEXT.get();
@@ -963,32 +955,32 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             wl.set_baseline(baseline);
 
             LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || {
-                self.with_mut(|c| c.layout(wl));
+                self.with(|c| c.layout(wl));
             });
 
             size
         }
 
         #[UiNode]
-        fn render(&self, frame: &mut FrameBuilder) {
-            self.txt.lock().ensure_layout_for_render();
+        fn render(&mut self, frame: &mut FrameBuilder) {
+            self.txt.ensure_layout_for_render();
             self.with(|c| c.render(frame))
         }
         #[UiNode]
-        fn render_update(&self, update: &mut FrameUpdate) {
-            self.txt.lock().ensure_layout_for_render();
+        fn render_update(&mut self, update: &mut FrameUpdate) {
+            self.txt.ensure_layout_for_render();
             self.with(|c| c.render_update(update))
         }
     }
     LayoutTextNode {
         child: child.cfg_boxed(),
-        txt: Mutex::new(FinalText {
+        txt: FinalText {
             txt: None,
             shaping_args: TextShapingArgs::default(),
             pending: Layout::empty(),
             txt_is_measured: false,
             last_layout: (LayoutMetrics::new(1.fct(), PxSize::zero(), Px(0)), None),
-        }),
+        },
     }
     .cfg_boxed()
 }
@@ -1013,7 +1005,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
             self.child.update(updates);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             {
                 let t = LayoutText::get();
 
@@ -1058,7 +1050,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
             self.child.update(updates);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             {
                 let t = LayoutText::get();
                 if !t.strikethroughs.is_empty() {
@@ -1102,7 +1094,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
             self.child.update(updates);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             {
                 let t = LayoutText::get();
                 if !t.overlines.is_empty() {
@@ -1169,7 +1161,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             self.child.update(updates);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             self.child.render(frame);
 
             if TEXT_EDITABLE_VAR.get() {
@@ -1183,7 +1175,7 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             self.child.render_update(update);
 
             if TEXT_EDITABLE_VAR.get() {
@@ -1212,8 +1204,8 @@ pub fn render_text() -> impl UiNode {
         aa: FontAntiAliasing,
     }
     #[ui_node(struct RenderTextNode {
-        reuse: RefCell<Option<ReuseRange>>,
-        rendered: Cell<Option<RenderedText>>,
+        reuse: Option<ReuseRange>,
+        rendered: Option<RenderedText>,
         color_key: Option<FrameValueKey<RenderColor>>,
     })]
     impl UiNode for RenderTextNode {
@@ -1224,7 +1216,7 @@ pub fn render_text() -> impl UiNode {
         }
 
         fn deinit(&mut self) {
-            *self.reuse.get_mut() = None;
+            self.reuse = None;
             self.color_key = None;
         }
 
@@ -1237,7 +1229,7 @@ pub fn render_text() -> impl UiNode {
             }
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             let r = ResolvedText::get();
             let t = LayoutText::get();
 
@@ -1252,41 +1244,39 @@ pub fn render_text() -> impl UiNode {
 
             let aa = FONT_AA_VAR.get();
 
-            let mut reuse = self.reuse.borrow_mut();
-
             let rendered = Some(RenderedText {
                 version: t.shaped_text_version,
                 synthesis: r.synthesis,
                 color,
                 aa,
             });
-            if self.rendered.get() != rendered {
-                self.rendered.set(rendered);
-                *reuse = None;
+            if self.rendered != rendered {
+                self.rendered = rendered;
+                self.reuse = None;
             }
 
-            frame.push_reuse(&mut reuse, |frame| {
+            frame.push_reuse(&mut self.reuse, |frame| {
                 for (font, glyphs) in t.shaped_text.glyphs() {
                     frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
                 }
             });
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             if let Some(key) = self.color_key {
                 let color = TEXT_COLOR_VAR.get();
 
                 update.update_color(key.update(color.into(), TEXT_COLOR_VAR.is_animating()));
 
-                let mut rendered = self.rendered.get().unwrap();
+                let mut rendered = self.rendered.unwrap();
                 rendered.color = color;
-                self.rendered.set(Some(rendered));
+                self.rendered = Some(rendered);
             }
         }
     }
     RenderTextNode {
-        reuse: RefCell::default(),
-        rendered: Cell::new(None),
+        reuse: None,
+        rendered: None,
         color_key: None,
     }
 }

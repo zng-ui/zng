@@ -116,7 +116,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for ModalNode {
-        fn info(&self, info: &mut WidgetInfoBuilder) {
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
             let mws = WINDOW.req_state(&MODAL_WIDGETS);
 
             if self.enabled.get() {

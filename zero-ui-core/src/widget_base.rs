@@ -327,7 +327,7 @@ pub mod nodes {
                 define_ref_frame: bool,
             })]
         impl UiNode for WidgetChildNode {
-            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
                 let desired_size = self.child.measure(wm);
 
                 if let Some(inline) = wm.inline() {
@@ -366,7 +366,7 @@ pub mod nodes {
 
                 size
             }
-            fn render(&self, frame: &mut FrameBuilder) {
+            fn render(&mut self, frame: &mut FrameBuilder) {
                 let offset = WIDGET.bounds().child_offset();
                 if self.define_ref_frame {
                     frame.push_reference_frame(self.key.into(), self.key.bind(offset.into(), true), true, false, |frame| {
@@ -379,7 +379,7 @@ pub mod nodes {
                 }
             }
 
-            fn render_update(&self, update: &mut FrameUpdate) {
+            fn render_update(&mut self, update: &mut FrameUpdate) {
                 let offset = WIDGET.bounds().child_offset();
                 if self.define_ref_frame {
                     update.with_transform(self.key.update(offset.into(), true), false, |update| {
@@ -429,7 +429,7 @@ pub mod nodes {
                 self.child.update(updates);
             }
 
-            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
                 self.child.measure(wm)
             }
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -456,7 +456,7 @@ pub mod nodes {
 
                 size
             }
-            fn render(&self, frame: &mut FrameBuilder) {
+            fn render(&mut self, frame: &mut FrameBuilder) {
                 frame.push_inner(self.transform_key, true, |frame| {
                     frame.hit_test().push_clips(
                         |c| {
@@ -480,7 +480,7 @@ pub mod nodes {
                     self.child.render(frame);
                 });
             }
-            fn render_update(&self, update: &mut FrameUpdate) {
+            fn render_update(&mut self, update: &mut FrameUpdate) {
                 update.update_inner(self.transform_key, true, |update| self.child.render_update(update));
             }
         }
@@ -543,7 +543,7 @@ pub mod nodes {
                 self.ctx.deinit();
             }
 
-            fn info(&self, info: &mut WidgetInfoBuilder) {
+            fn info(&mut self, info: &mut WidgetInfoBuilder) {
                 let rebuild = self.ctx.take_info();
                 WIDGET.with_context(&self.ctx, || {
                     #[cfg(debug_assertions)]
@@ -612,7 +612,7 @@ pub mod nodes {
                 }
             }
 
-            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
                 let reuse = !self.ctx.is_pending_layout();
                 let desired_size = WIDGET.with_context(&self.ctx, || {
                     #[cfg(debug_assertions)]
@@ -695,7 +695,7 @@ pub mod nodes {
                 final_size
             }
 
-            fn render(&self, frame: &mut FrameBuilder) {
+            fn render(&mut self, frame: &mut FrameBuilder) {
                 let mut reuse = self.ctx.take_render();
                 WIDGET.with_context(&self.ctx, || {
                     #[cfg(debug_assertions)]
@@ -712,7 +712,7 @@ pub mod nodes {
                 }
             }
 
-            fn render_update(&self, update: &mut FrameUpdate) {
+            fn render_update(&mut self, update: &mut FrameUpdate) {
                 let reuse = !self.ctx.take_render_update();
 
                 WIDGET.with_context(&self.ctx, || {
@@ -773,7 +773,7 @@ pub mod nodes {
         #[var] interactive: impl Var<bool>,
     })]
         impl UiNode for BlockInteractionNode {
-            fn info(&self, info: &mut WidgetInfoBuilder) {
+            fn info(&mut self, info: &mut WidgetInfoBuilder) {
                 if self.interactive.get() {
                     self.child.info(info);
                 } else if let Some(id) = self.child.with_context(|| WIDGET.id()) {
@@ -919,7 +919,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         #[var] enabled: impl Var<bool>,
     })]
     impl UiNode for EnabledNode {
-        fn info(&self, info: &mut WidgetInfoBuilder) {
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
             if !self.enabled.get() {
                 info.push_interactivity(Interactivity::DISABLED);
             }
@@ -968,7 +968,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
         #[var] interactive: impl Var<bool>,
     })]
     impl UiNode for InteractiveNode {
-        fn info(&self, info: &mut WidgetInfoBuilder) {
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
             if !self.interactive.get() {
                 info.push_interactivity(Interactivity::BLOCKED);
             }
@@ -1073,7 +1073,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             if Visibility::Collapsed != self.visibility.get() {
                 self.child.measure(wm)
             } else {
@@ -1089,7 +1089,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             }
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             match self.visibility.get() {
                 Visibility::Visible => self.child.render(frame),
                 Visibility::Hidden => frame.hide(|frame| self.child.render(frame)),
@@ -1102,7 +1102,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             }
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             match self.visibility.get() {
                 Visibility::Visible => self.child.render_update(update),
                 Visibility::Hidden => update.hidden(|update| self.child.render_update(update)),
@@ -1245,7 +1245,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
             self.child.update(updates);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             match HitTestMode::var().get() {
                 HitTestMode::Disabled => {
                     frame.with_hit_tests_disabled(|frame| self.child.render(frame));
@@ -1255,7 +1255,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
             }
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             update.with_auto_hit_test(matches!(HitTestMode::var().get(), HitTestMode::Visual), |update| {
                 self.child.render_update(update)
             });
@@ -1333,7 +1333,7 @@ pub fn can_auto_hide(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             self.child.update(updates);
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
 

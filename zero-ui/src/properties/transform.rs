@@ -25,7 +25,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             }
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -50,7 +50,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             if frame.is_outer() {
                 frame.push_inner_transform(&self.render_transform, |frame| self.child.render(frame));
             } else {
@@ -64,7 +64,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             }
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             if update.is_outer() {
                 update.with_inner_transform(&self.render_transform, |update| self.child.render_update(update));
             } else {

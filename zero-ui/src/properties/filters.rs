@@ -44,7 +44,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
             self.child.update(updates)
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -55,7 +55,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
             self.child.layout(wl)
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.push_inner_filter(self.render_filter.clone().unwrap(), |frame| self.child.render(frame));
         }
     }
@@ -104,7 +104,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
             self.child.update(updates)
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.measure(wm)
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
@@ -115,7 +115,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
             self.child.layout(wl)
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.push_filter(MixBlendMode::Normal.into(), self.render_filter.as_ref().unwrap(), |frame| {
                 self.child.render(frame)
             });
@@ -274,12 +274,12 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
             self.child.update(updates);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             let opacity = self.frame_key.bind_var(&self.alpha, |f| f.0);
             frame.push_inner_opacity(opacity, |frame| self.child.render(frame));
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             update.update_f32_opt(self.frame_key.update_var(&self.alpha, |f| f.0));
             self.child.render_update(update);
         }
@@ -313,12 +313,12 @@ pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl Ui
             self.child.update(updates);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             let opacity = self.frame_key.bind_var(&self.alpha, |f| f.0);
             frame.push_opacity(opacity, |frame| self.child.render(frame));
         }
 
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             update.update_f32_opt(self.frame_key.update_var(&self.alpha, |f| f.0));
             self.child.render_update(update);
         }

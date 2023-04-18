@@ -19,7 +19,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
             self.child.update(updates);
         }
 
-        fn info(&self, info: &mut WidgetInfoBuilder) {
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
             FocusInfoBuilder::new(info).focusable(self.focusable.get());
             self.child.info(info);
         }
@@ -45,7 +45,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
             self.child.update(updates);
         }
 
-        fn info(&self, widget: &mut WidgetInfoBuilder) {
+        fn info(&mut self, widget: &mut WidgetInfoBuilder) {
             FocusInfoBuilder::new(widget).tab_index(self.tab_index.get());
             self.child.info(widget);
         }
@@ -90,7 +90,7 @@ impl UiNode for FocusScopeNode {
         self.child.update(updates);
     }
 
-    fn info(&self, widget: &mut WidgetInfoBuilder) {
+    fn info(&mut self, widget: &mut WidgetInfoBuilder) {
         let mut info = FocusInfoBuilder::new(widget);
         if self.is_alt {
             info.alt_scope(self.is_focus_scope.get());
@@ -117,7 +117,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
             self.child.update(updates);
         }
 
-        fn info(&self, widget: &mut WidgetInfoBuilder) {
+        fn info(&mut self, widget: &mut WidgetInfoBuilder) {
             let mut info = FocusInfoBuilder::new(widget);
             info.on_focus(self.behavior.get());
             self.child.info(widget);
@@ -144,7 +144,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
             self.child.update(updates);
         }
 
-        fn info(&self, widget: &mut WidgetInfoBuilder) {
+        fn info(&mut self, widget: &mut WidgetInfoBuilder) {
             FocusInfoBuilder::new(widget).tab_nav(self.tab_nav.get());
             self.child.info(widget);
         }
@@ -170,7 +170,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
             self.child.update(updates);
         }
 
-        fn info(&self, widget: &mut WidgetInfoBuilder) {
+        fn info(&mut self, widget: &mut WidgetInfoBuilder) {
             FocusInfoBuilder::new(widget).directional_nav(self.directional_nav.get());
             self.child.info(widget);
         }
@@ -229,7 +229,7 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
             self.child.update(updates);
         }
 
-        fn info(&self, widget: &mut WidgetInfoBuilder) {
+        fn info(&mut self, widget: &mut WidgetInfoBuilder) {
             FocusInfoBuilder::new(widget).skip_directional(self.enabled.get());
 
             self.child.info(widget);

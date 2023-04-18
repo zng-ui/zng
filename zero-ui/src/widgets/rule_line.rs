@@ -81,7 +81,7 @@ impl UiNode for LineNode {
         }
     }
 
-    fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+    fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
         let metrics = LAYOUT.metrics();
         let default_stroke = Dip::new(1).to_px(metrics.scale_factor().0);
 
@@ -119,7 +119,7 @@ impl UiNode for LineNode {
         bounds
     }
 
-    fn render(&self, frame: &mut FrameBuilder) {
+    fn render(&mut self, frame: &mut FrameBuilder) {
         let bounds = PxRect::from_size(self.bounds);
         let orientation = self.orientation.get();
         let color = self.color.get();

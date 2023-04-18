@@ -62,10 +62,7 @@ impl<U: UiNode> AdoptiveNode<U> {
         }
     }
 }
-#[ui_node(
-    delegate = &self.node,
-    delegate_mut = &mut self.node,
-)]
+#[ui_node(delegate = &mut self.node)]
 impl<U: UiNode> UiNode for AdoptiveNode<U> {
     fn init(&mut self) {
         self.is_inited = true;
@@ -90,8 +87,5 @@ impl AdoptiveChildNode {
         }
     }
 }
-#[ui_node(
-    delegate = self.child.lock(),
-    delegate_mut = self.child.lock(),
-)]
+#[ui_node(delegate = self.child.lock())]
 impl UiNode for AdoptiveChildNode {}

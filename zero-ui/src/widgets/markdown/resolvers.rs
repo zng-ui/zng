@@ -409,7 +409,7 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Txt>) -> impl UiNode {
             }
         }
 
-        fn info(&self, info: &mut WidgetInfoBuilder) {
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
             info.meta().set(&ANCHOR_ID, self.anchor.get());
             self.child.info(info);
         }

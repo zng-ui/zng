@@ -151,7 +151,7 @@ impl UiNode for LazyStackNode {
         self.child.update(updates);
     }
 
-    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
         let constraints = LAYOUT.constraints();
         if let Some(known) = constraints.fill_or_exact() {
             return known;
@@ -221,7 +221,7 @@ impl StackNode {
     }
 
     #[UiNode]
-    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
         let metrics = LAYOUT.metrics();
         let constraints = metrics.constraints();
         if let Some(known) = constraints.fill_or_exact() {
@@ -258,7 +258,7 @@ impl StackNode {
 
                 let mut item_rect = PxRect::zero();
                 let mut child_spacing = PxVector::zero();
-                self.children.for_each(|_, c, _| {
+                self.children.for_each_mut(|_, c, _| {
                     // already parallel measured widgets, only measure other nodes.
                     let size = match c.with_context(|| WIDGET.bounds().measure_outer_size()) {
                         Some(wgt_size) => wgt_size,
@@ -392,7 +392,7 @@ impl StackNode {
     }
 
     /// Max size to layout each child with.
-    fn child_max_size(&self, child_align: Align) -> PxSize {
+    fn child_max_size(&mut self, child_align: Align) -> PxSize {
         let constraints = LAYOUT.constraints();
 
         // need measure when children fill, but the panel does not.
@@ -573,7 +573,7 @@ pub fn stack_nodes_layout_by(
             self.children.update_all(updates, &mut ());
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let index = self.index.get();
             let len = self.children.len();
             if index >= len {
@@ -586,7 +586,7 @@ pub fn stack_nodes_layout_by(
 
                 self.children.measure_each(wm, |_, n, wm| n.measure(wm), PxSize::max)
             } else {
-                let index_size = self.children.with_node(index, |n| n.measure(wm));
+                let index_size = self.children.with_node_mut(index, |n| n.measure(wm));
                 let constraints = (self.constraints)(LAYOUT.metrics().constraints(), index, index_size);
                 LAYOUT.with_constraints(constraints, || {
                     self.children.measure_each(

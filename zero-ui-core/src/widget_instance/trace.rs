@@ -36,7 +36,7 @@ where
     N: UiNode,
     E: Fn(&'static str) -> S + Send + 'static,
 {
-    fn info(&self, info: &mut WidgetInfoBuilder) {
+    fn info(&mut self, info: &mut WidgetInfoBuilder) {
         let _span = (self.enter_mtd)("info");
         self.node.info(info);
     }
@@ -61,7 +61,7 @@ where
         self.node.update(updates);
     }
 
-    fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
         let _span = (self.enter_mtd)("measure");
         self.node.measure(wm)
     }
@@ -71,12 +71,12 @@ where
         self.node.layout(wl)
     }
 
-    fn render(&self, frame: &mut FrameBuilder) {
+    fn render(&mut self, frame: &mut FrameBuilder) {
         let _span = (self.enter_mtd)("render");
         self.node.render(frame);
     }
 
-    fn render_update(&self, update: &mut FrameUpdate) {
+    fn render_update(&mut self, update: &mut FrameUpdate) {
         let _span = (self.enter_mtd)("render_update");
         self.node.render_update(update);
     }

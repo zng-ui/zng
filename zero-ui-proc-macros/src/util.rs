@@ -572,11 +572,6 @@ pub fn format_rust_expr(value: String) -> String {
     value
 }
 
-/// Gets a span that indicates a position after the item.
-pub fn after_span<T: ToTokens>(tt: &T) -> Span {
-    last_span(tt.to_token_stream())
-}
-
 /// Gets the span of the last item or the span_close if the last item is a group.
 pub fn last_span(tts: TokenStream) -> Span {
     if let Some(tt) = tts.into_iter().last() {

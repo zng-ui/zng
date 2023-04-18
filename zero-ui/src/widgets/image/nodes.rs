@@ -326,7 +326,7 @@ pub fn image_presenter() -> impl UiNode {
             }
         }
 
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             // Similar to `layout` Part 1.
 
             let metrics = LAYOUT.metrics();
@@ -474,7 +474,7 @@ pub fn image_presenter() -> impl UiNode {
             wgt_size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             CONTEXT_IMAGE_VAR.with(|img| {
                 if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip.is_empty() {
                     if self.render_offset != PxVector::zero() {

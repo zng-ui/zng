@@ -21,7 +21,7 @@ mod inspector_only {
             info: Arc<super::InspectorInfo>,
         })]
         impl UiNode for InsertInfoNode {
-            fn info(&self, info: &mut WidgetInfoBuilder) {
+            fn info(&mut self, info: &mut WidgetInfoBuilder) {
                 info.meta().set(&super::INSPECTOR_INFO_ID, self.info.clone());
                 self.child.info(info);
             }

@@ -39,7 +39,7 @@ pub fn linear_gradient_ext(
             }
         }
 
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             LAYOUT.constraints().fill_size()
         }
 
@@ -61,7 +61,7 @@ pub fn linear_gradient_ext(
             final_size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.push_linear_gradient(
                 PxRect::from_size(self.final_size),
                 self.render_line,
@@ -118,7 +118,7 @@ pub fn linear_gradient_full(
             }
         }
 
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             LAYOUT.constraints().fill_size()
         }
         fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
@@ -143,7 +143,7 @@ pub fn linear_gradient_full(
             self.final_size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.push_linear_gradient(
                 PxRect::from_size(self.final_size),
                 self.final_line,
@@ -224,7 +224,7 @@ pub fn radial_gradient_ext(
             }
         }
 
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             LAYOUT.constraints().fill_size()
         }
 
@@ -252,7 +252,7 @@ pub fn radial_gradient_ext(
             final_size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.push_radial_gradient(
                 PxRect::from_size(self.final_size),
                 self.render_center,
@@ -314,7 +314,7 @@ pub fn radial_gradient_full(
             }
         }
 
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             LAYOUT.constraints().fill_size()
         }
 
@@ -346,7 +346,7 @@ pub fn radial_gradient_full(
             final_size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.push_radial_gradient(
                 PxRect::from_size(self.final_size),
                 self.render_center,
@@ -422,7 +422,7 @@ pub fn conic_gradient_ext(
             }
         }
 
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             LAYOUT.constraints().fill_size()
         }
 
@@ -449,7 +449,7 @@ pub fn conic_gradient_ext(
             final_size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.push_conic_gradient(
                 PxRect::from_size(self.final_size),
                 self.render_center,
@@ -503,7 +503,7 @@ pub fn conic_gradient_full(
             }
         }
 
-        fn measure(&self, _: &mut WidgetMeasure) -> PxSize {
+        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
             LAYOUT.constraints().fill_size()
         }
 
@@ -537,7 +537,7 @@ pub fn conic_gradient_full(
             final_size
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             frame.push_conic_gradient(
                 PxRect::from_size(self.final_size),
                 self.render_center,

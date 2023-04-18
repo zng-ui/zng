@@ -46,10 +46,7 @@ impl LAYERS {
             layer: L,
             widget: W,
         }
-        #[ui_node(
-                delegate = &self.widget,
-                delegate_mut = &mut self.widget,
-            )]
+        #[ui_node(delegate = &mut self.widget)]
         impl<L: Var<LayerIndex>, W: UiNode> UiNode for LayeredWidget<L, W> {
             fn init(&mut self) {
                 self.widget.with_context(|| {
@@ -114,17 +111,14 @@ impl LAYERS {
             transform_key: FrameValueKey<PxTransform>,
             corner_radius_ctx_handle: Option<ContextInitHandle>,
         }
-        #[ui_node(
-                delegate = &self.widget,
-                delegate_mut = &mut self.widget,
-            )]
+        #[ui_node(delegate = &mut self.widget)]
         impl<A, M, W> UiNode for AnchoredWidget<A, M, W>
         where
             A: Var<WidgetId>,
             M: Var<AnchorMode>,
             W: UiNode,
         {
-            fn info(&self, info: &mut WidgetInfoBuilder) {
+            fn info(&mut self, info: &mut WidgetInfoBuilder) {
                 if self.interactivity {
                     if let Some(widget) = self.widget.with_context(|| WIDGET.id()) {
                         let anchor = self.anchor.get();
@@ -219,7 +213,7 @@ impl LAYERS {
                 self.widget.update(updates);
             }
 
-            fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
+            fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
                 if let Some((bounds, border)) = &self.anchor_info {
                     let mode = self.mode.get();
 
@@ -351,7 +345,7 @@ impl LAYERS {
                 PxSize::zero()
             }
 
-            fn render(&self, frame: &mut FrameBuilder) {
+            fn render(&mut self, frame: &mut FrameBuilder) {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
                     let mode = self.mode.get();
                     if !mode.visibility || bounds_info.rendered().is_some() {
@@ -410,7 +404,7 @@ impl LAYERS {
                 }
             }
 
-            fn render_update(&self, update: &mut FrameUpdate) {
+            fn render_update(&mut self, update: &mut FrameUpdate) {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
                     let mode = self.mode.get();
                     if !mode.visibility || bounds_info.rendered().is_some() {
@@ -675,8 +669,8 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn measure(&self, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node(0, |n| n.measure(wm))
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+            self.children.with_node_mut(0, |n| n.measure(wm))
         }
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();

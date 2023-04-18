@@ -951,68 +951,62 @@ pub fn with_context_local<T: Any + Send + Sync + 'static>(
     #[ui_node(struct WithContextLocalNode<T: Any + Send + Sync + 'static> {
         child: impl UiNode,
         context: &'static ContextLocal<T>,
-        value: RefCell<Option<Arc<T>>>,
+        value: Option<Arc<T>>,
     })]
     impl WithContextLocalNode {
-        fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
-            let mut value = self.value.borrow_mut();
-            self.context.with_context(&mut value, move || mtd(&self.child))
-        }
-
-        fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-            let value = self.value.get_mut();
-            self.context.with_context(value, || mtd(&mut self.child))
+        fn with<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
+            self.context.with_context(&mut self.value, || mtd(&mut self.child))
         }
 
         #[UiNode]
         fn init(&mut self) {
-            self.with_mut(|c| c.init())
+            self.with(|c| c.init())
         }
 
         #[UiNode]
         fn deinit(&mut self) {
-            self.with_mut(|c| c.deinit())
+            self.with(|c| c.deinit())
         }
 
         #[UiNode]
-        fn info(&self, info: &mut WidgetInfoBuilder) {
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
             self.with(|c| c.info(info))
         }
 
         #[UiNode]
         fn event(&mut self, update: &EventUpdate) {
-            self.with_mut(|c| c.event(update))
+            self.with(|c| c.event(update))
         }
 
         #[UiNode]
         fn update(&mut self, updates: &WidgetUpdates) {
-            self.with_mut(|c| c.update(updates))
+            self.with(|c| c.update(updates))
         }
 
         #[UiNode]
-        fn measure(&self, wm: &mut WidgetMeasure) -> units::PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> units::PxSize {
             self.with(|c| c.measure(wm))
         }
 
         #[UiNode]
         fn layout(&mut self, wl: &mut WidgetLayout) -> units::PxSize {
-            self.with_mut(|c| c.layout(wl))
+            self.with(|c| c.layout(wl))
         }
 
         #[UiNode]
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             self.with(|c| c.render(frame))
         }
 
         #[UiNode]
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             self.with(|c| c.render_update(update))
         }
     }
     WithContextLocalNode {
         child,
         context,
-        value: RefCell::new(Some(Arc::new(value.into()))),
+        value: Some(Arc::new(value.into())),
     }
 }
 
@@ -1031,64 +1025,58 @@ pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
         child: impl UiNode,
         context: &'static ContextLocal<T>,
         init_value: impl FnMut() -> T + Send + 'static,
-        value: RefCell<Option<Arc<T>>>,
+        value: Option<Arc<T>>,
     })]
     impl WithContextLocalInitNode {
-        fn with<R>(&self, mtd: impl FnOnce(&T_child) -> R) -> R {
-            let mut value = self.value.borrow_mut();
-            self.context.with_context(&mut *value, move || mtd(&self.child))
-        }
-
-        fn with_mut<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-            let value = self.value.get_mut();
-            self.context.with_context(value, || mtd(&mut self.child))
+        fn with<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
+            self.context.with_context(&mut self.value, || mtd(&mut self.child))
         }
 
         #[UiNode]
         fn init(&mut self) {
             let value = (self.init_value)();
-            *self.value.get_mut() = Some(Arc::new(value));
-            self.with_mut(|c| c.init())
+            self.value = Some(Arc::new(value));
+            self.with(|c| c.init())
         }
 
         #[UiNode]
         fn deinit(&mut self) {
-            self.with_mut(|c| c.deinit());
-            *self.value.get_mut() = None;
+            self.with(|c| c.deinit());
+            self.value = None;
         }
 
         #[UiNode]
-        fn info(&self, info: &mut WidgetInfoBuilder) {
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
             self.with(|c| c.info(info))
         }
 
         #[UiNode]
         fn event(&mut self, update: &EventUpdate) {
-            self.with_mut(|c| c.event(update))
+            self.with(|c| c.event(update))
         }
 
         #[UiNode]
         fn update(&mut self, updates: &WidgetUpdates) {
-            self.with_mut(|c| c.update(updates))
+            self.with(|c| c.update(updates))
         }
 
         #[UiNode]
-        fn measure(&self, wm: &mut WidgetMeasure) -> units::PxSize {
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> units::PxSize {
             self.with(|c| c.measure(wm))
         }
 
         #[UiNode]
         fn layout(&mut self, wl: &mut WidgetLayout) -> units::PxSize {
-            self.with_mut(|c| c.layout(wl))
+            self.with(|c| c.layout(wl))
         }
 
         #[UiNode]
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             self.with(|c| c.render(frame))
         }
 
         #[UiNode]
-        fn render_update(&self, update: &mut FrameUpdate) {
+        fn render_update(&mut self, update: &mut FrameUpdate) {
             self.with(|c| c.render_update(update))
         }
     }
@@ -1096,6 +1084,6 @@ pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
         child,
         context,
         init_value,
-        value: RefCell::new(None),
+        value: None,
     }
 }

@@ -119,12 +119,12 @@ pub fn show_rows(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl Ui
 
 fn show_widget_tree(
     child: impl UiNode,
-    render: impl Fn(usize, WidgetInfo, &mut FrameBuilder) + Send + 'static,
+    render: impl FnMut(usize, WidgetInfo, &mut FrameBuilder) + Send + 'static,
     mode: impl IntoVar<InspectMode>,
 ) -> impl UiNode {
     #[ui_node(struct RenderWidgetTreeNode {
         child: impl UiNode,
-        render: impl Fn(usize, WidgetInfo, &mut FrameBuilder) + Send + 'static,
+        render: impl FnMut(usize, WidgetInfo, &mut FrameBuilder) + Send + 'static,
         #[var] mode: impl Var<InspectMode>,
         cancel_space: SpatialFrameId,
     })]
@@ -136,7 +136,7 @@ fn show_widget_tree(
             self.child.update(updates);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             self.child.render(frame);
 
             let mut render = |render: &mut dyn FnMut(WidgetInfo, &mut FrameBuilder)| {
@@ -280,7 +280,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             self.child.update(updates);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             self.child.render(frame);
 
             if self.valid && self.enabled.get() {
@@ -399,7 +399,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
             self.child.update(updates);
         }
 
-        fn render(&self, frame: &mut FrameBuilder) {
+        fn render(&mut self, frame: &mut FrameBuilder) {
             self.child.render(frame);
 
             if self.valid && self.orientation.get().is_some() {

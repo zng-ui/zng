@@ -1,3 +1,13 @@
+* More mut node and list.
+    - Refactor all to only have mutable versions of method pair currently `for_each` and `par_each` mut.
+
+* Direct layout and render updates.
+    - Work the same way as normal updates, with the `WidgetUpdates` list, but in the layout and render cycle.
+    - Use this to implement special subscriptions that automatically layout/render a widget, saving an update
+      cycle.
+
+# Other
+
 * Layer fade-out.
     - Implement `layer_remove_delay` using `on_layer_remove_requested`.
     - Implement `is_layer_removing`.
@@ -8,11 +18,6 @@
 * Review Dip units used in computed values.
     - Things like `MOUSE.position` are pretty useless without the scale_factor.
     - Real problem is having to retrieve the scale factor?
-
-* External layout and render updates.
-    - Work the same way as normal updates, with the `WidgetUpdates` list, but in the layout and render cycle.
-    - Use this to implement special subscriptions that automatically layout/render a widget, saving an update
-      cycle.
 
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?

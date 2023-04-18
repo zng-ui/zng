@@ -136,11 +136,8 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
             validate_manual_delegate = false;
             no_delegate_absents(crate_.clone(), node_item_names, auto_subs)
         }
-        Args::Delegate { delegate, delegate_mut } => delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut, auto_subs),
-        Args::DelegateList {
-            delegate_list,
-            delegate_list_mut,
-        } => delegate_list_absents(crate_.clone(), node_item_names, delegate_list, delegate_list_mut, auto_subs),
+        Args::Delegate { delegate } => delegate_absents(crate_.clone(), node_item_names, delegate, auto_subs),
+        Args::DelegateList { delegate_list } => delegate_list_absents(crate_.clone(), node_item_names, delegate_list, auto_subs),
         Args::NewNode(_) => {
             unreachable!()
         }
@@ -341,7 +338,7 @@ macro_rules! make_absents {
 
 fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init: TokenStream) -> Vec<ImplItem> {
     make_absents! { user_mtds
-        [fn info(&self, info: &mut #crate_::widget_info::WidgetInfoBuilder) { }]
+        [fn info(&mut self, info: &mut #crate_::widget_info::WidgetInfoBuilder) { }]
 
         [fn init(&mut self) { #auto_init }]
 
@@ -351,143 +348,123 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, auto_init
 
         [fn event(&mut self, update: &#crate_::event::EventUpdate) { }]
 
-        [fn measure(&self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
+        [fn measure(&mut self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
             #crate_::context::LAYOUT.constraints().fill_size()
         }]
 
         [fn layout(&mut self, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
             #crate_::context::LAYOUT.constraints().fill_size()
         }]
-        [fn render(&self, frame: &mut #crate_::render::FrameBuilder) { }]
+        [fn render(&mut self, frame: &mut #crate_::render::FrameBuilder) { }]
 
-        [fn render_update(&self, update: &mut #crate_::render::FrameUpdate) { }]
+        [fn render_update(&mut self, update: &mut #crate_::render::FrameUpdate) { }]
     }
 }
 
-fn delegate_absents(
-    crate_: TokenStream,
-    user_mtds: HashSet<Ident>,
-    borrow: Expr,
-    borrow_mut: Expr,
-    auto_init: TokenStream,
-) -> Vec<ImplItem> {
+fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, auto_init: TokenStream) -> Vec<ImplItem> {
     let child = ident_spanned!(borrow.span()=> "child");
-    let child_mut = ident_spanned!(borrow_mut.span()=> "child");
 
     let deref = quote_spanned! {borrow.span()=>
-        &*#child
-    };
-    let deref_mut = quote_spanned! {borrow_mut.span()=>
-        &mut *#child_mut
+        &mut *#child
     };
 
     make_absents! { user_mtds
-        [fn info(&self, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
-            let #child = {#borrow};
+        [fn info(&mut self, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
+            let mut #child = {#borrow};
             #crate_::widget_instance::UiNode::info(#deref, info);
         }]
 
         [fn init(&mut self) {
             #auto_init
-            let mut #child_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNode::init(#deref_mut);
+            let mut #child = {#borrow};
+            #crate_::widget_instance::UiNode::init(#deref);
         }]
 
         [fn deinit(&mut self) {
-            let mut #child_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNode::deinit(#deref_mut);
+            let mut #child = {#borrow};
+            #crate_::widget_instance::UiNode::deinit(#deref);
         }]
 
         [fn update(&mut self, updates: &#crate_::context::WidgetUpdates) {
-            let mut #child_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNode::update(#deref_mut, updates);
+            let mut #child = {#borrow};
+            #crate_::widget_instance::UiNode::update(#deref, updates);
         }]
 
         [fn event(&mut self, update: &#crate_::event::EventUpdate) {
-            let mut #child_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNode::event(#deref_mut, update);
+            let mut #child = {#borrow};
+            #crate_::widget_instance::UiNode::event(#deref, update);
         }]
 
-        [fn measure(&self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
+        [fn measure(&mut self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
             let mut #child = {#borrow};
             #crate_::widget_instance::UiNode::measure(#deref, wm)
         }]
 
         [fn layout(&mut self, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
-            let mut #child_mut = {#borrow_mut};
-            #crate_::widget_instance::UiNode::layout(#deref_mut, wl)
+            let mut #child = {#borrow};
+            #crate_::widget_instance::UiNode::layout(#deref, wl)
         }]
 
-        [fn render(&self, frame: &mut #crate_::render::FrameBuilder) {
-            let #child = {#borrow};
+        [fn render(&mut self, frame: &mut #crate_::render::FrameBuilder) {
+            let mut #child = {#borrow};
             #crate_::widget_instance::UiNode::render(#deref, frame);
         }]
 
-        [fn render_update(&self, update: &mut #crate_::render::FrameUpdate) {
-            let #child = {#borrow};
+        [fn render_update(&mut self, update: &mut #crate_::render::FrameUpdate) {
+            let mut #child = {#borrow};
             #crate_::widget_instance::UiNode::render_update(#deref, update);
         }]
     }
 }
 
-fn delegate_list_absents(
-    crate_: TokenStream,
-    user_mtds: HashSet<Ident>,
-    borrow: Expr,
-    borrow_mut: Expr,
-    auto_init: TokenStream,
-) -> Vec<ImplItem> {
+fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, auto_init: TokenStream) -> Vec<ImplItem> {
     let children = ident_spanned!(borrow.span()=> "children");
-    let children_mut = ident_spanned!(borrow_mut.span()=> "children");
     let deref = quote_spanned! {borrow.span()=>
-        &*#children
-    };
-    let deref_mut = quote_spanned! {borrow_mut.span()=>
-        &mut *#children_mut
+        &mut *#children
     };
     make_absents! { user_mtds
-        [fn info(&self, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
+        [fn info(&mut self, info: &mut #crate_::widget_info::WidgetInfoBuilder) {
             let #children = {#borrow};
             #crate_::widget_instance::ui_node_list_default::info_all(#deref, info);
         }]
 
         [fn init(&mut self) {
             #auto_init
-            let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::init_all(#deref_mut);
+            let #children = {#borrow};
+            #crate_::widget_instance::ui_node_list_default::init_all(#deref);
         }]
 
         [fn deinit(&mut self) {
-            let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::deinit_all(#deref_mut);
+            let #children = {#borrow};
+            #crate_::widget_instance::ui_node_list_default::deinit_all(#deref);
         }]
 
         [fn update(&mut self, updates: &#crate_::context::WidgetUpdates) {
-            let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::update_all(#deref_mut, updates);
+            let #children = {#borrow};
+            #crate_::widget_instance::ui_node_list_default::update_all(#deref, updates);
         }]
 
         [fn event(&mut self, update: &#crate_::event::EventUpdate) {
-            let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::event_all(#deref_mut, update);
+            let #children = {#borrow};
+            #crate_::widget_instance::ui_node_list_default::event_all(#deref, update);
         }]
 
-        [fn measure(&self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
+        [fn measure(&mut self, wm: &mut #crate_::widget_info::WidgetMeasure) -> #crate_::units::PxSize {
             let #children = {#borrow};
             #crate_::widget_instance::ui_node_list_default::measure_all(#deref, wm)
         }]
 
         [fn layout(&mut self, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
-            let #children_mut = {#borrow_mut};
-            #crate_::widget_instance::ui_node_list_default::layout_all(#deref_mut, wl)
+            let #children = {#borrow};
+            #crate_::widget_instance::ui_node_list_default::layout_all(#deref, wl)
         }]
 
-        [fn render(&self, frame: &mut #crate_::render::FrameBuilder) {
+        [fn render(&mut self, frame: &mut #crate_::render::FrameBuilder) {
             let #children = {#borrow};
             #crate_::widget_instance::ui_node_list_default::render_all(#deref, frame);
         }]
 
-        [fn render_update(&self, update: &mut #crate_::render::FrameUpdate) {
+        [fn render_update(&mut self, update: &mut #crate_::render::FrameUpdate) {
             let #children = {#borrow};
             #crate_::widget_instance::ui_node_list_default::render_update_all(#deref, update);
         }]
@@ -499,12 +476,12 @@ fn delegate_list_absents(
 enum Args {
     /// No arguments. Impl is for a leaf in the Ui tree.
     NoDelegate,
-    /// `child` or `delegate=expr` and `delegate_mut=expr`. Impl is for
+    /// `child` or `delegate=expr`. Impl is for
     /// an Ui that delegates each call to a single delegate.
-    Delegate { delegate: Expr, delegate_mut: Expr },
-    /// `children` or `delegate_list=expr` and `delegate_list_mut=expr`. Impl
+    Delegate { delegate: Expr },
+    /// `children` or `delegate_list=expr`. Impl
     /// is for an Ui that delegates each call to multiple delegates.
-    DelegateList { delegate_list: Expr, delegate_list_mut: Expr },
+    DelegateList { delegate_list: Expr },
     /// New node mode.
     NewNode(ArgsNewNode),
 }
@@ -518,33 +495,26 @@ impl Parse for Args {
 
             let args = if arg0 == ident!("child") {
                 Args::Delegate {
-                    delegate: parse_quote_spanned!(arg0.span()=> &self.child),
-                    delegate_mut: parse_quote_spanned!(arg0.span()=> &mut self.child),
+                    delegate: parse_quote_spanned!(arg0.span()=> &mut self.child),
                 }
             } else if arg0 == ident!("children") {
                 Args::DelegateList {
-                    delegate_list: parse_quote_spanned!(arg0.span()=> &self.children),
-                    delegate_list_mut: parse_quote_spanned!(arg0.span()=> &mut self.children),
+                    delegate_list: parse_quote_spanned!(arg0.span()=> &mut self.children),
                 }
             } else if arg0 == ident!("none") {
                 Args::NoDelegate
             } else {
                 let delegate = ident!("delegate");
-                let delegate_mut = ident!("delegate_mut");
 
-                if arg0 == delegate || arg0 == delegate_mut {
-                    let (delegate, delegate_mut) = parse_delegate_pair(args, arg0, delegate, delegate_mut)?;
-                    Args::Delegate { delegate, delegate_mut }
+                if arg0 == delegate {
+                    let delegate = parse_delegate(args, &arg0)?;
+                    Args::Delegate { delegate }
                 } else {
                     let delegate_list = ident!("delegate_list");
-                    let delegate_list_mut = ident!("delegate_list_mut");
 
-                    if arg0 == delegate_list || arg0 == delegate_list_mut {
-                        let (delegate_list, delegate_list_mut) = parse_delegate_pair(args, arg0, delegate_list, delegate_list_mut)?;
-                        Args::DelegateList {
-                            delegate_list,
-                            delegate_list_mut,
-                        }
+                    if arg0 == delegate_list {
+                        let delegate_list = parse_delegate(args, &arg0)?;
+                        Args::DelegateList { delegate_list }
                     } else {
                         return Err(Error::new(
                             arg0.span(),
@@ -564,46 +534,7 @@ impl Parse for Args {
     }
 }
 
-/// After parsing one of the delegate idents, parse the value and the other delegate.
-///
-/// Returns (immutable_expr, mutable_expr) independently of the order the delegates where written.
-fn parse_delegate_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: Ident) -> Result<(Expr, Expr)> {
-    // parse arg0 " = <expr>"
-    let expr0 = parse_delegate_expr(args, &arg0)?;
-
-    // get what ident is the second one, delegate pairs can be defined in any order.
-    let expected_arg1 = if arg0 == ident { &ident_mut } else { &ident };
-
-    // delegate pair are separated by comma (,)
-    let comma = args
-        .parse::<Token![,]>()
-        .map_err(|_| Error::new(util::after_span(&expr0), format!("expected `, {expected_arg1} = <expr>`")))?;
-    // delegate idents require a pair.
-    let arg1: Ident = args
-        .parse()
-        .map_err(|_| Error::new(comma.span(), format!("expected `{expected_arg1} = <expr>`")))?;
-
-    // second ident is not the expected pair.
-    if &arg1 != expected_arg1 {
-        return Err(Error::new(arg1.span(), format!("expected `{ident_mut}`")));
-    }
-
-    // parse arg1 " = <expr>"
-    let expr1 = parse_delegate_expr(args, &arg1)?;
-
-    // trailing comma.
-    if args.peek(Token![,]) {
-        args.parse::<Token![,]>().ok();
-    }
-
-    // result is (immutable_expr, mutable_expr)
-    if arg0 == ident {
-        Ok((expr0, expr1))
-    } else {
-        Ok((expr1, expr0))
-    }
-}
-fn parse_delegate_expr(args: ParseStream, ident: &Ident) -> Result<Expr> {
+fn parse_delegate(args: ParseStream, ident: &Ident) -> Result<Expr> {
     let colon = args
         .parse::<Token![=]>()
         .map_err(|_| Error::new(ident.span(), format!("expected `{ident} = <expr>`")))?;

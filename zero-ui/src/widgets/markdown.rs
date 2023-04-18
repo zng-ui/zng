@@ -76,7 +76,7 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
         }
 
         #[UiNode]
-        fn info(&self, info: &mut WidgetInfoBuilder) {
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
             info.meta().set(&MARKDOWN_INFO_ID, ());
             self.child.info(info);
         }

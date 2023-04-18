@@ -90,7 +90,7 @@ pub fn click_mode(child: impl UiNode, mode: impl IntoVar<Option<ClickMode>>) -> 
             }
         }
 
-        fn info(&self, info: &mut WidgetInfoBuilder) {
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
             info.set_click_mode(self.mode.get());
 
             self.child.info(info);

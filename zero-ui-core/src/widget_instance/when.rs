@@ -86,14 +86,6 @@ struct WhenUiNode {
     event_handles: EventHandles,
 }
 impl WhenUiNode {
-    fn child(&self) -> &BoxedUiNode {
-        if self.current == usize::MAX {
-            &self.default
-        } else {
-            &self.conditions[self.current].1
-        }
-    }
-
     fn child_mut_with_handles(&mut self) -> (&mut BoxedUiNode, &mut VarHandles, &mut EventHandles) {
         let child = if self.current == usize::MAX {
             &mut self.default
@@ -121,10 +113,7 @@ impl WhenUiNode {
         WIDGET.update_info().layout().render();
     }
 }
-#[ui_node(
-    delegate = self.child(),
-    delegate_mut = self.child_mut_with_handles().0,
-)]
+#[ui_node(delegate = self.child_mut_with_handles().0)]
 impl UiNode for WhenUiNode {
     fn init(&mut self) {
         self.current = usize::MAX;
