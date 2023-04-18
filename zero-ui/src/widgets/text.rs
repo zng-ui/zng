@@ -73,6 +73,12 @@ pub use text_properties::*;
 })]
 pub struct Text(WidgetBase);
 
+/// The text string.
+///
+/// Set to an empty string (`""`) by default.
+#[property(CHILD, capture, default(""), widget_impl(Text))]
+pub fn txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {}
+
 impl Text {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
@@ -95,12 +101,6 @@ impl Text {
         pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
     }
 }
-
-/// The text string.
-///
-/// Set to an empty string (`""`) by default.
-#[property(CHILD, capture, default(""), widget_impl(Text))]
-pub fn txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {}
 
 ///<span data-del-macro-root></span> A simple text run with **bold** font weight.
 ///

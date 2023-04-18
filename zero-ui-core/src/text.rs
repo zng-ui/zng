@@ -208,10 +208,11 @@ pub use zero_ui_proc_macros::lang as __lang;
 
 #[doc(hidden)]
 pub use unic_langid;
-#[doc(hidden)]
+
 pub mod font_features;
 mod font_kit_cache;
 mod unicode_bidi_util;
+
 pub use font_features::FontFeatures;
 
 mod font_loading;
