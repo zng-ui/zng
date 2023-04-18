@@ -259,7 +259,7 @@ context_var! {
 /// Widget function that converts [`TextFnArgs`] to widgets.
 ///
 /// Sets the [`TEXT_GEN_VAR`].
-#[property(CONTEXT, default(TEXT_GEN_VAR))]
+#[property(CONTEXT, default(TEXT_GEN_VAR), widget_impl(Markdown))]
 pub fn text_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TextFnArgs>>) -> impl UiNode {
     with_context_var(child, TEXT_GEN_VAR, wgt_fn)
 }
@@ -267,7 +267,7 @@ pub fn text_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TextFnArgs>>) -
 /// Widget function that converts [`LinkFnArgs`] to widgets.
 ///
 /// Sets the [`LINK_GEN_VAR`].
-#[property(CONTEXT, default(LINK_GEN_VAR))]
+#[property(CONTEXT, default(LINK_GEN_VAR), widget_impl(Markdown))]
 pub fn link_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<LinkFnArgs>>) -> impl UiNode {
     with_context_var(child, LINK_GEN_VAR, wgt_fn)
 }
@@ -275,7 +275,7 @@ pub fn link_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<LinkFnArgs>>) -
 /// Widget function that converts [`CodeInlineFnArgs`] to widgets.
 ///
 /// Sets the [`CODE_INLINE_GEN_VAR`].
-#[property(CONTEXT, default(CODE_INLINE_GEN_VAR))]
+#[property(CONTEXT, default(CODE_INLINE_GEN_VAR), widget_impl(Markdown))]
 pub fn code_inline_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CodeInlineFnArgs>>) -> impl UiNode {
     with_context_var(child, CODE_INLINE_GEN_VAR, wgt_fn)
 }
@@ -283,7 +283,7 @@ pub fn code_inline_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CodeInli
 /// Widget function that converts [`CodeBlockFnArgs`] to widgets.
 ///
 /// Sets the [`CODE_BLOCK_GEN_VAR`].
-#[property(CONTEXT, default(CODE_BLOCK_GEN_VAR))]
+#[property(CONTEXT, default(CODE_BLOCK_GEN_VAR), widget_impl(Markdown))]
 pub fn code_block_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CodeBlockFnArgs>>) -> impl UiNode {
     with_context_var(child, CODE_BLOCK_GEN_VAR, wgt_fn)
 }
@@ -291,7 +291,7 @@ pub fn code_block_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<CodeBlock
 /// Widget function that converts [`ParagraphFnArgs`] to widgets.
 ///
 /// Sets the [`PARAGRAPH_GEN_VAR`].
-#[property(CONTEXT, default(PARAGRAPH_GEN_VAR))]
+#[property(CONTEXT, default(PARAGRAPH_GEN_VAR), widget_impl(Markdown))]
 pub fn paragraph_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ParagraphFnArgs>>) -> impl UiNode {
     with_context_var(child, PARAGRAPH_GEN_VAR, wgt_fn)
 }
@@ -299,7 +299,7 @@ pub fn paragraph_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ParagraphF
 /// Widget function that converts [`HeadingFnArgs`] to widgets.
 ///
 /// Sets the [`HEADING_GEN_VAR`].
-#[property(CONTEXT, default(HEADING_GEN_VAR))]
+#[property(CONTEXT, default(HEADING_GEN_VAR), widget_impl(Markdown))]
 pub fn heading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<HeadingFnArgs>>) -> impl UiNode {
     with_context_var(child, HEADING_GEN_VAR, wgt_fn)
 }
@@ -307,7 +307,7 @@ pub fn heading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<HeadingFnArg
 /// Widget function that converts [`ListFnArgs`] to widgets.
 ///
 /// Sets the [`LIST_GEN_VAR`].
-#[property(CONTEXT, default(LIST_GEN_VAR))]
+#[property(CONTEXT, default(LIST_GEN_VAR), widget_impl(Markdown))]
 pub fn list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListFnArgs>>) -> impl UiNode {
     with_context_var(child, LIST_GEN_VAR, wgt_fn)
 }
@@ -315,7 +315,7 @@ pub fn list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListFnArgs>>) -
 /// Widget function that converts [`ListItemBulletFnArgs`] to widgets.
 ///
 /// Sets the [`LIST_ITEM_BULLET_GEN_VAR`].
-#[property(CONTEXT, default(LIST_ITEM_BULLET_GEN_VAR))]
+#[property(CONTEXT, default(LIST_ITEM_BULLET_GEN_VAR), widget_impl(Markdown))]
 pub fn list_item_bullet_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemBulletFnArgs>>) -> impl UiNode {
     with_context_var(child, LIST_ITEM_BULLET_GEN_VAR, wgt_fn)
 }
@@ -323,7 +323,7 @@ pub fn list_item_bullet_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Lis
 /// Widget function that converts [`ListItemFnArgs`] to widgets.
 ///
 /// Sets the [`LIST_ITEM_GEN_VAR`].
-#[property(CONTEXT, default(LIST_ITEM_GEN_VAR))]
+#[property(CONTEXT, default(LIST_ITEM_GEN_VAR), widget_impl(Markdown))]
 pub fn list_item_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemFnArgs>>) -> impl UiNode {
     with_context_var(child, LIST_ITEM_GEN_VAR, wgt_fn)
 }
@@ -331,7 +331,7 @@ pub fn list_item_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListItemFn
 /// Widget function that converts [`ImageFnArgs`] to widgets.
 ///
 /// Sets the [`IMAGE_GEN_VAR`].
-#[property(CONTEXT, default(IMAGE_GEN_VAR))]
+#[property(CONTEXT, default(IMAGE_GEN_VAR), widget_impl(Markdown))]
 pub fn image_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageFnArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_GEN_VAR, wgt_fn)
 }
@@ -339,7 +339,7 @@ pub fn image_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImageFnArgs>>)
 /// Widget function that converts [`RuleFnArgs`] to widgets.
 ///
 /// Sets the [`RULE_GEN_VAR`].
-#[property(CONTEXT, default(RULE_GEN_VAR))]
+#[property(CONTEXT, default(RULE_GEN_VAR), widget_impl(Markdown))]
 pub fn rule_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<RuleFnArgs>>) -> impl UiNode {
     with_context_var(child, RULE_GEN_VAR, wgt_fn)
 }
@@ -347,7 +347,7 @@ pub fn rule_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<RuleFnArgs>>) -
 /// Widget function that converts [`BlockQuoteFnArgs`] to widgets.
 ///
 /// Sets the [`BLOCK_QUOTE_GEN_VAR`].
-#[property(CONTEXT, default(BLOCK_QUOTE_GEN_VAR))]
+#[property(CONTEXT, default(BLOCK_QUOTE_GEN_VAR), widget_impl(Markdown))]
 pub fn block_quote_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<BlockQuoteFnArgs>>) -> impl UiNode {
     with_context_var(child, BLOCK_QUOTE_GEN_VAR, wgt_fn)
 }
@@ -355,7 +355,7 @@ pub fn block_quote_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<BlockQuo
 /// Widget function that converts [`FootnoteRefFnArgs`] to widgets.
 ///
 /// Sets the [`FOOTNOTE_REF_GEN_VAR`].
-#[property(CONTEXT, default(FOOTNOTE_REF_GEN_VAR))]
+#[property(CONTEXT, default(FOOTNOTE_REF_GEN_VAR), widget_impl(Markdown))]
 pub fn footnote_ref_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<FootnoteRefFnArgs>>) -> impl UiNode {
     with_context_var(child, FOOTNOTE_REF_GEN_VAR, wgt_fn)
 }
@@ -363,7 +363,7 @@ pub fn footnote_ref_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Footnot
 /// Widget function that converts [`FootnoteDefFnArgs`] to widgets.
 ///
 /// Sets the [`FOOTNOTE_DEF_GEN_VAR`].
-#[property(CONTEXT, default(FOOTNOTE_DEF_GEN_VAR))]
+#[property(CONTEXT, default(FOOTNOTE_DEF_GEN_VAR), widget_impl(Markdown))]
 pub fn footnote_def_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<FootnoteDefFnArgs>>) -> impl UiNode {
     with_context_var(child, FOOTNOTE_DEF_GEN_VAR, wgt_fn)
 }
@@ -371,7 +371,7 @@ pub fn footnote_def_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Footnot
 /// Widget function that converts [`TableFnArgs`] to widgets.
 ///
 /// Sets the [`TABLE_GEN_VAR`].
-#[property(CONTEXT, default(TABLE_GEN_VAR))]
+#[property(CONTEXT, default(TABLE_GEN_VAR), widget_impl(Markdown))]
 pub fn table_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TableFnArgs>>) -> impl UiNode {
     with_context_var(child, TABLE_GEN_VAR, wgt_fn)
 }
@@ -383,7 +383,7 @@ pub fn table_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TableFnArgs>>)
 /// Sets the [`PANEL_GEN_VAR`].
 ///
 /// [`Markdown!`]: struct@crate::widgets::Markdown
-#[property(CONTEXT, default(PANEL_GEN_VAR))]
+#[property(CONTEXT, default(PANEL_GEN_VAR), widget_impl(Markdown))]
 pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>) -> impl UiNode {
     with_context_var(child, PANEL_GEN_VAR, wgt_fn)
 }

@@ -4,7 +4,7 @@ use crate::prelude::new_widget::*;
 
 /// A clickable container.
 #[widget($crate::widgets::Button)]
-pub struct Button(FocusableMix<StyleMix<Container>>);
+pub struct Button(FocusableMix<StyleMix<EnabledMix<Container>>>);
 impl Button {
     fn widget_intrinsic(&mut self) {
         widget_set! {
@@ -23,13 +23,13 @@ impl Button {
         /// # use zero_ui::prelude::*;
         /// # let _scope = App::minimal();
         /// #
-        /// Button! {
-        ///     on_click = hn!(|args: &ClickArgs| {
-        ///         assert!(args.is_primary());
-        ///         println!("button {:?} clicked!", WIDGET.id());
-        ///     });
-        ///     child = Text!("Click Me!");
-        /// }
+        /// # Button! {
+        /// on_click = hn!(|args: &ClickArgs| {
+        ///     assert!(args.is_primary());
+        ///     println!("button {:?} clicked!", WIDGET.id());
+        /// });
+        /// child = Text!("Click Me!");
+        /// # }
         /// # ;
         /// ```
         pub crate::properties::events::gesture::on_click(handler: impl WidgetHandler<crate::core::gesture::ClickArgs>);

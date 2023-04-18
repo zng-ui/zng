@@ -319,7 +319,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::{
             property, ui_node, widget,
-            widget_base::{self, HitTestMode, WidgetBase, WidgetImpl},
+            widget_base::{self, EnabledMix, HitTestMode, WidgetBase, WidgetImpl},
             widget_impl,
             widget_info::{
                 InlineSegment, InlineSegmentInfo, InlineSegmentPos, InteractionPath, Interactivity, Visibility, WidgetBorderInfo,

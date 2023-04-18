@@ -875,6 +875,12 @@ pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
     _child
 }
 
+/// Enabled properties.
+///
+/// Mixin defines enabled and enabled state probing properties for interactive widgets.
+#[crate::widget_mixin]
+pub struct EnabledMix<P>(P);
+
 /// If default interaction is allowed in the widget and its descendants.
 ///
 /// This property sets the interactivity of the widget to [`ENABLED`] or [`DISABLED`], to probe the enabled state in `when` clauses
@@ -906,7 +912,7 @@ pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
 /// [`interactive`]: fn@interactive
 /// [`is_enabled`]: fn@is_enabled
 /// [`is_disabled`]: fn@is_disabled
-#[property(CONTEXT, default(true), widget_impl(WidgetBase))]
+#[property(CONTEXT, default(true), widget_impl(EnabledMix<P>))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     #[ui_node(struct EnabledNode {
         child: impl UiNode,
@@ -999,7 +1005,7 @@ fn vis_enabled_eq_state(child: impl UiNode, state: impl IntoVar<bool>, expected:
 ///
 /// [`enabled`]: fn@enabled
 /// [`WidgetInfo::allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
-#[property(EVENT)]
+#[property(EVENT, widget_impl(EnabledMix<P>))]
 pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     vis_enabled_eq_state(child, state, true)
 }
@@ -1011,7 +1017,7 @@ pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// This is the same as `!self.is_enabled`.
 ///
 /// [`enabled`]: fn@enabled
-#[property(EVENT)]
+#[property(EVENT, widget_impl(EnabledMix<P>))]
 pub fn is_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     vis_enabled_eq_state(child, state, false)
 }

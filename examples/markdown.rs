@@ -29,7 +29,7 @@ fn app_main() {
                 mode = ScrollMode::VERTICAL;
                 padding = 10;
                 child = Markdown! {
-                    md = std::fs::read_to_string("examples/res/markdown/sample.md").unwrap_or_else(|e| e.to_string());
+                    txt = std::fs::read_to_string("examples/res/markdown/sample.md").unwrap_or_else(|e| e.to_string());
 
                     // allow limited image download and read.
                     image::img_limits = ImageLimits::default()

@@ -20,11 +20,6 @@ impl Icon {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(on_build);
     }
-
-    widget_impl! {
-        /// Spacing in between the icon and background edges or border.
-        pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
-    }
 }
 
 /// The glyph icon.

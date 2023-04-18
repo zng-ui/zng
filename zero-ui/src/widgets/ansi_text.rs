@@ -1,6 +1,8 @@
 //! ANSI text widget, properties and nodes..
 
-use zero_ui::prelude::new_widget::*;
+use crate::prelude::new_widget::*;
+
+use crate::widgets::text::*;
 
 /// Render text styled using ANSI scale sequences.
 ///
@@ -16,12 +18,20 @@ use zero_ui::prelude::new_widget::*;
         txt = $crate::core::text::formatx!($txt, $($format)*);
     };
 })]
-pub struct AnsiText(WidgetBase);
+#[rustfmt::skip]
+pub struct AnsiText(
+    FontMix<
+    TextSpacingMix<
+    ParagraphMix<
+    LangMix<
+    WidgetBase
+    >>>>
+);
 impl AnsiText {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            crate::widgets::text::font_family = ["JetBrains Mono", "Consolas", "monospace"];
+            font_family = ["JetBrains Mono", "Consolas", "monospace"];
         };
 
         self.widget_builder().push_build_action(|wgt| {
@@ -30,11 +40,12 @@ impl AnsiText {
             wgt.set_child(child.boxed());
         });
     }
-}
 
-/// ANSI text.
-#[property(CONTEXT, capture, widget_impl(AnsiText))]
-pub fn txt(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode {}
+    widget_impl! {
+        /// ANSI text.
+        pub txt(text: impl IntoVar<Txt>);
+    }
+}
 
 pub use ansi_parse::*;
 mod ansi_parse {
@@ -557,7 +568,7 @@ mod ansi_fn {
     /// Set to `ZERO` to disable.
     ///
     /// Sets the [`BLINK_INTERVAL_VAR`].
-    #[property(CONTEXT, default(BLINK_INTERVAL_VAR))]
+    #[property(CONTEXT, default(BLINK_INTERVAL_VAR), widget_impl(AnsiText))]
     pub fn blink_interval(child: impl UiNode, interval: impl IntoVar<Duration>) -> impl UiNode {
         with_context_var(child, BLINK_INTERVAL_VAR, interval)
     }
@@ -565,7 +576,7 @@ mod ansi_fn {
     /// Widget function that converts [`TextFnArgs`] to widgets.
     ///
     /// Sets the [`TEXT_GEN_VAR`].
-    #[property(CONTEXT, default(TEXT_GEN_VAR))]
+    #[property(CONTEXT, default(TEXT_GEN_VAR), widget_impl(AnsiText))]
     pub fn text_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<TextFnArgs>>) -> impl UiNode {
         with_context_var(child, TEXT_GEN_VAR, wgt_fn)
     }
@@ -573,7 +584,7 @@ mod ansi_fn {
     /// Widget function that converts [`LineFnArgs`] to widgets.
     ///
     /// Sets the [`LINE_GEN_VAR`].
-    #[property(CONTEXT, default(LINE_GEN_VAR))]
+    #[property(CONTEXT, default(LINE_GEN_VAR), widget_impl(AnsiText))]
     pub fn line_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<LineFnArgs>>) -> impl UiNode {
         with_context_var(child, LINE_GEN_VAR, wgt_fn)
     }
@@ -585,13 +596,13 @@ mod ansi_fn {
     /// Sets the [`PAGE_GEN_VAR`].
     ///
     /// [`lines_per_page`]: fn@lines_per_page
-    #[property(CONTEXT, default(PAGE_GEN_VAR))]
+    #[property(CONTEXT, default(PAGE_GEN_VAR), widget_impl(AnsiText))]
     pub fn page_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PageFnArgs>>) -> impl UiNode {
         with_context_var(child, PAGE_GEN_VAR, wgt_fn)
     }
 
-    /// Widget function that converts [``]
-    #[property(CONTEXT, default(PANEL_GEN_VAR))]
+    /// Widget function that converts [`PanelFnArgs`] to widgets.
+    #[property(CONTEXT, default(PANEL_GEN_VAR), widget_impl(AnsiText))]
     pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelFnArgs>>) -> impl UiNode {
         with_context_var(child, PANEL_GEN_VAR, wgt_fn)
     }
@@ -599,7 +610,7 @@ mod ansi_fn {
     /// Maximum number of lines per page view.
     ///
     /// Sets the [`LINES_PER_PAGE_VAR`].
-    #[property(CONTEXT, default(LINES_PER_PAGE_VAR))]
+    #[property(CONTEXT, default(LINES_PER_PAGE_VAR), widget_impl(AnsiText))]
     pub fn lines_per_page(child: impl UiNode, count: impl IntoVar<u32>) -> impl UiNode {
         with_context_var(child, LINES_PER_PAGE_VAR, count)
     }

@@ -109,11 +109,6 @@ impl Text {
             wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| nodes::resolve_text(child, text));
         });
     }
-
-    widget_impl! {
-        /// Spacing in-between the text and borders.
-        pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
-    }
 }
 
 ///<span data-del-macro-root></span> A simple text run with **bold** font weight.

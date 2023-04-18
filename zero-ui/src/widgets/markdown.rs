@@ -14,17 +14,25 @@ pub use view_fn::*;
 
 /// Render markdown styled text.
 #[widget($crate::widgets::Markdown {
-    ($md:literal) => {
-        md = $crate::core::text::formatx!($md);
+    ($txt:literal) => {
+        txt = $crate::core::text::formatx!($txt);
     };
-    ($md:expr) => {
-        md = $md;
+    ($txt:expr) => {
+        txt = $txt;
     };
-    ($md:tt, $($format:tt)*) => {
-        md = $crate::core::text::formatx!($md, $($format)*);
+    ($txt:tt, $($format:tt)*) => {
+        txt = $crate::core::text::formatx!($txt, $($format)*);
     };
 })]
-pub struct Markdown(WidgetBase);
+#[rustfmt::skip]
+pub struct Markdown(
+    text::FontMix<
+    text::TextSpacingMix<
+    text::ParagraphMix<
+    text::LangMix<
+    WidgetBase
+    >>>>
+);
 impl Markdown {
     fn widget_intrinsic(&mut self) {
         widget_set! {
@@ -35,23 +43,17 @@ impl Markdown {
         };
 
         self.widget_builder().push_build_action(|wgt| {
-            let md = wgt.capture_var_or_default(property_id!(md));
+            let md = wgt.capture_var_or_default(property_id!(text::txt));
             let child = markdown_node(md);
             wgt.set_child(child.boxed());
         });
     }
 
     widget_impl! {
-        /// Extra space between lines.
-        pub text::line_spacing(spacing: impl IntoVar<LineSpacing>);
-        /// Extra space between paragraphs.
-        pub text::paragraph_spacing(spacing: impl IntoVar<LineSpacing>);
+        /// Markdown text.
+        pub text::txt(txt: impl IntoVar<Txt>);
     }
 }
-
-/// Markdown text.
-#[property(CONTEXT, capture, widget_impl(Markdown))]
-pub fn md(child: impl UiNode, md: impl IntoVar<Txt>) -> impl UiNode {}
 
 /// Implements the markdown parsing and view generation, configured by contextual properties.
 pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {

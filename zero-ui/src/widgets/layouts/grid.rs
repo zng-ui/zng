@@ -21,11 +21,6 @@ impl Grid {
             w.set_child(child);
         });
     }
-
-    widget_impl! {
-        /// Spacing around the grid, inside the border.
-        pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
-    }
 }
 
 /// Cell widget items.

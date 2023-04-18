@@ -67,9 +67,6 @@ impl Stack {
     widget_impl! {
         /// Widget items.
         pub widget_base::children(children: impl UiNodeList);
-
-        /// Spacing around the items stack, inside the border.
-        pub crate::properties::padding(padding: impl IntoVar<SideOffsets>);
     }
 }
 

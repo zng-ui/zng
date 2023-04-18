@@ -33,5 +33,10 @@
 
 # Continue Widget Refactor
 
-* Make more properties impl widgets (like all the base properties).
-* Use text mix-ins in `Link`, `AnsiText`, `Markdown`.
+* Link to fetched `WidgetBase` does not work in `Button`.
+* Tag mix-in structs.
+
+* Review `Link` widget.
+    - Link should be a `Button` style?
+        - Like `Toggle` has different styles.
+    - Or it should be a clickable `Text`.
