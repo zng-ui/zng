@@ -71,7 +71,21 @@ pub use text_properties::*;
         txt = $crate::core::text::formatx!($txt, $($format)*);
     };
 })]
-pub struct Text(WidgetBase);
+#[rustfmt::skip]
+pub struct Text(
+    FontMix<
+    TextFillMix<
+    TextAlignMix<
+    TextWrapMix<
+    TextDecorationMix<
+    TextSpacingMix<
+    TextTransformMix<
+    LangMix<
+    FontFeaturesMix<
+    TextEditMix<
+    WidgetBase
+    >>>>>>>>>>
+);
 
 /// The text string.
 ///

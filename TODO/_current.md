@@ -34,7 +34,4 @@
 # Continue Widget Refactor
 
 * Make more properties impl widgets (like all the base properties).
-* Implement `TextMix<P>` or even more segmented mix-ins, use then in `Link` and other text widgets?
-    - `FontMix<P>`: `font_family`, `font_size`, `font_aa`, ...
-    - `FontFeaturesMix<P>`: `font_features`, `font_char_variant`, ... 
-    
+* Use text mix-ins in `Link`, `AnsiText`, `Markdown`.
