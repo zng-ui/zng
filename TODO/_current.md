@@ -34,12 +34,5 @@
 
 # Continue Widget Refactor
 
-* Fix widget docs.
-    - Refactor Mix.
-    - Fetched parent methods (need to cleanup associated functions and generate a Deref<Target=T> where Deref is linked).
-
-    - Have a fancy tooltip that shows how to call the property in the macro.
-        - Same style as the notable trait?
-
 * Make more properties impl widgets (like all the base properties).
 * Implement `TextMix<P>` or even more segmented mix-ins, use then in `Link` and other text widgets?
