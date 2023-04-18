@@ -34,7 +34,6 @@
 # Continue Widget Refactor
 
 * Link to fetched `WidgetBase` does not work in `Button`.
-* Tag mix-in structs.
 
 * Review `Link` widget.
     - Link should be a `Button` style?

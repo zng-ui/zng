@@ -1,37 +1,50 @@
 use crate::core::text::{font_features::*, *};
 use crate::prelude::{new_property::*, new_widget::widget_mixin};
 
-#[allow(unused_imports)]
-use super::Text; // used in docs
-
 /// Basic text font properties.
 ///
 /// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// See also [`FontFeaturesMix<P>`] for the other font properties.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct FontMix<P>(P);
 
 context_var! {
     /// Font family of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static FONT_FAMILY_VAR: FontNames = FontNames::default();
 
     /// Font size of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static FONT_SIZE_VAR: FontSize = FontSize::Pt(11.0);
 
     /// Font weight of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static FONT_WEIGHT_VAR: FontWeight = FontWeight::NORMAL;
 
     /// Font style of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static FONT_STYLE_VAR: FontStyle = FontStyle::Normal;
 
     /// Font stretch of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static FONT_STRETCH_VAR: FontStretch = FontStretch::NORMAL;
 
     /// Font synthesis of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static FONT_SYNTHESIS_VAR: FontSynthesis = FontSynthesis::ENABLED;
 
     /// Font anti-aliasing of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static FONT_AA_VAR: FontAntiAliasing = FontAntiAliasing::Default;
 }
 
@@ -156,11 +169,15 @@ pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl U
 /// Text color properties.
 ///
 /// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct TextFillMix<P>(P);
 
 context_var! {
     /// Text color of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static TEXT_COLOR_VAR: Rgba = colors::WHITE;
 }
 
@@ -175,6 +192,8 @@ pub fn txt_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
 /// Text align, justify.
 ///
 /// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct TextAlignMix<P>(P);
 
@@ -214,6 +233,8 @@ pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl 
 /// Text wrap, hyphenation.
 ///
 /// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct TextWrapMix<P>(P);
 
@@ -302,6 +323,8 @@ pub fn hyphen_char(child: impl UiNode, hyphen: impl IntoVar<Txt>) -> impl UiNode
 /// Text underline, overline and strikethrough lines.
 ///
 /// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct TextDecorationMix<P>(P);
 
@@ -407,26 +430,38 @@ pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> imp
 /// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
 ///
 /// See also [`ParagraphMix<P>`] for paragraph spacing.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct TextSpacingMix<P>(P);
 
 context_var! {
     /// Text line height of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static LINE_HEIGHT_VAR: LineHeight = LineHeight::Default;
 
     /// Extra spacing in between lines of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static LINE_SPACING_VAR: LineSpacing = LineSpacing::Default;
 
     /// Extra letter spacing of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static LETTER_SPACING_VAR: LetterSpacing = LetterSpacing::Default;
 
     /// Extra word spacing of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static WORD_SPACING_VAR: WordSpacing = WordSpacing::Default;
 
     /// Length of the `TAB` space.
     pub static TAB_LENGTH_VAR: TabLength = 400.pct();
 
     /// Text white space transform of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static WHITE_SPACE_VAR: WhiteSpace = WhiteSpace::Preserve;
 }
 
@@ -525,11 +560,15 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
 /// Text transform properties.
 ///
 /// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct TextTransformMix<P>(P);
 
 context_var! {
     /// Text transformation function applied to [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static TEXT_TRANSFORM_VAR: TextTransformFn = TextTransformFn::None;
 }
 
@@ -544,14 +583,20 @@ pub fn txt_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn
 /// Language and text direction properties.
 ///
 /// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct LangMix<P>(P);
 
 context_var! {
     /// Language of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static LANG_VAR: Lang = Lang::default();
 
     /// Flow direction of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static DIRECTION_VAR: LayoutDirection = LayoutDirection::default();
 }
 
@@ -608,14 +653,20 @@ pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -
 /// Advanced font config, features, kerning, variations and more.
 ///
 /// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct FontFeaturesMix<P>(P);
 
 context_var! {
     /// Font features of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static FONT_FEATURES_VAR: FontFeatures = FontFeatures::new();
 
     /// Font variations of [`Text!`] spans.
+    ///
+    /// [`Text!`]: struct@crate::widgets::Text
     pub static FONT_VARIATIONS_VAR: FontVariations = FontVariations::new();
 }
 
@@ -799,6 +850,8 @@ pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) ->
 /// Text edit properties.
 ///
 /// All properties in this mix-in affects [`Text!`] nodes inside the widget where they are set.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct TextEditMix<P>(P);
 
@@ -831,6 +884,8 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 ///
 /// Note that the [`Text!`] widget does not include this mix-in, as raw text does not encode
 /// paragraph breaks, other rich text widgets can include it to configure paragraphs.
+///
+/// [`Text!`]: struct@crate::widgets::Text
 #[widget_mixin]
 pub struct ParagraphMix<P>(P);
 

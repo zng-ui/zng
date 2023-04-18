@@ -128,10 +128,11 @@ impl UiNode for LineNode {
     }
 }
 
-/// Draws an horizontal [`RuleLine!`](struct@RuleLine).
+/// Horizontal rule line.
 pub mod hr {
     use crate::prelude::new_widget::*;
 
+    /// Draws an horizontal [`RuleLine!`](struct@RuleLine).
     #[widget($crate::widgets::Hr)]
     pub struct Hr(super::RuleLine);
     impl Hr {
@@ -158,19 +159,19 @@ pub mod hr {
     }
 
     /// Sets the [`COLOR_VAR`] that affects all horizontal rules inside the widget.
-    #[property(CONTEXT, default(COLOR_VAR))]
+    #[property(CONTEXT, default(COLOR_VAR), widget_impl(Hr))]
     pub fn color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
         with_context_var(child, COLOR_VAR, color)
     }
 
     /// Sets the [`STROKE_THICKNESS_VAR`] that affects all horizontal rules inside the widget.
-    #[property(CONTEXT, default(STROKE_THICKNESS_VAR))]
+    #[property(CONTEXT, default(STROKE_THICKNESS_VAR), widget_impl(Hr))]
     pub fn stroke_thickness(child: impl UiNode, thickness: impl IntoVar<Length>) -> impl UiNode {
         with_context_var(child, STROKE_THICKNESS_VAR, thickness)
     }
 
     /// Sets the [`LINE_STYLE_VAR`] that affects all horizontal rules inside the widget.
-    #[property(CONTEXT, default(LINE_STYLE_VAR))]
+    #[property(CONTEXT, default(LINE_STYLE_VAR), widget_impl(Hr))]
     pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {
         with_context_var(child, LINE_STYLE_VAR, style)
     }
