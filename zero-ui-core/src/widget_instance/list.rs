@@ -1694,10 +1694,14 @@ where
                 self.z_sort();
             }
 
-            for &index in self.z_map.iter() {
-                let index = index as usize;
-                let data = self.data[index].get_mut();
-                self.list.with_node(index, |node| f(index, node, data));
+            if self.z_naturally_sorted {
+                self.for_each(f);
+            } else {
+                for &index in self.z_map.iter() {
+                    let index = index as usize;
+                    let data = self.data[index].get_mut();
+                    self.list.with_node(index, |node| f(index, node, data));
+                }
             }
         }
     }
@@ -1756,6 +1760,10 @@ where
 
         if self.z_map.len() != self.list.len() {
             self.z_sort();
+        }
+
+        if self.z_naturally_sorted {
+            return index;
         }
 
         self.z_map[index] as usize
