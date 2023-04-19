@@ -285,9 +285,4 @@ impl Transitionable for Vector {
             y: self.y.lerp(&to.y, step),
         }
     }
-
-    fn chase(&mut self, increment: Self) {
-        self.x += increment.x;
-        self.y += increment.y;
-    }
 }

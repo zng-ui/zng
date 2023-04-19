@@ -323,10 +323,4 @@ impl Transitionable for StackDirection {
             is_rtl_aware: if step < 1.fct() { self.is_rtl_aware } else { to.is_rtl_aware },
         }
     }
-
-    fn chase(&mut self, increment: Self) {
-        self.place.chase(increment.place);
-        self.origin.chase(increment.origin);
-        self.is_rtl_aware = increment.is_rtl_aware;
-    }
 }

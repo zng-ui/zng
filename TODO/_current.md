@@ -3,7 +3,6 @@
         - Using both delay and this flag a fade-out effect can be easily implemented 
           just by setting properties with `#[easing(..)]` an a `when` condition.
 
-* Review `Transitionable::chase`, not needed anymore?
 * Review Dip units used in computed values.
     - Things like `MOUSE.position` are pretty useless without the scale_factor.
     - Real problem is having to retrieve the scale factor?
@@ -15,9 +14,6 @@
 * Parallel render.
     - Widgets.
         - How to share `&mut FrameBuilder` and `&mut FrameUpdate`?
-
-* Implement tracing parent propagation in `LocalContext`?
-    - https://github.com/wagnerf42/diam/blob/main/src/adaptors/log.rs
 
 * Negative space clips not applied when only `render_update` moves then into view.
     - In "icon" example, set `background_color` for each chunk and scroll using only the keyboard to see.

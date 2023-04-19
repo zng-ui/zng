@@ -233,9 +233,4 @@ impl Transitionable for Size {
             height: self.height.lerp(&to.height, step),
         }
     }
-
-    fn chase(&mut self, increment: Self) {
-        self.width.chase(increment.width);
-        self.height.chase(increment.height);
-    }
 }

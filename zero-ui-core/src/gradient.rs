@@ -383,16 +383,6 @@ impl Transitionable for LinearGradientAxis {
             }
         }
     }
-
-    /// Increment for same axis kinds, or replaces `self` with `increment` for different axis kinds.
-    fn chase(&mut self, increment: Self) {
-        use LinearGradientAxis::*;
-        match (self, increment) {
-            (Angle(s), Angle(i)) => *s += i,
-            (Line(s), Line(i)) => s.chase(i),
-            (s, i) => *s = i,
-        }
-    }
 }
 
 /// A color stop in a gradient.
@@ -517,11 +507,6 @@ impl Transitionable for ColorStop {
             color: self.color.lerp(&to.color, step),
             offset: self.offset.lerp(&to.offset, step),
         }
-    }
-
-    fn chase(&mut self, increment: Self) {
-        self.color.chase(increment.color);
-        self.offset.chase(increment.offset);
     }
 }
 

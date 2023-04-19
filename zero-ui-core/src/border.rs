@@ -160,11 +160,6 @@ impl animation::Transitionable for BorderStyle {
             *to
         }
     }
-
-    /// Replaces `self` with `increment`.
-    fn chase(&mut self, increment: Self) {
-        *self = increment;
-    }
 }
 
 /// The line style and color for the sides of a widget's border.
@@ -263,11 +258,6 @@ impl animation::Transitionable for BorderSide {
         self.color = self.color.lerp(&to.color, step);
         self.style = self.style.lerp(&to.style, step);
         self
-    }
-
-    fn chase(&mut self, increment: Self) {
-        self.color.chase(increment.color);
-        self.style.chase(increment.style);
     }
 }
 
@@ -530,13 +520,6 @@ impl animation::Transitionable for BorderSides {
         self.bottom = self.right.lerp(&to.bottom, step);
         self.left = self.right.lerp(&to.left, step);
         self
-    }
-
-    fn chase(&mut self, increment: Self) {
-        self.top.chase(increment.top);
-        self.right.chase(increment.right);
-        self.bottom.chase(increment.bottom);
-        self.left.chase(increment.left);
     }
 }
 

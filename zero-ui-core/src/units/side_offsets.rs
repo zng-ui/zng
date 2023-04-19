@@ -232,11 +232,4 @@ impl Transitionable for SideOffsets {
             left: self.left.lerp(&to.left, step),
         }
     }
-
-    fn chase(&mut self, increment: Self) {
-        self.top.chase(increment.top);
-        self.right.chase(increment.right);
-        self.bottom.chase(increment.bottom);
-        self.left.chase(increment.left);
-    }
 }

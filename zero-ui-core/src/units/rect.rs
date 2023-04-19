@@ -229,11 +229,6 @@ impl Transitionable for Rect {
             size: self.size.lerp(&to.size, step),
         }
     }
-
-    fn chase(&mut self, increment: Self) {
-        self.origin.chase(increment.origin);
-        self.size.chase(increment.size);
-    }
 }
 
 /// Build a [`Rect`] using the syntax `(width, height).at(x, y)`.

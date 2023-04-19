@@ -331,9 +331,6 @@ impl Animation {
 pub trait Transitionable: VarValue {
     /// Sample the linear interpolation from `self` -> `to` by `step`.  
     fn lerp(self, to: &Self, step: EasingStep) -> Self;
-
-    /// Adjust the animation end `self` by `increment`.
-    fn chase(&mut self, increment: Self);
 }
 impl<T> Transitionable for T
 where
@@ -341,10 +338,6 @@ where
 {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
         self + (*to - self) * step
-    }
-
-    fn chase(&mut self, increment: Self) {
-        *self = *self + increment;
     }
 }
 

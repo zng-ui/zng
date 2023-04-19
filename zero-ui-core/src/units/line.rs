@@ -272,9 +272,4 @@ impl Transitionable for Line {
             end: self.end.lerp(&to.end, step),
         }
     }
-
-    fn chase(&mut self, increment: Self) {
-        self.start.chase(increment.start);
-        self.end.chase(increment.end);
-    }
 }

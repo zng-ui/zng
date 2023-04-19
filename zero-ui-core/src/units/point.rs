@@ -312,9 +312,4 @@ impl Transitionable for Point {
             y: self.y.lerp(&to.y, step),
         }
     }
-
-    fn chase(&mut self, increment: Self) {
-        self.x.chase(increment.x);
-        self.y.chase(increment.y);
-    }
 }

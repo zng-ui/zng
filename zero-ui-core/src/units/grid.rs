@@ -157,11 +157,6 @@ impl Transitionable for GridSpacing {
             row: self.row.lerp(&to.row, step),
         }
     }
-
-    fn chase(&mut self, increment: Self) {
-        self.column.chase(increment.column);
-        self.row.chase(increment.row);
-    }
 }
 
 /// Computed [`GridSpacing`].

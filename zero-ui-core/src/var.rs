@@ -1080,8 +1080,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     fn map<O, M>(&self, map: M) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
     where
         O: VarValue,
-        M: FnMut(&T) -> O + 'static + Send,
+        M: FnMut(&T) -> O + Send + 'static,
     {
+        #[cfg(dyn_closure)]
+        let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
+
         let me = self.clone();
         let map = Arc::new(Mutex::new(map));
         types::ContextualizedVar::new(Arc::new(move || {
@@ -1291,12 +1294,18 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
     /// `other` and then bind to fully sync the variables.
-    fn bind_map<T2, V2, M>(&self, other: &V2, mut map: M) -> VarHandle
+    fn bind_map<T2, V2, M>(&self, other: &V2, map: M) -> VarHandle
     where
         T2: VarValue,
         V2: Var<T2>,
         M: FnMut(&T) -> T2 + Send + 'static,
     {
+        #[cfg(dyn_closure)]
+        let mut map: Box<dyn FnMut(&T) -> T2 + Send> = Box::new(map);
+
+        #[cfg(not(dyn_closure))]
+        let mut map = map;
+
         var_bind(self, other, move |value, other| {
             let _ = other.set(map(value));
         })
@@ -1308,12 +1317,18 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
     /// `other` and then bind to fully sync the variables.
-    fn bind_filter_map<T2, V2, F>(&self, other: &V2, mut map: F) -> VarHandle
+    fn bind_filter_map<T2, V2, F>(&self, other: &V2, map: F) -> VarHandle
     where
         T2: VarValue,
         V2: Var<T2>,
         F: FnMut(&T) -> Option<T2> + Send + 'static,
     {
+        #[cfg(dyn_closure)]
+        let mut map: Box<dyn FnMut(&T) -> Option<T2> + Send> = Box::new(map);
+
+        #[cfg(not(dyn_closure))]
+        let mut map = map;
+
         var_bind(self, other, move |value, other| {
             if let Some(value) = map(value) {
                 let _ = other.set(value);

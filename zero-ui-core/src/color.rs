@@ -1244,11 +1244,6 @@ impl Transitionable for ColorPair {
             light: self.light.lerp(&to.light, step),
         }
     }
-
-    fn chase(&mut self, increment: Self) {
-        self.dark.chase(increment.dark);
-        self.light.chase(increment.light);
-    }
 }
 
 #[cfg(test)]

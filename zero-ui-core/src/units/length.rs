@@ -244,19 +244,6 @@ impl Transitionable for Length {
             (a, b) => LengthExpr::Lerp(a, b.clone(), step).to_length_checked(),
         }
     }
-
-    fn chase(&mut self, increment: Self) {
-        if let Length::Expr(e) = self {
-            if let LengthExpr::Add(_, i) = &mut **e {
-                if std::mem::discriminant(i) == std::mem::discriminant(&increment) {
-                    // avoid expr explosion.
-                    *i += increment;
-                    return;
-                }
-            }
-        }
-        *self += increment;
-    }
 }
 impl ops::Neg for Length {
     type Output = Self;

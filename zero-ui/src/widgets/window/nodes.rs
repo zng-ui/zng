@@ -612,7 +612,7 @@ pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> 
                         WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
                         list.remove(WIDGET.id());
                         return;
-                    }                    
+                    }
                 } else {
                     let id = WIDGET.id();
                     self.timer = Some(TIMERS.on_deadline(
@@ -1066,11 +1066,6 @@ impl animation::Transitionable for AnchorOffset {
             place: self.place.lerp(&to.place, step),
             origin: self.origin.lerp(&to.place, step),
         }
-    }
-
-    fn chase(&mut self, increment: Self) {
-        self.place.chase(increment.place);
-        self.origin.chase(increment.origin);
     }
 }
 
