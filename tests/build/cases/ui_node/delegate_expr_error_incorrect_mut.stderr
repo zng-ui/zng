@@ -1,10 +1,10 @@
 error[E0596]: cannot borrow `*child` as mutable, as it is behind a `&` reference
- --> cases/ui_node/delegate_expr_error_incorrect_mut.rs:5:50
+ --> cases/ui_node/delegate_expr_error_incorrect_mut.rs:5:22
   |
-5 | #[ui_node(delegate = &self.inner, delegate_mut = &self.inner)]
-  |                                                  ^ `child` is a `&` reference, so the data it refers to cannot be borrowed as mutable
+5 | #[ui_node(delegate = &self.inner)]
+  |                      ^ `child` is a `&` reference, so the data it refers to cannot be borrowed as mutable
   |
 help: consider changing this to be a mutable reference
   |
-5 | #[ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
-  |                                                  ~~~~~~~~~~~~~~~
+5 | #[ui_node(delegate = &mut self.inner)]
+  |                      ~~~~~~~~~~~~~~~

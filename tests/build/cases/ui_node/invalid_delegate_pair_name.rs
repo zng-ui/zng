@@ -6,7 +6,7 @@ use zero_ui::core::{
 struct Node1 {
     inner: NilUiNode,
 }
-#[ui_node(delegate = &self.inner, delegate2 = &mut self.inner)]
+#[ui_node(delegate2 = &mut self.inner)]
 impl UiNode for Node1 {}
 
 fn main() {}

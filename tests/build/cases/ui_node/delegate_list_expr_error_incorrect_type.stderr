@@ -1,8 +1,8 @@
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
  --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
   |
-9 | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-  | --------------------------^-------------------------------------------------
+9 | #[ui_node(delegate_list = &mut self.inner)]
+  | --------------------------^----------------
   | |                         |
   | |                         the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
   | required by a bound introduced by this call
@@ -12,16 +12,16 @@ error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is no
 note: required by a bound in `info_all`
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
-  |     pub fn info_all(list: &impl UiNodeList, info: &mut WidgetInfoBuilder) {
-  |                                 ^^^^^^^^^^ required by this bound in `info_all`
+  |     pub fn info_all(list: &mut impl UiNodeList, info: &mut WidgetInfoBuilder) {
+  |                                     ^^^^^^^^^^ required by this bound in `info_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
- --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:60
+ --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
   |
-9 | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-  | -----------------------------------------------------------^----------------
-  | |                                                          |
-  | |                                                          the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
+9 | #[ui_node(delegate_list = &mut self.inner)]
+  | --------------------------^----------------
+  | |                         |
+  | |                         the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
   | required by a bound introduced by this call
   |
   = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
@@ -33,12 +33,12 @@ note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_li
   |                                     ^^^^^^^^^^ required by this bound in `init_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
- --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:60
+ --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
   |
-9 | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-  | -----------------------------------------------------------^----------------
-  | |                                                          |
-  | |                                                          the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
+9 | #[ui_node(delegate_list = &mut self.inner)]
+  | --------------------------^----------------
+  | |                         |
+  | |                         the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
   | required by a bound introduced by this call
   |
   = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
@@ -50,12 +50,12 @@ note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_li
   |                                       ^^^^^^^^^^ required by this bound in `deinit_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
- --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:60
+ --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
   |
-9 | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-  | -----------------------------------------------------------^----------------
-  | |                                                          |
-  | |                                                          the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
+9 | #[ui_node(delegate_list = &mut self.inner)]
+  | --------------------------^----------------
+  | |                         |
+  | |                         the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
   | required by a bound introduced by this call
   |
   = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
@@ -67,12 +67,12 @@ note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_li
   |                                       ^^^^^^^^^^ required by this bound in `update_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
- --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:60
+ --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
   |
-9 | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-  | -----------------------------------------------------------^----------------
-  | |                                                          |
-  | |                                                          the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
+9 | #[ui_node(delegate_list = &mut self.inner)]
+  | --------------------------^----------------
+  | |                         |
+  | |                         the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
   | required by a bound introduced by this call
   |
   = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
@@ -86,8 +86,8 @@ note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_li
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
  --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
   |
-9 | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-  | --------------------------^-------------------------------------------------
+9 | #[ui_node(delegate_list = &mut self.inner)]
+  | --------------------------^----------------
   | |                         |
   | |                         the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
   | required by a bound introduced by this call
@@ -97,16 +97,16 @@ error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is no
 note: required by a bound in `measure_all`
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
-  |     pub fn measure_all(list: &impl UiNodeList, wm: &mut WidgetMeasure) -> PxSize {
-  |                                    ^^^^^^^^^^ required by this bound in `measure_all`
+  |     pub fn measure_all(list: &mut impl UiNodeList, wm: &mut WidgetMeasure) -> PxSize {
+  |                                        ^^^^^^^^^^ required by this bound in `measure_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
- --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:60
+ --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
   |
-9 | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-  | -----------------------------------------------------------^----------------
-  | |                                                          |
-  | |                                                          the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
+9 | #[ui_node(delegate_list = &mut self.inner)]
+  | --------------------------^----------------
+  | |                         |
+  | |                         the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
   | required by a bound introduced by this call
   |
   = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
@@ -120,8 +120,8 @@ note: required by a bound in `layout_all`
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
  --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
   |
-9 | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-  | --------------------------^-------------------------------------------------
+9 | #[ui_node(delegate_list = &mut self.inner)]
+  | --------------------------^----------------
   | |                         |
   | |                         the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
   | required by a bound introduced by this call
@@ -131,14 +131,14 @@ error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is no
 note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::render_all`
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
-  |     pub fn render_all(list: &impl UiNodeList, frame: &mut FrameBuilder) {
-  |                                   ^^^^^^^^^^ required by this bound in `render_all`
+  |     pub fn render_all(list: &mut impl UiNodeList, frame: &mut FrameBuilder) {
+  |                                       ^^^^^^^^^^ required by this bound in `render_all`
 
 error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is not satisfied
  --> cases/ui_node/delegate_list_expr_error_incorrect_type.rs:9:27
   |
-9 | #[ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
-  | --------------------------^-------------------------------------------------
+9 | #[ui_node(delegate_list = &mut self.inner)]
+  | --------------------------^----------------
   | |                         |
   | |                         the trait `zero_ui::prelude::UiNodeList` is not implemented for `NotANodeList`
   | required by a bound introduced by this call
@@ -148,5 +148,5 @@ error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is no
 note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::render_update_all`
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
-  |     pub fn render_update_all(list: &impl UiNodeList, update: &mut FrameUpdate) {
-  |                                          ^^^^^^^^^^ required by this bound in `render_update_all`
+  |     pub fn render_update_all(list: &mut impl UiNodeList, update: &mut FrameUpdate) {
+  |                                              ^^^^^^^^^^ required by this bound in `render_update_all`

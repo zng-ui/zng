@@ -4,16 +4,10 @@ error: expected `delegate = <expr>`
 6 | #[ui_node(delegate)]
   |           ^^^^^^^^
 
-error: expected `delegate_mut = <expr>`
-  --> cases/ui_node/missing_delegate_expr.rs:12:35
-   |
-12 | #[ui_node(delegate = &self.inner, delegate_mut)]
-   |                                   ^^^^^^^^^^^^
-
 error: expected `delegate = <expr>`
-  --> cases/ui_node/missing_delegate_expr.rs:18:20
+  --> cases/ui_node/missing_delegate_expr.rs:16:20
    |
-18 | #[ui_node(delegate =)]
+16 | #[ui_node(delegate =)]
    |                    ^
 
 warning: unused import: `widget_instance::UiNode`
