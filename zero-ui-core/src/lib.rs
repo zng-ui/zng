@@ -81,10 +81,7 @@ pub use zero_ui_proc_macros::{property_impl, property_meta, widget_new};
 /// struct MyNode<C> {
 ///     child: C
 /// }
-/// #[ui_node(
-///     // Expression that borrows the delegation target node.
-///     delegate = &mut self.child,
-/// )]
+/// #[ui_node(delegate = &mut self.child)]
 /// impl<C: UiNode> UiNode for MyNode<C> { }
 /// ```
 ///
@@ -109,10 +106,7 @@ pub use zero_ui_proc_macros::{property_impl, property_meta, widget_new};
 /// struct MyNode<L> {
 ///     children: L
 /// }
-/// #[ui_node(
-///     // Expression that borrows the delegation target list.
-///     delegate_list = &mut self.children,
-/// )]
+/// #[ui_node(delegate_list = &mut self.children)]
 /// impl<L: UiNodeList> UiNode for MyNode<L> { }
 /// ```
 ///

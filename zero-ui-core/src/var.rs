@@ -720,7 +720,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// A property implemented using [`IntoVar`]:
 ///
 /// ```
-/// # use zero_ui_core::{*, var::*, text::*, context::*, widget_instance::*};
+/// # use zero_ui_core::{*, var::*, text::*, context::*, widget_instance::*, widget_base::is_enabled};
 /// #[property(LAYOUT)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<u32>) -> impl UiNode {
 ///     #[ui_node(struct FooNode {
@@ -762,7 +762,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// let wgt = Wgt! {
 ///     foo = 42;
 ///
-///     when !*#enabled {
+///     when !*#is_enabled {
 ///         foo = 32;
 ///     }
 /// };
