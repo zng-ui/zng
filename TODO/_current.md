@@ -3,10 +3,6 @@
         - Using both delay and this flag a fade-out effect can be easily implemented 
           just by setting properties with `#[easing(..)]` an a `when` condition.
 
-* Review Dip units used in computed values.
-    - Things like `MOUSE.position` are pretty useless without the scale_factor.
-    - Real problem is having to retrieve the scale factor?
-
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?
     - No `UiNodeList::info_all`?
@@ -17,6 +13,9 @@
 
 * Negative space clips not applied when only `render_update` moves then into view.
     - In "icon" example, set `background_color` for each chunk and scroll using only the keyboard to see.
+    - The color should show only in between items of each row, empty space in between rows.
+    - The first chunk already does not have correct clips and it is entirely inside the un-culled area.
+    - Clips still work for smaller children, only the big background fill is bugged.
 
 * Review all docs.
     - Mentions of threads in particular.

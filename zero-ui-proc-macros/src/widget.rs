@@ -132,7 +132,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         let struct_path_slug = path_slug(&struct_path_str);
 
         let val_span = util::last_span(struct_path.clone());
-        let validate_path_ident = ident_spanned!(val_span=> "__widget_path_{struct_path_slug}__");
+        let validate_path_ident = ident_spanned!(val_span=> "zzz_widget_path_{struct_path_slug}");
         let validate_path = quote_spanned! {val_span=>
             #[doc(hidden)]
             #[allow(unused)]
@@ -161,7 +161,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             tt
         };
 
-        let macro_ident = ident!("__wgt_{}__", struct_path_slug);
+        let macro_ident = ident!("{}__", struct_path_slug);
 
         // rust-analyzer does not find the macro if we don't set the call_site here.
         let struct_path = util::set_stream_span(struct_path, Span::call_site());
