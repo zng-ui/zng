@@ -395,7 +395,7 @@ pub trait UiNode: Any + Send {
 /// Panel implementers must delegate every [`UiNode`] method to every node in the children list, in particular the
 /// [`init_all`], [`deinit_all`] and [`update_all`] methods must be used to support reactive lists, and the [`render_all`]
 /// and [`render_update_all`] must be used to render, to support the [`PanelList`]. Other [`UiNode`] methods must
-/// be delegated using [`for_each`] and [`for_each_mut`]. The [`#[ui_node(children)]`] attribute macro auto-generates
+/// be delegated using [`for_each`] or [`par_each`]. The [`#[ui_node(children)]`] attribute macro auto-generates
 /// delegations for each method.
 ///
 /// Note that node lists can be [`ArcNodeList`] that is always empty before init, and captured properties always use this
@@ -407,7 +407,7 @@ pub trait UiNode: Any + Send {
 /// [`render_all`]: UiNodeList::render_all
 /// [`render_update_all`]: UiNodeList::render_update_all
 /// [`for_each`]: UiNodeList::for_each
-/// [`for_each_mut`]: UiNodeList::for_each_mut
+/// [`par_each`]: UiNodeList::par_each
 pub trait UiNodeList: UiNodeListBoxed {
     /// Visit the specific node, panic if `index` is out of bounds.
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
@@ -452,9 +452,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Init the list in a context, all nodes are also inited.
     ///
-    /// The behavior of some list implementations depend on this call, using [`for_each_mut`] to init nodes is an error.
-    ///
-    /// [`for_each_mut`]: UiNodeList::for_each_mut
+    /// The behavior of some list implementations depend on this call, manually initializing nodes is an error.
     fn init_all(&mut self) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INIT) {
             self.par_each(|_, c| {
@@ -469,9 +467,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Deinit the list in a context, all nodes are also deinited.
     ///
-    /// The behavior of some list implementations depend on this call, using [`for_each_mut`] to deinit nodes is an error.
-    ///
-    /// [`for_each_mut`]: UiNodeList::for_each_mut
+    /// The behavior of some list implementations depend on this call, manually deiniting nodes is an error.
     fn deinit_all(&mut self) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::DEINIT) {
             self.par_each(|_, c| {
@@ -486,9 +482,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Receive updates for the list in a context, all nodes are also updated.
     ///
-    /// The behavior of some list implementations depend on this call, using [`for_each_mut`] to update nodes is an error.
-    ///
-    /// [`for_each_mut`]: UiNodeList::for_each_mut
+    /// The behavior of some list implementations depend on this call, manually updating nodes is an error.
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         let _ = observer;
 
@@ -505,9 +499,7 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Receive an event for the list in a context, all nodes are also notified.
     ///
-    /// The behavior of some list implementations depend on this call, using [`for_each_mut`] to notify nodes is an error.
-    ///
-    /// [`for_each_mut`]: UiNodeList::for_each_mut
+    /// The behavior of some list implementations depend on this call, manually notifying nodes is an error.
     fn event_all(&mut self, update: &EventUpdate) {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::EVENT) {
             self.par_each(|_, c| {
