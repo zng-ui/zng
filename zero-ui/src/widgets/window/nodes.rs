@@ -2,6 +2,7 @@
 
 use crate::core::{
     mouse::MOUSE,
+    timer::{DeadlineHandle, TIMERS},
     units::DipToPx,
     window::{WIDGET_INFO_CHANGED_EVENT, WINDOW_CTRL},
 };
@@ -576,6 +577,63 @@ pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler
     }
 
     LayerRemoveRequestedNode { child, handler }
+}
+
+/// Awaits `delay` before actually removing the layered widget after remove is requested.
+#[property(EVENT)]
+pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
+    #[ui_node(struct LayerRemoveDelayNode {
+        child: impl UiNode,
+        delay: impl Var<Duration>,
+        timer: Option<DeadlineHandle>,
+    })]
+    impl UiNode for LayerRemoveDelayNode {
+        fn init(&mut self) {
+            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
+            self.child.init()
+        }
+
+        fn deinit(&mut self) {
+            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
+            self.timer = None;
+            self.child.deinit();
+        }
+
+        fn update(&mut self, updates: &WidgetUpdates) {
+            if let LayerRemove::Requested(list) = WIDGET.get_state(&LAYER_REMOVE_ID).unwrap_or_default() {
+                let delay = self.delay.get();
+                if delay == Duration::ZERO {
+                    WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
+                    list.remove(WIDGET.id());
+                    return;
+                }
+                if let Some(timer) = &self.timer {
+                    if timer.has_executed() {
+                        WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
+                        list.remove(WIDGET.id());
+                        return;
+                    }                    
+                } else {
+                    let id = WIDGET.id();
+                    self.timer = Some(TIMERS.on_deadline(
+                        delay,
+                        app_hn_once!(|_| {
+                            list.remove(id);
+                        }),
+                    ));
+                }
+                WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
+            } else {
+                self.child.update(updates);
+            }
+        }
+    }
+
+    LayerRemoveDelayNode {
+        child,
+        delay: delay.into_var(),
+        timer: None,
+    }
 }
 
 /// Wrap around the window outer-most event node to create the layers.

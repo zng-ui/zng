@@ -1,5 +1,4 @@
 * Layer fade-out.
-    - Implement `layer_remove_delay` using `on_layer_remove_requested`.
     - Implement `is_layer_removing`.
         - Using both delay and this flag a fade-out effect can be easily implemented 
           just by setting properties with `#[easing(..)]` an a `when` condition.
