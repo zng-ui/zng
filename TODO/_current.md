@@ -18,6 +18,13 @@
     - Clips still work for smaller children, only the big background fill is bugged.
         - Only if each child is only affected by a single clip.
 
+* Review order of properties in docs.
+    - Inner module impl are placed first in the docs.
+    - Even if the module is declared after the main impl.
+    - Right now we have less important properties defined in inner modules.
+    - Some reorder can be done with mix-ins, but some properties don't make cense as mix-ins.
+    - See `Scroll` widget for an example.
+
 * Review all docs.
     - Mentions of threads in particular.
 

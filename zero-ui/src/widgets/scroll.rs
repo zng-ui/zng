@@ -18,7 +18,7 @@ pub use thumb::Thumb;
 
 /// A single content container that can be larger on the inside.
 #[widget($crate::widgets::Scroll)]
-pub struct Scroll(ScrollUinitsMix<Container>);
+pub struct Scroll(ScrollUinitsMix<ScrollbarFnMix<Container>>);
 
 /// Scroll mode.
 ///
