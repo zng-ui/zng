@@ -8,9 +8,9 @@ pub mod scrollbar;
 pub mod thumb;
 
 mod scroll_properties;
-mod types;
-
 pub use scroll_properties::*;
+
+mod types;
 pub use types::*;
 
 pub use scrollbar::Scrollbar;
@@ -18,7 +18,14 @@ pub use thumb::Thumb;
 
 /// A single content container that can be larger on the inside.
 #[widget($crate::widgets::Scroll)]
-pub struct Scroll(Container);
+pub struct Scroll(ScrollUinitsMix<Container>);
+
+/// Scroll mode.
+///
+/// By default scrolls in both dimensions.
+#[property(CONTEXT, capture, default(ScrollMode::ALL), widget_impl(Scroll))]
+pub fn mode(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {}
+
 impl Scroll {
     fn widget_intrinsic(&mut self) {
         widget_set! {
@@ -50,11 +57,13 @@ impl Scroll {
 #[property(CONTEXT, capture, default(false), widget_impl(Scroll))]
 pub fn clip_to_viewport(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {}
 
-/// Scroll mode.
-///
-/// By default scrolls in both dimensions.
-#[property(CONTEXT, capture, default(ScrollMode::ALL), widget_impl(Scroll))]
-pub fn mode(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {}
+/// Properties that define scroll units.
+#[widget_mixin]
+pub struct ScrollUinitsMix<P>(P);
+
+/// Properties that defines the scrollbar widget used in scrolls.
+#[widget_mixin]
+pub struct ScrollbarFnMix<P>(P);
 
 fn on_build(wgt: &mut WidgetBuilding) {
     let mode = wgt.capture_var_or_else(property_id!(mode), || ScrollMode::ALL);

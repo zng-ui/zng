@@ -16,6 +16,7 @@
     - The color should show only in between items of each row, empty space in between rows.
     - The first chunk already does not have correct clips and it is entirely inside the un-culled area.
     - Clips still work for smaller children, only the big background fill is bugged.
+        - Only if each child is only affected by a single clip.
 
 * Review all docs.
     - Mentions of threads in particular.
