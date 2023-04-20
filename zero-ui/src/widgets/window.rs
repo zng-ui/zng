@@ -7,10 +7,10 @@ use crate::core::window::{
 use crate::prelude::new_widget::*;
 
 pub mod commands;
+pub mod layers;
 pub mod nodes;
 mod window_properties;
 
-pub use nodes::{AnchorMode, AnchorOffset, AnchorSize, AnchorTransform, LayerIndex, LAYERS};
 pub use window_properties::*;
 
 /// A window container.

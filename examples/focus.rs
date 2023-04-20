@@ -2,7 +2,6 @@
 use zero_ui::core::focus::{FocusRequest, FocusTarget, FOCUS_CHANGED_EVENT};
 use zero_ui::prelude::new_widget::WINDOW;
 use zero_ui::prelude::*;
-use zero_ui::widgets::window::{LayerIndex, LAYERS};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 

@@ -455,8 +455,6 @@ enum CloseState {
     Close,
 }
 fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
-    use zero_ui::widgets::window::*;
-
     let state = var(CloseState::Ask);
     hn!(|args: &WindowCloseRequestedArgs| {
         match state.get() {

@@ -379,7 +379,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         LayerIndex::ADORNER,
         args.link.widget_id(),
         AnchorMode::none()
-            .with_transform(window::AnchorOffset::out_bottom())
+            .with_transform(layers::AnchorOffset::out_bottom())
             .with_viewport_bound(true),
         popup,
     );

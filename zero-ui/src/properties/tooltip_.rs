@@ -7,8 +7,8 @@ use zero_ui_core::task::parking_lot::Mutex;
 use crate::core::{mouse::MOUSE_HOVERED_EVENT, timer::DeadlineVar};
 
 use crate::prelude::{
+    layers::{AnchorOffset, AnchorSize, AnchorTransform},
     new_property::*,
-    window::{AnchorOffset, AnchorSize, AnchorTransform},
     *,
 };
 

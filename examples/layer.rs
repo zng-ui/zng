@@ -1,11 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
-use zero_ui::{
-    properties::events::{
-        mouse::{on_mouse_enter, on_mouse_leave},
-        widget::on_pre_init,
-    },
-    widgets::window::{AnchorMode, AnchorSize, LayerIndex, LAYERS},
+use zero_ui::properties::events::{
+    mouse::{on_mouse_enter, on_mouse_leave},
+    widget::on_pre_init,
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -176,7 +173,7 @@ fn anchor_example() -> impl UiNode {
     let idx = var(0);
     let anchor_mode = idx.map(move |&i| AnchorMode {
         transform: offsets[i].clone().into(),
-        size: AnchorSize::Unbounded,
+        size: layers::AnchorSize::Unbounded,
         visibility: true,
         interactivity: false,
         corner_radius: false,
