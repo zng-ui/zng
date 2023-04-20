@@ -162,7 +162,7 @@ impl PxLine {
 
     /// Bounding box that fits the line points, in layout units.
     pub fn bounds(self) -> PxRect {
-        PxRect::from_points(&[self.start, self.end])
+        PxRect::from_points([self.start, self.end])
     }
 
     /// Returns a line that starts from the left-top most point and ends at the bottom-right most point.
