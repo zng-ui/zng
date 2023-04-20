@@ -1,7 +1,5 @@
 * Layer fade-out.
-    - Implement `is_layer_removing`.
-        - Using both delay and this flag a fade-out effect can be easily implemented 
-          just by setting properties with `#[easing(..)]` an a `when` condition.
+    - Fix panic when hovering a tooltip widget within `tooltip_interval`.
 
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?

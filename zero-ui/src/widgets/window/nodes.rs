@@ -523,6 +523,7 @@ enum LayerRemove {
 static WINDOW_LAYERS_ID: StaticStateId<LayersCtx> = StaticStateId::new_unique();
 static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 static LAYER_REMOVE_ID: StaticStateId<LayerRemove> = StaticStateId::new_unique();
+static LAYER_REMOVING_ID: StaticStateId<bool> = StaticStateId::new_unique();
 
 event_args! {
     /// Arguments for [`on_layer_remove_requested`].
@@ -580,7 +581,7 @@ pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler
 }
 
 /// Awaits `delay` before actually removing the layered widget after remove is requested.
-#[property(EVENT)]
+#[property(EVENT, default(Duration::ZERO))]
 pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
     #[ui_node(struct LayerRemoveDelayNode {
         child: impl UiNode,
@@ -595,6 +596,7 @@ pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> 
 
         fn deinit(&mut self) {
             WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
+            WIDGET.set_state(&LAYER_REMOVING_ID, false);
             self.timer = None;
             self.child.deinit();
         }
@@ -621,6 +623,7 @@ pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> 
                             list.remove(id);
                         }),
                     ));
+                    WIDGET.set_state(&LAYER_REMOVING_ID, true);
                 }
                 WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
             } else {
@@ -634,6 +637,16 @@ pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> 
         delay: delay.into_var(),
         timer: None,
     }
+}
+
+#[property(CONTEXT)]
+pub fn is_layer_removing(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    widget_state_is_state(
+        child,
+        |state| state.get_clone(&LAYER_REMOVING_ID).unwrap_or_default(),
+        |_| false,
+        state,
+    )
 }
 
 /// Wrap around the window outer-most event node to create the layers.

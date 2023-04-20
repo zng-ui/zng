@@ -502,7 +502,7 @@ pub fn widget_state_is_state(
     }
 }
 
-/// Helper for declaring state getter properties that are controlled  by values in the widget state map.
+/// Helper for declaring state getter properties that are controlled by values in the widget state map.
 ///
 /// The `get_new` closure is called with the widget state and current `state` every init and update, if it returns some value
 /// the `state` updates. The `get_deinit` closure is called on deinit to get the *reset* value.
