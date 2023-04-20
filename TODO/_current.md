@@ -1,5 +1,8 @@
-* Layer fade-out.
-    - Fix panic when hovering a tooltip widget within `tooltip_interval`.
+* Review layered nodes.
+    - No way to remove then (no widget ID).
+    - `ArcNode` widgets can also become not-widgets after being inserted.
+    - `tooltip = Tip!()` causes a slot node to be left behind every time the tip reopens
+      for the same widget when it is still closing.
 
 * Parallel info updates.
     - How to share the `&mut WidgetInfoBuilder`?
@@ -9,12 +12,7 @@
     - Widgets.
         - How to share `&mut FrameBuilder` and `&mut FrameUpdate`?
 
-* Negative space clips not applied when only `render_update` moves then into view.
-    - In "icon" example, set `background_color` for each chunk and scroll using only the keyboard to see.
-    - The color should show only in between items of each row, empty space in between rows.
-    - The first chunk already does not have correct clips and it is entirely inside the un-culled area.
-    - Clips still work for smaller children, only the big background fill is bugged.
-        - Only if each child is only affected by a single clip.
+
 
 * Direct layout and render updates.
     - Work the same way as normal updates, with the `WidgetUpdates` list, but in the layout and render cycle.

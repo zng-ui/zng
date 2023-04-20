@@ -369,7 +369,14 @@ impl UiNode for TooltipLayerNode {
         self.child.event(update);
 
         if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-            let tooltip_id = self.with_context(|| WIDGET.id()).unwrap();
+            let tooltip_id = match self.with_context(|| WIDGET.id()) {
+                Some(id) => id,
+                None => {
+                    // was widget on init, now is not, 
+                    // this can happen if child is an `ArcNode` that was moved
+                    return;
+                }
+            };
             let keep_open = if let Some(t) = &args.target {
                 t.contains(self.anchor_id) || t.contains(tooltip_id)
             } else {
