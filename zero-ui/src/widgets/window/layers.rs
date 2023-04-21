@@ -545,25 +545,18 @@ event_args! {
 /// to descendants of the layered widget.
 #[property(EVENT)]
 pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler<LayerRemoveRequestedArgs>) -> impl UiNode {
-    #[ui_node(struct LayerRemoveRequestedNode {
-        child: impl UiNode,
-        handler: impl WidgetHandler<LayerRemoveRequestedArgs>,
-    })]
-    impl UiNode for LayerRemoveRequestedNode {
-        fn init(&mut self) {
+    let mut handler = handler.cfg_boxed();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
             WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
-            self.child.init()
         }
-
-        fn deinit(&mut self) {
+        UiNodeOp::Deinit => {
             WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
-            self.child.deinit()
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             if let LayerRemove::Requested(list) = WIDGET.get_state(&LAYER_REMOVE_ID).unwrap_or_default() {
                 let args = LayerRemoveRequestedArgs::now();
-                self.handler.event(&args);
+                handler.event(&args);
                 match args.propagation().is_stopped() {
                     true => {
                         WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
@@ -573,45 +566,35 @@ pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler
                         list.remove(WIDGET.id());
                     }
                 }
-            } else {
-                self.child.update(updates);
             }
         }
-    }
-
-    LayerRemoveRequestedNode { child, handler }
+        _ => {}
+    })
 }
 
 /// Awaits `delay` before actually removing the layered widget after remove is requested.
 #[property(EVENT, default(Duration::ZERO))]
 pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
-    #[ui_node(struct LayerRemoveDelayNode {
-        child: impl UiNode,
-        delay: impl Var<Duration>,
-        timer: Option<DeadlineHandle>,
-    })]
-    impl UiNode for LayerRemoveDelayNode {
-        fn init(&mut self) {
+    let delay = delay.into_var();
+    let mut timer = None::<DeadlineHandle>;
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
             WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
-            self.child.init()
         }
-
-        fn deinit(&mut self) {
+        UiNodeOp::Deinit => {
             WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
             WIDGET.set_state(&LAYER_REMOVING_ID, false);
-            self.timer = None;
-            self.child.deinit();
+            timer = None;
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             if let LayerRemove::Requested(list) = WIDGET.get_state(&LAYER_REMOVE_ID).unwrap_or_default() {
-                let delay = self.delay.get();
+                let delay = delay.get();
                 if delay == Duration::ZERO {
                     WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
                     list.remove(WIDGET.id());
                     return;
                 }
-                if let Some(timer) = &self.timer {
+                if let Some(timer) = &timer {
                     if timer.has_executed() {
                         WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
                         list.remove(WIDGET.id());
@@ -619,7 +602,7 @@ pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> 
                     }
                 } else {
                     let id = WIDGET.id();
-                    self.timer = Some(TIMERS.on_deadline(
+                    timer = Some(TIMERS.on_deadline(
                         delay,
                         app_hn_once!(|_| {
                             list.remove(id);
@@ -628,17 +611,10 @@ pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> 
                     WIDGET.set_state(&LAYER_REMOVING_ID, true);
                 }
                 WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
-            } else {
-                self.child.update(updates);
             }
         }
-    }
-
-    LayerRemoveDelayNode {
-        child,
-        delay: delay.into_var(),
-        timer: None,
-    }
+        _ => {}
+    })
 }
 
 #[property(CONTEXT)]
@@ -1157,32 +1133,25 @@ impl_from_and_into_var! {
 pub(super) fn node(child: impl UiNode) -> impl UiNode {
     type SortFn = fn(&BoxedUiNode, &BoxedUiNode) -> std::cmp::Ordering;
 
-    #[ui_node(struct LayersNode {
-        children: crate::core::widget_instance::UiNodeListChainImpl<
-            UiNodeVec,
-            SortingList<
-                EditableUiNodeList,
-                SortFn,
-            >,
-        >,
-        layered: EditableUiNodeListRef,
-    })]
-    impl UiNode for LayersNode {
-        fn init(&mut self) {
-            WINDOW.set_state(
-                &WINDOW_LAYERS_ID,
-                LayersCtx {
-                    items: self.layered.clone(),
-                },
-            );
+    let layers = EditableUiNodeList::new();
+    let layered = layers.reference();
 
-            self.children.init_all();
+    let sorting_layers = SortingList::<_, SortFn>::new(layers, |a, b| {
+        let a = a.with_context(|| WIDGET.req_state(&LAYER_INDEX_ID)).unwrap_or(LayerIndex::DEFAULT);
+        let b = b.with_context(|| WIDGET.req_state(&LAYER_INDEX_ID)).unwrap_or(LayerIndex::DEFAULT);
+
+        a.cmp(&b)
+    });
+    let children = ui_vec![child].chain(sorting_layers);
+
+    match_node_list(children, move |children, op| match op {
+        UiNodeOp::Init => {
+            WINDOW.set_state(&WINDOW_LAYERS_ID, LayersCtx { items: layered.clone() });
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { updates } => {
             let mut changed = false;
             {
-                let editable_list = self.children.1.list();
+                let editable_list = children.children().1.list();
 
                 let removes = editable_list.take_remove_requests();
 
@@ -1201,7 +1170,7 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
                                     match state {
                                         LayerRemove::Allowed => Action::Remove,
                                         LayerRemove::Request => {
-                                            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Requested(self.layered.clone()));
+                                            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Requested(layered.clone()));
                                             Action::Update
                                         }
                                         LayerRemove::Requested(_) => Action::Retain,
@@ -1233,43 +1202,25 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            self.children.update_all(updates, &mut changed);
+            children.update_all(updates, &mut changed);
 
             if changed {
                 WIDGET.layout().render();
             }
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node(0, |n| n.measure(wm))
+        UiNodeOp::Measure { wm, desired_size } => {
+            *desired_size = children.with_node(0, |n| n.measure(wm));
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let mut size = PxSize::zero();
-            self.children.for_each(|i, n| {
+        UiNodeOp::Layout { wl, final_size } => {
+            children.for_each(|i, n| {
                 let s = n.layout(wl);
                 if i == 0 {
-                    size = s;
+                    *final_size = s;
                 }
             });
-            size
         }
-    }
-
-    let layers = EditableUiNodeList::new();
-    let layered = layers.reference();
-
-    let sorting_layers = SortingList::<_, SortFn>::new(layers, |a, b| {
-        let a = a.with_context(|| WIDGET.req_state(&LAYER_INDEX_ID)).unwrap_or(LayerIndex::DEFAULT);
-        let b = b.with_context(|| WIDGET.req_state(&LAYER_INDEX_ID)).unwrap_or(LayerIndex::DEFAULT);
-
-        a.cmp(&b)
-    });
-
-    LayersNode {
-        children: ui_vec![child].chain(sorting_layers),
-        layered,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 #[cfg(test)]

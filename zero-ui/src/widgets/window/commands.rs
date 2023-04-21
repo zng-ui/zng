@@ -97,21 +97,13 @@ mod inspector_window {
 
     #[property(CONTEXT)]
     fn set_inspected(child: impl UiNode, inspected: impl IntoValue<WindowId>) -> impl UiNode {
-        #[ui_node(struct InspectedNode {
-            child: impl UiNode,
-            inspected: WindowId,
-        })]
-        impl UiNode for InspectedNode {
-            fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        let inspected = inspected.into();
+        match_node(child, move |_, op| {
+            if let UiNodeOp::Info { info } = op {
                 assert!(WIDGET.parent_id().is_none());
-                info.meta().set(&INSPECTED_ID, self.inspected);
-                self.child.info(info);
+                info.meta().set(&INSPECTED_ID, inspected);
             }
-        }
-        InspectedNode {
-            child,
-            inspected: inspected.into(),
-        }
+        })
     }
 
     /// Gets the window that is inspected by the current inspector window.

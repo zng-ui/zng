@@ -1,5 +1,8 @@
 use super::*;
-use crate::{context::WidgetUpdates, handler::WidgetHandler, ui_node, widget_instance::UiNode};
+use crate::{
+    handler::WidgetHandler,
+    widget_instance::{match_node, UiNode, UiNodeOp},
+};
 
 #[doc(hidden)]
 #[macro_export]
@@ -173,38 +176,30 @@ where
     F: FnMut(&A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
 {
-    #[ui_node(struct OnEventNode<A: EventArgs> {
-        child: impl UiNode,
-        #[event] event: Event<A>,
-        filter: impl FnMut(&A) -> bool + Send + 'static,
-        handler: impl WidgetHandler<A>,
-    })]
-    impl UiNode for OnEventNode {
-        fn event(&mut self, update: &EventUpdate) {
-            self.child.event(update);
-            if let Some(args) = self.event.on(update) {
-                if !args.propagation().is_stopped() && (self.filter)(args) {
-                    self.handler.event(args);
+    #[cfg(dyn_closure)]
+    let mut filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
+
+    #[cfg(not(dyn_closure))]
+    let mut filter = filter;
+
+    let mut handler = handler.cfg_boxed();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Event { update } => {
+            child.event(update);
+
+            if let Some(args) = event.on(update) {
+                if !args.propagation().is_stopped() && filter(args) {
+                    handler.event(args);
                 }
             }
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            self.handler.update();
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            handler.update();
         }
-    }
-
-    #[cfg(dyn_closure)]
-    let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
-
-    OnEventNode {
-        child: child.cfg_boxed(),
-        event,
-        filter,
-        handler: handler.cfg_boxed(),
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Helper for declaring preview event properties.
@@ -239,36 +234,25 @@ where
     F: FnMut(&A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
 {
-    #[ui_node(struct OnPreviewEventNode<A: EventArgs> {
-        child: impl UiNode,
-        #[event] event: Event<A>,
-        filter: impl FnMut(&A) -> bool + Send + 'static,
-        handler: impl WidgetHandler<A>,
-    })]
-    impl UiNode for OnPreviewEventNode {
-        fn event(&mut self, update: &EventUpdate) {
-            if let Some(args) = self.event.on(update) {
-                if !args.propagation().is_stopped() && (self.filter)(args) {
-                    self.handler.event(args);
+    #[cfg(dyn_closure)]
+    let mut filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
+
+    #[cfg(not(dyn_closure))]
+    let mut filter = filter;
+
+    let mut handler = handler.cfg_boxed();
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Event { update } => {
+            if let Some(args) = event.on(update) {
+                if !args.propagation().is_stopped() && filter(args) {
+                    handler.event(args);
                 }
             }
-            self.child.event(update);
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.handler.update();
-            self.child.update(updates);
+        UiNodeOp::Update { .. } => {
+            handler.update();
         }
-    }
-
-    #[cfg(dyn_closure)]
-    let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
-
-    OnPreviewEventNode {
-        child: child.cfg_boxed(),
-        event,
-        filter,
-        handler: handler.cfg_boxed(),
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }

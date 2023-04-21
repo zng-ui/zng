@@ -206,20 +206,20 @@ pub mod prelude {
     ///
     /// #[property(CONTEXT)]
     /// pub fn my_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-    ///     MyPropertyNode { child, value: value.into_var() }
-    /// }
-    ///
-    /// #[ui_node(struct MyPropertyNode {
-    ///     child: impl UiNode,
-    ///     #[var] value: impl Var<bool>,
-    /// })]
-    /// impl UiNode for MyPropertyNode {
-    ///     fn update(&mut self, updates: &WidgetUpdates) {
-    ///         self.child.update(updates);
-    ///         if let Some(new_value) = self.value.get_new() {
-    ///             // ..
+    ///     let value = value.into_var();
+    ///     match_node(child, move |child, op| match op {
+    ///         UiNodeOp::Init => {
+    ///             WIDGET.sub_var(&value);
+    ///         },
+    ///         UiNodeOp::Update { updates } => {
+    ///             child.update(updates);
+    ///             if let Some(new_value) = value.get_new() {
+    ///                 // ..
+    ///             }
     ///         }
-    ///     }
+    ///     })
+    ///
+    ///     MyPropertyNode { child, value: value.into_var() }
     /// }
     /// ```
     pub mod new_property {
@@ -262,8 +262,9 @@ pub mod prelude {
                 WidgetMeasure,
             },
             widget_instance::{
-                match_node, ui_vec, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, SortingList,
-                SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeOp, UiNodeVec, WidgetId,
+                match_node, match_node_leaf, match_node_list, ui_vec, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode,
+                NilUiNode, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeOp, UiNodeVec,
+                WidgetId,
             },
         };
         #[doc(no_inline)]
@@ -326,9 +327,9 @@ pub mod prelude {
                 WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
             },
             widget_instance::{
-                match_node, ui_vec, z_index, AdoptiveNode, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef,
-                FillUiNode, NilUiNode, PanelList, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver,
-                UiNodeOp, UiNodeVec, WidgetId, ZIndex,
+                match_node, match_node_leaf, match_node_list, ui_vec, z_index, AdoptiveNode, BoxedUiNode, BoxedUiNodeList,
+                EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, SortingList, SortingListParent, UiNode,
+                UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeOp, UiNodeVec, WidgetId, ZIndex,
             },
             widget_mixin, widget_set,
         };

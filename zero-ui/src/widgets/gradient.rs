@@ -21,67 +21,54 @@ pub fn linear_gradient_ext(
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
 ) -> impl UiNode {
-    #[ui_node(struct LinearGradientNode {
-        #[var] axis: impl Var<LinearGradientAxis>,
-        #[var] stops: impl Var<GradientStops>,
-        #[var] extend_mode: impl Var<ExtendMode>,
+    let axis = axis.into_var();
+    let stops = stops.into_var();
+    let extend_mode = extend_mode.into_var();
 
-        render_line: PxLine,
-        render_stops: Vec<RenderGradientStop>,
+    let mut render_line = PxLine::zero();
+    let mut render_stops = vec![];
+    let mut render_size = PxSize::zero();
 
-        final_size: PxSize,
-    })]
-    impl UiNode for LinearGradientNode {
-        fn update(&mut self, _: &WidgetUpdates) {
-            if self.axis.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
-                self.final_size = PxSize::zero();
+    match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&axis).sub_var(&stops).sub_var(&extend_mode);
+        }
+        UiNodeOp::Update { .. } => {
+            if axis.is_new() || stops.is_new() || extend_mode.is_new() {
+                render_size = PxSize::zero();
                 WIDGET.layout();
             }
         }
-
-        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constraints().fill_size()
+        UiNodeOp::Measure { desired_size, .. } => {
+            *desired_size = LAYOUT.constraints().fill_size();
         }
+        UiNodeOp::Layout { final_size, .. } => {
+            *final_size = LAYOUT.constraints().fill_size();
+            if *final_size != render_size {
+                render_size = *final_size;
+                render_line = axis.layout();
 
-        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constraints().fill_size();
-            if self.final_size != final_size {
-                self.final_size = final_size;
-                self.render_line = self.axis.layout();
-
-                let length = self.render_line.length();
+                let length = render_line.length();
 
                 LAYOUT.with_constraints(LAYOUT.constraints().with_new_exact_x(length), || {
-                    self.stops
-                        .with(|s| s.layout_linear(true, self.extend_mode.get(), &mut self.render_line, &mut self.render_stops))
+                    stops.with(|s| s.layout_linear(true, extend_mode.get(), &mut render_line, &mut render_stops))
                 });
 
                 WIDGET.render();
             }
-            final_size
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
+        UiNodeOp::Render { frame } => {
             frame.push_linear_gradient(
-                PxRect::from_size(self.final_size),
-                self.render_line,
-                &self.render_stops,
-                self.extend_mode.get().into(),
-                self.final_size,
+                PxRect::from_size(render_size),
+                render_line,
+                &render_stops,
+                extend_mode.get().into(),
+                render_size,
                 PxSize::zero(),
             );
         }
-    }
-    LinearGradientNode {
-        axis: axis.into_var(),
-        stops: stops.into_var(),
-        extend_mode: extend_mode.into_var(),
-
-        render_line: PxLine::zero(),
-        render_stops: vec![],
-
-        final_size: PxSize::zero(),
-    }
+        _ => {}
+    })
 }
 /// Node that fills the widget area with a linear gradient with all features configurable.
 pub fn linear_gradient_full(
@@ -91,85 +78,67 @@ pub fn linear_gradient_full(
     tile_size: impl IntoVar<Size>,
     tile_spacing: impl IntoVar<Size>,
 ) -> impl UiNode {
-    #[ui_node(struct LinearGradientFullNode {
-        #[var] axis: impl Var<LinearGradientAxis>,
-        #[var] stops: impl Var<GradientStops>,
-        #[var] extend_mode: impl Var<ExtendMode>,
-        #[var] tile_size: impl Var<Size>,
-        #[var] tile_spacing: impl Var<Size>,
+    let axis = axis.into_var();
+    let stops = stops.into_var();
+    let extend_mode = extend_mode.into_var();
+    let tile_size = tile_size.into_var();
+    let tile_spacing = tile_spacing.into_var();
 
-        final_line: PxLine,
-        final_stops: Vec<RenderGradientStop>,
+    let mut render_line = PxLine::zero();
+    let mut render_stops = vec![];
+    let mut render_size = PxSize::zero();
+    let mut render_tile_size = PxSize::zero();
+    let mut render_tile_spacing = PxSize::zero();
 
-        final_size: PxSize,
-        final_tile_size: PxSize,
-        final_tile_spacing: PxSize,
-    })]
-    impl UiNode for LinearGradientFullNode {
-        fn update(&mut self, _: &WidgetUpdates) {
-            if self.axis.is_new()
-                || self.stops.is_new()
-                || self.extend_mode.is_new()
-                || self.tile_size.is_new()
-                || self.tile_spacing.is_new()
-            {
-                self.final_size = PxSize::zero();
+    match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET
+                .sub_var(&axis)
+                .sub_var(&stops)
+                .sub_var(&extend_mode)
+                .sub_var(&tile_size)
+                .sub_var(&tile_spacing);
+        }
+        UiNodeOp::Update { .. } => {
+            if axis.is_new() || stops.is_new() || extend_mode.is_new() || tile_size.is_new() || tile_spacing.is_new() {
+                render_size = PxSize::zero();
                 WIDGET.layout();
             }
         }
-
-        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constraints().fill_size()
+        UiNodeOp::Measure { desired_size, .. } => {
+            *desired_size = LAYOUT.constraints().fill_size();
         }
-        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
+        UiNodeOp::Layout { final_size, .. } => {
             let c = LAYOUT.constraints();
-            let final_size = c.fill_size();
-            if self.final_size != final_size {
-                self.final_size = final_size;
+            *final_size = c.fill_size();
+            if *final_size != render_size {
+                render_size = *final_size;
 
-                self.final_tile_size = self.tile_size.layout_dft(self.final_size);
-                self.final_tile_spacing = self.tile_spacing.layout_dft(self.final_size);
+                render_tile_size = tile_size.layout_dft(render_size);
+                render_tile_spacing = tile_spacing.layout_dft(render_size);
 
-                self.final_line = LAYOUT.with_constraints(c.with_exact_size(self.final_tile_size), || self.axis.layout());
+                render_line = LAYOUT.with_constraints(c.with_exact_size(render_tile_size), || axis.layout());
 
-                let length = self.final_line.length();
+                let length = render_line.length();
                 LAYOUT.with_constraints(c.with_new_exact_x(length), || {
-                    self.stops
-                        .with(|s| s.layout_linear(true, self.extend_mode.get(), &mut self.final_line, &mut self.final_stops))
+                    stops.with(|s| s.layout_linear(true, extend_mode.get(), &mut render_line, &mut render_stops))
                 });
 
                 WIDGET.render();
             }
-            self.final_size
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
+        UiNodeOp::Render { frame } => {
             frame.push_linear_gradient(
-                PxRect::from_size(self.final_size),
-                self.final_line,
-                &self.final_stops,
-                self.extend_mode.get().into(),
-                self.final_tile_size,
-                self.final_tile_spacing,
+                PxRect::from_size(render_size),
+                render_line,
+                &render_stops,
+                extend_mode.get().into(),
+                render_tile_size,
+                render_tile_spacing,
             );
         }
-    }
-
-    LinearGradientFullNode {
-        axis: axis.into_var(),
-        stops: stops.into_var(),
-        extend_mode: extend_mode.into_var(),
-        tile_size: tile_size.into_var(),
-        tile_spacing: tile_spacing.into_var(),
-
-        final_line: PxLine::zero(),
-        final_stops: vec![],
-
-        final_size: PxSize::zero(),
-        final_tile_size: PxSize::zero(),
-        final_tile_spacing: PxSize::zero(),
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Node that fills the widget area with a radial gradient defined by the center point and radius.
@@ -205,76 +174,59 @@ pub fn radial_gradient_ext(
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
 ) -> impl UiNode {
-    #[ui_node(struct RadialGradientNode {
-        #[var] center: impl Var<Point>,
-        #[var] radius: impl Var<GradientRadius>,
-        #[var] stops: impl Var<GradientStops>,
-        #[var] extend_mode: impl Var<ExtendMode>,
+    let center = center.into_var();
+    let radius = radius.into_var();
+    let stops = stops.into_var();
+    let extend_mode = extend_mode.into_var();
 
-        render_stops: Vec<RenderGradientStop>,
-        render_center: PxPoint,
-        render_radius: PxSize,
-        final_size: PxSize,
-    })]
-    impl UiNode for RadialGradientNode {
-        fn update(&mut self, _: &WidgetUpdates) {
-            if self.center.is_new() || self.radius.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
-                self.final_size = PxSize::zero();
+    let mut render_stops = vec![];
+    let mut render_center = PxPoint::zero();
+    let mut render_radius = PxSize::zero();
+    let mut render_size = PxSize::zero();
+
+    match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&center).sub_var(&radius).sub_var(&stops).sub_var(&extend_mode);
+        }
+        UiNodeOp::Update { .. } => {
+            if center.is_new() || radius.is_new() || stops.is_new() || extend_mode.is_new() {
+                render_size = PxSize::zero();
                 WIDGET.layout();
             }
         }
-
-        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constraints().fill_size()
+        UiNodeOp::Measure { desired_size, .. } => {
+            *desired_size = LAYOUT.constraints().fill_size();
         }
-
-        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constraints().fill_size();
-            if self.final_size != final_size {
-                self.final_size = final_size;
-                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.final_size), || {
-                    self.render_center = self.center.layout_dft(self.final_size.to_vector().to_point() * 0.5.fct());
-                    self.render_radius = self.radius.get().layout(self.render_center);
+        UiNodeOp::Layout { final_size, .. } => {
+            *final_size = LAYOUT.constraints().fill_size();
+            if *final_size != render_size {
+                render_size = *final_size;
+                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(render_size), || {
+                    render_center = center.layout_dft(render_size.to_vector().to_point() * 0.5.fct());
+                    render_radius = radius.get().layout(render_center);
                 });
 
                 LAYOUT.with_constraints(
-                    LAYOUT
-                        .constraints()
-                        .with_exact_x(self.render_radius.width.max(self.render_radius.height)),
-                    || {
-                        self.stops
-                            .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.render_stops))
-                    },
+                    LAYOUT.constraints().with_exact_x(render_radius.width.max(render_radius.height)),
+                    || stops.with(|s| s.layout_radial(true, extend_mode.get(), &mut render_stops)),
                 );
 
                 WIDGET.render();
             }
-            final_size
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
+        UiNodeOp::Render { frame } => {
             frame.push_radial_gradient(
-                PxRect::from_size(self.final_size),
-                self.render_center,
-                self.render_radius,
-                &self.render_stops,
-                self.extend_mode.get().into(),
-                self.final_size,
+                PxRect::from_size(render_size),
+                render_center,
+                render_radius,
+                &render_stops,
+                extend_mode.get().into(),
+                render_size,
                 PxSize::zero(),
             );
         }
-    }
-    RadialGradientNode {
-        center: center.into_var(),
-        radius: radius.into_var(),
-        stops: stops.into_var(),
-        extend_mode: extend_mode.into_var(),
-
-        render_stops: vec![],
-        render_center: PxPoint::zero(),
-        render_radius: PxSize::zero(),
-        final_size: PxSize::zero(),
-    }
+        _ => {}
+    })
 }
 /// Node that fills the widget area with a radial gradient with all features configurable.
 pub fn radial_gradient_full(
@@ -285,94 +237,73 @@ pub fn radial_gradient_full(
     tile_size: impl IntoVar<Size>,
     tile_spacing: impl IntoVar<Size>,
 ) -> impl UiNode {
-    #[ui_node(struct RadialGradientNode {
-        #[var] center: impl Var<Point>,
-        #[var] radius: impl Var<GradientRadius>,
-        #[var] stops: impl Var<GradientStops>,
-        #[var] extend_mode: impl Var<ExtendMode>,
-        #[var] tile_size: impl Var<Size>,
-        #[var] tile_spacing: impl Var<Size>,
+    let center = center.into_var();
+    let radius = radius.into_var();
+    let stops = stops.into_var();
+    let extend_mode = extend_mode.into_var();
+    let tile_size = tile_size.into_var();
+    let tile_spacing = tile_spacing.into_var();
 
-        render_stops: Vec<RenderGradientStop>,
-        render_center: PxPoint,
-        render_radius: PxSize,
-        final_size: PxSize,
-        final_tile_size: PxSize,
-        final_tile_spacing: PxSize,
-    })]
-    impl UiNode for RadialGradientNode {
-        fn update(&mut self, _: &WidgetUpdates) {
-            if self.center.is_new()
-                || self.radius.is_new()
-                || self.stops.is_new()
-                || self.extend_mode.is_new()
-                || self.tile_size.is_new()
-                || self.tile_spacing.is_new()
-            {
-                self.final_size = PxSize::zero();
+    let mut render_stops = vec![];
+    let mut render_center = PxPoint::zero();
+    let mut render_radius = PxSize::zero();
+    let mut render_size = PxSize::zero();
+    let mut render_tile_size = PxSize::zero();
+    let mut render_tile_spacing = PxSize::zero();
+
+    match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET
+                .sub_var(&center)
+                .sub_var(&radius)
+                .sub_var(&stops)
+                .sub_var(&extend_mode)
+                .sub_var(&tile_size)
+                .sub_var(&tile_spacing);
+        }
+        UiNodeOp::Update { .. } => {
+            if center.is_new() || radius.is_new() || stops.is_new() || extend_mode.is_new() || tile_size.is_new() || tile_spacing.is_new() {
+                render_size = PxSize::zero();
                 WIDGET.layout();
             }
         }
-
-        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constraints().fill_size()
+        UiNodeOp::Measure { desired_size, .. } => {
+            *desired_size = LAYOUT.constraints().fill_size();
         }
+        UiNodeOp::Layout { final_size, .. } => {
+            *final_size = LAYOUT.constraints().fill_size();
+            if *final_size != render_size {
+                render_size = *final_size;
 
-        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constraints().fill_size();
-            if self.final_size != final_size {
-                self.final_size = final_size;
+                render_tile_size = tile_size.layout_dft(render_size);
+                render_tile_spacing = tile_spacing.layout_dft(render_size);
 
-                self.final_tile_size = self.tile_size.layout_dft(self.final_size);
-                self.final_tile_spacing = self.tile_spacing.layout_dft(self.final_size);
-
-                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.final_tile_size), || {
-                    // self.final_tile_size.to_vector().to_point() * 0.5.fct()
-                    self.render_radius = self.radius.get().layout(self.render_center);
+                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(render_tile_size), || {
+                    render_center = center.get().layout_dft(render_tile_size.to_vector().to_point() * 0.5.fct());
+                    render_radius = radius.get().layout(render_center);
                 });
 
                 LAYOUT.with_constraints(
-                    LAYOUT
-                        .constraints()
-                        .with_exact_x(self.render_radius.width.max(self.render_radius.height)),
-                    || {
-                        self.stops
-                            .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.render_stops))
-                    },
+                    LAYOUT.constraints().with_exact_x(render_radius.width.max(render_radius.height)),
+                    || stops.with(|s| s.layout_radial(true, extend_mode.get(), &mut render_stops)),
                 );
 
                 WIDGET.render();
             }
-            final_size
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
+        UiNodeOp::Render { frame } => {
             frame.push_radial_gradient(
-                PxRect::from_size(self.final_size),
-                self.render_center,
-                self.render_radius,
-                &self.render_stops,
-                self.extend_mode.get().into(),
-                self.final_tile_size,
-                self.final_tile_spacing,
+                PxRect::from_size(render_size),
+                render_center,
+                render_radius,
+                &render_stops,
+                extend_mode.get().into(),
+                render_tile_size,
+                render_tile_spacing,
             );
         }
-    }
-    RadialGradientNode {
-        center: center.into_var(),
-        radius: radius.into_var(),
-        stops: stops.into_var(),
-        extend_mode: extend_mode.into_var(),
-        tile_size: tile_size.into_var(),
-        tile_spacing: tile_spacing.into_var(),
-
-        render_stops: vec![],
-        render_center: PxPoint::zero(),
-        render_radius: PxSize::zero(),
-        final_size: PxSize::zero(),
-        final_tile_size: PxSize::zero(),
-        final_tile_spacing: PxSize::zero(),
-    }
+        _ => {}
+    })
 }
 
 /// Node that fills the widget area with a conic gradient defined by center point and start angle.
@@ -404,73 +335,61 @@ pub fn conic_gradient_ext(
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
 ) -> impl UiNode {
-    #[ui_node(struct ConicGradientNode {
-        #[var] angle: impl Var<AngleRadian>,
-        #[var] center: impl Var<Point>,
-        #[var] stops: impl Var<GradientStops>,
-        #[var] extend_mode: impl Var<ExtendMode>,
+    let center = center.into_var();
+    let angle = angle.into_var();
+    let stops = stops.into_var();
+    let extend_mode = extend_mode.into_var();
 
-        render_stops: Vec<RenderGradientStop>,
-        render_center: PxPoint,
-        final_size: PxSize,
-    })]
-    impl UiNode for ConicGradientNode {
-        fn update(&mut self, _: &WidgetUpdates) {
-            if self.center.is_new() || self.angle.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
-                self.final_size = PxSize::zero();
+    let mut render_stops = vec![];
+    let mut render_center = PxPoint::zero();
+    let mut render_size = PxSize::zero();
+
+    match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&center).sub_var(&angle).sub_var(&stops).sub_var(&extend_mode);
+        }
+        UiNodeOp::Update { .. } => {
+            if center.is_new() || angle.is_new() || stops.is_new() || extend_mode.is_new() {
+                render_size = PxSize::zero();
                 WIDGET.layout();
             }
         }
-
-        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constraints().fill_size()
+        UiNodeOp::Measure { desired_size, .. } => {
+            *desired_size = LAYOUT.constraints().fill_size();
         }
-
-        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constraints().fill_size();
-            if self.final_size != final_size {
-                self.final_size = final_size;
-                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.final_size), || {
-                    self.render_center = self.center.layout_dft(self.final_size.to_vector().to_point() * 0.5.fct());
+        UiNodeOp::Layout { final_size, .. } => {
+            *final_size = LAYOUT.constraints().fill_size();
+            if *final_size != render_size {
+                render_size = *final_size;
+                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(*final_size), || {
+                    render_center = center.layout_dft(final_size.to_vector().to_point() * 0.5.fct());
                 });
 
                 let perimeter = Px({
-                    let a = self.final_size.width.0 as f32;
-                    let b = self.final_size.height.0 as f32;
+                    let a = final_size.width.0 as f32;
+                    let b = final_size.height.0 as f32;
                     std::f32::consts::PI * 2.0 * ((a * a + b * b) / 2.0).sqrt()
                 } as _);
                 LAYOUT.with_constraints(LAYOUT.constraints().with_exact_x(perimeter), || {
-                    self.stops
-                        .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.render_stops))
+                    stops.with(|s| s.layout_radial(true, extend_mode.get(), &mut render_stops))
                 });
 
                 WIDGET.render();
             }
-            final_size
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
+        UiNodeOp::Render { frame } => {
             frame.push_conic_gradient(
-                PxRect::from_size(self.final_size),
-                self.render_center,
-                self.angle.get(),
-                &self.render_stops,
-                self.extend_mode.get().into(),
-                self.final_size,
+                PxRect::from_size(render_size),
+                render_center,
+                angle.get(),
+                &render_stops,
+                extend_mode.get().into(),
+                render_size,
                 PxSize::zero(),
             );
         }
-    }
-    ConicGradientNode {
-        angle: angle.into_var(),
-        center: center.into_var(),
-        stops: stops.into_var(),
-        extend_mode: extend_mode.into_var(),
-
-        render_stops: vec![],
-        render_center: PxPoint::zero(),
-        final_size: PxSize::zero(),
-    }
+        _ => {}
+    })
 }
 /// Node that fills the widget area with a conic gradient with all features configurable.
 pub fn conic_gradient_full(
@@ -481,86 +400,73 @@ pub fn conic_gradient_full(
     tile_size: impl IntoVar<Size>,
     tile_spacing: impl IntoVar<Size>,
 ) -> impl UiNode {
-    #[ui_node(struct ConicGradientFullNode {
-        #[var] angle: impl Var<AngleRadian>,
-        #[var] center: impl Var<Point>,
-        #[var] stops: impl Var<GradientStops>,
-        #[var] extend_mode: impl Var<ExtendMode>,
-        #[var] tile_size: impl Var<Size>,
-        #[var] tile_spacing: impl Var<Size>,
+    let center = center.into_var();
+    let angle = angle.into_var();
+    let stops = stops.into_var();
+    let extend_mode = extend_mode.into_var();
+    let tile_size = tile_size.into_var();
+    let tile_spacing = tile_spacing.into_var();
 
-        render_stops: Vec<RenderGradientStop>,
-        render_center: PxPoint,
-        final_size: PxSize,
-        final_tile_size: PxSize,
-        final_tile_spacing: PxSize,
-    })]
-    impl UiNode for ConicGradientFullNode {
-        fn update(&mut self, _: &WidgetUpdates) {
-            if self.center.is_new() || self.angle.is_new() || self.stops.is_new() || self.extend_mode.is_new() {
-                self.final_size = PxSize::zero();
+    let mut render_stops = vec![];
+    let mut render_center = PxPoint::zero();
+    let mut render_size = PxSize::zero();
+    let mut render_tile_size = PxSize::zero();
+    let mut render_tile_spacing = PxSize::zero();
+
+    match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET
+                .sub_var(&center)
+                .sub_var(&angle)
+                .sub_var(&stops)
+                .sub_var(&extend_mode)
+                .sub_var(&tile_size)
+                .sub_var(&tile_spacing);
+        }
+        UiNodeOp::Update { .. } => {
+            if center.is_new() || angle.is_new() || stops.is_new() || extend_mode.is_new() {
+                render_size = PxSize::zero();
                 WIDGET.layout();
             }
         }
-
-        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constraints().fill_size()
+        UiNodeOp::Measure { desired_size, .. } => {
+            *desired_size = LAYOUT.constraints().fill_size();
         }
+        UiNodeOp::Layout { final_size, .. } => {
+            *final_size = LAYOUT.constraints().fill_size();
+            if *final_size != render_size {
+                render_size = *final_size;
 
-        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            let final_size = LAYOUT.constraints().fill_size();
-            if self.final_size != final_size {
-                self.final_size = final_size;
+                render_tile_size = tile_size.layout_dft(render_size);
+                render_tile_spacing = tile_spacing.layout_dft(render_size);
 
-                self.final_tile_size = self.tile_size.layout_dft(self.final_size);
-                self.final_tile_spacing = self.tile_spacing.layout_dft(self.final_size);
-
-                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.final_tile_size), || {
-                    self.render_center = self
-                        .center
-                        .get()
-                        .layout_dft(self.final_tile_size.to_vector().to_point() * 0.5.fct());
+                LAYOUT.with_constraints(PxConstraints2d::new_fill_size(render_tile_size), || {
+                    render_center = center.get().layout_dft(render_tile_size.to_vector().to_point() * 0.5.fct());
                 });
 
                 let perimeter = Px({
-                    let a = self.final_tile_size.width.0 as f32;
-                    let b = self.final_tile_size.height.0 as f32;
+                    let a = render_tile_size.width.0 as f32;
+                    let b = render_tile_size.height.0 as f32;
                     std::f32::consts::PI * 2.0 * ((a * a + b * b) / 2.0).sqrt()
                 } as _);
                 LAYOUT.with_constraints(LAYOUT.constraints().with_exact_x(perimeter), || {
-                    self.stops
-                        .with(|s| s.layout_radial(true, self.extend_mode.get(), &mut self.render_stops))
+                    stops.with(|s| s.layout_radial(true, extend_mode.get(), &mut render_stops))
                 });
 
                 WIDGET.render();
             }
-            final_size
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
+        UiNodeOp::Render { frame } => {
             frame.push_conic_gradient(
-                PxRect::from_size(self.final_size),
-                self.render_center,
-                self.angle.get(),
-                &self.render_stops,
-                self.extend_mode.get().into(),
-                self.final_tile_size,
-                self.final_tile_spacing,
+                PxRect::from_size(render_size),
+                render_center,
+                angle.get(),
+                &render_stops,
+                extend_mode.get().into(),
+                render_tile_size,
+                render_tile_spacing,
             );
         }
-    }
-    ConicGradientFullNode {
-        angle: angle.into_var(),
-        center: center.into_var(),
-        stops: stops.into_var(),
-        extend_mode: extend_mode.into_var(),
-        tile_size: tile_size.into_var(),
-        tile_spacing: tile_spacing.into_var(),
-
-        render_stops: vec![],
-        render_center: PxPoint::zero(),
-        final_size: PxSize::zero(),
-        final_tile_size: PxSize::zero(),
-        final_tile_spacing: PxSize::zero(),
-    }
+        _ => {}
+    })
 }

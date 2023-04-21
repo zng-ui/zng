@@ -325,7 +325,7 @@ impl std::hash::Hash for WeakContextInitHandle {
 }
 pub use helpers::*;
 mod helpers {
-    use crate::{context::*, event::*, render::*, var::*, widget_info::*, widget_instance::*, *};
+    use crate::{var::*, widget_instance::*};
 
     /// Helper for declaring properties that sets a context var.
     ///
@@ -406,76 +406,30 @@ mod helpers {
     /// [`actual_var`]: Var::actual_var
     /// [`default`]: crate::property#default
     pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {
-        #[ui_node(struct WithContextVarNode<T: VarValue> {
-            child: impl UiNode,
-            context_var: ContextVar<T>,
-            id: Option<ContextInitHandle>,
-            value: Option<Arc<BoxedVar<T>>>,
-        })]
-        impl WithContextVarNode {
-            fn with<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-                self.context_var
-                    .with_context(self.id.clone().expect("not not inited"), &mut self.value, || mtd(&mut self.child))
-            }
+        let value = value.into_var();
+        let mut actual_value = None;
+        let mut id = None;
 
-            #[UiNode]
-            fn init(&mut self) {
-                if self.id.is_none() {
-                    self.id = Some(ContextInitHandle::new());
-                    let value = self.value.as_mut().unwrap();
-                    let value = Arc::get_mut(value).unwrap();
-                    *value = value.clone().actual_var();
+        match_node(child, move |child, op| {
+            let mut is_deinit = false;
+            match &op {
+                UiNodeOp::Init => {
+                    id = Some(ContextInitHandle::new());
+                    actual_value = Some(Arc::new(value.clone().actual_var().boxed()));
                 }
-                self.with(|c| c.init())
+                UiNodeOp::Deinit => {
+                    is_deinit = true;
+                }
+                _ => {}
             }
 
-            #[UiNode]
-            fn deinit(&mut self) {
-                self.with(|c| c.deinit());
-                self.id = None;
-            }
+            context_var.with_context(id.clone().expect("node not inited"), &mut actual_value, || child.op(op));
 
-            #[UiNode]
-            fn info(&mut self, info: &mut WidgetInfoBuilder) {
-                self.with(|c| c.info(info))
+            if is_deinit {
+                id = None;
+                actual_value = None;
             }
-
-            #[UiNode]
-            fn event(&mut self, update: &crate::event::EventUpdate) {
-                self.with(|c| c.event(update))
-            }
-
-            #[UiNode]
-            fn update(&mut self, updates: &WidgetUpdates) {
-                self.with(|c| c.update(updates))
-            }
-
-            #[UiNode]
-            fn measure(&mut self, wm: &mut WidgetMeasure) -> units::PxSize {
-                self.with(|c| c.measure(wm))
-            }
-
-            #[UiNode]
-            fn layout(&mut self, wl: &mut WidgetLayout) -> units::PxSize {
-                self.with(|c| c.layout(wl))
-            }
-
-            #[UiNode]
-            fn render(&mut self, frame: &mut FrameBuilder) {
-                self.with(|c| c.render(frame))
-            }
-
-            #[UiNode]
-            fn render_update(&mut self, update: &mut FrameUpdate) {
-                self.with(|c| c.render_update(update))
-            }
-        }
-        WithContextVarNode {
-            child: child.cfg_boxed(),
-            context_var,
-            id: None,
-            value: Some(Arc::new(value.into_var().boxed())),
-        }
+        })
     }
 
     /// Helper for declaring properties that sets a context var to a value generated on init.
@@ -487,79 +441,30 @@ mod helpers {
     pub fn with_context_var_init<T: VarValue>(
         child: impl UiNode,
         var: ContextVar<T>,
-        init_value: impl FnMut() -> BoxedVar<T> + Send + 'static,
+        mut init_value: impl FnMut() -> BoxedVar<T> + Send + 'static,
     ) -> impl UiNode {
-        #[ui_node(struct WithContextVarInitNode<T: VarValue> {
-            child: impl UiNode,
-            context_var: ContextVar<T>,
-            id: Option<ContextInitHandle>,
-            init_value: impl FnMut() -> BoxedVar<T> + Send + 'static,
-            value: Option<Arc<BoxedVar<T>>>,
-        })]
-        impl WithContextVarInitNode {
-            fn with<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-                self.context_var
-                    .with_context(self.id.clone().expect("node not inited"), &mut self.value, || mtd(&mut self.child))
-            }
-
-            #[UiNode]
-            fn info(&mut self, info: &mut WidgetInfoBuilder) {
-                self.with(|c| c.info(info));
-            }
-
-            #[UiNode]
-            fn init(&mut self) {
-                if self.id.is_none() {
-                    self.id = Some(ContextInitHandle::new());
+        let mut id = None;
+        let mut value = None;
+        match_node(child, move |child, op| {
+            let mut is_deinit = false;
+            match &op {
+                UiNodeOp::Init => {
+                    id = Some(ContextInitHandle::new());
+                    value = Some(Arc::new(init_value().actual_var()));
                 }
-                self.value = Some(Arc::new((self.init_value)().actual_var()));
-                self.with(|c| c.init());
+                UiNodeOp::Deinit => {
+                    is_deinit = true;
+                }
+                _ => {}
             }
 
-            #[UiNode]
-            fn deinit(&mut self) {
-                self.with(|c| c.deinit());
-                self.value = None;
-            }
+            var.with_context(id.clone().expect("node not inited"), &mut value, || child.op(op));
 
-            #[UiNode]
-            fn update(&mut self, updates: &WidgetUpdates) {
-                self.with(|c| c.update(updates));
+            if is_deinit {
+                id = None;
+                value = None;
             }
-
-            #[UiNode]
-            fn event(&mut self, update: &EventUpdate) {
-                self.with(|c| c.event(update));
-            }
-
-            #[UiNode]
-            fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-                self.with(|c| c.measure(wm))
-            }
-
-            #[UiNode]
-            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-                self.with(|c| c.layout(wl))
-            }
-
-            #[UiNode]
-            fn render(&mut self, frame: &mut FrameBuilder) {
-                self.with(|c| c.render(frame));
-            }
-
-            #[UiNode]
-            fn render_update(&mut self, update: &mut FrameUpdate) {
-                self.with(|c| c.render_update(update));
-            }
-        }
-        WithContextVarInitNode {
-            child: child.cfg_boxed(),
-            context_var: var,
-            id: None,
-            init_value,
-            value: None,
-        }
-        .cfg_boxed()
+        })
     }
 
     /// Wraps `child` in a node that provides a unique [`ContextInitHandle`], refreshed every (re)init.

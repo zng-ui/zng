@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use std::time::Duration;
 
 use crate::core::color::ColorScheme;
@@ -18,29 +17,21 @@ where
     T: VarValue + PartialEq,
     V: Var<T>,
 {
-    #[ui_node(struct BindWindowVarNode<T: VarValue + PartialEq, SV: Var<T>> {
-        _t: PhantomData<T>,
-        child: impl UiNode,
-        user_var: impl Var<T>,
-        select: impl Fn(&WindowVars) -> SV + Send + 'static,
-    })]
-    impl UiNode for BindWindowVarNode {
-        fn init(&mut self) {
-            let window_var = (self.select)(&WINDOW_CTRL.vars());
-            if !self.user_var.capabilities().is_always_static() {
-                let binding = self.user_var.bind_bidi(&window_var);
+    let user_var = user_var.into_var();
+
+    #[cfg(dyn_closure)]
+    let select: Box<dyn Fn(&WindowVars) -> V + Send> = Box::new(select);
+
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
+            let window_var = select(&WINDOW_CTRL.vars());
+            if !user_var.capabilities().is_always_static() {
+                let binding = user_var.bind_bidi(&window_var);
                 WIDGET.push_var_handles(binding);
             }
-            window_var.set_ne(self.user_var.get()).unwrap();
-            self.child.init();
+            window_var.set_ne(user_var.get()).unwrap();
         }
-    }
-    BindWindowVarNode {
-        _t: PhantomData,
-        child,
-        user_var: user_var.into_var(),
-        select,
-    }
+    })
 }
 
 // Properties that set the full value.
@@ -128,30 +119,24 @@ map_properties! {
 /// can happen during very fast resizes.
 #[property(CONTEXT, default(colors::WHITE), widget_impl(Window))]
 pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    #[ui_node(struct ClearColorNode {
-        child: impl UiNode,
-        #[var] clear_color: impl Var<Rgba>,
-    })]
-    impl UiNode for ClearColorNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.clear_color.is_new() {
+    let clear_color = color.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&clear_color);
+        }
+        UiNodeOp::Update { .. } => {
+            if clear_color.is_new() {
                 WIDGET.render_update();
             }
-            self.child.update(updates);
         }
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            frame.set_clear_color(self.clear_color.get().into());
-            self.child.render(frame);
+        UiNodeOp::Render { frame } => {
+            frame.set_clear_color(clear_color.get().into());
         }
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            update.set_clear_color(self.clear_color.get().into());
-            self.child.render_update(update);
+        UiNodeOp::RenderUpdate { update } => {
+            update.set_clear_color(clear_color.get().into());
         }
-    }
-    ClearColorNode {
-        child,
-        clear_color: color.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Window persistence config.
@@ -259,16 +244,12 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             loading: Option<WindowLoadingHandle>,
         },
     }
+    let enabled = enabled.into();
+    let mut task = Task::None;
 
-    #[ui_node(struct SaveStateNode {
-        child: impl UiNode,
-        enabled: SaveState,
-
-        task: Task,
-    })]
-    impl UiNode for SaveStateNode {
-        fn init(&mut self) {
-            if let Some(key) = self.enabled.window_key(WINDOW.id()) {
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            if let Some(key) = enabled.window_key(WINDOW.id()) {
                 let vars = WINDOW_CTRL.vars();
                 WIDGET
                     .sub_event(&WINDOW_LOAD_EVENT)
@@ -276,28 +257,20 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                     .sub_var(&vars.restore_rect());
 
                 let rsp = CONFIG.read(key);
-                let loading = self.enabled.loading_timeout().and_then(|t| WINDOW_CTRL.loading_handle(t));
+                let loading = enabled.loading_timeout().and_then(|t| WINDOW_CTRL.loading_handle(t));
                 rsp.subscribe(WIDGET.id()).perm();
 
-                self.task = Task::Read { rsp, loading };
+                task = Task::Read { rsp, loading };
             }
-
-            self.child.init();
         }
-
-        fn deinit(&mut self) {
-            self.child.deinit();
-        }
-
-        fn event(&mut self, update: &EventUpdate) {
-            self.child.event(update);
+        UiNodeOp::Event { update } => {
+            child.event(update);
             if WINDOW_LOAD_EVENT.has(update) {
-                self.task = Task::None;
+                task = Task::None;
             }
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if let Task::Read { rsp, .. } = &mut self.task {
+        UiNodeOp::Update { .. } => {
+            if let Task::Read { rsp, .. } = &mut task {
                 if let Some(rsp) = rsp.rsp() {
                     if let Some(s) = rsp {
                         let window_vars = WINDOW_CTRL.vars();
@@ -311,9 +284,9 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
 
                         window_vars.size().set_ne(restore_rect.size);
                     }
-                    self.task = Task::None;
+                    task = Task::None;
                 }
-            } else if self.enabled.is_enabled() {
+            } else if enabled.is_enabled() {
                 let vars = WINDOW_CTRL.vars();
                 if vars.state().is_new() || vars.restore_rect().is_new() {
                     let cfg = WindowStateCfg {
@@ -321,19 +294,14 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                         restore_rect: vars.restore_rect().get().cast(),
                     };
 
-                    if let Some(key) = self.enabled.window_key(WINDOW.id()) {
+                    if let Some(key) = enabled.window_key(WINDOW.id()) {
                         CONFIG.write(key, cfg);
                     }
                 }
             }
-            self.child.update(updates);
         }
-    }
-    SaveStateNode {
-        child,
-        enabled: enabled.into(),
-        task: Task::None,
-    }
+        _ => {}
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

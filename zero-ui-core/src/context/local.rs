@@ -9,14 +9,9 @@ use parking_lot::*;
 
 use crate::{
     app::AppId,
-    context::WidgetUpdates,
     crate_util::RunOnDrop,
-    event::EventUpdate,
-    render::{FrameBuilder, FrameUpdate},
-    ui_node,
-    units::{self, TimeUnits},
-    widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-    widget_instance::UiNode,
+    units::TimeUnits,
+    widget_instance::{match_node, UiNode, UiNodeOp},
 };
 
 type LocalValue = Arc<dyn Any + Send + Sync>;
@@ -948,66 +943,11 @@ pub fn with_context_local<T: Any + Send + Sync + 'static>(
     context: &'static ContextLocal<T>,
     value: impl Into<T>,
 ) -> impl UiNode {
-    #[ui_node(struct WithContextLocalNode<T: Any + Send + Sync + 'static> {
-        child: impl UiNode,
-        context: &'static ContextLocal<T>,
-        value: Option<Arc<T>>,
-    })]
-    impl WithContextLocalNode {
-        fn with<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-            self.context.with_context(&mut self.value, || mtd(&mut self.child))
-        }
+    let mut value = Some(Arc::new(value.into()));
 
-        #[UiNode]
-        fn init(&mut self) {
-            self.with(|c| c.init())
-        }
-
-        #[UiNode]
-        fn deinit(&mut self) {
-            self.with(|c| c.deinit())
-        }
-
-        #[UiNode]
-        fn info(&mut self, info: &mut WidgetInfoBuilder) {
-            self.with(|c| c.info(info))
-        }
-
-        #[UiNode]
-        fn event(&mut self, update: &EventUpdate) {
-            self.with(|c| c.event(update))
-        }
-
-        #[UiNode]
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.with(|c| c.update(updates))
-        }
-
-        #[UiNode]
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> units::PxSize {
-            self.with(|c| c.measure(wm))
-        }
-
-        #[UiNode]
-        fn layout(&mut self, wl: &mut WidgetLayout) -> units::PxSize {
-            self.with(|c| c.layout(wl))
-        }
-
-        #[UiNode]
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            self.with(|c| c.render(frame))
-        }
-
-        #[UiNode]
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.with(|c| c.render_update(update))
-        }
-    }
-    WithContextLocalNode {
-        child,
-        context,
-        value: Some(Arc::new(value.into())),
-    }
+    match_node(child, move |child, op| {
+        context.with_context(&mut value, || child.op(op));
+    })
 }
 
 /// Helper for declaring nodes that sets a context local with a value generated on init.
@@ -1021,69 +961,29 @@ pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
     context: &'static ContextLocal<T>,
     init_value: impl FnMut() -> T + Send + 'static,
 ) -> impl UiNode {
-    #[ui_node(struct WithContextLocalInitNode<T: Any + Send + Sync + 'static> {
-        child: impl UiNode,
-        context: &'static ContextLocal<T>,
-        init_value: impl FnMut() -> T + Send + 'static,
-        value: Option<Arc<T>>,
-    })]
-    impl WithContextLocalInitNode {
-        fn with<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-            self.context.with_context(&mut self.value, || mtd(&mut self.child))
+    #[cfg(dyn_closure)]
+    let mut init_value: Box<dyn FnMut() -> T + Send> = Box::new(init_value);
+    #[cfg(not(dyn_closure))]
+    let mut init_value = init_value;
+
+    let mut value = None;
+
+    match_node(child, move |child, op| {
+        let mut is_deinit = false;
+        match &op {
+            UiNodeOp::Init => {
+                value = Some(Arc::new(init_value()));
+            }
+            UiNodeOp::Deinit => {
+                is_deinit = true;
+            }
+            _ => {}
         }
 
-        #[UiNode]
-        fn init(&mut self) {
-            let value = (self.init_value)();
-            self.value = Some(Arc::new(value));
-            self.with(|c| c.init())
-        }
+        context.with_context(&mut value, || child.op(op));
 
-        #[UiNode]
-        fn deinit(&mut self) {
-            self.with(|c| c.deinit());
-            self.value = None;
+        if is_deinit {
+            value = None;
         }
-
-        #[UiNode]
-        fn info(&mut self, info: &mut WidgetInfoBuilder) {
-            self.with(|c| c.info(info))
-        }
-
-        #[UiNode]
-        fn event(&mut self, update: &EventUpdate) {
-            self.with(|c| c.event(update))
-        }
-
-        #[UiNode]
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.with(|c| c.update(updates))
-        }
-
-        #[UiNode]
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> units::PxSize {
-            self.with(|c| c.measure(wm))
-        }
-
-        #[UiNode]
-        fn layout(&mut self, wl: &mut WidgetLayout) -> units::PxSize {
-            self.with(|c| c.layout(wl))
-        }
-
-        #[UiNode]
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            self.with(|c| c.render(frame))
-        }
-
-        #[UiNode]
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.with(|c| c.render_update(update))
-        }
-    }
-    WithContextLocalInitNode {
-        child,
-        context,
-        init_value,
-        value: None,
-    }
+    })
 }

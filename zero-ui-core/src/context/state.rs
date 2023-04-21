@@ -1,10 +1,9 @@
 use std::{any::Any, fmt, marker::PhantomData};
 
 use crate::{
-    context::{WidgetUpdates, WIDGET},
-    ui_node,
+    context::WIDGET,
     var::{IntoVar, Var, VarValue},
-    widget_instance::UiNode,
+    widget_instance::{match_node, UiNode, UiNodeOp},
 };
 
 /// A type that can be a [`StateId`] value.
@@ -550,40 +549,30 @@ where
     I: Fn() -> T + Send + 'static,
     T: StateValue + VarValue,
 {
-    #[ui_node(struct WithWidgetStateNode<T: StateValue + VarValue> {
-        child: impl UiNode,
-        id: StateId<T>,
-        #[var] value: impl Var<T>,
-        default: impl Fn() -> T + Send + 'static,
-    })]
-    impl UiNode for WithWidgetStateNode {
-        fn init(&mut self) {
-            self.auto_subs();
-            self.child.init();
+    let id = id.into();
+    let value = value.into_var();
 
-            WIDGET.set_state(self.id, self.value.get());
+    #[cfg(dyn_closure)]
+    let default: Box<dyn Fn() -> T + Send> = Box::new(default);
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            child.init();
+            WIDGET.sub_var(&value);
+            WIDGET.set_state(id, value.get());
         }
-
-        fn deinit(&mut self) {
-            self.child.deinit();
-
-            WIDGET.set_state(self.id, (self.default)());
+        UiNodeOp::Deinit => {
+            child.deinit();
+            WIDGET.set_state(id, default());
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            if let Some(v) = self.value.get_new() {
-                WIDGET.set_state(self.id, v);
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            if let Some(v) = value.get_new() {
+                WIDGET.set_state(id, v);
             }
         }
-    }
-    WithWidgetStateNode {
-        child: child.cfg_boxed(),
-        id: id.into(),
-        value: value.into_var(),
-        default,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Helper for declaring properties that set the widget state with a custom closure.
@@ -607,50 +596,43 @@ where
     I: Fn() -> S + Send + 'static,
     M: FnMut(&mut S, &V) + Send + 'static,
 {
-    #[ui_node(struct WithWidgetStateModifyNode<S: StateValue, V: VarValue> {
-        child: impl UiNode,
-        id: StateId<S>,
-        #[var] value: impl Var<V>,
-        default: impl Fn() -> S + Send + 'static,
-        modify: impl FnMut(&mut S, &V) + Send + 'static,
+    let id = id.into();
+    let value = value.into_var();
 
-        _phantom: PhantomData<V>,
-    })]
-    impl UiNode for WithWidgetStateModifyNode {
-        fn init(&mut self) {
-            self.auto_subs();
-            self.child.init();
+    #[cfg(dyn_closure)]
+    let default: Box<dyn Fn() -> S + Send> = Box::new(default);
 
-            self.value.with(|v| {
+    #[cfg(dyn_closure)]
+    let mut modify: Box<dyn FnMut(&mut S, &V) + Send> = Box::new(modify);
+
+    #[cfg(not(dyn_closure))]
+    let mut modify = modify;
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            child.init();
+
+            WIDGET.sub_var(&value);
+
+            value.with(|v| {
                 WIDGET.with_state_mut(|mut s| {
-                    (self.modify)(s.entry(self.id).or_insert_with(&self.default), v);
+                    modify(s.entry(id).or_insert_with(&default), v);
                 })
             })
         }
+        UiNodeOp::Deinit => {
+            child.deinit();
 
-        fn deinit(&mut self) {
-            self.child.deinit();
-
-            WIDGET.set_state(self.id, (self.default)());
+            WIDGET.set_state(id, default());
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            self.value.with_new(|v| {
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            value.with_new(|v| {
                 WIDGET.with_state_mut(|mut s| {
-                    (self.modify)(s.req_mut(self.id), v);
+                    modify(s.req_mut(id), v);
                 })
             });
         }
-    }
-    WithWidgetStateModifyNode {
-        child: child.cfg_boxed(),
-        id: id.into(),
-        value: value.into_var(),
-        default,
-        modify,
-
-        _phantom: PhantomData,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }

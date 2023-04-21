@@ -59,12 +59,31 @@ impl Markdown {
 pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
     #[ui_node(struct MarkdownNode {
         child: BoxedUiNode,
-        #[var] md: impl Var<Txt>,
+        md: impl Var<Txt>,
     })]
     impl MarkdownNode {
         #[UiNode]
         fn init(&mut self) {
-            self.auto_subs();
+            WIDGET
+                .sub_var(&self.md)
+                .sub_var(&TEXT_GEN_VAR)
+                .sub_var(&LINK_GEN_VAR)
+                .sub_var(&CODE_INLINE_GEN_VAR)
+                .sub_var(&CODE_BLOCK_GEN_VAR)
+                .sub_var(&PARAGRAPH_GEN_VAR)
+                .sub_var(&HEADING_GEN_VAR)
+                .sub_var(&LIST_GEN_VAR)
+                .sub_var(&LIST_ITEM_BULLET_GEN_VAR)
+                .sub_var(&LIST_ITEM_GEN_VAR)
+                .sub_var(&IMAGE_GEN_VAR)
+                .sub_var(&RULE_GEN_VAR)
+                .sub_var(&BLOCK_QUOTE_GEN_VAR)
+                .sub_var(&TABLE_GEN_VAR)
+                .sub_var(&TABLE_CELL_GEN_VAR)
+                .sub_var(&PANEL_GEN_VAR)
+                .sub_var(&IMAGE_RESOLVER_VAR)
+                .sub_var(&LINK_RESOLVER_VAR);
+
             self.generate_child();
             self.child.init();
         }

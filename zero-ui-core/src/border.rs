@@ -4,14 +4,14 @@ use std::{fmt, mem};
 
 use crate::{
     color::*,
-    context::{WidgetUpdates, LAYOUT, WIDGET},
+    context::{LAYOUT, WIDGET},
     context_local, property,
-    render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValueKey},
-    ui_node, ui_vec,
+    render::{webrender_api as w_api, FrameBuilder, FrameValueKey},
+    ui_vec,
     units::*,
     var::{impl_from_and_into_var, *},
-    widget_info::{WidgetBorderInfo, WidgetLayout, WidgetMeasure},
-    widget_instance::{match_node, UiNode, UiNodeList, UiNodeOp, WidgetId},
+    widget_info::WidgetBorderInfo,
+    widget_instance::{match_node, match_node_list, UiNode, UiNodeList, UiNodeOp, WidgetId},
 };
 
 /// Orientation of a straight line.
@@ -824,38 +824,30 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 ///
 /// This node disables inline layout for the widget.
 pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>, border_visual: impl UiNode) -> impl UiNode {
-    #[ui_node(struct BorderNode {
-        children: impl UiNodeList,
-        #[var] offsets: impl Var<SideOffsets>,
-        layout_offsets: SideOffsets,
-        render_offsets: PxSideOffsets,
+    let offsets = border_offsets.into_var();
+    let mut layout_offsets = SideOffsets::zero();
+    let mut render_offsets = PxSideOffsets::zero();
+    let mut border_rect = PxRect::zero();
 
-        border_rect: PxRect,
-    })]
-    impl UiNode for BorderNode {
-        fn init(&mut self) {
-            self.auto_subs();
-
-            self.layout_offsets = self.offsets.get();
-            self.children.init_all();
+    match_node_list(ui_vec![child, border_visual], move |children, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&offsets);
+            layout_offsets = offsets.get();
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.offsets.get_new_ne(&mut self.layout_offsets) {
+        UiNodeOp::Update { .. } => {
+            if offsets.get_new_ne(&mut layout_offsets) {
                 WIDGET.layout();
             }
-            self.children.update_all(updates, &mut ());
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let offsets = self.offsets.layout();
-            BORDER.measure_with_border(offsets, || {
+        UiNodeOp::Measure { wm, desired_size } => {
+            let offsets = offsets.layout();
+            *desired_size = BORDER.measure_with_border(offsets, || {
                 LAYOUT.with_sub_size(PxSize::new(offsets.horizontal(), offsets.vertical()), || {
-                    self.children.with_node(0, |n| LAYOUT.disable_inline(wm, n))
+                    children.with_node(0, |n| LAYOUT.disable_inline(wm, n))
                 })
-            })
+            });
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        UiNodeOp::Layout { wl, final_size } => {
             // We are inside the *inner* bounds or inside a parent border_node:
             //
             // .. ( layout ( new_border/inner ( BORDER_NODES ( fill_nodes ( new_child_context ( new_child_layout ( ..
@@ -863,16 +855,16 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             // `wl` is targeting the child transform, child nodes are naturally inside borders, so we
             // need to add to the offset and take the size, fill_nodes optionally cancel this transform.
 
-            let offsets = self.layout_offsets.layout();
-            if self.render_offsets != offsets {
-                self.render_offsets = offsets;
+            let offsets = layout_offsets.layout();
+            if render_offsets != offsets {
+                render_offsets = offsets;
                 WIDGET.render();
             }
 
             let parent_offsets = BORDER.inner_offsets();
             let origin = PxPoint::new(parent_offsets.left, parent_offsets.top);
-            if self.border_rect.origin != origin {
-                self.border_rect.origin = origin;
+            if border_rect.origin != origin {
+                border_rect.origin = origin;
                 WIDGET.render();
             }
 
@@ -881,41 +873,32 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 wl.translate(PxVector::new(offsets.left, offsets.top));
 
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                self.border_rect.size = LAYOUT.with_sub_size(taken_size, || self.children.with_node(0, |n| n.layout(wl)));
+                border_rect.size = LAYOUT.with_sub_size(taken_size, || children.with_node(0, |n| n.layout(wl)));
 
                 // layout border visual
-                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(self.border_rect.size), || {
-                    BORDER.with_border_layout(self.border_rect, offsets, || {
-                        self.children.with_node(1, |n| n.layout(wl));
+                LAYOUT.with_constraints(PxConstraints2d::new_exact_size(border_rect.size), || {
+                    BORDER.with_border_layout(border_rect, offsets, || {
+                        children.with_node(1, |n| n.layout(wl));
                     });
                 });
             });
 
-            self.border_rect.size
+            *final_size = border_rect.size;
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            self.children.with_node(0, |c| c.render(frame));
-            BORDER.with_border_layout(self.border_rect, self.render_offsets, || {
-                self.children.with_node(1, |c| c.render(frame));
+        UiNodeOp::Render { frame } => {
+            children.with_node(0, |c| c.render(frame));
+            BORDER.with_border_layout(border_rect, render_offsets, || {
+                children.with_node(1, |c| c.render(frame));
             });
         }
-
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.children.with_node(0, |c| c.render_update(update));
-            BORDER.with_border_layout(self.border_rect, self.render_offsets, || {
-                self.children.with_node(1, |c| c.render_update(update));
+        UiNodeOp::RenderUpdate { update } => {
+            children.with_node(0, |c| c.render_update(update));
+            BORDER.with_border_layout(border_rect, render_offsets, || {
+                children.with_node(1, |c| c.render_update(update));
             })
         }
-    }
-    BorderNode {
-        children: ui_vec![child, border_visual],
-        offsets: border_offsets.into_var(),
-        layout_offsets: SideOffsets::zero(),
-        render_offsets: PxSideOffsets::zero(),
-        border_rect: PxRect::zero(),
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Coordinates nested borders and corner-radius.

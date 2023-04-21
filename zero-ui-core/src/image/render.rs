@@ -3,10 +3,9 @@ use crate::{
     event::{AnyEventArgs, EventUpdate},
     property,
     render::RenderMode,
-    ui_node,
     units::*,
     var::{types::WeakArcVar, *},
-    widget_instance::{UiNode, WidgetId},
+    widget_instance::{match_node, UiNode, UiNodeOp, WidgetId},
     window::*,
 };
 
@@ -218,28 +217,19 @@ impl IMAGE_RENDER {
 /// This property sets and binds `retain` to [`IMAGE_RENDER.retain`].
 ///
 /// [`IMAGE_RENDER.retain`]: IMAGE_RENDER::retain
-#[property(CONTEXT)]
+#[property(CONTEXT, default(false))]
 pub fn render_retain(child: impl UiNode, retain: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct RenderRetainNode {
-        child: impl UiNode,
-        retain: impl Var<bool>,
-    })]
-    impl UiNode for RenderRetainNode {
-        fn init(&mut self) {
+    let retain = retain.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
             if IMAGE_RENDER.is_in_render() {
-                let retain = IMAGE_RENDER.retain();
-                retain.set_ne(self.retain.get());
-                let handle = self.retain.bind(&retain);
+                let actual_retain = IMAGE_RENDER.retain();
+                actual_retain.set_ne(retain.get());
+                let handle = actual_retain.bind(&retain);
                 WIDGET.push_var_handle(handle);
             } else {
                 tracing::error!("can only set `render_retain` in render widgets")
             }
-
-            self.child.init();
         }
-    }
-    RenderRetainNode {
-        child,
-        retain: retain.into_var(),
-    }
+    })
 }

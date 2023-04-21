@@ -620,12 +620,20 @@ mod ansi_fn {
 pub fn ansi_node(txt: impl IntoVar<Txt>) -> impl UiNode {
     #[ui_node(struct AnsiNode {
         child: BoxedUiNode,
-        #[var] txt: impl Var<Txt>,
+        txt: impl Var<Txt>,
     })]
     impl AnsiNode {
         #[UiNode]
         fn init(&mut self) {
-            self.auto_subs();
+            WIDGET
+                .sub_var(&self.txt)
+                .sub_var(&TEXT_GEN_VAR)
+                .sub_var(&LINE_GEN_VAR)
+                .sub_var(&PAGE_GEN_VAR)
+                .sub_var(&PANEL_GEN_VAR)
+                .sub_var(&LINES_PER_PAGE_VAR)
+                .sub_var(&BLINK_INTERVAL_VAR);
+
             self.generate_child();
             self.child.init();
         }

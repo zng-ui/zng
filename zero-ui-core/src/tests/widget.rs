@@ -1112,19 +1112,24 @@ pub mod util {
     };
 
     use crate::{
-        context::{StaticStateId, WidgetUpdates, WIDGET},
-        property, ui_node,
+        context::{StaticStateId, WIDGET},
+        property,
         var::{IntoValue, IntoVar, Var},
-        widget_instance::UiNode,
+        widget_instance::{match_node, UiNode, UiNodeOp},
     };
 
     /// Insert `trace` in the widget state. Can be probed using [`traced`].
     #[property(CONTEXT)]
     pub fn trace(child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
-        TraceNode {
-            child,
-            trace: trace.into(),
-        }
+        let trace = trace.into();
+        match_node(child, move |child, op| {
+            if let UiNodeOp::Init = op {
+                child.init();
+                WIDGET.with_state_mut(|mut s| {
+                    s.entry(&TRACE_ID).or_default().insert(trace);
+                });
+            }
+        })
     }
 
     /// Probe for a [`trace`] in the widget state.
@@ -1135,145 +1140,87 @@ pub mod util {
 
     static TRACE_ID: StaticStateId<HashSet<&'static str>> = StaticStateId::new_unique();
 
-    #[ui_node(struct TraceNode {
-        child: impl UiNode,
-        trace: &'static str,
-    })]
-    impl UiNode for TraceNode {
-        fn init(&mut self) {
-            self.child.init();
-            WIDGET.with_state_mut(|mut s| {
-                s.entry(&TRACE_ID).or_default().insert(self.trace);
-            });
-        }
-    }
-
     /// Insert `count` in the widget state. Can get using [`Count::get`].
     #[property(CONTEXT)]
     pub fn count(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
 
     /// Same as [`count`] but in `CHILD_CONTEXT` group.
     #[property(CHILD_CONTEXT)]
     pub fn count_child_context(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
     /// Same as [`count`] but in `CHILD_CONTEXT` group.
     #[property(CHILD_CONTEXT)]
     pub fn count_child_context2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
 
     /// Same as [`count`] but in `CHILD_LAYOUT` group.
     #[property(CHILD_LAYOUT)]
     pub fn count_child_layout(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
     /// Same as [`count`] but in `CHILD_LAYOUT` group.
     #[property(CHILD_LAYOUT)]
     pub fn count_child_layout2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
 
     /// Same as [`count`] but in `BORDER` group.
     #[property(BORDER)]
     pub fn count_border(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
     /// Same as [`count`] but in `BORDER` group.
     #[property(BORDER)]
     pub fn count_border2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
 
     /// Same as [`count`] but in `LAYOUT` group.
     #[property(LAYOUT)]
     pub fn count_layout(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
     /// Same as [`count`] but in `LAYOUT` group.
     #[property(LAYOUT)]
     pub fn count_layout2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
 
     /// Same as [`count`] but in `CONTEXT` group.
     #[property(CONTEXT)]
     pub fn count_context(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
     /// Same as [`count`] but in `CONTEXT` group.
     #[property(CONTEXT)]
     pub fn count_context2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
 
     /// Same as [`count`] but in `SIZE` group.
     #[property(SIZE)]
     pub fn count_size(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
     /// Same as [`count`] but in `SIZE` group.
     #[property(SIZE)]
     pub fn count_size2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
 
     /// Same as [`count`] but in `EVENT` group.
     #[property(EVENT)]
     pub fn count_event(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
     /// Same as [`count`] but in `EVENT` group.
     #[property(EVENT)]
     pub fn count_event2(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
-        CountNode {
-            child,
-            value_pos: count.into(),
-        }
+        count_node(child, count)
     }
 
     /// Count adds one every [`Self::next`] call.
@@ -1343,33 +1290,42 @@ pub mod util {
     static VALUE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
     static NODE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
 
-    #[ui_node(struct CountNode {
-        child: impl UiNode,
-        value_pos: Position,
-    })]
-    impl UiNode for CountNode {
-        fn init(&mut self) {
-            WIDGET.with_state_mut(|mut s| {
-                s.entry(&VALUE_POSITION_ID)
-                    .or_default()
-                    .insert(self.value_pos.tag, self.value_pos.pos);
+    fn count_node(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
+        let value_pos = count.into();
+        match_node(child, move |_, op| {
+            if let UiNodeOp::Init = op {
+                WIDGET.with_state_mut(|mut s| {
+                    s.entry(&VALUE_POSITION_ID).or_default().insert(value_pos.tag, value_pos.pos);
 
-                s.entry(&NODE_POSITION_ID)
-                    .or_default()
-                    .insert(self.value_pos.tag, Position::next_init());
-            });
-
-            self.child.init();
-        }
+                    s.entry(&NODE_POSITION_ID).or_default().insert(value_pos.tag, Position::next_init());
+                });
+            }
+        })
     }
 
     /// Test state property, state can be set using [`set_state`] followed by updating.
     #[property(CONTEXT)]
     pub fn is_state(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-        IsStateNode {
-            child,
-            state: state.into_var(),
-        }
+        let state = state.into_var();
+        match_node(child, move |child, op| {
+            let update = match op {
+                UiNodeOp::Init => {
+                    child.init();
+                    true
+                }
+                UiNodeOp::Update { updates } => {
+                    child.update(updates);
+                    true
+                }
+                _ => false,
+            };
+            if update {
+                let wgt_state = WIDGET.get_state(&IS_STATE_ID).unwrap_or_default();
+                if wgt_state != state.get() {
+                    let _ = state.set(wgt_state);
+                }
+            }
+        })
     }
     /// Sets the [`is_state`] of a widget.
     ///
@@ -1384,71 +1340,35 @@ pub mod util {
         .expect("expected widget");
     }
 
-    #[ui_node(struct IsStateNode {
-        child: impl UiNode,
-        state: impl Var<bool>,
-    })]
-    impl IsStateNode {
-        fn update_state(&mut self) {
-            let wgt_state = WIDGET.get_state(&IS_STATE_ID).unwrap_or_default();
-            if wgt_state != self.state.get() {
-                let _ = self.state.set(wgt_state);
-            }
-        }
-
-        #[UiNode]
-        fn init(&mut self) {
-            self.child.init();
-            self.update_state();
-        }
-
-        #[UiNode]
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            self.update_state();
-        }
-    }
-
     static IS_STATE_ID: StaticStateId<bool> = StaticStateId::new_unique();
 
     /// A [trace] that can update.
     #[property(CONTEXT)]
     pub fn live_trace(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
-        LiveTraceNode {
-            child,
-            trace: trace.into_var(),
-        }
+        let trace = trace.into_var();
+        match_node(child, move |child, op| match op {
+            UiNodeOp::Init => {
+                child.init();
+                WIDGET.sub_var(&trace);
+                WIDGET.with_state_mut(|mut s| {
+                    s.entry(&TRACE_ID).or_default().insert(trace.get());
+                });
+            }
+            UiNodeOp::Update { updates } => {
+                child.update(updates);
+                if let Some(trace) = trace.get_new() {
+                    WIDGET.with_state_mut(|mut s| {
+                        s.entry(&TRACE_ID).or_default().insert(trace);
+                    })
+                }
+            }
+            _ => {}
+        })
     }
     /// A [trace] that can update and has a default value of `"default-trace"`.
     #[property(CONTEXT, default("default-trace"))]
     pub fn live_trace_default(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
-        LiveTraceNode {
-            child,
-            trace: trace.into_var(),
-        }
-    }
-
-    #[ui_node(struct LiveTraceNode {
-        child: impl UiNode,
-        #[var] trace: impl Var<&'static str>,
-    })]
-    impl UiNode for LiveTraceNode {
-        fn init(&mut self) {
-            self.child.init();
-            WIDGET.with_state_mut(|mut s| {
-                s.entry(&TRACE_ID).or_default().insert(self.trace.get());
-            });
-            self.auto_subs();
-        }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            if let Some(trace) = self.trace.get_new() {
-                WIDGET.with_state_mut(|mut s| {
-                    s.entry(&TRACE_ID).or_default().insert(trace);
-                })
-            }
-        }
+        live_trace(child, trace)
     }
 
     /// A capture_only property.

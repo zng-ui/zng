@@ -70,44 +70,31 @@ context_var! {
 /// [`is_checked`]: fn@is_checked
 #[property(CONTEXT, default(false), widget_impl(Toggle))]
 pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct CheckedNode {
-        child: impl UiNode,
-        checked: impl Var<bool>,
-        click_handle: Option<EventHandle>,
-    })]
-    impl UiNode for CheckedNode {
-        fn init(&mut self) {
-            self.click_handle = Some(CLICK_EVENT.subscribe(WIDGET.id()));
-            self.child.init();
-        }
+    let checked = checked.into_var();
+    let node = match_node(
+        child,
+        clmv!(checked, |child, op| match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_event(&CLICK_EVENT);
+            }
+            UiNodeOp::Event { update } => {
+                child.event(update);
 
-        fn deinit(&mut self) {
-            self.child.deinit();
-        }
+                if let Some(args) = CLICK_EVENT.on(update) {
+                    if args.is_primary()
+                        && checked.capabilities().contains(VarCapabilities::MODIFY)
+                        && !args.propagation().is_stopped()
+                        && args.is_enabled(WIDGET.id())
+                    {
+                        args.propagation().stop();
 
-        fn event(&mut self, update: &EventUpdate) {
-            self.child.event(update);
-            if let Some(args) = CLICK_EVENT.on(update) {
-                if args.is_primary()
-                    && self.checked.capabilities().contains(VarCapabilities::MODIFY)
-                    && !args.propagation().is_stopped()
-                    && args.is_enabled(WIDGET.id())
-                {
-                    args.propagation().stop();
-
-                    let _ = self.checked.modify(|c| *c = Cow::Owned(!*c.as_ref()));
+                        let _ = checked.modify(|c| *c = Cow::Owned(!*c.as_ref()));
+                    }
                 }
             }
-        }
-    }
-
-    let checked = checked.into_var();
-    let node = CheckedNode {
-        child: child.cfg_boxed(),
-        checked: checked.clone(),
-        click_handle: None,
-    }
-    .cfg_boxed();
+            _ => {}
+        }),
+    );
     with_context_var(node, IS_CHECKED_VAR, checked.map_into())
 }
 
@@ -133,60 +120,47 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 /// ```
 #[property(CONTEXT, default(None), widget_impl(Toggle))]
 pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> impl UiNode {
-    #[ui_node(struct CheckedOptNode {
-        child: impl UiNode,
-        checked: impl Var<Option<bool>>,
-        click_handle: Option<EventHandle>,
-    })]
-    impl UiNode for CheckedOptNode {
-        fn init(&mut self) {
-            self.click_handle = Some(CLICK_EVENT.subscribe(WIDGET.id()));
-            self.child.init();
-        }
+    let checked = checked.into_var();
 
-        fn deinit(&mut self) {
-            self.child.deinit();
-            self.click_handle = None;
-        }
+    let node = match_node(
+        child,
+        clmv!(checked, |child, op| match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_event(&CLICK_EVENT);
+            }
+            UiNodeOp::Event { update } => {
+                child.event(update);
 
-        fn event(&mut self, update: &EventUpdate) {
-            self.child.event(update);
-            if let Some(args) = CLICK_EVENT.on(update) {
-                if args.is_primary()
-                    && self.checked.capabilities().contains(VarCapabilities::MODIFY)
-                    && !args.propagation().is_stopped()
-                    && args.is_enabled(WIDGET.id())
-                {
-                    args.propagation().stop();
+                if let Some(args) = CLICK_EVENT.on(update) {
+                    if args.is_primary()
+                        && checked.capabilities().contains(VarCapabilities::MODIFY)
+                        && !args.propagation().is_stopped()
+                        && args.is_enabled(WIDGET.id())
+                    {
+                        args.propagation().stop();
 
-                    if IS_TRISTATE_VAR.get() {
-                        let _ = self.checked.modify(|c| {
-                            *c = Cow::Owned(match *c.as_ref() {
-                                Some(true) => None,
-                                Some(false) => Some(true),
-                                None => Some(false),
+                        if IS_TRISTATE_VAR.get() {
+                            let _ = checked.modify(|c| {
+                                *c = Cow::Owned(match *c.as_ref() {
+                                    Some(true) => None,
+                                    Some(false) => Some(true),
+                                    None => Some(false),
+                                });
                             });
-                        });
-                    } else {
-                        let _ = self.checked.modify(|c| {
-                            *c = Cow::Owned(match *c.as_ref() {
-                                Some(true) | None => Some(false),
-                                Some(false) => Some(true),
+                        } else {
+                            let _ = checked.modify(|c| {
+                                *c = Cow::Owned(match *c.as_ref() {
+                                    Some(true) | None => Some(false),
+                                    Some(false) => Some(true),
+                                });
                             });
-                        });
+                        }
                     }
                 }
             }
-        }
-    }
-
-    let checked = checked.into_var();
-    let node = CheckedOptNode {
-        child: child.cfg_boxed(),
-        checked: checked.clone(),
-        click_handle: None,
-    }
-    .cfg_boxed();
+            _ => {}
+        }),
+    );
 
     with_context_var(node, IS_CHECKED_VAR, checked)
 }
@@ -282,130 +256,114 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// [`selector`]: fn@selector
 #[property(CONTEXT, widget_impl(Toggle))]
 pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode {
-    #[ui_node(struct ValueNode<T: VarValue + PartialEq> {
-        child: impl UiNode,
-        value: impl Var<T>,
-        checked: ArcVar<Option<bool>>,
-        prev_value: Option<T>,
-        click_handle: Option<EventHandle>,
-    })]
-    impl ValueNode {
-        // Returns `true` if selected.
-        fn select(value: &T) -> bool {
-            let selector = SELECTOR.get();
-            match selector.select(Box::new(value.clone())) {
-                Ok(()) => true,
-                Err(e) => {
-                    let selected = selector.is_selected(value);
-                    if selected {
-                        tracing::error!("selected `{value:?}` with error, {e}");
-                    } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
-                        // ignore
-                    } else {
-                        tracing::error!("failed to select `{value:?}`, {e}");
-                    }
-                    selected
+    // Returns `true` if selected.
+    let select = |value: &T| {
+        let selector = SELECTOR.get();
+        match selector.select(Box::new(value.clone())) {
+            Ok(()) => true,
+            Err(e) => {
+                let selected = selector.is_selected(value);
+                if selected {
+                    tracing::error!("selected `{value:?}` with error, {e}");
+                } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
+                    // ignore
+                } else {
+                    tracing::error!("failed to select `{value:?}`, {e}");
                 }
+                selected
             }
         }
-
-        /// Returns `true` if deselected.
-        fn deselect(value: &T) -> bool {
-            let selector = SELECTOR.get();
-            match selector.deselect(value) {
-                Ok(()) => true,
-                Err(e) => {
-                    let deselected = !selector.is_selected(value);
-                    if deselected {
-                        tracing::error!("deselected `{value:?}` with error, {e}");
-                    } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
-                        // ignore
-                    } else {
-                        tracing::error!("failed to deselect `{value:?}`, {e}");
-                    }
-                    deselected
+    };
+    let deselect = |value: &T| {
+        let selector = SELECTOR.get();
+        match selector.deselect(value) {
+            Ok(()) => true,
+            Err(e) => {
+                let deselected = !selector.is_selected(value);
+                if deselected {
+                    tracing::error!("deselected `{value:?}` with error, {e}");
+                } else if let SelectorError::ReadOnly | SelectorError::CannotClear = e {
+                    // ignore
+                } else {
+                    tracing::error!("failed to deselect `{value:?}`, {e}");
                 }
+                deselected
             }
         }
+    };
+    let is_selected = |value: &T| SELECTOR.get().is_selected(value);
 
-        fn is_selected(value: &T) -> bool {
-            SELECTOR.get().is_selected(value)
-        }
+    let value = value.into_var();
+    let checked = var(Some(false));
+    let child = with_context_var(child, IS_CHECKED_VAR, checked.clone());
+    let mut prev_value = None;
+    let mut _click_handle = None;
 
-        #[UiNode]
-        fn init(&mut self) {
-            WIDGET.sub_var(&self.value).sub_var(&DESELECT_ON_NEW_VAR);
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&value).sub_var(&DESELECT_ON_NEW_VAR);
             SELECTOR.get().subscribe();
 
-            self.value.with(|value| {
+            value.with(|value| {
                 let selected = if SELECT_ON_INIT_VAR.get() {
-                    Self::select(value)
+                    select(value)
                 } else {
-                    Self::is_selected(value)
+                    is_selected(value)
                 };
-                self.checked.set_ne(Some(selected));
+                checked.set_ne(Some(selected));
 
                 if DESELECT_ON_DEINIT_VAR.get() {
-                    self.prev_value = Some(value.clone());
+                    prev_value = Some(value.clone());
                 }
             });
 
-            self.click_handle = Some(CLICK_EVENT.subscribe(WIDGET.id()));
-
-            self.child.init();
+            _click_handle = Some(CLICK_EVENT.subscribe(WIDGET.id()));
         }
-
-        #[UiNode]
-        fn deinit(&mut self) {
-            if self.checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
-                self.value.with(|value| {
-                    if Self::deselect(value) {
-                        self.checked.set_ne(Some(false));
+        UiNodeOp::Deinit => {
+            if checked.get() == Some(true) && DESELECT_ON_DEINIT_VAR.get() {
+                value.with(|value| {
+                    if deselect(value) {
+                        checked.set_ne(Some(false));
                     }
                 });
             }
 
-            self.prev_value = None;
-            self.click_handle = None;
-
-            self.child.deinit();
+            prev_value = None;
+            _click_handle = None;
         }
+        UiNodeOp::Event { update } => {
+            child.event(update);
 
-        #[UiNode]
-        fn event(&mut self, update: &EventUpdate) {
-            self.child.event(update);
             if let Some(args) = CLICK_EVENT.on(update) {
                 if args.is_primary() && !args.propagation().is_stopped() && args.is_enabled(WIDGET.id()) {
                     args.propagation().stop();
 
-                    let selected = self.value.with(|value| {
-                        let selected = self.checked.get() == Some(true);
+                    let selected = value.with(|value| {
+                        let selected = checked.get() == Some(true);
                         if selected {
-                            !Self::deselect(value)
+                            !deselect(value)
                         } else {
-                            Self::select(value)
+                            select(value)
                         }
                     });
-                    self.checked.set_ne(Some(selected))
+                    checked.set_ne(Some(selected))
                 }
             }
         }
-
-        #[UiNode]
-        fn update(&mut self, updates: &WidgetUpdates) {
-            let selected = self.value.with_new(|new| {
+        UiNodeOp::Update { .. } => {
+            let selected = value.with_new(|new| {
                 // auto select new.
-                let selected = if self.checked.get() == Some(true) && SELECT_ON_NEW_VAR.get() {
-                    Self::select(new)
+                let selected = if checked.get() == Some(true) && SELECT_ON_NEW_VAR.get() {
+                    select(new)
                 } else {
-                    Self::is_selected(new)
+                    is_selected(new)
                 };
 
                 // auto deselect prev, need to be done after potential auto select new to avoid `CannotClear` error.
-                if let Some(prev) = self.prev_value.take() {
+                if let Some(prev) = prev_value.take() {
                     if DESELECT_ON_NEW_VAR.get() {
-                        Self::deselect(&prev);
-                        self.prev_value = Some(new.clone());
+                        deselect(&prev);
+                        prev_value = Some(new.clone());
                     }
                 }
 
@@ -413,31 +371,21 @@ pub fn value<T: VarValue + PartialEq>(child: impl UiNode, value: impl IntoVar<T>
             });
             let selected = selected.unwrap_or_else(|| {
                 // contextual selector can change in any update.
-                self.value.with(|val| Self::is_selected(val))
+                value.with(|val| is_selected(val))
             });
-            self.checked.set_ne(selected);
+            checked.set_ne(selected);
 
             if DESELECT_ON_NEW_VAR.get() && selected {
                 // save a clone of the value to reference it on deselection triggered by variable value changing.
-                if self.prev_value.is_none() {
-                    self.prev_value = Some(self.value.get());
+                if prev_value.is_none() {
+                    prev_value = Some(value.get());
                 }
             } else {
-                self.prev_value = None;
+                prev_value = None;
             }
-
-            self.child.update(updates);
         }
-    }
-    let checked = var(Some(false));
-    let child = with_context_var(child, IS_CHECKED_VAR, checked.clone());
-    ValueNode {
-        child,
-        value: value.into_var(),
-        checked,
-        prev_value: None,
-        click_handle: None,
-    }
+        _ => {}
+    })
 }
 
 /// Sets the contextual selector that all inner widgets will target from the [`value`] property.

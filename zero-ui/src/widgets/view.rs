@@ -119,6 +119,9 @@ where
     V: Var<D>,
     P: FnMut(&V) -> View<U> + Send + 'static,
 {
+    #[cfg(dyn_closure)]
+    let presenter: Box<dyn FnMut(&V) -> View<U> + Send> = Box::new(presenter);
+
     #[ui_node(struct ViewNode<D: VarValue> {
         #[var] data: impl Var<D>,
         child: impl UiNode,
@@ -278,6 +281,14 @@ impl<D> WidgetFn<D> {
         D: 'static,
         V: UiNode,
     {
+        let func = func.into_var();
+
+        #[cfg(dyn_closure)]
+        let update: Box<dyn FnMut(bool) -> DataUpdate<D> + Send> = Box::new(update);
+
+        #[cfg(dyn_closure)]
+        let map: Box<dyn FnMut(BoxedUiNode) -> V + Send> = Box::new(map);
+
         #[ui_node(struct ViewFnVarPresenter<D: 'static, V: UiNode> {
             #[var] func: impl Var<WidgetFn<D>>,
             update: impl FnMut(bool) -> DataUpdate<D> + Send + 'static,
@@ -341,7 +352,7 @@ impl<D> WidgetFn<D> {
             }
         }
         ViewFnVarPresenter {
-            func: func.into_var(),
+            func,
             update,
             map,
             child: None,

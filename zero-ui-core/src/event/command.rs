@@ -7,9 +7,8 @@ use crate::{
     gesture::CommandShortcutExt,
     handler::WidgetHandler,
     text::Txt,
-    ui_node,
     var::{types::ArcCowVar, *},
-    widget_instance::{UiNode, WidgetId},
+    widget_instance::{match_node, UiNode, UiNodeOp, WidgetId},
     window::WindowId,
 };
 
@@ -1071,64 +1070,62 @@ where
     EB: FnMut() -> E + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    #[ui_node(struct OnCommandNode<E: Var<bool>> {
-        child: impl UiNode,
-        command: Option<Command>,
-        command_builder: impl FnMut() -> Command + Send + 'static,
-        enabled: Option<E>,
-        enabled_builder: impl FnMut() -> E + Send + 'static,
-        handler: impl WidgetHandler<CommandArgs>,
-        handle: Option<CommandHandle>,
-    })]
-    impl UiNode for OnCommandNode {
-        fn init(&mut self) {
-            self.child.init();
+    let mut enabled = None;
+    let mut handle = None;
+    let mut command = None;
 
-            let enabled = (self.enabled_builder)();
-            WIDGET.sub_var(&enabled);
-            let is_enabled = enabled.get();
-            self.enabled = Some(enabled);
+    #[cfg(dyn_closure)]
+    let mut command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(command_builder);
+    #[cfg(not(dyn_closure))]
+    let mut command_builder = command_builder;
 
-            let command = (self.command_builder)();
-            self.handle = Some(command.subscribe_wgt(is_enabled, WIDGET.id()));
-            self.command = Some(command);
+    #[cfg(dyn_closure)]
+    let mut enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled_builder);
+    #[cfg(not(dyn_closure))]
+    let mut enabled_builder = enabled_builder;
+
+    let mut handler = handler.cfg_boxed();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            child.init();
+
+            let e = enabled_builder();
+            WIDGET.sub_var(&e);
+            let is_enabled = e.get();
+            enabled = Some(e);
+
+            let c = command_builder();
+            handle = Some(c.subscribe_wgt(is_enabled, WIDGET.id()));
+            command = Some(c);
+        }
+        UiNodeOp::Deinit => {
+            child.deinit();
+
+            enabled = None;
+            handle = None;
+            command = None;
         }
 
-        fn deinit(&mut self) {
-            self.child.deinit();
-            self.command = None;
-            self.enabled = None;
-            self.handle = None;
+        UiNodeOp::Event { update } => {
+            child.event(update);
+
+            if let Some(args) = command.expect("node not inited").on_unhandled(update) {
+                handler.event(args);
+            }
         }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
 
-        fn event(&mut self, update: &EventUpdate) {
-            self.child.event(update);
+            handler.update();
 
-            if let Some(args) = self.command.expect("OnCommandNode not initialized").on_unhandled(update) {
-                self.handler.event(args);
+            if let Some(enabled) = enabled.as_ref().expect("node not inited").get_new() {
+                handle.as_ref().unwrap().set_enabled(enabled);
             }
         }
 
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-
-            self.handler.update();
-
-            if let Some(enabled) = self.enabled.as_ref().expect("OnCommandNode not initialized").get_new() {
-                self.handle.as_ref().unwrap().set_enabled(enabled);
-            }
-        }
-    }
-    OnCommandNode {
-        child: child.cfg_boxed(),
-        command: None,
-        command_builder,
-        enabled: None,
-        enabled_builder,
-        handler,
-        handle: None,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Helper for declaring command preview handlers.
@@ -1140,63 +1137,58 @@ where
     EB: FnMut() -> E + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    #[ui_node(struct OnPreCommandNode<E: Var<bool>> {
-        child: impl UiNode,
-        command: Option<Command>,
-        command_builder: impl FnMut() -> Command + Send + 'static,
-        enabled: Option<E>,
-        enabled_builder: impl FnMut() -> E + Send + 'static,
-        handler: impl WidgetHandler<CommandArgs>,
-        handle: Option<CommandHandle>,
-    })]
-    impl UiNode for OnPreCommandNode {
-        fn init(&mut self) {
-            self.child.init();
+    let mut enabled = None;
+    let mut handle = None;
+    let mut command = None;
 
-            let enabled = (self.enabled_builder)();
-            WIDGET.sub_var(&enabled);
-            let is_enabled = enabled.get();
-            self.enabled = Some(enabled);
+    #[cfg(dyn_closure)]
+    let mut command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(command_builder);
+    #[cfg(not(dyn_closure))]
+    let mut command_builder = command_builder;
 
-            let command = (self.command_builder)();
-            self.handle = Some(command.subscribe_wgt(is_enabled, WIDGET.id()));
-            self.command = Some(command);
+    #[cfg(dyn_closure)]
+    let mut enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled_builder);
+    #[cfg(not(dyn_closure))]
+    let mut enabled_builder = enabled_builder;
+
+    let mut handler = handler.cfg_boxed();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            child.init();
+
+            let e = enabled_builder();
+            WIDGET.sub_var(&e);
+            let is_enabled = e.get();
+            enabled = Some(e);
+
+            let c = command_builder();
+            handle = Some(c.subscribe_wgt(is_enabled, WIDGET.id()));
+            command = Some(c);
+        }
+        UiNodeOp::Deinit => {
+            child.deinit();
+
+            enabled = None;
+            handle = None;
+            command = None;
         }
 
-        fn event(&mut self, update: &EventUpdate) {
-            if let Some(args) = self.command.expect("OnPreCommandNode not initialized").on_unhandled(update) {
-                self.handler.event(args);
+        UiNodeOp::Event { update } => {
+            if let Some(args) = command.expect("on_pre_command not initialized").on_unhandled(update) {
+                handler.event(args);
             }
-            self.child.event(update);
         }
+        UiNodeOp::Update { .. } => {
+            handler.update();
 
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.handler.update();
-
-            if let Some(enabled) = self.enabled.as_ref().expect("OnPreCommandNode not initialized").get_new() {
-                self.handle.as_ref().unwrap().set_enabled(enabled);
+            if let Some(enabled) = enabled.as_ref().expect("on_pre_command not initialized").get_new() {
+                handle.as_ref().unwrap().set_enabled(enabled);
             }
-
-            self.child.update(updates);
         }
 
-        fn deinit(&mut self) {
-            self.child.deinit();
-            self.handle = None;
-            self.command = None;
-            self.enabled = None;
-        }
-    }
-    OnPreCommandNode {
-        child: child.cfg_boxed(),
-        command: None,
-        command_builder,
-        enabled: None,
-        enabled_builder,
-        handler,
-        handle: None,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 #[cfg(test)]

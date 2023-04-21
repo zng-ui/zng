@@ -36,96 +36,91 @@ pub fn length(child: impl UiNode, length: impl IntoVar<Length>) -> impl UiNode {
 pub fn line_style(child: impl UiNode, style: impl IntoVar<LineStyle>) -> impl UiNode {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
-    let child = LineNode {
-        bounds: PxSize::zero(),
+    let mut bounds = PxSize::zero();
 
-        orientation: wgt
-            .capture_var(property_id!(orientation))
-            .unwrap_or_else(|| LineOrientation::Horizontal.into_var().boxed()),
+    let orientation = wgt
+        .capture_var(property_id!(orientation))
+        .unwrap_or_else(|| LineOrientation::Horizontal.into_var().boxed());
 
-        length: wgt
-            .capture_var(property_id!(length))
-            .unwrap_or_else(|| LocalVar(Length::Default).boxed()),
+    let length = wgt
+        .capture_var(property_id!(length))
+        .unwrap_or_else(|| LocalVar(Length::Default).boxed());
 
-        stroke_thickness: wgt
-            .capture_var(property_id!(stroke_thickness))
-            .unwrap_or_else(|| LocalVar(Length::from(1)).boxed()),
+    let stroke_thickness = wgt
+        .capture_var(property_id!(stroke_thickness))
+        .unwrap_or_else(|| LocalVar(Length::from(1)).boxed());
 
-        color: wgt
-            .capture_var(property_id!(color))
-            .unwrap_or_else(|| LocalVar(rgb(0, 0, 0)).boxed()),
+    let color = wgt
+        .capture_var(property_id!(color))
+        .unwrap_or_else(|| LocalVar(rgb(0, 0, 0)).boxed());
 
-        style: wgt
-            .capture_var(property_id!(line_style))
-            .unwrap_or_else(|| LineStyle::Solid.into_var().boxed()),
-    };
-    wgt.set_child(child);
-}
+    let style = wgt
+        .capture_var(property_id!(line_style))
+        .unwrap_or_else(|| LineStyle::Solid.into_var().boxed());
 
-#[ui_node(struct LineNode {
-    #[var] stroke_thickness: impl Var<Length>,
-    #[var] length: impl Var<Length>,
-    #[var] orientation: impl Var<LineOrientation>,
-    #[var] color: impl Var<Rgba>,
-    #[var] style: impl Var<LineStyle>,
-
-    bounds: PxSize,
-})]
-impl UiNode for LineNode {
-    fn update(&mut self, _: &WidgetUpdates) {
-        if self.stroke_thickness.is_new() || self.length.is_new() || self.orientation.is_new() {
-            WIDGET.layout();
+    wgt.set_child(match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET
+                .sub_var(&orientation)
+                .sub_var(&length)
+                .sub_var(&stroke_thickness)
+                .sub_var(&color)
+                .sub_var(&style);
         }
-        if self.color.is_new() || self.style.is_new() {
-            WIDGET.render();
+        UiNodeOp::Update { .. } => {
+            if stroke_thickness.is_new() || length.is_new() || orientation.is_new() {
+                WIDGET.layout();
+            }
+            if color.is_new() || style.is_new() {
+                WIDGET.render();
+            }
         }
-    }
+        UiNodeOp::Measure { desired_size, .. } => {
+            let metrics = LAYOUT.metrics();
+            let default_stroke = Dip::new(1).to_px(metrics.scale_factor().0);
 
-    fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-        let metrics = LAYOUT.metrics();
-        let default_stroke = Dip::new(1).to_px(metrics.scale_factor().0);
-
-        match self.orientation.get() {
-            LineOrientation::Horizontal => PxSize::new(
-                self.length.layout_dft_x(metrics.constraints().x.fill()),
-                self.stroke_thickness.layout_dft_y(default_stroke),
-            ),
-            LineOrientation::Vertical => PxSize::new(
-                self.stroke_thickness.layout_dft_x(default_stroke),
-                self.length.layout_dft_y(metrics.constraints().y.fill()),
-            ),
+            *desired_size = match orientation.get() {
+                LineOrientation::Horizontal => PxSize::new(
+                    length.layout_dft_x(metrics.constraints().x.fill()),
+                    stroke_thickness.layout_dft_y(default_stroke),
+                ),
+                LineOrientation::Vertical => PxSize::new(
+                    stroke_thickness.layout_dft_x(default_stroke),
+                    length.layout_dft_y(metrics.constraints().y.fill()),
+                ),
+            };
         }
-    }
-    fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-        let metrics = LAYOUT.metrics();
-        let default_stroke = Dip::new(1).to_px(metrics.scale_factor().0);
+        UiNodeOp::Layout { final_size, .. } => {
+            let metrics = LAYOUT.metrics();
+            let default_stroke = Dip::new(1).to_px(metrics.scale_factor().0);
 
-        let bounds = match self.orientation.get() {
-            LineOrientation::Horizontal => PxSize::new(
-                self.length.layout_dft_x(metrics.constraints().x.fill()),
-                self.stroke_thickness.layout_dft_y(default_stroke),
-            ),
-            LineOrientation::Vertical => PxSize::new(
-                self.stroke_thickness.layout_dft_x(default_stroke),
-                self.length.layout_dft_y(metrics.constraints().y.fill()),
-            ),
-        };
+            let b = match orientation.get() {
+                LineOrientation::Horizontal => PxSize::new(
+                    length.layout_dft_x(metrics.constraints().x.fill()),
+                    stroke_thickness.layout_dft_y(default_stroke),
+                ),
+                LineOrientation::Vertical => PxSize::new(
+                    stroke_thickness.layout_dft_x(default_stroke),
+                    length.layout_dft_y(metrics.constraints().y.fill()),
+                ),
+            };
 
-        if bounds != self.bounds {
-            self.bounds = bounds;
-            WIDGET.render();
+            if b != bounds {
+                bounds = b;
+                WIDGET.render();
+            }
+
+            *final_size = b;
         }
-
-        bounds
-    }
-
-    fn render(&mut self, frame: &mut FrameBuilder) {
-        let bounds = PxRect::from_size(self.bounds);
-        let orientation = self.orientation.get();
-        let color = self.color.get();
-        let style = self.style.get();
-        frame.push_line(bounds, orientation, color.into(), style);
-    }
+        UiNodeOp::Render { frame } => {
+            let bounds = PxRect::from_size(bounds);
+            let orientation = orientation.get();
+            let color = color.get();
+            let style = style.get();
+            frame.push_line(bounds, orientation, color.into(), style);
+        }
+        _ => {}
+    }));
 }
 
 /// Horizontal rule line.

@@ -100,70 +100,77 @@ fn on_build(wgt: &mut WidgetBuilding) {
 }
 
 fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct ScrollNode {
-        children: impl UiNodeList,
-        viewport: PxSize,
-        joiner: PxSize,
-        spatial_id: SpatialFrameId,
-    })]
-    impl UiNode for ScrollNode {
-        // # Layout
-        //
-        // +-----------------+---+
-        // |                 |   |
-        // | 0 - viewport    | 1 | - v_scrollbar
-        // |                 |   |
-        // +-----------------+---+
-        // | 2 - h_scrollbar | 3 | - scrollbar_joiner
-        // +-----------------+---+
+    // # Layout
+    //
+    // +-----------------+---+
+    // |                 |   |
+    // | 0 - viewport    | 1 | - v_scrollbar
+    // |                 |   |
+    // +-----------------+---+
+    // | 2 - h_scrollbar | 3 | - scrollbar_joiner
+    // +-----------------+---+
+    let children = ui_vec![
+        clip_to_bounds(
+            nodes::viewport(child, mode.into_var()).instrument("viewport"),
+            clip_to_viewport.into_var()
+        ),
+        nodes::v_scrollbar_presenter(),
+        nodes::h_scrollbar_presenter(),
+        nodes::scrollbar_joiner_presenter(),
+    ];
 
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+    let mut viewport = PxSize::zero();
+    let mut joiner = PxSize::zero();
+    let spatial_id = SpatialFrameId::new_unique();
+
+    match_node_list(children, move |children, op| match op {
+        UiNodeOp::Measure { wm, desired_size } => {
             let constraints = LAYOUT.constraints();
-            if constraints.is_fill_max().all() {
-                return constraints.fill_size();
-            }
-            let size = self.children.with_node(0, |n| n.measure(wm));
-            constraints.clamp_size(size)
+            *desired_size = if constraints.is_fill_max().all() {
+                children.delegated();
+                constraints.fill_size()
+            } else {
+                let size = children.with_node(0, |n| n.measure(wm));
+                constraints.clamp_size(size)
+            };
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        UiNodeOp::Layout { wl, final_size } => {
             // scrollbars
             let c = LAYOUT.constraints();
             {
-                self.joiner.width = LAYOUT.with_constraints(c.with_min_x(Px(0)).with_fill(false, true), || {
-                    self.children.with_node(1, |n| n.measure(&mut WidgetMeasure::new())).width
+                joiner.width = LAYOUT.with_constraints(c.with_min_x(Px(0)).with_fill(false, true), || {
+                    children.with_node(1, |n| n.measure(&mut WidgetMeasure::new())).width
                 });
-                self.joiner.height = LAYOUT.with_constraints(c.with_min_y(Px(0)).with_fill(true, false), || {
-                    self.children.with_node(2, |n| n.measure(&mut WidgetMeasure::new())).height
+                joiner.height = LAYOUT.with_constraints(c.with_min_y(Px(0)).with_fill(true, false), || {
+                    children.with_node(2, |n| n.measure(&mut WidgetMeasure::new())).height
                 });
             }
-            self.joiner.width = LAYOUT.with_constraints(c.with_min_x(Px(0)).with_fill(false, true).with_less_y(self.joiner.height), || {
-                self.children.with_node(1, |n| n.layout(wl)).width
+            joiner.width = LAYOUT.with_constraints(c.with_min_x(Px(0)).with_fill(false, true).with_less_y(joiner.height), || {
+                children.with_node(1, |n| n.layout(wl)).width
             });
-            self.joiner.height = LAYOUT.with_constraints(c.with_min_y(Px(0)).with_fill(true, false).with_less_x(self.joiner.width), || {
-                self.children.with_node(2, |n| n.layout(wl)).height
+            joiner.height = LAYOUT.with_constraints(c.with_min_y(Px(0)).with_fill(true, false).with_less_x(joiner.width), || {
+                children.with_node(2, |n| n.layout(wl)).height
             });
 
             // joiner
-            let _ = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(self.joiner), || {
-                self.children.with_node(3, |n| n.layout(wl))
-            });
+            let _ = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(joiner), || children.with_node(3, |n| n.layout(wl)));
 
             // viewport
-            let mut viewport = LAYOUT.with_constraints(c.with_less_size(self.joiner), || self.children.with_node(0, |n| n.layout(wl)));
+            let mut vp = LAYOUT.with_constraints(c.with_less_size(joiner), || children.with_node(0, |n| n.layout(wl)));
 
             // arrange
-            let final_size = viewport + self.joiner;
+            let fs = vp + joiner;
             let content_size = SCROLL_CONTENT_SIZE_VAR.get();
 
-            if content_size.height > final_size.height {
+            if content_size.height > fs.height {
                 SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(true).unwrap();
                 SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR
-                    .set_ne(content_size.width > viewport.width)
+                    .set_ne(content_size.width > vp.width)
                     .unwrap();
-            } else if content_size.width > final_size.width {
+            } else if content_size.width > fs.width {
                 SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.set_ne(true).unwrap();
                 SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR
-                    .set_ne(content_size.height > viewport.height)
+                    .set_ne(content_size.height > vp.height)
                     .unwrap();
             } else {
                 SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.set_ne(false).unwrap();
@@ -171,86 +178,71 @@ fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewp
             }
 
             // collapse scrollbars if they take more the 1/3 of the total area.
-            if viewport.width < self.joiner.width * 3.0.fct() {
-                viewport.width += self.joiner.width;
-                self.joiner.width = Px(0);
+            if vp.width < joiner.width * 3.0.fct() {
+                vp.width += joiner.width;
+                joiner.width = Px(0);
             }
-            if viewport.height < self.joiner.height * 3.0.fct() {
-                viewport.height += self.joiner.height;
-                self.joiner.height = Px(0);
+            if vp.height < joiner.height * 3.0.fct() {
+                vp.height += joiner.height;
+                joiner.height = Px(0);
             }
 
-            if viewport != self.viewport {
-                self.viewport = viewport;
+            if vp != viewport {
+                viewport = vp;
                 WIDGET.render();
             }
 
-            self.viewport + self.joiner
+            *final_size = viewport + joiner;
         }
 
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            self.children.with_node(0, |n| n.render(frame));
+        UiNodeOp::Render { frame } => {
+            children.with_node(0, |n| n.render(frame));
 
-            if self.joiner.width > Px(0) {
-                let transform = PxTransform::from(PxVector::new(self.viewport.width, Px(0)));
-                frame.push_reference_frame((self.spatial_id, 1).into(), FrameValue::Value(transform), true, false, |frame| {
-                    self.children.with_node(1, |n| n.render(frame));
+            if joiner.width > Px(0) {
+                let transform = PxTransform::from(PxVector::new(viewport.width, Px(0)));
+                frame.push_reference_frame((spatial_id, 1).into(), FrameValue::Value(transform), true, false, |frame| {
+                    children.with_node(1, |n| n.render(frame));
                 });
             }
 
-            if self.joiner.height > Px(0) {
-                let transform = PxTransform::from(PxVector::new(Px(0), self.viewport.height));
-                frame.push_reference_frame((self.spatial_id, 2).into(), FrameValue::Value(transform), true, false, |frame| {
-                    self.children.with_node(2, |n| n.render(frame));
+            if joiner.height > Px(0) {
+                let transform = PxTransform::from(PxVector::new(Px(0), viewport.height));
+                frame.push_reference_frame((spatial_id, 2).into(), FrameValue::Value(transform), true, false, |frame| {
+                    children.with_node(2, |n| n.render(frame));
                 });
             }
 
-            if self.joiner.width > Px(0) && self.joiner.height > Px(0) {
-                let transform = PxTransform::from(self.viewport.to_vector());
-                frame.push_reference_frame((self.spatial_id, 3).into(), FrameValue::Value(transform), true, false, |frame| {
-                    self.children.with_node(3, |n| n.render(frame));
-                });
-            }
-        }
-
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.children.with_node(0, |n| n.render_update(update));
-
-            if self.joiner.width > Px(0) {
-                let transform = PxTransform::from(PxVector::new(self.viewport.width, Px(0)));
-                update.with_transform_value(&transform, |update| {
-                    self.children.with_node(1, |n| n.render_update(update));
-                });
-            }
-
-            if self.joiner.height > Px(0) {
-                let transform = PxTransform::from(PxVector::new(Px(0), self.viewport.height));
-                update.with_transform_value(&transform, |update| {
-                    self.children.with_node(2, |n| n.render_update(update));
-                });
-            }
-
-            if self.joiner.width > Px(0) && self.joiner.height > Px(0) {
-                let transform = PxTransform::from(self.viewport.to_vector());
-                update.with_transform_value(&transform, |update| {
-                    self.children.with_node(3, |n| n.render_update(update));
+            if joiner.width > Px(0) && joiner.height > Px(0) {
+                let transform = PxTransform::from(viewport.to_vector());
+                frame.push_reference_frame((spatial_id, 3).into(), FrameValue::Value(transform), true, false, |frame| {
+                    children.with_node(3, |n| n.render(frame));
                 });
             }
         }
-    }
+        UiNodeOp::RenderUpdate { update } => {
+            children.with_node(0, |n| n.render_update(update));
 
-    ScrollNode {
-        children: ui_vec![
-            clip_to_bounds(
-                nodes::viewport(child, mode.into_var()).instrument("viewport"),
-                clip_to_viewport.into_var()
-            ),
-            nodes::v_scrollbar_presenter(),
-            nodes::h_scrollbar_presenter(),
-            nodes::scrollbar_joiner_presenter(),
-        ],
-        viewport: PxSize::zero(),
-        joiner: PxSize::zero(),
-        spatial_id: SpatialFrameId::new_unique(),
-    }
+            if joiner.width > Px(0) {
+                let transform = PxTransform::from(PxVector::new(viewport.width, Px(0)));
+                update.with_transform_value(&transform, |update| {
+                    children.with_node(1, |n| n.render_update(update));
+                });
+            }
+
+            if joiner.height > Px(0) {
+                let transform = PxTransform::from(PxVector::new(Px(0), viewport.height));
+                update.with_transform_value(&transform, |update| {
+                    children.with_node(2, |n| n.render_update(update));
+                });
+            }
+
+            if joiner.width > Px(0) && joiner.height > Px(0) {
+                let transform = PxTransform::from(viewport.to_vector());
+                update.with_transform_value(&transform, |update| {
+                    children.with_node(3, |n| n.render_update(update));
+                });
+            }
+        }
+        _ => {}
+    })
 }

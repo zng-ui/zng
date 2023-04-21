@@ -67,108 +67,101 @@ pub fn cb_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNod
 pub fn node() -> impl UiNode {
     use crate::core::gradient::RenderExtendMode;
 
-    #[ui_node(struct CheckerboardNode {
-        final_size: PxSize,
-        tile_size: PxSize,
-        center: PxPoint,
-        colors: [RenderColor; 2],
-    })]
-    impl UiNode for CheckerboardNode {
-        fn init(&mut self) {
+    let mut render_size = PxSize::zero();
+    let mut tile_size = PxSize::zero();
+    let mut center = PxPoint::zero();
+    let mut colors = [RenderColor::BLACK, RenderColor::WHITE];
+
+    match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
             WIDGET.sub_var(&COLORS_VAR).sub_var(&SIZE_VAR).sub_var(&OFFSET_VAR);
 
             let (c0, c1) = COLORS_VAR.get();
-            self.colors = [c0.into(), c1.into()];
+            colors = [c0.into(), c1.into()];
         }
-
-        fn update(&mut self, _: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             if let Some((c0, c1)) = COLORS_VAR.get_new() {
-                self.colors = [c0.into(), c1.into()];
+                colors = [c0.into(), c1.into()];
                 WIDGET.render();
             }
             if SIZE_VAR.is_new() || OFFSET_VAR.is_new() {
                 WIDGET.layout();
             }
         }
-
-        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constraints().fill_size()
+        UiNodeOp::Measure { desired_size, .. } => {
+            *desired_size = LAYOUT.constraints().fill_size();
         }
-        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            self.final_size = LAYOUT.constraints().fill_size();
-
-            let tile_size = SIZE_VAR.layout_dft(PxSize::splat(Px(4)));
-
-            let mut offset = OFFSET_VAR.layout();
-            if offset.x > self.tile_size.width {
-                offset.x /= self.tile_size.width;
-            }
-            if offset.y > self.tile_size.height {
-                offset.y /= self.tile_size.height;
-            }
-
-            let mut center = tile_size.to_vector().to_point() / 2.0.fct();
-            center += offset;
-
-            if self.tile_size != tile_size || self.center != center {
-                self.tile_size = tile_size;
-                self.center = center;
-
+        UiNodeOp::Layout { final_size, .. } => {
+            *final_size = LAYOUT.constraints().fill_size();
+            if *final_size != render_size {
+                render_size = *final_size;
                 WIDGET.render();
             }
 
-            self.final_size
-        }
+            let ts = SIZE_VAR.layout_dft(PxSize::splat(Px(4)));
 
-        fn render(&mut self, frame: &mut FrameBuilder) {
+            let mut offset = OFFSET_VAR.layout();
+            if offset.x > ts.width {
+                offset.x /= ts.width;
+            }
+            if offset.y > ts.height {
+                offset.y /= ts.height;
+            }
+
+            let mut c = ts.to_vector().to_point() / 2.0.fct();
+            c += offset;
+
+            if tile_size != ts || center != c {
+                tile_size = ts;
+                center = c;
+
+                WIDGET.render();
+            }
+        }
+        UiNodeOp::Render { frame } => {
             frame.push_conic_gradient(
-                PxRect::from_size(self.final_size),
-                self.center,
+                PxRect::from_size(render_size),
+                center,
                 0.rad(),
                 &[
                     RenderGradientStop {
-                        color: self.colors[0],
+                        color: colors[0],
                         offset: 0.0,
                     },
                     RenderGradientStop {
-                        color: self.colors[0],
+                        color: colors[0],
                         offset: 0.25,
                     },
                     RenderGradientStop {
-                        color: self.colors[1],
+                        color: colors[1],
                         offset: 0.25,
                     },
                     RenderGradientStop {
-                        color: self.colors[1],
+                        color: colors[1],
                         offset: 0.5,
                     },
                     RenderGradientStop {
-                        color: self.colors[0],
+                        color: colors[0],
                         offset: 0.5,
                     },
                     RenderGradientStop {
-                        color: self.colors[0],
+                        color: colors[0],
                         offset: 0.75,
                     },
                     RenderGradientStop {
-                        color: self.colors[1],
+                        color: colors[1],
                         offset: 0.75,
                     },
                     RenderGradientStop {
-                        color: self.colors[1],
+                        color: colors[1],
                         offset: 1.0,
                     },
                 ],
                 RenderExtendMode::Repeat,
-                self.tile_size,
+                tile_size,
                 PxSize::zero(),
             );
         }
-    }
-    CheckerboardNode {
-        final_size: PxSize::zero(),
-        tile_size: PxSize::zero(),
-        center: PxPoint::zero(),
-        colors: [RenderColor::BLACK, RenderColor::WHITE],
-    }
+        _ => {}
+    })
 }

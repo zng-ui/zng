@@ -71,44 +71,37 @@ pub fn font_family(child: impl UiNode, names: impl IntoVar<FontNames>) -> impl U
 /// Sets the [`FONT_SIZE_VAR`] context var and the [`LayoutMetrics::font_size`].
 #[property(CONTEXT, default(FONT_SIZE_VAR), widget_impl(FontMix<P>))]
 pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
-    #[ui_node(struct FontSizeNode {
-        child: impl UiNode,
-    })]
-    impl UiNode for FontSizeNode {
-        fn init(&mut self) {
+    let child = match_node(child, |child, op| match op {
+        UiNodeOp::Init => {
             WIDGET.sub_var(&FONT_SIZE_VAR);
-            self.child.init();
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             if FONT_SIZE_VAR.is_new() {
                 WIDGET.layout();
             }
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        UiNodeOp::Measure { wm, desired_size } => {
             let font_size = FONT_SIZE_VAR.get();
             let font_size_px = font_size.layout_dft_x(LAYOUT.root_font_size());
-            if font_size_px >= Px(0) {
-                LAYOUT.with_font_size(font_size_px, || self.child.measure(wm))
+            *desired_size = if font_size_px >= Px(0) {
+                LAYOUT.with_font_size(font_size_px, || child.measure(wm))
             } else {
                 tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
-                self.child.measure(wm)
-            }
+                child.measure(wm)
+            };
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        UiNodeOp::Layout { wl, final_size } => {
             let font_size = FONT_SIZE_VAR.get();
             let font_size_px = font_size.layout_dft_x(LAYOUT.root_font_size());
-            if font_size_px >= Px(0) {
-                LAYOUT.with_font_size(font_size_px, || self.child.layout(wl))
+            *final_size = if font_size_px >= Px(0) {
+                LAYOUT.with_font_size(font_size_px, || child.layout(wl))
             } else {
                 tracing::error!("invalid font size {font_size:?} => {font_size_px:?}");
-                self.child.layout(wl)
-            }
+                child.layout(wl)
+            };
         }
-    }
-    let child = FontSizeNode { child };
+        _ => {}
+    });
     with_context_var(child, FONT_SIZE_VAR, size)
 }
 
@@ -621,32 +614,21 @@ pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
 /// [`lang`]: fn@lang
 #[property(CONTEXT+1, default(DIRECTION_VAR), widget_impl(LangMix<P>))]
 pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -> impl UiNode {
-    #[ui_node(struct DirectionNode {
-        child: impl UiNode,
-        #[var] direction: impl Var<LayoutDirection>,
-    })]
-    impl UiNode for DirectionNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-
-            if self.direction.is_new() {
+    let child = match_node(child, |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&DIRECTION_VAR);
+        }
+        UiNodeOp::Update { .. } => {
+            if DIRECTION_VAR.is_new() {
                 WIDGET.layout();
             }
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.with_direction(self.direction.get(), || self.child.measure(wm))
+        UiNodeOp::Measure { wm, desired_size } => {
+            *desired_size = LAYOUT.with_direction(DIRECTION_VAR.get(), || child.measure(wm));
         }
-
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            LAYOUT.with_direction(self.direction.get(), || self.child.layout(wl))
-        }
-    }
-    let direction = direction.into_var();
-    let child = DirectionNode {
-        child,
-        direction: direction.clone(),
-    };
+        UiNodeOp::Layout { wl, final_size } => *final_size = LAYOUT.with_direction(DIRECTION_VAR.get(), || child.layout(wl)),
+        _ => {}
+    });
     with_context_var(child, DIRECTION_VAR, direction)
 }
 
