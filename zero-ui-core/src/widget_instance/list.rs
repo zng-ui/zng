@@ -762,40 +762,32 @@ impl_from_and_into_var! {
 /// see [`PanelList`] for more details.
 #[property(CONTEXT, default(ZIndex::DEFAULT))]
 pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
-    #[ui_node(struct ZIndexNode {
-        child: impl UiNode,
-        #[var] index: impl Var<ZIndex>,
-        valid: bool,
-    })]
-    impl UiNode for ZIndexNode {
-        fn init(&mut self) {
-            {
-                let z_ctx = Z_INDEX_CTX.get();
+    let index = index.into_var();
+    let mut valid = false;
 
-                if z_ctx.panel_id != WIDGET.parent_id() || z_ctx.panel_id.is_none() {
-                    tracing::error!(
-                        "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
-                        WIDGET.id()
-                    );
-                    self.valid = false;
-                } else {
-                    self.valid = true;
-                    self.auto_subs();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            let z_ctx = Z_INDEX_CTX.get();
 
-                    let index = self.index.get();
-                    if index != ZIndex::DEFAULT {
-                        z_ctx.resort.store(true, Relaxed);
-                        WIDGET.set_state(&Z_INDEX_ID, self.index.get());
-                    }
+            if z_ctx.panel_id != WIDGET.parent_id() || z_ctx.panel_id.is_none() {
+                tracing::error!(
+                    "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
+                    WIDGET.id()
+                );
+                valid = false;
+            } else {
+                valid = true;
+                WIDGET.sub_var(&index);
+
+                if index.get() != ZIndex::DEFAULT {
+                    z_ctx.resort.store(true, Relaxed);
+                    WIDGET.set_state(&Z_INDEX_ID, index.get());
                 }
             }
-
-            self.child.init();
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.valid {
-                if let Some(i) = self.index.get_new() {
+        UiNodeOp::Update { .. } => {
+            if valid {
+                if let Some(i) = index.get_new() {
                     let z_ctx = Z_INDEX_CTX.get();
                     debug_assert_eq!(z_ctx.panel_id, WIDGET.parent_id());
                     z_ctx.resort.store(true, Relaxed);
@@ -803,15 +795,9 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
                     WIDGET.set_state(&Z_INDEX_ID, i);
                 }
             }
-
-            self.child.update(updates);
         }
-    }
-    ZIndexNode {
-        child,
-        index: index.into_var(),
-        valid: false,
-    }
+        _ => {}
+    })
 }
 
 /// Represents an [`UiNodeList::update_all`] observer that can be used to monitor widget insertion, removal and re-order.

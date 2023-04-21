@@ -566,67 +566,15 @@ mod helpers {
     ///
     /// Note that [`with_context_var`] and [`with_context_var_init`] already provide an unique ID.
     pub fn with_new_context_init_id(child: impl UiNode) -> impl UiNode {
-        #[ui_node(struct WithNewContextInitHandleNode {
-            child: impl UiNode,
-            id: Option<ContextInitHandle>,
-        })]
-        impl WithNewContextInitHandleNode {
-            fn with<R>(&mut self, mtd: impl FnOnce(&mut T_child) -> R) -> R {
-                self.id
-                    .get_or_insert_with(ContextInitHandle::new)
-                    .with_context(|| mtd(&mut self.child))
-            }
+        let mut id = None;
 
-            #[UiNode]
-            fn info(&mut self, info: &mut WidgetInfoBuilder) {
-                self.with(|c| c.info(info));
-            }
+        match_node(child, move |child, op| {
+            let is_deinit = matches!(op, UiNodeOp::Deinit);
+            id.get_or_insert_with(ContextInitHandle::new).with_context(|| child.op(op));
 
-            #[UiNode]
-            fn init(&mut self) {
-                self.with(|c| c.init());
+            if is_deinit {
+                id = None;
             }
-
-            #[UiNode]
-            fn deinit(&mut self) {
-                self.with(|c| c.deinit());
-                self.id = None;
-            }
-
-            #[UiNode]
-            fn update(&mut self, updates: &WidgetUpdates) {
-                self.with(|c| c.update(updates));
-            }
-
-            #[UiNode]
-            fn event(&mut self, update: &EventUpdate) {
-                self.with(|c| c.event(update));
-            }
-
-            #[UiNode]
-            fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-                self.with(|c| c.measure(wm))
-            }
-
-            #[UiNode]
-            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-                self.with(|c| c.layout(wl))
-            }
-
-            #[UiNode]
-            fn render(&mut self, frame: &mut FrameBuilder) {
-                self.with(|c| c.render(frame));
-            }
-
-            #[UiNode]
-            fn render_update(&mut self, update: &mut FrameUpdate) {
-                self.with(|c| c.render_update(update));
-            }
-        }
-        WithNewContextInitHandleNode {
-            child: child.cfg_boxed(),
-            id: None,
-        }
-        .cfg_boxed()
+        })
     }
 }

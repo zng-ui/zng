@@ -11,7 +11,7 @@ use crate::{
     units::*,
     var::{impl_from_and_into_var, *},
     widget_info::{WidgetBorderInfo, WidgetLayout, WidgetMeasure},
-    widget_instance::{UiNode, UiNodeList, WidgetId},
+    widget_instance::{match_node, UiNode, UiNodeList, UiNodeOp, WidgetId},
 };
 
 /// Orientation of a straight line.
@@ -645,18 +645,12 @@ impl fmt::Debug for CornerRadiusFit {
 /// [`corner_radius_fit`]: fn@corner_radius_fit
 #[property(CONTEXT, default(CORNER_RADIUS_VAR))]
 pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
-    #[ui_node(struct CornerRadiusNode {
-        child: impl UiNode,
-    })]
-    impl UiNode for CornerRadiusNode {
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
+    let child = match_node(child, move |child, op| {
+        if let UiNodeOp::Layout { wl, final_size } = op {
+            *final_size = BORDER.with_corner_radius(|| child.layout(wl));
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            BORDER.with_corner_radius(|| self.child.layout(wl))
-        }
-    }
-    with_context_var(CornerRadiusNode { child }, CORNER_RADIUS_VAR, radius)
+    });
+    with_context_var(child, CORNER_RADIUS_VAR, radius)
 }
 
 /// Defines how the [`corner_radius`] is computed for each usage.
@@ -718,30 +712,23 @@ context_var! {
 /// [`corner_radius`]: fn@corner_radius
 /// [`border_align`]: fn@border_align
 pub fn fill_node(content: impl UiNode) -> impl UiNode {
-    #[ui_node(struct FillNodeNode {
-        child: impl UiNode,
+    let mut clip_bounds = PxSize::zero();
+    let mut clip_corners = PxCornerRadius::zero();
 
-        clip_bounds: PxSize,
-        clip_corners: PxCornerRadius,
+    let mut offset = PxVector::zero();
+    let offset_key = FrameValueKey::new_unique();
+    let mut define_ref_frame = false;
 
-        offset: PxVector,
-        offset_key: FrameValueKey<PxTransform>,
-        define_ref_frame: bool,
-    })]
-    impl UiNode for FillNodeNode {
-        fn init(&mut self) {
+    match_node(content, move |child, op| match op {
+        UiNodeOp::Init => {
             WIDGET.sub_var(&BORDER_ALIGN_VAR);
-            self.child.init();
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             if BORDER_ALIGN_VAR.is_new() {
                 WIDGET.layout();
             }
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
+        UiNodeOp::Measure { desired_size, .. } => {
             let offsets = BORDER.inner_offsets();
             let align = BORDER_ALIGN_VAR.get();
 
@@ -750,9 +737,9 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
             let size_increase = PxSize::new(size_offset.horizontal(), size_offset.vertical());
 
-            LAYOUT.constraints().fill_size() + size_increase
+            *desired_size = LAYOUT.constraints().fill_size() + size_increase;
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        UiNodeOp::Layout { wl, final_size } => {
             // We are inside the *inner* bounds AND inside border_nodes:
             //
             // .. ( layout ( new_border/inner ( border_nodes ( FILL_NODES ( new_child_context ( new_child_layout ( ..
@@ -761,9 +748,9 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             let align = BORDER_ALIGN_VAR.get();
 
             let our_offsets = offsets * align;
-            let offset = PxVector::new(our_offsets.left, our_offsets.top);
-            if self.offset != offset {
-                self.offset = offset;
+            let new_offset = PxVector::new(our_offsets.left, our_offsets.top);
+            if offset != new_offset {
+                offset = new_offset;
                 WIDGET.render_update();
             }
 
@@ -772,30 +759,29 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             let fill_bounds = LAYOUT.constraints().fill_size() + size_increase;
             let corners = BORDER.inner_radius().inflate(size_offset);
 
-            if self.clip_bounds != fill_bounds || self.clip_corners != corners {
-                self.clip_bounds = fill_bounds;
-                self.clip_corners = corners;
+            if clip_bounds != fill_bounds || clip_corners != corners {
+                clip_bounds = fill_bounds;
+                clip_corners = corners;
                 WIDGET.render();
             }
 
-            let (_, define_ref_frame) = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(fill_bounds), || {
-                wl.with_child(|wl| self.child.layout(wl))
+            let (_, def_frame) = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(fill_bounds), || {
+                wl.with_child(|wl| child.layout(wl))
             });
-            if self.define_ref_frame != define_ref_frame {
-                self.define_ref_frame = define_ref_frame;
+            if define_ref_frame != def_frame {
+                define_ref_frame = def_frame;
                 WIDGET.render();
             }
 
-            fill_bounds
+            *final_size = fill_bounds;
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
+        UiNodeOp::Render { frame } => {
             let mut render_clipped = |frame: &mut FrameBuilder| {
-                let bounds = PxRect::from_size(self.clip_bounds);
+                let bounds = PxRect::from_size(clip_bounds);
                 frame.push_clips(
                     |c| {
-                        if self.clip_corners != PxCornerRadius::zero() {
-                            c.push_clip_rounded_rect(bounds, self.clip_corners, false, false);
+                        if clip_corners != PxCornerRadius::zero() {
+                            c.push_clip_rounded_rect(bounds, clip_corners, false, false);
                         } else {
                             c.push_clip_rect(bounds, false, false);
                         }
@@ -806,47 +792,31 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                             }
                         }
                     },
-                    |f| self.child.render(f),
+                    |f| child.render(f),
                 );
             };
 
-            if self.define_ref_frame {
-                frame.push_reference_frame(
-                    self.offset_key.into(),
-                    self.offset_key.bind(self.offset.into(), false),
-                    true,
-                    false,
-                    |frame| {
-                        render_clipped(frame);
-                    },
-                );
+            if define_ref_frame {
+                frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, false, |frame| {
+                    render_clipped(frame);
+                });
             } else {
-                frame.push_child(self.offset, |frame| render_clipped(frame))
+                frame.push_child(offset, |frame| render_clipped(frame))
             }
         }
-
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            if self.define_ref_frame {
-                update.with_transform(self.offset_key.update(self.offset.into(), false), false, |update| {
-                    self.child.render_update(update);
+        UiNodeOp::RenderUpdate { update } => {
+            if define_ref_frame {
+                update.with_transform(offset_key.update(offset.into(), false), false, |update| {
+                    child.render_update(update);
                 })
             } else {
-                update.with_child(self.offset, |update| {
-                    self.child.render_update(update);
+                update.with_child(offset, |update| {
+                    child.render_update(update);
                 })
             }
         }
-    }
-
-    FillNodeNode {
-        child: content.cfg_boxed(),
-        clip_bounds: PxSize::zero(),
-        clip_corners: PxCornerRadius::zero(),
-        offset: PxVector::zero(),
-        offset_key: FrameValueKey::new_unique(),
-        define_ref_frame: false,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Creates a border node that delegates rendering to a `border_visual`, but manages the `border_offsets` coordinating

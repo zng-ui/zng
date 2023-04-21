@@ -175,18 +175,15 @@ impl<T: VarValue> AnyVarValue for T {
 /// #
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, a: impl IntoValue<bool>, b: impl IntoValue<bool>) -> impl UiNode {
-///     #[ui_node(struct FooNode {
-///         child: impl UiNode,
-///         a: bool,
-///         b: bool,
-///     })]
-///     impl UiNode for FooNode { }
+///     let a = a.into();
+///     let b = b.into();
 ///
-///     FooNode {
-///         child,
-///         a: a.into(),
-///         b: b.into()
-///     }
+///     match_node(child, move |_, op| {
+///         UiNodeOp::Init => {
+///             println!("a: {a:?}, b: {b:?}");
+///         },
+///         _ => {}
+///     })
 /// }
 /// ```
 ///
@@ -723,25 +720,19 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// # use zero_ui_core::{*, var::*, text::*, context::*, widget_instance::*, widget_base::is_enabled};
 /// #[property(LAYOUT)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<u32>) -> impl UiNode {
-///     #[ui_node(struct FooNode {
-///         child: impl UiNode,
-///         bar: impl Var<u32>,
-///     })]
-///     impl UiNode for FooNode {
-///         fn init(&mut self) {
-///             self.child.init();
-///             println!("init: {}", self.bar.get());
+///     let bar = bar.into_var();
+///     match_node(child, move |_, op| match op {
+///         UiNodeOp::Init => {
+///             WIDGET.sub_var(&bar);
+///             println!("init: {}", bar.get());
 ///         }
-///         
-///         fn update(&mut self, updates: &WidgetUpdates) {
-///             self.child.update(updates);
-///             if let Some(new) = self.bar.get_new() {
+///         UiNodeOp::Update { .. } => {
+///             if let Some(new) = bar.get_new() {
 ///                 println!("update: {new}");
 ///             }
 ///         }
-///     }
-///
-///     FooNode { child, bar: bar.into_var() }
+///         _ => {}
+///     })
 /// }
 ///
 /// # #[widget($crate::Wgt)] struct Wgt(widget_base::WidgetBase);

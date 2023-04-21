@@ -112,44 +112,35 @@ event_property! {
 /// When any of the `shortcuts` is pressed, focus and click this widget.
 #[property(CONTEXT)]
 pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
-    ClickShortcutNode {
-        child,
-        shortcuts: shortcuts.into_var(),
-        kind: ShortcutClick::Primary,
-        handle: None,
-    }
+    click_shortcut_node(child, shortcuts, ShortcutClick::Primary)
 }
 /// Keyboard shortcuts that focus and [context clicks](fn@on_context_click) this widget.
 ///
 /// When any of the `shortcuts` is pressed, focus and context clicks this widget.
 #[property(CONTEXT)]
 pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
-    ClickShortcutNode {
-        child,
-        shortcuts: shortcuts.into_var(),
-        kind: ShortcutClick::Context,
-        handle: None,
-    }
+    click_shortcut_node(child, shortcuts, ShortcutClick::Context)
 }
-#[ui_node(struct ClickShortcutNode {
-    child: impl UiNode,
-    #[var] shortcuts: impl Var<Shortcuts>,
-    kind: ShortcutClick,
-    handle: Option<ShortcutsHandle>,
-})]
-impl UiNode for ClickShortcutNode {
-    fn init(&mut self) {
-        self.auto_subs();
-        self.child.init();
-        let s = self.shortcuts.get();
-        self.handle = Some(GESTURES.click_shortcut(s, self.kind, WIDGET.id()));
-    }
 
-    fn update(&mut self, updates: &WidgetUpdates) {
-        self.child.update(updates);
+fn click_shortcut_node(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>, kind: ShortcutClick) -> impl UiNode {
+    let shortcuts = shortcuts.into_var();
+    let mut _handle = None;
 
-        if let Some(s) = self.shortcuts.get_new() {
-            self.handle = Some(GESTURES.click_shortcut(s, self.kind, WIDGET.id()));
+    match_node(child, move |_, op| {
+        let new = match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_var(&shortcuts);
+                Some(shortcuts.get())
+            }
+            UiNodeOp::Deinit => {
+                _handle = None;
+                None
+            }
+            UiNodeOp::Update { .. } => shortcuts.get_new(),
+            _ => None,
+        };
+        if let Some(s) = new {
+            _handle = Some(GESTURES.click_shortcut(s, kind, WIDGET.id()));
         }
-    }
+    })
 }

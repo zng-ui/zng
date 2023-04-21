@@ -9,27 +9,15 @@ pub mod prompt;
 mod inspector_only {
     use std::sync::Arc;
 
-    use crate::{
-        ui_node,
-        widget_info::WidgetInfoBuilder,
-        widget_instance::{BoxedUiNode, UiNode},
-    };
+    use crate::widget_instance::{match_node, BoxedUiNode, UiNode, UiNodeOp};
 
     pub(crate) fn insert_widget_builder_info(child: BoxedUiNode, info: super::InspectorInfo) -> impl UiNode {
-        #[ui_node(struct InsertInfoNode {
-            child: BoxedUiNode,
-            info: Arc<super::InspectorInfo>,
-        })]
-        impl UiNode for InsertInfoNode {
-            fn info(&mut self, info: &mut WidgetInfoBuilder) {
-                info.meta().set(&super::INSPECTOR_INFO_ID, self.info.clone());
-                self.child.info(info);
+        let insp_info = Arc::new(info);
+        match_node(child, move |_, op| {
+            if let UiNodeOp::Info { info } = op {
+                info.meta().set(&super::INSPECTOR_INFO_ID, insp_info.clone());
             }
-        }
-        InsertInfoNode {
-            child,
-            info: Arc::new(info),
-        }
+        })
     }
 }
 #[cfg(inspector)]

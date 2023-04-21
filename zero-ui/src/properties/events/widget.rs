@@ -39,26 +39,22 @@ pub struct OnInitArgs {
 /// [`on_info_init`]: fn@on_info_init
 /// [`WidgetInfoTree`]: crate::core::widget_info::WidgetInfoTree
 #[property(EVENT)]
-pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
-    #[ui_node(struct OnInitNode {
-        child: impl UiNode,
-        handler: impl WidgetHandler<OnInitArgs>,
-        count: usize,
-    })]
-    impl UiNode for OnInitNode {
-        fn init(&mut self) {
-            self.child.init();
+pub fn on_init(child: impl UiNode, mut handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
+    let mut count = 1;
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            child.init();
 
-            self.count = self.count.wrapping_add(1);
-            self.handler.event(&OnInitArgs { count: self.count });
+            handler.event(&OnInitArgs { count });
+            count = count.wrapping_add(1);
         }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
 
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            self.handler.update();
+            handler.update();
         }
-    }
-    OnInitNode { child, handler, count: 0 }
+        _ => {}
+    })
 }
 
 /// Preview [`on_init`] event.
@@ -78,26 +74,18 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
 ///
 /// [`on_init`]: fn@on_init
 #[property(EVENT)]
-pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
-    #[ui_node(struct OnPreviewInitNode {
-        child: impl UiNode,
-        handler: impl WidgetHandler<OnInitArgs>,
-        count: usize,
-    })]
-    impl UiNode for OnPreviewInitNode {
-        fn init(&mut self) {
-            self.count = self.count.wrapping_add(1);
-            self.handler.event(&OnInitArgs { count: self.count });
-
-            self.child.init();
+pub fn on_pre_init(child: impl UiNode, mut handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
+    let mut count = 1;
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            handler.event(&OnInitArgs { count });
+            count = count.wrapping_add(1);
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.handler.update();
-            self.child.update(updates);
+        UiNodeOp::Update { .. } => {
+            handler.update();
         }
-    }
-    OnPreviewInitNode { child, handler, count: 0 }
+        _ => {}
+    })
 }
 
 /// Widget inited and info collected event.

@@ -446,20 +446,12 @@ mod context {
 
     #[property(CONTEXT)]
     fn probe(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
-        #[ui_node(struct ProbeNode {
-            child: impl UiNode,
-            var: impl Var<Txt>,
-        })]
-        impl UiNode for ProbeNode {
-            fn init(&mut self) {
-                *PROBE_ID.write() = self.var.get();
-                self.child.init();
+        let var = var.into_var();
+        match_node(child, move |_, op| {
+            if let UiNodeOp::Init = op {
+                *PROBE_ID.write() = var.get();
             }
-        }
-        ProbeNode {
-            child,
-            var: var.into_var(),
-        }
+        })
     }
     #[property(CONTEXT)]
     fn probe_a(child: impl UiNode, var: impl IntoVar<Txt>) -> impl UiNode {
@@ -471,23 +463,18 @@ mod context {
     }
 
     #[property(EVENT)]
-    fn on_init(child: impl UiNode, handler: impl handler::WidgetHandler<()>) -> impl UiNode {
-        #[ui_node(struct OnInitNode {
-            child: impl UiNode,
-            handler: impl handler::WidgetHandler<()>,
-        })]
-        impl UiNode for OnInitNode {
-            fn init(&mut self) {
-                self.child.init();
-                self.handler.event(&());
+    fn on_init(child: impl UiNode, mut handler: impl handler::WidgetHandler<()>) -> impl UiNode {
+        match_node(child, move |child, op| match op {
+            UiNodeOp::Init => {
+                child.init();
+                handler.event(&());
             }
-
-            fn update(&mut self, updates: &WidgetUpdates) {
-                self.child.update(updates);
-                self.handler.update();
+            UiNodeOp::Update { updates } => {
+                child.update(updates);
+                handler.update();
             }
-        }
-        OnInitNode { child, handler }
+            _ => {}
+        })
     }
 
     #[widget($crate::var::tests::context::TestWgt)]

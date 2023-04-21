@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::{context::*, event::*, widget_instance::*, *};
+use crate::{context::*, event::*, widget_instance::*};
 
 /// Variable for state properties (`is_*`, `has_*`).
 ///
@@ -85,43 +85,27 @@ pub fn event_is_state<A: EventArgs>(
     state: impl IntoVar<bool>,
     default: bool,
     event: Event<A>,
-    on_event: impl FnMut(&A) -> Option<bool> + Send + 'static,
+    mut on_event: impl FnMut(&A) -> Option<bool> + Send + 'static,
 ) -> impl UiNode {
-    #[ui_node(struct EventIsStateNode<A: EventArgs> {
-        child: impl UiNode,
-        #[event] event: Event<A>,
-        default: bool,
-        state: impl Var<bool>,
-        on_event: impl FnMut(&A) -> Option<bool> + Send + 'static,
-    })]
-    impl UiNode for EventIsStateNode {
-        fn init(&mut self) {
-            validate_getter_var(&self.state);
-            self.auto_subs();
-            let _ = self.state.set_ne(self.default);
-            self.child.init();
+    let state = state.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            WIDGET.sub_event(&event);
+            let _ = state.set_ne(default);
         }
-        fn deinit(&mut self) {
-            let _ = self.state.set_ne(self.default);
-            self.child.deinit();
+        UiNodeOp::Deinit => {
+            let _ = state.set_ne(default);
         }
-        fn event(&mut self, update: &EventUpdate) {
-            if let Some(args) = self.event.on(update) {
-                if let Some(state) = (self.on_event)(args) {
-                    let _ = self.state.set_ne(state);
+        UiNodeOp::Event { update } => {
+            if let Some(args) = event.on(update) {
+                if let Some(s) = on_event(args) {
+                    let _ = state.set_ne(s);
                 }
             }
-            self.child.event(update);
         }
-    }
-    EventIsStateNode {
-        child: child.cfg_boxed(),
-        event,
-        default,
-        state: state.into_var(),
-        on_event,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Helper for declaring state properties that depend on two other event states.
@@ -132,80 +116,58 @@ pub fn event_is_state2<A0, A1>(
     default: bool,
     event0: Event<A0>,
     default0: bool,
-    on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+    mut on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
     event1: Event<A1>,
     default1: bool,
-    on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
-    merge: impl FnMut(bool, bool) -> Option<bool> + Send + 'static,
+    mut on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+    mut merge: impl FnMut(bool, bool) -> Option<bool> + Send + 'static,
 ) -> impl UiNode
 where
     A0: EventArgs,
     A1: EventArgs,
 {
-    #[ui_node(struct EventIsState2Node<A0: EventArgs, A1: EventArgs,> {
-        child: impl UiNode,
-        #[event] event0: Event<A0>,
-        #[event] event1: Event<A1>,
-        default: bool,
-        state: impl Var<bool>,
-        on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
-        on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
-        merge: impl FnMut(bool, bool) -> Option<bool> + Send + 'static,
-        partial: (bool, bool),
-        partial_default: (bool, bool),
-    })]
-    impl UiNode for EventIsState2Node {
-        fn init(&mut self) {
-            validate_getter_var(&self.state);
-            self.auto_subs();
+    let state = state.into_var();
+    let partial_default = (default0, default1);
+    let mut partial = (default0, default1);
 
-            self.partial = self.partial_default;
-            let _ = self.state.set_ne(self.default);
-            self.child.init();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            WIDGET.sub_event(&event0).sub_event(&event1);
+
+            partial = partial_default;
+            let _ = state.set_ne(default);
         }
-        fn deinit(&mut self) {
-            let _ = self.state.set_ne(self.default);
-            self.child.deinit();
+        UiNodeOp::Deinit => {
+            let _ = state.set_ne(default);
         }
-        fn event(&mut self, update: &EventUpdate) {
+        UiNodeOp::Event { update } => {
             let mut updated = false;
-            if let Some(args) = self.event0.on(update) {
-                if let Some(state) = (self.on_event0)(args) {
-                    if self.partial.0 != state {
-                        self.partial.0 = state;
+            if let Some(args) = event0.on(update) {
+                if let Some(state) = on_event0(args) {
+                    if partial.0 != state {
+                        partial.0 = state;
                         updated = true;
                     }
                 }
-            } else if let Some(args) = self.event1.on(update) {
-                if let Some(state) = (self.on_event1)(args) {
-                    if self.partial.1 != state {
-                        self.partial.1 = state;
+            } else if let Some(args) = event1.on(update) {
+                if let Some(state) = on_event1(args) {
+                    if partial.1 != state {
+                        partial.1 = state;
                         updated = true;
                     }
                 }
             }
-            self.child.event(update);
+            child.event(update);
 
             if updated {
-                if let Some(value) = (self.merge)(self.partial.0, self.partial.1) {
-                    let _ = self.state.set_ne(value);
+                if let Some(value) = merge(partial.0, partial.1) {
+                    let _ = state.set_ne(value);
                 }
             }
         }
-    }
-    EventIsState2Node {
-        child: child.cfg_boxed(),
-        event0,
-        event1,
-        default,
-        state: state.into_var(),
-        on_event0,
-        on_event1,
-        partial_default: (default0, default1),
-        partial: (default0, default1),
-        merge,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Helper for declaring state properties that depend on three other event states.
@@ -216,95 +178,69 @@ pub fn event_is_state3<A0, A1, A2>(
     default: bool,
     event0: Event<A0>,
     default0: bool,
-    on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+    mut on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
     event1: Event<A1>,
     default1: bool,
-    on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+    mut on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
     event2: Event<A2>,
     default2: bool,
-    on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
-    merge: impl FnMut(bool, bool, bool) -> Option<bool> + Send + 'static,
+    mut on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
+    mut merge: impl FnMut(bool, bool, bool) -> Option<bool> + Send + 'static,
 ) -> impl UiNode
 where
     A0: EventArgs,
     A1: EventArgs,
     A2: EventArgs,
 {
-    #[ui_node(struct EventIsState3Node<A0: EventArgs, A1: EventArgs, A2: EventArgs> {
-        child: impl UiNode,
-        #[event] event0: Event<A0>,
-        #[event] event1: Event<A1>,
-        #[event] event2: Event<A2>,
-        default: bool,
-        state: impl Var<bool>,
-        on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
-        on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
-        on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
-        partial_default: (bool, bool, bool),
-        partial: (bool, bool, bool),
-        merge: impl FnMut(bool, bool, bool) -> Option<bool> + Send + 'static,
-    })]
-    impl UiNode for EventIsState3Node {
-        fn init(&mut self) {
-            validate_getter_var(&self.state);
-            self.auto_subs();
+    let state = state.into_var();
+    let partial_default = (default0, default1, default2);
+    let mut partial = (default0, default1, default2);
 
-            self.partial = self.partial_default;
-            let _ = self.state.set_ne(self.default);
-            self.child.init();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2);
+
+            partial = partial_default;
+            let _ = state.set_ne(default);
         }
-        fn deinit(&mut self) {
-            let _ = self.state.set_ne(self.default);
-            self.child.deinit();
+        UiNodeOp::Deinit => {
+            let _ = state.set_ne(default);
         }
-        fn event(&mut self, update: &EventUpdate) {
+        UiNodeOp::Event { update } => {
             let mut updated = false;
-            if let Some(args) = self.event0.on(update) {
-                if let Some(state) = (self.on_event0)(args) {
-                    if self.partial.0 != state {
-                        self.partial.0 = state;
+            if let Some(args) = event0.on(update) {
+                if let Some(state) = on_event0(args) {
+                    if partial.0 != state {
+                        partial.0 = state;
                         updated = true;
                     }
                 }
-            } else if let Some(args) = self.event1.on(update) {
-                if let Some(state) = (self.on_event1)(args) {
-                    if self.partial.1 != state {
-                        self.partial.1 = state;
+            } else if let Some(args) = event1.on(update) {
+                if let Some(state) = on_event1(args) {
+                    if partial.1 != state {
+                        partial.1 = state;
                         updated = true;
                     }
                 }
-            } else if let Some(args) = self.event2.on(update) {
-                if let Some(state) = (self.on_event2)(args) {
-                    if self.partial.2 != state {
-                        self.partial.2 = state;
+            } else if let Some(args) = event2.on(update) {
+                if let Some(state) = on_event2(args) {
+                    if partial.2 != state {
+                        partial.2 = state;
                         updated = true;
                     }
                 }
             }
-            self.child.event(update);
+            child.event(update);
 
             if updated {
-                if let Some(value) = (self.merge)(self.partial.0, self.partial.1, self.partial.2) {
-                    let _ = self.state.set_ne(value);
+                if let Some(value) = merge(partial.0, partial.1, partial.2) {
+                    let _ = state.set_ne(value);
                 }
             }
         }
-    }
-    EventIsState3Node {
-        child: child.cfg_boxed(),
-        event0,
-        event1,
-        event2,
-        default,
-        state: state.into_var(),
-        on_event0,
-        on_event1,
-        on_event2,
-        partial_default: (default0, default1, default2),
-        partial: (default0, default1, default2),
-        merge,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Helper for declaring state properties that depend on four other event states.
@@ -315,17 +251,17 @@ pub fn event_is_state4<A0, A1, A2, A3>(
     default: bool,
     event0: Event<A0>,
     default0: bool,
-    on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
+    mut on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
     event1: Event<A1>,
     default1: bool,
-    on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
+    mut on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
     event2: Event<A2>,
     default2: bool,
-    on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
+    mut on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
     event3: Event<A3>,
     default3: bool,
-    on_event3: impl FnMut(&A3) -> Option<bool> + Send + 'static,
-    merge: impl FnMut(bool, bool, bool, bool) -> Option<bool> + Send + 'static,
+    mut on_event3: impl FnMut(&A3) -> Option<bool> + Send + 'static,
+    mut merge: impl FnMut(bool, bool, bool, bool) -> Option<bool> + Send + 'static,
 ) -> impl UiNode
 where
     A0: EventArgs,
@@ -333,92 +269,62 @@ where
     A2: EventArgs,
     A3: EventArgs,
 {
-    #[ui_node(struct EventIsState4Node<A0: EventArgs, A1: EventArgs, A2: EventArgs, A3: EventArgs> {
-        child: impl UiNode,
-        #[event] event0: Event<A0>,
-        #[event] event1: Event<A1>,
-        #[event] event2: Event<A2>,
-        #[event] event3: Event<A3>,
-        default: bool,
-        state: impl Var<bool>,
-        on_event0: impl FnMut(&A0) -> Option<bool> + Send + 'static,
-        on_event1: impl FnMut(&A1) -> Option<bool> + Send + 'static,
-        on_event2: impl FnMut(&A2) -> Option<bool> + Send + 'static,
-        on_event3: impl FnMut(&A3) -> Option<bool> + Send + 'static,
-        partial_default: (bool, bool, bool, bool),
-        partial: (bool, bool, bool, bool),
-        merge: impl FnMut(bool, bool, bool, bool) -> Option<bool> + Send + 'static,
-    })]
-    impl UiNode for EventIsState4Node {
-        fn init(&mut self) {
-            validate_getter_var(&self.state);
-            self.auto_subs();
+    let state = state.into_var();
+    let partial_default = (default0, default1, default2, default3);
+    let mut partial = (default0, default1, default2, default3);
 
-            self.partial = self.partial_default;
-            let _ = self.state.set_ne(self.default);
-            self.child.init();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            WIDGET.sub_event(&event0).sub_event(&event1).sub_event(&event2).sub_event(&event3);
+
+            partial = partial_default;
+            let _ = state.set_ne(default);
         }
-        fn deinit(&mut self) {
-            let _ = self.state.set_ne(self.default);
-            self.child.deinit();
+        UiNodeOp::Deinit => {
+            let _ = state.set_ne(default);
         }
-        fn event(&mut self, update: &EventUpdate) {
+        UiNodeOp::Event { update } => {
             let mut updated = false;
-            if let Some(args) = self.event0.on(update) {
-                if let Some(state) = (self.on_event0)(args) {
-                    if self.partial.0 != state {
-                        self.partial.0 = state;
+            if let Some(args) = event0.on(update) {
+                if let Some(state) = on_event0(args) {
+                    if partial.0 != state {
+                        partial.0 = state;
                         updated = true;
                     }
                 }
-            } else if let Some(args) = self.event1.on(update) {
-                if let Some(state) = (self.on_event1)(args) {
-                    if self.partial.1 != state {
-                        self.partial.1 = state;
+            } else if let Some(args) = event1.on(update) {
+                if let Some(state) = on_event1(args) {
+                    if partial.1 != state {
+                        partial.1 = state;
                         updated = true;
                     }
                 }
-            } else if let Some(args) = self.event2.on(update) {
-                if let Some(state) = (self.on_event2)(args) {
-                    if self.partial.2 != state {
-                        self.partial.2 = state;
+            } else if let Some(args) = event2.on(update) {
+                if let Some(state) = on_event2(args) {
+                    if partial.2 != state {
+                        partial.2 = state;
                         updated = true;
                     }
                 }
-            } else if let Some(args) = self.event3.on(update) {
-                if let Some(state) = (self.on_event3)(args) {
-                    if self.partial.3 != state {
-                        self.partial.3 = state;
+            } else if let Some(args) = event3.on(update) {
+                if let Some(state) = on_event3(args) {
+                    if partial.3 != state {
+                        partial.3 = state;
                         updated = true;
                     }
                 }
             }
-            self.child.event(update);
+            child.event(update);
 
             if updated {
-                if let Some(value) = (self.merge)(self.partial.0, self.partial.1, self.partial.2, self.partial.3) {
-                    let _ = self.state.set_ne(value);
+                if let Some(value) = merge(partial.0, partial.1, partial.2, partial.3) {
+                    let _ = state.set_ne(value);
                 }
             }
         }
-    }
-    EventIsState4Node {
-        child: child.cfg_boxed(),
-        event0,
-        event1,
-        event2,
-        event3,
-        default,
-        state: state.into_var(),
-        on_event0,
-        on_event1,
-        on_event2,
-        on_event3,
-        partial_default: (default0, default1, default2, default3),
-        partial: (default0, default1, default2, default3),
-        merge,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Helper for declaring state properties that are controlled by a variable.
@@ -426,32 +332,21 @@ where
 /// On init the `state` variable is set to `source` and bound to it, you can use this to create composite properties
 /// that merge other state properties.
 pub fn bind_is_state(child: impl UiNode, source: impl IntoVar<bool>, state: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct BindIsStateNode {
-        child: impl UiNode,
-        source: impl Var<bool>,
-        state: impl Var<bool>,
-        binding: VarHandle,
-    })]
-    impl UiNode for BindIsStateNode {
-        fn init(&mut self) {
-            validate_getter_var(&self.state);
-            let _ = self.state.set_ne(self.source.get());
-            self.binding = self.source.bind(&self.state);
-            self.child.init();
-        }
+    let source = source.into_var();
+    let state = state.into_var();
+    let mut _binding = VarHandle::dummy();
 
-        fn deinit(&mut self) {
-            self.binding = VarHandle::dummy();
-            self.child.deinit();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            let _ = state.set_ne(source.get());
+            _binding = source.bind(&state);
         }
-    }
-    BindIsStateNode {
-        child: child.cfg_boxed(),
-        source: source.into_var(),
-        state: state.into_var(),
-        binding: VarHandle::dummy(),
-    }
-    .cfg_boxed()
+        UiNodeOp::Deinit => {
+            _binding = VarHandle::dummy();
+        }
+        _ => {}
+    })
 }
 
 /// Helper for declaring state properties that are controlled by values in the widget state map.
@@ -464,42 +359,33 @@ pub fn widget_state_is_state(
     deinit: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
     state: impl IntoVar<bool>,
 ) -> impl UiNode {
-    #[ui_node(struct WidgetStateIsStateNode {
-        child: impl UiNode,
-        state: impl Var<bool>,
-        predicate: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
-        deinit: impl Fn(StateMapRef<WIDGET>) -> bool + Send + 'static,
-    })]
-    impl UiNode for WidgetStateIsStateNode {
-        fn init(&mut self) {
-            validate_getter_var(&self.state);
-            self.child.init();
-            let state = WIDGET.with_state(&mut self.predicate);
-            if state != self.state.get() {
-                let _ = self.state.set(state);
+    let state = state.into_var();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            child.init();
+            let s = WIDGET.with_state(&predicate);
+            if s != state.get() {
+                let _ = state.set(s);
             }
         }
-        fn deinit(&mut self) {
-            self.child.deinit();
-            let state = WIDGET.with_state(&mut self.deinit);
-            if state != self.state.get() {
-                let _ = self.state.set(state);
+        UiNodeOp::Deinit => {
+            child.deinit();
+            let s = WIDGET.with_state(&deinit);
+            if s != state.get() {
+                let _ = state.set(s);
             }
         }
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            let state = WIDGET.with_state(&mut self.predicate);
-            if state != self.state.get() {
-                let _ = self.state.set(state);
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            let s = WIDGET.with_state(&predicate);
+            if s != state.get() {
+                let _ = state.set(s);
             }
         }
-    }
-    WidgetStateIsStateNode {
-        child: child.cfg_boxed(),
-        state: state.into_var(),
-        predicate,
-        deinit,
-    }
+        _ => {}
+    })
 }
 
 /// Helper for declaring state getter properties that are controlled by values in the widget state map.
@@ -512,45 +398,31 @@ pub fn widget_state_get_state<T: VarValue>(
     get_deinit: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
     state: impl IntoVar<T>,
 ) -> impl UiNode {
-    #[ui_node(struct WidgetStateGetStateNode<T: VarValue> {
-        _t: PhantomData<T>,
-        child: impl UiNode,
-        state: impl Var<T>,
-        get_new: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
-        get_deinit: impl Fn(StateMapRef<WIDGET>, &T) -> Option<T> + Send + 'static,
-    })]
-    impl UiNode for WidgetStateGetStateNode {
-        fn init(&mut self) {
-            validate_getter_var(&self.state);
-            self.child.init();
-            let new = self.state.with(|s| WIDGET.with_state(|w| (self.get_new)(w, s)));
+    let state = state.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            child.init();
+            let new = state.with(|s| WIDGET.with_state(|w| get_new(w, s)));
             if let Some(new) = new {
-                let _ = self.state.set(new);
+                let _ = state.set(new);
             }
         }
+        UiNodeOp::Deinit => {
+            child.deinit();
 
-        fn deinit(&mut self) {
-            self.child.deinit();
-
-            let new = self.state.with(|s| WIDGET.with_state(|w| (self.get_deinit)(w, s)));
+            let new = state.with(|s| WIDGET.with_state(|w| get_deinit(w, s)));
             if let Some(new) = new {
-                let _ = self.state.set(new);
+                let _ = state.set(new);
             }
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            let new = self.state.with(|s| WIDGET.with_state(|w| (self.get_new)(w, s)));
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            let new = state.with(|s| WIDGET.with_state(|w| get_new(w, s)));
             if let Some(new) = new {
-                let _ = self.state.set(new);
+                let _ = state.set(new);
             }
         }
-    }
-    WidgetStateGetStateNode {
-        _t: PhantomData,
-        child: child.cfg_boxed(),
-        state: state.into_var(),
-        get_new,
-        get_deinit,
-    }
+        _ => {}
+    })
 }

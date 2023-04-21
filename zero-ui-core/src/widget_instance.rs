@@ -28,6 +28,9 @@ pub use adopt::*;
 mod arc;
 pub use arc::*;
 
+mod match_node;
+pub use match_node::*;
+
 mod when;
 pub use when::*;
 

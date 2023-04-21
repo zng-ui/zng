@@ -372,7 +372,7 @@ impl UiNode for TooltipLayerNode {
             let tooltip_id = match self.with_context(|| WIDGET.id()) {
                 Some(id) => id,
                 None => {
-                    // was widget on init, now is not, 
+                    // was widget on init, now is not,
                     // this can happen if child is an `ArcNode` that was moved
                     return;
                 }
