@@ -185,6 +185,9 @@ where
     let mut handler = handler.cfg_boxed();
 
     match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&event);
+        }
         UiNodeOp::Event { update } => {
             child.event(update);
 
@@ -243,6 +246,9 @@ where
     let mut handler = handler.cfg_boxed();
 
     match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&event);
+        }
         UiNodeOp::Event { update } => {
             if let Some(args) = event.on(update) {
                 if !args.propagation().is_stopped() && filter(args) {

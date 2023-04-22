@@ -233,7 +233,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
 
             if !mem::take(&mut self.child.delegated) {
                 if size != PxSize::zero() {
-                    // this is an error because the child will be measured if the return type is zero,
+                    // this is an error because the child will be measured if the return size is zero,
                     // flagging delegated ensure consistent behavior.
                     tracing::error!("measure changed size without flagging delegated");
                     return size;
@@ -253,7 +253,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
 
             if !mem::take(&mut self.child.delegated) {
                 if size != PxSize::zero() {
-                    // this is an error because the child will be layout if the return type is zero,
+                    // this is an error because the child will be layout if the return size is zero,
                     // flagging delegated ensure consistent behavior.
                     tracing::error!("layout changed size without flagging delegated");
                     return size;
@@ -510,6 +510,13 @@ pub fn match_node_list<L: UiNodeList>(
             );
 
             if !mem::take(&mut self.children.delegated) {
+                if size != PxSize::zero() {
+                    // this is an error because the children will be measured if the return size is zero,
+                    // flagging delegated ensure consistent behavior.
+                    tracing::error!("measure(list) changed size without flagging delegated");
+                    return size;
+                }
+
                 ui_node_list_default::measure_all(&mut self.children.children, wm)
             } else {
                 size
@@ -523,6 +530,12 @@ pub fn match_node_list<L: UiNodeList>(
             (self.closure)(&mut self.children, UiNodeOp::Layout { wl, final_size: &mut size });
 
             if !mem::take(&mut self.children.delegated) {
+                if size != PxSize::zero() {
+                    // this is an error because the children will be layout if the return size is zero,
+                    // flagging delegated ensure consistent behavior.
+                    tracing::error!("layout(list) changed size without flagging delegated");
+                    return size;
+                }
                 ui_node_list_default::layout_all(&mut self.children.children, wl)
             } else {
                 size
