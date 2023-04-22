@@ -66,17 +66,18 @@ pub enum UiNodeOp<'a> {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{*, widget_instance::*};
+/// # fn main() { }
+/// # use zero_ui_core::{*, widget_instance::*, widget_builder::*, context::*, var::*};
 /// #[property(LAYOUT)]
 /// pub fn count_layout(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 ///     let enabled = enabled.into_var();
 ///     let mut layout_count = 0;
 ///
 ///     match_node(child, move |child, op| match op {
-///         UiNode::Init => {
+///         UiNodeOp::Init => {
 ///             WIDGET.sub_var(&enabled);
 ///         }
-///         UiNode::Update => {
+///         UiNodeOp::Update { .. } => {
 ///             if let Some(true) = enabled.get_new() {
 ///                 println!("layout count reset");
 ///                 layout_count = 0;
@@ -84,7 +85,7 @@ pub enum UiNodeOp<'a> {
 ///         }
 ///         UiNodeOp::Measure { wm, desired_size } => {
 ///             let s = child.measure(wm);
-///             *desired_size = LAYOUT.constrains().fill_size_or(s);
+///             *desired_size = LAYOUT.constraints().fill_size_or(s);
 ///         }
 ///         UiNodeOp::Layout { wl, final_size } => {
 ///             if enabled.get() {
@@ -92,7 +93,7 @@ pub enum UiNodeOp<'a> {
 ///                 println!("layout {layout_count}");
 ///             }
 ///             let s = child.layout(wl);
-///             *final_size = LAYOUT.constrains().fill_size_or(s);
+///             *final_size = LAYOUT.constraints().fill_size_or(s);
 ///         }
 ///         _ => {}
 ///     })
@@ -120,7 +121,8 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<B
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{*, widget_instance::*};
+/// # fn main() { }
+/// # use zero_ui_core::{*, widget_instance::*, widget_builder::*};
 /// #[property(LAYOUT)]
 /// pub fn count_layout(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 ///     let enabled = enabled.into_var();
@@ -138,7 +140,7 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<B
 ///         }
 ///         UiNodeOp::Measure { wm, desired_size } => {
 ///             let s = child.measure(wm);
-///             *desired_size = LAYOUT.constrains().fill_size_or(s);
+///             *desired_size = LAYOUT.constraints().fill_size_or(s);
 ///         }
 ///         UiNodeOp::Layout { wl, final_size } => {
 ///             if enabled.get() {
@@ -146,7 +148,7 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<B
 ///                 println!("layout {layout_count}");
 ///             }
 ///             let s = child.layout(wl);
-///             *final_size = LAYOUT.constrains().fill_size_or(s);
+///             *final_size = LAYOUT.constraints().fill_size_or(s);
 ///         }
 ///         _ => {}
 ///     })

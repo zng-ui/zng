@@ -178,7 +178,7 @@ impl<T: VarValue> AnyVarValue for T {
 ///     let a = a.into();
 ///     let b = b.into();
 ///
-///     match_node(child, move |_, op| {
+///     match_node(child, move |_, op| match op {
 ///         UiNodeOp::Init => {
 ///             println!("a: {a:?}, b: {b:?}");
 ///         },

@@ -1159,7 +1159,7 @@ impl LAYOUT {
         LAYOUT_CTX.get().metrics.inline_constraints()
     }
 
-    /// Disable inline on the calling widget and measure the child node without inline constrains.
+    /// Disable inline on the calling widget and measure the child node without inline constraints.
     ///
     /// Note that this disables inline for the calling widget's next layout too, every property that affects layout and does
     /// not support inline layout must propagate measure using this method to correctly configure the widget.
@@ -1195,7 +1195,7 @@ impl LAYOUT {
 
     /// Layout the child node in a context without inline constraints.
     ///
-    /// This must be called inside inlining widgets to layout block child nodes, otherwise the inline constrains from
+    /// This must be called inside inlining widgets to layout block child nodes, otherwise the inline constraints from
     /// the calling widget propagate to the child.
     pub fn layout_block(&self, wl: &mut WidgetLayout, child: &mut impl UiNode) -> PxSize {
         let metrics = self.metrics();
