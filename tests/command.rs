@@ -1,9 +1,9 @@
 use zero_ui::{
     core::{
         context::app_local,
-        event::{command, CommandHandle, EventUpdate},
+        event::command,
         keyboard::HeadlessAppKeyboardExt,
-        ui_node,
+        widget_instance::{match_node_leaf, UiNodeOp},
     },
     prelude::*,
 };
@@ -88,41 +88,42 @@ fn shortcut_scoped() {
 }
 
 async fn listener_window(focused_wgt: bool) -> WindowRoot {
-    #[ui_node(struct FooHandlerNode {
-        handle: Option<CommandHandle>,
-        handle_scoped: Option<CommandHandle>,
-        handle_scoped_wgt: Option<CommandHandle>,
-    })]
-    impl UiNode for FooHandlerNode {
-        fn init(&mut self) {
-            self.handle = Some(FOO_CMD.subscribe(true));
-            self.handle_scoped = Some(FOO_CMD.scoped(WINDOW.id()).subscribe(true));
-            self.handle_scoped_wgt = Some(FOO_CMD.scoped(WIDGET.id()).subscribe(true));
-        }
-        fn event(&mut self, update: &EventUpdate) {
-            if let Some(args) = FOO_CMD.on(update) {
-                args.handle(|args| {
-                    TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
-                });
+    fn foo_handler() -> impl UiNode {
+        let mut _handle = None;
+        let mut _handle_scoped = None;
+        let mut _handle_scoped_wgt = None;
+        match_node_leaf(move |op| match op {
+            UiNodeOp::Init => {
+                _handle = Some(FOO_CMD.subscribe(true));
+                _handle_scoped = Some(FOO_CMD.scoped(WINDOW.id()).subscribe(true));
+                _handle_scoped_wgt = Some(FOO_CMD.scoped(WIDGET.id()).subscribe(true));
             }
+            UiNodeOp::Deinit => {
+                _handle = None;
+                _handle_scoped = None;
+                _handle_scoped_wgt = None;
+            }
+            UiNodeOp::Event { update } => {
+                if let Some(args) = FOO_CMD.on(update) {
+                    args.handle(|args| {
+                        TEST_TRACE.write().push(format!("no-scope / {:?}", args.scope));
+                    });
+                }
 
-            if let Some(args) = FOO_CMD.scoped(WINDOW.id()).on(update) {
-                args.handle(|args| {
-                    TEST_TRACE.write().push(format!("scoped-win / {:?}", args.scope));
-                });
-            }
+                if let Some(args) = FOO_CMD.scoped(WINDOW.id()).on(update) {
+                    args.handle(|args| {
+                        TEST_TRACE.write().push(format!("scoped-win / {:?}", args.scope));
+                    });
+                }
 
-            if let Some(args) = FOO_CMD.scoped(WIDGET.id()).on(update) {
-                args.handle(|args| {
-                    TEST_TRACE.write().push(format!("scoped-wgt / {:?}", args.scope));
-                });
+                if let Some(args) = FOO_CMD.scoped(WIDGET.id()).on(update) {
+                    args.handle(|args| {
+                        TEST_TRACE.write().push(format!("scoped-wgt / {:?}", args.scope));
+                    });
+                }
             }
-        }
-        fn deinit(&mut self) {
-            self.handle = None;
-            self.handle_scoped = None;
-            self.handle_scoped_wgt = None;
-        }
+            _ => {}
+        })
     }
 
     Window! {
@@ -133,13 +134,13 @@ async fn listener_window(focused_wgt: bool) -> WindowRoot {
                 Container! {
                     id = "test-widget";
                     size = (100, 100);
-                    child = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
+                    child = foo_handler();
                 },
                 Container! {
                     id = "other-widget";
                     size = (100, 100);
                     focusable = focused_wgt;
-                    child = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
+                    child = foo_handler();
                 }
             ];
         }

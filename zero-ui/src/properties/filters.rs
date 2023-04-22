@@ -2,9 +2,7 @@
 
 use crate::prelude::new_property::*;
 
-use crate::core::color::filters::{
-    self as cf, {Filter, RenderFilter},
-};
+use crate::core::color::filters::{self as cf, Filter};
 
 /// Color filter, or combination of filters.
 ///
@@ -19,51 +17,44 @@ use crate::core::color::filters::{
 /// [`opacity`]: fn@opacity
 #[property(CONTEXT, default(Filter::default()))]
 pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
-    #[ui_node(struct FilterNode {
-        child: impl UiNode,
-        #[var] filter: impl Var<Filter>,
-        render_filter: Option<RenderFilter>,
-    })]
-    impl UiNode for FilterNode {
-        fn init(&mut self) {
-            self.auto_subs();
-            self.render_filter = self.filter.with(Filter::try_render);
-            self.child.init();
+    filter_impl(child, filter, false)
+}
+fn filter_impl(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: bool) -> impl UiNode {
+    let filter = filter.into_var();
+    let mut render_filter = None;
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&filter);
+            render_filter = filter.with(Filter::try_render);
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.filter.with_new(|f| {
+        UiNodeOp::Update { .. } => {
+            filter.with_new(|f| {
                 if let Some(f) = f.try_render() {
-                    self.render_filter = Some(f);
+                    render_filter = Some(f);
                     WIDGET.render();
                 } else {
-                    self.render_filter = None;
+                    render_filter = None;
                     WIDGET.layout();
                 }
             });
-            self.child.update(updates)
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            if self.render_filter.is_none() {
-                self.render_filter = Some(self.filter.layout());
+        UiNodeOp::Layout { .. } => {
+            if render_filter.is_none() {
+                render_filter = Some(filter.layout());
                 WIDGET.render();
             }
-            self.child.layout(wl)
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            frame.push_inner_filter(self.render_filter.clone().unwrap(), |frame| self.child.render(frame));
+        UiNodeOp::Render { frame } => {
+            if target_child {
+                frame.push_filter(MixBlendMode::Normal.into(), render_filter.as_ref().unwrap(), |frame| {
+                    child.render(frame)
+                });
+            } else {
+                frame.push_inner_filter(render_filter.clone().unwrap(), |frame| child.render(frame));
+            }
         }
-    }
-    FilterNode {
-        child,
-        filter: filter.into_var(),
-        render_filter: None,
-    }
+        _ => {}
+    })
 }
 
 /// Color filter, or combination of filters targeting the widget's descendants and not the widget itself.
@@ -79,53 +70,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
 /// [`child_opacity`]: fn@child_opacity
 #[property(CHILD_CONTEXT, default(Filter::default()))]
 pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
-    #[ui_node(struct ChildFilterNode {
-        child: impl UiNode,
-        #[var] filter: impl Var<Filter>,
-        render_filter: Option<RenderFilter>,
-    })]
-    impl UiNode for ChildFilterNode {
-        fn init(&mut self) {
-            self.auto_subs();
-            self.render_filter = self.filter.with(Filter::try_render);
-            self.child.init();
-        }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.filter.with_new(|f| {
-                if let Some(f) = f.try_render() {
-                    self.render_filter = Some(f);
-                    WIDGET.render();
-                } else {
-                    self.render_filter = None;
-                    WIDGET.layout();
-                }
-            });
-            self.child.update(updates)
-        }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            if self.render_filter.is_none() {
-                self.render_filter = Some(self.filter.layout());
-                WIDGET.render();
-            }
-            self.child.layout(wl)
-        }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            frame.push_filter(MixBlendMode::Normal.into(), self.render_filter.as_ref().unwrap(), |frame| {
-                self.child.render(frame)
-            });
-        }
-    }
-    ChildFilterNode {
-        child,
-        filter: filter.into_var(),
-        render_filter: None,
-    }
+    filter_impl(child, filter, true)
 }
 
 /// Inverts the colors of the widget.
@@ -261,35 +206,35 @@ pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<cf::ColorMatrix>) -
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(1.0))]
 pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
-    #[ui_node(struct OpacityNode {
-        child: impl UiNode,
-        #[var] alpha: impl Var<Factor>,
-        frame_key: FrameValueKey<f32>,
-    })]
-    impl UiNode for OpacityNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.alpha.is_new() {
+    opacity_impl(child, alpha, false)
+}
+fn opacity_impl(child: impl UiNode, alpha: impl IntoVar<Factor>, target_child: bool) -> impl UiNode {
+    let frame_key = FrameValueKey::new_unique();
+    let alpha = alpha.into_var();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&alpha);
+        }
+        UiNodeOp::Update { .. } => {
+            if alpha.is_new() {
                 WIDGET.render_update();
             }
-            self.child.update(updates);
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            let opacity = self.frame_key.bind_var(&self.alpha, |f| f.0);
-            frame.push_inner_opacity(opacity, |frame| self.child.render(frame));
+        UiNodeOp::Render { frame } => {
+            let opacity = frame_key.bind_var(&alpha, |f| f.0);
+            if target_child {
+                frame.push_opacity(opacity, |frame| child.render(frame));
+            } else {
+                frame.push_inner_opacity(opacity, |frame| child.render(frame));
+            }
         }
-
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            update.update_f32_opt(self.frame_key.update_var(&self.alpha, |f| f.0));
-            self.child.render_update(update);
+        UiNodeOp::RenderUpdate { update } => {
+            update.update_f32_opt(frame_key.update_var(&alpha, |f| f.0));
+            child.render_update(update);
         }
-    }
-
-    OpacityNode {
-        child,
-        frame_key: FrameValueKey::new_unique(),
-        alpha: alpha.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Opacity/transparency of the widget's child.
@@ -300,33 +245,5 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
 /// [`child_filter`]: fn@child_filter
 #[property(CHILD_CONTEXT, default(1.0))]
 pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
-    #[ui_node(struct ChildOpacityNode {
-        child: impl UiNode,
-        #[var] alpha: impl Var<Factor>,
-        frame_key: FrameValueKey<f32>,
-    })]
-    impl UiNode for ChildOpacityNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.alpha.is_new() {
-                WIDGET.render_update();
-            }
-            self.child.update(updates);
-        }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            let opacity = self.frame_key.bind_var(&self.alpha, |f| f.0);
-            frame.push_opacity(opacity, |frame| self.child.render(frame));
-        }
-
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            update.update_f32_opt(self.frame_key.update_var(&self.alpha, |f| f.0));
-            self.child.render_update(update);
-        }
-    }
-
-    ChildOpacityNode {
-        child,
-        frame_key: FrameValueKey::new_unique(),
-        alpha: alpha.into_var(),
-    }
+    opacity_impl(child, alpha, true)
 }

@@ -7,99 +7,77 @@ use crate::prelude::new_property::*;
 /// Enables a widget to receive focus.
 #[property(CONTEXT, default(false))]
 pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct FocusableNode {
-        child: impl UiNode,
-        #[var] focusable: impl Var<bool>,
-    })]
-    impl UiNode for FocusableNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.focusable.is_new() {
+    let focusable = focusable.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&focusable);
+        }
+        UiNodeOp::Update { .. } => {
+            if focusable.is_new() {
                 WIDGET.update_info();
             }
-            self.child.update(updates);
         }
-
-        fn info(&mut self, info: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::new(info).focusable(self.focusable.get());
-            self.child.info(info);
+        UiNodeOp::Info { info } => {
+            FocusInfoBuilder::new(info).focusable(focusable.get());
         }
-    }
-    FocusableNode {
-        child,
-        focusable: focusable.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Customizes the widget order during TAB navigation.
 #[property(CONTEXT, default(TabIndex::default()))]
 pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
-    #[ui_node(struct TabIndexNode {
-        child: impl UiNode,
-        #[var] tab_index: impl Var<TabIndex>,
-    })]
-    impl UiNode for TabIndexNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.tab_index.is_new() {
+    let tab_index = tab_index.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&tab_index);
+        }
+        UiNodeOp::Update { .. } => {
+            if tab_index.is_new() {
                 WIDGET.update_info();
             }
-            self.child.update(updates);
         }
-
-        fn info(&mut self, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::new(widget).tab_index(self.tab_index.get());
-            self.child.info(widget);
+        UiNodeOp::Info { info } => {
+            FocusInfoBuilder::new(info).tab_index(tab_index.get());
         }
-    }
-    TabIndexNode {
-        child,
-        tab_index: tab_index.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Widget is a focus scope.
 #[property(CONTEXT, default(false))]
 pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
-    FocusScopeNode {
-        child,
-        is_focus_scope: is_scope.into_var(),
-        is_alt: false,
-    }
+    focus_scope_impl(child, is_scope, false)
 }
 /// Widget is the ALT focus scope.
 ///
 /// ALT focus scopes are also, `TabIndex::SKIP`, `skip_directional_nav`, `TabNav::Cycle` and `DirectionalNav::Cycle` by default.
 #[property(CONTEXT, default(false))]
 pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
-    FocusScopeNode {
-        child,
-        is_focus_scope: is_scope.into_var(),
-        is_alt: true,
-    }
+    focus_scope_impl(child, is_scope, true)
 }
 
-#[ui_node(struct FocusScopeNode {
-    child: impl UiNode,
-    #[var] is_focus_scope: impl Var<bool>,
-    is_alt: bool,
-})]
-impl UiNode for FocusScopeNode {
-    fn update(&mut self, updates: &WidgetUpdates) {
-        if self.is_focus_scope.is_new() {
-            WIDGET.update_info();
+fn focus_scope_impl(child: impl UiNode, is_scope: impl IntoVar<bool>, is_alt: bool) -> impl UiNode {
+    let is_scope = is_scope.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&is_scope);
         }
-        self.child.update(updates);
-    }
-
-    fn info(&mut self, widget: &mut WidgetInfoBuilder) {
-        let mut info = FocusInfoBuilder::new(widget);
-        if self.is_alt {
-            info.alt_scope(self.is_focus_scope.get());
-        } else {
-            info.scope(self.is_focus_scope.get());
+        UiNodeOp::Update { .. } => {
+            if is_scope.is_new() {
+                WIDGET.update_info();
+            }
         }
-
-        self.child.info(widget);
-    }
+        UiNodeOp::Info { info } => {
+            let mut info = FocusInfoBuilder::new(info);
+            if is_alt {
+                info.alt_scope(is_scope.get());
+            } else {
+                info.scope(is_scope.get());
+            }
+        }
+        _ => {}
+    })
 }
 
 /// Behavior of a focus scope when it receives direct focus.

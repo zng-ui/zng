@@ -128,12 +128,7 @@ pub fn tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 /// [`disabled_tooltip_fn`]: fn@disabled_tooltip_fn
 #[property(EVENT, default(WidgetFn::nil()))]
 pub fn tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> impl UiNode {
-    TooltipNode {
-        child,
-        tip: tip.into_var(),
-        disabled_only: false,
-        state: TooltipState::Closed,
-    }
+    tooltip_node(child, tip, false)
 }
 
 /// Disabled widget tooltip.
@@ -153,12 +148,7 @@ pub fn disabled_tooltip(child: impl UiNode, tip: impl UiNode) -> impl UiNode {
 /// [`tooltip_fn`]: fn@tooltip
 #[property(EVENT, default(WidgetFn::nil()))]
 pub fn disabled_tooltip_fn(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>) -> impl UiNode {
-    TooltipNode {
-        child,
-        tip: tip.into_var(),
-        disabled_only: true,
-        state: TooltipState::Closed,
-    }
+    tooltip_node(child, tip, true)
 }
 
 /// Arguments for tooltip widget functions.
@@ -191,110 +181,107 @@ impl fmt::Debug for TooltipState {
     }
 }
 
-#[ui_node(struct TooltipNode {
-    child: impl UiNode,
-    tip: impl Var<WidgetFn<TooltipArgs>>,
-    disabled_only: bool,
-    state: TooltipState,
-})]
-impl UiNode for TooltipNode {
-    fn init(&mut self) {
-        WIDGET.sub_var(&self.tip).sub_event(&MOUSE_HOVERED_EVENT);
-        self.child.init()
-    }
+fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, disabled_only: bool) -> impl UiNode {
+    let tip = tip.into_var();
+    let mut state = TooltipState::Closed;
 
-    fn deinit(&mut self) {
-        self.child.deinit();
-        if let TooltipState::Open(tooltip_id, _) = mem::take(&mut self.state) {
-            LAYERS.remove(tooltip_id.lock().unwrap());
-            TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&tip).sub_event(&MOUSE_HOVERED_EVENT);
         }
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        self.child.event(update);
-
-        if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-            if let TooltipState::Open(tooltip_id, _) = &self.state {
-                if !WINDOW.widget_tree().contains(tooltip_id.lock().unwrap()) {
-                    // already closed (from the layer probably)
-                    self.state = TooltipState::Closed;
-                }
+        UiNodeOp::Deinit => {
+            child.deinit();
+            if let TooltipState::Open(tooltip_id, _) = mem::take(&mut state) {
+                LAYERS.remove(tooltip_id.lock().unwrap());
+                TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
             }
-            match &self.state {
-                TooltipState::Open(tooltip_id, _) => {
-                    let tooltip_id = tooltip_id.lock().unwrap();
-                    if !args
-                        .target
-                        .as_ref()
-                        .map(|t| t.contains(tooltip_id) || t.contains(WIDGET.id()))
-                        .unwrap_or(true)
-                    {
-                        LAYERS.remove(tooltip_id);
-                        TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
-                        self.state = TooltipState::Closed;
+        }
+        UiNodeOp::Event { update } => {
+            child.event(update);
+
+            if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
+                if let TooltipState::Open(tooltip_id, _) = &state {
+                    if !WINDOW.widget_tree().contains(tooltip_id.lock().unwrap()) {
+                        // already closed (from the layer probably)
+                        state = TooltipState::Closed;
                     }
                 }
-                TooltipState::Delay(_) => {
-                    if args.target.as_ref().map(|t| !t.contains(WIDGET.id())).unwrap_or(true) {
-                        // cancel
-                        self.state = TooltipState::Closed;
-                    }
-                }
-                TooltipState::Closed => {
-                    if args.is_mouse_enter() && args.is_enabled(WIDGET.id()) != self.disabled_only {
-                        let delay = if TOOLTIP_LAST_CLOSED
-                            .get()
-                            .map(|t| t.elapsed() > TOOLTIP_INTERVAL_VAR.get())
+                match &state {
+                    TooltipState::Open(tooltip_id, _) => {
+                        let tooltip_id = tooltip_id.lock().unwrap();
+                        if !args
+                            .target
+                            .as_ref()
+                            .map(|t| t.contains(tooltip_id) || t.contains(WIDGET.id()))
                             .unwrap_or(true)
                         {
-                            TOOLTIP_DELAY_VAR.get()
-                        } else {
-                            Duration::ZERO
-                        };
-
-                        self.state = if delay == Duration::ZERO {
-                            TooltipState::Open(open_tooltip(self.tip.get(), self.disabled_only), duration_timer())
-                        } else {
-                            let delay = TIMERS.deadline(delay);
-                            delay.subscribe(WIDGET.id()).perm();
-                            TooltipState::Delay(delay)
-                        };
-                    }
-                }
-            }
-        }
-    }
-
-    fn update(&mut self, updates: &WidgetUpdates) {
-        self.child.update(updates);
-
-        match &mut self.state {
-            TooltipState::Open(tooltip_id, timer) => {
-                if let Some(t) = &timer {
-                    if let Some(t) = t.get_new() {
-                        if t.has_elapsed() {
-                            LAYERS.remove(tooltip_id.lock().unwrap());
+                            LAYERS.remove(tooltip_id);
                             TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
-                            self.state = TooltipState::Closed;
+                            state = TooltipState::Closed;
                         }
                     }
-                } else if let Some(func) = self.tip.get_new() {
-                    LAYERS.remove(tooltip_id.lock().unwrap());
-                    *tooltip_id = open_tooltip(func, self.disabled_only);
-                }
-            }
-            TooltipState::Delay(delay) => {
-                if let Some(t) = delay.get_new() {
-                    if t.has_elapsed() {
-                        self.state = TooltipState::Open(open_tooltip(self.tip.get(), self.disabled_only), duration_timer());
+                    TooltipState::Delay(_) => {
+                        if args.target.as_ref().map(|t| !t.contains(WIDGET.id())).unwrap_or(true) {
+                            // cancel
+                            state = TooltipState::Closed;
+                        }
+                    }
+                    TooltipState::Closed => {
+                        if args.is_mouse_enter() && args.is_enabled(WIDGET.id()) != disabled_only {
+                            let delay = if TOOLTIP_LAST_CLOSED
+                                .get()
+                                .map(|t| t.elapsed() > TOOLTIP_INTERVAL_VAR.get())
+                                .unwrap_or(true)
+                            {
+                                TOOLTIP_DELAY_VAR.get()
+                            } else {
+                                Duration::ZERO
+                            };
+
+                            state = if delay == Duration::ZERO {
+                                TooltipState::Open(open_tooltip(tip.get(), disabled_only), duration_timer())
+                            } else {
+                                let delay = TIMERS.deadline(delay);
+                                delay.subscribe(WIDGET.id()).perm();
+                                TooltipState::Delay(delay)
+                            };
+                        }
                     }
                 }
             }
-            TooltipState::Closed => {}
         }
-    }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+
+            match &mut state {
+                TooltipState::Open(tooltip_id, timer) => {
+                    if let Some(t) = &timer {
+                        if let Some(t) = t.get_new() {
+                            if t.has_elapsed() {
+                                LAYERS.remove(tooltip_id.lock().unwrap());
+                                TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
+                                state = TooltipState::Closed;
+                            }
+                        }
+                    } else if let Some(func) = tip.get_new() {
+                        LAYERS.remove(tooltip_id.lock().unwrap());
+                        *tooltip_id = open_tooltip(func, disabled_only);
+                    }
+                }
+                TooltipState::Delay(delay) => {
+                    if let Some(t) = delay.get_new() {
+                        if t.has_elapsed() {
+                            state = TooltipState::Open(open_tooltip(tip.get(), disabled_only), duration_timer());
+                        }
+                    }
+                }
+                TooltipState::Closed => {}
+            }
+        }
+        _ => {}
+    })
 }
+
 fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> Arc<Mutex<Option<WidgetId>>> {
     let child_id = Arc::new(Mutex::new(None));
 

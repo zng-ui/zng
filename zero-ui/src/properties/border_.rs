@@ -14,37 +14,33 @@ use crate::core::border::{border_node, BORDER};
 /// [`corner_radius`]: fn@corner_radius
 #[property(BORDER, default(0, BorderStyle::Hidden))]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
-    #[ui_node(struct BorderNode {
-        #[var] sides: impl Var<BorderSides>,
-        corners: PxCornerRadius,
-    })]
-    impl UiNode for BorderNode {
-        fn update(&mut self, _: &WidgetUpdates) {
-            if self.sides.is_new() {
-                WIDGET.render();
-            }
-        }
-
-        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-            LAYOUT.constraints().fill_size()
-        }
-        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            self.corners = BORDER.border_radius();
-            LAYOUT.constraints().fill_size()
-        }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            let (rect, offsets) = BORDER.border_layout();
-            frame.push_border(rect, offsets, self.sides.get(), self.corners);
-        }
-    }
+    let sides = sides.into_var();
+    let mut corners = PxCornerRadius::zero();
 
     border_node(
         child,
         widths,
-        BorderNode {
-            sides: sides.into_var(),
-            corners: PxCornerRadius::zero(),
-        },
+        match_node_leaf(move |op| match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_var(&sides);
+            }
+            UiNodeOp::Update { .. } => {
+                if sides.is_new() {
+                    WIDGET.render();
+                }
+            }
+            UiNodeOp::Measure { desired_size, .. } => {
+                *desired_size = LAYOUT.constraints().fill_size();
+            }
+            UiNodeOp::Layout { final_size, .. } => {
+                corners = BORDER.border_radius();
+                *final_size = LAYOUT.constraints().fill_size();
+            }
+            UiNodeOp::Render { frame } => {
+                let (rect, offsets) = BORDER.border_layout();
+                frame.push_border(rect, offsets, sides.get(), corners);
+            }
+            _ => {}
+        }),
     )
 }

@@ -37,23 +37,17 @@ use std::sync::Arc;
 /// [`Window`]: CaptureMode::Window
 #[property(CONTEXT, default(false))]
 pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
-    #[ui_node(struct CaptureMouseNode {
-        child: impl UiNode,
-        #[var] mode: impl Var<CaptureMode>,
-    })]
-    impl UiNode for CaptureMouseNode {
-        fn init(&mut self) {
-            WIDGET.sub_event(&MOUSE_INPUT_EVENT);
-            self.auto_subs();
-            self.child.init();
+    let mode = mode.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&MOUSE_INPUT_EVENT).sub_var(&mode);
         }
-
-        fn event(&mut self, update: &EventUpdate) {
+        UiNodeOp::Event { update } => {
             if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                 if args.is_mouse_down() {
                     let widget_id = WIDGET.id();
 
-                    match self.mode.get() {
+                    match mode.get() {
                         CaptureMode::Widget => {
                             MOUSE.capture_widget(widget_id);
                         }
@@ -64,11 +58,9 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                     }
                 }
             }
-            self.child.event(update);
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if let Some(new_mode) = self.mode.get_new() {
+        UiNodeOp::Update { .. } => {
+            if let Some(new_mode) = mode.get_new() {
                 let tree = WINDOW.widget_tree();
                 let widget_id = WIDGET.id();
                 if tree.get(widget_id).map(|w| w.interactivity().is_enabled()).unwrap_or(false) {
@@ -84,13 +76,9 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                     }
                 }
             }
-            self.child.update(updates);
         }
-    }
-    CaptureMouseNode {
-        child,
-        mode: mode.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Only allow interaction inside the widget, descendants and ancestors.
@@ -110,16 +98,32 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         widgets: IdSet<WidgetId>,
         last_in_tree: Option<WidgetId>,
     }
+    let enabled = enabled.into_var();
 
-    #[ui_node(struct ModalNode {
-        child: impl UiNode,
-        #[var] enabled: impl Var<bool>,
-    })]
-    impl UiNode for ModalNode {
-        fn info(&mut self, info: &mut WidgetInfoBuilder) {
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&enabled);
+            WINDOW.init_state_default(&MODAL_WIDGETS); // insert window state
+        }
+        UiNodeOp::Deinit => {
             let mws = WINDOW.req_state(&MODAL_WIDGETS);
 
-            if self.enabled.get() {
+            // maybe unregister.
+            let mut mws = mws.lock();
+            let widget_id = WIDGET.id();
+            if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
+                mws.last_in_tree = None;
+            }
+        }
+        UiNodeOp::Update { .. } => {
+            if enabled.is_new() {
+                WIDGET.update_info();
+            }
+        }
+        UiNodeOp::Info { info } => {
+            let mws = WINDOW.req_state(&MODAL_WIDGETS);
+
+            if enabled.get() {
                 let insert_filter = {
                     let mut mws = mws.lock();
                     if mws.widgets.insert(WIDGET.id()) {
@@ -176,40 +180,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                     mws.last_in_tree = None;
                 }
             }
-
-            self.child.info(info);
         }
-
-        fn init(&mut self) {
-            self.auto_subs();
-            WINDOW.init_state_default(&MODAL_WIDGETS); // insert window state
-            self.child.init();
-        }
-
-        fn deinit(&mut self) {
-            {
-                let mws = WINDOW.req_state(&MODAL_WIDGETS);
-
-                // maybe unregister.
-                let mut mws = mws.lock();
-                let widget_id = WIDGET.id();
-                if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
-                    mws.last_in_tree = None;
-                }
-            }
-            self.child.deinit()
-        }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.enabled.is_new() {
-                WIDGET.update_info();
-            }
-
-            self.child.update(updates);
-        }
-    }
-    ModalNode {
-        child,
-        enabled: enabled.into_var(),
-    }
+        _ => {}
+    })
 }
