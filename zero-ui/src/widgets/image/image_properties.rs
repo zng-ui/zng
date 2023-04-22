@@ -417,7 +417,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> 
 ///
 /// If the image widget is in the initial window content a [`WindowLoadingHandle`] is used to delay the window
 /// visually opening until the source loads, fails to load or a timeout elapses. By default `true` sets the timeout to 1 second.
-/// 
+///
 /// [`WindowLoadingHandle`]: crate::core::window::WindowLoadingHandle
 #[property(LAYOUT, default(false), widget_impl(Image))]
 pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {

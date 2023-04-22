@@ -232,6 +232,13 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
             );
 
             if !mem::take(&mut self.child.delegated) {
+                if size != PxSize::zero() {
+                    // this is an error because the child will be measured if the return type is zero,
+                    // flagging delegated ensure consistent behavior.
+                    tracing::error!("measure changed size without flagging delegated");
+                    return size;
+                }
+
                 self.child.child.measure(wm)
             } else {
                 size
@@ -245,6 +252,13 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
             (self.closure)(&mut self.child, UiNodeOp::Layout { wl, final_size: &mut size });
 
             if !mem::take(&mut self.child.delegated) {
+                if size != PxSize::zero() {
+                    // this is an error because the child will be layout if the return type is zero,
+                    // flagging delegated ensure consistent behavior.
+                    tracing::error!("layout changed size without flagging delegated");
+                    return size;
+                }
+
                 self.child.child.layout(wl)
             } else {
                 size

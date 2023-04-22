@@ -843,6 +843,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             });
         }
         UiNodeOp::Measure { wm, desired_size } => {
+            child.delegated();
+
             let metrics = LAYOUT.metrics();
 
             *desired_size = if let Some(size) = txt.measure(&metrics) {
@@ -891,6 +893,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             };
         }
         UiNodeOp::Layout { wl, final_size } => {
+            child.delegated();
+
             let metrics = LAYOUT.metrics();
             let resolved_txt = RESOLVED_TEXT.get();
             *final_size = txt.layout(&metrics, &resolved_txt, false);
