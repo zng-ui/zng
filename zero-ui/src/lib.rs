@@ -218,8 +218,6 @@ pub mod prelude {
     ///             }
     ///         }
     ///     })
-    ///
-    ///     MyPropertyNode { child, value: value.into_var() }
     /// }
     /// ```
     pub mod new_property {
