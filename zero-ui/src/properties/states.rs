@@ -2,10 +2,7 @@
 
 use std::time::Duration;
 
-use crate::core::{
-    mouse::*,
-    timer::{DeadlineVar, TIMERS},
-};
+use crate::core::{mouse::*, timer::TIMERS};
 use crate::prelude::new_property::*;
 
 /// If the mouse pointer is over the widget or a descendant and the widget is [`DISABLED`].
@@ -205,59 +202,49 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> 
 /// [`shortcut_pressed_duration`]: GESTURES::shortcut_pressed_duration
 #[property(CONTEXT)]
 pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct IsShortcutPressedNode {
-        child: impl UiNode,
-        state: impl Var<bool>,
-        shortcut_press: Option<DeadlineVar>,
-    })]
-    impl UiNode for IsShortcutPressedNode {
-        fn init(&mut self) {
-            let _ = self.state.set_ne(false);
+    let state = state.into_var();
+    let mut shortcut_press = None;
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            let _ = state.set_ne(false);
             WIDGET.sub_event(&CLICK_EVENT);
-            self.child.init();
         }
-        fn deinit(&mut self) {
-            let _ = self.state.set_ne(false);
-            self.child.deinit();
+        UiNodeOp::Deinit => {
+            let _ = state.set_ne(false);
         }
-        fn event(&mut self, update: &EventUpdate) {
+        UiNodeOp::Event { update } => {
             if let Some(args) = CLICK_EVENT.on(update) {
                 if args.shortcut().is_some() && args.is_enabled(WIDGET.id()) {
                     // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
                     // unless we where already doing that, then we just stop showing pressed, this causes
                     // a flickering effect when rapid clicks are happening.
-                    if self.shortcut_press.take().is_none() {
+                    if shortcut_press.take().is_none() {
                         let duration = GESTURES.shortcut_pressed_duration().get();
                         if duration != Duration::default() {
                             let dl = TIMERS.deadline(duration);
                             dl.subscribe(WIDGET.id()).perm();
-                            self.shortcut_press = Some(dl);
-                            let _ = self.state.set_ne(true);
+                            shortcut_press = Some(dl);
+                            let _ = state.set_ne(true);
                         }
                     } else {
-                        let _ = self.state.set_ne(false);
+                        let _ = state.set_ne(false);
                     }
                 }
             }
-            self.child.event(update);
         }
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
 
-            if let Some(timer) = &self.shortcut_press {
+            if let Some(timer) = &shortcut_press {
                 if timer.is_new() {
-                    self.shortcut_press = None;
-                    let _ = self.state.set_ne(false);
+                    shortcut_press = None;
+                    let _ = state.set_ne(false);
                 }
             }
         }
-    }
-    IsShortcutPressedNode {
-        child: child.cfg_boxed(),
-        state: state.into_var(),
-        shortcut_press: None,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// If [`is_pointer_pressed`] or [`is_shortcut_pressed`].

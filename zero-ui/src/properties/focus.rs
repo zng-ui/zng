@@ -105,111 +105,83 @@ impl UiNode for FocusScopeNode {
 /// Behavior of a focus scope when it receives direct focus.
 #[property(CONTEXT, default(FocusScopeOnFocus::default()))]
 pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScopeOnFocus>) -> impl UiNode {
-    #[ui_node(struct FocusScopeBehaviorNode {
-        child: impl UiNode,
-        #[var] behavior: impl Var<FocusScopeOnFocus>,
-    })]
-    impl UiNode for FocusScopeBehaviorNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.behavior.is_new() {
+    let behavior = behavior.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&behavior);
+        }
+        UiNodeOp::Update { .. } => {
+            if behavior.is_new() {
                 WIDGET.update_info();
             }
-            self.child.update(updates);
         }
-
-        fn info(&mut self, widget: &mut WidgetInfoBuilder) {
-            let mut info = FocusInfoBuilder::new(widget);
-            info.on_focus(self.behavior.get());
-            self.child.info(widget);
+        UiNodeOp::Info { info } => {
+            FocusInfoBuilder::new(info).on_focus(behavior.get());
         }
-    }
-    FocusScopeBehaviorNode {
-        child,
-        behavior: behavior.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Tab navigation within this focus scope.
 #[property(CONTEXT, default(TabNav::Continue))]
 pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
-    #[ui_node(struct TabNavNode {
-        child: impl UiNode,
-        #[var] tab_nav: impl Var<TabNav>,
-    })]
-    impl UiNode for TabNavNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.tab_nav.is_new() {
+    let tab_nav = tab_nav.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            if tab_nav.is_new() {
                 WIDGET.update_info();
             }
-            self.child.update(updates);
         }
-
-        fn info(&mut self, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::new(widget).tab_nav(self.tab_nav.get());
-            self.child.info(widget);
+        UiNodeOp::Update { .. } => {
+            if tab_nav.is_new() {
+                WIDGET.update_info();
+            }
         }
-    }
-    TabNavNode {
-        child,
-        tab_nav: tab_nav.into_var(),
-    }
+        UiNodeOp::Info { info } => {
+            FocusInfoBuilder::new(info).tab_nav(tab_nav.get());
+        }
+        _ => {}
+    })
 }
 
 /// Arrows navigation within this focus scope.
 #[property(CONTEXT, default(DirectionalNav::Continue))]
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
-    #[ui_node(struct DirectionalNavNode {
-        child: impl UiNode,
-        #[var] directional_nav: impl Var<DirectionalNav>,
-    })]
-    impl UiNode for DirectionalNavNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.directional_nav.is_new() {
+    let directional_nav = directional_nav.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&directional_nav);
+        }
+        UiNodeOp::Update { .. } => {
+            if directional_nav.is_new() {
                 WIDGET.update_info();
             }
-            self.child.update(updates);
         }
-
-        fn info(&mut self, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::new(widget).directional_nav(self.directional_nav.get());
-            self.child.info(widget);
+        UiNodeOp::Info { info } => {
+            FocusInfoBuilder::new(info).directional_nav(directional_nav.get());
         }
-    }
-    DirectionalNavNode {
-        child,
-        directional_nav: directional_nav.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Keyboard shortcuts that focus this widget or its first focusable descendant or its first focusable parent.
 #[property(CONTEXT, default(Shortcuts::default()))]
 pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
-    #[ui_node(struct FocusShortcutNode {
-        child: impl UiNode,
-        #[var] shortcuts: impl Var<Shortcuts>,
-        handle: Option<ShortcutsHandle>,
-    })]
-    impl UiNode for FocusShortcutNode {
-        fn init(&mut self) {
-            self.auto_subs();
-            self.child.init();
-            let s = self.shortcuts.get();
-            self.handle = Some(GESTURES.focus_shortcut(s, WIDGET.id()));
+    let shortcuts = shortcuts.into_var();
+    let mut _handle = None;
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&shortcuts);
+            let s = shortcuts.get();
+            _handle = Some(GESTURES.focus_shortcut(s, WIDGET.id()));
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-
-            if let Some(s) = self.shortcuts.get_new() {
-                self.handle = Some(GESTURES.focus_shortcut(s, WIDGET.id()));
+        UiNodeOp::Update { .. } => {
+            if let Some(s) = shortcuts.get_new() {
+                _handle = Some(GESTURES.focus_shortcut(s, WIDGET.id()));
             }
         }
-    }
-    FocusShortcutNode {
-        child,
-        shortcuts: shortcuts.into_var(),
-        handle: None,
-    }
+        _ => {}
+    })
 }
 
 /// If directional navigation from outside this widget skips over it and its descendants.
@@ -217,28 +189,21 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 /// Setting this to `true` is the directional navigation equivalent of setting `tab_index` to `SKIP`.
 #[property(CONTEXT, default(false))]
 pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct SkipDirectionalNode {
-        child: impl UiNode,
-        #[var] enabled: impl Var<bool>,
-    })]
-    impl UiNode for SkipDirectionalNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.enabled.is_new() {
+    let enabled = enabled.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&enabled);
+        }
+        UiNodeOp::Update { .. } => {
+            if enabled.is_new() {
                 WIDGET.update_info();
             }
-            self.child.update(updates);
         }
-
-        fn info(&mut self, widget: &mut WidgetInfoBuilder) {
-            FocusInfoBuilder::new(widget).skip_directional(self.enabled.get());
-
-            self.child.info(widget);
+        UiNodeOp::Info { info } => {
+            FocusInfoBuilder::new(info).skip_directional(enabled.get());
         }
-    }
-    SkipDirectionalNode {
-        child,
-        enabled: enabled.into_var(),
-    }
+        _ => {}
+    })
 }
 
 event_property! {

@@ -44,35 +44,30 @@ use zero_ui::prelude::new_property::*;
 ///
 #[property(LAYOUT, default(0))]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
-    #[ui_node(struct MarginNode {
-        child: impl UiNode,
-        #[var] margin: impl Var<SideOffsets>,
-    })]
-    impl UiNode for MarginNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.margin.is_new() {
+    let margin = margin.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&margin);
+        }
+        UiNodeOp::Update { .. } => {
+            if margin.is_new() {
                 WIDGET.layout();
             }
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let margin = self.margin.layout();
+        UiNodeOp::Measure { wm, desired_size } => {
+            let margin = margin.layout();
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
-            LAYOUT.with_sub_size(size_increment, || LAYOUT.disable_inline(wm, &mut self.child))
+            *desired_size = LAYOUT.with_sub_size(size_increment, || LAYOUT.disable_inline(wm, child));
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let margin = self.margin.layout();
+        UiNodeOp::Layout { wl, final_size } => {
+            let margin = margin.layout();
             let size_increment = PxSize::new(margin.horizontal(), margin.vertical());
 
             wl.translate(PxVector::new(margin.left, margin.top));
-            LAYOUT.with_sub_size(size_increment, || self.child.layout(wl))
+            *final_size = LAYOUT.with_sub_size(size_increment, || child.layout(wl));
         }
-    }
-    MarginNode {
-        child,
-        margin: margin.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Margin space around the *content* of a widget.
@@ -106,36 +101,28 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 /// more details.
 #[property(LAYOUT, default(Align::FILL))]
 pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode {
-    #[ui_node(struct AlignNode {
-        child: impl UiNode,
-        #[var] alignment: impl Var<Align>,
-    })]
-    impl UiNode for AlignNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.alignment.is_new() {
+    let alignment = alignment.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&alignment);
+        }
+        UiNodeOp::Update { .. } => {
+            if alignment.is_new() {
                 WIDGET.layout();
             }
-
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let align = self.alignment.get();
-            let child_size = LAYOUT.with_constraints(align.child_constraints(LAYOUT.constraints()), || {
-                LAYOUT.disable_inline(wm, &mut self.child)
-            });
-            align.measure(child_size, LAYOUT.constraints())
+        UiNodeOp::Measure { wm, desired_size } => {
+            let align = alignment.get();
+            let child_size = LAYOUT.with_constraints(align.child_constraints(LAYOUT.constraints()), || LAYOUT.disable_inline(wm, child));
+            *desired_size = align.measure(child_size, LAYOUT.constraints());
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let align = self.alignment.get();
-            let child_size = LAYOUT.with_constraints(align.child_constraints(LAYOUT.constraints()), || self.child.layout(wl));
-            align.layout(child_size, LAYOUT.constraints(), LAYOUT.direction(), wl)
+        UiNodeOp::Layout { wl, final_size } => {
+            let align = alignment.get();
+            let child_size = LAYOUT.with_constraints(align.child_constraints(LAYOUT.constraints()), || child.layout(wl));
+            *final_size = align.layout(child_size, LAYOUT.constraints(), LAYOUT.direction(), wl);
         }
-    }
-    AlignNode {
-        child,
-        alignment: alignment.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Aligns the widget *content* within the available space.
@@ -170,34 +157,26 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 /// You can use the [`x`](fn@x) and [`y`](fn@y) properties to only set the position in one dimension.
 #[property(LAYOUT, default((0, 0)))]
 pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
-    #[ui_node(struct OffsetNode {
-        child: impl UiNode,
-        #[var] offset: impl Var<Vector>,
-    })]
-    impl UiNode for OffsetNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.offset.is_new() {
+    let offset = offset.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&offset);
+        }
+        UiNodeOp::Update { .. } => {
+            if offset.is_new() {
                 WIDGET.layout();
             }
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.child.layout(wl);
+        UiNodeOp::Layout { wl, final_size } => {
+            let size = child.layout(wl);
             let offset = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(LAYOUT.constraints().fill_size().max(size)), || {
-                self.offset.layout()
+                offset.layout()
             });
             wl.translate(offset);
-            size
+            *final_size = size;
         }
-    }
-    OffsetNode {
-        child,
-        offset: offset.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Offset on the ***x*** axis.
@@ -224,31 +203,26 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
 /// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
 #[property(LAYOUT, default(0))]
 pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
-    #[ui_node(struct XNode {
-        child: impl UiNode,
-        #[var] x: impl Var<Length>,
-    })]
-    impl UiNode for XNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.x.is_new() {
+    let x = x.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&x);
+        }
+        UiNodeOp::Update { .. } => {
+            if x.is_new() {
                 WIDGET.layout();
             }
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.child.layout(wl);
+        UiNodeOp::Layout { wl, final_size } => {
+            let size = child.layout(wl);
             let x = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(LAYOUT.constraints().fill_size().max(size)), || {
-                self.x.layout_x()
+                x.layout_x()
             });
             wl.translate(PxVector::new(x, Px(0)));
-            size
+            *final_size = size;
         }
-    }
-    XNode { child, x: x.into_var() }
+        _ => {}
+    })
 }
 
 /// Offset on the ***y*** axis.
@@ -275,31 +249,26 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// You can set both `x` and `y` at the same time using the [`offset`](fn@offset) property.
 #[property(LAYOUT, default(0))]
 pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
-    #[ui_node(struct YNode {
-        child: impl UiNode,
-        #[var] y: impl Var<Length>,
-    })]
-    impl UiNode for YNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.y.is_new() {
+    let y = y.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&y);
+        }
+        UiNodeOp::Update { .. } => {
+            if y.is_new() {
                 WIDGET.layout();
             }
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.child.layout(wl);
+        UiNodeOp::Layout { wl, final_size } => {
+            let size = child.layout(wl);
             let y = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(LAYOUT.constraints().fill_size().max(size)), || {
-                self.y.layout_y()
+                y.layout_y()
             });
             wl.translate(PxVector::new(Px(0), y));
-            size
+            *final_size = size;
         }
-    }
-    YNode { child, y: y.into_var() }
+        _ => {}
+    })
 }
 
 /// Minimum size of the widget.
@@ -335,36 +304,30 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// set the minimum size of one dimension.
 #[property(SIZE-2, default((0, 0)))]
 pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode {
-    #[ui_node(struct MinSizeNode {
-        child: impl UiNode,
-        #[var] min_size: impl Var<Size>,
-    })]
-    impl UiNode for MinSizeNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.min_size.is_new() {
+    let min_size = min_size.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&min_size);
+        }
+        UiNodeOp::Update { .. } => {
+            if min_size.is_new() {
                 WIDGET.layout();
             }
-
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        UiNodeOp::Measure { wm, desired_size } => {
             let c = LAYOUT.constraints();
-            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || self.min_size.layout());
-            let size = LAYOUT.with_constraints(c.with_min_size(min), || LAYOUT.disable_inline(wm, &mut self.child));
-            size.max(min)
+            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || min_size.layout());
+            let size = LAYOUT.with_constraints(c.with_min_size(min), || LAYOUT.disable_inline(wm, child));
+            *desired_size = size.max(min);
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        UiNodeOp::Layout { wl, final_size } => {
             let c = LAYOUT.constraints();
-            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || self.min_size.layout());
-            let size = LAYOUT.with_constraints(c.with_min_size(min), || self.child.layout(wl));
-            size.max(min)
+            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || min_size.layout());
+            let size = LAYOUT.with_constraints(c.with_min_size(min), || child.layout(wl));
+            *final_size = size.max(min);
         }
-    }
-    MinSizeNode {
-        child,
-        min_size: min_size.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Minimum width of the widget.
@@ -399,38 +362,32 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
 #[property(SIZE-2, default(0))]
 pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl UiNode {
-    #[ui_node(struct MinWidthNode {
-        child: impl UiNode,
-        #[var] min_width: impl Var<Length>,
-    })]
-    impl UiNode for MinWidthNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.min_width.is_new() {
+    let min_width = min_width.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&min_width);
+        }
+        UiNodeOp::Update { .. } => {
+            if min_width.is_new() {
                 WIDGET.layout();
             }
-
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        UiNodeOp::Measure { wm, desired_size } => {
             let c = LAYOUT.constraints();
-            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || self.min_width.layout_x());
-            let mut size = LAYOUT.with_constraints(c.with_min_x(min), || LAYOUT.disable_inline(wm, &mut self.child));
+            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || min_width.layout_x());
+            let mut size = LAYOUT.with_constraints(c.with_min_x(min), || LAYOUT.disable_inline(wm, child));
             size.width = size.width.max(min);
-            size
+            *desired_size = size;
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        UiNodeOp::Layout { wl, final_size } => {
             let c = LAYOUT.constraints();
-            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || self.min_width.layout_x());
-            let mut size = LAYOUT.with_constraints(c.with_min_x(min), || self.child.layout(wl));
+            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || min_width.layout_x());
+            let mut size = LAYOUT.with_constraints(c.with_min_x(min), || child.layout(wl));
             size.width = size.width.max(min);
-            size
+            *final_size = size;
         }
-    }
-    MinWidthNode {
-        child,
-        min_width: min_width.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Minimum height of the widget.
@@ -465,38 +422,32 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 /// You can set both `min_width` and `min_height` at the same time using the [`min_size`](fn@min_size) property.
 #[property(SIZE-2, default(0))]
 pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl UiNode {
-    #[ui_node(struct MinHeightNode {
-        child: impl UiNode,
-        #[var] min_height: impl Var<Length>,
-    })]
-    impl UiNode for MinHeightNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.min_height.is_new() {
+    let min_height = min_height.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&min_height);
+        }
+        UiNodeOp::Update { .. } => {
+            if min_height.is_new() {
                 WIDGET.layout();
             }
-
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        UiNodeOp::Measure { wm, desired_size } => {
             let c = LAYOUT.constraints();
-            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || self.min_height.layout_y());
-            let mut size = LAYOUT.with_constraints(c.with_min_y(min), || LAYOUT.disable_inline(wm, &mut self.child));
+            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || min_height.layout_y());
+            let mut size = LAYOUT.with_constraints(c.with_min_y(min), || LAYOUT.disable_inline(wm, child));
             size.height = size.height.max(min);
-            size
+            *desired_size = size;
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        UiNodeOp::Layout { wl, final_size } => {
             let c = LAYOUT.constraints();
-            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || self.min_height.layout_y());
-            let mut size = LAYOUT.with_constraints(c.with_min_y(min), || self.child.layout(wl));
+            let min = LAYOUT.with_constraints(c.with_fill_vector(c.is_bounded()), || min_height.layout_y());
+            let mut size = LAYOUT.with_constraints(c.with_min_y(min), || child.layout(wl));
             size.height = size.height.max(min);
-            size
+            *final_size = size;
         }
-    }
-    MinHeightNode {
-        child,
-        min_height: min_height.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Maximum size of the widget.
@@ -532,36 +483,28 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 /// set the maximum size of one dimension.
 #[property(SIZE-1)]
 pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode {
-    #[ui_node(struct MaxSizeNode {
-        child: impl UiNode,
-        #[var] max_size: impl Var<Size>,
-    })]
-    impl UiNode for MaxSizeNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.max_size.is_new() {
+    let max_size = max_size.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&max_size);
+        }
+        UiNodeOp::Update { .. } => {
+            if max_size.is_new() {
                 WIDGET.layout();
             }
-
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let max = with_fill_metrics(|d| self.max_size.layout_dft(d));
-            let size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_size(max), || {
-                LAYOUT.disable_inline(wm, &mut self.child)
-            });
-            size.min(max)
+        UiNodeOp::Measure { wm, desired_size } => {
+            let max = with_fill_metrics(|d| max_size.layout_dft(d));
+            let size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_size(max), || LAYOUT.disable_inline(wm, child));
+            *desired_size = size.min(max);
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let max = with_fill_metrics(|d| self.max_size.layout_dft(d));
-            let size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_size(max), || self.child.layout(wl));
-            size.min(max)
+        UiNodeOp::Layout { wl, final_size } => {
+            let max = with_fill_metrics(|d| max_size.layout_dft(d));
+            let size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_size(max), || child.layout(wl));
+            *final_size = size.min(max);
         }
-    }
-    MaxSizeNode {
-        child,
-        max_size: max_size.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Maximum width of the widget.
@@ -596,38 +539,32 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
 #[property(SIZE-1)]
 pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl UiNode {
-    #[ui_node(struct MaxWidthNode {
-        child: impl UiNode,
-        #[var] max_width: impl Var<Length>,
-    })]
-    impl UiNode for MaxWidthNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.max_width.is_new() {
+    let max_width = max_width.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&max_width);
+        }
+        UiNodeOp::Update { .. } => {
+            if max_width.is_new() {
                 WIDGET.layout();
             }
-
-            self.child.update(updates);
         }
+        UiNodeOp::Measure { wm, desired_size } => {
+            let max = with_fill_metrics(|d| max_width.layout_dft_x(d.width));
 
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let max = with_fill_metrics(|d| self.max_width.layout_dft_x(d.width));
-
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_x(max), || LAYOUT.disable_inline(wm, &mut self.child));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_x(max), || LAYOUT.disable_inline(wm, child));
             size.width = size.width.min(max);
-            size
+            *desired_size = size;
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let max = with_fill_metrics(|d| self.max_width.layout_dft_x(d.width));
+        UiNodeOp::Layout { wl, final_size } => {
+            let max = with_fill_metrics(|d| max_width.layout_dft_x(d.width));
 
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_x(max), || self.child.layout(wl));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_x(max), || child.layout(wl));
             size.width = size.width.min(max);
-            size
+            *final_size = size;
         }
-    }
-    MaxWidthNode {
-        child,
-        max_width: max_width.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Maximum height of the widget.
@@ -662,38 +599,32 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
 #[property(SIZE-1)]
 pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl UiNode {
-    #[ui_node(struct MaxHeightNode {
-        child: impl UiNode,
-        #[var] max_height: impl Var<Length>,
-    })]
-    impl UiNode for MaxHeightNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.max_height.is_new() {
+    let max_height = max_height.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&max_height);
+        }
+        UiNodeOp::Update { .. } => {
+            if max_height.is_new() {
                 WIDGET.layout();
             }
-
-            self.child.update(updates);
         }
+        UiNodeOp::Measure { wm, desired_size } => {
+            let max = with_fill_metrics(|d| max_height.layout_dft_y(d.height));
 
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let max = with_fill_metrics(|d| self.max_height.layout_dft_y(d.height));
-
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_y(max), || LAYOUT.disable_inline(wm, &mut self.child));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_y(max), || LAYOUT.disable_inline(wm, child));
             size.height = size.height.min(max);
-            size
+            *desired_size = size;
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let max = with_fill_metrics(|d| self.max_height.layout_dft_y(d.height));
+        UiNodeOp::Layout { wl, final_size } => {
+            let max = with_fill_metrics(|d| max_height.layout_dft_y(d.height));
 
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_y(max), || self.child.layout(wl));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_max_y(max), || child.layout(wl));
             size.height = size.height.min(max);
-            size
+            *final_size = size;
         }
-    }
-    MaxHeightNode {
-        child,
-        max_height: max_height.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Exact size of the widget.
@@ -733,42 +664,35 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// [`align`]: fn@align
 #[property(SIZE)]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
-    #[ui_node(struct SizeNode {
-        child: impl UiNode,
-        #[var] size: impl Var<Size>,
-    })]
-    impl UiNode for SizeNode {
-        fn init(&mut self) {
-            self.auto_subs();
-            self.child.init();
-            self.size.with(|l| WIDGET_SIZE.set(l));
+    let size = size.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&size);
+            child.init();
+            size.with(|l| WIDGET_SIZE.set(l));
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            self.size.with_new(|s| {
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            size.with_new(|s| {
                 WIDGET_SIZE.set(s);
                 WIDGET.layout();
             });
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let size = with_fill_metrics(|d| self.size.layout_dft(d));
+        UiNodeOp::Measure { wm, desired_size } => {
+            let size = with_fill_metrics(|d| size.layout_dft(d));
             let size = LAYOUT.constraints().clamp_size(size);
-            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || LAYOUT.disable_inline(wm, &mut self.child));
-            size
+            // !!: review this, why measure?
+            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || LAYOUT.disable_inline(wm, child));
+            *desired_size = size;
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = with_fill_metrics(|d| self.size.layout_dft(d));
+        UiNodeOp::Layout { wl, final_size } => {
+            let size = with_fill_metrics(|d| size.layout_dft(d));
             let size = LAYOUT.constraints().clamp_size(size);
-            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || self.child.layout(wl));
-            size
+            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || child.layout(wl));
+            *final_size = size;
         }
-    }
-    SizeNode {
-        child,
-        size: size.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Exact width of the widget.
@@ -801,46 +725,38 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// [`max_width`]: fn@max_width
 #[property(SIZE)]
 pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
-    #[ui_node(struct WidthNode {
-        child: impl UiNode,
-        #[var] width: impl Var<Length>,
-    })]
-    impl UiNode for WidthNode {
-        fn init(&mut self) {
-            self.auto_subs();
-            self.child.init();
-            self.width.with(|s| WIDGET_SIZE.set_width(s));
+    let width = width.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&width);
+            child.init();
+            width.with(|s| WIDGET_SIZE.set_width(s));
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            self.width.with_new(|w| {
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            width.with_new(|w| {
                 WIDGET_SIZE.set_width(w);
                 WIDGET.layout();
             });
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let width = with_fill_metrics(|d| self.width.layout_dft_x(d.width));
+        UiNodeOp::Measure { wm, desired_size } => {
+            let width = with_fill_metrics(|d| width.layout_dft_x(d.width));
             let c = LAYOUT.constraints();
             let width = c.x.clamp(width);
-            let mut size = LAYOUT.with_constraints(c.with_exact_x(width), || LAYOUT.disable_inline(wm, &mut self.child));
+            let mut size = LAYOUT.with_constraints(c.with_exact_x(width), || LAYOUT.disable_inline(wm, child));
             size.width = width;
-            size
+            *desired_size = size;
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let width = with_fill_metrics(|d| self.width.layout_dft_x(d.width));
+        UiNodeOp::Layout { wl, final_size } => {
+            let width = with_fill_metrics(|d| width.layout_dft_x(d.width));
             let c = LAYOUT.constraints();
             let width = c.x.clamp(width);
-            let mut size = LAYOUT.with_constraints(c.with_exact_x(width), || self.child.layout(wl));
+            let mut size = LAYOUT.with_constraints(c.with_exact_x(width), || child.layout(wl));
             size.width = width;
-            size
+            *final_size = size;
         }
-    }
-    WidthNode {
-        child,
-        width: width.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Exact height of the widget.
@@ -873,44 +789,37 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// [`max_height`]: fn@max_height
 #[property(SIZE)]
 pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
-    #[ui_node(struct HeightNode {
-        child: impl UiNode,
-        #[var] height: impl Var<Length>,
-    })]
-    impl UiNode for HeightNode {
-        fn init(&mut self) {
-            self.auto_subs();
-            self.child.init();
-            self.height.with(|s| WIDGET_SIZE.set_height(s));
+    let height = height.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&height);
+            child.init();
+            height.with(|s| WIDGET_SIZE.set_height(s));
         }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
 
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            self.height.with_new(|h| {
+            height.with_new(|h| {
                 WIDGET_SIZE.set_height(h);
                 WIDGET.layout();
             });
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let height = with_fill_metrics(|dft| self.height.layout_dft_y(dft.height));
+        UiNodeOp::Measure { wm, desired_size } => {
+            let height = with_fill_metrics(|dft| height.layout_dft_y(dft.height));
             let c = LAYOUT.constraints();
             let height = c.y.clamp(height);
-            let mut size = LAYOUT.with_constraints(c.with_new_exact_y(height), || LAYOUT.disable_inline(wm, &mut self.child));
+            let mut size = LAYOUT.with_constraints(c.with_new_exact_y(height), || LAYOUT.disable_inline(wm, child));
             size.height = height;
-            size
+            *desired_size = size;
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let height = with_fill_metrics(|dft| self.height.layout_dft_y(dft.height));
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_new_exact_y(height), || self.child.layout(wl));
+        UiNodeOp::Layout { wl, final_size } => {
+            let height = with_fill_metrics(|dft| height.layout_dft_y(dft.height));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_new_exact_y(height), || child.layout(wl));
             size.height = height;
-            size
+            *final_size = size;
         }
-    }
-    HeightNode {
-        child,
-        height: height.into_var(),
-    }
+        _ => {}
+    })
 }
 
 fn with_fill_metrics<R>(f: impl FnOnce(PxSize) -> R) -> R {
@@ -929,41 +838,32 @@ fn with_fill_metrics<R>(f: impl FnOnce(PxSize) -> R) -> R {
 /// [`Text!`]: struct@crate::widgets::Text
 #[property(BORDER, default(Length::Default))]
 pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNode {
-    #[ui_node(struct BaselineNode {
-        child: impl UiNode,
-        #[var] baseline: impl Var<Length>,
-    })]
-    impl UiNode for BaselineNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.baseline.is_new() {
+    let baseline = baseline.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&baseline);
+        }
+        UiNodeOp::Update { .. } => {
+            if baseline.is_new() {
                 WIDGET.layout();
             }
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.child.layout(wl);
+        UiNodeOp::Layout { wl, final_size } => {
+            let size = child.layout(wl);
 
             let bounds = WIDGET.bounds();
             let inner_size = bounds.inner_size();
             let default = bounds.baseline();
 
             let baseline = LAYOUT.with_constraints(LAYOUT.constraints().with_max_size(inner_size).with_fill(true, true), || {
-                self.baseline.layout_dft_y(default)
+                baseline.layout_dft_y(default)
             });
             wl.set_baseline(baseline);
 
-            size
+            *final_size = size;
         }
-    }
-    BaselineNode {
-        child: child.cfg_boxed(),
-        baseline: baseline.into_var(),
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Retain the widget's previous width if the new layout width is smaller.
@@ -972,29 +872,38 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
 /// This property disables inline layout for the widget.
 #[property(SIZE, default(false))]
 pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct StickyWidthNode {
-        child: impl UiNode,
-        #[var] sticky: impl Var<bool>,
-    })]
-    impl UiNode for StickyWidthNode {
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let min = WIDGET.bounds().inner_size().width;
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || LAYOUT.disable_inline(wm, &mut self.child));
-            size.width = size.width.max(min);
-            size
+    let sticky = sticky.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&sticky);
         }
+        UiNodeOp::Update { .. } => {
+            if sticky.is_new() {
+                WIDGET.layout();
+            }
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            if !sticky.get() {
+                return;
+            }
 
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let min = WIDGET.bounds().inner_size().width;
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || self.child.layout(wl));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || LAYOUT.disable_inline(wm, child));
             size.width = size.width.max(min);
-            size
+            *desired_size = size;
         }
-    }
-    StickyWidthNode {
-        child,
-        sticky: sticky.into_var(),
-    }
+        UiNodeOp::Layout { wl, final_size } => {
+            if !sticky.get() {
+                return;
+            }
+
+            let min = WIDGET.bounds().inner_size().width;
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || child.layout(wl));
+            size.width = size.width.max(min);
+            *final_size = size;
+        }
+        _ => {}
+    })
 }
 
 /// Retain the widget's previous height if the new layout height is smaller.
@@ -1003,29 +912,38 @@ pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNo
 /// This property disables inline layout for the widget.
 #[property(SIZE, default(false))]
 pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct StickyHeightNode {
-        child: impl UiNode,
-        #[var] sticky: impl Var<bool>,
-    })]
-    impl UiNode for StickyHeightNode {
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let min = WIDGET.bounds().inner_size().height;
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || LAYOUT.disable_inline(wm, &mut self.child));
-            size.height = size.height.max(min);
-            size
+    let sticky = sticky.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&sticky);
         }
+        UiNodeOp::Update { .. } => {
+            if sticky.is_new() {
+                WIDGET.layout();
+            }
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            if !sticky.get() {
+                return;
+            }
 
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let min = WIDGET.bounds().inner_size().height;
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || self.child.layout(wl));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || LAYOUT.disable_inline(wm, child));
             size.height = size.height.max(min);
-            size
+            *desired_size = size;
         }
-    }
-    StickyHeightNode {
-        child,
-        sticky: sticky.into_var(),
-    }
+        UiNodeOp::Layout { wl, final_size } => {
+            if !sticky.get() {
+                return;
+            }
+
+            let min = WIDGET.bounds().inner_size().height;
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || child.layout(wl));
+            size.height = size.height.max(min);
+            *final_size = size;
+        }
+        _ => {}
+    })
 }
 
 /// Retain the widget's previous size if the new layout size is smaller.
@@ -1034,31 +952,38 @@ pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiN
 /// This property disables inline layout for the widget.
 #[property(SIZE, default(false))]
 pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct StickyHeightNode {
-        child: impl UiNode,
-        #[var] sticky: impl Var<bool>,
-    })]
-    impl UiNode for StickyHeightNode {
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let min = WIDGET.bounds().inner_size();
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || {
-                LAYOUT.disable_inline(wm, &mut self.child)
-            });
-            size = size.max(min);
-            size
+    let sticky = sticky.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&sticky);
         }
+        UiNodeOp::Update { .. } => {
+            if sticky.is_new() {
+                WIDGET.layout();
+            }
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            if !sticky.get() {
+                return;
+            }
 
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let min = WIDGET.bounds().inner_size();
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || self.child.layout(wl));
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || LAYOUT.disable_inline(wm, child));
             size = size.max(min);
-            size
+            *desired_size = size;
         }
-    }
-    StickyHeightNode {
-        child,
-        sticky: sticky.into_var(),
-    }
+        UiNodeOp::Layout { wl, final_size } => {
+            if !sticky.get() {
+                return;
+            }
+
+            let min = WIDGET.bounds().inner_size();
+            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || child.layout(wl));
+            size = size.max(min);
+            *final_size = size;
+        }
+        _ => {}
+    })
 }
 
 /// Placement of a node inserted by the [`child_insert`] property.
@@ -1134,33 +1059,32 @@ pub fn child_insert(
     insert: impl UiNode,
     spacing: impl IntoVar<Length>,
 ) -> impl UiNode {
-    #[ui_node(struct ChildInsertNode {
-        children: impl UiNodeList,
-        #[var] place: impl Var<ChildInsertPlace>,
-        #[var] spacing: impl Var<Length>,
-        offset_key: FrameValueKey<PxTransform>,
-        offset_child: u8,
-        offset: PxVector,
-    })]
-    impl UiNode for ChildInsertNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.children.update_all(updates, &mut ());
-            if self.place.is_new() || self.spacing.is_new() {
+    let place = place.into_var();
+    let spacing = spacing.into_var();
+    let offset_key = FrameValueKey::new_unique();
+    let mut offset_child = 0;
+    let mut offset = PxVector::zero();
+
+    match_node_list(ui_vec![child, insert], move |children, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&place).sub_var(&spacing);
+        }
+        UiNodeOp::Update { .. } => {
+            if place.is_new() || spacing.is_new() {
                 WIDGET.layout();
             }
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        UiNodeOp::Measure { wm, desired_size } => {
             let c = LAYOUT.constraints();
-            if self.place.get().is_x_axis() {
-                let mut spacing = self.spacing.layout_x();
-                let insert_size = self.children.with_node(1, |n| {
+            *desired_size = if place.get().is_x_axis() {
+                let mut spacing = spacing.layout_x();
+                let insert_size = children.with_node(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || LAYOUT.disable_inline(wm, n))
                 });
                 if insert_size.width == Px(0) {
                     spacing = Px(0);
                 }
-                let child_size = self.children.with_node(0, |n| {
+                let child_size = children.with_node(0, |n| {
                     LAYOUT.with_constraints(c.with_less_x(insert_size.width + spacing), || LAYOUT.disable_inline(wm, n))
                 });
 
@@ -1169,14 +1093,14 @@ pub fn child_insert(
                     insert_size.height.max(child_size.height),
                 )
             } else {
-                let mut spacing = self.spacing.layout_y();
-                let insert_size = self.children.with_node(1, |n| {
+                let mut spacing = spacing.layout_y();
+                let insert_size = children.with_node(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || LAYOUT.disable_inline(wm, n))
                 });
                 if insert_size.height == Px(0) {
                     spacing = Px(0);
                 }
-                let child_size = self.children.with_node(0, |n| {
+                let child_size = children.with_node(0, |n| {
                     LAYOUT.with_constraints(c.with_less_y(insert_size.height + spacing), || LAYOUT.disable_inline(wm, n))
                 });
                 if child_size.height == Px(0) {
@@ -1186,16 +1110,15 @@ pub fn child_insert(
                     insert_size.width.max(child_size.width),
                     insert_size.height + spacing + child_size.height,
                 )
-            }
+            };
         }
-
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let place = self.place.get().resolve_direction(LAYOUT.direction());
+        UiNodeOp::Layout { wl, final_size } => {
+            let place = place.get().resolve_direction(LAYOUT.direction());
             let c = LAYOUT.constraints();
 
-            match place {
+            *final_size = match place {
                 ChildInsertPlace::Left | ChildInsertPlace::Right => {
-                    let spacing = self.spacing.layout_x();
+                    let spacing = spacing.layout_x();
 
                     let mut constraints_y = LAYOUT.constraints().y;
                     if constraints_y.fill_or_exact().is_none() {
@@ -1204,13 +1127,13 @@ pub fn child_insert(
                         let wm = &mut wm;
                         let mut spacing = spacing;
 
-                        let insert_size = self.children.with_node(1, |n| {
+                        let insert_size = children.with_node(1, |n| {
                             LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || n.measure(wm))
                         });
                         if insert_size.width == Px(0) {
                             spacing = Px(0);
                         }
-                        let child_size = self.children.with_node(0, |n| {
+                        let child_size = children.with_node(0, |n| {
                             LAYOUT.with_constraints(c.with_less_x(insert_size.width + spacing), || n.measure(wm))
                         });
 
@@ -1218,7 +1141,7 @@ pub fn child_insert(
                     }
 
                     let mut spacing = spacing;
-                    let insert_size = self.children.with_node(1, |n| {
+                    let insert_size = children.with_node(1, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -1231,7 +1154,7 @@ pub fn child_insert(
                     if insert_size.width == Px(0) {
                         spacing = Px(0);
                     }
-                    let child_size = self.children.with_node(0, |n| {
+                    let child_size = children.with_node(0, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -1246,15 +1169,15 @@ pub fn child_insert(
                     }
 
                     // position
-                    let (child, offset) = match place {
+                    let (child, o) = match place {
                         ChildInsertPlace::Left => (0, insert_size.width + spacing),
                         ChildInsertPlace::Right => (1, child_size.width + spacing),
                         _ => unreachable!(),
                     };
-                    let offset = PxVector::new(offset, Px(0));
-                    if self.offset != offset || self.offset_child != child {
-                        self.offset_child = child;
-                        self.offset = offset;
+                    let o = PxVector::new(o, Px(0));
+                    if offset != o || offset_child != child {
+                        offset_child = child;
+                        offset = o;
                         WIDGET.render_update();
                     }
 
@@ -1264,7 +1187,7 @@ pub fn child_insert(
                     )
                 }
                 ChildInsertPlace::Above | ChildInsertPlace::Below => {
-                    let spacing = self.spacing.layout_y();
+                    let spacing = spacing.layout_y();
 
                     let mut constraints_x = c.x;
                     if constraints_x.fill_or_exact().is_none() {
@@ -1274,13 +1197,13 @@ pub fn child_insert(
                         let wm = &mut wm;
                         let mut spacing = spacing;
 
-                        let insert_size = self.children.with_node(1, |n| {
+                        let insert_size = children.with_node(1, |n| {
                             LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || n.measure(wm))
                         });
                         if insert_size.height == Px(0) {
                             spacing = Px(0);
                         }
-                        let child_size = self.children.with_node(0, |n| {
+                        let child_size = children.with_node(0, |n| {
                             LAYOUT.with_constraints(c.with_less_y(insert_size.height + spacing), || n.measure(wm))
                         });
 
@@ -1288,7 +1211,7 @@ pub fn child_insert(
                     }
 
                     let mut spacing = spacing;
-                    let insert_size = self.children.with_node(1, |n| {
+                    let insert_size = children.with_node(1, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -1301,7 +1224,7 @@ pub fn child_insert(
                     if insert_size.height == Px(0) {
                         spacing = Px(0);
                     }
-                    let child_size = self.children.with_node(0, |n| {
+                    let child_size = children.with_node(0, |n| {
                         LAYOUT.with_constraints(
                             {
                                 let mut c = c;
@@ -1313,15 +1236,15 @@ pub fn child_insert(
                     });
 
                     // position
-                    let (child, offset) = match place {
+                    let (child, o) = match place {
                         ChildInsertPlace::Above => (0, insert_size.height + spacing),
                         ChildInsertPlace::Below => (1, child_size.height + spacing),
                         _ => unreachable!(),
                     };
-                    let offset = PxVector::new(Px(0), offset);
-                    if self.offset != offset || self.offset_child != child {
-                        self.offset_child = child;
-                        self.offset = offset;
+                    let o = PxVector::new(Px(0), o);
+                    if offset != o || offset_child != child {
+                        offset_child = child;
+                        offset = o;
                         WIDGET.render_update();
                     }
 
@@ -1333,47 +1256,30 @@ pub fn child_insert(
                 _ => {
                     unreachable!()
                 }
-            }
+            };
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            self.children.for_each(|i, child| {
-                if i as u8 == self.offset_child {
-                    frame.push_reference_frame(
-                        self.offset_key.into(),
-                        self.offset_key.bind(self.offset.into(), false),
-                        true,
-                        true,
-                        |frame| {
-                            child.render(frame);
-                        },
-                    );
-                } else {
+        UiNodeOp::Render { frame } => children.for_each(|i, child| {
+            if i as u8 == offset_child {
+                frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, true, |frame| {
                     child.render(frame);
-                }
-            })
-        }
-
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.children.for_each(|i, child| {
-                if i as u8 == self.offset_child {
-                    update.with_transform(self.offset_key.update(self.offset.into(), false), true, |update| {
+                });
+            } else {
+                child.render(frame);
+            }
+        }),
+        UiNodeOp::RenderUpdate { update } => {
+            children.for_each(|i, child| {
+                if i as u8 == offset_child {
+                    update.with_transform(offset_key.update(offset.into(), false), true, |update| {
                         child.render_update(update);
                     });
                 } else {
                     child.render_update(update);
                 }
-            })
+            });
         }
-    }
-    ChildInsertNode {
-        children: ui_vec![child, insert],
-        place: place.into_var(),
-        spacing: spacing.into_var(),
-        offset_key: FrameValueKey::new_unique(),
-        offset_child: 0,
-        offset: PxVector::zero(),
-    }
+        _ => {}
+    })
 }
 
 /// Insert `insert` to the left of the widget's child.

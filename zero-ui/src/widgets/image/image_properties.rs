@@ -3,7 +3,7 @@ use std::fmt;
 
 pub use crate::core::image::{ImageDownscale, ImageLimits};
 pub use crate::core::render::ImageRendering;
-use crate::core::window::{WindowLoadingHandle, WINDOW_CTRL};
+use crate::core::window::WINDOW_CTRL;
 use crate::widgets::window::nodes::BlockWindowLoad;
 use nodes::CONTEXT_IMAGE_VAR;
 /// Image layout mode.
@@ -344,45 +344,36 @@ pub struct ImgErrorArgs {
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
 #[property(EVENT, widget_impl(Image))]
 pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -> impl UiNode {
-    #[ui_node(struct OnErrorNode {
-        child: impl UiNode,
-        handler: impl WidgetHandler<ImgErrorArgs>,
-        error: Txt,
-    })]
-    impl UiNode for OnErrorNode {
-        fn init(&mut self) {
+    let mut handler = handler.cfg_boxed();
+    let mut error = Txt::empty();
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
             CONTEXT_IMAGE_VAR.with(|i| {
-                if let Some(error) = i.error() {
-                    self.error = error;
-                    self.handler.event(&ImgErrorArgs { error: self.error.clone() });
+                if let Some(e) = i.error() {
+                    error = e;
+                    handler.event(&ImgErrorArgs { error: error.clone() });
                 }
             });
-            self.child.init();
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
-                if let Some(error) = new_img.error() {
-                    if self.error != error {
-                        self.error = error;
-                        self.handler.event(&ImgErrorArgs { error: self.error.clone() });
+                if let Some(e) = new_img.error() {
+                    if error != e {
+                        error = e;
+                        handler.event(&ImgErrorArgs { error: error.clone() });
                     }
                 } else {
-                    self.error = "".into();
+                    error = "".into();
                 }
             }
 
-            self.handler.update();
-            self.child.update(updates);
+            handler.update();
         }
-    }
-    OnErrorNode {
-        child,
-        handler,
-        error: "".into(),
-    }
+        _ => {}
+    })
 }
 
 /// Image loaded event.
@@ -399,32 +390,27 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
 #[property(EVENT, widget_impl(Image))]
 pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> impl UiNode {
-    #[ui_node(struct OnLoadNode {
-        child: impl UiNode,
-        handler: impl WidgetHandler<ImgLoadArgs>,
-    })]
-    impl UiNode for OnLoadNode {
-        fn init(&mut self) {
+    let mut handler = handler.cfg_boxed();
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
             if CONTEXT_IMAGE_VAR.with(Img::is_loaded) {
-                self.handler.event(&ImgLoadArgs {});
+                handler.event(&ImgLoadArgs {});
             }
-            self.child.init();
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             if let Some(new_img) = CONTEXT_IMAGE_VAR.get_new() {
                 if new_img.is_loaded() {
-                    self.handler.event(&ImgLoadArgs {});
+                    handler.event(&ImgLoadArgs {});
                 }
             }
 
-            self.handler.update();
-            self.child.update(updates);
+            handler.update();
         }
-    }
-    OnLoadNode { child, handler }
+        _ => {}
+    })
 }
 
 /// Block window load until image is loaded.
@@ -433,32 +419,22 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> 
 /// visually opening until the source loads, fails to load or a timeout elapses. By default `true` sets the timeout to 1 second.
 #[property(LAYOUT, default(false), widget_impl(Image))]
 pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
-    #[ui_node(struct ImageBlockWindowLoadNode {
-        child: impl UiNode,
-        enabled: BlockWindowLoad,
-        block: Option<WindowLoadingHandle>,
-    })]
-    impl UiNode for ImageBlockWindowLoadNode {
-        fn init(&mut self) {
+    let enabled = enabled.into();
+    let mut block = None;
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
             WIDGET.sub_var(&CONTEXT_IMAGE_VAR);
 
-            if let Some(delay) = self.enabled.deadline() {
-                self.block = WINDOW_CTRL.loading_handle(delay);
+            if let Some(delay) = enabled.deadline() {
+                block = WINDOW_CTRL.loading_handle(delay);
             }
-            self.child.init();
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.block.is_some() && !CONTEXT_IMAGE_VAR.with(Img::is_loading) {
-                self.block = None;
+        UiNodeOp::Update { .. } => {
+            if block.is_some() && !CONTEXT_IMAGE_VAR.with(Img::is_loading) {
+                block = None;
             }
-            self.child.update(updates);
         }
-    }
-    ImageBlockWindowLoadNode {
-        child: child.cfg_boxed(),
-        enabled: enabled.into(),
-        block: None,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }

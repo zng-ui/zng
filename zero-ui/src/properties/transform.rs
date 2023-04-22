@@ -10,28 +10,24 @@ use crate::prelude::new_property::*;
 /// [`transform_origin`]: fn@transform_origin
 #[property(LAYOUT, default(Transform::identity()))]
 pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl UiNode {
-    #[ui_node(struct TransformNode {
-        child: impl UiNode,
-        #[var] transform: impl Var<Transform>,
+    let binding_key = FrameValueKey::new_unique();
+    let transform = transform.into_var();
+    let mut render_transform = PxTransform::identity();
 
-        render_transform: PxTransform,
-        binding_key: FrameValueKey<PxTransform>,
-    })]
-    impl UiNode for TransformNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            if self.transform.is_new() {
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&transform);
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            if transform.is_new() {
                 WIDGET.layout();
             }
         }
+        UiNodeOp::Layout { wl, final_size } => {
+            let size = child.layout(wl);
 
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.child.layout(wl);
-
-            let transform = self.transform.layout();
+            let transform = transform.layout();
             let av_size = WIDGET.bounds().inner_size();
             let default_origin = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
             let origin = LAYOUT.with_constraints(PxConstraints2d::new_fill_size(av_size), || {
@@ -42,49 +38,37 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             let y = origin.y.0 as f32;
             let transform = PxTransform::translation(-x, -y).then(&transform).then_translate(euclid::vec2(x, y));
 
-            if transform != self.render_transform {
-                self.render_transform = transform;
+            if transform != render_transform {
+                render_transform = transform;
                 WIDGET.render_update();
             }
 
-            size
+            *final_size = size;
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
+        UiNodeOp::Render { frame } => {
             if frame.is_outer() {
-                frame.push_inner_transform(&self.render_transform, |frame| self.child.render(frame));
+                frame.push_inner_transform(&render_transform, |frame| child.render(frame));
             } else {
                 frame.push_reference_frame(
-                    self.binding_key.into(),
-                    self.binding_key.bind_var_mapped(&self.transform, self.render_transform),
+                    binding_key.into(),
+                    binding_key.bind_var_mapped(&transform, render_transform),
                     false,
                     false,
-                    |frame| self.child.render(frame),
+                    |frame| child.render(frame),
                 );
             }
         }
-
-        fn render_update(&mut self, update: &mut FrameUpdate) {
+        UiNodeOp::RenderUpdate { update } => {
             if update.is_outer() {
-                update.with_inner_transform(&self.render_transform, |update| self.child.render_update(update));
+                update.with_inner_transform(&render_transform, |update| child.render_update(update));
             } else {
-                update.with_transform_opt(
-                    self.binding_key.update_var_mapped(&self.transform, self.render_transform),
-                    false,
-                    |update| self.child.render_update(update),
-                )
+                update.with_transform_opt(binding_key.update_var_mapped(&transform, render_transform), false, |update| {
+                    child.render_update(update)
+                })
             }
         }
-    }
-
-    TransformNode {
-        child: child.cfg_boxed(),
-        binding_key: FrameValueKey::new_unique(),
-        transform: transform.into_var(),
-
-        render_transform: PxTransform::identity(),
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Rotate transform.

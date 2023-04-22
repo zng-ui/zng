@@ -36,29 +36,23 @@ use super::hit_test_mode;
 /// The example renders a custom text background.
 #[property(FILL)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
-    #[ui_node(struct BackgroundNode {
-        children: impl UiNodeList,
-    })]
-    impl UiNode for BackgroundNode {
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node(1, |n| n.measure(wm))
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.children.with_node(1, |n| n.layout(wl));
-
-            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
-                self.children.with_node(0, |n| n.layout(wl));
-            });
-            size
-        }
-    }
-
     let background = interactive_node(background, false);
     let background = fill_node(background);
 
-    BackgroundNode {
-        children: ui_vec![background, child],
-    }
+    match_node_list(ui_vec![background, child], |children, op| match op {
+        UiNodeOp::Measure { wm, desired_size } => {
+            *desired_size = children.with_node(1, |n| n.measure(wm));
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            let size = children.with_node(1, |n| n.layout(wl));
+
+            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
+                children.with_node(0, |n| n.layout(wl));
+            });
+            *final_size = size;
+        }
+        _ => {}
+    })
 }
 
 /// Custom background generated using a [`WidgetFn<()>`].
@@ -229,29 +223,23 @@ pub fn background_conic(
 /// The example renders a custom see-through text overlay.
 #[property(FILL, default(crate::core::widget_instance::NilUiNode))]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
-    #[ui_node(struct ForegroundNode {
-        children: impl UiNodeList,
-    })]
-    impl UiNode for ForegroundNode {
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.children.with_node(0, |n| n.measure(wm))
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.children.with_node(0, |n| n.layout(wl));
-            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
-                self.children.with_node(1, |n| n.layout(wl));
-            });
-            size
-        }
-    }
-
     let foreground = interactive_node(foreground, false);
     let foreground = fill_node(foreground);
     let foreground = hit_test_mode(foreground, HitTestMode::Disabled);
 
-    ForegroundNode {
-        children: ui_vec![child, foreground],
-    }
+    match_node_list(ui_vec![child, foreground], |children, op| match op {
+        UiNodeOp::Measure { wm, desired_size } => {
+            *desired_size = children.with_node(0, |n| n.measure(wm));
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            let size = children.with_node(0, |n| n.layout(wl));
+            LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || {
+                children.with_node(1, |n| n.layout(wl));
+            });
+            *final_size = size;
+        }
+        _ => {}
+    })
 }
 
 /// Custom foreground generated using a [`WidgetFn<()>`].
@@ -295,34 +283,30 @@ pub fn foreground_highlight(
     widths: impl IntoVar<SideOffsets>,
     sides: impl IntoVar<BorderSides>,
 ) -> impl UiNode {
-    #[ui_node(struct ForegroundHighlightNode {
-        child: impl UiNode,
-        #[var] offsets: impl Var<SideOffsets>,
-        #[var] widths: impl Var<SideOffsets>,
-        #[var] sides: impl Var<BorderSides>,
+    let offsets = offsets.into_var();
+    let widths = widths.into_var();
+    let sides = sides.into_var();
 
-        render_bounds: PxRect,
-        render_widths: PxSideOffsets,
-        render_radius: PxCornerRadius,
-    })]
-    impl UiNode for ForegroundHighlightNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.offsets.is_new() || self.widths.is_new() {
+    let mut render_bounds = PxRect::zero();
+    let mut render_widths = PxSideOffsets::zero();
+    let mut render_radius = PxCornerRadius::zero();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&offsets).sub_var(&widths).sub_var(&sides);
+        }
+        UiNodeOp::Update { .. } => {
+            if offsets.is_new() || widths.is_new() {
                 WIDGET.layout();
-            } else if self.sides.is_new() {
+            } else if sides.is_new() {
                 WIDGET.render();
             }
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.child.layout(wl);
+        UiNodeOp::Layout { wl, final_size } => {
+            let size = child.layout(wl);
 
             let radius = BORDER.inner_radius();
-            let offsets = self.offsets.layout();
+            let offsets = offsets.layout();
             let radius = radius.deflate(offsets);
 
             let mut bounds = PxRect::zero();
@@ -340,34 +324,23 @@ pub fn foreground_highlight(
                 );
             }
 
-            let widths = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || self.widths.layout());
+            let widths = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || widths.layout());
 
-            if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {
-                self.render_bounds = bounds;
-                self.render_widths = widths;
-                self.render_radius = radius;
+            if render_bounds != bounds || render_widths != widths || render_radius != radius {
+                render_bounds = bounds;
+                render_widths = widths;
+                render_radius = radius;
                 WIDGET.render();
             }
 
-            size
+            *final_size = size;
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            self.child.render(frame);
-            frame.push_border(self.render_bounds, self.render_widths, self.sides.get(), self.render_radius);
+        UiNodeOp::Render { frame } => {
+            child.render(frame);
+            frame.push_border(render_bounds, render_widths, sides.get(), render_radius);
         }
-    }
-    ForegroundHighlightNode {
-        child: child.cfg_boxed(),
-        offsets: offsets.into_var(),
-        widths: widths.into_var(),
-        sides: sides.into_var(),
-
-        render_bounds: PxRect::zero(),
-        render_widths: PxSideOffsets::zero(),
-        render_radius: PxCornerRadius::zero(),
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// Fill color overlay property.
@@ -459,46 +432,40 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// [`corner_radius`]: fn@corner_radius
 #[property(FILL, default(false))]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node(struct ClipToBoundsNode {
-        child: impl UiNode,
-        #[var] clip: impl Var<bool>,
-        corners: PxCornerRadius,
-    })]
-    impl UiNode for ClipToBoundsNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.clip.is_new() {
+    let clip = clip.into_var();
+    let mut corners = PxCornerRadius::zero();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.layout().render();
+        }
+        UiNodeOp::Update { .. } => {
+            if clip.is_new() {
                 WIDGET.layout().render();
             }
-
-            self.child.update(updates);
         }
+        UiNodeOp::Layout { wl, final_size } => {
+            let bounds = child.layout(wl);
 
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let bounds = self.child.layout(wl);
-
-            if self.clip.get() {
-                let corners = BORDER.border_radius();
-                if corners != self.corners {
-                    self.corners = corners;
+            if clip.get() {
+                let c = BORDER.border_radius();
+                if c != corners {
+                    corners = c;
                     WIDGET.render();
                 }
             }
 
-            bounds
+            *final_size = bounds;
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            if self.clip.get() {
+        UiNodeOp::Render { frame } => {
+            if clip.get() {
                 frame.push_clips(
                     |c| {
                         let wgt_bounds = WIDGET.bounds();
                         let bounds = PxRect::from_size(wgt_bounds.inner_size());
 
-                        if self.corners != PxCornerRadius::zero() {
-                            c.push_clip_rounded_rect(bounds, self.corners, false, true);
+                        if corners != PxCornerRadius::zero() {
+                            c.push_clip_rounded_rect(bounds, corners, false, true);
                         } else {
                             c.push_clip_rect(bounds, false, true);
                         }
@@ -509,18 +476,14 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
                             }
                         };
                     },
-                    |f| self.child.render(f),
+                    |f| child.render(f),
                 );
             } else {
-                self.child.render(frame);
+                child.render(frame);
             }
         }
-    }
-    ClipToBoundsNode {
-        child,
-        clip: clip.into_var(),
-        corners: PxCornerRadius::zero(),
-    }
+        _ => {}
+    })
 }
 
 /// Inline mode explicitly selected for a widget.
@@ -584,47 +547,45 @@ impl_from_and_into_var! {
 /// inlining.
 #[property(WIDGET, default(InlineMode::Allow))]
 pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode {
-    #[ui_node(struct InlineNode {
-        child: impl UiNode,
-        #[var] mode: impl Var<InlineMode>,
-    })]
-    impl UiNode for InlineNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            if self.mode.is_new() {
+    let mode = mode.into_var();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&mode);
+        }
+        UiNodeOp::Update { updates } => {
+            child.update(updates);
+            if mode.is_new() {
                 WIDGET.layout();
             }
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            match self.mode.get() {
-                InlineMode::Allow => self.child.measure(wm),
+        UiNodeOp::Measure { wm, desired_size } => {
+            *desired_size = match mode.get() {
+                InlineMode::Allow => child.measure(wm),
                 InlineMode::Inline => {
                     if LAYOUT.inline_constraints().is_none() {
                         // enable inline for content.
-                        wm.with_inline_visual(|wm| self.child.measure(wm))
+                        wm.with_inline_visual(|wm| child.measure(wm))
                     } else {
                         // already enabled by parent
-                        self.child.measure(wm)
+                        child.measure(wm)
                     }
                 }
                 InlineMode::Block => {
                     // disable inline, method also disables in `WidgetMeasure`
-                    LAYOUT.disable_inline(wm, &mut self.child)
+                    LAYOUT.disable_inline(wm, child)
                 }
-            }
+            };
         }
-
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            match self.mode.get() {
-                InlineMode::Allow => self.child.layout(wl),
+        UiNodeOp::Layout { wl, final_size } => {
+            *final_size = match mode.get() {
+                InlineMode::Allow => child.layout(wl),
                 InlineMode::Inline => {
                     if LAYOUT.inline_constraints().is_none() {
-                        WidgetMeasure::new().with_inline_visual(|wm| self.child.measure(wm));
-                        wl.with_inline_visual(|wl| self.child.layout(wl))
+                        WidgetMeasure::new().with_inline_visual(|wm| child.measure(wm));
+                        wl.with_inline_visual(|wl| child.layout(wl))
                     } else {
                         // already enabled by parent
-                        self.child.layout(wl)
+                        child.layout(wl)
                     }
                 }
                 InlineMode::Block =>
@@ -632,16 +593,13 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                     #[cfg(debug_assertions)]
                     if wl.inline().is_some() {
                         tracing::error!("inline enabled in `layout` when it signaled disabled in the previous `measure`");
-                        LAYOUT.layout_block(wl, &mut self.child)
+                        LAYOUT.layout_block(wl, child)
                     } else {
-                        self.child.layout(wl)
+                        child.layout(wl)
                     }
                 }
-            }
+            };
         }
-    }
-    InlineNode {
-        child,
-        mode: mode.into_var(),
-    }
+        _ => {}
+    })
 }

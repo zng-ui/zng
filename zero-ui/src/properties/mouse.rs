@@ -20,40 +20,34 @@ use crate::prelude::new_property::*;
 /// [`CursorIcon`]: crate::core::window::CursorIcon
 #[property(CONTEXT, default(CursorIcon::Default))]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
-    #[ui_node(struct CursorNode {
-        child: impl UiNode,
-        #[var] cursor: impl Var<Option<CursorIcon>>,
-        hovered_binding: Option<VarHandle>,
-    })]
-    impl UiNode for CursorNode {
-        fn init(&mut self) {
-            self.auto_subs();
-            WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
-            self.child.init();
-        }
+    let cursor = cursor.into_var();
+    let mut hovered_binding = None;
 
-        fn deinit(&mut self) {
-            self.hovered_binding = None;
-            self.child.deinit();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&cursor).sub_event(&MOUSE_HOVERED_EVENT);
         }
+        UiNodeOp::Deinit => {
+            hovered_binding = None;
+        }
+        UiNodeOp::Event { update } => {
+            child.event(update);
 
-        fn event(&mut self, update: &EventUpdate) {
-            self.child.event(update);
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 let is_over = args.target.as_ref().map(|t| t.as_path().contains(WIDGET.id())).unwrap_or(false);
                 if is_over {
-                    if self.hovered_binding.is_none() {
+                    if hovered_binding.is_none() {
                         // we are not already set, setup binding.
 
                         let cursor = WINDOW_CTRL.vars().cursor();
-                        cursor.set_ne(self.cursor.get());
-                        self.hovered_binding = Some(self.cursor.bind(&cursor));
+                        cursor.set_ne(cursor.get());
+                        hovered_binding = Some(cursor.bind(&cursor));
                     }
                 } else {
                     // restore to default, if not set to other value already
-                    if self.hovered_binding.is_some() {
-                        self.hovered_binding = None;
-                        let value = self.cursor.get();
+                    if hovered_binding.is_some() {
+                        hovered_binding = None;
+                        let value = cursor.get();
                         WINDOW_CTRL.vars().cursor().modify(move |c| {
                             if c.as_ref() == &value {
                                 *c.to_mut() = Some(CursorIcon::Default);
@@ -63,12 +57,8 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                 }
             }
         }
-    }
-    CursorNode {
-        child,
-        cursor: cursor.into_var(),
-        hovered_binding: None,
-    }
+        _ => {}
+    })
 }
 
 /// Defines how click events are generated for the widget.
@@ -77,27 +67,20 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
 /// no parent sets the click mode.
 #[property(CONTEXT, default(None))]
 pub fn click_mode(child: impl UiNode, mode: impl IntoVar<Option<ClickMode>>) -> impl UiNode {
-    #[ui_node(struct ClickModeNode {
-        child: impl UiNode,
-        #[var] mode: impl Var<Option<ClickMode>>,
-    })]
-    impl UiNode for ClickModeNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
+    let mode = mode.into_var();
 
-            if self.mode.is_new() {
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&mode);
+        }
+        UiNodeOp::Update { .. } => {
+            if mode.is_new() {
                 WIDGET.update_info();
             }
         }
-
-        fn info(&mut self, info: &mut WidgetInfoBuilder) {
-            info.set_click_mode(self.mode.get());
-
-            self.child.info(info);
+        UiNodeOp::Info { info } => {
+            info.set_click_mode(mode.get());
         }
-    }
-    ClickModeNode {
-        child,
-        mode: mode.into_var(),
-    }
+        _ => {}
+    })
 }

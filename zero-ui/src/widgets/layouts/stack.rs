@@ -127,77 +127,71 @@ pub fn lazy_sample(
     spacing: impl IntoVar<Length>,
     child_sample: impl UiNode,
 ) -> impl UiNode {
-    LazyStackNode {
-        child: child_sample,
-        children_len: children_len.into_var(),
-        direction: direction.into_var(),
-        spacing: spacing.into_var(),
-    }
-}
+    let children_len = children_len.into_var();
+    let direction = direction.into_var();
+    let spacing = spacing.into_var();
 
-#[ui_node(struct LazyStackNode {
-    child: impl UiNode, // uses to estimate size.
-    #[var] children_len: impl Var<usize>,
-    #[var] direction: impl Var<StackDirection>,
-    #[var] spacing: impl Var<Length>,
-})]
-impl UiNode for LazyStackNode {
-    fn update(&mut self, updates: &WidgetUpdates) {
-        if self.children_len.is_new() || self.direction.is_new() || self.spacing.is_new() {
-            WIDGET.layout();
+    match_node(child_sample, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&children_len).sub_var(&direction).sub_var(&spacing);
         }
-        self.child.update(updates);
-    }
-
-    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        let constraints = LAYOUT.constraints();
-        if let Some(known) = constraints.fill_or_exact() {
-            return known;
+        UiNodeOp::Update { .. } => {
+            if children_len.is_new() || direction.is_new() || spacing.is_new() {
+                WIDGET.layout();
+            }
         }
-
-        let len = Px(self.children_len.get() as i32);
-        if len.0 == 0 {
-            return PxSize::zero();
-        }
-
-        let child_size = self.child.measure(wm);
-
-        let direction = self.direction.get();
-        let dv = direction.vector(LayoutDirection::LTR);
-        let desired_size = if dv.x == 0 && dv.y != 0 {
-            // vertical stack
-            let spacing = self.spacing.layout_y();
-            PxSize::new(child_size.width, (len - Px(1)) * (child_size.height + spacing) + child_size.height)
-        } else if dv.x != 0 && dv.y == 0 {
-            // horizontal stack
-            let spacing = self.spacing.layout_x();
-            PxSize::new((len - Px(1)) * (child_size.width + spacing) + child_size.width, child_size.height)
-        } else {
-            // unusual stack
-            let spacing = spacing_from_direction(dv, self.spacing.get());
-
-            let mut item_rect = PxRect::from_size(child_size);
-            let mut item_bounds = euclid::Box2D::zero();
-            let mut child_spacing = PxVector::zero();
-            for _ in 0..len.0 {
-                let offset = direction.layout(item_rect, child_size) + child_spacing;
-                item_rect.origin = offset.to_point();
-                let item_box = item_rect.to_box2d();
-                item_bounds.min = item_bounds.min.min(item_box.min);
-                item_bounds.max = item_bounds.max.max(item_box.max);
-                child_spacing = spacing;
+        UiNodeOp::Measure { desired_size, .. }
+        | UiNodeOp::Layout {
+            final_size: desired_size, ..
+        } => {
+            let constraints = LAYOUT.constraints();
+            if let Some(known) = constraints.fill_or_exact() {
+                child.delegated();
+                *desired_size = known;
+                return;
             }
 
-            item_bounds.size()
-        };
+            let len = Px(children_len.get() as i32);
+            if len.0 == 0 {
+                child.delegated();
+                return;
+            }
 
-        constraints.fill_size_or(desired_size)
-    }
+            let child_size = child.measure(&mut WidgetMeasure::new());
 
-    #[allow_(zero_ui::missing_delegate)]
-    fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-        self.measure(&mut WidgetMeasure::new())
-    }
+            let direction = direction.get();
+            let dv = direction.vector(LayoutDirection::LTR);
+            let ds = if dv.x == 0 && dv.y != 0 {
+                // vertical stack
+                let spacing = spacing.layout_y();
+                PxSize::new(child_size.width, (len - Px(1)) * (child_size.height + spacing) + child_size.height)
+            } else if dv.x != 0 && dv.y == 0 {
+                // horizontal stack
+                let spacing = spacing.layout_x();
+                PxSize::new((len - Px(1)) * (child_size.width + spacing) + child_size.width, child_size.height)
+            } else {
+                // unusual stack
+                let spacing = spacing_from_direction(dv, spacing.get());
+
+                let mut item_rect = PxRect::from_size(child_size);
+                let mut item_bounds = euclid::Box2D::zero();
+                let mut child_spacing = PxVector::zero();
+                for _ in 0..len.0 {
+                    let offset = direction.layout(item_rect, child_size) + child_spacing;
+                    item_rect.origin = offset.to_point();
+                    let item_box = item_rect.to_box2d();
+                    item_bounds.min = item_bounds.min.min(item_box.min);
+                    item_bounds.max = item_bounds.max.max(item_box.max);
+                    child_spacing = spacing;
+                }
+
+                item_bounds.size()
+            };
+
+            *desired_size = constraints.fill_size_or(ds);
+        }
+        _ => {}
+    })
 }
 
 #[ui_node(struct StackNode {
@@ -529,16 +523,7 @@ pub fn z_stack(children: impl UiNodeList) -> impl UiNode {
 ///
 /// [`Stack!`]: struct@Stack
 pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
-    #[ui_node(struct StackNodesNode {
-        children: impl UiNodeList,
-    })]
-    impl StackNodesNode {}
-
-    StackNodesNode {
-        // Mutex to enable parallel measure
-        children: nodes,
-    }
-    .cfg_boxed()
+    match_node_list(nodes, |_, _| {})
 }
 
 /// Creates a node that updates the `nodes` in the logical order they appear, renders then on on top of the other from back(0) to front(len-1),
@@ -552,23 +537,23 @@ pub fn stack_nodes_layout_by(
     index: impl IntoVar<usize>,
     constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
 ) -> impl UiNode {
-    #[ui_node(struct StackNodesFillNode {
-        children: impl UiNodeList,
-        #[var] index: impl Var<usize>,
-        constraints: impl Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send + 'static,
-    })]
-    impl UiNode for StackNodesFillNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.index.is_new() {
+    let index = index.into_var();
+    #[cfg(dyn_closure)]
+    let constraints: Box<dyn Fn(PxConstraints2d, usize, PxSize) -> PxConstraints2d + Send> = Box::new(constraints);
+
+    match_node_list(nodes, move |children, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&index);
+        }
+        UiNodeOp::Update { .. } => {
+            if index.is_new() {
                 WIDGET.layout();
             }
-            self.children.update_all(updates, &mut ());
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let index = self.index.get();
-            let len = self.children.len();
-            if index >= len {
+        UiNodeOp::Measure { wm, desired_size } => {
+            let index = index.get();
+            let len = children.len();
+            *desired_size = if index >= len {
                 tracing::error!(
                     "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
                     index,
@@ -576,12 +561,12 @@ pub fn stack_nodes_layout_by(
                     WIDGET.id()
                 );
 
-                self.children.measure_each(wm, |_, n, wm| n.measure(wm), PxSize::max)
+                children.measure_each(wm, |_, n, wm| n.measure(wm), PxSize::max)
             } else {
-                let index_size = self.children.with_node(index, |n| n.measure(wm));
-                let constraints = (self.constraints)(LAYOUT.metrics().constraints(), index, index_size);
+                let index_size = children.with_node(index, |n| n.measure(wm));
+                let constraints = constraints(LAYOUT.metrics().constraints(), index, index_size);
                 LAYOUT.with_constraints(constraints, || {
-                    self.children.measure_each(
+                    children.measure_each(
                         wm,
                         |i, n, wm| {
                             if i != index {
@@ -593,12 +578,12 @@ pub fn stack_nodes_layout_by(
                         PxSize::max,
                     )
                 })
-            }
+            };
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let index = self.index.get();
-            let len = self.children.len();
-            if index >= len {
+        UiNodeOp::Layout { wl, final_size } => {
+            let index = index.get();
+            let len = children.len();
+            *final_size = if index >= len {
                 tracing::error!(
                     "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
                     index,
@@ -606,12 +591,12 @@ pub fn stack_nodes_layout_by(
                     WIDGET.id()
                 );
 
-                self.children.layout_each(wl, |_, n, wl| n.layout(wl), PxSize::max)
+                children.layout_each(wl, |_, n, wl| n.layout(wl), PxSize::max)
             } else {
-                let index_size = self.children.with_node(index, |n| n.layout(wl));
-                let constraints = (self.constraints)(LAYOUT.metrics().constraints(), index, index_size);
+                let index_size = children.with_node(index, |n| n.layout(wl));
+                let constraints = constraints(LAYOUT.metrics().constraints(), index, index_size);
                 LAYOUT.with_constraints(constraints, || {
-                    self.children.layout_each(
+                    children.layout_each(
                         wl,
                         |i, n, wl| {
                             if i != index {
@@ -623,13 +608,8 @@ pub fn stack_nodes_layout_by(
                         PxSize::max,
                     )
                 })
-            }
+            };
         }
-    }
-    StackNodesFillNode {
-        children: nodes,
-        index: index.into_var(),
-        constraints,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
