@@ -551,6 +551,7 @@ pub fn match_node_list<L: UiNodeList>(
 ///
 /// [`match_node`]: fn@match_node
 /// [`delegated`]: Self::delegated
+/// [`children`]: Self::children
 pub struct MatchNodeChildren<L> {
     children: L,
     delegated: bool,
