@@ -397,27 +397,21 @@ pub(super) static MARKDOWN_INFO_ID: StaticStateId<()> = StaticStateId::new_uniqu
 /// by markdown links to find scroll targets.
 #[property(CONTEXT, default(""))]
 pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Txt>) -> impl UiNode {
-    #[ui_node(struct AnchorNode {
-        child: impl UiNode,
-        #[var] anchor: impl Var<Txt>,
-    })]
-    impl UiNode for AnchorNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            self.child.update(updates);
-            if self.anchor.is_new() {
+    let anchor = anchor.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&anchor);
+        }
+        UiNodeOp::Update { .. } => {
+            if anchor.is_new() {
                 WIDGET.update_info();
             }
         }
-
-        fn info(&mut self, info: &mut WidgetInfoBuilder) {
-            info.meta().set(&ANCHOR_ID, self.anchor.get());
-            self.child.info(info);
+        UiNodeOp::Info { info } => {
+            info.meta().set(&ANCHOR_ID, anchor.get());
         }
-    }
-    AnchorNode {
-        child,
-        anchor: anchor.into_var(),
-    }
+        _ => {}
+    })
 }
 
 /// Markdown extension methods for widget info.

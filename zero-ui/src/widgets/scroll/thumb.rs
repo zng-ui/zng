@@ -68,58 +68,54 @@ fn on_build(wgt: &mut WidgetBuilding) {
 }
 
 fn thumb_layout(child: impl UiNode) -> impl UiNode {
-    #[ui_node(struct DragNode {
-            child: impl UiNode,
-            content_length: Px,
-            viewport_length: Px,
-            thumb_length: Px,
-            scale_factor: Factor,
+    let mut content_length = Px(0);
+    let mut viewport_length = Px(0);
+    let mut thumb_length = Px(0);
+    let mut scale_factor = 1.fct();
 
-            mouse_down: Option<(Px, Factor)>,
-        })]
-    impl UiNode for DragNode {
-        fn init(&mut self) {
+    let mut mouse_down = None::<(Px, Factor)>;
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
             WIDGET
                 .sub_event(&MOUSE_MOVE_EVENT)
                 .sub_event(&MOUSE_INPUT_EVENT)
                 .sub_var(&THUMB_OFFSET_VAR);
-            self.child.init();
         }
-
-        fn event(&mut self, update: &EventUpdate) {
-            if let Some((mouse_down, start_offset)) = self.mouse_down {
+        UiNodeOp::Event { update } => {
+            if let Some((md, start_offset)) = mouse_down {
                 if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
                     let bounds = WIDGET.bounds().inner_bounds();
                     let (mut offset, cancel_offset, bounds_min, bounds_max) = match ORIENTATION_VAR.get() {
                         scrollbar::Orientation::Vertical => (
-                            args.position.y.to_px(self.scale_factor.0),
-                            args.position.x.to_px(self.scale_factor.0),
+                            args.position.y.to_px(scale_factor.0),
+                            args.position.x.to_px(scale_factor.0),
                             bounds.min_x(),
                             bounds.max_x(),
                         ),
                         scrollbar::Orientation::Horizontal => (
-                            args.position.x.to_px(self.scale_factor.0),
-                            args.position.y.to_px(self.scale_factor.0),
+                            args.position.x.to_px(scale_factor.0),
+                            args.position.y.to_px(scale_factor.0),
                             bounds.min_y(),
                             bounds.max_y(),
                         ),
                     };
 
-                    let cancel_margin = Dip::new(40).to_px(self.scale_factor.0);
+                    let cancel_margin = Dip::new(40).to_px(scale_factor.0);
                     let offset = if cancel_offset < bounds_min - cancel_margin || cancel_offset > bounds_max + cancel_margin {
                         // pointer moved outside of the thumb + 40, snap back to initial
                         start_offset
                     } else {
-                        offset -= mouse_down;
+                        offset -= md;
 
-                        let max_length = self.viewport_length - self.thumb_length;
+                        let max_length = viewport_length - thumb_length;
                         let start_offset = max_length * start_offset.0;
 
                         let offset = offset + start_offset;
                         let offset = (offset.0 as f32 / max_length.0 as f32).clamp(0.0, 1.0);
 
                         // snap to pixel
-                        let max_length = self.viewport_length - self.content_length;
+                        let max_length = viewport_length - content_length;
                         let offset = max_length * offset;
                         let offset = offset.0 as f32 / max_length.0 as f32;
                         offset.fct()
@@ -131,7 +127,7 @@ fn thumb_layout(child: impl UiNode) -> impl UiNode {
                     args.propagation().stop();
                 } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                     if args.is_primary() && args.is_mouse_up() {
-                        self.mouse_down = None;
+                        mouse_down = None;
 
                         args.propagation().stop();
                     }
@@ -139,29 +135,21 @@ fn thumb_layout(child: impl UiNode) -> impl UiNode {
             } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
                 if args.is_primary() && args.is_mouse_down() {
                     let a = match ORIENTATION_VAR.get() {
-                        scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
-                        scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
+                        scrollbar::Orientation::Vertical => args.position.y.to_px(scale_factor.0),
+                        scrollbar::Orientation::Horizontal => args.position.x.to_px(scale_factor.0),
                     };
-                    self.mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
+                    mouse_down = Some((a, THUMB_OFFSET_VAR.get()));
 
                     args.propagation().stop();
                 }
             }
-            self.child.event(update);
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             if THUMB_OFFSET_VAR.is_new() {
                 WIDGET.layout();
             }
-
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.child.measure(wm)
-        }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        UiNodeOp::Layout { wl, .. } => {
             let bar_size = LAYOUT.constraints().fill_size();
             let mut final_offset = PxVector::zero();
             let (bar_length, final_d) = match ORIENTATION_VAR.get() {
@@ -170,28 +158,18 @@ fn thumb_layout(child: impl UiNode) -> impl UiNode {
             };
 
             let ratio = THUMB_VIEWPORT_RATIO_VAR.get();
-            let thumb_length = bar_length * ratio;
-            *final_d = (bar_length - thumb_length) * THUMB_OFFSET_VAR.get();
+            let tl = bar_length * ratio;
+            *final_d = (bar_length - tl) * THUMB_OFFSET_VAR.get();
 
-            self.scale_factor = LAYOUT.scale_factor();
-            self.content_length = bar_length / ratio;
-            self.viewport_length = bar_length;
-            self.thumb_length = thumb_length;
+            scale_factor = LAYOUT.scale_factor();
+            content_length = bar_length / ratio;
+            viewport_length = bar_length;
+            thumb_length = tl;
 
             wl.translate(final_offset);
-
-            self.child.layout(wl)
         }
-    }
-    DragNode {
-        child,
-        content_length: Px(0),
-        viewport_length: Px(0),
-        thumb_length: Px(0),
-        scale_factor: 1.fct(),
-
-        mouse_down: None,
-    }
+        _ => {}
+    })
 }
 
 context_var! {

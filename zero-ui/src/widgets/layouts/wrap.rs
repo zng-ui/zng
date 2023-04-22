@@ -79,99 +79,87 @@ pub fn children_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl Ui
 /// Can be used directly to inline widgets without declaring a wrap widget info.  This node is the child
 /// of the `Wrap!` widget.
 pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> impl UiNode {
-    WrapNode {
-        children: PanelList::new(children),
-        spacing: spacing.into_var(),
-        children_align: children_align.into_var(),
-        layout: Default::default(),
-    }
+    let children = PanelList::new(children);
+    let spacing = spacing.into_var();
+    let children_align = children_align.into_var();
+    let mut layout = InlineLayout::default();
+
+    match_node_list(children, move |children, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&spacing).sub_var(&children_align);
+        }
+        UiNodeOp::Update { updates } => {
+            let mut any = false;
+            children.update_all(updates, &mut any);
+
+            if any || spacing.is_new() || children_align.is_new() {
+                WIDGET.layout();
+            }
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            let spacing = spacing.layout();
+            children.delegated();
+            *desired_size = layout.measure(wm, children.children(), children_align.get(), spacing);
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            let spacing = spacing.layout();
+            children.delegated();
+            // rust-analyzer does not find `layout` here if called with dot.
+            *final_size = InlineLayout::layout(&mut layout, wl, children.children(), children_align.get(), spacing);
+        }
+        _ => {}
+    })
 }
 
 /// Create a node that estimates the size for a wrap panel children where all items have the same `child_size`.
 pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_size: impl IntoVar<Size>) -> impl UiNode {
-    #[ui_node(struct InlineSizeNode {
-        #[var] size: impl Var<Size>
-    })]
-    impl UiNode for InlineSizeNode {
-        fn update(&mut self, _: &WidgetUpdates) {
-            if self.size.is_new() {
+    // we don't use `properties::size(NilUiNode, child_size)` because that size disables inlining.
+    let size = child_size.into_var();
+    let sample = match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&size);
+        }
+        UiNodeOp::Update { .. } => {
+            if size.is_new() {
                 UPDATES.layout();
             }
         }
-        fn measure(&mut self, _: &mut WidgetMeasure) -> PxSize {
-            self.size.layout()
+        UiNodeOp::Measure { desired_size, .. } => {
+            *desired_size = size.layout();
         }
-        fn layout(&mut self, _: &mut WidgetLayout) -> PxSize {
-            self.size.layout()
+        UiNodeOp::Layout { final_size, .. } => {
+            *final_size = size.layout();
         }
-    }
-
-    // we don't use `properties::size(NilUiNode, child_size)` because that size disables inlining.
-    let sample = InlineSizeNode {
-        size: child_size.into_var(),
-    };
+        _ => {}
+    });
 
     lazy_sample(children_len, spacing, sample)
 }
 
 /// Create a node that estimates the size for a wrap panel children where all items have the same size as `child_sample`.
 pub fn lazy_sample(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_sample: impl UiNode) -> impl UiNode {
-    #[ui_node(struct LazyWrapNode {
-        child: impl UiNode,
-        #[var] children_len: impl Var<usize>,
-        #[var] spacing: impl Var<GridSpacing>,
-    })]
-    impl UiNode for LazyWrapNode {
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.children_len.is_new() || self.spacing.is_new() {
+    let children_len = children_len.into_var();
+    let spacing = spacing.into_var();
+
+    match_node(child_sample, move |sample, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&children_len).sub_var(&spacing);
+        }
+        UiNodeOp::Update { .. } => {
+            if children_len.is_new() || spacing.is_new() {
                 WIDGET.layout();
             }
-            self.child.update(updates);
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let child_size = self.child.measure(wm);
-            InlineLayout::estimate_measure(wm, self.children_len.get(), child_size, self.spacing.layout())
+        UiNodeOp::Measure { wm, desired_size } => {
+            let child_size = sample.measure(wm);
+            *desired_size = InlineLayout::estimate_measure(wm, children_len.get(), child_size, spacing.layout());
         }
-
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let child_size = self.child.layout(wl);
-            InlineLayout::estimate_layout(wl, self.children_len.get(), child_size, self.spacing.layout())
+        UiNodeOp::Layout { wl, final_size } => {
+            let child_size = sample.layout(wl);
+            *final_size = InlineLayout::estimate_layout(wl, children_len.get(), child_size, spacing.layout());
         }
-    }
-    LazyWrapNode {
-        children_len: children_len.into_var(),
-        spacing: spacing.into_var(),
-        child: child_sample,
-    }
-}
-
-#[ui_node(struct WrapNode {
-    children: PanelList,
-    #[var] spacing: impl Var<GridSpacing>,
-    #[var] children_align: impl Var<Align>,
-    layout: InlineLayout,
-})]
-impl UiNode for WrapNode {
-    fn update(&mut self, updates: &WidgetUpdates) {
-        let mut any = false;
-        self.children.update_all(updates, &mut any);
-
-        if any || self.spacing.is_new() || self.children_align.is_new() {
-            WIDGET.layout();
-        }
-    }
-
-    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        let spacing = self.spacing.layout();
-        self.layout.measure(wm, &mut self.children, self.children_align.get(), spacing)
-    }
-
-    #[allow_(zero_ui::missing_delegate)] // false positive
-    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        let spacing = self.spacing.layout();
-        self.layout.layout(wl, &mut self.children, self.children_align.get(), spacing)
-    }
+        _ => {}
+    })
 }
 
 /// Info about segments of a widget in a row.

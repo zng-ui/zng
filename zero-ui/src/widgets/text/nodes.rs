@@ -743,21 +743,23 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 debug_assert!(!self.txt_is_measured);
             }
         }
+
+        fn with(&mut self, f: impl FnOnce()) {
+            LAYOUT_TEXT.with_context_opt(&mut self.txt, f)
+        }
     }
 
-    #[ui_node(struct LayoutTextNode {
-        child: impl UiNode,
-        txt: FinalText,
-    })]
-    impl LayoutTextNode {
-        fn with<R>(&mut self, f: impl FnOnce(&mut T_child) -> R) -> R {
-            LAYOUT_TEXT.with_context_opt(&mut self.txt.txt, || f(&mut self.child))
-        }
+    let mut txt = FinalText {
+        txt: None,
+        shaping_args: TextShapingArgs::default(),
+        pending: Layout::empty(),
+        txt_is_measured: false,
+        last_layout: (LayoutMetrics::new(1.fct(), PxSize::zero(), Px(0)), None),
+    };
 
-        #[UiNode]
-        fn init(&mut self) {
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
             // other subscriptions are handled by the `resolve_text` node.
-            let txt = &mut self.txt;
             txt.shaping_args.lang = LANG_VAR.get();
             txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into();
             txt.shaping_args.line_break = LINE_BREAK_VAR.get();
@@ -765,20 +767,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             txt.shaping_args.hyphens = HYPHENS_VAR.get();
             txt.shaping_args.hyphen_char = HYPHEN_CHAR_VAR.get();
             txt.shaping_args.font_features = FONT_FEATURES_VAR.with(|f| f.finalize());
-
-            self.child.init();
         }
-
-        #[UiNode]
-        fn deinit(&mut self) {
-            self.child.deinit();
-            self.txt.txt = None;
+        UiNodeOp::Deinit => {
+            txt.txt = None;
         }
-
-        #[UiNode]
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             if FONT_SIZE_VAR.is_new() || FONT_VARIATIONS_VAR.is_new() {
-                self.txt.pending.insert(Layout::RESHAPE);
+                txt.pending.insert(Layout::RESHAPE);
                 WIDGET.layout();
             }
 
@@ -789,7 +784,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 || TAB_LENGTH_VAR.is_new()
                 || LANG_VAR.is_new()
             {
-                let txt = &mut self.txt;
                 txt.shaping_args.lang = LANG_VAR.get();
                 txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into(); // will be set in layout too.
                 txt.pending.insert(Layout::RESHAPE);
@@ -797,7 +791,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if UNDERLINE_POSITION_VAR.is_new() || UNDERLINE_SKIP_VAR.is_new() {
-                self.txt.pending.insert(Layout::UNDERLINE);
+                txt.pending.insert(Layout::UNDERLINE);
                 WIDGET.layout();
             }
 
@@ -806,7 +800,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if let Some(lb) = LINE_BREAK_VAR.get_new() {
-                let txt = &mut self.txt;
                 if txt.shaping_args.line_break != lb {
                     txt.shaping_args.line_break = lb;
                     txt.pending.insert(Layout::RESHAPE);
@@ -815,7 +808,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if let Some(wb) = WORD_BREAK_VAR.get_new() {
-                let txt = &mut self.txt;
                 if txt.shaping_args.word_break != wb {
                     txt.shaping_args.word_break = wb;
                     txt.pending.insert(Layout::RESHAPE);
@@ -824,7 +816,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if let Some(h) = HYPHENS_VAR.get_new() {
-                let txt = &mut self.txt;
                 if txt.shaping_args.hyphens != h {
                     txt.shaping_args.hyphens = h;
                     txt.pending.insert(Layout::RESHAPE);
@@ -833,7 +824,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if let Some(c) = HYPHEN_CHAR_VAR.get_new() {
-                let txt = &mut self.txt;
                 txt.shaping_args.hyphen_char = c;
                 if Hyphens::None != txt.shaping_args.hyphens {
                     txt.pending.insert(Layout::RESHAPE);
@@ -842,26 +832,20 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             }
 
             if TEXT_WRAP_VAR.is_new() {
-                self.txt.pending.insert(Layout::RESHAPE);
+                txt.pending.insert(Layout::RESHAPE);
                 WIDGET.layout();
             }
 
             FONT_FEATURES_VAR.with_new(|f| {
-                let txt = &mut self.txt;
                 txt.shaping_args.font_features = f.finalize();
                 txt.pending.insert(Layout::RESHAPE);
                 WIDGET.layout();
             });
-
-            self.child.update(updates);
         }
-
-        #[UiNode]
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            let txt = &mut self.txt;
+        UiNodeOp::Measure { wm, desired_size } => {
             let metrics = LAYOUT.metrics();
 
-            if let Some(size) = txt.measure(&metrics) {
+            *desired_size = if let Some(size) = txt.measure(&metrics) {
                 size
             } else {
                 let size = txt.layout(&metrics, &RESOLVED_TEXT.get(), true);
@@ -904,15 +888,12 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     inline.last_wrapped = l.shaped_text.lines_len() > 1;
                 }
                 size
-            }
+            };
         }
-        #[UiNode]
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let txt = &mut self.txt;
-
+        UiNodeOp::Layout { wl, final_size } => {
             let metrics = LAYOUT.metrics();
             let resolved_txt = RESOLVED_TEXT.get();
-            let size = txt.layout(&metrics, &resolved_txt, false);
+            *final_size = txt.layout(&metrics, &resolved_txt, false);
 
             if txt.pending != Layout::empty() {
                 WIDGET.render();
@@ -951,35 +932,22 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let baseline = resolved_txt.baseline.load(Ordering::Relaxed);
             wl.set_baseline(baseline);
 
-            LAYOUT.with_constraints(PxConstraints2d::new_fill_size(size), || {
-                self.with(|c| c.layout(wl));
+            LAYOUT.with_constraints(PxConstraints2d::new_fill_size(*final_size), || {
+                txt.with(|| {
+                    child.layout(wl);
+                });
             });
-
-            size
         }
-
-        #[UiNode]
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            self.txt.ensure_layout_for_render();
-            self.with(|c| c.render(frame))
+        UiNodeOp::Render { frame } => {
+            txt.ensure_layout_for_render();
+            txt.with(|| child.render(frame))
         }
-        #[UiNode]
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.txt.ensure_layout_for_render();
-            self.with(|c| c.render_update(update))
+        UiNodeOp::RenderUpdate { update } => {
+            txt.ensure_layout_for_render();
+            txt.with(|| child.render_update(update))
         }
-    }
-    LayoutTextNode {
-        child: child.cfg_boxed(),
-        txt: FinalText {
-            txt: None,
-            shaping_args: TextShapingArgs::default(),
-            pending: Layout::empty(),
-            txt_is_measured: false,
-            last_layout: (LayoutMetrics::new(1.fct(), PxSize::zero(), Px(0)), None),
-        },
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 /// An Ui node that renders the default underline visual using the parent [`LayoutText`].
@@ -988,44 +956,33 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 ///
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_strikethroughs`] node.
 pub fn render_underlines(child: impl UiNode) -> impl UiNode {
-    #[ui_node(struct RenderUnderlineNode {
-        child: impl UiNode,
-    })]
-    impl UiNode for RenderUnderlineNode {
-        // subscriptions are handled by the `resolve_text` node.
-
-        fn update(&mut self, updates: &WidgetUpdates) {
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Update { .. } => {
+            // subscriptions are handled by the `resolve_text` node.
             if UNDERLINE_STYLE_VAR.is_new() || UNDERLINE_COLOR_VAR.is_new() {
                 WIDGET.render();
             }
-
-            self.child.update(updates);
         }
+        UiNodeOp::Render { frame } => {
+            let t = LayoutText::get();
 
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            {
-                let t = LayoutText::get();
-
-                if !t.underlines.is_empty() {
-                    let style = UNDERLINE_STYLE_VAR.get();
-                    if style != LineStyle::Hidden {
-                        let color = UNDERLINE_COLOR_VAR.get().into();
-                        for &(origin, width) in &t.underlines {
-                            frame.push_line(
-                                PxRect::new(origin, PxSize::new(width, t.underline_thickness)),
-                                LineOrientation::Horizontal,
-                                color,
-                                style,
-                            );
-                        }
+            if !t.underlines.is_empty() {
+                let style = UNDERLINE_STYLE_VAR.get();
+                if style != LineStyle::Hidden {
+                    let color = UNDERLINE_COLOR_VAR.get().into();
+                    for &(origin, width) in &t.underlines {
+                        frame.push_line(
+                            PxRect::new(origin, PxSize::new(width, t.underline_thickness)),
+                            LineOrientation::Horizontal,
+                            color,
+                            style,
+                        );
                     }
                 }
             }
-
-            self.child.render(frame);
         }
-    }
-    RenderUnderlineNode { child: child.cfg_boxed() }.cfg_boxed()
+        _ => {}
+    })
 }
 
 /// An Ui node that renders the default strikethrough visual using the parent [`LayoutText`].
@@ -1034,42 +991,32 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
 ///
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_overlines`] node.
 pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
-    #[ui_node(struct RenderStrikethroughsNode {
-        child: impl UiNode,
-    })]
-    impl UiNode for RenderStrikethroughsNode {
-        // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, updates: &WidgetUpdates) {
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Update { .. } => {
+            // subscriptions are handled by the `resolve_text` node.
             if STRIKETHROUGH_STYLE_VAR.is_new() || STRIKETHROUGH_COLOR_VAR.is_new() {
                 WIDGET.render();
             }
-
-            self.child.update(updates);
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            {
-                let t = LayoutText::get();
-                if !t.strikethroughs.is_empty() {
-                    let style = STRIKETHROUGH_STYLE_VAR.get();
-                    if style != LineStyle::Hidden {
-                        let color = STRIKETHROUGH_COLOR_VAR.get().into();
-                        for &(origin, width) in &t.strikethroughs {
-                            frame.push_line(
-                                PxRect::new(origin, PxSize::new(width, t.strikethrough_thickness)),
-                                LineOrientation::Horizontal,
-                                color,
-                                style,
-                            );
-                        }
+        UiNodeOp::Render { frame } => {
+            let t = LayoutText::get();
+            if !t.strikethroughs.is_empty() {
+                let style = STRIKETHROUGH_STYLE_VAR.get();
+                if style != LineStyle::Hidden {
+                    let color = STRIKETHROUGH_COLOR_VAR.get().into();
+                    for &(origin, width) in &t.strikethroughs {
+                        frame.push_line(
+                            PxRect::new(origin, PxSize::new(width, t.strikethrough_thickness)),
+                            LineOrientation::Horizontal,
+                            color,
+                            style,
+                        );
                     }
                 }
             }
-
-            self.child.render(frame);
         }
-    }
-    RenderStrikethroughsNode { child: child.cfg_boxed() }.cfg_boxed()
+        _ => {}
+    })
 }
 
 /// An Ui node that renders the default overline visual using the parent [`LayoutText`].
@@ -1078,42 +1025,32 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
 ///
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_overlines(child: impl UiNode) -> impl UiNode {
-    #[ui_node(struct RenderOverlineNode {
-        child: impl UiNode,
-    })]
-    impl UiNode for RenderOverlineNode {
-        // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, updates: &WidgetUpdates) {
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Update { .. } => {
+            // subscriptions are handled by the `resolve_text` node.
             if OVERLINE_STYLE_VAR.is_new() || OVERLINE_COLOR_VAR.is_new() {
                 WIDGET.render();
             }
-
-            self.child.update(updates);
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            {
-                let t = LayoutText::get();
-                if !t.overlines.is_empty() {
-                    let style = OVERLINE_STYLE_VAR.get();
-                    if style != LineStyle::Hidden {
-                        let color = OVERLINE_COLOR_VAR.get().into();
-                        for &(origin, width) in &t.overlines {
-                            frame.push_line(
-                                PxRect::new(origin, PxSize::new(width, t.overline_thickness)),
-                                LineOrientation::Horizontal,
-                                color,
-                                style,
-                            );
-                        }
+        UiNodeOp::Render { frame } => {
+            let t = LayoutText::get();
+            if !t.overlines.is_empty() {
+                let style = OVERLINE_STYLE_VAR.get();
+                if style != LineStyle::Hidden {
+                    let color = OVERLINE_COLOR_VAR.get().into();
+                    for &(origin, width) in &t.overlines {
+                        frame.push_line(
+                            PxRect::new(origin, PxSize::new(width, t.overline_thickness)),
+                            LineOrientation::Horizontal,
+                            color,
+                            style,
+                        );
                     }
                 }
             }
-
-            self.child.render(frame);
         }
-    }
-    RenderOverlineNode { child: child.cfg_boxed() }.cfg_boxed()
+        _ => {}
+    })
 }
 
 /// An Ui node that renders the edit caret visual.
@@ -1122,27 +1059,23 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 ///
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_caret(child: impl UiNode) -> impl UiNode {
-    #[ui_node(struct RenderCaretNode {
-        child: impl UiNode,
-        color: Rgba,
-        color_key: FrameValueKey<RenderColor>,
-    })]
-    impl UiNode for RenderCaretNode {
-        // subscriptions are handled by the text resolver node.
-        fn init(&mut self) {
-            self.color = if TEXT_EDITABLE_VAR.get() {
+    let mut color = rgba(0, 0, 0, 0);
+    let color_key = FrameValueKey::new_unique();
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            // subscriptions are handled by the text resolver node.
+
+            color = if TEXT_EDITABLE_VAR.get() {
                 let mut c = CARET_COLOR_VAR.get();
                 c.alpha *= ResolvedText::get().caret_opacity.get().0;
                 c
             } else {
                 rgba(0, 0, 0, 0)
             };
-
-            self.child.init();
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            let color = if TEXT_EDITABLE_VAR.get() {
+        UiNodeOp::Update { .. } => {
+            let c = if TEXT_EDITABLE_VAR.get() {
                 let mut c = CARET_COLOR_VAR.get();
                 c.alpha *= ResolvedText::get().caret_opacity.get().0;
                 c
@@ -1150,16 +1083,13 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                 rgba(0, 0, 0, 0)
             };
 
-            if self.color != color {
-                self.color = color;
+            if color != c {
+                color = c;
                 WIDGET.render_update();
             }
-
-            self.child.update(updates);
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            self.child.render(frame);
+        UiNodeOp::Render { frame } => {
+            child.render(frame);
 
             if TEXT_EDITABLE_VAR.get() {
                 let t = LayoutText::get();
@@ -1168,23 +1098,18 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
                 clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
                 clip_rect.size.height = t.shaped_text.line_height();
 
-                frame.push_color(clip_rect, self.color_key.bind(self.color.into(), true));
+                frame.push_color(clip_rect, color_key.bind(color.into(), true));
             }
         }
-
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.child.render_update(update);
+        UiNodeOp::RenderUpdate { update } => {
+            child.render_update(update);
 
             if TEXT_EDITABLE_VAR.get() {
-                update.update_color(self.color_key.update(self.color.into(), true))
+                update.update_color(color_key.update(color.into(), true))
             }
         }
-    }
-    RenderCaretNode {
-        child,
-        color: rgba(0, 0, 0, 0),
-        color_key: FrameValueKey::new_unique(),
-    }
+        _ => {}
+    })
 }
 
 /// An UI node that renders the parent [`LayoutText`].
@@ -1200,40 +1125,38 @@ pub fn render_text() -> impl UiNode {
         color: Rgba,
         aa: FontAntiAliasing,
     }
-    #[ui_node(struct RenderTextNode {
-        reuse: Option<ReuseRange>,
-        rendered: Option<RenderedText>,
-        color_key: Option<FrameValueKey<RenderColor>>,
-    })]
-    impl UiNode for RenderTextNode {
-        fn init(&mut self) {
+
+    let mut reuse = None;
+    let mut rendered = None;
+    let mut color_key = None;
+
+    match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
             if TEXT_COLOR_VAR.capabilities().contains(VarCapabilities::NEW) {
-                self.color_key = Some(FrameValueKey::new_unique());
+                color_key = Some(FrameValueKey::new_unique());
             }
+            // subscriptions are handled by the `resolve_text` node.
         }
-
-        fn deinit(&mut self) {
-            self.reuse = None;
-            self.color_key = None;
+        UiNodeOp::Deinit => {
+            color_key = None;
+            reuse = None;
+            rendered = None;
         }
-
-        // subscriptions are handled by the `resolve_text` node.
-        fn update(&mut self, _: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             if FONT_AA_VAR.is_new() {
                 WIDGET.render();
             } else if TEXT_COLOR_VAR.is_new() {
                 WIDGET.render_update();
             }
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
+        UiNodeOp::Render { frame } => {
             let r = ResolvedText::get();
             let t = LayoutText::get();
 
             let lh = t.shaped_text.line_height();
             let clip = PxRect::from_size(t.shaped_text.align_size()).inflate(lh, lh); // clip inflated to allow some weird glyphs
             let color = TEXT_COLOR_VAR.get();
-            let color_value = if let Some(key) = self.color_key {
+            let color_value = if let Some(key) = color_key {
                 key.bind(color.into(), TEXT_COLOR_VAR.is_animating())
             } else {
                 FrameValue::Value(color.into())
@@ -1241,41 +1164,36 @@ pub fn render_text() -> impl UiNode {
 
             let aa = FONT_AA_VAR.get();
 
-            let rendered = Some(RenderedText {
+            let rt = Some(RenderedText {
                 version: t.shaped_text_version,
                 synthesis: r.synthesis,
                 color,
                 aa,
             });
-            if self.rendered != rendered {
-                self.rendered = rendered;
-                self.reuse = None;
+            if rendered != rt {
+                rendered = rt;
+                reuse = None;
             }
 
-            frame.push_reuse(&mut self.reuse, |frame| {
+            frame.push_reuse(&mut reuse, |frame| {
                 for (font, glyphs) in t.shaped_text.glyphs() {
                     frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
                 }
             });
         }
-
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            if let Some(key) = self.color_key {
+        UiNodeOp::RenderUpdate { update } => {
+            if let Some(key) = color_key {
                 let color = TEXT_COLOR_VAR.get();
 
                 update.update_color(key.update(color.into(), TEXT_COLOR_VAR.is_animating()));
 
-                let mut rendered = self.rendered.unwrap();
-                rendered.color = color;
-                self.rendered = Some(rendered);
+                let mut r = rendered.unwrap();
+                r.color = color;
+                rendered = Some(r);
             }
         }
-    }
-    RenderTextNode {
-        reuse: None,
-        rendered: None,
-        color_key: None,
-    }
+        _ => {}
+    })
 }
 
 /// Create a node that is sized one text line height by `width`.
