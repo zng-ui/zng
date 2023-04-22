@@ -10,42 +10,42 @@ error[E0428]: the name `TestWidget` is defined multiple times
   = note: `TestWidget` must be defined only once in the type namespace of this module
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0428]: the name `__wgt__TestWidget__` is defined multiple times
+error[E0428]: the name `_TestWidget__` is defined multiple times
  --> cases/widget/name_conflict2.rs:6:1
   |
 3 | #[widget($crate::TestWidget)]
-  | ----------------------------- previous definition of the macro `__wgt__TestWidget__` here
+  | ----------------------------- previous definition of the macro `_TestWidget__` here
 ...
 6 | #[widget($crate::TestWidget)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `__wgt__TestWidget__` redefined here
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `_TestWidget__` redefined here
   |
-  = note: `__wgt__TestWidget__` must be defined only once in the macro namespace of this module
+  = note: `_TestWidget__` must be defined only once in the macro namespace of this module
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0428]: the name `__widget_path__TestWidget__` is defined multiple times
+error[E0428]: the name `zzz_widget_path__TestWidget` is defined multiple times
  --> cases/widget/name_conflict2.rs:6:18
   |
 3 | #[widget($crate::TestWidget)]
-  |                  ---------- previous definition of the module `__widget_path__TestWidget__` here
+  |                  ---------- previous definition of the module `zzz_widget_path__TestWidget` here
 ...
 6 | #[widget($crate::TestWidget)]
-  |                  ^^^^^^^^^^ `__widget_path__TestWidget__` redefined here
+  |                  ^^^^^^^^^^ `zzz_widget_path__TestWidget` redefined here
   |
-  = note: `__widget_path__TestWidget__` must be defined only once in the type namespace of this module
+  = note: `zzz_widget_path__TestWidget` must be defined only once in the type namespace of this module
 
-error[E0659]: `__wgt__TestWidget__` is ambiguous
+error[E0659]: `_TestWidget__` is ambiguous
  --> cases/widget/name_conflict2.rs:6:1
   |
 6 | #[widget($crate::TestWidget)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ambiguous name
   |
   = note: ambiguous because of multiple potential import sources
-note: `__wgt__TestWidget__` could refer to the macro defined here
+note: `_TestWidget__` could refer to the macro defined here
  --> cases/widget/name_conflict2.rs:6:1
   |
 6 | #[widget($crate::TestWidget)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: `__wgt__TestWidget__` could also refer to the macro defined here
+note: `_TestWidget__` could also refer to the macro defined here
  --> cases/widget/name_conflict2.rs:3:1
   |
 3 | #[widget($crate::TestWidget)]

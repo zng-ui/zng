@@ -11,6 +11,6 @@ note: required by a bound in `is_state_invalid_::args`
   --> cases/property/prefix_is_default.rs:10:57
    |
 9  | #[property(CONTEXT)]
-   | -------------------- required by a bound in this
+   | -------------------- required by a bound in this associated function
 10 | pub fn is_state_invalid(child: impl UiNode, state: impl IntoVar<u32>) -> impl UiNode {
    |                                                         ^^^^^^^^^^^^ required by this bound in `is_state_invalid_::args`

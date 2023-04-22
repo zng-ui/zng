@@ -6,4 +6,4 @@ error[E0433]: failed to resolve: could not find `not` in the crate root
   |                  |
   |                  could not find `not` in the crate root
   |
-  = note: this error originates in the macro `__widget_path__not_a_valid_path__` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the macro `zzz_widget_path__not_a_valid_path` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -17,7 +17,7 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 10 | |     };
    | |_____- an argument is missing
    |
-note: associated function defined here
+note: method defined here
   --> $WORKSPACE/zero-ui/src/properties/mouse.rs
    |
    | pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {

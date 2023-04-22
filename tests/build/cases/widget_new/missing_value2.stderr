@@ -8,7 +8,7 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 7 | |     };
   | |_____- an argument is missing
   |
-note: associated function defined here
+note: method defined here
  --> $WORKSPACE/zero-ui/src/properties/layout.rs
   |
   | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {

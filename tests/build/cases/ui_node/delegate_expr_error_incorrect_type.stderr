@@ -8,3 +8,4 @@ error[E0277]: the trait bound `NotANode: zero_ui::prelude::UiNode` is not satisf
   | required by a bound introduced by this call
   |
   = help: the following other types implement trait `zero_ui::prelude::UiNode`:
+            <implementers-list>
