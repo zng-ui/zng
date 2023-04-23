@@ -117,31 +117,24 @@ mod util {
 
     use crate::{
         context::{with_context_local, StaticStateId, WIDGET},
-        context_local, property, ui_node,
+        context_local, property,
         var::IntoValue,
-        widget_instance::{UiNode, UiNodeList},
+        widget_instance::{match_node, match_node_list, UiNode, UiNodeList, UiNodeOp},
     };
 
     pub use super::super::widget::util::*;
 
     #[property(CONTEXT)]
     pub fn log_init_thread(child: impl UiNode, enabled: impl IntoValue<bool>) -> impl UiNode {
-        #[ui_node(struct LogNode {
-            child: impl UiNode,
-            enabled: bool,
-        })]
-        impl UiNode for LogNode {
-            fn init(&mut self) {
-                self.child.init();
-                if self.enabled {
+        let enabled = enabled.into();
+        match_node(child, move |child, op| {
+            if let UiNodeOp::Init = op {
+                child.init();
+                if enabled {
                     WIDGET.set_state(&INIT_THREAD_ID, thread::current().id());
                 }
             }
-        }
-        LogNode {
-            child,
-            enabled: enabled.into(),
-        }
+        })
     }
 
     pub fn get_init_thread(wgt: &impl UiNode) -> ThreadId {
@@ -162,30 +155,19 @@ mod util {
 
     #[property(CHILD)]
     pub fn assert_ctx_val(child: impl UiNode, expected: impl IntoValue<bool>) -> impl UiNode {
-        #[ui_node(struct AssertNode {
-            child: impl UiNode,
-            expected: bool,
-        })]
-        impl UiNode for AssertNode {
-            fn init(&mut self) {
-                self.child.init();
+        let expected = expected.into();
+        match_node(child, move |child, op| {
+            if let UiNodeOp::Init = op {
+                child.init();
 
                 // thread::sleep(1.ms());
 
-                assert_eq!(self.expected, *CTX_VAL.get());
+                assert_eq!(expected, *CTX_VAL.get());
             }
-        }
-        AssertNode {
-            child,
-            expected: expected.into(),
-        }
+        })
     }
 
     pub fn list_node(children: impl UiNodeList) -> impl UiNode {
-        #[ui_node(struct Node {
-            children: impl UiNodeList
-        })]
-        impl UiNode for Node {}
-        Node { children }
+        match_node_list(children, |_, _| {})
     }
 }

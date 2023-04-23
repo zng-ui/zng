@@ -953,9 +953,9 @@ impl EditableUiNodeList {
         self.ctrl.clone()
     }
 
-    /// Take the list of pending remove requests, the widgets will not be removed on the next update.
-    pub fn take_remove_requests(&mut self) -> Vec<WidgetId> {
-        self.ctrl.take_remove_requests()
+    /// Take the list of pending retain requests, the widgets will not be removed on the next update.
+    pub fn take_retain_requests(&mut self) -> Vec<Box<dyn FnMut(&mut BoxedUiNode) -> bool + Send>> {
+        self.ctrl.take_retain_requests()
     }
 
     fn fullfill_requests(&mut self, observer: &mut dyn UiNodeListObserver) {
@@ -1010,14 +1010,23 @@ impl EditableUiNodeList {
                     }
                 }
             } else {
-                for id in r.remove {
-                    if let Some(i) = self.vec.iter().position(|w| w.with_context(|| WIDGET.id() == id).unwrap_or(false)) {
-                        let mut wgt = self.vec.remove(i);
-                        wgt.deinit();
-                        WIDGET.update_info();
-
-                        observer.removed(i);
-                    }
+                let mut removed = false;
+                for mut retain in r.retain {
+                    let mut i = 0;
+                    self.vec.retain_mut(|n| {
+                        let r = retain(n);
+                        if !r {
+                            n.deinit();
+                            removed = true;
+                            observer.removed(i);
+                        } else {
+                            i += 1;
+                        }
+                        r
+                    });
+                }
+                if removed {
+                    WIDGET.update_info();
                 }
 
                 for (i, mut wgt) in r.insert {
@@ -1167,7 +1176,7 @@ struct EditRequests {
     target: Option<WidgetId>,
     insert: Vec<(usize, BoxedUiNode)>,
     push: Vec<BoxedUiNode>,
-    remove: Vec<WidgetId>,
+    retain: Vec<Box<dyn FnMut(&mut BoxedUiNode) -> bool + Send>>,
     move_index: Vec<(usize, usize)>,
     move_id: Vec<(WidgetId, NodeMoveToFn)>,
     clear: bool,
@@ -1180,7 +1189,7 @@ impl fmt::Debug for EditRequests {
             .field("target", &self.target)
             .field("insert.len", &self.insert.len())
             .field("push.len", &self.push.len())
-            .field("remove", &self.remove)
+            .field("retain.len", &self.retain.len())
             .field("move_index", &self.move_index)
             .field("move_id", &self.move_id)
             .field("clear", &self.clear)
@@ -1194,7 +1203,7 @@ impl EditableUiNodeListRef {
             target: None,
             insert: vec![],
             push: vec![],
-            remove: vec![],
+            retain: vec![],
             move_index: vec![],
             move_id: vec![],
             clear: false,
@@ -1238,8 +1247,20 @@ impl EditableUiNodeListRef {
     /// The widget will be deinitialized, dropped and the info tree will update, nothing happens
     /// if the widget is not found.
     pub fn remove(&self, id: impl Into<WidgetId>) {
+        fn remove_impl(id: WidgetId) -> impl FnMut(&mut BoxedUiNode) -> bool + Send + 'static {
+            move |node| node.with_context(|| WIDGET.id() != id).unwrap_or(true)
+        }
+        self.retain(remove_impl(id.into()))
+    }
+
+    /// Request a filtered mass removal of nodes in the list.
+    ///
+    /// Each node not retained will be deinitialized, dropped and the info tree will update if any was removed.
+    /// 
+    /// Note that the `predicate` may be called on the same node multiple times or called in any order.
+    pub fn retain(&self, predicate: impl FnMut(&mut BoxedUiNode) -> bool + Send + 'static) {
         let mut s = self.0.lock();
-        s.remove.push(id.into());
+        s.retain.push(Box::new(predicate));
         UPDATES.update(s.target);
     }
 
@@ -1311,8 +1332,8 @@ impl EditableUiNodeListRef {
         UPDATES.update(s.target);
     }
 
-    fn take_remove_requests(&self) -> Vec<WidgetId> {
-        mem::take(&mut self.0.lock().remove)
+    fn take_retain_requests(&self) -> Vec<Box<dyn FnMut(&mut BoxedUiNode) -> bool + Send>> {
+        mem::take(&mut self.0.lock().retain)
     }
 
     fn take_requests(&self) -> Option<EditRequests> {
@@ -1321,7 +1342,7 @@ impl EditableUiNodeListRef {
         if s.clear
             || !s.insert.is_empty()
             || !s.push.is_empty()
-            || !s.remove.is_empty()
+            || !s.retain.is_empty()
             || !s.move_index.is_empty()
             || !s.move_id.is_empty()
         {
@@ -1331,7 +1352,7 @@ impl EditableUiNodeListRef {
 
                 insert: vec![],
                 push: vec![],
-                remove: vec![],
+                retain: vec![],
                 move_index: vec![],
                 move_id: vec![],
                 clear: false,

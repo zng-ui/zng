@@ -17,7 +17,7 @@ impl Switch {
         self.widget_builder().push_build_action(|wgt| {
             let index = wgt.capture_var_or_else(property_id!(Self::index), || 0);
             let options = wgt.capture_ui_node_list_or_empty(property_id!(Self::options));
-            let child = self::new_node(index, options);
+            let child = switch_node(index, options);
             wgt.set_child(child);
         });
     }
@@ -31,98 +31,92 @@ pub fn index(child: impl UiNode, index: impl IntoVar<usize>) -> impl UiNode {}
 #[property(CHILD, capture, widget_impl(Switch))]
 pub fn options(child: impl UiNode, options: impl UiNodeList) -> impl UiNode {}
 
-struct SwitchNode<I, W> {
-    index: I,
-    options: W,
-    collapse: bool,
-}
-#[ui_node(delegate_list = &mut self.options)]
-impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
-    fn update(&mut self, updates: &WidgetUpdates) {
-        if self.index.is_new() {
-            WIDGET.layout().render();
-            self.collapse = true;
-
-            self.options.update_all(updates, &mut ());
-        } else {
-            struct TouchedIndex {
-                index: usize,
-                touched: bool,
-            }
-            impl UiNodeListObserver for TouchedIndex {
-                fn is_reset_only(&self) -> bool {
-                    false
-                }
-                fn reset(&mut self) {
-                    self.touched = true;
-                }
-                fn inserted(&mut self, index: usize) {
-                    self.touched |= self.index == index;
-                }
-                fn removed(&mut self, index: usize) {
-                    self.touched |= self.index == index;
-                }
-                fn moved(&mut self, removed_index: usize, inserted_index: usize) {
-                    self.touched |= self.index == removed_index || self.index == inserted_index;
-                }
-            }
-            let mut check = TouchedIndex {
-                index: self.index.get(),
-                touched: false,
-            };
-            self.options.update_all(updates, &mut check);
-
-            if check.touched {
-                WIDGET.layout().render();
-                self.collapse = true;
-            }
-        }
-    }
-
-    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        let index = self.index.get();
-        if index < self.options.len() {
-            self.options.with_node(index, |n| n.measure(wm))
-        } else {
-            PxSize::zero()
-        }
-    }
-    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        if mem::take(&mut self.collapse) {
-            wl.collapse_descendants();
-        }
-
-        let index = self.index.get();
-        if index < self.options.len() {
-            self.options.with_node(index, |n| n.layout(wl))
-        } else {
-            PxSize::zero()
-        }
-    }
-
-    fn render(&mut self, frame: &mut FrameBuilder) {
-        let index = self.index.get();
-        if index < self.options.len() {
-            self.options.with_node(index, |n| n.render(frame))
-        }
-    }
-    fn render_update(&mut self, update: &mut FrameUpdate) {
-        let index = self.index.get();
-        if index < self.options.len() {
-            self.options.with_node(index, |n| n.render_update(update));
-        }
-    }
-}
-
-/// New switch node.
+/// Switch node.
 ///
-/// This is the raw [`UiNode`] that implements the core `switch` functionality
+/// This is the raw [`UiNode`] that implements the core [`Switch`] functionality
 /// without defining a full widget.
-pub fn new_node(index: impl Var<usize>, options: impl UiNodeList) -> impl UiNode {
-    SwitchNode {
-        index,
-        options,
-        collapse: true,
-    }
-    .cfg_boxed()
+pub fn switch_node(index: impl Var<usize>, options: impl UiNodeList) -> impl UiNode {
+    let mut collapse = true;
+    match_node_list(options, move |options, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&index);
+        }
+        UiNodeOp::Update { updates } => {
+            if index.is_new() {
+                WIDGET.layout().render();
+                collapse = true;
+
+                options.update_all(updates, &mut ());
+            } else {
+                struct TouchedIndex {
+                    index: usize,
+                    touched: bool,
+                }
+                impl UiNodeListObserver for TouchedIndex {
+                    fn is_reset_only(&self) -> bool {
+                        false
+                    }
+                    fn reset(&mut self) {
+                        self.touched = true;
+                    }
+                    fn inserted(&mut self, index: usize) {
+                        self.touched |= self.index == index;
+                    }
+                    fn removed(&mut self, index: usize) {
+                        self.touched |= self.index == index;
+                    }
+                    fn moved(&mut self, removed_index: usize, inserted_index: usize) {
+                        self.touched |= self.index == removed_index || self.index == inserted_index;
+                    }
+                }
+                let mut check = TouchedIndex {
+                    index: index.get(),
+                    touched: false,
+                };
+                options.update_all(updates, &mut check);
+
+                if check.touched {
+                    WIDGET.layout().render();
+                    collapse = true;
+                }
+            }
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            options.delegated();
+
+            let index = index.get();
+            if index < options.len() {
+                *desired_size = options.with_node(index, |n| n.measure(wm));
+            }
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            options.delegated();
+
+            if mem::take(&mut collapse) {
+                wl.collapse_descendants();
+            }
+
+            let index = index.get();
+            if index < options.len() {
+                *final_size = options.with_node(index, |n| n.layout(wl));
+            }
+        }
+        UiNodeOp::Render { frame } => {
+            options.delegated();
+
+            let index = index.get();
+            if index < options.len() {
+                options.with_node(index, |n| n.render(frame))
+            }
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            options.delegated();
+
+            let index = index.get();
+            if index < options.len() {
+                options.with_node(index, |n| n.render_update(update));
+            }
+        }
+        _ => {}
+    })
 }

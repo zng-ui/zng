@@ -42,45 +42,38 @@ impl LAYERS {
     ///
     /// If the `layer` variable updates the widget is moved to the new layer, if multiple widgets
     /// are inserted in the same layer the later inserts are on top of the previous.
+    ///
+    /// If the `widget` is not a full widget after init it is immediately deinited and removed. Only full
+    /// widgets are allowed, and ideally widgets with known IDs, so that they can be removed.
     pub fn insert(&self, layer: impl IntoVar<LayerIndex>, widget: impl UiNode) {
-        struct LayeredWidget<L, W> {
-            layer: L,
-            widget: W,
-        }
-        #[ui_node(delegate = &mut self.widget)]
-        impl<L: Var<LayerIndex>, W: UiNode> UiNode for LayeredWidget<L, W> {
-            fn init(&mut self) {
-                self.widget.init();
+        let layer = layer.into_var();
+        let widget = match_widget(widget.boxed(), move |widget, op| match op {
+            UiNodeOp::Init => {
+                widget.init();
+
+                if !widget.is_widget() {
+                    *widget.child() = NilUiNode.boxed();
+                    LAYERS.cleanup();
+                }
 
                 // widget may only become a full widget after init (ArcNode)
-                self.widget.with_context(|| {
-                    WIDGET.set_state(&LAYER_INDEX_ID, self.layer.get());
+                widget.with_context(|| {
+                    WIDGET.set_state(&LAYER_INDEX_ID, layer.get());
+                    WIDGET.sub_var(&layer);
                 });
             }
-
-            fn update(&mut self, updates: &WidgetUpdates) {
-                if let Some(index) = self.layer.get_new() {
-                    self.widget.with_context(|| {
+            UiNodeOp::Update { .. } => {
+                if let Some(index) = layer.get_new() {
+                    widget.with_context(|| {
                         WIDGET.set_state(&LAYER_INDEX_ID, index);
+                        SortingListParent::invalidate_sort();
                     });
-                    SortingListParent::invalidate_sort();
                 }
-                self.widget.update(updates);
             }
-
-            fn with_context<R, F>(&self, f: F) -> Option<R>
-            where
-                F: FnOnce() -> R,
-            {
-                self.widget.with_context(f)
-            }
-        }
-
+            _ => {}
+        });
         WINDOW.with_state(|s| {
-            s.req(&WINDOW_LAYERS_ID).items.push(LayeredWidget {
-                layer: layer.into_var(),
-                widget: widget.cfg_boxed(),
-            });
+            s.req(&WINDOW_LAYERS_ID).items.push(widget);
         });
     }
 
@@ -90,7 +83,8 @@ impl LAYERS {
     /// with the `anchor` widget top-left. The `mode` is a value of [`AnchorMode`] that defines if the `widget` will
     /// receive the full transform or just the offset.
     ///
-    /// If the `anchor` widget is not found the `widget` is not rendered (visibility `Collapsed`).
+    /// If the `anchor` widget is not found the `widget` is not rendered (visibility `Collapsed`). If the `widget`
+    /// is not a full widget after init it is immediately deinited and removed.
     pub fn insert_anchored(
         &self,
         layer: impl IntoVar<LayerIndex>,
@@ -99,32 +93,62 @@ impl LAYERS {
 
         widget: impl UiNode,
     ) {
-        struct AnchoredWidget<A, M, W> {
-            anchor: A,
-            mode: M,
-            widget: W,
-            info_changed_handle: Option<EventHandle>,
-            mouse_pos_handle: Option<VarHandle>,
+        let layer = layer.into_var();
+        let anchor = anchor.into_var();
+        let mode = mode.into_var();
 
-            anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo)>,
-            offset: (PxPoint, PxPoint), // place, origin (place is relative)
-            interactivity: bool,
-            cursor_once_pending: bool,
+        let mut _info_changed_handle = None;
+        let mut mouse_pos_handle = None;
 
-            transform_key: FrameValueKey<PxTransform>,
-            corner_radius_ctx_handle: Option<ContextInitHandle>,
-        }
-        #[ui_node(delegate = &mut self.widget)]
-        impl<A, M, W> UiNode for AnchoredWidget<A, M, W>
-        where
-            A: Var<WidgetId>,
-            M: Var<AnchorMode>,
-            W: UiNode,
-        {
-            fn info(&mut self, info: &mut WidgetInfoBuilder) {
-                if self.interactivity {
-                    if let Some(widget) = self.widget.with_context(|| WIDGET.id()) {
-                        let anchor = self.anchor.get();
+        let mut cursor_once_pending = false;
+        let mut anchor_info = None;
+        let mut offset = (PxPoint::zero(), PxPoint::zero());
+        let mut interactivity = false;
+
+        let transform_key = FrameValueKey::new_unique();
+        let mut corner_radius_ctx_handle = None;
+
+        let widget = match_widget(widget.boxed(), move |widget, op| match op {
+            UiNodeOp::Init => {
+                widget.init();
+
+                if !widget.is_widget() {
+                    widget.deinit();
+                    *widget.child() = NilUiNode.boxed();
+                    // cleanup requested by the `insert` node.
+                }
+
+                widget.with_context(|| {
+                    WIDGET.sub_var(&anchor).sub_var(&mode);
+
+                    let tree = WINDOW.widget_tree();
+                    if let Some(w) = tree.get(anchor.get()) {
+                        anchor_info = Some((w.bounds_info(), w.border_info()));
+                    }
+
+                    interactivity = mode.with(|m| m.interactivity);
+                    _info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
+
+                    if mode.with(|m| matches!(&m.transform, AnchorTransform::Cursor(_))) {
+                        mouse_pos_handle = Some(MOUSE.position().subscribe(WIDGET.id()));
+                    } else if mode.with(|m| matches!(&m.transform, AnchorTransform::CursorOnce(_))) {
+                        cursor_once_pending = true;
+                    }
+                });
+            }
+            UiNodeOp::Deinit => {
+                widget.deinit();
+
+                anchor_info = None;
+                _info_changed_handle = None;
+                mouse_pos_handle = None;
+                corner_radius_ctx_handle = None;
+                cursor_once_pending = false;
+            }
+            UiNodeOp::Info { info } => {
+                if interactivity {
+                    if let Some(widget) = widget.with_context(|| WIDGET.id()) {
+                        let anchor = anchor.get();
                         let querying = AtomicBool::new(false);
                         info.push_interactivity_filter(move |args| {
                             if args.info.id() == widget {
@@ -143,85 +167,51 @@ impl LAYERS {
                         });
                     }
                 }
-                self.widget.info(info)
             }
-
-            fn init(&mut self) {
-                WIDGET.sub_var(&self.anchor).sub_var(&self.mode);
-
-                let tree = WINDOW.widget_tree();
-                if let Some(w) = tree.get(self.anchor.get()) {
-                    self.anchor_info = Some((w.bounds_info(), w.border_info()));
-                }
-
-                self.interactivity = self.mode.with(|m| m.interactivity);
-                self.info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
-
-                if self.mode.with(|m| matches!(&m.transform, AnchorTransform::Cursor(_))) {
-                    self.mouse_pos_handle = Some(MOUSE.position().subscribe(WIDGET.id()));
-                } else if self.mode.with(|m| matches!(&m.transform, AnchorTransform::CursorOnce(_))) {
-                    self.cursor_once_pending = true;
-                }
-
-                self.widget.init();
-            }
-
-            fn deinit(&mut self) {
-                self.anchor_info = None;
-                self.info_changed_handle = None;
-                self.mouse_pos_handle = None;
-                self.widget.deinit();
-                self.corner_radius_ctx_handle = None;
-                self.cursor_once_pending = false;
-            }
-
-            fn event(&mut self, update: &EventUpdate) {
+            UiNodeOp::Event { update } => {
                 if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
                     if args.window_id == WINDOW.id() {
-                        self.anchor_info = WINDOW
-                            .widget_tree()
-                            .get(self.anchor.get())
-                            .map(|w| (w.bounds_info(), w.border_info()));
+                        anchor_info = WINDOW.widget_tree().get(anchor.get()).map(|w| (w.bounds_info(), w.border_info()));
                     }
                 }
-                self.widget.event(update);
             }
-
-            fn update(&mut self, updates: &WidgetUpdates) {
-                if let Some(anchor) = self.anchor.get_new() {
-                    self.anchor_info = WINDOW.widget_tree().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
-                    if self.mode.with(|m| m.interactivity) {
-                        WIDGET.update_info();
-                    }
-                    WIDGET.layout().render();
-                }
-                if let Some(mode) = self.mode.get_new() {
-                    if mode.interactivity != self.interactivity {
-                        self.interactivity = mode.interactivity;
-                        WIDGET.update_info();
-                    }
-                    if matches!(&mode.transform, AnchorTransform::Cursor(_)) {
-                        if self.mouse_pos_handle.is_none() {
-                            self.mouse_pos_handle = Some(MOUSE.position().subscribe(WIDGET.id()));
+            UiNodeOp::Update { .. } => {
+                widget.with_context(|| {
+                    if let Some(anchor) = anchor.get_new() {
+                        anchor_info = WINDOW.widget_tree().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
+                        if mode.with(|m| m.interactivity) {
+                            widget.with_context(|| WIDGET.update_info());
                         }
-                        self.cursor_once_pending = false;
-                    } else {
-                        self.cursor_once_pending = matches!(&mode.transform, AnchorTransform::CursorOnce(_));
-                        self.mouse_pos_handle = None;
+                        WIDGET.layout().render();
                     }
-                    WIDGET.layout().render();
-                } else if self.mouse_pos_handle.is_some() && MOUSE.position().is_new() {
-                    WIDGET.layout();
-                }
-                self.widget.update(updates);
+                    if let Some(mode) = mode.get_new() {
+                        if mode.interactivity != interactivity {
+                            interactivity = mode.interactivity;
+                            WIDGET.update_info();
+                        }
+                        if matches!(&mode.transform, AnchorTransform::Cursor(_)) {
+                            if mouse_pos_handle.is_none() {
+                                mouse_pos_handle = Some(MOUSE.position().subscribe(WIDGET.id()));
+                            }
+                            cursor_once_pending = false;
+                        } else {
+                            cursor_once_pending = matches!(&mode.transform, AnchorTransform::CursorOnce(_));
+                            mouse_pos_handle = None;
+                        }
+                        WIDGET.layout().render();
+                    } else if mouse_pos_handle.is_some() && MOUSE.position().is_new() {
+                        WIDGET.layout();
+                    }
+                });
             }
+            UiNodeOp::Measure { wm, desired_size } => {
+                widget.delegated();
 
-            fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-                if let Some((bounds, border)) = &self.anchor_info {
-                    let mode = self.mode.get();
+                if let Some((bounds, border)) = &anchor_info {
+                    let mode = mode.get();
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
-                        return LAYOUT.with_constraints(
+                        *desired_size = LAYOUT.with_constraints(
                             match mode.size {
                                 AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
                                 AnchorSize::Window => LAYOUT.constraints().with_fill(false, false),
@@ -229,16 +219,16 @@ impl LAYERS {
                                 AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
                                 AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
                             },
-                            || self.widget.measure(wm),
+                            || widget.measure(wm),
                         );
                     }
                 }
-
-                PxSize::zero()
             }
-            fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-                if let Some((bounds, border)) = &self.anchor_info {
-                    let mode = self.mode.get();
+            UiNodeOp::Layout { wl, final_size } => {
+                widget.delegated();
+
+                if let Some((bounds, border)) = &anchor_info {
+                    let mode = mode.get();
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
                         // if we don't link visibility or anchor is not collapsed.
@@ -258,19 +248,19 @@ impl LAYERS {
                                         cr = cr.deflate(border.offsets());
                                     }
                                     CORNER_RADIUS_VAR.with_context_var(
-                                        self.corner_radius_ctx_handle.get_or_insert_with(ContextInitHandle::new).clone(),
+                                        corner_radius_ctx_handle.get_or_insert_with(ContextInitHandle::new).clone(),
                                         cr,
-                                        || BORDER.with_corner_radius(|| self.widget.layout(wl)),
+                                        || BORDER.with_corner_radius(|| widget.layout(wl)),
                                     )
                                 } else {
-                                    self.widget.layout(wl)
+                                    widget.layout(wl)
                                 }
                             },
                         );
 
                         if let Some((p, update)) = match &mode.transform {
                             AnchorTransform::Cursor(p) => Some((p, true)),
-                            AnchorTransform::CursorOnce(p) => Some((p, mem::take(&mut self.cursor_once_pending))),
+                            AnchorTransform::CursorOnce(p) => Some((p, mem::take(&mut cursor_once_pending))),
                             _ => None,
                         } {
                             // cursor transform mode, only visible if cursor over window
@@ -291,27 +281,29 @@ impl LAYERS {
                                             .to_vector();
                                     let origin = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(layer_size), || p.origin.layout());
 
-                                    let offset = (place, origin);
-                                    if self.offset != offset {
-                                        self.offset = offset;
+                                    let o = (place, origin);
+                                    if offset != o {
+                                        offset = o;
                                         WIDGET.render_update();
                                     }
 
-                                    return layer_size;
+                                    *final_size = layer_size;
+                                    return;
                                 } else {
                                     // collapsed signal (permanent if `CursorOnce`)
-                                    self.offset.0.x = NO_POS_X;
+                                    offset.0.x = NO_POS_X;
                                 }
                             } else {
                                 // offset already set
-                                if self.offset.0.x != NO_POS_X {
+                                if offset.0.x != NO_POS_X {
                                     // and it is not collapsed `CursorOnce`
-                                    return layer_size;
+                                    *final_size = layer_size;
+                                    return;
                                 }
                             }
                         } else {
                             // other transform modes, will be visible
-                            let offset = match &mode.transform {
+                            let o = match &mode.transform {
                                 AnchorTransform::InnerOffset(p) => {
                                     let place =
                                         LAYOUT.with_constraints(PxConstraints2d::new_exact_size(bounds.inner_size()), || p.place.layout());
@@ -332,63 +324,64 @@ impl LAYERS {
                                 }
                                 _ => (PxPoint::zero(), PxPoint::zero()),
                             };
-                            if self.offset != offset {
-                                self.offset = offset;
+                            if offset != o {
+                                offset = o;
                                 WIDGET.render_update();
                             }
 
-                            return layer_size;
+                            *final_size = layer_size;
+                            return;
                         }
                     }
                 }
 
-                self.with_context(|| {
+                widget.with_context(|| {
                     wl.collapse();
                 });
-                PxSize::zero()
             }
+            UiNodeOp::Render { frame } => {
+                widget.delegated();
 
-            fn render(&mut self, frame: &mut FrameBuilder) {
-                if let Some((bounds_info, border_info)) = &self.anchor_info {
-                    let mode = self.mode.get();
+                if let Some((bounds_info, border_info)) = &anchor_info {
+                    let mode = mode.get();
                     if !mode.visibility || bounds_info.rendered().is_some() {
                         let mut push_reference_frame = |mut transform: PxTransform, is_translate_only: bool| {
                             if mode.viewport_bound {
-                                transform = adjust_viewport_bound(transform, &self.widget);
+                                transform = adjust_viewport_bound(transform, widget);
                             }
                             frame.push_reference_frame(
-                                self.transform_key.into(),
-                                self.transform_key.bind(transform, true),
+                                transform_key.into(),
+                                transform_key.bind(transform, true),
                                 is_translate_only,
                                 false,
-                                |frame| self.widget.render(frame),
+                                |frame| widget.render(frame),
                             );
                         };
 
                         match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
-                                let place_in_window = bounds_info.inner_transform().transform_point(self.offset.0).unwrap_or_default();
-                                let offset = place_in_window - self.offset.1;
+                                let place_in_window = bounds_info.inner_transform().transform_point(offset.0).unwrap_or_default();
+                                let offset = place_in_window - offset.1;
 
                                 push_reference_frame(PxTransform::from(offset), true);
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
                                 let place_in_window = border_info
                                     .inner_transform(bounds_info)
-                                    .transform_point(self.offset.0)
+                                    .transform_point(offset.0)
                                     .unwrap_or_default();
-                                let offset = place_in_window - self.offset.1;
+                                let offset = place_in_window - offset.1;
 
                                 push_reference_frame(PxTransform::from(offset), true);
                             }
                             AnchorTransform::OuterOffset(_) => {
-                                let place_in_window = bounds_info.outer_transform().transform_point(self.offset.0).unwrap_or_default();
-                                let offset = place_in_window - self.offset.1;
+                                let place_in_window = bounds_info.outer_transform().transform_point(offset.0).unwrap_or_default();
+                                let offset = place_in_window - offset.1;
 
                                 push_reference_frame(PxTransform::from(offset), true);
                             }
                             AnchorTransform::Cursor(_) | AnchorTransform::CursorOnce(_) => {
-                                let offset = self.offset.0 - self.offset.1;
+                                let offset = offset.0 - offset.1;
 
                                 push_reference_frame(PxTransform::from(offset), true);
                             }
@@ -401,46 +394,43 @@ impl LAYERS {
                             AnchorTransform::OuterTransform => {
                                 push_reference_frame(bounds_info.outer_transform(), false);
                             }
-                            _ => self.widget.render(frame),
+                            _ => widget.render(frame),
                         }
                     }
                 }
             }
-
-            fn render_update(&mut self, update: &mut FrameUpdate) {
-                if let Some((bounds_info, border_info)) = &self.anchor_info {
-                    let mode = self.mode.get();
+            UiNodeOp::RenderUpdate { update } => {
+                if let Some((bounds_info, border_info)) = &anchor_info {
+                    let mode = mode.get();
                     if !mode.visibility || bounds_info.rendered().is_some() {
                         let mut with_transform = |mut transform: PxTransform| {
                             if mode.viewport_bound {
-                                transform = adjust_viewport_bound(transform, &self.widget);
+                                transform = adjust_viewport_bound(transform, widget);
                             }
-                            update.with_transform(self.transform_key.update(transform, true), false, |update| {
-                                self.widget.render_update(update)
-                            });
+                            update.with_transform(transform_key.update(transform, true), false, |update| widget.render_update(update));
                         };
 
                         match mode.transform {
                             AnchorTransform::InnerOffset(_) => {
-                                let place_in_window = bounds_info.inner_transform().transform_point(self.offset.0).unwrap_or_default();
-                                let offset = place_in_window - self.offset.1;
+                                let place_in_window = bounds_info.inner_transform().transform_point(offset.0).unwrap_or_default();
+                                let offset = place_in_window - offset.1;
                                 with_transform(PxTransform::from(offset));
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
                                 let place_in_window = border_info
                                     .inner_transform(bounds_info)
-                                    .transform_point(self.offset.0)
+                                    .transform_point(offset.0)
                                     .unwrap_or_default();
-                                let offset = place_in_window - self.offset.1;
+                                let offset = place_in_window - offset.1;
                                 with_transform(PxTransform::from(offset));
                             }
                             AnchorTransform::OuterOffset(_) => {
-                                let place_in_window = bounds_info.outer_transform().transform_point(self.offset.0).unwrap_or_default();
-                                let offset = place_in_window - self.offset.1;
+                                let place_in_window = bounds_info.outer_transform().transform_point(offset.0).unwrap_or_default();
+                                let offset = place_in_window - offset.1;
                                 with_transform(PxTransform::from(offset));
                             }
                             AnchorTransform::Cursor(_) | AnchorTransform::CursorOnce(_) => {
-                                let offset = self.offset.0 - self.offset.1;
+                                let offset = offset.0 - offset.1;
                                 with_transform(PxTransform::from(offset));
                             }
                             AnchorTransform::InnerTransform => {
@@ -452,38 +442,14 @@ impl LAYERS {
                             AnchorTransform::OuterTransform => {
                                 with_transform(bounds_info.outer_transform());
                             }
-                            _ => self.widget.render_update(update),
+                            _ => widget.render_update(update),
                         }
                     }
                 }
             }
-
-            fn with_context<R, F>(&self, f: F) -> Option<R>
-            where
-                F: FnOnce() -> R,
-            {
-                self.widget.with_context(f)
-            }
-        }
-
-        self.insert(
-            layer,
-            AnchoredWidget {
-                anchor: anchor.into_var(),
-                mode: mode.into_var(),
-                widget: widget.cfg_boxed(),
-                info_changed_handle: None,
-                mouse_pos_handle: None,
-                cursor_once_pending: false,
-
-                anchor_info: None,
-                offset: (PxPoint::zero(), PxPoint::zero()),
-                interactivity: false,
-
-                transform_key: FrameValueKey::new_unique(),
-                corner_radius_ctx_handle: None,
-            },
-        );
+            _ => {}
+        });
+        self.insert(layer, widget);
     }
 
     /// Remove the widget in the next update.
@@ -492,6 +458,12 @@ impl LAYERS {
     pub fn remove(&self, id: impl Into<WidgetId>) {
         WINDOW.with_state(|s| {
             s.req(&WINDOW_LAYERS_ID).items.remove(id);
+        });
+    }
+
+    fn cleanup(&self) {
+        WINDOW.with_state(|s| {
+            s.req(&WINDOW_LAYERS_ID).items.retain(|n| n.is_widget());
         });
     }
 }
@@ -1153,19 +1125,19 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
             {
                 let editable_list = children.children().1.list();
 
-                let removes = editable_list.take_remove_requests();
+                let mut retains = editable_list.take_retain_requests();
 
-                if !removes.is_empty() {
+                if !retains.is_empty() {
                     editable_list.retain_mut(|n| {
                         enum Action {
                             Remove,
                             Update,
                             Retain,
                         }
+                        let remove_requested = retains.iter_mut().any(|r| !r(n));
                         let action = n
                             .with_context(|| {
-                                let id = WIDGET.id();
-                                if removes.iter().any(|i| *i == id) {
+                                if remove_requested {
                                     let state = WIDGET.get_state(&LAYER_REMOVE_ID).unwrap_or_default();
                                     match state {
                                         LayerRemove::Allowed => Action::Remove,
@@ -1179,7 +1151,11 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
                                     Action::Retain
                                 }
                             })
-                            .unwrap_or(Action::Retain);
+                            .unwrap_or(if remove_requested {
+                                Action::Remove
+                            } else {
+                                Action::Retain
+                            });
 
                         match action {
                             Action::Remove => {

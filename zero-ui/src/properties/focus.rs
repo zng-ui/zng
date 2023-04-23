@@ -383,22 +383,14 @@ pub fn is_return_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> 
 /// When the widget is inited a [`FOCUS.focus_widget_or_related`] request is made for the widget.
 #[property(CONTEXT, default(false))]
 pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    #[ui_node( struct FocusOnInitNode {
-        child: impl UiNode,
-        enabled: impl Var<bool>,
-    })]
-    impl UiNode for FocusOnInitNode {
-        fn init(&mut self) {
-            self.child.init();
+    let enabled = enabled.into_var();
+    match_node(child, move |child, op| {
+        if let UiNodeOp::Init = op {
+            child.init();
 
-            if self.enabled.get() {
+            if enabled.get() {
                 FOCUS.focus_widget_or_related(WIDGET.id(), false);
             }
         }
-    }
-    FocusOnInitNode {
-        child: child.cfg_boxed(),
-        enabled: enabled.into_var(),
-    }
-    .cfg_boxed()
+    })
 }

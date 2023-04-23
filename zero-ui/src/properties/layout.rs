@@ -682,7 +682,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             child.delegated();
             let size = with_fill_metrics(|d| size.layout_dft(d));
             let size = LAYOUT.constraints().clamp_size(size);
-            LAYOUT.disable_inline(wm, &mut NilUiNode);// no need to actually measure child
+            LAYOUT.disable_inline(wm, &mut NilUiNode); // no need to actually measure child
             *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {

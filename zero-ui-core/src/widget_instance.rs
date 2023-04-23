@@ -230,6 +230,7 @@ pub trait UiNode: Any + Send {
     /// on a subsequent [`layout`] call.
     ///
     /// [`layout`]: Self::layout
+    #[must_use]
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize;
 
     /// Called every time a layout update is requested or the constraints used have changed.
@@ -248,6 +249,7 @@ pub trait UiNode: Any + Send {
     /// Returns the computed node size, this will end-up influencing the size of the widget inner or outer bounds.
     ///
     /// [`constraints`]: LayoutMetrics::constraints
+    #[must_use]
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize;
 
     /// Called every time a new frame must be rendered.

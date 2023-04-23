@@ -261,9 +261,9 @@ pub mod prelude {
                 WidgetMeasure,
             },
             widget_instance::{
-                match_node, match_node_leaf, match_node_list, ui_vec, BoxedUiNode, EditableUiNodeList, EditableUiNodeListRef, FillUiNode,
-                NilUiNode, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeOp, UiNodeVec,
-                WidgetId,
+                match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, BoxedUiNode, EditableUiNodeList,
+                EditableUiNodeListRef, FillUiNode, NilUiNode, SortingList, SortingListParent, UiNode, UiNodeList, UiNodeListChain,
+                UiNodeListObserver, UiNodeOp, UiNodeVec, WidgetId,
             },
         };
         #[doc(no_inline)]
@@ -326,9 +326,9 @@ pub mod prelude {
                 WidgetBoundsInfo, WidgetInfoBuilder, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
             },
             widget_instance::{
-                match_node, match_node_leaf, match_node_list, ui_vec, z_index, AdoptiveNode, BoxedUiNode, BoxedUiNodeList,
-                EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, SortingList, SortingListParent, UiNode,
-                UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeOp, UiNodeVec, WidgetId, ZIndex,
+                match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, z_index, AdoptiveNode, BoxedUiNode,
+                BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, SortingList,
+                SortingListParent, UiNode, UiNodeList, UiNodeListChain, UiNodeListObserver, UiNodeOp, UiNodeVec, WidgetId, ZIndex,
             },
             widget_mixin, widget_set,
         };

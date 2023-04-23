@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, ops};
 
 use super::*;
 
@@ -51,6 +51,21 @@ pub enum UiNodeOp<'a> {
         update: &'a mut FrameUpdate,
     },
 }
+impl<'a> fmt::Debug for UiNodeOp<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Init => write!(f, "Init"),
+            Self::Deinit => write!(f, "Deinit"),
+            Self::Info { .. } => f.debug_struct("Info").finish_non_exhaustive(),
+            Self::Event { update } => f.debug_struct("Event").field("update", update).finish(),
+            Self::Update { updates } => f.debug_struct("Update").field("updates", updates).finish(),
+            Self::Measure { .. } => f.debug_struct("Measure").finish_non_exhaustive(),
+            Self::Layout { .. } => f.debug_struct("Layout").finish_non_exhaustive(),
+            Self::Render { .. } => f.debug_struct("Render").finish_non_exhaustive(),
+            Self::RenderUpdate { .. } => f.debug_struct("RenderUpdate").finish_non_exhaustive(),
+        }
+    }
+}
 
 /// Creates a node that is implemented as a closure that matches over [`UiNodeOp`] and delegates to another child node.
 ///
@@ -62,6 +77,15 @@ pub enum UiNodeOp<'a> {
 ///
 /// See [`match_node_list`] to create a match node that delegates to multiple children, or [`match_node_leaf`] to create a node
 /// that does not delegate.
+///
+/// # Warning
+///
+/// The child type is changed to [`BoxedUiNode`] when build with the `dyn_node` feature, if you want to access the child directly
+/// using [`MatchNodeChild::child`] you can use [`match_node_typed`] instead, or have the child type always be [`BoxedUiNode`].
+///
+/// # Widget
+///
+/// The match node will not delegate [`UiNode::is_widget`] and other widget methods, you can use [`match_widget`] for that.
 ///
 /// # Examples
 ///
@@ -99,6 +123,9 @@ pub enum UiNodeOp<'a> {
 ///     })
 /// }
 /// ```
+///
+/// [`match_node_typed`]: fn@match_node_typed
+/// [`match_widget`]: fn@match_widget
 #[cfg(dyn_node)]
 pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<BoxedUiNode>, UiNodeOp) + Send + 'static) -> impl UiNode {
     #[cfg(dyn_closure)]
@@ -117,6 +144,15 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<B
 ///
 /// See [`match_node_list`] to create a match node that delegates to multiple children, or [`match_node_leaf`] to create a node
 /// that does not delegate.
+///
+/// # Warning
+///
+/// The child type is changed to [`BoxedUiNode`] when build with the `dyn_node` feature, if you want to access the child directly
+/// using [`MatchNodeChild::child`] you can use [`match_node_typed`] instead, or have the child type always be [`BoxedUiNode`].
+///
+/// # Widget
+///
+/// The match node will not delegate [`UiNode::is_widget`] and other widget methods, you can use [`match_widget`] for that.
 ///
 /// # Examples
 ///
@@ -154,8 +190,18 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<B
 ///     })
 /// }
 /// ```
+///
+/// [`match_node_typed`]: fn@match_node_typed
+/// [`match_widget`]: fn@match_widget
 #[cfg(not(dyn_node))]
 pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<C>, UiNodeOp) + Send + 'static) -> impl UiNode {
+    match_node_typed(child, closure)
+}
+
+/// Like [`match_node`], but does not change the child type when build with `dyn_node`.
+///
+/// [`match_node`]: fn@match_node
+pub fn match_node_typed<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<C>, UiNodeOp) + Send + 'static) -> impl UiNode {
     #[cfg(dyn_closure)]
     let closure: Box<dyn FnMut(&mut MatchNodeChild<C>, UiNodeOp) + Send> = Box::new(closure);
 
@@ -308,6 +354,18 @@ impl<C: UiNode> MatchNodeChild<C> {
         self.delegated = true;
     }
 
+    /// Borrow the actual child.
+    ///
+    /// Note that if you delegate using this reference you must call [`delegated`].
+    ///
+    /// **Warning:** that [`match_node`] changes the child type to [`BoxedUiNode`] when build with the `dyn_node` feature.
+    /// To get a consistent child type use the [`BoxedUiNode`] directly or use [`match_node_typed`].
+    ///
+    /// [`delegated`]: Self::delegated
+    pub fn child(&mut self) -> &mut C {
+        &mut self.child
+    }
+
     /// Calls the [`UiNodeOp`].
     pub fn op(&mut self, op: UiNodeOp) {
         match op {
@@ -431,6 +489,179 @@ pub fn match_node_leaf(closure: impl FnMut(UiNodeOp) + Send + 'static) -> impl U
         }
     }
     MatchNodeLeaf { closure }
+}
+
+/// Creates a widget that is implemented as a closure that matches over [`UiNodeOp`] and delegates to another child widget.
+///
+/// The returned node will delegate to `child` like [`match_node`] does, and will also delegate [`UiNode::is_widget`] and
+/// [`UiNode::with_context`]. Note that the `closure` itself will not run inside [`UiNode::with_context`].
+///
+/// Note that unlike the [`match_node`] the `W` type is always preserved, the feature `dyn_node` is ignored here.
+///
+/// [`match_node`]: fn@match_node
+pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChild<W>, UiNodeOp) + Send + 'static) -> impl UiNode {
+    #[ui_node(struct MatchWidget<C: UiNode> {
+        child: MatchWidgetChild<C>,
+        closure: impl FnMut(&mut MatchWidgetChild<C>, UiNodeOp) + Send + 'static,
+    })]
+    impl UiNode for MatchWidget {
+        fn is_widget(&self) -> bool {
+            self.child.is_widget()
+        }
+
+        fn with_context<R, F: FnOnce() -> R>(&self, f: F) -> Option<R> {
+            self.child.with_context(f)
+        }
+
+        fn init(&mut self) {
+            self.child.delegated = false;
+
+            (self.closure)(&mut self.child, UiNodeOp::Init);
+
+            if !mem::take(&mut self.child.delegated) {
+                self.child.child.init();
+            }
+        }
+
+        fn deinit(&mut self) {
+            self.child.delegated = false;
+
+            (self.closure)(&mut self.child, UiNodeOp::Deinit);
+
+            if !mem::take(&mut self.child.delegated) {
+                self.child.child.deinit();
+            }
+        }
+
+        fn info(&mut self, info: &mut WidgetInfoBuilder) {
+            self.child.delegated = false;
+
+            (self.closure)(&mut self.child, UiNodeOp::Info { info });
+
+            if !mem::take(&mut self.child.delegated) {
+                self.child.child.info(info);
+            }
+        }
+
+        fn event(&mut self, update: &EventUpdate) {
+            self.child.delegated = false;
+
+            (self.closure)(&mut self.child, UiNodeOp::Event { update });
+
+            if !mem::take(&mut self.child.delegated) {
+                self.child.child.event(update);
+            }
+        }
+
+        fn update(&mut self, updates: &WidgetUpdates) {
+            self.child.delegated = false;
+
+            (self.closure)(&mut self.child, UiNodeOp::Update { updates });
+
+            if !mem::take(&mut self.child.delegated) {
+                self.child.child.update(updates);
+            }
+        }
+
+        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+            self.child.delegated = false;
+
+            let mut size = PxSize::zero();
+            (self.closure)(
+                &mut self.child,
+                UiNodeOp::Measure {
+                    wm,
+                    desired_size: &mut size,
+                },
+            );
+
+            if !mem::take(&mut self.child.delegated) {
+                if size != PxSize::zero() {
+                    // this is an error because the child will be measured if the return size is zero,
+                    // flagging delegated ensure consistent behavior.
+                    tracing::error!("measure changed size without flagging delegated");
+                    return size;
+                }
+
+                self.child.child.measure(wm)
+            } else {
+                size
+            }
+        }
+
+        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+            self.child.delegated = false;
+
+            let mut size = PxSize::zero();
+            (self.closure)(&mut self.child, UiNodeOp::Layout { wl, final_size: &mut size });
+
+            if !mem::take(&mut self.child.delegated) {
+                if size != PxSize::zero() {
+                    // this is an error because the child will be layout if the return size is zero,
+                    // flagging delegated ensure consistent behavior.
+                    tracing::error!("layout changed size without flagging delegated");
+                    return size;
+                }
+
+                self.child.child.layout(wl)
+            } else {
+                size
+            }
+        }
+
+        fn render(&mut self, frame: &mut FrameBuilder) {
+            self.child.delegated = false;
+
+            (self.closure)(&mut self.child, UiNodeOp::Render { frame });
+
+            if !mem::take(&mut self.child.delegated) {
+                self.child.child.render(frame);
+            }
+        }
+
+        fn render_update(&mut self, update: &mut FrameUpdate) {
+            self.child.delegated = false;
+
+            (self.closure)(&mut self.child, UiNodeOp::RenderUpdate { update });
+
+            if !mem::take(&mut self.child.delegated) {
+                self.child.child.render_update(update);
+            }
+        }
+    }
+    MatchWidget {
+        child: MatchWidgetChild(MatchNodeChild { child, delegated: false }),
+        closure,
+    }
+}
+
+/// Child node of [`match_widget`].
+///
+/// This node delegates like [`MatchNodeChild<C>`] plus delegates [`UiNode::is_widget`] and [`UiNode::with_context`].
+///
+/// [`match_widget`]: fn@match_widget
+pub struct MatchWidgetChild<C>(MatchNodeChild<C>);
+impl<C> ops::Deref for MatchWidgetChild<C> {
+    type Target = MatchNodeChild<C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<C> ops::DerefMut for MatchWidgetChild<C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+#[ui_node(delegate = &mut self.0)]
+impl<C: UiNode> UiNode for MatchWidgetChild<C> {
+    fn is_widget(&self) -> bool {
+        self.0.child.is_widget()
+    }
+
+    fn with_context<R, F: FnOnce() -> R>(&self, f: F) -> Option<R> {
+        self.0.child.with_context(f)
+    }
 }
 
 /// Creates a node that is implemented as a closure that matches over [`UiNodeOp`] and delegates to multiple children nodes in a list.

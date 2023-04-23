@@ -68,11 +68,7 @@ impl<P> StyleMix<P> {
             style_builder.push_build_action(move |b| {
                 // 3 - The actual StyleNode and builder is a child of the "mini widget".
                 let style = b.capture_var::<StyleFn>(style_id).unwrap();
-                b.set_child(StyleNode {
-                    child: None,
-                    builder: wgt.take().unwrap(),
-                    style,
-                });
+                b.set_child(style_node(None, wgt.take().unwrap(), style));
             });
             // 4 - Build the "mini widget",
             //     if the `style` property was not affected by any `when` this just returns the `StyleNode`.
@@ -165,37 +161,32 @@ pub fn with_style_extension(child: impl UiNode, style_context: ContextVar<StyleF
     )
 }
 
-#[ui_node(struct StyleNode {
-    child: Option<BoxedUiNode>,
-    builder: WidgetBuilder,
-    #[var] style: BoxedVar<StyleFn>,
-})]
-impl UiNode for StyleNode {
-    fn init(&mut self) {
-        self.auto_subs();
-        if let Some(style) = self.style.get().call(&StyleArgs {}) {
-            let mut builder = self.builder.clone();
-            builder.extend(style.into_builder());
-            self.child = Some(builder.default_build());
-        } else {
-            self.child = Some(self.builder.clone().default_build());
-        }
-        self.child.init();
-    }
+fn style_node(child: Option<BoxedUiNode>, builder: WidgetBuilder, style: BoxedVar<StyleFn>) -> impl UiNode {
+    match_node_typed(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&style);
 
-    fn deinit(&mut self) {
-        self.child.deinit();
-        self.child = None;
-    }
-
-    fn update(&mut self, updates: &WidgetUpdates) {
-        if self.style.is_new() {
-            WIDGET.reinit();
-            WIDGET.update_info().layout().render();
-        } else {
-            self.child.update(updates);
+            if let Some(style) = style.get().call(&StyleArgs {}) {
+                let mut builder = builder.clone();
+                builder.extend(style.into_builder());
+                *c.child() = Some(builder.default_build());
+            } else {
+                *c.child() = Some(builder.clone().default_build());
+            }
         }
-    }
+        UiNodeOp::Deinit => {
+            c.deinit();
+            *c.child() = None;
+        }
+        UiNodeOp::Update { .. } => {
+            if style.is_new() {
+                WIDGET.reinit();
+                WIDGET.update_info().layout().render();
+                c.delegated();
+            }
+        }
+        _ => {}
+    })
 }
 
 /// Represents a style instance.

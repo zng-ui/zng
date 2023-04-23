@@ -938,8 +938,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
             LAYOUT.with_constraints(PxConstraints2d::new_fill_size(*final_size), || {
                 txt.with(|| {
-                    child.layout(wl);
-                });
+                    let _ = child.layout(wl);
+                })
             });
         }
         UiNodeOp::Render { frame } => {

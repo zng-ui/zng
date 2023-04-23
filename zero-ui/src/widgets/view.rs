@@ -102,10 +102,7 @@ where
     V: Var<D>,
     P: FnMut(&V) -> View<U> + Send + 'static,
 {
-    use crate::core::widget_base::nodes;
-
-    let node = nodes::widget_inner(view_node(data, initial_ui, presenter));
-    nodes::widget(node, WidgetId::new_unique()).cfg_boxed()
+    view_node(data, initial_ui, presenter).into_widget()
 }
 
 /// Node only [`view`].
@@ -120,45 +117,30 @@ where
     P: FnMut(&V) -> View<U> + Send + 'static,
 {
     #[cfg(dyn_closure)]
-    let presenter: Box<dyn FnMut(&V) -> View<U> + Send> = Box::new(presenter);
+    let mut presenter: Box<dyn FnMut(&V) -> View<U> + Send> = Box::new(presenter);
+    #[cfg(not(dyn_closure))]
+    let mut presenter = presenter;
 
-    #[ui_node(struct ViewNode<D: VarValue> {
-        #[var] data: impl Var<D>,
-        child: impl UiNode,
-        presenter: impl FnMut(&T_data) -> View<T_child> + Send + 'static,
-        _d: std::marker::PhantomData<D>,
-    })]
-    impl UiNode for ViewNode {
-        fn init(&mut self) {
-            self.auto_subs();
+    match_node_typed(initial_ui, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&data);
 
-            if let View::Update(new_child) = (self.presenter)(&self.data) {
-                self.child = new_child;
+            if let View::Update(new_child) = presenter(&data) {
+                *c.child() = new_child;
             }
-
-            self.child.init();
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            if self.data.is_new() {
-                if let View::Update(new_child) = (self.presenter)(&self.data) {
-                    self.child.deinit();
-                    self.child = new_child;
-                    self.child.init();
+        UiNodeOp::Update { .. } => {
+            if data.is_new() {
+                if let View::Update(new_child) = presenter(&data) {
+                    c.child().deinit();
+                    *c.child() = new_child;
+                    c.child().init();
                     WIDGET.update_info().layout().render();
                 }
             }
-            self.child.update(updates);
         }
-    }
-
-    ViewNode {
-        data,
-        child: initial_ui,
-        presenter,
-        _d: std::marker::PhantomData,
-    }
-    .cfg_boxed()
+        _ => {}
+    })
 }
 
 type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
@@ -284,46 +266,44 @@ impl<D> WidgetFn<D> {
         let func = func.into_var();
 
         #[cfg(dyn_closure)]
-        let update: Box<dyn FnMut(bool) -> DataUpdate<D> + Send> = Box::new(update);
+        let mut update: Box<dyn FnMut(bool) -> DataUpdate<D> + Send> = Box::new(update);
+        #[cfg(not(dyn_closure))]
+        let mut update = update;
 
         #[cfg(dyn_closure)]
-        let map: Box<dyn FnMut(BoxedUiNode) -> V + Send> = Box::new(map);
+        let mut map: Box<dyn FnMut(BoxedUiNode) -> V + Send> = Box::new(map);
+        #[cfg(not(dyn_closure))]
+        let mut map = map;
 
-        #[ui_node(struct ViewFnVarPresenter<D: 'static, V: UiNode> {
-            #[var] func: impl Var<WidgetFn<D>>,
-            update: impl FnMut(bool) -> DataUpdate<D> + Send + 'static,
-            map: impl FnMut(BoxedUiNode) -> V + Send + 'static,
-            child: Option<V>,
-        })]
-        impl UiNode for ViewFnVarPresenter {
-            fn init(&mut self) {
-                self.auto_subs();
+        match_node_typed(None::<V>, move |c, op| match op {
+            UiNodeOp::Init => {
+                c.delegated();
 
-                let func = self.func.get();
+                WIDGET.sub_var(&func);
+
+                let func = func.get();
 
                 if func.is_nil() {
-                    self.child = None;
+                    *c.child() = None;
                     return;
                 }
 
-                match (self.update)(true) {
+                match update(true) {
                     DataUpdate::Update(data) => {
-                        let mut child = (self.map)(func(data));
+                        let mut child = map(func(data));
                         child.init();
-                        self.child = Some(child);
+                        *c.child() = Some(child);
                     }
-                    DataUpdate::Same => self.child.init(),
-                    DataUpdate::None => self.child = None,
+                    DataUpdate::Same => c.init(),
+                    DataUpdate::None => *c.child() = None,
                 }
             }
-            fn deinit(&mut self) {
-                self.child.deinit();
-            }
-            fn update(&mut self, updates: &WidgetUpdates) {
-                let func = self.func.get();
+            UiNodeOp::Update { updates } => {
+                c.delegated();
 
-                if func.is_nil() {
-                    if let Some(mut old) = self.child.take() {
+                let dfunc = func.get();
+                if dfunc.is_nil() {
+                    if let Some(mut old) = c.child().take() {
                         old.deinit();
                         WIDGET.update_info().layout().render();
                     }
@@ -331,33 +311,27 @@ impl<D> WidgetFn<D> {
                     return;
                 }
 
-                match (self.update)(self.func.is_new()) {
+                match update(func.is_new()) {
                     DataUpdate::Update(data) => {
-                        if let Some(mut old) = self.child.take() {
+                        if let Some(mut old) = c.child().take() {
                             old.deinit();
                         }
-                        let mut child = (self.map)(func(data));
+                        let mut child = map(dfunc(data));
                         child.init();
-                        self.child = Some(child);
+                        *c.child() = Some(child);
                         WIDGET.update_info().layout().render();
                     }
-                    DataUpdate::Same => self.child.update(updates),
+                    DataUpdate::Same => c.update(updates),
                     DataUpdate::None => {
-                        if let Some(mut old) = self.child.take() {
+                        if let Some(mut old) = c.child().take() {
                             old.deinit();
                             WIDGET.update_info().layout().render();
                         }
                     }
                 }
             }
-        }
-        ViewFnVarPresenter {
-            func,
-            update,
-            map,
-            child: None,
-        }
-        .cfg_boxed()
+            _ => {}
+        })
     }
 
     /// New widget function that returns the same `widget` for every call.

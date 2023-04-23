@@ -86,7 +86,8 @@ pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) ->
 
 /// Widget tooltip.
 ///
-/// Any other widget can be used as tooltip, the recommended widget is the [`Tip!`] container, it provides the tooltip style.
+/// Any other widget can be used as tooltip, the recommended widget is the [`Tip!`] container, it provides the tooltip style. Note
+/// that if the `tip` node is not a widget even after initializing it will not be shown.
 ///
 /// # Context
 ///
@@ -284,12 +285,9 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 
 fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> Arc<Mutex<Option<WidgetId>>> {
     let child_id = Arc::new(Mutex::new(None));
+    let anchor_id = WIDGET.id();
 
-    let tooltip = TooltipLayerNode {
-        child: func(TooltipArgs { disabled }).boxed(),
-        child_id: child_id.clone(),
-        anchor_id: WIDGET.id(),
-    };
+    let tooltip = tooltip_layer_wgt(func(TooltipArgs { disabled }).boxed(), child_id.clone(), anchor_id);
 
     let mode = AnchorMode {
         transform: AnchorTransform::CursorOnce(AnchorOffset::out_bottom_in_left()),
@@ -299,8 +297,7 @@ fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> Arc<Mutex<Option
         interactivity: false,
         corner_radius: false,
     };
-
-    LAYERS.insert_anchored(LayerIndex::TOP_MOST, tooltip.anchor_id, mode, tooltip);
+    LAYERS.insert_anchored(LayerIndex::TOP_MOST, anchor_id, mode, tooltip);
 
     child_id
 }
@@ -316,63 +313,57 @@ fn duration_timer() -> Option<DeadlineVar> {
     }
 }
 
-#[ui_node(struct TooltipLayerNode {
-    child: BoxedUiNode,
-    child_id: Arc<Mutex<Option<WidgetId>>>,
-    anchor_id: WidgetId,
-})]
-impl UiNode for TooltipLayerNode {
-    fn with_context<R, F: FnOnce() -> R>(&self, f: F) -> Option<R> {
-        self.child.with_context(f)
-    }
+fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Mutex<Option<WidgetId>>>, anchor_id: WidgetId) -> impl UiNode {
+    match_widget(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            // try init, some nodes become a full widget only after init.
+            c.init();
 
-    fn init(&mut self) {
-        // if the tooltip is hit-testable and the mouse hovers it, the anchor widget
-        // will not receive mouse-leave, because it is not the logical parent of the tooltip,
-        // so we need to duplicate cleanup logic here.
-        self.with_context(|| {
-            WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
-        });
-        self.child.init();
+            if !c.is_widget() {
+                // not full widget, re-init node inside a new anonymous widget.
+                c.deinit();
 
-        if !self.child.is_widget() {
-            self.child.deinit();
+                let node = widget_base::nodes::widget_inner(std::mem::replace(c.child(), NilUiNode.boxed()));
+                // set hit test mode so that it's only hit-testable if the child is hit-testable
+                let node = hit_test_mode(node, HitTestMode::Visual);
 
-            let node = widget_base::nodes::widget_inner(std::mem::replace(&mut self.child, NilUiNode.boxed()));
-            // set hit test mode so that it's only hit-testable if the child is hit-testable
-            let node = hit_test_mode(node, HitTestMode::Visual);
+                *c.child() = widget_base::nodes::widget(node, WidgetId::new_unique()).boxed();
 
-            self.child = widget_base::nodes::widget(node, WidgetId::new_unique()).boxed();
+                c.init();
+            }
 
-            self.child.init();
+            c.with_context(|| {
+                // if the tooltip is hit-testable and the mouse hovers it, the anchor widget
+                // will not receive mouse-leave, because it is not the logical parent of the tooltip,
+                // so we need to duplicate cleanup logic here.
+                WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
+
+                *child_id.lock() = Some(WIDGET.id());
+            });
         }
+        UiNodeOp::Event { update } => {
+            c.event(update);
 
-        self.child.with_context(|| {
-            *self.child_id.lock() = Some(WIDGET.id());
-        });
-    }
-
-    fn event(&mut self, update: &EventUpdate) {
-        self.child.event(update);
-
-        if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-            let tooltip_id = match self.with_context(|| WIDGET.id()) {
-                Some(id) => id,
-                None => {
-                    // was widget on init, now is not,
-                    // this can happen if child is an `ArcNode` that was moved
-                    return;
+            if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
+                let tooltip_id = match c.with_context(|| WIDGET.id()) {
+                    Some(id) => id,
+                    None => {
+                        // was widget on init, now is not,
+                        // this can happen if child is an `ArcNode` that was moved
+                        return;
+                    }
+                };
+                let keep_open = if let Some(t) = &args.target {
+                    t.contains(anchor_id) || t.contains(tooltip_id)
+                } else {
+                    false
+                };
+                if !keep_open {
+                    LAYERS.remove(tooltip_id);
+                    TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
                 }
-            };
-            let keep_open = if let Some(t) = &args.target {
-                t.contains(self.anchor_id) || t.contains(tooltip_id)
-            } else {
-                false
-            };
-            if !keep_open {
-                LAYERS.remove(tooltip_id);
-                TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
             }
         }
-    }
+        _ => {}
+    })
 }
