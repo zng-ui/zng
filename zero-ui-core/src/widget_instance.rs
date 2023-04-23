@@ -393,6 +393,21 @@ pub trait UiNode: Any + Send {
     {
         TraceNode::new(self, enter_mtd)
     }
+
+    /// Runs the [ `UiNodeOp`].
+    fn op(&mut self, op: UiNodeOp) {
+        match op {
+            UiNodeOp::Init => self.init(),
+            UiNodeOp::Deinit => self.deinit(),
+            UiNodeOp::Info { info } => self.info(info),
+            UiNodeOp::Event { update } => self.event(update),
+            UiNodeOp::Update { updates } => self.update(updates),
+            UiNodeOp::Measure { wm, desired_size } => *desired_size = self.measure(wm),
+            UiNodeOp::Layout { wl, final_size } => *final_size = self.layout(wl),
+            UiNodeOp::Render { frame } => self.render(frame),
+            UiNodeOp::RenderUpdate { update } => self.render_update(update),
+        }
+    }
 }
 
 /// Represents a list of [`UiNode`] instances.
@@ -626,6 +641,24 @@ pub trait UiNodeList: UiNodeListBoxed {
         Self: Sized,
     {
         self
+    }
+
+    /// Runs the [`UiNodeOp`].
+    fn op(&mut self, op: UiNodeOp)
+    where
+        Self: Sized,
+    {
+        match op {
+            UiNodeOp::Init => ui_node_list_default::init_all(self),
+            UiNodeOp::Deinit => ui_node_list_default::deinit_all(self),
+            UiNodeOp::Info { info } => ui_node_list_default::info_all(self, info),
+            UiNodeOp::Event { update } => ui_node_list_default::event_all(self, update),
+            UiNodeOp::Update { updates } => ui_node_list_default::update_all(self, updates),
+            UiNodeOp::Measure { wm, desired_size } => *desired_size = ui_node_list_default::measure_all(self, wm),
+            UiNodeOp::Layout { wl, final_size } => *final_size = ui_node_list_default::layout_all(self, wl),
+            UiNodeOp::Render { frame } => ui_node_list_default::render_all(self, frame),
+            UiNodeOp::RenderUpdate { update } => ui_node_list_default::render_update_all(self, update),
+        }
     }
 }
 
