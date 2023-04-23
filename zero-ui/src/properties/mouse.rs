@@ -39,9 +39,9 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                     if hovered_binding.is_none() {
                         // we are not already set, setup binding.
 
-                        let cursor = WINDOW_CTRL.vars().cursor();
-                        cursor.set_ne(cursor.get());
-                        hovered_binding = Some(cursor.bind(&cursor));
+                        let c = WINDOW_CTRL.vars().cursor();
+                        c.set_ne(cursor.get());
+                        hovered_binding = Some(cursor.bind(&c));
                     }
                 } else {
                     // restore to default, if not set to other value already
