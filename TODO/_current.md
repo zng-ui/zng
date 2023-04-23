@@ -2,6 +2,8 @@
     - Test all.
     - Merge.
     - Review `!!:`.
+    - Implement infinite loop detection in `VARS.apply_updates`.
+        - This was an issue recently when a variable was bound to itself.
     - Review nodes that change their child.
         - Give direct access to the child, like with children?
         - Cfg boxed can cause surprises here.
