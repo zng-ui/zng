@@ -2,7 +2,6 @@ use crate::{
     context::WidgetUpdates,
     context::WIDGET,
     event::{EventHandles, EventUpdate},
-    ui_node,
     var::{BoxedVar, Var, VarHandles},
 };
 
@@ -112,8 +111,12 @@ impl WhenUiNode {
 
         WIDGET.update_info().layout().render();
     }
+
+    fn with<R>(&mut self, f: impl FnOnce(&mut BoxedUiNode) -> R) -> R {
+        let (child, var_handles, event_handles) = self.child_mut_with_handles();
+        WIDGET.with_handles(var_handles, event_handles, || f(child))
+    }
 }
-#[ui_node(delegate = self.child_mut_with_handles().0)]
 impl UiNode for WhenUiNode {
     fn init(&mut self) {
         self.current = usize::MAX;
@@ -123,21 +126,21 @@ impl UiNode for WhenUiNode {
             }
             WIDGET.sub_var(c);
         }
-
-        let (child, var_handles, event_handles) = self.child_mut_with_handles();
-        WIDGET.with_handles(var_handles, event_handles, || child.init());
+        self.with(|c| c.init());
     }
 
     fn deinit(&mut self) {
-        let (child, var_handles, event_handles) = self.child_mut_with_handles();
-        WIDGET.with_handles(var_handles, event_handles, || child.deinit());
-        var_handles.clear();
-        event_handles.clear();
+        self.with(|c| c.deinit());
+        self.var_handles.clear();
+        self.event_handles.clear();
+    }
+
+    fn info(&mut self, info: &mut crate::widget_info::WidgetInfoBuilder) {
+        self.with(|c| c.info(info));
     }
 
     fn event(&mut self, update: &EventUpdate) {
-        let (child, var_handles, event_handles) = self.child_mut_with_handles();
-        WIDGET.with_handles(var_handles, event_handles, || child.event(update));
+        self.with(|c| c.event(update));
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {
@@ -171,8 +174,23 @@ impl UiNode for WhenUiNode {
             self.change_child(usize::MAX);
         }
 
-        let (child, var_handles, event_handles) = self.child_mut_with_handles();
-        WIDGET.with_handles(var_handles, event_handles, || child.update(updates));
+        self.with(|c| c.update(updates));
+    }
+
+    fn measure(&mut self, wm: &mut crate::widget_info::WidgetMeasure) -> zero_ui_view_api::units::PxSize {
+        self.with(|c| c.measure(wm))
+    }
+
+    fn layout(&mut self, wl: &mut crate::widget_info::WidgetLayout) -> zero_ui_view_api::units::PxSize {
+        self.with(|c| c.layout(wl))
+    }
+
+    fn render(&mut self, frame: &mut crate::render::FrameBuilder) {
+        self.with(|c| c.render(frame))
+    }
+
+    fn render_update(&mut self, update: &mut crate::render::FrameUpdate) {
+        self.with(|c| c.render_update(update))
     }
 }
 
