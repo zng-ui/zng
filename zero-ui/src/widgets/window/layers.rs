@@ -1151,11 +1151,7 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
                                     Action::Retain
                                 }
                             })
-                            .unwrap_or(if remove_requested {
-                                Action::Remove
-                            } else {
-                                Action::Retain
-                            });
+                            .unwrap_or(if remove_requested { Action::Remove } else { Action::Retain });
 
                         match action {
                             Action::Remove => {

@@ -1256,7 +1256,7 @@ impl EditableUiNodeListRef {
     /// Request a filtered mass removal of nodes in the list.
     ///
     /// Each node not retained will be deinitialized, dropped and the info tree will update if any was removed.
-    /// 
+    ///
     /// Note that the `predicate` may be called on the same node multiple times or called in any order.
     pub fn retain(&self, predicate: impl FnMut(&mut BoxedUiNode) -> bool + Send + 'static) {
         let mut s = self.0.lock();

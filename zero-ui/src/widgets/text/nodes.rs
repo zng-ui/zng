@@ -167,23 +167,17 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             }
         }
     }
-    struct ResolveTextNode<C, T> {
-        child: C,
-        text: T,
-        faces: Option<LoadingFontFaceList>,
-        resolved: Option<ResolvedText>,
-        event_handles: EventHandles,
-        caret_opacity_handle: Option<VarHandle>,
-    }
-    impl<C: UiNode, T> ResolveTextNode<C, T> {
-        fn with<R>(&mut self, f: impl FnOnce(&mut C) -> R) -> R {
-            RESOLVED_TEXT.with_context_opt(&mut self.resolved, || f(&mut self.child))
-        }
-    }
-    impl<C: UiNode, T: Var<Txt>> UiNode for ResolveTextNode<C, T> {
-        fn init(&mut self) {
+
+    let text = text.into_var();
+    let mut loading_faces = None;
+    let mut resolved = None;
+    let mut event_handles = EventHandles::default();
+    let mut _caret_opacity_handle = None;
+
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
             WIDGET
-                .sub_var(&self.text)
+                .sub_var(&text)
                 .sub_var(&LANG_VAR)
                 .sub_var(&DIRECTION_VAR)
                 .sub_var(&FONT_FAMILY_VAR)
@@ -221,81 +215,76 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             let style = FONT_STYLE_VAR.get();
             let weight = FONT_WEIGHT_VAR.get();
 
-            let faces = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
+            let f = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
 
-            let faces = if faces.is_done() {
-                faces.into_rsp().unwrap()
+            let f = if f.is_done() {
+                f.into_rsp().unwrap()
             } else {
-                self.faces = Some(LoadingFontFaceList::new(faces));
+                loading_faces = Some(LoadingFontFaceList::new(f));
                 FontFaceList::empty()
             };
 
-            let text = self.text.get();
-            let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
-            let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
+            let txt = text.get();
+            let txt = TEXT_TRANSFORM_VAR.with(|t| t.transform(txt));
+            let txt = WHITE_SPACE_VAR.with(|t| t.transform(txt));
 
             let editable = TEXT_EDITABLE_VAR.get();
             let caret_opacity = if editable && FOCUS.focused().get().map(|p| p.widget_id()) == Some(WIDGET.id()) {
                 let v = KEYBOARD.caret_animation();
-                self.caret_opacity_handle = Some(v.subscribe(WIDGET.id()));
+                _caret_opacity_handle = Some(v.subscribe(WIDGET.id()));
                 v
             } else {
                 var(0.fct()).read_only()
             };
 
-            self.resolved = Some(ResolvedText {
-                synthesis: FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight),
-                faces,
-                text: SegmentedText::new(text, DIRECTION_VAR.get()),
+            resolved = Some(ResolvedText {
+                synthesis: FONT_SYNTHESIS_VAR.get() & f.best().synthesis_for(style, weight),
+                faces: f,
+                text: SegmentedText::new(txt, DIRECTION_VAR.get()),
                 reshape: false,
                 baseline: Atomic::new(Px(0)),
                 caret_opacity,
             });
 
             if editable {
-                self.event_handles.push(CHAR_INPUT_EVENT.subscribe(WIDGET.id()));
-                self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(WIDGET.id()));
+                event_handles.push(CHAR_INPUT_EVENT.subscribe(WIDGET.id()));
+                event_handles.push(FOCUS_CHANGED_EVENT.subscribe(WIDGET.id()));
             }
 
-            self.with(|c| c.init())
+            RESOLVED_TEXT.with_context_opt(&mut resolved, || child.init());
         }
-
-        fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        UiNodeOp::Deinit => {
+            RESOLVED_TEXT.with_context_opt(&mut resolved, || child.init());
+            event_handles.clear();
+            _caret_opacity_handle = None;
+            loading_faces = None;
+            resolved = None;
+        }
+        UiNodeOp::Info { info } => {
             if TEXT_EDITABLE_VAR.get() {
                 FocusInfoBuilder::new(info).focusable(true);
             }
-            self.with(|c| c.info(info))
+            RESOLVED_TEXT.with_context_opt(&mut resolved, || child.info(info));
         }
-
-        fn deinit(&mut self) {
-            self.event_handles.clear();
-            self.caret_opacity_handle = None;
-            self.faces = None;
-            self.with(|c| c.deinit());
-            self.resolved = None;
-        }
-
-        fn event(&mut self, update: &EventUpdate) {
+        UiNodeOp::Event { update } => {
             if let Some(args) = CHAR_INPUT_EVENT.on(update) {
-                if !args.propagation().is_stopped()
-                    && self.text.capabilities().contains(VarCapabilities::MODIFY)
-                    && args.is_enabled(WIDGET.id())
+                if !args.propagation().is_stopped() && text.capabilities().contains(VarCapabilities::MODIFY) && args.is_enabled(WIDGET.id())
                 {
                     args.propagation().stop();
 
                     let new_animation = KEYBOARD.caret_animation();
-                    self.caret_opacity_handle = Some(new_animation.subscribe(WIDGET.id()));
-                    self.resolved.as_mut().unwrap().caret_opacity = new_animation;
+                    _caret_opacity_handle = Some(new_animation.subscribe(WIDGET.id()));
+                    resolved.as_mut().unwrap().caret_opacity = new_animation;
 
                     if args.is_backspace() {
-                        let _ = self.text.modify(move |t| {
+                        let _ = text.modify(move |t| {
                             if !t.as_ref().is_empty() {
                                 t.to_mut().to_mut().pop();
                             }
                         });
                     } else {
                         let c = args.character;
-                        let _ = self.text.modify(move |t| {
+                        let _ = text.modify(move |t| {
                             t.to_mut().to_mut().push(c);
                         });
                     }
@@ -304,11 +293,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 if TEXT_EDITABLE_VAR.get() {
                     if args.is_focused(WIDGET.id()) {
                         let new_animation = KEYBOARD.caret_animation();
-                        self.caret_opacity_handle = Some(new_animation.subscribe(WIDGET.id()));
-                        self.resolved.as_mut().unwrap().caret_opacity = new_animation;
+                        _caret_opacity_handle = Some(new_animation.subscribe(WIDGET.id()));
+                        resolved.as_mut().unwrap().caret_opacity = new_animation;
                     } else {
-                        self.caret_opacity_handle = None;
-                        self.resolved.as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
+                        _caret_opacity_handle = None;
+                        resolved.as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
                     }
                 }
             } else if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
@@ -322,7 +311,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 if faces.is_done() {
                     let faces = faces.rsp().unwrap();
 
-                    let r = self.resolved.as_mut().unwrap();
+                    let r = resolved.as_mut().unwrap();
 
                     if r.faces != faces {
                         r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight);
@@ -332,18 +321,17 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         WIDGET.layout();
                     }
                 } else {
-                    self.faces = Some(LoadingFontFaceList::new(faces));
+                    loading_faces = Some(LoadingFontFaceList::new(faces));
                 }
             }
-            self.with(|c| c.event(update))
+            RESOLVED_TEXT.with_context_opt(&mut resolved, || child.event(update));
         }
-
-        fn update(&mut self, updates: &WidgetUpdates) {
-            let r = self.resolved.as_mut().unwrap();
+        UiNodeOp::Update { updates } => {
+            let r = resolved.as_mut().unwrap();
 
             // update `r.text`, affects layout.
-            if self.text.is_new() || TEXT_TRANSFORM_VAR.is_new() || WHITE_SPACE_VAR.is_new() || LANG_VAR.is_new() {
-                let text = self.text.get();
+            if text.is_new() || TEXT_TRANSFORM_VAR.is_new() || WHITE_SPACE_VAR.is_new() || LANG_VAR.is_new() {
+                let text = text.get();
                 let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
                 let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
                 let direction = DIRECTION_VAR.get();
@@ -378,7 +366,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         WIDGET.layout();
                     }
                 } else {
-                    self.faces = Some(LoadingFontFaceList::new(faces));
+                    loading_faces = Some(LoadingFontFaceList::new(faces));
                 }
             }
 
@@ -391,26 +379,26 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 }
             }
             if let Some(enabled) = TEXT_EDITABLE_VAR.get_new() {
-                if enabled && self.event_handles.0.is_empty() {
+                if enabled && event_handles.0.is_empty() {
                     // actually enabled.
 
                     let id = WIDGET.id();
-                    self.event_handles.push(CHAR_INPUT_EVENT.subscribe(id));
-                    self.event_handles.push(FOCUS_CHANGED_EVENT.subscribe(id));
+                    event_handles.push(CHAR_INPUT_EVENT.subscribe(id));
+                    event_handles.push(FOCUS_CHANGED_EVENT.subscribe(id));
 
                     if FOCUS.focused().get().map(|p| p.widget_id()) == Some(id) {
                         let new_animation = KEYBOARD.caret_animation();
-                        self.caret_opacity_handle = Some(new_animation.subscribe(id));
+                        _caret_opacity_handle = Some(new_animation.subscribe(id));
                         r.caret_opacity = new_animation;
                     }
                 } else {
-                    self.event_handles.clear();
-                    self.caret_opacity_handle = None;
+                    event_handles.clear();
+                    _caret_opacity_handle = None;
                     r.caret_opacity = var(0.fct()).read_only();
                 }
             }
 
-            if let Some(f) = self.faces.take() {
+            if let Some(f) = loading_faces.take() {
                 if f.result.is_done() {
                     let faces = f.result.into_rsp().unwrap();
                     if r.faces != faces {
@@ -421,39 +409,20 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         WIDGET.layout();
                     }
                 } else {
-                    self.faces = Some(f);
+                    loading_faces = Some(f);
                 }
             }
 
-            self.with(|c| c.update(updates))
+            RESOLVED_TEXT.with_context_opt(&mut resolved, || child.update(updates));
         }
-
-        fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-            self.with(|c| c.measure(wm))
+        UiNodeOp::Layout { wl, final_size } => {
+            *final_size = RESOLVED_TEXT.with_context_opt(&mut resolved, || child.layout(wl));
+            resolved.as_mut().unwrap().reshape = false;
         }
-        fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.with(|c| c.layout(wl));
-            self.resolved.as_mut().unwrap().reshape = false;
-            size
+        op => {
+            RESOLVED_TEXT.with_context_opt(&mut resolved, || child.op(op));
         }
-
-        fn render(&mut self, frame: &mut FrameBuilder) {
-            self.with(|c| c.render(frame))
-        }
-
-        fn render_update(&mut self, update: &mut FrameUpdate) {
-            self.with(|c| c.render_update(update))
-        }
-    }
-    ResolveTextNode {
-        child: child.cfg_boxed(),
-        text: text.into_var(),
-        faces: None,
-        resolved: None,
-        event_handles: EventHandles::default(),
-        caret_opacity_handle: None,
-    }
-    .cfg_boxed()
+    })
 }
 
 /// An UI node that layouts the parent [`ResolvedText`] defined by the text context vars.

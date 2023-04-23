@@ -1,7 +1,4 @@
 * `match_node` refactor.
-    - Test all again.
-        - Some layers not rendering.
-    - Refactor `ResolveTextNode`. 
     - Review big layout widget nodes with methods.
         - Refactor to be a struct operated by the matcher?
         - Helps with rust-analyzer.
