@@ -1704,7 +1704,6 @@ impl LoopMonitor {
             );
             false
         } else if self.update_count == 1500 {
-            self.skipped = true;
             self.update_count = 1001;
             false
         } else {

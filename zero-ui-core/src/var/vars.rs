@@ -60,6 +60,8 @@ pub(crate) struct VarsService {
     spare_updates: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
 
     modify_receivers: Mutex<Vec<Box<dyn Fn() -> bool + Send>>>,
+
+    skipped_updates: bool,
 }
 impl VarsService {
     pub(crate) fn new() -> Self {
@@ -70,6 +72,7 @@ impl VarsService {
             updates: Mutex::new(Vec::with_capacity(128)),
             spare_updates: Mutex::new(Vec::with_capacity(128)),
             modify_receivers: Mutex::new(vec![]),
+            skipped_updates: false,
         }
     }
 }
@@ -260,6 +263,7 @@ impl VARS {
         // var updates can generate other updates (bindings), these are applied in the same
         // app update, hence the loop and "spare" vec alloc.
         let mut spare = None;
+        let mut update_count = 0;
         loop {
             let mut vars = VARS_SV.write();
             if let Some(var_updates) = spare.take() {
@@ -285,6 +289,24 @@ impl VARS {
                 update();
             }
             spare = Some(var_updates);
+
+            update_count += 1;
+            if update_count == 1000 {
+                let mut vars = VARS_SV.write();
+                let vars = &mut *vars;
+                let updates = vars.updates.get_mut();
+
+                if !vars.skipped_updates && !updates.is_empty() {
+                    vars.skipped_updates = true;
+                    tracing::error!(
+                        "updated variable bindings 1000 times, probably stuck in an infinite loop\n\
+                        will start skipping some binding updates"
+                    );
+                }
+
+                updates.clear();
+                break;
+            }
         }
     }
 
