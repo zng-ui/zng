@@ -616,17 +616,67 @@ mod ansi_fn {
     }
 }
 
+fn generate_ansi(txt: &impl Var<Txt>) -> BoxedUiNode {
+    use ansi_fn::*;
+    use std::mem;
+
+    txt.with(|txt| {
+        let text_fn = TEXT_GEN_VAR.get();
+        let line_fn = LINE_GEN_VAR.get();
+        let page_fn = PAGE_GEN_VAR.get();
+        let panel_fn = PANEL_GEN_VAR.get();
+        let lines_per_page = LINES_PER_PAGE_VAR.get() as usize;
+
+        let mut pages = Vec::with_capacity(4);
+        let mut lines = Vec::with_capacity(50);
+
+        for (i, line) in txt.lines().enumerate() {
+            let text = ansi_parse::AnsiTextParser::new(line)
+                .map(|txt| {
+                    text_fn(TextFnArgs {
+                        txt: txt.txt.to_text(),
+                        style: txt.style,
+                    })
+                    .boxed()
+                })
+                .collect();
+
+            lines.push(
+                line_fn(LineFnArgs {
+                    index: i as u32,
+                    page_index: lines.len() as u32,
+                    text,
+                })
+                .boxed(),
+            );
+
+            if lines.len() == lines_per_page {
+                let lines = mem::replace(&mut lines, Vec::with_capacity(50));
+                pages.push(page_fn(PageFnArgs {
+                    index: pages.len() as u32,
+                    lines: lines.into(),
+                }));
+            }
+        }
+
+        if !lines.is_empty() {
+            pages.push(page_fn(PageFnArgs {
+                index: pages.len() as u32,
+                lines: lines.into(),
+            }));
+        }
+
+        panel_fn(PanelFnArgs { pages: pages.into() })
+    })
+}
+
 /// Implements the ANSI parsing and view generation, configured by contextual properties.
 pub fn ansi_node(txt: impl IntoVar<Txt>) -> impl UiNode {
-    #[ui_node(struct AnsiNode {
-        child: BoxedUiNode,
-        txt: impl Var<Txt>,
-    })]
-    impl AnsiNode {
-        #[UiNode]
-        fn init(&mut self) {
+    let txt = txt.into_var();
+    match_node(NilUiNode.boxed(), move |c, op| match op {
+        UiNodeOp::Init => {
             WIDGET
-                .sub_var(&self.txt)
+                .sub_var(&txt)
                 .sub_var(&TEXT_GEN_VAR)
                 .sub_var(&LINE_GEN_VAR)
                 .sub_var(&PAGE_GEN_VAR)
@@ -634,21 +684,16 @@ pub fn ansi_node(txt: impl IntoVar<Txt>) -> impl UiNode {
                 .sub_var(&LINES_PER_PAGE_VAR)
                 .sub_var(&BLINK_INTERVAL_VAR);
 
-            self.generate_child();
-            self.child.init();
+            *c.child() = generate_ansi(&txt);
         }
-
-        #[UiNode]
-        fn deinit(&mut self) {
-            self.child.deinit();
-            self.child = NilUiNode.boxed();
+        UiNodeOp::Deinit => {
+            c.deinit();
+            *c.child() = NilUiNode.boxed();
         }
-
-        #[UiNode]
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             use ansi_fn::*;
 
-            if self.txt.is_new()
+            if txt.is_new()
                 || TEXT_GEN_VAR.is_new()
                 || LINE_GEN_VAR.is_new()
                 || PAGE_GEN_VAR.is_new()
@@ -656,73 +701,14 @@ pub fn ansi_node(txt: impl IntoVar<Txt>) -> impl UiNode {
                 || LINES_PER_PAGE_VAR.is_new()
                 || BLINK_INTERVAL_VAR.is_new()
             {
-                self.child.deinit();
-                self.generate_child();
-                self.child.init();
+                c.child().deinit();
+                *c.child() = generate_ansi(&txt);
+                c.child().init();
                 WIDGET.update_info().layout().render();
-            } else {
-                self.child.update(updates);
             }
         }
-
-        fn generate_child(&mut self) {
-            use ansi_fn::*;
-            use std::mem;
-
-            self.child = self.txt.with(|txt| {
-                let text_fn = TEXT_GEN_VAR.get();
-                let line_fn = LINE_GEN_VAR.get();
-                let page_fn = PAGE_GEN_VAR.get();
-                let panel_fn = PANEL_GEN_VAR.get();
-                let lines_per_page = LINES_PER_PAGE_VAR.get() as usize;
-
-                let mut pages = Vec::with_capacity(4);
-                let mut lines = Vec::with_capacity(50);
-
-                for (i, line) in txt.lines().enumerate() {
-                    let text = ansi_parse::AnsiTextParser::new(line)
-                        .map(|txt| {
-                            text_fn(TextFnArgs {
-                                txt: txt.txt.to_text(),
-                                style: txt.style,
-                            })
-                            .boxed()
-                        })
-                        .collect();
-
-                    lines.push(
-                        line_fn(LineFnArgs {
-                            index: i as u32,
-                            page_index: lines.len() as u32,
-                            text,
-                        })
-                        .boxed(),
-                    );
-
-                    if lines.len() == lines_per_page {
-                        let lines = mem::replace(&mut lines, Vec::with_capacity(50));
-                        pages.push(page_fn(PageFnArgs {
-                            index: pages.len() as u32,
-                            lines: lines.into(),
-                        }));
-                    }
-                }
-
-                if !lines.is_empty() {
-                    pages.push(page_fn(PageFnArgs {
-                        index: pages.len() as u32,
-                        lines: lines.into(),
-                    }));
-                }
-
-                panel_fn(PanelFnArgs { pages: pages.into() })
-            });
-        }
-    }
-    AnsiNode {
-        child: NilUiNode.boxed(),
-        txt: txt.into_var(),
-    }
+        _ => {}
+    })
 }
 
 static X_TERM_256: [(u8, u8, u8); 256] = [

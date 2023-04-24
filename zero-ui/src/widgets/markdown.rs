@@ -57,15 +57,11 @@ impl Markdown {
 
 /// Implements the markdown parsing and view generation, configured by contextual properties.
 pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
-    #[ui_node(struct MarkdownNode {
-        child: BoxedUiNode,
-        md: impl Var<Txt>,
-    })]
-    impl MarkdownNode {
-        #[UiNode]
-        fn init(&mut self) {
+    let md = md.into_var();
+    match_node(NilUiNode.boxed(), move |c, op| match op {
+        UiNodeOp::Init => {
             WIDGET
-                .sub_var(&self.md)
+                .sub_var(&md)
                 .sub_var(&TEXT_GEN_VAR)
                 .sub_var(&LINK_GEN_VAR)
                 .sub_var(&CODE_INLINE_GEN_VAR)
@@ -84,28 +80,20 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
                 .sub_var(&IMAGE_RESOLVER_VAR)
                 .sub_var(&LINK_RESOLVER_VAR);
 
-            self.generate_child();
-            self.child.init();
+            *c.child() = md.with(|md| markdown_view_fn(md.as_str())).boxed();
         }
-
-        #[UiNode]
-        fn deinit(&mut self) {
-            self.child.deinit();
-            self.child = NilUiNode.boxed();
+        UiNodeOp::Deinit => {
+            c.deinit();
+            *c.child() = NilUiNode.boxed();
         }
-
-        #[UiNode]
-        fn info(&mut self, info: &mut WidgetInfoBuilder) {
-            info.meta().set(&MARKDOWN_INFO_ID, ());
-            self.child.info(info);
+        UiNodeOp::Info { info } => {
+            info.meta().flag(&MARKDOWN_INFO_ID);
         }
-
-        #[UiNode]
-        fn update(&mut self, updates: &WidgetUpdates) {
+        UiNodeOp::Update { .. } => {
             use resolvers::*;
             use view_fn::*;
 
-            if self.md.is_new()
+            if md.is_new()
                 || TEXT_GEN_VAR.is_new()
                 || LINK_GEN_VAR.is_new()
                 || CODE_INLINE_GEN_VAR.is_new()
@@ -124,23 +112,14 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
                 || IMAGE_RESOLVER_VAR.is_new()
                 || LINK_RESOLVER_VAR.is_new()
             {
-                self.child.deinit();
-                self.generate_child();
-                self.child.init();
+                c.child().deinit();
+                *c.child() = md.with(|md| markdown_view_fn(md.as_str())).boxed();
+                c.child().init();
                 WIDGET.update_info().layout().render();
-            } else {
-                self.child.update(updates);
             }
         }
-
-        fn generate_child(&mut self) {
-            self.child = self.md.with(|md| markdown_view_fn(md.as_str())).boxed();
-        }
-    }
-    MarkdownNode {
-        child: NilUiNode.boxed(),
-        md: md.into_var(),
-    }
+        _ => {}
+    })
 }
 
 fn markdown_view_fn(md: &str) -> impl UiNode {

@@ -102,12 +102,33 @@ pub fn node(
     spacing: impl IntoVar<Length>,
     children_align: impl IntoVar<Align>,
 ) -> impl UiNode {
-    StackNode {
-        children: PanelList::new(children),
-        direction: direction.into_var(),
-        spacing: spacing.into_var(),
-        children_align: children_align.into_var(),
-    }
+    let children = PanelList::new(children);
+    let direction = direction.into_var();
+    let spacing = spacing.into_var();
+    let children_align = children_align.into_var();
+
+    match_node_list(children, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&direction).sub_var(&spacing).sub_var(&children_align);
+        }
+        UiNodeOp::Update { updates } => {
+            let mut changed = false;
+            c.update_all(updates, &mut changed);
+
+            if changed || direction.is_new() || spacing.is_new() || children_align.is_new() {
+                WIDGET.layout().render();
+            }
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            c.delegated();
+            *desired_size = measure(wm, c.children(), direction.get(), spacing.get(), children_align.get());
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            c.delegated();
+            *final_size = layout(wl, c.children(), direction.get(), spacing.get(), children_align.get());
+        }
+        _ => {}
+    })
 }
 
 /// Create a node that estimates the size for a stack panel children where all items have the same `child_size`.
@@ -194,241 +215,162 @@ pub fn lazy_sample(
     })
 }
 
-#[ui_node(struct StackNode {
-    children: PanelList,
-
-    #[var] direction: impl Var<StackDirection>,
-    #[var] spacing: impl Var<Length>,
-    #[var] children_align: impl Var<Align>,
-})]
-impl StackNode {
-    #[UiNode]
-    fn update(&mut self, updates: &WidgetUpdates) {
-        let mut changed = false;
-        self.children.update_all(updates, &mut changed);
-
-        if changed || self.direction.is_new() || self.spacing.is_new() || self.children_align.is_new() {
-            WIDGET.layout().render();
-        }
+fn measure(wm: &mut WidgetMeasure, children: &mut PanelList, direction: StackDirection, spacing: Length, children_align: Align) -> PxSize {
+    let metrics = LAYOUT.metrics();
+    let constraints = metrics.constraints();
+    if let Some(known) = constraints.fill_or_exact() {
+        return known;
     }
 
-    #[UiNode]
-    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        let metrics = LAYOUT.metrics();
-        let constraints = metrics.constraints();
-        if let Some(known) = constraints.fill_or_exact() {
-            return known;
-        }
+    let child_align = direction.filter_align(children_align);
 
-        let direction = self.direction.get();
-        let children_align = self.children_align.get();
-        let child_align = direction.filter_align(children_align);
+    let spacing = layout_spacing(&metrics, &direction, spacing);
+    let max_size = child_max_size(children, child_align);
 
-        let spacing = self.layout_spacing(&metrics);
-        let max_size = self.child_max_size(child_align);
-
-        // layout children, size, raw position + spacing only.
-        let mut item_bounds = euclid::Box2D::zero();
-        LAYOUT.with_constraints(
-            constraints
-                .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
-                .with_max_size(max_size)
-                .with_new_min(Px(0), Px(0)),
-            || {
-                // parallel measure full widgets first
-                self.children.measure_each(
-                    wm,
-                    |_, c, _, wm| {
-                        if c.is_widget() {
-                            c.measure(wm)
-                        } else {
-                            PxSize::zero()
-                        }
-                    },
-                    |_, _| PxSize::zero(),
-                );
-
-                let mut item_rect = PxRect::zero();
-                let mut child_spacing = PxVector::zero();
-                self.children.for_each(|_, c, _| {
-                    // already parallel measured widgets, only measure other nodes.
-                    let size = match c.with_context(|| WIDGET.bounds().measure_outer_size()) {
-                        Some(wgt_size) => wgt_size,
-                        None => c.measure(wm),
-                    };
-                    if size.is_empty() {
-                        return; // continue, skip collapsed
+    // layout children, size, raw position + spacing only.
+    let mut item_bounds = euclid::Box2D::zero();
+    LAYOUT.with_constraints(
+        constraints
+            .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
+            .with_max_size(max_size)
+            .with_new_min(Px(0), Px(0)),
+        || {
+            // parallel measure full widgets first
+            children.measure_each(
+                wm,
+                |_, c, _, wm| {
+                    if c.is_widget() {
+                        c.measure(wm)
+                    } else {
+                        PxSize::zero()
                     }
+                },
+                |_, _| PxSize::zero(),
+            );
 
-                    let offset = direction.layout(item_rect, size) + child_spacing;
-
-                    item_rect.origin = offset.to_point();
-                    item_rect.size = size;
-
-                    let item_box = item_rect.to_box2d();
-                    item_bounds.min = item_bounds.min.min(item_box.min);
-                    item_bounds.max = item_bounds.max.max(item_box.max);
-                    child_spacing = spacing;
-                });
-            },
-        );
-
-        constraints.fill_size_or(item_bounds.size())
-    }
-
-    #[UiNode]
-    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        let metrics = LAYOUT.metrics();
-        let constraints = metrics.constraints();
-        let direction = self.direction.get();
-        let children_align = self.children_align.get();
-        let child_align = direction.filter_align(children_align);
-
-        let spacing = self.layout_spacing(&metrics);
-        let max_size = self.child_max_size(child_align);
-
-        // layout children, size, raw position + spacing only.
-        let mut item_bounds = euclid::Box2D::zero();
-        LAYOUT.with_constraints(
-            constraints
-                .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
-                .with_max_size(max_size)
-                .with_new_min(Px(0), Px(0)),
-            || {
-                // parallel layout widgets
-                self.children.layout_each(
-                    wl,
-                    |_, c, o, wl| {
-                        if c.is_widget() {
-                            let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
-                            debug_assert!(!define_ref_frame); // is widget, should define own frame.
-                            o.define_reference_frame = define_ref_frame;
-                            size
-                        } else {
-                            PxSize::zero()
-                        }
-                    },
-                    |_, _| PxSize::zero(),
-                );
-
-                // layout other nodes and position everything.
-                let mut item_rect = PxRect::zero();
-                let mut child_spacing = PxVector::zero();
-                self.children.for_each(|_, c, o| {
-                    let size = match c.with_context(|| WIDGET.bounds().outer_size()) {
-                        Some(wgt_size) => wgt_size,
-                        None => {
-                            let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
-                            o.define_reference_frame = define_ref_frame;
-                            size
-                        }
-                    };
-
-                    if size.is_empty() {
-                        o.child_offset = PxVector::zero();
-                        o.define_reference_frame = false;
-                        return; // continue, skip collapsed
-                    }
-
-                    let offset = direction.layout(item_rect, size) + child_spacing;
-                    o.child_offset = offset;
-
-                    item_rect.origin = offset.to_point();
-                    item_rect.size = size;
-
-                    let item_box = item_rect.to_box2d();
-                    item_bounds.min = item_bounds.min.min(item_box.min);
-                    item_bounds.max = item_bounds.max.max(item_box.max);
-                    child_spacing = spacing;
-                });
-            },
-        );
-
-        // final position, align child inside item_bounds and item_bounds in the panel area.
-        let child_align = child_align.xy(LAYOUT.direction());
-        let items_size = item_bounds.size();
-        let panel_size = constraints.fill_size_or(items_size);
-        let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(LAYOUT.direction());
-        let align_baseline = children_align.is_baseline();
-
-        self.children.for_each(|_, c, o| {
-            let (size, baseline) = c
-                .with_context(|| {
-                    let bounds = WIDGET.bounds();
-                    (bounds.outer_size(), bounds.final_baseline())
-                })
-                .unwrap_or_default();
-
-            let child_offset = (items_size - size).to_vector() * child_align;
-            o.child_offset += children_offset + child_offset;
-
-            if align_baseline {
-                o.child_offset.y += baseline;
-            }
-        });
-
-        panel_size
-    }
-
-    /// Spacing to add on each axis.
-    fn layout_spacing(&self, ctx: &LayoutMetrics) -> PxVector {
-        let direction_vector = self.direction.get().vector(ctx.direction());
-        let spacing = self.spacing.get();
-        spacing_from_direction(direction_vector, spacing)
-    }
-
-    /// Max size to layout each child with.
-    fn child_max_size(&mut self, child_align: Align) -> PxSize {
-        let constraints = LAYOUT.constraints();
-
-        // need measure when children fill, but the panel does not.
-        let mut need_measure = false;
-        let mut max_size = PxSize::zero();
-        let mut measure_constraints = constraints;
-        match (constraints.x.fill_or_exact(), constraints.y.fill_or_exact()) {
-            (None, None) => {
-                need_measure = child_align.is_fill_x() || child_align.is_fill_y();
-                if !need_measure {
-                    max_size = constraints.max_size().unwrap_or_else(|| PxSize::new(Px::MAX, Px::MAX));
+            let mut item_rect = PxRect::zero();
+            let mut child_spacing = PxVector::zero();
+            children.for_each(|_, c, _| {
+                // already parallel measured widgets, only measure other nodes.
+                let size = match c.with_context(|| WIDGET.bounds().measure_outer_size()) {
+                    Some(wgt_size) => wgt_size,
+                    None => c.measure(wm),
+                };
+                if size.is_empty() {
+                    return; // continue, skip collapsed
                 }
-            }
-            (None, Some(h)) => {
-                max_size.height = h;
-                need_measure = child_align.is_fill_x();
 
-                if need_measure {
-                    measure_constraints = constraints.with_fill_x(false);
-                } else {
-                    max_size.width = Px::MAX;
-                }
-            }
-            (Some(w), None) => {
-                max_size.width = w;
-                need_measure = child_align.is_fill_y();
+                let offset = direction.layout(item_rect, size) + child_spacing;
 
-                if need_measure {
-                    measure_constraints = constraints.with_fill_y(false);
-                } else {
-                    max_size.height = Px::MAX;
-                }
-            }
-            (Some(w), Some(h)) => max_size = PxSize::new(w, h),
-        }
+                item_rect.origin = offset.to_point();
+                item_rect.size = size;
 
-        // find largest child, the others will fill to its size.
-        if need_measure {
-            let max_items = LAYOUT.with_constraints(measure_constraints.with_new_min(Px(0), Px(0)), || {
-                self.children
-                    .measure_each(&mut WidgetMeasure::new(), |_, c, _, wm| c.measure(wm), PxSize::max)
+                let item_box = item_rect.to_box2d();
+                item_bounds.min = item_bounds.min.min(item_box.min);
+                item_bounds.max = item_bounds.max.max(item_box.max);
+                child_spacing = spacing;
             });
+        },
+    );
 
-            max_size = constraints.clamp_size(max_size.max(max_items));
+    constraints.fill_size_or(item_bounds.size())
+}
+fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirection, spacing: Length, children_align: Align) -> PxSize {
+    let metrics = LAYOUT.metrics();
+    let constraints = metrics.constraints();
+    let child_align = direction.filter_align(children_align);
+
+    let spacing = layout_spacing(&metrics, &direction, spacing);
+    let max_size = child_max_size(children, child_align);
+
+    // layout children, size, raw position + spacing only.
+    let mut item_bounds = euclid::Box2D::zero();
+    LAYOUT.with_constraints(
+        constraints
+            .with_fill(child_align.is_fill_x(), child_align.is_fill_y())
+            .with_max_size(max_size)
+            .with_new_min(Px(0), Px(0)),
+        || {
+            // parallel layout widgets
+            children.layout_each(
+                wl,
+                |_, c, o, wl| {
+                    if c.is_widget() {
+                        let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
+                        debug_assert!(!define_ref_frame); // is widget, should define own frame.
+                        o.define_reference_frame = define_ref_frame;
+                        size
+                    } else {
+                        PxSize::zero()
+                    }
+                },
+                |_, _| PxSize::zero(),
+            );
+
+            // layout other nodes and position everything.
+            let mut item_rect = PxRect::zero();
+            let mut child_spacing = PxVector::zero();
+            children.for_each(|_, c, o| {
+                let size = match c.with_context(|| WIDGET.bounds().outer_size()) {
+                    Some(wgt_size) => wgt_size,
+                    None => {
+                        let (size, define_ref_frame) = wl.with_child(|wl| c.layout(wl));
+                        o.define_reference_frame = define_ref_frame;
+                        size
+                    }
+                };
+
+                if size.is_empty() {
+                    o.child_offset = PxVector::zero();
+                    o.define_reference_frame = false;
+                    return; // continue, skip collapsed
+                }
+
+                let offset = direction.layout(item_rect, size) + child_spacing;
+                o.child_offset = offset;
+
+                item_rect.origin = offset.to_point();
+                item_rect.size = size;
+
+                let item_box = item_rect.to_box2d();
+                item_bounds.min = item_bounds.min.min(item_box.min);
+                item_bounds.max = item_bounds.max.max(item_box.max);
+                child_spacing = spacing;
+            });
+        },
+    );
+
+    // final position, align child inside item_bounds and item_bounds in the panel area.
+    let child_align = child_align.xy(LAYOUT.direction());
+    let items_size = item_bounds.size();
+    let panel_size = constraints.fill_size_or(items_size);
+    let children_offset = -item_bounds.min.to_vector() + (panel_size - items_size).to_vector() * children_align.xy(LAYOUT.direction());
+    let align_baseline = children_align.is_baseline();
+
+    children.for_each(|_, c, o| {
+        let (size, baseline) = c
+            .with_context(|| {
+                let bounds = WIDGET.bounds();
+                (bounds.outer_size(), bounds.final_baseline())
+            })
+            .unwrap_or_default();
+
+        let child_offset = (items_size - size).to_vector() * child_align;
+        o.child_offset += children_offset + child_offset;
+
+        if align_baseline {
+            o.child_offset.y += baseline;
         }
+    });
 
-        max_size
-    }
+    panel_size
 }
 
+/// Spacing to add on each axis.
+fn layout_spacing(ctx: &LayoutMetrics, direction: &StackDirection, spacing: Length) -> PxVector {
+    let direction_vector = direction.vector(ctx.direction());
+    spacing_from_direction(direction_vector, spacing)
+}
 fn spacing_from_direction(direction_vector: euclid::Vector2D<i8, ()>, spacing: Length) -> PxVector {
     let mut spacing = match (direction_vector.x == 0, direction_vector.y == 0) {
         (false, false) => PxVector::new(spacing.layout_x(), spacing.layout_y()),
@@ -443,6 +385,56 @@ fn spacing_from_direction(direction_vector: euclid::Vector2D<i8, ()>, spacing: L
         spacing.y = -spacing.y;
     }
     spacing
+}
+
+/// Max size to layout each child with.
+fn child_max_size(children: &mut PanelList, child_align: Align) -> PxSize {
+    let constraints = LAYOUT.constraints();
+
+    // need measure when children fill, but the panel does not.
+    let mut need_measure = false;
+    let mut max_size = PxSize::zero();
+    let mut measure_constraints = constraints;
+    match (constraints.x.fill_or_exact(), constraints.y.fill_or_exact()) {
+        (None, None) => {
+            need_measure = child_align.is_fill_x() || child_align.is_fill_y();
+            if !need_measure {
+                max_size = constraints.max_size().unwrap_or_else(|| PxSize::new(Px::MAX, Px::MAX));
+            }
+        }
+        (None, Some(h)) => {
+            max_size.height = h;
+            need_measure = child_align.is_fill_x();
+
+            if need_measure {
+                measure_constraints = constraints.with_fill_x(false);
+            } else {
+                max_size.width = Px::MAX;
+            }
+        }
+        (Some(w), None) => {
+            max_size.width = w;
+            need_measure = child_align.is_fill_y();
+
+            if need_measure {
+                measure_constraints = constraints.with_fill_y(false);
+            } else {
+                max_size.height = Px::MAX;
+            }
+        }
+        (Some(w), Some(h)) => max_size = PxSize::new(w, h),
+    }
+
+    // find largest child, the others will fill to its size.
+    if need_measure {
+        let max_items = LAYOUT.with_constraints(measure_constraints.with_new_min(Px(0), Px(0)), || {
+            children.measure_each(&mut WidgetMeasure::new(), |_, c, _, wm| c.measure(wm), PxSize::max)
+        });
+
+        max_size = constraints.clamp_size(max_size.max(max_items));
+    }
+
+    max_size
 }
 
 /// Basic horizontal stack layout.
