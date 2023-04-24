@@ -15,7 +15,7 @@ use crate::{
     crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
     image::{ImageVar, Img, IMAGES},
-    render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
+    render::{FrameBuilder, FrameId, FrameUpdate},
     text::FONTS,
     timer::TIMERS,
     units::*,
@@ -1455,9 +1455,6 @@ struct ContentCtrl {
     used_info_builder: Option<UsedWidgetInfoBuilder>,
     layout_pass: LayoutPassId,
 
-    used_frame_builder: Option<UsedFrameBuilder>,
-    used_frame_update: Option<UsedFrameUpdate>,
-
     init_state: InitState,
     frame_id: FrameId,
     clear_color: RenderColor,
@@ -1481,9 +1478,6 @@ impl ContentCtrl {
 
             used_info_builder: None,
             layout_pass: LayoutPassId::new(),
-
-            used_frame_builder: None,
-            used_frame_update: None,
 
             init_state: InitState::SkipOne,
             frame_id: FrameId::INVALID,
@@ -1715,17 +1709,14 @@ impl ContentCtrl {
                     renderer.clone(),
                     scale_factor,
                     default_text_aa,
-                    self.used_frame_builder.take(),
                 );
 
-                let (frame, used) = WIDGET.with_context(&self.root_ctx, || {
+                let frame = WIDGET.with_context(&self.root_ctx, || {
                     self.root.render(&mut frame);
                     frame.finalize(&WINDOW.widget_tree())
                 });
 
                 self.notify_transform_changes();
-
-                self.used_frame_builder = Some(used);
 
                 self.clear_color = frame.clear_color;
 
@@ -1767,17 +1758,14 @@ impl ContentCtrl {
                     self.root_ctx.bounds(),
                     renderer.as_ref(),
                     self.clear_color,
-                    self.used_frame_update.take(),
                 );
 
-                let (update, used) = WIDGET.with_context(&self.root_ctx, || {
+                let update = WIDGET.with_context(&self.root_ctx, || {
                     self.root.render_update(&mut update);
                     update.finalize(&WINDOW.widget_tree())
                 });
 
                 self.notify_transform_changes();
-
-                self.used_frame_update = Some(used);
 
                 if let Some(c) = update.clear_color {
                     self.clear_color = c;

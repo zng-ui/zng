@@ -9,4 +9,5 @@
 
 * Parallel render.
     - Implement `ParallelBuilder<FrameBuilder>`.
+    - Update transforms of reused branches in parallel (`self_and_descendants_par`).
        

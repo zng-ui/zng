@@ -772,7 +772,7 @@ impl WidgetMeasure {
 
 /// Parallel [`WidgetLayout`].
 ///
-/// See [`WidgetLayout::start_par`].
+/// See [`WidgetLayout::parallel_split`].
 #[must_use = "must be folded back to `WidgetLayout`"]
 pub struct ParWidgetLayout {
     wl: Option<WidgetLayout>,
@@ -829,14 +829,14 @@ impl WidgetLayout {
     /// Start a parallel layout.
     ///
     /// Returns an instance that can be used to acquire multiple mutable [`WidgetLayout`] during layout.
-    /// The [`finish_par`] instance must be called after the parallel processing is done.
+    /// The [`parallel_fold`] method must be called after the parallel processing is done.
     ///
     /// # Panics
     ///
     /// Panics if called outside of the [child] scope.
     ///
     /// [child]: Self::with_child
-    /// [`finish_par`]: Self::finish_par
+    /// [`parallel_fold`]: Self::parallel_fold
     pub fn parallel_split(&self) -> ParWidgetLayout {
         assert_eq!(
             self.nest_group,

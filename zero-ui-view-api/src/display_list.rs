@@ -332,17 +332,13 @@ impl DisplayListBuilder {
         self.list.is_empty()
     }
 
-    /// Returns the display list an capacity suggestion for the next frame.
-    pub fn finalize(self) -> (DisplayList, usize) {
-        let cap = self.list.len();
-        (
-            DisplayList {
-                pipeline_id: self.pipeline_id,
-                frame_id: self.frame_id,
-                list: self.list,
-            },
-            cap,
-        )
+    /// Returns the display list.
+    pub fn finalize(self) -> DisplayList {
+        DisplayList {
+            pipeline_id: self.pipeline_id,
+            frame_id: self.frame_id,
+            list: self.list,
+        }
     }
 }
 

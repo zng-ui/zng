@@ -617,7 +617,6 @@ impl WINDOW {
                 win.widget_tree.read().as_ref().unwrap(),
                 1.fct(),
                 crate::text::FontAntiAliasing::Default,
-                None,
             );
             f
         };
@@ -627,7 +626,7 @@ impl WINDOW {
         });
 
         let tree = WINDOW_CTX.get().widget_tree.read().as_ref().unwrap().clone();
-        let f = frame.finalize(&tree).0;
+        let f = frame.finalize(&tree);
 
         (f, UPDATES.apply())
     }
@@ -645,14 +644,7 @@ impl WINDOW {
             let mut frame_id = win.frame_id.lock();
             *frame_id = frame_id.next_update();
 
-            let f = FrameUpdate::new(
-                *frame_id,
-                wgt.id,
-                wgt.bounds.lock().clone(),
-                None,
-                crate::color::RenderColor::BLACK,
-                None,
-            );
+            let f = FrameUpdate::new(*frame_id, wgt.id, wgt.bounds.lock().clone(), None, crate::color::RenderColor::BLACK);
             f
         };
 
@@ -660,7 +652,7 @@ impl WINDOW {
             content.render_update(update);
         });
         let tree = WINDOW_CTX.get().widget_tree.read().as_ref().unwrap().clone();
-        let f = update.finalize(&tree).0;
+        let f = update.finalize(&tree);
 
         (f, UPDATES.apply())
     }
