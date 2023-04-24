@@ -923,15 +923,15 @@ impl<L: UiNodeList> UiNodeList for MatchNodeChildren<L> {
         self.children.par_each(f)
     }
 
-    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
         T: Send,
-        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
         I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
+        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
+        R: Fn(T, T) -> T + Send + Sync,
     {
         self.delegated = true;
-        self.children.par_fold(f, identity, fold)
+        self.children.par_fold_reduce(identity, fold, reduce)
     }
 
     fn len(&self) -> usize {

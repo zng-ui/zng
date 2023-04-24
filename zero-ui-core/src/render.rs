@@ -13,7 +13,7 @@ use crate::{
     widget_instance::{WidgetId, ZIndex},
 };
 
-use std::{marker::PhantomData, mem};
+use std::{marker::PhantomData, mem, ops};
 
 use webrender_api::{FontRenderMode, PipelineId};
 pub use zero_ui_view_api::{
@@ -1597,6 +1597,39 @@ impl crate::border::LineStyle {
     }
 }
 
+/// Represents a frame or update builder split from the main builder that must be folded back onto the
+/// main builder after it is filled in a parallel task.
+///
+/// # Error
+///
+/// Traces an error on drop if it was not moved to the `B::parallel_fold` method.
+#[must_use = "use in parallel task, then move it to `B::parallel_fold`"]
+pub struct ParallelBuilder<B>(Option<B>);
+impl<B> ParallelBuilder<B> {
+    fn take(&mut self) -> B {
+        self.0.take().expect("parallel builder finished")
+    }
+}
+impl<B> ops::Deref for ParallelBuilder<B> {
+    type Target = B;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref().expect("parallel builder finished")
+    }
+}
+impl<B> ops::DerefMut for ParallelBuilder<B> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut().expect("parallel builder finished")
+    }
+}
+impl<B> Drop for ParallelBuilder<B> {
+    fn drop(&mut self) {
+        if self.0.is_some() {
+            tracing::error!("builder dropped without calling `{}::parallel_fold`", std::any::type_name::<B>())
+        }
+    }
+}
+
 /// A frame quick update.
 ///
 /// A frame update causes a frame render without needing to fully rebuild the display list. It
@@ -1999,6 +2032,58 @@ impl FrameUpdate {
     pub fn update_color_opt(&mut self, new_value: Option<FrameValueUpdate<RenderColor>>) {
         if let Some(value) = new_value {
             self.update_color(value)
+        }
+    }
+
+    /// Create a leaf update builder that can be send to a parallel task and must be folded back into this builder.
+    ///
+    /// This should be called just before the call to [`update_widget`], an error is traced if called inside an widget outer bounds.
+    ///
+    /// [`update_widget`]: Self::update_widget
+    pub fn parallel_split(&self) -> ParallelBuilder<Self> {
+        if self.inner_transform.is_some() {
+            tracing::error!(
+                "called `parallel_split` inside `{}` and before calling `update_inner`",
+                self.widget_id
+            );
+        }
+
+        ParallelBuilder(Some(Self {
+            pipeline_id: self.pipeline_id,
+            current_clear_color: self.current_clear_color,
+            frame_id: self.frame_id,
+
+            transforms: vec![],
+            floats: vec![],
+            colors: vec![],
+            clear_color: None,
+
+            widget_id: self.widget_id,
+            transform: self.transform,
+            outer_offset: self.outer_offset,
+            inner_transform: self.inner_transform,
+            child_offset: self.child_offset,
+            can_reuse_widget: self.can_reuse_widget,
+            widget_bounds: self.widget_bounds.clone(),
+            parent_inner_bounds: self.parent_inner_bounds,
+            auto_hit_test: self.auto_hit_test,
+            visible: self.visible,
+        }))
+    }
+
+    /// Collect updates from `split` into `self`.
+    pub fn parallel_fold(&mut self, mut split: ParallelBuilder<Self>) {
+        let mut split = split.take();
+
+        debug_assert_eq!(self.pipeline_id, split.pipeline_id);
+        debug_assert_eq!(self.frame_id, split.frame_id);
+        debug_assert_eq!(self.widget_id, split.widget_id);
+
+        self.transforms.append(&mut split.transforms);
+        self.floats.append(&mut split.floats);
+        self.colors.append(&mut split.colors);
+        if let Some(c) = self.clear_color.take() {
+            self.clear_color = Some(c);
         }
     }
 

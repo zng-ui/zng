@@ -38,7 +38,7 @@ impl OnNodeOpArgs {
 /// This property calls `handler` for any widget node operation, after the widget content has processed the operation. This means
 /// that the `handler` is raised after any [`on_pre_node_op`] handler. Note that properties of [`NestGroup::EVENT`] or lower
 /// can still process the operation before this event.
-/// 
+///
 /// # Handlers
 ///
 /// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],

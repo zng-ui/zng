@@ -261,14 +261,14 @@ impl UiNodeList for WhenUiNodeList {
         self.children_mut_with_handles().0.par_each(f)
     }
 
-    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
         T: Send,
-        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
         I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
+        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
+        R: Fn(T, T) -> T + Send + Sync,
     {
-        self.children_mut_with_handles().0.par_fold(f, identity, fold)
+        self.children_mut_with_handles().0.par_fold_reduce(identity, fold, reduce)
     }
 
     fn len(&self) -> usize {

@@ -779,9 +779,9 @@ pub struct ParWidgetLayout {
 }
 impl ParWidgetLayout {
     /// Merge `self` and `other`.
-    pub fn fold(mut self, other: Self) -> Self {
+    pub fn parallel_fold(mut self, other: Self) -> Self {
         let mut a = self.wl.take().expect("parallel layout already finished");
-        a.finish_par(other);
+        a.parallel_fold(other);
         Self { wl: Some(a) }
     }
 }
@@ -837,7 +837,7 @@ impl WidgetLayout {
     ///
     /// [child]: Self::with_child
     /// [`finish_par`]: Self::finish_par
-    pub fn start_par(&self) -> ParWidgetLayout {
+    pub fn parallel_split(&self) -> ParWidgetLayout {
         assert_eq!(
             self.nest_group,
             LayoutNestGroup::Child,
@@ -854,7 +854,7 @@ impl WidgetLayout {
     }
 
     /// Collect the parallel changes back.
-    pub fn finish_par(&mut self, mut par: ParWidgetLayout) {
+    pub fn parallel_fold(&mut self, mut par: ParWidgetLayout) {
         let folded = par.wl.take().expect("parallel layout already finished");
         assert_eq!(self.bounds, folded.bounds);
 

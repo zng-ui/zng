@@ -445,17 +445,14 @@ pub trait UiNodeList: UiNodeListBoxed {
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync;
 
-    /// Calls `f` for each node in the list with the index in parallel, folds the results of `f` using the `identity` initial value
-    /// and `fold` operation.
-    ///
-    /// Note that the `identity` may be used more than one time, it should produce a *neutral* value such that it does not affect the
-    /// result of a `fold` call with a real value.
-    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    /// Calls `fold` for each node in the list, with fold accumulators produced by `identity`, then merges the folded results
+    /// using `reduce` to produce the final value.
+    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
         T: Send,
-        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
         I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync;
+        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
+        R: Fn(T, T) -> T + Send + Sync;
 
     /// Gets the current number of nodes in the list.
     fn len(&self) -> usize;
@@ -542,7 +539,14 @@ pub trait UiNodeList: UiNodeListBoxed {
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
     {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-            self.par_fold(|i, n| measure(i, n, &mut WidgetMeasure::new()), PxSize::zero, fold_size)
+            self.par_fold_reduce(
+                PxSize::zero,
+                |a, i, n| {
+                    let b = measure(i, n, &mut WidgetMeasure::new());
+                    fold_size(a, b)
+                },
+                &fold_size,
+            )
         } else {
             let mut size = PxSize::zero();
             self.for_each(|i, n| {
@@ -563,17 +567,15 @@ pub trait UiNodeList: UiNodeListBoxed {
     {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
             // fold a tuple of `(wl, size)`
-            let swl = &wl;
-            let (pwl, size) = self.par_fold(
-                move |i, n| {
-                    let mut pwl = swl.start_par();
-                    let size = layout(i, n, &mut pwl);
-                    (pwl, size)
+            let (pwl, size) = self.par_fold_reduce(
+                || (wl.parallel_split(), PxSize::zero()),
+                |(mut awl, asize), i, n| {
+                    let bsize = layout(i, n, &mut awl);
+                    (awl, fold_size(asize, bsize))
                 },
-                || (swl.start_par(), PxSize::zero()),
-                move |(awl, asize), (bwl, bsize)| (awl.fold(bwl), fold_size(asize, bsize)),
+                |(awl, asize), (bwl, bsize)| (awl.parallel_fold(bwl), fold_size(asize, bsize)),
             );
-            wl.finish_par(pwl);
+            wl.parallel_fold(pwl);
             size
         } else {
             let mut size = PxSize::zero();
@@ -607,12 +609,24 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///
     /// [`for_each`]: UiNodeList::for_each
     fn render_update_all(&mut self, update: &mut FrameUpdate) {
-        // if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-        //     todo!("parallel render_update");
-        // }
-        self.for_each(|_, c| {
-            c.render_update(update);
-        })
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let p_update = self.par_fold_reduce(
+                || update.parallel_split(),
+                |mut update, _, node| {
+                    node.render_update(&mut update);
+                    update
+                },
+                |mut a, b| {
+                    a.parallel_fold(b);
+                    a
+                },
+            );
+            update.parallel_fold(p_update);
+        } else {
+            self.for_each(|_, c| {
+                c.render_update(update);
+            })
+        }
     }
     /// Downcast to `L`, if `self` is `L` or `self` is a [`BoxedUiNodeList`] that is `L`.
     fn downcast_unbox<L: UiNodeList>(self) -> Result<L, BoxedUiNodeList>
@@ -1023,26 +1037,19 @@ impl UiNodeList for BoxedUiNodeList {
         self.as_mut().par_each_boxed(&f)
     }
 
-    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, fold: O) -> T
+    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, _reduce: R) -> T
     where
         T: Send,
-        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
         I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
+        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
+        R: Fn(T, T) -> T + Send + Sync,
     {
-        let res = Mutex::new(Some(identity()));
-
-        self.par_each(|i, item| {
-            let b = f(i, item);
-
-            let mut res = res.lock();
-            let a = res.take().unwrap();
-
-            let r = fold(a, b);
-            *res = Some(r);
+        // !!: parallelize, needs to preserve fold order (see rayon example for fold).
+        let mut r = Some(identity());
+        self.as_mut().for_each_boxed(&mut |i, node| {
+            r = Some(fold(r.take().unwrap(), i, node));
         });
-
-        res.into_inner().unwrap()
+        r.unwrap()
     }
 
     fn len(&self) -> usize {
@@ -1241,15 +1248,15 @@ impl UiNodeList for Option<BoxedUiNode> {
         }
     }
 
-    fn par_fold<T, F, I, O>(&mut self, f: F, identity: I, _: O) -> T
+    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, _: R) -> T
     where
         T: Send,
-        F: Fn(usize, &mut BoxedUiNode) -> T + Send + Sync,
         I: Fn() -> T + Send + Sync,
-        O: Fn(T, T) -> T + Send + Sync,
+        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
+        R: Fn(T, T) -> T + Send + Sync,
     {
         if let Some(node) = self {
-            f(0, node)
+            fold(identity(), 0, node)
         } else {
             identity()
         }

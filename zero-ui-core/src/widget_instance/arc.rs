@@ -603,14 +603,15 @@ mod impls {
             self.delegate_owned_mut(|l| l.par_each(f));
         }
 
-        fn par_fold<R, F, I, O>(&mut self, f: F, identity: I, fold: O) -> R
+        fn par_fold_reduce<TF, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> TF
         where
-            R: Send,
-            F: Fn(usize, &mut BoxedUiNode) -> R + Send + Sync,
-            I: Fn() -> R + Send + Sync,
-            O: Fn(R, R) -> R + Send + Sync,
+            TF: Send,
+            I: Fn() -> TF + Send + Sync,
+            F: Fn(TF, usize, &mut BoxedUiNode) -> TF + Send + Sync,
+            R: Fn(TF, TF) -> TF + Send + Sync,
         {
-            self.delegate_owned_mut(|l| l.par_fold(f, &identity, fold)).unwrap_or_else(identity)
+            self.delegate_owned_mut(|l| l.par_fold_reduce(&identity, fold, reduce))
+                .unwrap_or_else(identity)
         }
 
         fn len(&self) -> usize {

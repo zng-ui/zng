@@ -35,7 +35,7 @@ pub fn options(child: impl UiNode, options: impl UiNodeList) -> impl UiNode {}
 ///
 /// This is the raw [`UiNode`] that implements the core [`Switch`] functionality
 /// without defining a full widget.
-/// 
+///
 /// [`Switch`]: struct@Switch
 pub fn switch_node(index: impl Var<usize>, options: impl UiNodeList) -> impl UiNode {
     let mut collapse = true;
