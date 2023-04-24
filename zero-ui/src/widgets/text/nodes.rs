@@ -254,7 +254,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.init());
         }
         UiNodeOp::Deinit => {
-            RESOLVED_TEXT.with_context_opt(&mut resolved, || child.init());
+            RESOLVED_TEXT.with_context_opt(&mut resolved, || child.deinit());
             event_handles.clear();
             _caret_opacity_handle = None;
             loading_faces = None;
