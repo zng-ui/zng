@@ -1,5 +1,7 @@
 //! Grid widgets, properties and nodes..
 
+use std::mem;
+
 use crate::prelude::new_widget::*;
 
 /// Grid layout with cells of variable sizes.
@@ -119,6 +121,8 @@ pub fn node(
     let auto_grow_mode = auto_grow_mode.into_var();
 
     let mut grid = GridLayout::default();
+    let mut is_measured = false;
+    let mut last_layout = LayoutMetrics::new(1.fct(), PxSize::zero(), Px(0));
 
     match_node_list(children, move |c, op| match op {
         UiNodeOp::Init => {
@@ -130,6 +134,7 @@ pub fn node(
             c.deinit_all();
             downcast_auto(&mut c.children()[0]).clear();
             downcast_auto(&mut c.children()[1]).clear();
+            is_measured = false;
         }
         UiNodeOp::Update { updates } => {
             if spacing.is_new() {
@@ -159,18 +164,21 @@ pub fn node(
             *desired_size = if let Some(size) = LAYOUT.constraints().fill_or_exact() {
                 size
             } else {
+                is_measured = true;
                 grid.grid_layout(wm, c.children(), &spacing).1
             };
         }
         UiNodeOp::Layout { wl, final_size } => {
             c.delegated();
+            is_measured = false;
+            last_layout = LAYOUT.metrics();
 
             let (spacing, grid_size) = grid.grid_layout(&mut WidgetMeasure::new(), c.children(), &spacing);
-            let constrains = LAYOUT.constraints();
+            let constrains = last_layout.constraints();
 
             if grid.is_collapse() {
                 wl.collapse_descendants();
-                *final_size = LAYOUT.constraints().fill_or_exact().unwrap_or_default();
+                *final_size = constrains.fill_or_exact().unwrap_or_default();
                 return;
             }
 
@@ -250,6 +258,12 @@ pub fn node(
         UiNodeOp::Render { frame } => {
             c.delegated();
 
+            if mem::take(&mut is_measured) {
+                LAYOUT.with_context(last_layout.clone(), || {
+                    let _ = grid.grid_layout(&mut WidgetMeasure::new(), c.children(), &spacing);
+                });
+            }
+
             let grid = &grid;
 
             let mut children = c.children().iter_mut();
@@ -302,6 +316,12 @@ pub fn node(
         }
         UiNodeOp::RenderUpdate { update } => {
             c.delegated();
+
+            if mem::take(&mut is_measured) {
+                LAYOUT.with_context(last_layout.clone(), || {
+                    let _ = grid.grid_layout(&mut WidgetMeasure::new(), c.children(), &spacing);
+                });
+            }
 
             let grid = &grid;
             let mut children = c.children().iter_mut();
@@ -936,12 +956,12 @@ impl Default for ColRowMeta {
 }
 
 #[derive(Clone, Copy)]
-struct ColumnInfo {
+struct ColumnLayout {
     meta: ColRowMeta,
     x: Px,
     width: Px,
 }
-impl Default for ColumnInfo {
+impl Default for ColumnLayout {
     fn default() -> Self {
         Self {
             meta: ColRowMeta::default(),
@@ -951,12 +971,12 @@ impl Default for ColumnInfo {
     }
 }
 #[derive(Clone, Copy)]
-struct RowInfo {
+struct RowLayout {
     meta: ColRowMeta,
     y: Px,
     height: Px,
 }
-impl Default for RowInfo {
+impl Default for RowLayout {
     fn default() -> Self {
         Self {
             meta: ColRowMeta::default(),
@@ -968,8 +988,8 @@ impl Default for RowInfo {
 
 #[derive(Default)]
 struct GridLayout {
-    columns: Vec<ColumnInfo>,
-    rows: Vec<RowInfo>,
+    columns: Vec<ColumnLayout>,
+    rows: Vec<RowLayout>,
 }
 impl GridLayout {
     fn is_collapse(&self) -> bool {
@@ -1098,10 +1118,11 @@ impl GridLayout {
             });
         });
 
-        self.columns.resize(columns_len, ColumnInfo::default());
-        self.rows.resize(rows_len, RowInfo::default());
+        self.columns.resize(columns_len, ColumnLayout::default());
+        self.rows.resize(rows_len, RowLayout::default());
     }
 
+    #[must_use]
     fn grid_layout(
         &mut self,
         wm: &mut WidgetMeasure,

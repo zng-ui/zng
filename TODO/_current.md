@@ -1,6 +1,3 @@
-* Review `Grid!` measure, it is updating column and row info?
-    - Maybe need to do like layout and reflow on a render after measure.
-
 * Implement `on(_pre)_node_op` event properties for widgets.
     - Use the `Discriminant<UiNodeOp>` in the args, plus the count.
     - Implement `on_*` properties for each op. 
