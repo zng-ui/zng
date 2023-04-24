@@ -37,9 +37,6 @@ pub use when::*;
 mod list;
 pub use list::*;
 
-mod trace;
-pub use trace::TraceNode;
-
 pub use crate::crate_util::IdNameError;
 
 unique_id_64! {
@@ -382,16 +379,20 @@ pub trait UiNode: Any + Send {
         self
     }
 
-    /// Wraps the node in a [`TraceNode`] that, before delegating each method, calls a closure with
-    /// the method name as a `&'static str`, the closure can return a *span* that is dropped after the method delegation.
+    /// Wraps the node in a node that, before delegating each method, calls a closure with
+    /// the [`UiNodeOpMethod`], the closure can return a *span* that is dropped after the method delegation.
     ///
     /// You can use  the [`tracing`](https://docs.rs/tracing) crate to create the span.
-    fn trace<E, S>(self, enter_mtd: E) -> TraceNode<Self, E>
+    fn trace<E, S>(self, mut enter_mtd: E) -> BoxedUiNode
     where
         Self: Sized,
-        E: Fn(&'static str) -> S + Send + 'static,
+        E: FnMut(UiNodeOpMethod) -> S + Send + 'static,
     {
-        TraceNode::new(self, enter_mtd)
+        match_node(self, move |node, op| {
+            let _span = enter_mtd(op.mtd());
+            node.op(op);
+        })
+        .boxed()
     }
 
     /// Runs the [ `UiNodeOp`].

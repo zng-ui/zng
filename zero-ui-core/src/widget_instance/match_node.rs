@@ -51,18 +51,97 @@ pub enum UiNodeOp<'a> {
         update: &'a mut FrameUpdate,
     },
 }
+impl<'a> UiNodeOp<'a> {
+    /// Gets the op as an `'static` variant.
+    pub fn mtd(&self) -> UiNodeOpMethod {
+        match self {
+            UiNodeOp::Init => UiNodeOpMethod::Init,
+            UiNodeOp::Deinit => UiNodeOpMethod::Deinit,
+            UiNodeOp::Info { .. } => UiNodeOpMethod::Info,
+            UiNodeOp::Event { .. } => UiNodeOpMethod::Event,
+            UiNodeOp::Update { .. } => UiNodeOpMethod::Update,
+            UiNodeOp::Measure { .. } => UiNodeOpMethod::Measure,
+            UiNodeOp::Layout { .. } => UiNodeOpMethod::Layout,
+            UiNodeOp::Render { .. } => UiNodeOpMethod::Render,
+            UiNodeOp::RenderUpdate { .. } => UiNodeOpMethod::RenderUpdate,
+        }
+    }
+}
 impl<'a> fmt::Debug for UiNodeOp<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Init => write!(f, "Init"),
-            Self::Deinit => write!(f, "Deinit"),
-            Self::Info { .. } => f.debug_struct("Info").finish_non_exhaustive(),
             Self::Event { update } => f.debug_struct("Event").field("update", update).finish(),
             Self::Update { updates } => f.debug_struct("Update").field("updates", updates).finish(),
-            Self::Measure { .. } => f.debug_struct("Measure").finish_non_exhaustive(),
-            Self::Layout { .. } => f.debug_struct("Layout").finish_non_exhaustive(),
-            Self::Render { .. } => f.debug_struct("Render").finish_non_exhaustive(),
-            Self::RenderUpdate { .. } => f.debug_struct("RenderUpdate").finish_non_exhaustive(),
+            op => write!(f, "{}", op.mtd()),
+        }
+    }
+}
+
+/// Identifies an [`UiNodeOp`] method without the associated data.
+#[derive(Clone, Copy)]
+#[non_exhaustive]
+pub enum UiNodeOpMethod {
+    /// The [`UiNodeOp::Init`].
+    Init,
+    /// The [`UiNodeOp::Deinit`].
+    Deinit,
+    /// The [`UiNodeOp::Info`].
+    Info,
+    /// The [`UiNodeOp::Event`].
+    Event,
+    /// The [`UiNodeOp::Update`].
+    Update,
+    /// The [`UiNodeOp::Measure`].
+    Measure,
+    /// The [`UiNodeOp::Layout`].
+    Layout,
+    /// The [`UiNodeOp::Render`].
+    Render,
+    /// The [`UiNodeOp::RenderUpdate`].
+    RenderUpdate,
+}
+impl UiNodeOpMethod {
+    /// Gets an static string representing the enum variant (CamelCase).
+    pub fn enum_name(self) -> &'static str {
+        match self {
+            UiNodeOpMethod::Init => "Init",
+            UiNodeOpMethod::Deinit => "Deinit",
+            UiNodeOpMethod::Info => "Info",
+            UiNodeOpMethod::Event => "Event",
+            UiNodeOpMethod::Update => "Update",
+            UiNodeOpMethod::Measure => "Measure",
+            UiNodeOpMethod::Layout => "Layout",
+            UiNodeOpMethod::Render => "Render",
+            UiNodeOpMethod::RenderUpdate => "RenderUpdate",
+        }
+    }
+
+    /// Gets an static string representing the method name (snake_case).
+    pub fn mtd_name(self) -> &'static str {
+        match self {
+            UiNodeOpMethod::Init => "init",
+            UiNodeOpMethod::Deinit => "deinit",
+            UiNodeOpMethod::Info => "info",
+            UiNodeOpMethod::Event => "event",
+            UiNodeOpMethod::Update => "update",
+            UiNodeOpMethod::Measure => "measure",
+            UiNodeOpMethod::Layout => "layout",
+            UiNodeOpMethod::Render => "render",
+            UiNodeOpMethod::RenderUpdate => "render_update",
+        }
+    }
+}
+impl fmt::Debug for UiNodeOpMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+impl fmt::Display for UiNodeOpMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "{}", self.enum_name())
+        } else {
+            write!(f, "{}", self.mtd_name())
         }
     }
 }
@@ -362,6 +441,7 @@ impl<C: UiNode> MatchNodeChild<C> {
     /// To get a consistent child type use the [`BoxedUiNode`] directly or use [`match_node_typed`].
     ///
     /// [`delegated`]: Self::delegated
+    /// [`match_node`]: fn@match_node
     pub fn child(&mut self) -> &mut C {
         &mut self.child
     }

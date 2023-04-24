@@ -3,24 +3,127 @@
 //! These events map very close to the [`UiNode`] methods. The event handler have non-standard signatures
 //! and the event does not consider the widget's [`interactivity`](crate::core::widget_info::WidgetInfo::interactivity).
 
-use std::mem;
+use std::{mem, time::Instant};
 
 use crate::core::{context::*, handler::*, units::*, widget_instance::*, *};
 
-/// Arguments for the [`on_init`](fn@on_init) event.
-#[derive(Clone, Debug, Copy)]
-pub struct OnInitArgs {
-    /// Number of time the handler was called.
+/// Represents a node operation.
+#[derive(Clone, Debug)]
+pub struct OnNodeOpArgs {
+    /// Operation.
     ///
-    /// The number is `1` for the first call.
+    /// Event args must be static so access to the full [`UiNodeOp`] is not possible, you can quickly
+    /// declare a new property with [`property`] and [`match_node`] if you want to affect the widget this way.
+    pub op: UiNodeOpMethod,
+    /// Number of times the handler was called.
+    ///
+    /// The number is `1` for the first call and is not reset if the widget is re-inited.
     pub count: usize,
+    /// Instant the handler was called.
+    pub timestamp: Instant,
+}
+impl OnNodeOpArgs {
+    /// New args.
+    pub fn new(op: UiNodeOpMethod, count: usize, timestamp: Instant) -> Self {
+        Self { op, count, timestamp }
+    }
+    /// New args with timestamp now.
+    pub fn now(op: UiNodeOpMethod, count: usize) -> Self {
+        Self::new(op, count, Instant::now())
+    }
+}
+
+/// On any node operation.
+///
+/// This property calls `handler` for any widget node operation, after the widget content has processed the operation. This means
+/// that the `handler` is raised after any [`on_pre_node_op`] handler. Note that properties of [`NestGroup::EVENT`] or lower
+/// can still process the operation before this event.
+/// 
+/// # Handlers
+///
+/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
+///
+/// ## Async
+///
+/// The async handlers spawn a task that is associated with the widget, it will only update when the widget updates,
+/// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
+///
+/// [`on_pre_node_op`]: fn@on_pre_node_op
+/// [`NestGroup::EVENT`]: crate::core::widget_builder::NestGroup::EVENT
+#[property(EVENT)]
+pub fn on_node_op(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
+    on_node_op_impl(child, handler, |_| true)
+}
+fn on_node_op_impl(
+    child: impl UiNode,
+    handler: impl WidgetHandler<OnNodeOpArgs>,
+    filter: impl Fn(UiNodeOpMethod) -> bool + Send + 'static,
+) -> impl UiNode {
+    let mut handler = handler.cfg_boxed();
+    let mut count = 1;
+    match_node(child, move |child, op| {
+        let mtd = op.mtd();
+        child.op(op);
+
+        if filter(mtd) {
+            handler.event(&OnNodeOpArgs::now(mtd, count));
+            count = count.wrapping_add(1);
+        }
+
+        if let UiNodeOpMethod::Update = mtd {
+            handler.update();
+        }
+    })
+}
+
+/// Preview [`on_node_op`] event.
+///
+/// This property calls `handler` for any widget node operation, before most of the widget content processes the operation. This means
+/// that the `handler` is raised before any [`on_node_op`] handler. Note that properties of [`NestGroup::EVENT`] or lower
+/// can still process the operation before this event.
+///
+/// # Handlers
+///
+/// This property accepts any [`WidgetHandler`], including the async handlers. Use one of the handler macros, [`hn!`],
+/// [`hn_once!`], [`async_hn!`] or [`async_hn_once!`], to declare a handler closure.
+///
+/// ## Async
+///
+/// The async handlers spawn a task that is associated with the widget, it will only update when the widget updates,
+/// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
+///
+/// [`on_node_op`]: fn@on_node_op
+/// [`NestGroup::EVENT`]: crate::core::widget_builder::NestGroup::EVENT
+#[property(EVENT)]
+pub fn on_pre_node_op(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
+    on_pre_node_op_impl(child, handler, |_| true)
+}
+fn on_pre_node_op_impl(
+    child: impl UiNode,
+    handler: impl WidgetHandler<OnNodeOpArgs>,
+    filter: impl Fn(UiNodeOpMethod) -> bool + Send + 'static,
+) -> impl UiNode {
+    let mut handler = handler.cfg_boxed();
+    let mut count = 1;
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Update { .. } = &op {
+            handler.update();
+        }
+
+        let mtd = op.mtd();
+        if filter(mtd) {
+            handler.event(&OnNodeOpArgs::now(mtd, count));
+            count = count.wrapping_add(1);
+        }
+    })
 }
 
 /// Widget [`init`](UiNode::init) event.
 ///
 /// This property calls `handler` when the widget and its content initializes. Note that widgets
 /// can be [deinitialized](fn@on_deinit) and reinitialized, so the `handler` can be called more then once,
-/// you can use one of the *once* handlers to only be called once or use the arguments [`count`](OnInitArgs::count).
+/// you can use one of the *once* handlers to only be called once or use the arguments [`count`](OnNodeOpArgs::count).
 /// to determinate if you are in the first init.
 ///
 /// Note that the widget is not in the [`WidgetInfoTree`] when this event happens, you can use [`on_info_init`] for initialization
@@ -39,23 +142,8 @@ pub struct OnInitArgs {
 /// [`on_info_init`]: fn@on_info_init
 /// [`WidgetInfoTree`]: crate::core::widget_info::WidgetInfoTree
 #[property(EVENT)]
-pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
-    let mut handler = handler.cfg_boxed();
-    let mut count = 1;
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            child.init();
-
-            handler.event(&OnInitArgs { count });
-            count = count.wrapping_add(1);
-        }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-
-            handler.update();
-        }
-        _ => {}
-    })
+pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
+    on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Init))
 }
 
 /// Preview [`on_init`] event.
@@ -75,19 +163,8 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
 ///
 /// [`on_init`]: fn@on_init
 #[property(EVENT)]
-pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
-    let mut handler = handler.cfg_boxed();
-    let mut count = 1;
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            handler.event(&OnInitArgs { count });
-            count = count.wrapping_add(1);
-        }
-        UiNodeOp::Update { .. } => {
-            handler.update();
-        }
-        _ => {}
-    })
+pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
+    on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Init))
 }
 
 /// Widget inited and info collected event.
@@ -107,7 +184,7 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
 ///
 /// [`WidgetInfoTree`]: crate::core::widget_info::WidgetInfoTree
 #[property(EVENT)]
-pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
+pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();
     let mut count = 1;
     let mut pending = false;
@@ -120,7 +197,7 @@ pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>)
             child.update(updates);
 
             if mem::take(&mut pending) {
-                handler.event(&OnInitArgs { count });
+                handler.event(&OnNodeOpArgs::now(UiNodeOpMethod::Update, count));
                 count = count.wrapping_add(1);
             }
 
@@ -128,15 +205,6 @@ pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>)
         }
         _ => {}
     })
-}
-
-/// Arguments for the [`on_update`](fn@on_update) event.
-#[derive(Clone, Debug, Copy)]
-pub struct OnUpdateArgs {
-    /// Number of time the handler was called.
-    ///
-    /// The number is `1` for the first call.
-    pub count: usize,
 }
 
 /// Widget [`update`](UiNode::update) event.
@@ -149,19 +217,8 @@ pub struct OnUpdateArgs {
 /// You can use one of the handler macros, [`hn!`] or [`hn_once!`], to declare a handler closure. You must avoid using the async
 /// handlers as they cause an update every time the UI task advances from an await point causing another task to spawn.
 #[property(EVENT)]
-pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs>) -> impl UiNode {
-    let mut handler = handler.cfg_boxed();
-    let mut count = 1;
-    match_node(child, move |child, op| {
-        if let UiNodeOp::Update { updates } = op {
-            child.update(updates);
-
-            handler.event(&OnUpdateArgs { count });
-            count = count.wrapping_add(1);
-
-            handler.update();
-        }
-    })
+pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
+    on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
 }
 
 /// Preview [`on_update`] event.
@@ -177,17 +234,8 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs>) 
 /// [`on_update`]: fn@on_update
 /// [`on_init`]: fn@on_init
 #[property(EVENT)]
-pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs>) -> impl UiNode {
-    let mut handler = handler.cfg_boxed();
-    let mut count = 1;
-    match_node(child, move |_, op| {
-        if let UiNodeOp::Update { .. } = op {
-            handler.update();
-
-            handler.event(&OnUpdateArgs { count });
-            count = count.wrapping_add(1);
-        }
-    })
+pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
+    on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
 }
 
 /// Arguments for the [`on_deinit`](fn@on_deinit) event.
@@ -218,21 +266,8 @@ pub struct OnDeinitArgs {
 /// async task in the app context using [`UPDATES.run`] or you can use [`task::spawn`] to start a parallel async task
 /// in a worker thread.
 #[property(EVENT)]
-pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs>) -> impl UiNode {
-    let mut handler = handler.cfg_boxed();
-    let mut count = 1;
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Deinit => {
-            child.deinit();
-            handler.event(&OnDeinitArgs { count });
-            count = count.wrapping_add(1);
-        }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-            handler.update();
-        }
-        _ => {}
-    })
+pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
+    on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Deinit))
 }
 
 /// Preview [`on_update`] event.
@@ -255,19 +290,8 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs>) 
 /// [`on_update`]: fn@on_update
 /// [`on_init`]: fn@on_init
 #[property(EVENT)]
-pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs>) -> impl UiNode {
-    let mut handler = handler.cfg_boxed();
-    let mut count = 1;
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Deinit => {
-            handler.event(&OnDeinitArgs { count });
-            count = count.wrapping_add(1);
-        }
-        UiNodeOp::Update { .. } => {
-            handler.update();
-        }
-        _ => {}
-    })
+pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
+    on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Deinit))
 }
 
 event_property! {

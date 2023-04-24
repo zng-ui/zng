@@ -203,7 +203,7 @@ pub fn on_close_requested(child: impl UiNode, handler: impl WidgetHandler<Window
 ///
 /// This event notifies once after the window content is deinited because it is closing.
 #[property(EVENT, widget_impl(Window))]
-pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<events::widget::OnDeinitArgs>) -> impl UiNode {
+pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<events::widget::OnNodeOpArgs>) -> impl UiNode {
     events::widget::on_deinit(child, handler)
 }
 

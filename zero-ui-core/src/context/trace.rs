@@ -11,7 +11,7 @@ use crate::{
     app::AppExtension,
     event::{Event, EventArgs},
     var::VarValue,
-    widget_instance::{TraceNode, UiNode, WidgetId},
+    widget_instance::{BoxedUiNode, UiNode, WidgetId},
     window::WindowId,
 };
 
@@ -24,21 +24,21 @@ use crate::{
 pub trait UpdatesTraceUiNodeExt {
     /// Defines a custom span.
     #[allow(clippy::type_complexity)]
-    fn instrument<S: Into<String>>(self, tag: S) -> TraceNode<Self, Box<dyn Fn(&'static str) -> tracing::span::EnteredSpan + Send>>
+    fn instrument<S: Into<String>>(self, tag: S) -> BoxedUiNode
     where
         Self: Sized;
 }
 impl<U: UiNode> UpdatesTraceUiNodeExt for U {
-    fn instrument<S: Into<String>>(self, tag: S) -> TraceNode<Self, Box<dyn Fn(&'static str) -> tracing::span::EnteredSpan + Send>> {
+    fn instrument<S: Into<String>>(self, tag: S) -> BoxedUiNode {
         #[cfg(inspector)]
         {
             let tag = tag.into();
-            TraceNode::new(self, Box::new(move |node_mtd| UpdatesTrace::custom_span(&tag, node_mtd)))
+            self.trace(move |op| UpdatesTrace::custom_span(&tag, op.mtd_name()))
         }
         #[cfg(not(inspector))]
         {
             let _ = tag;
-            TraceNode::new(self, Box::new(|_| tracing::Span::none().entered()))
+            self.trace(move |op| tracing::Span::none().entered())
         }
     }
 }

@@ -2465,7 +2465,7 @@ impl WidgetBuilding {
         if self.trace_widget {
             let name = self.widget_type.name();
             node = node
-                .trace(move |mtd| crate::context::UpdatesTrace::widget_span(crate::context::WIDGET.id(), name, mtd))
+                .trace(move |op| crate::context::UpdatesTrace::widget_span(crate::context::WIDGET.id(), name, op.mtd_name()))
                 .boxed();
         }
 
