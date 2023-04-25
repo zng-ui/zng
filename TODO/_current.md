@@ -1,5 +1,3 @@
-* Window example: called `update_widget` for `close-dialog` without calling `update_inner` for the parent `WgtId(113)`.
-
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.
     - The problem is the custom accumulator `T`, need to smuggle this type pass the `dyn`.
 
@@ -13,9 +11,6 @@
     - Implement `UiNodeList::info_all`?
 
 * Parallel render.
-    - Display list reuse ranges.
-        - Right now `finish_reuse_range` returns a very light `ReuseRange` that has
-          the indexes of start and end in the parallel list only, no way to update it after `parallel_fold`.
     - Implement in lists.
     - Update transforms of reused branches in parallel (`self_and_descendants_par`).
        

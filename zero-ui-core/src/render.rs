@@ -379,7 +379,7 @@ impl FrameBuilder {
     pub fn push_widget(&mut self, reuse: &mut Option<ReuseRange>, render: impl FnOnce(&mut Self)) {
         let id = WIDGET.id();
 
-        if self.widget_data.is_some() {
+        if self.widget_data.is_some() && self.root_id != self.widget_id {
             tracing::error!(
                 "called `push_widget` for `{}` without calling `push_inner` for the parent `{}`",
                 id,
@@ -1902,7 +1902,7 @@ impl FrameUpdate {
     pub fn update_widget(&mut self, reuse: bool, render_update: impl FnOnce(&mut Self)) {
         let id = WIDGET.id();
 
-        if self.inner_transform.is_some() {
+        if self.inner_transform.is_some() && self.root_id != self.widget_id {
             tracing::error!(
                 "called `update_widget` for `{}` without calling `update_inner` for the parent `{}`",
                 id,
