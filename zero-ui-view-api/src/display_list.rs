@@ -24,6 +24,7 @@ pub struct DisplayListBuilder {
     seg_id: SegmentId,
     seg_id_gen: Arc<AtomicUsize>,
     segments: Vec<(SegmentId, usize)>,
+    has_reuse_ranges: bool,
 }
 impl DisplayListBuilder {
     /// New default.
@@ -44,6 +45,7 @@ impl DisplayListBuilder {
             seg_id: 0,
             seg_id_gen: Arc::new(AtomicUsize::new(1)),
             segments: vec![(0, 0)],
+            has_reuse_ranges: false,
         }
     }
 
@@ -97,6 +99,8 @@ impl DisplayListBuilder {
             "reuse range cannot finish before all stacking contexts pushed inside it are popped"
         );
         debug_assert!(start.start <= self.list.len());
+
+        self.has_reuse_ranges = true;
 
         ReuseRange {
             pipeline_id: self.pipeline_id,
@@ -362,6 +366,7 @@ impl DisplayListBuilder {
             seg_id: self.seg_id_gen.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             seg_id_gen: self.seg_id_gen.clone(),
             segments: vec![],
+            has_reuse_ranges: false,
         }
     }
 
@@ -374,17 +379,27 @@ impl DisplayListBuilder {
     ///
     /// Panics if `split` has not closed all reference frames, clips or stacking contexts that it opened.
     pub fn parallel_fold(&mut self, mut split: Self) {
-        assert_eq!(self.pipeline_id, split.pipeline_id);
-        assert_eq!(self.frame_id, split.frame_id);
+        assert!(Arc::ptr_eq(&self.seg_id_gen, &split.seg_id_gen), "cannot fold list not split from this one or parent");
         assert_eq!(split.space_len, 1);
         assert_eq!(split.clip_len, 1);
         assert_eq!(split.stack_ctx_len, 1);
 
-        self.segments.push((split.seg_id, split.list.len()));
-        for (_, offset) in &mut split.segments {
-            *offset += self.list.len();
-        }
-        self.segments.append(&mut split.segments);
+        if split.has_reuse_ranges {
+            self.has_reuse_ranges = true;
+
+            if !self.list.is_empty() {
+                for (_, offset) in &mut split.segments {
+                    *offset += self.list.len();
+                }
+            }
+
+            if self.segments.is_empty() {
+                self.segments = split.segments;
+            } else {
+                self.segments.append(&mut split.segments);
+            }
+            self.segments.push((split.seg_id, self.list.len()));
+        }        
 
         if self.list.is_empty() {
             self.list = split.list;
@@ -703,7 +718,7 @@ impl DisplayListCache {
             end += offset;
 
             let range = l.list.get(start..end).unwrap_or_else(|| {
-                tracing::error!("invalid reuse range ({start}..{end}), ignored");
+                tracing::error!("invalid reuse range ({start}..{end}) ignored, offset: {offset}");
                 &[]
             });
             for item in range {

@@ -1305,9 +1305,9 @@ impl FrameBuilder {
     }
 
     /// Create a new display list builder that can be built in parallel and merged back onto this list using [`parallel_fold`].
-    /// 
+    ///
     /// Note that split list must be folded before any open reference frames, stacking contexts or clips are closed in this list.
-    /// 
+    ///
     /// [`parallel_fold`]: Self::parallel_fold
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
         if self.widget_data.is_some() && self.root_id != self.widget_id {

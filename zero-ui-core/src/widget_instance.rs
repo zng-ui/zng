@@ -614,12 +614,24 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///
     /// [`for_each`]: UiNodeList::for_each
     fn render_all(&mut self, frame: &mut FrameBuilder) {
-        // if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-        //     todo!("parallel render");
-        // }
-        self.for_each(|_, c| {
-            c.render(frame);
-        })
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let p_frame = self.par_fold_reduce(
+                || frame.parallel_split(),
+                |mut frame, _, node| {
+                    node.render(&mut frame);
+                    frame
+                },
+                |mut a, b| {
+                    a.parallel_fold(b);
+                    a
+                },
+            );
+            frame.parallel_fold(p_frame);
+        } else {
+            self.for_each(|_, c| {
+                c.render(frame);
+            })
+        }
     }
 
     /// Render all nodes.

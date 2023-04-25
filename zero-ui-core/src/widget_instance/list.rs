@@ -365,11 +365,14 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     }
 
     fn render_all(&mut self, frame: &mut FrameBuilder) {
-        // if PARALLEL_VAR.get().contains(Parallel::RENDER) {
-        //     todo!("parallel render");
-        // }
-        self.0.render_all(frame);
-        self.1.render_all(frame);
+        if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let mut b = frame.parallel_split();
+            task::join(|| self.0.render_all(frame), || self.1.render_all(&mut b));
+            frame.parallel_fold(b);
+        } else {
+            self.0.render_all(frame);
+            self.1.render_all(frame);
+        }
     }
 
     fn render_update_all(&mut self, update: &mut FrameUpdate) {
@@ -1567,11 +1570,29 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     // of the various list types.
 
     fn render_all(&mut self, frame: &mut FrameBuilder) {
-        // if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-        //     todo!("parallel render");
-        // }
-        for list in self {
-            list.render_all(frame);
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let b = self
+                .par_iter_mut()
+                .with_ctx()
+                .fold(
+                    || frame.parallel_split(),
+                    |mut frame, list| {
+                        list.render_all(&mut frame);
+                        frame
+                    },
+                )
+                .reduce(
+                    || frame.parallel_split(),
+                    |mut a, b| {
+                        a.parallel_fold(b);
+                        a
+                    },
+                );
+            frame.parallel_fold(b);
+        } else {
+            for list in self {
+                list.render_all(frame);
+            }
         }
     }
 
@@ -1952,24 +1973,54 @@ where
 
     fn render_all(&mut self, frame: &mut FrameBuilder) {
         let offset_key = self.offset_key;
-        self.for_each_z_sorted(|i, child, data| {
-            let offset = data.child_offset();
-            if data.define_reference_frame() {
-                frame.push_reference_frame(
-                    (offset_key, i as u32).into(),
-                    offset_key.bind_child(i as u32, offset.into(), false),
-                    true,
-                    true,
-                    |frame| {
+        if self.z_naturally_sorted && self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let b = self.par_fold_reduce(
+                || frame.parallel_split(),
+                |mut frame, i, child, data| {
+                    let offset = data.child_offset();
+                    if data.define_reference_frame() {
+                        frame.push_reference_frame(
+                            (offset_key, i as u32).into(),
+                            offset_key.bind_child(i as u32, offset.into(), false),
+                            true,
+                            true,
+                            |frame| {
+                                child.render(frame);
+                            },
+                        );
+                    } else {
+                        frame.push_child(offset, |frame| {
+                            child.render(frame);
+                        });
+                    }
+                    frame
+                },
+                |mut a, b| {
+                    a.parallel_fold(b);
+                    a
+                },
+            );
+            frame.parallel_fold(b);
+        } else {
+            self.for_each_z_sorted(|i, child, data| {
+                let offset = data.child_offset();
+                if data.define_reference_frame() {
+                    frame.push_reference_frame(
+                        (offset_key, i as u32).into(),
+                        offset_key.bind_child(i as u32, offset.into(), false),
+                        true,
+                        true,
+                        |frame| {
+                            child.render(frame);
+                        },
+                    );
+                } else {
+                    frame.push_child(offset, |frame| {
                         child.render(frame);
-                    },
-                );
-            } else {
-                frame.push_child(offset, |frame| {
-                    child.render(frame);
-                });
-            }
-        });
+                    });
+                }
+            });
+        }
     }
 
     fn render_update_all(&mut self, update: &mut FrameUpdate) {

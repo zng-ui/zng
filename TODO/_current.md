@@ -11,9 +11,11 @@
     - Implement `UiNodeList::info_all`?
 
 * Parallel render.
-    - Implement in lists.
     - Update transforms of reused branches in parallel (`self_and_descendants_par`).
        
 * Review capture-only properties.
     - They must return the child node and trace an error if used.
     - They must generate docs that explain # Capture Only
+
+* Review parallel render.
+    - Recursive fold uses the `identity` function more then the core count.
