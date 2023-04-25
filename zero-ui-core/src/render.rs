@@ -141,6 +141,7 @@ struct WidgetData {
 pub struct FrameBuilder {
     frame_id: FrameId,
     pipeline_id: PipelineId,
+    root_id: WidgetId,
     widget_id: WidgetId,
     transform: PxTransform,
 
@@ -202,6 +203,7 @@ impl FrameBuilder {
         FrameBuilder {
             frame_id,
             pipeline_id,
+            root_id,
             widget_id: root_id,
             transform: PxTransform::identity(),
             default_font_aa: match default_font_aa {
@@ -1302,8 +1304,13 @@ impl FrameBuilder {
             .push_radial_gradient(PxRect::new(offset, bounds), gradient, &stops, bounds, PxSize::zero());
     }
 
+    /// Create a new display list builder that can be built in parallel and merged back onto this list using [`parallel_fold`].
+    /// 
+    /// Note that split list must be folded before any open reference frames, stacking contexts or clips are closed in this list.
+    /// 
+    /// [`parallel_fold`]: Self::parallel_fold
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
-        if self.widget_data.is_some() {
+        if self.widget_data.is_some() && self.root_id != self.widget_id {
             tracing::error!(
                 "called `parallel_split` inside `{}` and before calling `push_inner`",
                 self.widget_id
@@ -1313,16 +1320,17 @@ impl FrameBuilder {
         ParallelBuilder(Some(Self {
             frame_id: self.frame_id,
             pipeline_id: self.pipeline_id,
+            root_id: self.root_id,
             widget_id: self.widget_id,
             transform: self.transform,
             default_font_aa: self.default_font_aa,
             renderer: self.renderer.clone(),
             scale_factor: self.scale_factor,
-            display_list: DisplayListBuilder::new(self.pipeline_id, self.frame_id),
+            display_list: self.display_list.parallel_split(),
             hit_testable: self.hit_testable,
             visible: self.visible,
             auto_hit_test: self.auto_hit_test,
-            hit_clips: HitTestClips::default(),
+            hit_clips: self.hit_clips.parallel_split(),
             auto_hide_rect: self.auto_hide_rect,
             widget_data: None,
             child_offset: self.child_offset,
@@ -1336,12 +1344,12 @@ impl FrameBuilder {
 
     /// Collect updates from `split` into `self`.
     pub fn parallel_fold(&mut self, mut split: ParallelBuilder<Self>) {
-        let mut split = split.take();
+        let split = split.take();
         if split.clear_color.is_some() {
             self.clear_color = split.clear_color;
         }
-        self.hit_clips.take_or_append(&mut split.hit_clips);
-        // !!: TODO
+        self.hit_clips.parallel_fold(split.hit_clips);
+        self.display_list.parallel_fold(split.display_list);
     }
 
     /// Finalizes the build.
@@ -2032,7 +2040,7 @@ impl FrameUpdate {
         }
     }
 
-    /// Create a leaf update builder that can be send to a parallel task and must be folded back into this builder.
+    /// Create an update builder that can be send to a parallel task and must be folded back into this builder.
     ///
     /// This should be called just before the call to [`update_widget`], an error is traced if called inside an widget outer bounds.
     ///

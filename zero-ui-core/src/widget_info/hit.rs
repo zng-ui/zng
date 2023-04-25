@@ -266,9 +266,13 @@ impl HitTestClips {
         clip
     }
 
-    pub(crate) fn take_or_append(&mut self, other: &mut Self) {
+    pub(crate) fn parallel_split(&self) -> Self {
+        Self::default()
+    }
+
+    pub(crate) fn parallel_fold(&mut self, mut other: Self) {
         if self.items.is_empty() {
-            self.items = std::mem::take(&mut other.items)
+            *self = other;
         } else {
             self.items.append(&mut other.items)
         }
