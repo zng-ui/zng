@@ -373,11 +373,14 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
     }
 
     fn render_update_all(&mut self, update: &mut FrameUpdate) {
-        // if PARALLEL_VAR.get().contains(Parallel::RENDER) {
-        //     todo!("parallel render_update");
-        // }
-        self.0.render_update_all(update);
-        self.1.render_update_all(update);
+        if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let mut b = update.parallel_split();
+            task::join(|| self.0.render_update_all(update), || self.1.render_update_all(&mut b));
+            update.parallel_fold(b);
+        } else {
+            self.0.render_update_all(update);
+            self.1.render_update_all(update);
+        }
     }
 }
 
@@ -558,6 +561,14 @@ where
         if changed || resort {
             self.invalidate_sort();
         }
+    }
+
+    fn render_all(&mut self, frame: &mut FrameBuilder) {
+        self.for_each(|_, n| n.render(frame));
+    }
+
+    fn render_update_all(&mut self, update: &mut FrameUpdate) {
+        self.list.render_update_all(update);
     }
 
     fn is_empty(&self) -> bool {
@@ -1156,9 +1167,37 @@ impl UiNodeList for EditableUiNodeList {
         self.vec.deinit_all();
     }
 
+    fn event_all(&mut self, update: &EventUpdate) {
+        self.vec.event_all(update)
+    }
+
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.fullfill_requests(observer);
         self.vec.update_all(updates, observer);
+    }
+
+    fn measure_each<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
+    where
+        F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
+        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+    {
+        self.vec.measure_each(wm, measure, fold_size)
+    }
+
+    fn layout_each<F, S>(&mut self, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
+    where
+        F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
+        S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
+    {
+        self.vec.layout_each(wl, layout, fold_size)
+    }
+
+    fn render_all(&mut self, frame: &mut FrameBuilder) {
+        self.vec.render_all(frame)
+    }
+
+    fn render_update_all(&mut self, update: &mut FrameUpdate) {
+        self.vec.render_update_all(update)
     }
 }
 
@@ -1523,6 +1562,10 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
         }
     }
 
+    // `measure_each` and `layout_each` can use the default impl because they are just
+    // helpers, not like the `*_all` methods that must be called to support features
+    // of the various list types.
+
     fn render_all(&mut self, frame: &mut FrameBuilder) {
         // if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
         //     todo!("parallel render");
@@ -1533,11 +1576,29 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
     }
 
     fn render_update_all(&mut self, update: &mut FrameUpdate) {
-        // if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
-        //     todo!("parallel render_update");
-        // }
-        for list in self {
-            list.render_update_all(update);
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let b = self
+                .par_iter_mut()
+                .with_ctx()
+                .fold(
+                    || update.parallel_split(),
+                    |mut update, list| {
+                        list.render_update_all(&mut update);
+                        update
+                    },
+                )
+                .reduce(
+                    || update.parallel_split(),
+                    |mut a, b| {
+                        a.parallel_fold(b);
+                        a
+                    },
+                );
+            update.parallel_fold(b);
+        } else {
+            for list in self {
+                list.render_update_all(update);
+            }
         }
     }
 }
@@ -1626,8 +1687,7 @@ where
         self.list.for_each(move |i, n| f(i, n, data[i].get_mut()))
     }
 
-    /// Calls `f` for each node in the list with the index and associated data in parallel,
-    /// return `true` to continue iterating, return `false` to stop.
+    /// Calls `f` for each node in the list with the index and associated data in parallel.
     pub fn par_each<F>(&mut self, f: F)
     where
         F: Fn(usize, &mut BoxedUiNode, &mut D) + Send + Sync,
@@ -1643,12 +1703,37 @@ where
         })
     }
 
+    /// Calls `fold` for each node in the list with the index and associated data in parallel.
+    ///
+    /// This method behaves the same as [`UiNodeList::par_fold_reduce`], with the added data.
+    pub fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
+    where
+        T: Send,
+        I: Fn() -> T + Send + Sync,
+        F: Fn(T, usize, &mut BoxedUiNode, &mut D) -> T + Send + Sync,
+        R: Fn(T, T) -> T + Send + Sync,
+    {
+        let data = &self.data;
+        self.list.par_fold_reduce(
+            identity,
+            |a, i, n| {
+                fold(
+                    a,
+                    i,
+                    n,
+                    &mut data[i].try_lock().unwrap_or_else(|| panic!("data for `{i}` is already locked")),
+                )
+            },
+            reduce,
+        )
+    }
+
     /// Call `measure` for each node and combines the final size using `fold_size`.
     ///
     /// The call to `measure` can be parallel if [`Parallel::LAYOUT`] is enabled, the inputs are the child index, node, data and the [`WidgetMeasure`].
     pub fn measure_each<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
     where
-        F: Fn(usize, &mut BoxedUiNode, &D, &mut WidgetMeasure) -> PxSize + Send + Sync,
+        F: Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetMeasure) -> PxSize + Send + Sync,
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
     {
         let data = &self.data;
@@ -1658,7 +1743,7 @@ where
                 measure(
                     i,
                     n,
-                    &data[i].try_lock().unwrap_or_else(|| panic!("data for `{i}` is already locked")),
+                    &mut data[i].try_lock().unwrap_or_else(|| panic!("data for `{i}` is already locked")),
                     wm,
                 )
             },
@@ -1889,18 +1974,43 @@ where
 
     fn render_update_all(&mut self, update: &mut FrameUpdate) {
         let offset_key = self.offset_key;
-        self.for_each(|i, child, data| {
-            let offset = data.child_offset();
-            if data.define_reference_frame() {
-                update.with_transform(offset_key.update_child(i as u32, offset.into(), false), true, |update| {
-                    child.render_update(update);
-                });
-            } else {
-                update.with_child(offset, |update| {
-                    child.render_update(update);
-                });
-            }
-        });
+
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::RENDER) {
+            let b = self.par_fold_reduce(
+                || update.parallel_split(),
+                |mut update, i, child, data| {
+                    let offset = data.child_offset();
+                    if data.define_reference_frame() {
+                        update.with_transform(offset_key.update_child(i as u32, offset.into(), false), true, |update| {
+                            child.render_update(update);
+                        });
+                    } else {
+                        update.with_child(offset, |update| {
+                            child.render_update(update);
+                        });
+                    }
+                    update
+                },
+                |mut a, b| {
+                    a.parallel_fold(b);
+                    a
+                },
+            );
+            update.parallel_fold(b);
+        } else {
+            self.for_each(|i, child, data| {
+                let offset = data.child_offset();
+                if data.define_reference_frame() {
+                    update.with_transform(offset_key.update_child(i as u32, offset.into(), false), true, |update| {
+                        child.render_update(update);
+                    });
+                } else {
+                    update.with_child(offset, |update| {
+                        child.render_update(update);
+                    });
+                }
+            });
+        }
     }
 }
 

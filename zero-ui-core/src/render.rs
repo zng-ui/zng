@@ -1613,6 +1613,7 @@ pub struct FrameUpdate {
     current_clear_color: RenderColor,
     clear_color: Option<RenderColor>,
     frame_id: FrameId,
+    root_id: WidgetId,
 
     widget_id: WidgetId,
     transform: PxTransform,
@@ -1658,6 +1659,7 @@ impl FrameUpdate {
             clear_color: None,
             frame_id,
             current_clear_color: clear_color,
+            root_id,
 
             transform: PxTransform::identity(),
             outer_offset: PxVector::zero(),
@@ -1994,7 +1996,7 @@ impl FrameUpdate {
     ///
     /// [`update_widget`]: Self::update_widget
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
-        if self.inner_transform.is_some() {
+        if self.inner_transform.is_some() && self.widget_id != self.root_id {
             tracing::error!(
                 "called `parallel_split` inside `{}` and before calling `update_inner`",
                 self.widget_id
@@ -2005,6 +2007,7 @@ impl FrameUpdate {
             pipeline_id: self.pipeline_id,
             current_clear_color: self.current_clear_color,
             frame_id: self.frame_id,
+            root_id: self.root_id,
 
             transforms: vec![],
             floats: vec![],
@@ -2032,9 +2035,18 @@ impl FrameUpdate {
         debug_assert_eq!(self.frame_id, split.frame_id);
         debug_assert_eq!(self.widget_id, split.widget_id);
 
-        self.transforms.append(&mut split.transforms);
-        self.floats.append(&mut split.floats);
-        self.colors.append(&mut split.colors);
+        fn take_or_append<T>(t: &mut Vec<T>, s: &mut Vec<T>) {
+            if t.is_empty() {
+                *t = mem::take(s);
+            } else {
+                t.append(s)
+            }
+        }
+
+        take_or_append(&mut self.transforms, &mut split.transforms);
+        take_or_append(&mut self.floats, &mut split.floats);
+        take_or_append(&mut self.colors, &mut split.colors);
+
         if let Some(c) = self.clear_color.take() {
             self.clear_color = Some(c);
         }
