@@ -445,8 +445,28 @@ pub trait UiNodeList: UiNodeListBoxed {
     where
         F: Fn(usize, &mut BoxedUiNode) + Send + Sync;
 
-    /// Calls `fold` for each node in the list, with fold accumulators produced by `identity`, then merges the folded results
-    /// using `reduce` to produce the final value.
+    /// Calls `fold` for each node in the list in parallel, with fold accumulators produced by `identity`, then merges the folded results
+    /// using `reduce` to produce the final value also in parallel.
+    /// 
+    /// If `reduce` is [associative] the order is preserved in the result, this example will collect the node indexes in order:
+    /// 
+    /// ```
+    /// # use zero_ui_core::widget_instance::UiNodeList;
+    /// # fn demo(mut list: impl UiNodeList) -> Vec<usize> {
+    /// list.par_fold_reduce(
+    ///     Vec::new, 
+    ///     |mut v, i, _| {
+    ///         v.push(i);
+    ///         v
+    ///     },
+    ///     |mut a, b| {
+    ///         a.extend(b);
+    ///         a
+    ///     })
+    /// # }
+    /// ```
+    /// 
+    /// [associative]: https://en.wikipedia.org/wiki/Associative_property
     fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
         T: Send,
@@ -1044,7 +1064,6 @@ impl UiNodeList for BoxedUiNodeList {
         F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,
     {
-        // !!: parallelize, needs to preserve fold order (see rayon example for fold).
         let mut r = Some(identity());
         self.as_mut().for_each_boxed(&mut |i, node| {
             r = Some(fold(r.take().unwrap(), i, node));
