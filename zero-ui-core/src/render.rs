@@ -165,7 +165,7 @@ pub struct FrameBuilder {
     can_reuse: bool,
     open_reuse: Option<ReuseStart>,
 
-    clear_color: RenderColor,
+    clear_color: Option<RenderColor>,
 
     render_index: ZIndex,
 }
@@ -230,7 +230,7 @@ impl FrameBuilder {
 
             render_index: ZIndex(0),
 
-            clear_color: color::rgba(0, 0, 0, 0).into(),
+            clear_color: Some(color::rgba(0, 0, 0, 0).into()),
         }
     }
 
@@ -268,7 +268,7 @@ impl FrameBuilder {
     /// Note that the clear color is always *rendered* first before all other layers, if more then
     /// one layer sets the clear color only the value set on the top-most layer is used.
     pub fn set_clear_color(&mut self, color: RenderColor) {
-        self.clear_color = color;
+        self.clear_color = Some(color);
     }
 
     /// Connection to the renderer that will render this frame.
@@ -1302,6 +1302,48 @@ impl FrameBuilder {
             .push_radial_gradient(PxRect::new(offset, bounds), gradient, &stops, bounds, PxSize::zero());
     }
 
+    pub fn parallel_split(&self) -> ParallelBuilder<Self> {
+        if self.widget_data.is_some() {
+            tracing::error!(
+                "called `parallel_split` inside `{}` and before calling `push_inner`",
+                self.widget_id
+            );
+        }
+
+        ParallelBuilder(Some(Self {
+            frame_id: self.frame_id,
+            pipeline_id: self.pipeline_id,
+            widget_id: self.widget_id,
+            transform: self.transform,
+            default_font_aa: self.default_font_aa,
+            renderer: self.renderer.clone(),
+            scale_factor: self.scale_factor,
+            display_list: DisplayListBuilder::new(self.pipeline_id, self.frame_id),
+            hit_testable: self.hit_testable,
+            visible: self.visible,
+            auto_hit_test: self.auto_hit_test,
+            hit_clips: HitTestClips::default(),
+            auto_hide_rect: self.auto_hide_rect,
+            widget_data: None,
+            child_offset: self.child_offset,
+            parent_inner_bounds: self.parent_inner_bounds,
+            can_reuse: self.can_reuse,
+            open_reuse: None,
+            clear_color: None,
+            render_index: self.render_index,
+        }))
+    }
+
+    /// Collect updates from `split` into `self`.
+    pub fn parallel_fold(&mut self, mut split: ParallelBuilder<Self>) {
+        let mut split = split.take();
+        if split.clear_color.is_some() {
+            self.clear_color = split.clear_color;
+        }
+        self.hit_clips.take_or_append(&mut split.hit_clips);
+        // !!: TODO
+    }
+
     /// Finalizes the build.
     pub fn finalize(self, info_tree: &WidgetInfoTree) -> BuiltFrame {
         info_tree.root().bounds_info().set_rendered(
@@ -1316,7 +1358,7 @@ impl FrameBuilder {
 
         let display_list = self.display_list.finalize();
 
-        let clear_color = self.clear_color;
+        let clear_color = self.clear_color.unwrap_or_default();
 
         BuiltFrame { display_list, clear_color }
     }

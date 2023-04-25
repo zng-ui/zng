@@ -265,6 +265,14 @@ impl HitTestClips {
 
         clip
     }
+
+    pub(crate) fn take_or_append(&mut self, other: &mut Self) {
+        if self.items.is_empty() {
+            self.items = std::mem::take(&mut other.items)
+        } else {
+            self.items.append(&mut other.items)
+        }
+    }
 }
 
 /// Hit-test result on a widget relative to it's descendants.

@@ -447,14 +447,14 @@ pub trait UiNodeList: UiNodeListBoxed {
 
     /// Calls `fold` for each node in the list in parallel, with fold accumulators produced by `identity`, then merges the folded results
     /// using `reduce` to produce the final value also in parallel.
-    /// 
+    ///
     /// If `reduce` is [associative] the order is preserved in the result, this example will collect the node indexes in order:
-    /// 
+    ///
     /// ```
     /// # use zero_ui_core::widget_instance::UiNodeList;
     /// # fn demo(mut list: impl UiNodeList) -> Vec<usize> {
     /// list.par_fold_reduce(
-    ///     Vec::new, 
+    ///     Vec::new,
     ///     |mut v, i, _| {
     ///         v.push(i);
     ///         v
@@ -465,7 +465,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     ///     })
     /// # }
     /// ```
-    /// 
+    ///
     /// [associative]: https://en.wikipedia.org/wiki/Associative_property
     fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
