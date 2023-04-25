@@ -1,9 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
-use zero_ui::properties::events::{
-    mouse::{on_mouse_enter, on_mouse_leave},
-    widget::on_pre_init,
-};
+use zero_ui::properties::events::mouse::{on_mouse_enter, on_mouse_leave};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -21,25 +18,25 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
+        // layer will init with the window, when it opens.
+        LAYERS.insert(
+            LayerIndex::TOP_MOST - 100,
+            Text! {
+                hit_test_mode = HitTestMode::Disabled;
+                txt = "on_pre_init";
+                font_size = 72;
+                font_family = "monospace";
+                opacity = 3.pct();
+                // rotate = 45.deg();
+                align = Align::CENTER;
+            },
+        );
+
         Window! {
             title = "Layer Example";
 
             // zero_ui::properties::inspector::show_bounds = true;
             // zero_ui::properties::inspector::show_hit_test = true;
-
-            // you can use the pre-init to insert layered widgets
-            // before the first render.
-            on_pre_init = hn!(|_| {
-                LAYERS.insert(LayerIndex::TOP_MOST - 100, Text! {
-                    hit_test_mode = HitTestMode::Disabled;
-                    txt = "on_pre_init";
-                    font_size = 72;
-                    font_family = "monospace";
-                    opacity = 3.pct();
-                    // rotate = 45.deg();
-                    align = Align::CENTER;
-                })
-            });
 
             child_align = Align::CENTER;
             child = Stack! {

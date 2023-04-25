@@ -1298,7 +1298,9 @@ bitflags! {
 }
 impl Default for Parallel {
     fn default() -> Self {
-        Self::all()
+        let mut dft = Self::all();
+        dft.remove(Self::RENDER); // !!: fix hit-test
+        dft
     }
 }
 context_var! {

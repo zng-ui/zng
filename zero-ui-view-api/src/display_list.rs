@@ -379,7 +379,10 @@ impl DisplayListBuilder {
     ///
     /// Panics if `split` has not closed all reference frames, clips or stacking contexts that it opened.
     pub fn parallel_fold(&mut self, mut split: Self) {
-        assert!(Arc::ptr_eq(&self.seg_id_gen, &split.seg_id_gen), "cannot fold list not split from this one or parent");
+        assert!(
+            Arc::ptr_eq(&self.seg_id_gen, &split.seg_id_gen),
+            "cannot fold list not split from this one or parent"
+        );
         assert_eq!(split.space_len, 1);
         assert_eq!(split.clip_len, 1);
         assert_eq!(split.stack_ctx_len, 1);
@@ -399,7 +402,7 @@ impl DisplayListBuilder {
                 self.segments.append(&mut split.segments);
             }
             self.segments.push((split.seg_id, self.list.len()));
-        }        
+        }
 
         if self.list.is_empty() {
             self.list = split.list;

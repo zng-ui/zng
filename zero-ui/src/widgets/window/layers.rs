@@ -2,6 +2,7 @@
 
 use crate::core::{
     mouse::MOUSE,
+    task::parking_lot::Mutex,
     timer::{DeadlineHandle, TIMERS},
     units::DipToPx,
     window::{WIDGET_INFO_CHANGED_EVENT, WINDOW_CTRL},
@@ -71,10 +72,23 @@ impl LAYERS {
                 }
             }
             _ => {}
+        })
+        .boxed();
+
+        let r = WINDOW.with_state(|s| match s.get(&WINDOW_LAYERS_ID) {
+            Some(open) => {
+                // window already open
+                open.items.push(widget);
+                Ok(())
+            }
+            None => Err(widget),
         });
-        WINDOW.with_state(|s| {
-            s.req(&WINDOW_LAYERS_ID).items.push(widget);
-        });
+        if let Err(widget) = r {
+            WINDOW.with_state_mut(|mut s| {
+                // window not open yet, `widget` will be inited with the window
+                s.entry(&WINDOW_PRE_INIT_LAYERS_ID).or_default().push(Mutex::new(widget));
+            });
+        }
     }
 
     /// Insert the `widget` in the layer and *anchor* it to the offset/transform of another widget.
@@ -494,6 +508,7 @@ enum LayerRemove {
     Requested(EditableUiNodeListRef),
 }
 
+static WINDOW_PRE_INIT_LAYERS_ID: StaticStateId<Vec<Mutex<BoxedUiNode>>> = StaticStateId::new_unique();
 static WINDOW_LAYERS_ID: StaticStateId<LayersCtx> = StaticStateId::new_unique();
 static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
 static LAYER_REMOVE_ID: StaticStateId<LayerRemove> = StaticStateId::new_unique();
@@ -1118,7 +1133,15 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
 
     match_node_list(children, move |children, op| match op {
         UiNodeOp::Init => {
-            WINDOW.set_state(&WINDOW_LAYERS_ID, LayersCtx { items: layered.clone() });
+            WINDOW.with_state_mut(|mut s| {
+                s.set(&WINDOW_LAYERS_ID, LayersCtx { items: layered.clone() });
+
+                if let Some(widgets) = s.get_mut(&WINDOW_PRE_INIT_LAYERS_ID) {
+                    for wgt in widgets.drain(..) {
+                        layered.push(wgt.into_inner());
+                    }
+                }
+            });
         }
         UiNodeOp::Update { updates } => {
             let mut changed = false;
