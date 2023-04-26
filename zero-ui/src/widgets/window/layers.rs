@@ -30,8 +30,9 @@ struct LayersCtx {
 /// # Layout & Render
 ///
 /// Layered widgets are measured and arranged using the same constraints as the window root widget, the desired
-/// size is discarded, only the root widget desired size can affect the window size. Layered widgets are all layout
-/// and rendered after the window content and from the bottom layer up to the top-most, this means that the [`WidgetBoundsInfo`]
+/// size is discarded, only the root widget desired size can affect the window size.
+///
+/// Layered widgets are all layout and rendered after the window content, this means that the [`WidgetBoundsInfo`]
 /// of normal widgets are always up-to-date when the layered widget is arranged and rendered, so if you
 /// implement custom layouts that align the layered widget with a normal widget using the info values it will always be in sync with
 /// a single layout pass, see [`insert_anchored`] for more details.
@@ -1131,7 +1132,7 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
     });
     let children = ui_vec![child].chain(sorting_layers);
 
-    match_node_list(children, move |children, op| match op {
+    match_node_list(children, move |c, op| match op {
         UiNodeOp::Init => {
             WINDOW.with_state_mut(|mut s| {
                 s.set(&WINDOW_LAYERS_ID, LayersCtx { items: layered.clone() });
@@ -1146,7 +1147,7 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Update { updates } => {
             let mut changed = false;
             {
-                let editable_list = children.children().1.list();
+                let editable_list = c.children().1.list();
 
                 let mut retains = editable_list.take_retain_requests();
 
@@ -1197,22 +1198,26 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
                 }
             }
 
-            children.update_all(updates, &mut changed);
+            c.update_all(updates, &mut changed);
 
             if changed {
                 WIDGET.layout().render();
             }
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            *desired_size = children.with_node(0, |n| n.measure(wm));
+            *desired_size = c.with_node(0, |n| n.measure(wm));
         }
         UiNodeOp::Layout { wl, final_size } => {
-            children.for_each(|i, n| {
-                let s = n.layout(wl);
-                if i == 0 {
-                    *final_size = s;
-                }
-            });
+            *final_size = c.with_node(0, |n| n.layout(wl));
+            let _ = c.children().1.layout_each(wl, |_, l, wl| l.layout(wl), |_, _| PxSize::zero());
+        }
+        UiNodeOp::Render { frame } => {
+            c.with_node(0, |n| n.render(frame));
+            c.children().1.render_all(frame);
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            c.with_node(0, |n| n.render_update(update));
+            c.children().1.render_update_all(update);
         }
         _ => {}
     })

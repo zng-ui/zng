@@ -378,6 +378,8 @@ impl DisplayListBuilder {
     /// *parent* display list.
     ///
     /// Panics if `split` has not closed all reference frames, clips or stacking contexts that it opened.
+    /// 
+    /// [`parallel_split`]: Self::parallel_split
     pub fn parallel_fold(&mut self, mut split: Self) {
         assert!(
             Arc::ptr_eq(&self.seg_id_gen, &split.seg_id_gen),

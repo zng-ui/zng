@@ -191,7 +191,7 @@ pub fn node(
             let grid = &grid;
 
             // layout columns
-            columns.layout_each(
+            let _ = columns.layout_each(
                 wl,
                 |ci, col, wl| {
                     let info = grid.columns[ci];
@@ -200,7 +200,7 @@ pub fn node(
                 |_, _| PxSize::zero(),
             );
             // layout rows
-            rows.layout_each(
+            let _ = rows.layout_each(
                 wl,
                 |ri, row, wl| {
                     let info = grid.rows[ri];

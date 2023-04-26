@@ -770,41 +770,6 @@ impl WidgetMeasure {
     }
 }
 
-/// Parallel [`WidgetLayout`].
-///
-/// See [`WidgetLayout::parallel_split`].
-#[must_use = "must be folded back to `WidgetLayout`"]
-pub struct ParWidgetLayout {
-    wl: Option<WidgetLayout>,
-}
-impl ParWidgetLayout {
-    /// Merge `self` and `other`.
-    pub fn parallel_fold(mut self, other: Self) -> Self {
-        let mut a = self.wl.take().expect("parallel layout already finished");
-        a.parallel_fold(other);
-        Self { wl: Some(a) }
-    }
-}
-impl ops::Deref for ParWidgetLayout {
-    type Target = WidgetLayout;
-
-    fn deref(&self) -> &Self::Target {
-        self.wl.as_ref().expect("parallel layout already finished")
-    }
-}
-impl ops::DerefMut for ParWidgetLayout {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.wl.as_mut().expect("parallel layout already finished")
-    }
-}
-impl Drop for ParWidgetLayout {
-    fn drop(&mut self) {
-        if self.wl.is_some() {
-            tracing::error!("parallel layout not folded back to `WidgetLayout::finish_par`")
-        }
-    }
-}
-
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
     bounds: WidgetBoundsInfo,
@@ -831,31 +796,25 @@ impl WidgetLayout {
     /// Returns an instance that can be used to acquire multiple mutable [`WidgetLayout`] during layout.
     /// The [`parallel_fold`] method must be called after the parallel processing is done.
     ///
-    /// # Panics
-    ///
-    /// Panics if called outside of the [child] scope.
+    /// Must be called outside of the [child] scope.
     ///
     /// [child]: Self::with_child
     /// [`parallel_fold`]: Self::parallel_fold
-    pub fn parallel_split(&self) -> ParWidgetLayout {
-        assert_eq!(
-            self.nest_group,
-            LayoutNestGroup::Child,
-            "cannot start parallel layout outside child scope"
-        );
-        ParWidgetLayout {
-            wl: Some(WidgetLayout {
-                bounds: self.bounds.clone(),
-                nest_group: LayoutNestGroup::Child,
-                inline: None,
-                child_count: None,
-            }),
+    pub fn parallel_split(&self) -> ParallelBuilder<WidgetLayout> {
+        if self.nest_group != LayoutNestGroup::Child && WIDGET.parent_id().is_some() {
+            tracing::error!("called `parallel_split` outside child scope");
         }
+        ParallelBuilder(Some(WidgetLayout {
+            bounds: self.bounds.clone(),
+            nest_group: LayoutNestGroup::Child,
+            inline: None,
+            child_count: None,
+        }))
     }
 
     /// Collect the parallel changes back.
-    pub fn parallel_fold(&mut self, mut par: ParWidgetLayout) {
-        let folded = par.wl.take().expect("parallel layout already finished");
+    pub fn parallel_fold(&mut self, mut split: ParallelBuilder<WidgetLayout>) {
+        let folded = split.take();
         assert_eq!(self.bounds, folded.bounds);
 
         let count = self.child_count.unwrap_or(0) + folded.child_count.unwrap_or(0);
@@ -1186,4 +1145,37 @@ enum LayoutNestGroup {
     Inner,
     /// Inside `BORDER`.
     Child,
+}
+
+/// Represents a builder split from the main builder that must be folded back onto the
+/// main builder after it is filled in a parallel task.
+///
+/// # Error
+///
+/// Traces an error on drop if it was not moved to the `B::parallel_fold` method.
+#[must_use = "use in parallel task, then move it to `B::parallel_fold`"]
+pub struct ParallelBuilder<B>(pub(crate) Option<B>);
+impl<B> ParallelBuilder<B> {
+    pub(crate) fn take(&mut self) -> B {
+        self.0.take().expect("parallel builder finished")
+    }
+}
+impl<B> ops::Deref for ParallelBuilder<B> {
+    type Target = B;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref().expect("parallel builder finished")
+    }
+}
+impl<B> ops::DerefMut for ParallelBuilder<B> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut().expect("parallel builder finished")
+    }
+}
+impl<B> Drop for ParallelBuilder<B> {
+    fn drop(&mut self) {
+        if self.0.is_some() {
+            tracing::error!("builder dropped without calling `{}::parallel_fold`", std::any::type_name::<B>())
+        }
+    }
 }

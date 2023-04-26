@@ -1,3 +1,10 @@
+* Parallel render.
+    - Hit test does not work correctly in window example close layer.
+        - Issue observable in all pop-ups, including the scroll menu.
+        - Issue is  `set_hit_index`? 
+    - Update transforms of reused branches in parallel (`self_and_descendants_par`).
+
+
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.
     - The problem is the custom accumulator `T`, need to smuggle this type pass the `dyn`.
 
@@ -10,8 +17,6 @@
     - How to share the `&mut WidgetInfoBuilder`?
     - Implement `UiNodeList::info_all`?
 
-* Parallel render.
-    - Update transforms of reused branches in parallel (`self_and_descendants_par`).
        
 * Review capture-only properties.
     - They must return the child node and trace an error if used.

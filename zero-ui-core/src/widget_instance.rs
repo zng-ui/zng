@@ -553,6 +553,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// Call `measure` for each node and combines the final size using `fold_size`.
     ///
     /// The call to `measure` can be parallel if [`Parallel::LAYOUT`] is enabled.
+    #[must_use]
     fn measure_each<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
     where
         F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
@@ -580,6 +581,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// Call `layout` for each node and combines the final size using `fold_size`.
     ///
     /// The call to `layout` can be parallel if [`Parallel::LAYOUT`] is enabled.
+    #[must_use]
     fn layout_each<F, S>(&mut self, wl: &mut WidgetLayout, layout: F, fold_size: S) -> PxSize
     where
         F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
@@ -593,7 +595,15 @@ pub trait UiNodeList: UiNodeListBoxed {
                     let bsize = layout(i, n, &mut awl);
                     (awl, fold_size(asize, bsize))
                 },
-                |(awl, asize), (bwl, bsize)| (awl.parallel_fold(bwl), fold_size(asize, bsize)),
+                |(mut awl, asize), (bwl, bsize)| {
+                    (
+                        {
+                            awl.parallel_fold(bwl);
+                            awl
+                        },
+                        fold_size(asize, bsize),
+                    )
+                },
             );
             wl.parallel_fold(pwl);
             size

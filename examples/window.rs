@@ -34,7 +34,22 @@ async fn main_window() -> WindowRoot {
 
     let background = var(colors::BLACK);
 
+    LAYERS.insert(
+        LayerIndex::TOP_MOST,
+        Text! {
+            align = Align::TOP_LEFT;
+            txt = zero_ui::core::mouse::MOUSE.hovered().map(|h| match h {
+                Some(p) => formatx!("{:?}", p),
+                None => Txt::empty()
+            });
+            font_family = "monospace";
+        },
+    );
+
     Window! {
+        // zero_ui::core::widget_base::parallel = false;
+        // zero_ui::properties::inspector::show_hit_test = true;
+
         background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
         title;

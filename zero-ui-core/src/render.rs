@@ -9,11 +9,11 @@ use crate::{
     text::FontAntiAliasing,
     units::*,
     var::{self, impl_from_and_into_var},
-    widget_info::{HitTestClips, WidgetBoundsInfo, WidgetInfoTree, WidgetRenderInfo},
+    widget_info::{HitTestClips, ParallelBuilder, WidgetBoundsInfo, WidgetInfoTree, WidgetRenderInfo},
     widget_instance::{WidgetId, ZIndex},
 };
 
-use std::{marker::PhantomData, mem, ops};
+use std::{marker::PhantomData, mem};
 
 use webrender_api::{FontRenderMode, PipelineId};
 pub use zero_ui_view_api::{
@@ -141,7 +141,6 @@ struct WidgetData {
 pub struct FrameBuilder {
     frame_id: FrameId,
     pipeline_id: PipelineId,
-    root_id: WidgetId,
     widget_id: WidgetId,
     transform: PxTransform,
 
@@ -203,7 +202,6 @@ impl FrameBuilder {
         FrameBuilder {
             frame_id,
             pipeline_id,
-            root_id,
             widget_id: root_id,
             transform: PxTransform::identity(),
             default_font_aa: match default_font_aa {
@@ -379,7 +377,7 @@ impl FrameBuilder {
     pub fn push_widget(&mut self, reuse: &mut Option<ReuseRange>, render: impl FnOnce(&mut Self)) {
         let id = WIDGET.id();
 
-        if self.widget_data.is_some() && self.root_id != self.widget_id {
+        if self.widget_data.is_some() && WIDGET.parent_id().is_some() {
             tracing::error!(
                 "called `push_widget` for `{}` without calling `push_inner` for the parent `{}`",
                 id,
@@ -1310,7 +1308,7 @@ impl FrameBuilder {
     ///
     /// [`parallel_fold`]: Self::parallel_fold
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
-        if self.widget_data.is_some() && self.root_id != self.widget_id {
+        if self.widget_data.is_some() && WIDGET.parent_id().is_some() {
             tracing::error!(
                 "called `parallel_split` inside `{}` and before calling `push_inner`",
                 self.widget_id
@@ -1320,7 +1318,6 @@ impl FrameBuilder {
         ParallelBuilder(Some(Self {
             frame_id: self.frame_id,
             pipeline_id: self.pipeline_id,
-            root_id: self.root_id,
             widget_id: self.widget_id,
             transform: self.transform,
             default_font_aa: self.default_font_aa,
@@ -1614,39 +1611,6 @@ impl crate::border::LineStyle {
     }
 }
 
-/// Represents a frame or update builder split from the main builder that must be folded back onto the
-/// main builder after it is filled in a parallel task.
-///
-/// # Error
-///
-/// Traces an error on drop if it was not moved to the `B::parallel_fold` method.
-#[must_use = "use in parallel task, then move it to `B::parallel_fold`"]
-pub struct ParallelBuilder<B>(Option<B>);
-impl<B> ParallelBuilder<B> {
-    fn take(&mut self) -> B {
-        self.0.take().expect("parallel builder finished")
-    }
-}
-impl<B> ops::Deref for ParallelBuilder<B> {
-    type Target = B;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_ref().expect("parallel builder finished")
-    }
-}
-impl<B> ops::DerefMut for ParallelBuilder<B> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.as_mut().expect("parallel builder finished")
-    }
-}
-impl<B> Drop for ParallelBuilder<B> {
-    fn drop(&mut self) {
-        if self.0.is_some() {
-            tracing::error!("builder dropped without calling `{}::parallel_fold`", std::any::type_name::<B>())
-        }
-    }
-}
-
 /// A frame quick update.
 ///
 /// A frame update causes a frame render without needing to fully rebuild the display list. It
@@ -1663,7 +1627,6 @@ pub struct FrameUpdate {
     current_clear_color: RenderColor,
     clear_color: Option<RenderColor>,
     frame_id: FrameId,
-    root_id: WidgetId,
 
     widget_id: WidgetId,
     transform: PxTransform,
@@ -1709,7 +1672,6 @@ impl FrameUpdate {
             clear_color: None,
             frame_id,
             current_clear_color: clear_color,
-            root_id,
 
             transform: PxTransform::identity(),
             outer_offset: PxVector::zero(),
@@ -1902,7 +1864,7 @@ impl FrameUpdate {
     pub fn update_widget(&mut self, reuse: bool, render_update: impl FnOnce(&mut Self)) {
         let id = WIDGET.id();
 
-        if self.inner_transform.is_some() && self.root_id != self.widget_id {
+        if self.inner_transform.is_some() && WIDGET.parent_id().is_some() {
             tracing::error!(
                 "called `update_widget` for `{}` without calling `update_inner` for the parent `{}`",
                 id,
@@ -2046,7 +2008,7 @@ impl FrameUpdate {
     ///
     /// [`update_widget`]: Self::update_widget
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
-        if self.inner_transform.is_some() && self.widget_id != self.root_id {
+        if self.inner_transform.is_some() && WIDGET.parent_id().is_some() {
             tracing::error!(
                 "called `parallel_split` inside `{}` and before calling `update_inner`",
                 self.widget_id
@@ -2057,7 +2019,6 @@ impl FrameUpdate {
             pipeline_id: self.pipeline_id,
             current_clear_color: self.current_clear_color,
             frame_id: self.frame_id,
-            root_id: self.root_id,
 
             transforms: vec![],
             floats: vec![],
