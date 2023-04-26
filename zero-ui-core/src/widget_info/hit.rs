@@ -1,13 +1,34 @@
+use std::sync::{atomic::AtomicUsize, Arc};
+
 use crate::{
     render::{FrameValue, FrameValueUpdate},
     units::*,
     widget_instance::WidgetId,
 };
 
+type SegmentId = usize;
+
+pub(crate) type HitChildIndex = (SegmentId, usize);
+
 /// Represents hit-test regions of a widget inner.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct HitTestClips {
     items: Vec<HitTestItem>,
+
+    seg_id: SegmentId,
+    seg_id_gen: Arc<AtomicUsize>,
+    segments: Vec<(SegmentId, usize)>,
+}
+
+impl Default for HitTestClips {
+    fn default() -> Self {
+        Self {
+            items: vec![],
+            seg_id: 0,
+            seg_id_gen: Arc::new(AtomicUsize::new(1)),
+            segments: vec![],
+        }
+    }
 }
 impl HitTestClips {
     /// Returns `true` if any hit-test clip is registered for this widget.
@@ -62,13 +83,13 @@ impl HitTestClips {
     }
 
     #[must_use]
-    pub fn push_child(&mut self, widget: WidgetId) -> usize {
+    pub fn push_child(&mut self, widget: WidgetId) -> HitChildIndex {
         if let Some(HitTestItem::Child(c)) = self.items.last_mut() {
             *c = widget;
         } else {
             self.items.push(HitTestItem::Child(widget));
         }
-        self.items.len() - 1
+        (self.seg_id, self.items.len() - 1)
     }
 
     /// Hit-test the `point` against the items, returns the relative Z of the hit.
@@ -191,13 +212,20 @@ impl HitTestClips {
     }
 
     /// Returns `true` if a clip that affects the `child` clips out the `window_point`.
-    pub fn clip_child(&self, child: usize, inner_transform: &PxTransform, window_point: PxPoint) -> bool {
+    pub fn clip_child(&self, child: HitChildIndex, inner_transform: &PxTransform, window_point: PxPoint) -> bool {
         let mut transform_stack = vec![];
         let mut current_transform = inner_transform;
         let mut local_point = match inv_transform_point(current_transform, window_point) {
             Some(p) => p,
             None => return false,
         };
+
+        let offset = self
+            .segments
+            .iter()
+            .find_map(|&(id, o)| if id == child.0 { Some(o) } else { None })
+            .unwrap_or(0);
+        let child = child.1 + offset;
 
         let mut items = self.items[..child].iter();
         let mut clip = false;
@@ -267,10 +295,21 @@ impl HitTestClips {
     }
 
     pub(crate) fn parallel_split(&self) -> Self {
-        Self::default()
+        Self {
+            items: vec![],
+            seg_id: self.seg_id_gen.fetch_add(1, atomic::Ordering::Relaxed),
+            seg_id_gen: self.seg_id_gen.clone(),
+            segments: vec![],
+        }
     }
 
     pub(crate) fn parallel_fold(&mut self, mut other: Self) {
+        for (_, offset) in &mut other.segments {
+            *offset += self.items.len();
+        }
+        self.segments.append(&mut other.segments);
+        self.segments.push((other.seg_id, self.items.len()));
+
         if self.items.is_empty() {
             *self = other;
         } else {

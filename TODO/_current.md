@@ -1,7 +1,8 @@
 * Parallel render.
-    - Hit test does not work correctly in window example close layer.
-        - Issue observable in all pop-ups, including the scroll menu.
-        - Issue is  `set_hit_index`? 
+    - `render_index` not compatible with parallel render.
+        - We used to count on the fact that each widget is rendered in order, now this is only true
+          in each parallel segment.
+        - 
     - Update transforms of reused branches in parallel (`self_and_descendants_par`).
 
 

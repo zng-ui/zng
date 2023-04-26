@@ -34,6 +34,7 @@ async fn main_window() -> WindowRoot {
 
     let background = var(colors::BLACK);
 
+    // !!: 
     LAYERS.insert(
         LayerIndex::TOP_MOST,
         Text! {
@@ -47,7 +48,7 @@ async fn main_window() -> WindowRoot {
     );
 
     Window! {
-        // zero_ui::core::widget_base::parallel = false;
+        zero_ui::core::widget_base::parallel = false;
         // zero_ui::properties::inspector::show_hit_test = true;
 
         background_color = background.easing(150.ms(), easing::linear);

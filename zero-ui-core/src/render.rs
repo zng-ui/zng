@@ -1335,7 +1335,7 @@ impl FrameBuilder {
             can_reuse: self.can_reuse,
             open_reuse: None,
             clear_color: None,
-            render_index: self.render_index,
+            render_index: ZIndex(0),
         }))
     }
 
@@ -1347,6 +1347,8 @@ impl FrameBuilder {
         }
         self.hit_clips.parallel_fold(split.hit_clips);
         self.display_list.parallel_fold(split.display_list);
+
+        self.render_index += split.render_index;
     }
 
     /// Finalizes the build.

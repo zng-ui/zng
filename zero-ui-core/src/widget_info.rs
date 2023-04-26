@@ -313,7 +313,7 @@ struct WidgetBoundsData {
     inner_bounds: PxRect,
 
     hit_clips: HitTestClips,
-    hit_index: u32,
+    hit_index: hit::HitChildIndex,
 
     is_in_bounds: Option<bool>,
     is_partially_culled: bool,
@@ -670,8 +670,8 @@ impl WidgetBoundsInfo {
     }
 
     /// Index of this widget in the parent hit-test items.
-    fn hit_test_index(&self) -> usize {
-        self.0.lock().hit_index as usize
+    fn hit_test_index(&self) -> hit::HitChildIndex {
+        self.0.lock().hit_index
     }
 
     /// Returns `true` if a hit-test clip that affects the `child` removes the `window_point` hit on the child.
@@ -758,8 +758,8 @@ impl WidgetBoundsInfo {
         self.0.lock().hit_clips = clips;
     }
 
-    pub(crate) fn set_hit_index(&self, index: usize) {
-        self.0.lock().hit_index = index as u32;
+    pub(crate) fn set_hit_index(&self, index: hit::HitChildIndex) {
+        self.0.lock().hit_index = index;
     }
 
     pub(crate) fn is_partially_culled(&self) -> bool {
