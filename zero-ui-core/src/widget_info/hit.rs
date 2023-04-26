@@ -6,29 +6,11 @@ use crate::{
     widget_instance::WidgetId,
 };
 
-type SegmentId = usize;
-
-pub(crate) type HitChildIndex = (SegmentId, usize);
-
 /// Represents hit-test regions of a widget inner.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct HitTestClips {
     items: Vec<HitTestItem>,
-
-    seg_id: SegmentId,
-    seg_id_gen: Arc<AtomicUsize>,
-    segments: Vec<(SegmentId, usize)>,
-}
-
-impl Default for HitTestClips {
-    fn default() -> Self {
-        Self {
-            items: vec![],
-            seg_id: 0,
-            seg_id_gen: Arc::new(AtomicUsize::new(1)),
-            segments: vec![],
-        }
-    }
+    segments: ParallelSegmentOffsets,
 }
 impl HitTestClips {
     /// Returns `true` if any hit-test clip is registered for this widget.
@@ -89,7 +71,7 @@ impl HitTestClips {
         } else {
             self.items.push(HitTestItem::Child(widget));
         }
-        (self.seg_id, self.items.len() - 1)
+        HitChildIndex(self.segments.id(), self.items.len() - 1)
     }
 
     /// Hit-test the `point` against the items, returns the relative Z of the hit.
@@ -220,12 +202,7 @@ impl HitTestClips {
             None => return false,
         };
 
-        let offset = self
-            .segments
-            .iter()
-            .find_map(|&(id, o)| if id == child.0 { Some(o) } else { None })
-            .unwrap_or(0);
-        let child = child.1 + offset;
+        let child = child.1 + self.segments.offset(child.0);
 
         let mut items = self.items[..child].iter();
         let mut clip = false;
@@ -297,23 +274,17 @@ impl HitTestClips {
     pub(crate) fn parallel_split(&self) -> Self {
         Self {
             items: vec![],
-            seg_id: self.seg_id_gen.fetch_add(1, atomic::Ordering::Relaxed),
-            seg_id_gen: self.seg_id_gen.clone(),
-            segments: vec![],
+            segments: self.segments.parallel_split(),
         }
     }
 
-    pub(crate) fn parallel_fold(&mut self, mut other: Self) {
-        for (_, offset) in &mut other.segments {
-            *offset += self.items.len();
-        }
-        self.segments.append(&mut other.segments);
-        self.segments.push((other.seg_id, self.items.len()));
+    pub(crate) fn parallel_fold(&mut self, mut split: Self) {
+        self.segments.parallel_fold(split.segments, self.items.len());
 
         if self.items.is_empty() {
-            *self = other;
+            self.items = split.items;
         } else {
-            self.items.append(&mut other.items)
+            self.items.append(&mut split.items)
         }
     }
 }
@@ -409,4 +380,81 @@ fn ellipse_contains(radii: PxSize, center: PxPoint, point: PxPoint) -> bool {
 
 fn inv_transform_point(t: &PxTransform, point: PxPoint) -> Option<PxPoint> {
     t.inverse()?.transform_point(point)
+}
+
+pub(crate) type ParallelSegmentId = usize;
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct HitChildIndex(ParallelSegmentId, usize);
+impl Default for HitChildIndex {
+    fn default() -> Self {
+        Self(ParallelSegmentId::MAX, Default::default())
+    }
+}
+
+/// Tracks the position of a range of items in a list that was built in parallel.
+#[derive(Debug)]
+pub(crate) struct ParallelSegmentOffsets {
+    id: ParallelSegmentId,
+    id_gen: Arc<AtomicUsize>,
+    used: bool,
+    segments: Vec<(ParallelSegmentId, usize)>,
+}
+impl Default for ParallelSegmentOffsets {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            used: false,
+            id_gen: Arc::new(AtomicUsize::new(1)),
+            segments: vec![],
+        }
+    }
+}
+impl ParallelSegmentOffsets {
+    /// Gets the segment ID and flags the current tracking offsets as used.
+    pub fn id(&mut self) -> ParallelSegmentId {
+        self.used = true;
+        self.id
+    }
+
+    /// Resolve the `id` offset, after build.
+    pub fn offset(&self, id: ParallelSegmentId) -> usize {
+        self.segments
+            .iter()
+            .find_map(|&(i, o)| if i == id { Some(o) } else { None })
+            .unwrap_or(0)
+    }
+
+    /// Start new parallel segment.
+    pub fn parallel_split(&self) -> Self {
+        Self {
+            used: false,
+            id: self.id_gen.fetch_add(1, atomic::Ordering::Relaxed),
+            id_gen: self.id_gen.clone(),
+            segments: vec![],
+        }
+    }
+
+    /// Merge parallel segment at the given `offset`.
+    pub fn parallel_fold(&mut self, mut split: Self, offset: usize) {
+        if !Arc::ptr_eq(&self.id_gen, &split.id_gen) {
+            tracing::error!("cannot parallel fold segments not split from the same root");
+            return;
+        }
+
+        if offset > 0 {
+            for (_, o) in &mut split.segments {
+                *o += offset;
+            }
+        }
+
+        if self.segments.is_empty() {
+            self.segments = split.segments;
+        } else {
+            self.segments.append(&mut split.segments);
+        }
+        if split.used {
+            self.segments.push((split.id, offset));
+        }
+    }
 }

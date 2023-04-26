@@ -389,20 +389,18 @@ impl DisplayListBuilder {
         assert_eq!(split.clip_len, 1);
         assert_eq!(split.stack_ctx_len, 1);
 
+        if !self.list.is_empty() {
+            for (_, offset) in &mut split.segments {
+                *offset += self.list.len();
+            }
+        }
+
+        if self.segments.is_empty() {
+            self.segments = split.segments;
+        } else {
+            self.segments.append(&mut split.segments);
+        }
         if split.has_reuse_ranges {
-            self.has_reuse_ranges = true;
-
-            if !self.list.is_empty() {
-                for (_, offset) in &mut split.segments {
-                    *offset += self.list.len();
-                }
-            }
-
-            if self.segments.is_empty() {
-                self.segments = split.segments;
-            } else {
-                self.segments.append(&mut split.segments);
-            }
             self.segments.push((split.seg_id, self.list.len()));
         }
 
