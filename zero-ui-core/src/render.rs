@@ -8,13 +8,15 @@ use crate::{
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
     units::*,
-    var::{self, impl_from_and_into_var},
-    widget_info::{HitTestClips, ParallelBuilder, WidgetBoundsInfo, WidgetInfoTree, WidgetRenderInfo},
+    var::{self, impl_from_and_into_var, Var},
+    widget_base::{Parallel, PARALLEL_VAR},
+    widget_info::{HitTestClips, ParallelBuilder, WidgetBoundsInfo, WidgetInfo, WidgetInfoTree, WidgetRenderInfo},
     widget_instance::{WidgetId, ZIndex},
 };
 
 use std::{marker::PhantomData, mem};
 
+use rayon::prelude::*;
 use webrender_api::{FontRenderMode, PipelineId};
 pub use zero_ui_view_api::{
     webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, RendererDebug, ReuseRange,
@@ -505,7 +507,7 @@ impl FrameBuilder {
                 bounds.set_inner_transform(bounds.inner_transform().then(&transform_patch), &tree, id, self.parent_inner_bounds);
 
                 // patch descendants outer and inner.
-                for info in tree.get(id).unwrap().descendants() {
+                let update_transforms_and_z = |info: WidgetInfo| {
                     let bounds = info.bounds_info();
 
                     bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), &tree);
@@ -528,13 +530,20 @@ impl FrameBuilder {
                             &tree,
                         );
                     }
+                };
+
+                let targets = tree.get(id).unwrap().descendants();
+                if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+                    targets.par_bridge().for_each(update_transforms_and_z);
+                } else {
+                    targets.for_each(update_transforms_and_z);
                 }
             } else if update_transforms {
                 let transform_patch = transform_patch.unwrap();
 
                 bounds.set_inner_transform(bounds.inner_transform().then(&transform_patch), &tree, id, self.parent_inner_bounds);
 
-                for info in tree.get(id).unwrap().descendants() {
+                let update_transforms = |info: WidgetInfo| {
                     let bounds = info.bounds_info();
 
                     bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), &tree);
@@ -544,9 +553,16 @@ impl FrameBuilder {
                         info.id(),
                         info.parent().map(|p| p.inner_bounds()),
                     );
+                };
+
+                let targets = tree.get(id).unwrap().descendants();
+                if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+                    targets.par_bridge().for_each(update_transforms);
+                } else {
+                    targets.for_each(update_transforms);
                 }
             } else if update_z {
-                for info in tree.get(id).unwrap().self_and_descendants() {
+                let update_z = |info: WidgetInfo| {
                     let bounds = info.bounds_info();
 
                     if let Some(info) = bounds.rendered() {
@@ -561,6 +577,13 @@ impl FrameBuilder {
                             &tree,
                         );
                     }
+                };
+
+                let targets = tree.get(id).unwrap().self_and_descendants();
+                if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+                    targets.par_bridge().for_each(update_z);
+                } else {
+                    targets.for_each(update_z);
                 }
             }
 
@@ -1890,7 +1913,7 @@ impl FrameUpdate {
                 if let Some(undo_prev) = prev_outer.inverse() {
                     let patch = undo_prev.then(&outer_transform);
 
-                    for info in tree.get(id).unwrap().self_and_descendants() {
+                    let update = |info: WidgetInfo| {
                         let bounds = info.bounds_info();
                         bounds.set_outer_transform(bounds.outer_transform().then(&patch), &tree);
                         bounds.set_inner_transform(
@@ -1899,6 +1922,12 @@ impl FrameUpdate {
                             info.id(),
                             info.parent().map(|p| p.inner_bounds()),
                         );
+                    };
+                    let targets = tree.get(id).unwrap().self_and_descendants();
+                    if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+                        targets.par_bridge().for_each(update);
+                    } else {
+                        targets.for_each(update);
                     }
 
                     return; // can reuse and patched.
