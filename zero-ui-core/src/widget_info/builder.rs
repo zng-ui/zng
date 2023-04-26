@@ -243,13 +243,14 @@ impl WidgetInfoBuilder {
             interactivity_filters: self.interactivity_filters,
             build_meta: Arc::new(self.build_meta),
 
-            frame: Mutex::new(WidgetInfoTreeFrame {
+            frame: RwLock::new(WidgetInfoTreeFrame {
                 stats: WidgetInfoTreeStats::new(self.build_start, self.tree.len() as u32 - self.pushed_widgets, generation),
                 stats_update: Default::default(),
                 out_of_bounds: Arc::new(self.out_of_bounds),
                 out_of_bounds_update: Default::default(),
                 scale_factor: self.scale_factor,
                 spatial_bounds: PxBox::zero(),
+                widget_count_offsets: ParallelSegmentOffsets::default(),
             }),
 
             tree: self.tree,
@@ -258,7 +259,7 @@ impl WidgetInfoBuilder {
         let cap = UsedWidgetInfoBuilder {
             tree_capacity: r.0.tree.len(),
             interactivity_filters_capacity: r.0.interactivity_filters.len(),
-            out_of_bounds_capacity: r.0.frame.lock().out_of_bounds.len(),
+            out_of_bounds_capacity: r.0.frame.read().out_of_bounds.len(),
         };
 
         (r, cap)

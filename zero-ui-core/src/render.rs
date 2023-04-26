@@ -5,13 +5,14 @@ use crate::{
     border::BorderSides,
     color::{self, filters::RenderFilter, RenderColor},
     context::{WIDGET, WINDOW},
+    crate_util::ParallelSegmentOffsets,
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
     units::*,
     var::{self, impl_from_and_into_var, Var},
     widget_base::{Parallel, PARALLEL_VAR},
     widget_info::{HitTestClips, ParallelBuilder, WidgetBoundsInfo, WidgetInfo, WidgetInfoTree, WidgetRenderInfo},
-    widget_instance::{WidgetId, ZIndex},
+    widget_instance::WidgetId,
 };
 
 use std::{marker::PhantomData, mem};
@@ -169,7 +170,8 @@ pub struct FrameBuilder {
 
     clear_color: Option<RenderColor>,
 
-    render_index: ZIndex,
+    widget_count: usize,
+    widget_count_offsets: ParallelSegmentOffsets,
 }
 impl FrameBuilder {
     /// New builder.
@@ -230,7 +232,8 @@ impl FrameBuilder {
             open_reuse: None,
             auto_hide_rect,
 
-            render_index: ZIndex(0),
+            widget_count: 0,
+            widget_count_offsets: ParallelSegmentOffsets::default(),
 
             clear_color: Some(color::rgba(0, 0, 0, 0).into()),
         }
@@ -427,15 +430,15 @@ impl FrameBuilder {
             bounds.set_is_partially_culled(false);
         }
 
-        let can_reuse = match bounds.rendered() {
+        let can_reuse = match bounds.render_info() {
             Some(i) => i.visible == self.visible,
             // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
             None => false,
         };
         let parent_can_reuse = mem::replace(&mut self.can_reuse, can_reuse);
 
-        self.render_index.0 += 1;
-        let widget_z = self.render_index;
+        self.widget_count += 1;
+        let widget_z = self.widget_count;
 
         let mut undo_prev_outer_transform = None;
         if reuse.is_some() {
@@ -494,13 +497,13 @@ impl FrameBuilder {
                     None
                 }
             });
-            let z_patch = bounds.rendered().map(|i| widget_z.0 as i64 - i.back.0 as i64).unwrap_or(0);
+            let z_patch = bounds.render_info().map(|i| widget_z as i64 - i.back as i64).unwrap_or(0);
 
             let update_transforms = transform_patch.is_some();
-            let update_z = z_patch != 0;
+            let seg_id = self.widget_count_offsets.id();
 
             // apply patches, only iterates over descendants once.
-            if update_transforms && update_z {
+            if update_transforms {
                 let transform_patch = transform_patch.unwrap();
 
                 // patch current widget's inner.
@@ -518,14 +521,15 @@ impl FrameBuilder {
                         info.parent().map(|p| p.inner_bounds()),
                     );
 
-                    if let Some(info) = bounds.rendered() {
-                        let back = info.back.0 as i64 + z_patch;
-                        let front = info.front.0 as i64 + z_patch;
+                    if let Some(i) = bounds.render_info() {
+                        let back = i.back as i64 + z_patch;
+                        let front = i.front as i64 + z_patch;
                         bounds.set_rendered(
                             Some(WidgetRenderInfo {
                                 visible: self.visible,
-                                back: ZIndex(back as u32),
-                                front: ZIndex(front as u32),
+                                seg_id,
+                                back: back as _,
+                                front: front as _,
                             }),
                             &tree,
                         );
@@ -538,41 +542,20 @@ impl FrameBuilder {
                 } else {
                     targets.for_each(update_transforms_and_z);
                 }
-            } else if update_transforms {
-                let transform_patch = transform_patch.unwrap();
-
-                bounds.set_inner_transform(bounds.inner_transform().then(&transform_patch), &tree, id, self.parent_inner_bounds);
-
-                let update_transforms = |info: WidgetInfo| {
-                    let bounds = info.bounds_info();
-
-                    bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), &tree);
-                    bounds.set_inner_transform(
-                        bounds.inner_transform().then(&transform_patch),
-                        &tree,
-                        info.id(),
-                        info.parent().map(|p| p.inner_bounds()),
-                    );
-                };
-
-                let targets = tree.get(id).unwrap().descendants();
-                if PARALLEL_VAR.get().contains(Parallel::RENDER) {
-                    targets.par_bridge().for_each(update_transforms);
-                } else {
-                    targets.for_each(update_transforms);
-                }
-            } else if update_z {
+            } else {
                 let update_z = |info: WidgetInfo| {
                     let bounds = info.bounds_info();
 
-                    if let Some(info) = bounds.rendered() {
-                        let back = info.back.0 as i64 + z_patch;
-                        let front = info.front.0 as i64 + z_patch;
+                    if let Some(i) = bounds.render_info() {
+                        let back = i.back as i64 + z_patch;
+                        let front = i.front as i64 + z_patch;
+
                         bounds.set_rendered(
                             Some(WidgetRenderInfo {
-                                visible: info.visible,
-                                back: ZIndex(back as u32),
-                                front: ZIndex(front as u32),
+                                visible: i.visible,
+                                seg_id,
+                                back: back as _,
+                                front: front as _,
                             }),
                             &tree,
                         );
@@ -588,14 +571,15 @@ impl FrameBuilder {
             }
 
             // increment by reused
-            self.render_index = bounds.rendered().map(|i| i.front).unwrap_or(self.render_index);
+            self.widget_count = bounds.render_info().map(|i| i.front).unwrap_or(self.widget_count);
         } else {
             // if did not reuse and rendered
             bounds.set_rendered(
                 Some(WidgetRenderInfo {
                     visible: self.display_list.len() > display_count,
+                    seg_id: self.widget_count_offsets.id(),
                     back: widget_z,
-                    front: self.render_index,
+                    front: self.widget_count,
                 }),
                 &tree,
             );
@@ -1358,7 +1342,8 @@ impl FrameBuilder {
             can_reuse: self.can_reuse,
             open_reuse: None,
             clear_color: None,
-            render_index: ZIndex(0),
+            widget_count: 0,
+            widget_count_offsets: self.widget_count_offsets.parallel_split(),
         }))
     }
 
@@ -1370,8 +1355,10 @@ impl FrameBuilder {
         }
         self.hit_clips.parallel_fold(split.hit_clips);
         self.display_list.parallel_fold(split.display_list);
+        self.widget_count_offsets
+            .parallel_fold(split.widget_count_offsets, self.widget_count);
 
-        self.render_index += split.render_index;
+        self.widget_count += split.widget_count;
     }
 
     /// Finalizes the build.
@@ -1379,12 +1366,14 @@ impl FrameBuilder {
         info_tree.root().bounds_info().set_rendered(
             Some(WidgetRenderInfo {
                 visible: self.visible,
-                back: ZIndex(0),
-                front: self.render_index,
+                seg_id: 0,
+                back: 0,
+                front: self.widget_count,
             }),
             info_tree,
         );
-        info_tree.after_render(self.frame_id, self.scale_factor);
+
+        info_tree.after_render(self.frame_id, self.scale_factor, Some(self.widget_count_offsets));
 
         let display_list = self.display_list.finalize();
 

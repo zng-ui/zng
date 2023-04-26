@@ -1,4 +1,4 @@
-use crate::{units::*, widget_info::*, widget_instance::ZIndex, window::WindowId};
+use crate::{units::*, widget_info::*, window::WindowId};
 
 use super::*;
 
@@ -23,8 +23,9 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
                 Some(rect.origin.to_vector().into()),
                 Some(WidgetRenderInfo {
                     visible: true,
-                    back: ZIndex::BACK,
-                    front: ZIndex::BACK,
+                    seg_id: 0,
+                    back: 0,
+                    front: 0,
                 }),
             ),
             WidgetBorderInfo::new(),
@@ -103,8 +104,9 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
             None,
             Some(WidgetRenderInfo {
                 visible: true,
-                back: ZIndex::BACK,
-                front: ZIndex::BACK,
+                seg_id: 0,
+                back: 0,
+                front: 0,
             }),
         ),
         WidgetBorderInfo::new(),

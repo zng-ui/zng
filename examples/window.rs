@@ -34,7 +34,7 @@ async fn main_window() -> WindowRoot {
 
     let background = var(colors::BLACK);
 
-    // !!: 
+    // !!:
     LAYERS.insert(
         LayerIndex::TOP_MOST,
         Text! {

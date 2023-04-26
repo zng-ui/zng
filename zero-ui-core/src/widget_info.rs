@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     context::{LayoutMetricsSnapshot, OwnedStateMap, StateMapRef},
-    crate_util::IdMap,
+    crate_util::{IdMap, ParallelSegmentId, ParallelSegmentOffsets},
     impl_from_and_into_var,
     render::{FrameId, FrameValueUpdate},
     text::Txt,
@@ -19,7 +19,7 @@ use crate::{
 };
 
 mod tree;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use tree::Tree;
 
 mod path;
@@ -120,7 +120,7 @@ struct WidgetInfoTreeInner {
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
     build_meta: Arc<OwnedStateMap<WidgetInfoMeta>>,
-    frame: Mutex<WidgetInfoTreeFrame>,
+    frame: RwLock<WidgetInfoTreeFrame>,
 }
 // info that updates every frame
 struct WidgetInfoTreeFrame {
@@ -131,6 +131,8 @@ struct WidgetInfoTreeFrame {
 
     out_of_bounds: Arc<Vec<tree::NodeId>>,
     spatial_bounds: PxBox,
+
+    widget_count_offsets: ParallelSegmentOffsets,
 }
 impl PartialEq for WidgetInfoTree {
     fn eq(&self, other: &Self) -> bool {
@@ -148,12 +150,12 @@ impl WidgetInfoTree {
 
     /// Statistics abound the info tree.
     pub fn stats(&self) -> WidgetInfoTreeStats {
-        self.0.frame.lock().stats.clone()
+        self.0.frame.read().stats.clone()
     }
 
     /// Scale factor of the last rendered frame.
     pub fn scale_factor(&self) -> Factor {
-        self.0.frame.lock().scale_factor
+        self.0.frame.read().scale_factor
     }
 
     /// Custom metadata associated with the tree during info build.
@@ -197,19 +199,19 @@ impl WidgetInfoTree {
     /// If the widgets in this tree have been rendered at least once, after the first render the widget bounds info are always up-to-date
     /// and spatial queries can be made on the widgets.
     pub fn is_rendered(&self) -> bool {
-        self.0.frame.lock().stats.last_frame != FrameId::INVALID
+        self.0.frame.read().stats.last_frame != FrameId::INVALID
     }
 
     /// Iterator over all widgets with inner-bounds not fully contained by their parent inner bounds.
     pub fn out_of_bounds(&self) -> impl std::iter::ExactSizeIterator<Item = WidgetInfo> {
-        let out = self.0.frame.lock().out_of_bounds.clone();
+        let out = self.0.frame.read().out_of_bounds.clone();
         let me = self.clone();
         (0..out.len()).map(move |i| WidgetInfo::new(me.clone(), out[i]))
     }
 
     /// Gets the bounds box that envelops all widgets, including the out-of-bounds widgets.
     pub fn spatial_bounds(&self) -> PxRect {
-        self.0.frame.lock().spatial_bounds.to_rect()
+        self.0.frame.read().spatial_bounds.to_rect()
     }
 
     /// Total number of widgets in the tree.
@@ -221,20 +223,20 @@ impl WidgetInfoTree {
     }
 
     fn bounds_changed(&self) {
-        self.0.frame.lock().stats_update.bounds_updated += 1;
+        self.0.frame.write().stats_update.bounds_updated += 1;
     }
 
     fn in_bounds_changed(&self, widget_id: WidgetId, in_bounds: bool) {
         let id = *self.0.lookup.get(&widget_id).unwrap();
-        self.0.frame.lock().out_of_bounds_update.push((id, in_bounds));
+        self.0.frame.write().out_of_bounds_update.push((id, in_bounds));
     }
 
     fn visibility_changed(&self) {
-        self.0.frame.lock().stats_update.vis_updated += 1;
+        self.0.frame.write().stats_update.vis_updated += 1;
     }
 
-    pub(crate) fn after_render(&self, frame_id: FrameId, scale_factor: Factor) {
-        let mut frame = self.0.frame.lock();
+    pub(crate) fn after_render(&self, frame_id: FrameId, scale_factor: Factor, widget_count_offsets: Option<ParallelSegmentOffsets>) {
+        let mut frame = self.0.frame.write();
         let stats_update = frame.stats_update.take();
         frame.stats.update(frame_id, stats_update);
 
@@ -265,11 +267,15 @@ impl WidgetInfoTree {
         frame.spatial_bounds = spatial_bounds;
 
         frame.scale_factor = scale_factor;
+
+        if let Some(w) = widget_count_offsets {
+            frame.widget_count_offsets = w;
+        }
     }
 
     pub(crate) fn after_render_update(&self, frame_id: FrameId) {
-        let scale_factor = self.0.frame.lock().scale_factor;
-        self.after_render(frame_id, scale_factor);
+        let scale_factor = self.0.frame.read().scale_factor;
+        self.after_render(frame_id, scale_factor, None);
     }
 }
 impl fmt::Debug for WidgetInfoTree {
@@ -321,25 +327,16 @@ struct WidgetBoundsData {
     is_collapsed: bool,
 }
 
-/// Info abound the last time a widget was rendered.
-///
-/// Use [`WidgetBoundsInfo::rendered`] to access the render info for q widget.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct WidgetRenderInfo {
-    /// If the widget generated display items.
-    ///
-    /// If this is `false` the widget was [`Hidden`], collapsed widgets have no render info. Hidden
-    /// widgets don't visually render anything, but they can render hit-test shapes and transforms.
-    ///
-    /// If a widget is not visible, all descendant widgets are also not visible.
-    ///
-    /// [`Hidden`]: Visibility::Hidden
+/// Widget render data.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct WidgetRenderInfo {
+    // Visible/hidden.
     pub visible: bool,
 
-    /// Z-index at the back of all descendants.
-    pub back: ZIndex,
-    /// Z-index in front of all descendants.
-    pub front: ZIndex,
+    // raw z-index in widget_count units.
+    pub seg_id: ParallelSegmentId,
+    pub back: usize,
+    pub front: usize,
 }
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
@@ -363,7 +360,7 @@ impl WidgetBoundsInfo {
 
     /// Constructor for tests.
     #[cfg(test)]
-    pub fn new_test(
+    pub(crate) fn new_test(
         inner: PxRect,
         outer: Option<PxRect>,
         outer_transform: Option<PxTransform>,
@@ -507,7 +504,11 @@ impl WidgetBoundsInfo {
     }
 
     /// Gets the widget's latest render info, if it was rendered visible or hidden. Returns `None` if the widget was collapsed.
-    pub fn rendered(&self) -> Option<WidgetRenderInfo> {
+    pub fn rendered(&self) -> Option<bool> {
+        self.0.lock().rendered.map(|i| i.visible)
+    }
+
+    pub(crate) fn render_info(&self) -> Option<WidgetRenderInfo> {
         self.0.lock().rendered
     }
 
@@ -1097,7 +1098,10 @@ impl WidgetInfo {
     ///
     /// [`render`]: crate::widget_instance::UiNode::render
     pub fn z_index(&self) -> Option<(ZIndex, ZIndex)> {
-        self.info().bounds_info.rendered().map(|i| (i.back, i.front))
+        self.info().bounds_info.render_info().map(|i| {
+            let offset = self.tree.0.frame.read().widget_count_offsets.offset(i.seg_id);
+            (ZIndex((i.back + offset) as u32), ZIndex((i.front + offset) as u32))
+        })
     }
 
     /// Gets the visibility of the widget or the widget's descendants in the last rendered frame.
@@ -1111,7 +1115,7 @@ impl WidgetInfo {
     pub fn visibility(&self) -> Visibility {
         match self.info().bounds_info.rendered() {
             Some(vis) => {
-                if vis.visible {
+                if vis {
                     Visibility::Visible
                 } else {
                     Visibility::Hidden
@@ -1463,26 +1467,33 @@ impl WidgetInfo {
         if bounds.inner_bounds().contains(point) {
             let z = match bounds.hit_test_z(point) {
                 RelativeHitZ::NoHit => None,
-                RelativeHitZ::Back => bounds.rendered().map(|i| i.back),
-                RelativeHitZ::Over(w) => self.tree.get(w).and_then(|w| w.info().bounds_info.rendered()).map(|i| i.front),
-                RelativeHitZ::Front => bounds.rendered().map(|i| i.front),
+                RelativeHitZ::Back => bounds.render_info().map(|i| (i.seg_id, i.back)),
+                RelativeHitZ::Over(w) => self
+                    .tree
+                    .get(w)
+                    .and_then(|w| w.info().bounds_info.render_info())
+                    .map(|i| (i.seg_id, i.front)),
+                RelativeHitZ::Front => bounds.render_info().map(|i| (i.seg_id, i.front)),
             };
 
-            if z.is_some() {
-                let mut parent = self.parent();
-                let mut child = self.clone();
+            match z {
+                Some((seg_id, z)) => {
+                    let mut parent = self.parent();
+                    let mut child = self.clone();
 
-                while let Some(p) = parent {
-                    if p.info().bounds_info.hit_test_clip_child(&child, point) {
-                        return None;
+                    while let Some(p) = parent {
+                        if p.info().bounds_info.hit_test_clip_child(&child, point) {
+                            return None;
+                        }
+
+                        parent = p.parent();
+                        child = p;
                     }
 
-                    parent = p.parent();
-                    child = p;
+                    Some(ZIndex((z + self.tree.0.frame.read().widget_count_offsets.offset(seg_id)) as u32))
                 }
+                None => None,
             }
-
-            z
         } else {
             None
         }
@@ -1585,7 +1596,7 @@ impl WidgetInfo {
 
         HitTestInfo {
             window_id: self.tree.0.window_id,
-            frame_id: self.tree.0.frame.lock().stats.last_frame,
+            frame_id: self.tree.0.frame.read().stats.last_frame,
             point,
             hits,
         }

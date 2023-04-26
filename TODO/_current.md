@@ -1,9 +1,5 @@
 * Parallel render.
-    - `render_index` not compatible with parallel render.
-        - We used to count on the fact that each widget is rendered in order, now this is only true
-          in each parallel segment.
-        - 
-    - Update transforms of reused branches in parallel (`self_and_descendants_par`).
+    - Fix hit-test/z-index when parallel render is enabled.
 
 
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.

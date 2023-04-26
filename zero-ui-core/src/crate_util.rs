@@ -1487,3 +1487,78 @@ macro_rules! trace_assert {
         }
     };
 }
+
+/// See [`ParallelSegmentOffsets`].
+pub(crate) type ParallelSegmentId = usize;
+
+/// Tracks the position of a range of items in a list that was built in parallel.
+#[derive(Debug)]
+pub(crate) struct ParallelSegmentOffsets {
+    id: ParallelSegmentId,
+    id_gen: Arc<AtomicUsize>,
+    used: bool,
+    segments: Vec<(ParallelSegmentId, usize)>,
+}
+impl Default for ParallelSegmentOffsets {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            used: false,
+            id_gen: Arc::new(AtomicUsize::new(1)),
+            segments: vec![],
+        }
+    }
+}
+impl ParallelSegmentOffsets {
+    /// Gets the segment ID and flags the current tracking offsets as used.
+    pub fn id(&mut self) -> ParallelSegmentId {
+        self.used = true;
+        self.id
+    }
+
+    /// Resolve the `id` offset, after build.
+    pub fn offset(&self, id: ParallelSegmentId) -> usize {
+        self.segments
+            .iter()
+            .find_map(|&(i, o)| if i == id { Some(o) } else { None })
+            .unwrap_or_else(|| {
+                if id != 0 {
+                    tracing::error!("segment offset for `{id}` not found");
+                }
+                0
+            })
+    }
+
+    /// Start new parallel segment.
+    pub fn parallel_split(&self) -> Self {
+        Self {
+            used: false,
+            id: self.id_gen.fetch_add(1, atomic::Ordering::Relaxed),
+            id_gen: self.id_gen.clone(),
+            segments: vec![],
+        }
+    }
+
+    /// Merge parallel segment at the given `offset`.
+    pub fn parallel_fold(&mut self, mut split: Self, offset: usize) {
+        if !Arc::ptr_eq(&self.id_gen, &split.id_gen) {
+            tracing::error!("cannot parallel fold segments not split from the same root");
+            return;
+        }
+
+        if offset > 0 {
+            for (_, o) in &mut split.segments {
+                *o += offset;
+            }
+        }
+
+        if self.segments.is_empty() {
+            self.segments = split.segments;
+        } else {
+            self.segments.append(&mut split.segments);
+        }
+        if split.used {
+            self.segments.push((split.id, offset));
+        }
+    }
+}
