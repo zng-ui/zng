@@ -1492,7 +1492,7 @@ macro_rules! trace_assert {
 pub(crate) type ParallelSegmentId = usize;
 
 /// Tracks the position of a range of items in a list that was built in parallel.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct ParallelSegmentOffsets {
     id: ParallelSegmentId,
     id_gen: Arc<AtomicUsize>,

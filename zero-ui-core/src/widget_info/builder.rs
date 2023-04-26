@@ -231,11 +231,23 @@ impl WidgetInfoBuilder {
     }
 
     /// Build the info tree.
-    pub fn finalize(mut self, generation: u32) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
+    pub fn finalize(mut self, previous_tree: Option<WidgetInfoTree>) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
         let mut node = self.tree.root_mut();
         let meta = Arc::new(self.meta);
         node.value().meta = meta;
         node.close();
+
+        let generation;
+        let widget_count_offsets;
+
+        if let Some(t) = previous_tree {
+            let t = t.0.frame.read();
+            generation = t.stats.generation.wrapping_add(1);
+            widget_count_offsets = t.widget_count_offsets.clone();
+        } else {
+            generation = 0;
+            widget_count_offsets = ParallelSegmentOffsets::default()
+        }
 
         let r = WidgetInfoTree(Arc::new(WidgetInfoTreeInner {
             window_id: self.window_id,
@@ -250,7 +262,7 @@ impl WidgetInfoBuilder {
                 out_of_bounds_update: Default::default(),
                 scale_factor: self.scale_factor,
                 spatial_bounds: PxBox::zero(),
-                widget_count_offsets: ParallelSegmentOffsets::default(),
+                widget_count_offsets,
             }),
 
             tree: self.tree,

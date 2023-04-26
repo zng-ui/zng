@@ -1555,7 +1555,7 @@ impl ContentCtrl {
                 self.root.info(&mut info);
             });
 
-            let (info, used) = info.finalize(WINDOW.widget_tree().stats().generation.wrapping_add(1));
+            let (info, used) = info.finalize(Some(WINDOW.widget_tree()));
             self.used_info_builder = Some(used);
 
             WINDOWS.set_widget_tree(

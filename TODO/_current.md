@@ -1,7 +1,3 @@
-* Parallel render.
-    - Fix hit-test/z-index when parallel render is enabled.
-
-
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.
     - The problem is the custom accumulator `T`, need to smuggle this type pass the `dyn`.
 

@@ -514,7 +514,7 @@ impl WINDOW {
             None,
         );
         content.info(&mut info);
-        let tree = info.finalize(self.widget_tree().stats().generation.wrapping_add(1)).0;
+        let tree = info.finalize(Some(self.widget_tree())).0;
         *WINDOW_CTX.get().widget_tree.write() = Some(tree);
         UPDATES.apply()
     }

@@ -522,11 +522,13 @@ impl FrameBuilder {
                     );
 
                     if let Some(i) = bounds.render_info() {
-                        let back = i.back as i64 + z_patch;
-                        let front = i.front as i64 + z_patch;
+                        let (back, front) = info.z_index().unwrap();
+                        let back = back.0 as i64 + z_patch;
+                        let front = front.0 as i64 + z_patch;
+
                         bounds.set_rendered(
                             Some(WidgetRenderInfo {
-                                visible: self.visible,
+                                visible: i.visible,
                                 seg_id,
                                 back: back as _,
                                 front: front as _,
@@ -547,8 +549,9 @@ impl FrameBuilder {
                     let bounds = info.bounds_info();
 
                     if let Some(i) = bounds.render_info() {
-                        let back = i.back as i64 + z_patch;
-                        let front = i.front as i64 + z_patch;
+                        let (back, front) = info.z_index().unwrap();
+                        let back = back.0 as i64 + z_patch;
+                        let front = front.0 as i64 + z_patch;
 
                         bounds.set_rendered(
                             Some(WidgetRenderInfo {
