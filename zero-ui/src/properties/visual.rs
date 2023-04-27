@@ -588,8 +588,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                         child.layout(wl)
                     }
                 }
-                InlineMode::Block =>
-                {
+                InlineMode::Block => {
                     if wl.inline().is_some() {
                         tracing::error!("inline enabled in `layout` when it signaled disabled in the previous `measure`");
                         LAYOUT.layout_block(wl, child)

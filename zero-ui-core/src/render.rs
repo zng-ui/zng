@@ -497,7 +497,9 @@ impl FrameBuilder {
                     None
                 }
             });
-            let z_patch = bounds.render_info().map(|i| widget_z as i64 - i.back as i64).unwrap_or(0);
+
+            let current_wgt = tree.get(id).unwrap();
+            let z_patch = widget_z as i64 - current_wgt.z_index().map(|(b, _)| b.0 as i64).unwrap_or(0);
 
             let update_transforms = transform_patch.is_some();
             let seg_id = self.widget_count_offsets.id();
@@ -538,7 +540,7 @@ impl FrameBuilder {
                     }
                 };
 
-                let targets = tree.get(id).unwrap().descendants();
+                let targets = current_wgt.descendants();
                 if PARALLEL_VAR.get().contains(Parallel::RENDER) {
                     targets.par_bridge().for_each(update_transforms_and_z);
                 } else {
@@ -565,7 +567,7 @@ impl FrameBuilder {
                     }
                 };
 
-                let targets = tree.get(id).unwrap().self_and_descendants();
+                let targets = current_wgt.self_and_descendants();
                 if PARALLEL_VAR.get().contains(Parallel::RENDER) {
                     targets.par_bridge().for_each(update_z);
                 } else {
