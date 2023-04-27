@@ -27,7 +27,7 @@ pub struct WidgetInfoBuilder {
 
     scale_factor: Factor,
 
-    build_meta: OwnedStateMap<WidgetInfoMeta>,
+    build_meta: Arc<Mutex<OwnedStateMap<WidgetInfoMeta>>>,
 
     build_start: Instant,
     pushed_widgets: u32,
@@ -66,7 +66,7 @@ impl WidgetInfoBuilder {
             meta: OwnedStateMap::new(),
             widget_id: root_id,
             scale_factor,
-            build_meta: OwnedStateMap::new(),
+            build_meta: Arc::default(),
             build_start: Instant::now(),
             pushed_widgets: 1, // root is always new.
         }
@@ -84,8 +84,8 @@ impl WidgetInfoBuilder {
     /// Widget tree build metadata.
     ///
     /// This metadata can be modified only by pushed widgets, **not** by the reused widgets.
-    pub fn build_meta(&mut self) -> StateMapMut<WidgetInfoMeta> {
-        self.build_meta.borrow_mut()
+    pub fn with_build_meta<R>(&mut self, visitor: impl FnOnce(StateMapMut<WidgetInfoMeta>) -> R) -> R {
+        visitor(self.build_meta.lock().borrow_mut())
     }
 
     /// Current widget metadata.
@@ -224,6 +224,23 @@ impl WidgetInfoBuilder {
         before_count..self.tree.index(self.node).children_count()
     }
 
+    pub fn parallel_split(&self) -> ParallelBuilder<Self> {
+        ParallelBuilder(Some(Self {
+            window_id: self.window_id,
+            node: self.node,
+            widget_id: self.widget_id,
+            meta: OwnedStateMap::new(),
+            tree: todo!(),
+            lookup: todo!(),
+            interactivity_filters: todo!(),
+            scale_factor: self.scale_factor,
+            build_meta: self.build_meta.clone(),
+            build_start: self.build_start,
+            pushed_widgets: self.pushed_widgets,
+            out_of_bounds: vec![],
+        }))
+    }
+
     /// Build the info tree.
     pub fn finalize(mut self, previous_tree: Option<WidgetInfoTree>) -> WidgetInfoTree {
         let mut node = self.tree.root_mut();
@@ -247,7 +264,7 @@ impl WidgetInfoBuilder {
             window_id: self.window_id,
             lookup: self.lookup,
             interactivity_filters: self.interactivity_filters,
-            build_meta: Arc::new(self.build_meta),
+            build_meta: Arc::new(mem::take(&mut self.build_meta.lock())),
 
             frame: RwLock::new(WidgetInfoTreeFrame {
                 stats: WidgetInfoTreeStats::new(self.build_start, self.tree.len() as u32 - self.pushed_widgets, generation),

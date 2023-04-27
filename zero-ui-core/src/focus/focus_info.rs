@@ -1704,7 +1704,7 @@ impl<'a> FocusInfoBuilder<'a> {
     /// New the builder.
     pub fn new(builder: &'a mut WidgetInfoBuilder) -> Self {
         let mut r = Self(builder);
-        r.tree_data(); // ensure that build meta is allocated.
+        r.with_tree_data(|_| {}); // ensure that build meta is allocated.
         r
     }
 
@@ -1712,8 +1712,8 @@ impl<'a> FocusInfoBuilder<'a> {
         self.0.meta().into_entry(&FOCUS_INFO_ID).or_default()
     }
 
-    fn tree_data(&mut self) -> &mut FocusTreeData {
-        self.0.build_meta().into_entry(&FOCUS_TREE_ID).or_default()
+    fn with_tree_data<R>(&mut self, visitor: impl FnOnce(&mut FocusTreeData) -> R) -> R {
+        self.0.with_build_meta(|m| visitor(m.into_entry(&FOCUS_TREE_ID).or_default()))
     }
 
     /// If the widget is definitely focusable or not.
@@ -1754,7 +1754,7 @@ impl<'a> FocusInfoBuilder<'a> {
             }
 
             let wgt_id = self.0.widget_id();
-            self.tree_data().alt_scopes.lock().insert(wgt_id);
+            self.with_tree_data(|d| d.alt_scopes.lock().insert(wgt_id));
         }
 
         self

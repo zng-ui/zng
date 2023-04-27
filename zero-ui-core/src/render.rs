@@ -530,8 +530,8 @@ impl FrameBuilder {
                             Some(WidgetRenderInfo {
                                 visible: i.visible,
                                 seg_id,
-                                back: back as _,
-                                front: front as _,
+                                back: back.try_into().unwrap(),
+                                front: front.try_into().unwrap(),
                             }),
                             &tree,
                         );
@@ -557,8 +557,8 @@ impl FrameBuilder {
                             Some(WidgetRenderInfo {
                                 visible: i.visible,
                                 seg_id,
-                                back: back as _,
-                                front: front as _,
+                                back: back.try_into().unwrap(),
+                                front: front.try_into().unwrap(),
                             }),
                             &tree,
                         );

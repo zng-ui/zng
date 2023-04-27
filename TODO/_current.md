@@ -1,3 +1,6 @@
+* Bug found in example `focus`:
+    - Open the nested window and hold up arrow for about 10 seconds -> panics due to negative value
+
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.
     - The problem is the custom accumulator `T`, need to smuggle this type pass the `dyn`.
 
