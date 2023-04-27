@@ -32,15 +32,14 @@ pub(super) struct Tree<T> {
 }
 impl<T> Tree<T> {
     pub(super) fn new(root: T) -> Self {
-        let mut nodes = vec![];
-        nodes.push(Node {
+        let nodes = vec![Node {
             parent: None,
             prev_sibling: None,
             next_sibling: None,
             last_child: None,
             descendants_end: 1,
             value: root,
-        });
+        }];
 
         Tree { nodes }
     }
