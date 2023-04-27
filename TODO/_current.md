@@ -1,9 +1,7 @@
 * Parallel info updates.
-    - Refactor lookup validation to just avoid inserting the widget and logging an error.
-    - Same validation in `parallel_fold`, except the widget is removed?
-        - Nope, can't remove items from the tree.
-            - Can implement remove, maybe its just a range skip right?
     - Implement `UiNodeList::info_all`.
+
+* Icon example fails hit-tests after fast scroll.
 
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.
     - The problem is the custom accumulator `T`, need to smuggle this type pass the `dyn`.

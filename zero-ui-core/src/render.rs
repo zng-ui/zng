@@ -1352,7 +1352,7 @@ impl FrameBuilder {
         }))
     }
 
-    /// Collect updates from `split` into `self`.
+    /// Collect display list from `split` into `self`.
     pub fn parallel_fold(&mut self, mut split: ParallelBuilder<Self>) {
         let split = split.take();
         if split.clear_color.is_some() {

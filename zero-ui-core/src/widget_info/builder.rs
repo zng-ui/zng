@@ -22,7 +22,6 @@ pub struct WidgetInfoBuilder {
     meta: OwnedStateMap<WidgetInfoMeta>,
 
     tree: Tree<WidgetInfoData>,
-    lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
 
     scale_factor: Factor,
@@ -31,8 +30,6 @@ pub struct WidgetInfoBuilder {
 
     build_start: Instant,
     pushed_widgets: u32,
-
-    out_of_bounds: Vec<tree::NodeId>,
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information.
@@ -61,8 +58,6 @@ impl WidgetInfoBuilder {
             node: root_node,
             tree,
             interactivity_filters: vec![],
-            out_of_bounds: vec![],
-            lookup,
             meta: OwnedStateMap::new(),
             widget_id: root_id,
             scale_factor,
@@ -105,8 +100,6 @@ impl WidgetInfoBuilder {
         let parent_widget_id = self.widget_id;
         let parent_meta = mem::take(&mut self.meta);
 
-        let was_out_of_bounds = bounds_info.is_actually_out_of_bounds();
-
         self.widget_id = id;
         self.node = self
             .node(parent_node)
@@ -121,15 +114,7 @@ impl WidgetInfoBuilder {
             })
             .id();
 
-        if was_out_of_bounds {
-            self.out_of_bounds.push(self.node);
-        }
-
         self.pushed_widgets += 1;
-
-        if self.lookup.insert(id, self.node).is_some() {
-            panic!("pushed widget `{id:?}` was already pushed or reused");
-        }
 
         f(self);
 
@@ -167,26 +152,14 @@ impl WidgetInfoBuilder {
             .get(id)
             .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", id));
 
-        self.tree.index_mut(self.node).push_reuse(
-            wgt.node(),
-            &mut |old_data| {
-                let r = old_data.clone();
-                r.cache.lock().interactivity = None;
-                for filter in &r.interactivity_filters {
-                    self.interactivity_filters.push(filter.clone());
-                }
-                r
-            },
-            &mut |new_node| {
-                let wgt_id = new_node.value().id;
-                if self.lookup.insert(wgt_id, new_node.id()).is_some() {
-                    panic!("reused widget `{wgt_id:?}` was already pushed or reused");
-                }
-                if new_node.value().bounds_info.is_actually_out_of_bounds() {
-                    self.out_of_bounds.push(new_node.id());
-                }
-            },
-        );
+        self.tree.index_mut(self.node).push_reuse(wgt.node(), &mut |old_data| {
+            let r = old_data.clone();
+            r.cache.lock().interactivity = None;
+            for filter in &r.interactivity_filters {
+                self.interactivity_filters.push(filter.clone());
+            }
+            r
+        });
     }
 
     /// Add the `interactivity` bits to the current widget's interactivity, it will affect the widget and all descendants.
@@ -224,21 +197,49 @@ impl WidgetInfoBuilder {
         before_count..self.tree.index(self.node).children_count()
     }
 
+    /// Create a new info builder that can be built in parallel and merged back onto this list using [`parallel_fold`].
+    ///
+    /// Note that this must be called just before [`push_widget`], trying to modify the current widget info using the returned
+    /// builder will not work properly.
+    ///
+    /// [`parallel_fold`]: Self::parallel_fold
+    /// [`push_widget`]: Self::push_widget
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
+        let tree = Tree::new(self.tree.root().value().clone());
         ParallelBuilder(Some(Self {
             window_id: self.window_id,
-            node: self.node,
             widget_id: self.widget_id,
             meta: OwnedStateMap::new(),
-            tree: todo!(),
-            lookup: todo!(),
-            interactivity_filters: todo!(),
+            node: tree.root().id(),
+            tree,
+            interactivity_filters: vec![],
             scale_factor: self.scale_factor,
             build_meta: self.build_meta.clone(),
             build_start: self.build_start,
-            pushed_widgets: self.pushed_widgets,
-            out_of_bounds: vec![],
+            pushed_widgets: 0,
         }))
+    }
+
+    /// Collect info from `split` into `self`.
+    pub fn parallel_fold(&mut self, mut split: ParallelBuilder<Self>) {
+        if !split.meta.borrow().is_empty() {
+            tracing::error!("info added for parallel split `{}` ignored", self.widget_id);
+        }
+
+        let mut split = split.take();
+
+        self.interactivity_filters.append(&mut split.interactivity_filters);
+        self.pushed_widgets += split.pushed_widgets;
+
+        self.tree.index_mut(self.node).parallel_fold(split.tree, &mut |d| WidgetInfoData {
+            id: d.id,
+            bounds_info: d.bounds_info.clone(),
+            border_info: d.border_info.clone(),
+            meta: d.meta.clone(),
+            interactivity_filters: mem::take(&mut d.interactivity_filters),
+            local_interactivity: d.local_interactivity,
+            cache: Mutex::new(d.cache.get_mut().clone()),
+        });
     }
 
     /// Build the info tree.
@@ -260,16 +261,30 @@ impl WidgetInfoBuilder {
             widget_count_offsets = ParallelSegmentOffsets::default()
         }
 
+        let mut lookup = IdMap::new();
+        lookup.reserve(self.tree.len());
+        let mut out_of_bounds = vec![];
+
+        for (id, data) in self.tree.iter() {
+            if lookup.insert(data.id, id).is_some() {
+                tracing::error!("widget `{}` repeated in info tree", data.id);
+            }
+            if data.bounds_info.is_actually_out_of_bounds() {
+                out_of_bounds.push(id);
+            }
+        }
+        out_of_bounds.shrink_to_fit();
+
         WidgetInfoTree(Arc::new(WidgetInfoTreeInner {
             window_id: self.window_id,
-            lookup: self.lookup,
+            lookup,
             interactivity_filters: self.interactivity_filters,
             build_meta: Arc::new(mem::take(&mut self.build_meta.lock())),
 
             frame: RwLock::new(WidgetInfoTreeFrame {
                 stats: WidgetInfoTreeStats::new(self.build_start, self.tree.len() as u32 - self.pushed_widgets, generation),
                 stats_update: Default::default(),
-                out_of_bounds: Arc::new(self.out_of_bounds),
+                out_of_bounds: Arc::new(out_of_bounds),
                 out_of_bounds_update: Default::default(),
                 scale_factor: self.scale_factor,
                 spatial_bounds: PxBox::zero(),

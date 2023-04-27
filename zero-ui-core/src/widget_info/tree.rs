@@ -67,6 +67,10 @@ impl<T> Tree<T> {
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
+
+    pub fn iter(&self) -> impl std::iter::ExactSizeIterator<Item = (NodeId, &T)> {
+        self.nodes.iter().enumerate().map(|(i, n)| (NodeId::new(i), &n.value))
+    }
 }
 impl<T> fmt::Debug for Tree<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -231,19 +235,52 @@ impl<'a, T> NodeMut<'a, T> {
         }
     }
 
-    pub fn push_reuse(&mut self, child: NodeRef<T>, reuse: &mut impl FnMut(&T) -> T, inspect: &mut impl FnMut(NodeRef<T>)) {
+    pub fn push_reuse(&mut self, child: NodeRef<T>, reuse: &mut impl FnMut(&T) -> T) {
         let mut clone = self.push_child(reuse(child.value()));
-        inspect(NodeRef {
-            tree: clone.tree,
-            id: clone.id,
-        });
 
         if let Some(mut child) = child.first_child() {
-            clone.push_reuse(child, reuse, inspect);
+            clone.push_reuse(child, reuse);
 
             while let Some(c) = child.next_sibling() {
                 child = c;
-                clone.push_reuse(c, reuse, inspect);
+                clone.push_reuse(c, reuse);
+            }
+        }
+
+        clone.close();
+    }
+
+    fn first_child(&mut self) -> Option<NodeMut<T>> {
+        self.tree.nodes[self.id.get()].last_child.map(|_| NodeMut {
+            tree: self.tree,
+            id: self.id.next(), // if we have a last child, we have a first one, just after `self`
+        })
+    }
+
+    pub fn parallel_fold(&mut self, mut split: Tree<T>, take: &mut impl FnMut(&mut T) -> T) {
+        if let Some(mut c) = split.root_mut().first_child() {
+            self.parallel_fold_node(&mut c, take);
+
+            let tree = c.tree;
+            let mut child_idx = c.id.get();
+            while let Some(id) = tree.nodes[child_idx].next_sibling {
+                self.parallel_fold_node(&mut NodeMut { tree, id }, take);
+                child_idx = id.get();
+            }
+        }
+    }
+
+    fn parallel_fold_node(&mut self, split: &mut NodeMut<T>, take: &mut impl FnMut(&mut T) -> T) {
+        let mut clone = self.push_child(take(split.value()));
+
+        if let Some(mut child) = split.first_child() {
+            clone.parallel_fold_node(&mut child, take);
+
+            let tree = child.tree;
+            let mut child_idx = child.id.get();
+            while let Some(id) = tree.nodes[child_idx].next_sibling {
+                clone.parallel_fold_node(&mut NodeMut { tree, id }, take);
+                child_idx = id.get();
             }
         }
 
