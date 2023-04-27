@@ -53,7 +53,7 @@ macro_rules! ui_vec {
     ($node:expr; $n:expr) => {
         {
             let mut n: usize = $n;
-            let mut vec = UiNodeVec::with_capacity(n);
+            let mut vec = $crate::widget_instance::UiNodeVec::with_capacity(n);
             while n > 0 {
                 vec.push($node);
                 n -= 1;
@@ -61,14 +61,60 @@ macro_rules! ui_vec {
             vec
         }
     };
-    ($($node:expr),+ $(,)?) => {
-        $crate::widget_instance::UiNodeVec(vec![
-            $($crate::widget_instance::UiNode::boxed($node)),*
-        ])
+    ($($nodes:tt)+) => {
+        $crate::ui_vec_items! {
+            match { $($nodes)+ }
+            result { }
+        }
     };
 }
 #[doc(inline)]
 pub use crate::ui_vec;
+
+// attribute to support `#[cfg(_)]` in items, Rust does not allow a match to `$(#[$meta:meta])* $node:expr`.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! ui_vec_items {
+    // match attribute
+    (
+        match { #[$meta:meta] $($tt:tt)* }
+        result { $($r:tt)* }
+    ) => {
+        $crate::ui_vec_items! {
+            match { $($tt)* }
+            result { $($r)* #[$meta] }
+        }
+    };
+    // match node expr followed by comma
+    (
+        match { $node:expr, $($tt:tt)* }
+        result { $($r:tt)* }
+    ) => {
+        $crate::ui_vec_items! {
+            match { $($tt)* }
+            result { $($r)* $crate::widget_instance::UiNode::boxed($node), }
+        }
+    };
+    // match last node expr, no trailing comma
+    (
+        match { $node:expr }
+        result { $($r:tt)* }
+    ) => {
+        $crate::ui_vec_items! {
+            match { }
+            result { $($r)* $crate::widget_instance::UiNode::boxed($node) }
+        }
+    };
+    // finished
+    (
+        match { }
+        result { $($r:tt)* }
+    ) => {
+        $crate::widget_instance::UiNodeVec(std::vec![
+            $($r)*
+        ])
+    };
+}
 
 impl UiNodeList for Vec<BoxedUiNode> {
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
