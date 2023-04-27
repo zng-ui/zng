@@ -143,9 +143,7 @@ impl Eq for WidgetInfoTree {}
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     pub fn wgt(window_id: WindowId, root_id: WidgetId) -> Self {
-        WidgetInfoBuilder::new(window_id, root_id, WidgetBoundsInfo::new(), WidgetBorderInfo::new(), 1.fct(), None)
-            .finalize(None)
-            .0
+        WidgetInfoBuilder::new(window_id, root_id, WidgetBoundsInfo::new(), WidgetBorderInfo::new(), 1.fct()).finalize(None)
     }
 
     /// Statistics abound the info tree.
@@ -1788,22 +1786,6 @@ impl WidgetInfo {
         }
 
         nearest
-    }
-}
-
-/// Data from a previous [`WidgetInfoBuilder`], can be reused in the next rebuild for a performance boost.
-pub struct UsedWidgetInfoBuilder {
-    tree_capacity: usize,
-    interactivity_filters_capacity: usize,
-    out_of_bounds_capacity: usize,
-}
-impl UsedWidgetInfoBuilder {
-    fn fallback() -> Self {
-        UsedWidgetInfoBuilder {
-            tree_capacity: 100,
-            interactivity_filters_capacity: 30,
-            out_of_bounds_capacity: 10,
-        }
     }
 }
 

@@ -31,8 +31,8 @@ pub(super) struct Tree<T> {
     nodes: Vec<Node<T>>,
 }
 impl<T> Tree<T> {
-    pub(super) fn with_capacity(root: T, capacity: usize) -> Self {
-        let mut nodes = Vec::with_capacity(capacity);
+    pub(super) fn new(root: T) -> Self {
+        let mut nodes = vec![];
         nodes.push(Node {
             parent: None,
             prev_sibling: None,
@@ -426,7 +426,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     fn iter_tree() -> Tree<&'static str> {
-        let mut tree = Tree::with_capacity("r", 6);
+        let mut tree = Tree::new("r");
         let mut r = tree.root_mut();
         let mut a = r.push_child("a");
         a.push_child("a.a");

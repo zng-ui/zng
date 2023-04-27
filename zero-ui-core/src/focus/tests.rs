@@ -111,7 +111,6 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
         ),
         WidgetBorderInfo::new(),
         1.fct(),
-        None,
     );
     FocusInfoBuilder::new(&mut builder)
         .scope(true)
@@ -177,7 +176,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
             );
         },
     );
-    builder.finalize(None).0
+    builder.finalize(None)
 }
 
 #[test]

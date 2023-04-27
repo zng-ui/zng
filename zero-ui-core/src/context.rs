@@ -511,10 +511,9 @@ impl WINDOW {
             WidgetBoundsInfo::new_size(l_size, l_size),
             WidgetBorderInfo::new(),
             1.fct(),
-            None,
         );
         content.info(&mut info);
-        let tree = info.finalize(Some(self.widget_tree())).0;
+        let tree = info.finalize(Some(self.widget_tree()));
         *WINDOW_CTX.get().widget_tree.write() = Some(tree);
         UPDATES.apply()
     }

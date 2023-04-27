@@ -42,23 +42,17 @@ impl WidgetInfoBuilder {
         root_bounds_info: WidgetBoundsInfo,
         root_border_info: WidgetBorderInfo,
         scale_factor: Factor,
-        used_data: Option<UsedWidgetInfoBuilder>,
     ) -> Self {
-        let used_data = used_data.unwrap_or_else(UsedWidgetInfoBuilder::fallback);
-        let tree = Tree::with_capacity(
-            WidgetInfoData {
-                id: root_id,
-                bounds_info: root_bounds_info,
-                border_info: root_border_info,
-                meta: Arc::new(OwnedStateMap::new()),
-                interactivity_filters: vec![],
-                local_interactivity: Interactivity::ENABLED,
-                cache: Mutex::new(WidgetInfoCache { interactivity: None }),
-            },
-            used_data.tree_capacity,
-        );
+        let tree = Tree::new(WidgetInfoData {
+            id: root_id,
+            bounds_info: root_bounds_info,
+            border_info: root_border_info,
+            meta: Arc::new(OwnedStateMap::new()),
+            interactivity_filters: vec![],
+            local_interactivity: Interactivity::ENABLED,
+            cache: Mutex::new(WidgetInfoCache { interactivity: None }),
+        });
         let mut lookup = IdMap::default();
-        lookup.reserve(used_data.tree_capacity);
         let root_node = tree.root().id();
         lookup.insert(root_id, root_node);
 
@@ -66,8 +60,8 @@ impl WidgetInfoBuilder {
             window_id,
             node: root_node,
             tree,
-            interactivity_filters: Vec::with_capacity(used_data.interactivity_filters_capacity),
-            out_of_bounds: Vec::with_capacity(used_data.out_of_bounds_capacity),
+            interactivity_filters: vec![],
+            out_of_bounds: vec![],
             lookup,
             meta: OwnedStateMap::new(),
             widget_id: root_id,
@@ -157,7 +151,7 @@ impl WidgetInfoBuilder {
     ///
     /// # Panics
     ///
-    /// If the `ctx.path.widget_id()` was already pushed or reused in this builder.
+    /// If the `WIDGET.id()` was already pushed or reused in this builder.
     ///
     /// [interactivity filters]: Self::push_interactivity_filter
     pub fn push_widget_reuse(&mut self) {
@@ -231,7 +225,7 @@ impl WidgetInfoBuilder {
     }
 
     /// Build the info tree.
-    pub fn finalize(mut self, previous_tree: Option<WidgetInfoTree>) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
+    pub fn finalize(mut self, previous_tree: Option<WidgetInfoTree>) -> WidgetInfoTree {
         let mut node = self.tree.root_mut();
         let meta = Arc::new(self.meta);
         node.value().meta = meta;
@@ -249,7 +243,7 @@ impl WidgetInfoBuilder {
             widget_count_offsets = ParallelSegmentOffsets::default()
         }
 
-        let r = WidgetInfoTree(Arc::new(WidgetInfoTreeInner {
+        WidgetInfoTree(Arc::new(WidgetInfoTreeInner {
             window_id: self.window_id,
             lookup: self.lookup,
             interactivity_filters: self.interactivity_filters,
@@ -266,15 +260,7 @@ impl WidgetInfoBuilder {
             }),
 
             tree: self.tree,
-        }));
-
-        let cap = UsedWidgetInfoBuilder {
-            tree_capacity: r.0.tree.len(),
-            interactivity_filters_capacity: r.0.interactivity_filters.len(),
-            out_of_bounds_capacity: r.0.frame.read().out_of_bounds.len(),
-        };
-
-        (r, cap)
+        }))
     }
 }
 

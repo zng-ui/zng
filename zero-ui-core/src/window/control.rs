@@ -20,7 +20,7 @@ use crate::{
     timer::TIMERS,
     units::*,
     var::*,
-    widget_info::{UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
+    widget_info::{WidgetInfoBuilder, WidgetInfoTree, WidgetLayout},
     widget_instance::{BoxedUiNode, UiNode, WidgetId},
     window::AutoSize,
 };
@@ -1451,8 +1451,6 @@ struct ContentCtrl {
 
     root_ctx: WidgetCtx,
     root: BoxedUiNode,
-    // info
-    used_info_builder: Option<UsedWidgetInfoBuilder>,
     layout_pass: LayoutPassId,
 
     init_state: InitState,
@@ -1476,7 +1474,6 @@ impl ContentCtrl {
             root_ctx: WidgetCtx::new(window.id),
             root: window.child,
 
-            used_info_builder: None,
             layout_pass: LayoutPassId::new(),
 
             init_state: InitState::SkipOne,
@@ -1548,15 +1545,13 @@ impl ContentCtrl {
                 self.root_ctx.bounds(),
                 self.root_ctx.border(),
                 self.vars.0.scale_factor.get(),
-                self.used_info_builder.take(),
             );
 
             WIDGET.with_context(&self.root_ctx, || {
                 self.root.info(&mut info);
             });
 
-            let (info, used) = info.finalize(Some(WINDOW.widget_tree()));
-            self.used_info_builder = Some(used);
+            let info = info.finalize(Some(WINDOW.widget_tree()));
 
             WINDOWS.set_widget_tree(
                 info.clone(),

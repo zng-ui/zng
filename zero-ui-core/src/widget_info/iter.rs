@@ -443,12 +443,11 @@ mod tests {
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
             1.fct(),
-            None,
         );
         builder.push_test_widget("c-0", |_| {});
         builder.push_test_widget("c-1", |_| {});
         builder.push_test_widget("c-2", |_| {});
-        builder.finalize(None).0
+        builder.finalize(None)
     }
 
     #[test]
@@ -576,7 +575,6 @@ mod tests {
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
             1.fct(),
-            None,
         );
         builder.push_test_widget("c-0", |builder| {
             builder.push_test_widget("c-0-0", |_| {});
@@ -597,7 +595,7 @@ mod tests {
                 builder.push_test_widget("c-2-2-0", |_| {});
             });
         });
-        builder.finalize(None).0
+        builder.finalize(None)
     }
 
     #[test]
@@ -697,7 +695,6 @@ mod tests {
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
             1.fct(),
-            None,
         );
         builder.push_test_widget("d-0", |builder| {
             builder.push_test_widget("d-1", |builder| {
@@ -710,7 +707,7 @@ mod tests {
                 });
             });
         });
-        builder.finalize(None).0
+        builder.finalize(None)
     }
 
     #[test]
