@@ -377,6 +377,17 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
         }
     }
 
+    fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
+        if PARALLEL_VAR.get().contains(Parallel::INFO) {
+            let mut b = info.parallel_split();
+            task::join(|| self.0.info_all(info), || self.1.info_all(&mut b));
+            info.parallel_fold(b);
+        } else {
+            self.0.info_all(info);
+            self.1.info_all(info);
+        }
+    }
+
     fn event_all(&mut self, update: &EventUpdate) {
         if PARALLEL_VAR.get().contains(Parallel::EVENT) {
             task::join(|| self.0.event_all(update), || self.1.event_all(update));
@@ -598,6 +609,10 @@ where
     fn deinit_all(&mut self) {
         let _ = SortingListParent::with(|| self.list.deinit_all());
         self.invalidate_sort();
+    }
+
+    fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
+        self.list.info_all(info);
     }
 
     fn event_all(&mut self, update: &EventUpdate) {
@@ -1216,6 +1231,10 @@ impl UiNodeList for EditableUiNodeList {
         self.vec.deinit_all();
     }
 
+    fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
+        self.vec.info_all(info);
+    }
+
     fn event_all(&mut self, update: &EventUpdate) {
         self.vec.event_all(update)
     }
@@ -1597,6 +1616,33 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
             for list in self {
                 list.update_all(updates, &mut OffsetUiListObserver(offset, observer));
                 offset += list.len();
+            }
+        }
+    }
+
+    fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INFO) {
+            let b = self
+                .par_iter_mut()
+                .with_ctx()
+                .fold(
+                    || info.parallel_split(),
+                    |mut info, list| {
+                        list.info_all(&mut info);
+                        info
+                    },
+                )
+                .reduce(
+                    || info.parallel_split(),
+                    |mut a, b| {
+                        a.parallel_fold(b);
+                        a
+                    },
+                );
+            info.parallel_fold(b);
+        } else {
+            for list in self {
+                list.info_all(info);
             }
         }
     }
@@ -1996,6 +2042,10 @@ where
 
     fn deinit_all(&mut self) {
         self.list.deinit_all();
+    }
+
+    fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
+        self.list.info_all(info);
     }
 
     fn event_all(&mut self, update: &EventUpdate) {

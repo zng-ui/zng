@@ -338,6 +338,13 @@ impl UiNodeList for WhenUiNodeList {
         WIDGET.with_handles(var_handles, event_handles, || children.update_all(updates, observer));
     }
 
+    fn info_all(&mut self, info: &mut crate::widget_info::WidgetInfoBuilder) {
+        let (children, var_handles, event_handles) = self.children_mut_with_handles();
+        WIDGET.with_handles(var_handles, event_handles, || {
+            children.info_all(info);
+        })
+    }
+
     fn event_all(&mut self, update: &EventUpdate) {
         let (children, var_handles, event_handles) = self.children_mut_with_handles();
         WIDGET.with_handles(var_handles, event_handles, || {

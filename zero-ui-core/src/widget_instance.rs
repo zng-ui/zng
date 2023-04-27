@@ -518,6 +518,28 @@ pub trait UiNodeList: UiNodeListBoxed {
         }
     }
 
+    /// Rebuilds the list in a context, all node info is rebuild.
+    fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
+        if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INFO) {
+            let p_info = self.par_fold_reduce(
+                || info.parallel_split(),
+                |mut info, _, node| {
+                    node.info(&mut info);
+                    info
+                },
+                |mut a, b| {
+                    a.parallel_fold(b);
+                    a
+                },
+            );
+            info.parallel_fold(p_info);
+        } else {
+            self.for_each(|_, c| {
+                c.info(info);
+            });
+        }
+    }
+
     /// Receive updates for the list in a context, all nodes are also updated.
     ///
     /// The behavior of some list implementations depend on this call, manually updating nodes is an error.
@@ -732,12 +754,7 @@ pub mod ui_node_list_default {
     }
 
     pub fn info_all(list: &mut impl UiNodeList, info: &mut WidgetInfoBuilder) {
-        // if list.len() > 1 && PARALLEL_VAR.get().contains(Parallel::INFO) {
-        //     todo!("parallel info");
-        // }
-        list.for_each(|_, c| {
-            c.info(info);
-        });
+        list.info_all(info)
     }
 
     pub fn event_all(list: &mut impl UiNodeList, update: &EventUpdate) {
@@ -880,6 +897,7 @@ pub trait UiNodeListBoxed: Any + Send {
     fn drain_into_boxed(&mut self, vec: &mut Vec<BoxedUiNode>);
     fn init_all_boxed(&mut self);
     fn deinit_all_boxed(&mut self);
+    fn info_all_boxed(&mut self, info: &mut WidgetInfoBuilder);
     fn event_all_boxed(&mut self, update: &EventUpdate);
     fn update_all_boxed(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver);
     fn render_all_boxed(&mut self, frame: &mut FrameBuilder);
@@ -933,6 +951,10 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
 
     fn deinit_all_boxed(&mut self) {
         self.deinit_all();
+    }
+
+    fn info_all_boxed(&mut self, info: &mut WidgetInfoBuilder) {
+        self.info_all(info);
     }
 
     fn event_all_boxed(&mut self, update: &EventUpdate) {
@@ -1119,6 +1141,10 @@ impl UiNodeList for BoxedUiNodeList {
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.as_mut().update_all_boxed(updates, observer);
+    }
+
+    fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
+        self.as_mut().info_all_boxed(info);
     }
 
     fn event_all(&mut self, update: &EventUpdate) {

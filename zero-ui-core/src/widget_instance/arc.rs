@@ -636,6 +636,10 @@ mod impls {
             // delegation done in the handler
         }
 
+        fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
+            self.delegate_owned_mut_with_handles(|l| l.info_all(info));
+        }
+
         fn event_all(&mut self, update: &EventUpdate) {
             self.on_event(update);
             self.delegate_owned_mut_with_handles(|l| l.event_all(update));

@@ -1,6 +1,6 @@
-* Parallel info updates.
-    - Implement `UiNodeList::info_all`.
-
+* Icon+gradient+markdown+scroll example one widget sets metadata parallel in split.
+    - Probably caused by `Scroll!`.
+* Scroll example "Scroll To.." does not work.
 * Icon example fails hit-tests after fast scroll.
 
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.
@@ -15,5 +15,5 @@
     - They must return the child node and trace an error if used.
     - They must generate docs that explain # Capture Only
 
-* Review parallel render.
+* Review parallel node operations.
     - Recursive fold uses the `identity` function more then the core count.

@@ -961,6 +961,11 @@ impl<L: UiNodeList> UiNodeList for MatchNodeChildren<L> {
         self.delegated = true;
     }
 
+    fn info_all(&mut self, info: &mut WidgetInfoBuilder) {
+        self.children.info_all(info);
+        self.delegated = true;
+    }
+
     fn event_all(&mut self, update: &EventUpdate) {
         self.children.event_all(update);
         self.delegated = true;
