@@ -19,7 +19,36 @@ fn main() {
 
 fn app_main() {
     App::default().extend(icons::MaterialFonts).run_window(async {
+        // !!:
+        LAYERS.insert(
+            LayerIndex::TOP_MOST,
+            Markdown! {
+                txt = zero_ui::core::mouse::MOUSE.position().map(|p| {
+                    (|| {
+                        use units::*;
+                        let &(window_id, p) = p.as_ref()?;
+                        let tree = WINDOWS.widget_tree(window_id).ok()?;
+                        let hits = tree.root().hit_test(p.to_px(tree.scale_factor().0));
+
+                        let mut r = formatx!("|Widget|Z-Index|\n|-|-|");
+                        let s = r.to_mut();
+                        for x in hits.hits() {
+                            use std::fmt::Write;
+                            write!(s, "\n|{}|{:?}|", tree.get(x.widget_id)?.trace_id(), x.z_index).ok()?;
+                        }
+                        Some(r)
+                    })()
+                    .unwrap_or_else(Txt::empty)
+                });
+                align = Align::TOP_LEFT;
+                font_family = "monospace";
+                background_color = colors::BLACK;
+                hit_test_mode = false;
+            },
+        );
         Window! {
+            zero_ui::core::widget_base::parallel = false;
+            // inspector::show_hit_test = true;
             title = "Icon Example";
             icon = WindowIcon::render(|| Icon! {
                 ico = icons::filled::LIGHTBULB;
