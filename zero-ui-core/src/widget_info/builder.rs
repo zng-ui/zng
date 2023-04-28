@@ -2,7 +2,9 @@ use std::hash::Hash;
 
 use crate::{
     border::BORDER,
-    context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, StateMapMut, LAYOUT, WIDGET, WINDOW},
+    context::{
+        InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, StateId, StateMapMut, StateValue, LAYOUT, WIDGET, WINDOW,
+    },
     text::TextSegmentKind,
 };
 
@@ -19,7 +21,7 @@ pub struct WidgetInfoBuilder {
 
     node: tree::NodeId,
     widget_id: WidgetId,
-    meta: OwnedStateMap<WidgetInfoMeta>,
+    meta: Arc<Mutex<OwnedStateMap<WidgetInfoMeta>>>,
 
     tree: Tree<WidgetInfoData>,
     interactivity_filters: InteractivityFilters,
@@ -58,7 +60,7 @@ impl WidgetInfoBuilder {
             node: root_node,
             tree,
             interactivity_filters: vec![],
-            meta: OwnedStateMap::new(),
+            meta: Arc::default(),
             widget_id: root_id,
             scale_factor,
             build_meta: Arc::default(),
@@ -76,16 +78,40 @@ impl WidgetInfoBuilder {
         self.widget_id
     }
 
-    /// Widget tree build metadata.
+    /// Widget info tree build metadata.
     ///
     /// This metadata can be modified only by pushed widgets, **not** by the reused widgets.
     pub fn with_build_meta<R>(&mut self, visitor: impl FnOnce(StateMapMut<WidgetInfoMeta>) -> R) -> R {
         visitor(self.build_meta.lock().borrow_mut())
     }
+    /// Set the info tree build metadata `id` to `value`.
+    pub fn set_build_meta<T: StateValue>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>) {
+        let id = id.into();
+        let value = value.into();
+        self.with_build_meta(|mut s| s.set(id, value));
+    }
+    /// Sets the info tree build metadata `id` without value.
+    pub fn flag_build_meta(&mut self, id: impl Into<StateId<()>>) {
+        let id = id.into();
+        self.with_build_meta(|mut s| s.flag(id));
+    }
 
-    /// Current widget metadata.
-    pub fn meta(&mut self) -> StateMapMut<WidgetInfoMeta> {
-        self.meta.borrow_mut()
+    /// Current widget info metadata.
+    pub fn with_meta<R>(&mut self, visitor: impl FnOnce(StateMapMut<WidgetInfoMeta>) -> R) -> R {
+        visitor(self.meta.lock().borrow_mut())
+    }
+    /// Set the widget info metadata `id` to `value`.
+    ///
+    /// Returns the previous set value.
+    pub fn set_meta<T: StateValue>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>) {
+        let id = id.into();
+        let value = value.into();
+        self.with_meta(|mut s| s.set(id, value));
+    }
+    /// Sets the widget info metadata `id` without value.
+    pub fn flag_meta(&mut self, id: impl Into<StateId<()>>) {
+        let id = id.into();
+        self.with_meta(|mut s| s.flag(id));
     }
 
     /// Calls `f` in a new widget context.
@@ -118,9 +144,9 @@ impl WidgetInfoBuilder {
 
         f(self);
 
-        let meta = Arc::new(mem::replace(&mut self.meta, parent_meta));
+        let meta = mem::replace(&mut self.meta, parent_meta);
         let mut node = self.node(self.node);
-        node.value().meta = meta;
+        node.value().meta = Arc::new(Arc::try_unwrap(meta).unwrap().into_inner());
         node.close();
 
         self.node = parent_node;
@@ -209,7 +235,7 @@ impl WidgetInfoBuilder {
         ParallelBuilder(Some(Self {
             window_id: self.window_id,
             widget_id: self.widget_id,
-            meta: OwnedStateMap::new(),
+            meta: self.meta.clone(),
             node: tree.root().id(),
             tree,
             interactivity_filters: vec![],
@@ -222,10 +248,6 @@ impl WidgetInfoBuilder {
 
     /// Collect info from `split` into `self`.
     pub fn parallel_fold(&mut self, mut split: ParallelBuilder<Self>) {
-        if !split.meta.borrow().is_empty() {
-            tracing::error!("info added for parallel split `{}` ignored", self.widget_id);
-        }
-
         let mut split = split.take();
 
         self.interactivity_filters.append(&mut split.interactivity_filters);
@@ -245,7 +267,7 @@ impl WidgetInfoBuilder {
     /// Build the info tree.
     pub fn finalize(mut self, previous_tree: Option<WidgetInfoTree>) -> WidgetInfoTree {
         let mut node = self.tree.root_mut();
-        let meta = Arc::new(self.meta);
+        let meta = Arc::new(Arc::try_unwrap(self.meta).unwrap().into_inner());
         node.value().meta = meta;
         node.close();
 

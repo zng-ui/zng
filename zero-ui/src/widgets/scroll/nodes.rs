@@ -33,7 +33,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 .sub_var(&SCROLL_HORIZONTAL_OFFSET_VAR);
         }
         UiNodeOp::Info { info } => {
-            info.meta().set(&SCROLL_INFO_ID, scroll_info.clone());
+            info.set_meta(&SCROLL_INFO_ID, scroll_info.clone());
         }
         UiNodeOp::Update { updates } => {
             child.update(updates);

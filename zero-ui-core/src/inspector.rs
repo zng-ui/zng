@@ -15,7 +15,7 @@ mod inspector_only {
         let insp_info = Arc::new(info);
         match_node(child, move |_, op| {
             if let UiNodeOp::Info { info } = op {
-                info.meta().set(&super::INSPECTOR_INFO_ID, insp_info.clone());
+                info.set_meta(&super::INSPECTOR_INFO_ID, insp_info.clone());
             }
         })
     }

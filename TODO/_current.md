@@ -1,6 +1,3 @@
-* Icon+gradient+markdown+scroll example one widget sets metadata parallel in split.
-    - Probably caused by `Scroll!`.
-* Scroll example "Scroll To.." does not work.
 * Icon example fails hit-tests after fast scroll.
 
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.

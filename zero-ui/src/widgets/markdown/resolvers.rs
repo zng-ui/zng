@@ -408,7 +408,7 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Txt>) -> impl UiNode {
             }
         }
         UiNodeOp::Info { info } => {
-            info.meta().set(&ANCHOR_ID, anchor.get());
+            info.set_meta(&ANCHOR_ID, anchor.get());
         }
         _ => {}
     })

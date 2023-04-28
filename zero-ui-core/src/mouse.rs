@@ -1576,14 +1576,14 @@ pub trait WidgetInfoBuilderMouseExt {
 }
 impl WidgetInfoBuilderMouseExt for WidgetInfoBuilder {
     fn set_click_mode(&mut self, mode: Option<ClickMode>) {
-        match self.meta().entry(&CLICK_MODE_ID) {
+        self.with_meta(|mut m| match m.entry(&CLICK_MODE_ID) {
             state_map::StateMapEntry::Occupied(mut e) => *e.get_mut() = mode,
             state_map::StateMapEntry::Vacant(e) => {
                 if mode.is_some() {
                     e.insert(mode);
                 }
             }
-        }
+        })
     }
 }
 

@@ -101,7 +101,7 @@ mod inspector_window {
         match_node(child, move |_, op| {
             if let UiNodeOp::Info { info } = op {
                 assert!(WIDGET.parent_id().is_none());
-                info.meta().set(&INSPECTED_ID, inspected);
+                info.set_meta(&INSPECTED_ID, inspected);
             }
         })
     }

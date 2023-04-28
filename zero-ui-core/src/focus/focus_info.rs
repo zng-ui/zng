@@ -1708,8 +1708,8 @@ impl<'a> FocusInfoBuilder<'a> {
         r
     }
 
-    fn data(&mut self) -> &mut FocusInfoData {
-        self.0.meta().into_entry(&FOCUS_INFO_ID).or_default()
+    fn with_data<R>(&mut self, visitor: impl FnOnce(&mut FocusInfoData) -> R) -> R {
+        self.0.with_meta(|m| visitor(m.into_entry(&FOCUS_INFO_ID).or_default()))
     }
 
     fn with_tree_data<R>(&mut self, visitor: impl FnOnce(&mut FocusTreeData) -> R) -> R {
@@ -1718,15 +1718,17 @@ impl<'a> FocusInfoBuilder<'a> {
 
     /// If the widget is definitely focusable or not.
     pub fn focusable(&mut self, is_focusable: bool) -> &mut Self {
-        let data = self.data();
-        data.focusable = Some(is_focusable);
+        self.with_data(|data| {
+            data.focusable = Some(is_focusable);
+        });
         self
     }
 
     /// If the widget is definitely a focus scope or not.
     pub fn scope(&mut self, is_focus_scope: bool) -> &mut Self {
-        let data = self.data();
-        data.scope = Some(is_focus_scope);
+        self.with_data(|data| {
+            data.scope = Some(is_focus_scope);
+        });
         self
     }
 
@@ -1734,63 +1736,68 @@ impl<'a> FocusInfoBuilder<'a> {
     ///
     /// If `true` this also sets `TabIndex::SKIP`, `skip_directional_nav`, `TabNav::Cycle` and `DirectionalNav::Cycle` as default.
     pub fn alt_scope(&mut self, is_alt_focus_scope: bool) -> &mut Self {
-        let data = self.data();
+        self.with_data(|data| {
+            data.alt_scope = is_alt_focus_scope;
+            if is_alt_focus_scope {
+                data.scope = Some(true);
 
-        data.alt_scope = is_alt_focus_scope;
+                if data.tab_index.is_none() {
+                    data.tab_index = Some(TabIndex::SKIP);
+                }
+                if data.tab_nav.is_none() {
+                    data.tab_nav = Some(TabNav::Cycle);
+                }
+                if data.directional_nav.is_none() {
+                    data.directional_nav = Some(DirectionalNav::Cycle);
+                }
+                if data.skip_directional.is_none() {
+                    data.skip_directional = Some(true);
+                }
+            }
+        });
         if is_alt_focus_scope {
-            data.scope = Some(true);
-
-            if data.tab_index.is_none() {
-                data.tab_index = Some(TabIndex::SKIP);
-            }
-            if data.tab_nav.is_none() {
-                data.tab_nav = Some(TabNav::Cycle);
-            }
-            if data.directional_nav.is_none() {
-                data.directional_nav = Some(DirectionalNav::Cycle);
-            }
-            if data.skip_directional.is_none() {
-                data.skip_directional = Some(true);
-            }
-
             let wgt_id = self.0.widget_id();
             self.with_tree_data(|d| d.alt_scopes.lock().insert(wgt_id));
         }
-
         self
     }
 
     /// When the widget is a focus scope, its behavior on receiving direct focus.
     pub fn on_focus(&mut self, as_focus_scope_on_focus: FocusScopeOnFocus) -> &mut Self {
-        let data = self.data();
-        data.on_focus = as_focus_scope_on_focus;
+        self.with_data(|data| {
+            data.on_focus = as_focus_scope_on_focus;
+        });
         self
     }
 
     /// Widget TAB index.
     pub fn tab_index(&mut self, tab_index: TabIndex) -> &mut Self {
-        let data = self.data();
-        data.tab_index = Some(tab_index);
+        self.with_data(|data| {
+            data.tab_index = Some(tab_index);
+        });
         self
     }
 
     /// TAB navigation within this widget, if set turns the widget into a focus scope.
     pub fn tab_nav(&mut self, scope_tab_nav: TabNav) -> &mut Self {
-        let data = self.data();
-        data.tab_nav = Some(scope_tab_nav);
+        self.with_data(|data| {
+            data.tab_nav = Some(scope_tab_nav);
+        });
         self
     }
 
     /// Directional navigation within this widget, if set turns the widget into a focus scope.
     pub fn directional_nav(&mut self, scope_directional_nav: DirectionalNav) -> &mut Self {
-        let data = self.data();
-        data.directional_nav = Some(scope_directional_nav);
+        self.with_data(|data| {
+            data.directional_nav = Some(scope_directional_nav);
+        });
         self
     }
     /// If directional navigation skips over this widget.
     pub fn skip_directional(&mut self, skip: bool) -> &mut Self {
-        let data = self.data();
-        data.skip_directional = Some(skip);
+        self.with_data(|data| {
+            data.skip_directional = Some(skip);
+        });
         self
     }
 }
