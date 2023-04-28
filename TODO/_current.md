@@ -1,7 +1,3 @@
-* `inspector::show_hit_test` renders incorrect lazy bounds.
-    - This does not affect the actual hit-test.
-    - But, the `show_hit_test` is founding then at (0, 0) offset, review this.
-
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.
     - The problem is the custom accumulator `T`, need to smuggle this type pass the `dyn`.
 

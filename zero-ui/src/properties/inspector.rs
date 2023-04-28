@@ -210,30 +210,30 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                     let factor = WINDOW_CTRL.vars().scale_factor().get();
                     let pt = args.position.to_px(factor.0);
 
-                    let fa = Rc::new(RefCell::new(vec![]));
-                    let hi = Rc::new(RefCell::new(vec![]));
+                    let new_fails = Rc::new(RefCell::new(vec![]));
+                    let new_hits = Rc::new(RefCell::new(vec![]));
 
                     let tree = WINDOW.widget_tree();
                     let _ = tree
                         .root()
-                        .spatial_iter(clmv!(fa, hi, |w| {
+                        .spatial_iter(clmv!(new_fails, new_hits, |w| {
                             let bounds = w.inner_bounds();
                             let hit = bounds.contains(pt);
                             if hit {
-                                hi.borrow_mut().push(bounds);
+                                new_hits.borrow_mut().push(bounds);
                             } else {
-                                fa.borrow_mut().push(bounds);
+                                new_fails.borrow_mut().push(bounds);
                             }
                             hit
                         }))
                         .count();
 
-                    let fa = Rc::try_unwrap(fa).unwrap().into_inner();
-                    let hi = Rc::try_unwrap(hi).unwrap().into_inner();
+                    let new_fails = Rc::try_unwrap(new_fails).unwrap().into_inner();
+                    let new_hits = Rc::try_unwrap(new_hits).unwrap().into_inner();
 
-                    if fails != fa || hits != hi {
-                        fails = fa;
-                        hits = hi;
+                    if fails != new_fails || hits != new_hits {
+                        fails = new_fails;
+                        hits = new_hits;
 
                         WIDGET.render();
                     }

@@ -183,7 +183,8 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
                         // Keep placeholder, layout will still use it to avoid glitches when the actual layout causes a deinit,
                         // and the placeholder another init on a loop.
                         //
-                        // This time we have the actual widget content, so the placeholder is upgraded to a full widget.
+                        // This time we have the actual widget content, so the placeholder is upgraded to a full widget to
+                        // have a place to store the layout info.
 
                         let placeholder = placeholder(()).into_widget();
                         c.children().push(placeholder);
@@ -382,7 +383,14 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
             } else if c.len() == 2 {
                 // is inited and can deinit, check viewport on placeholder
 
-                c.children()[1].render(frame); // update bounds
+                c.children()[1].render(frame); // render + update bounds
+
+                frame.hide(|f| {
+                    f.with_hit_tests_disabled(|f| {
+                        // update bounds (not used but can be inspected)
+                        c.children()[0].render(f);
+                    });
+                });
 
                 let intersect_mode = mode.with(|s| s.unwrap_intersect());
                 let viewport = frame.auto_hide_rect();
@@ -408,7 +416,16 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
             c.delegated();
             if not_inited.is_none() {
                 // child is actual child
-                c.children().last_mut().unwrap().render_update(update);
+                let last = c.children().len() - 1;
+
+                if last == 1 {
+                    update.hidden(|u| {
+                        // update bounds (not used but can be inspected)
+                        c.children()[0].render_update(u);
+                    });
+                }
+
+                c.children()[last].render_update(update);
             } else {
                 // update bounds
                 c.children()[0].render_update(update);
