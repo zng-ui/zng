@@ -1205,7 +1205,7 @@ impl<B> ops::DerefMut for ParallelBuilder<B> {
 }
 impl<B> Drop for ParallelBuilder<B> {
     fn drop(&mut self) {
-        if self.0.is_some() {
+        if self.0.is_some() && !std::thread::panicking() {
             tracing::error!("builder dropped without calling `{}::parallel_fold`", std::any::type_name::<B>())
         }
     }
