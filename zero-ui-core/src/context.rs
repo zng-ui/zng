@@ -881,7 +881,7 @@ impl WIDGET {
 
     /// Flags the widget to re-init after the current update returns.
     ///
-    /// The widget responds to this request depending on node method:
+    /// The widget responds to this request differently depending on the node method that calls it:
     ///
     /// * [`UiNode::init`] and [`UiNode::deinit`]: Request is ignored, removed.
     /// * [`UiNode::event`]: If the widget is pending a reinit, it is reinited first, then the event is propagated to child nodes.

@@ -360,7 +360,9 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
             c.delegated();
 
             if not_inited.is_some() {
-                // not inited, just verify
+                // not inited, verify
+
+                c.children()[0].render(frame); // update bounds
 
                 let intersect_mode = mode.with(|s| s.unwrap_intersect());
                 let outer_bounds = WIDGET.bounds().outer_bounds();
@@ -380,6 +382,8 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
             } else if c.len() == 2 {
                 // is inited and can deinit, check viewport on placeholder
 
+                c.children()[1].render(frame); // update bounds
+
                 let intersect_mode = mode.with(|s| s.unwrap_intersect());
                 let viewport = frame.auto_hide_rect();
                 let outer_bounds = WIDGET.bounds().outer_bounds();
@@ -394,8 +398,6 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
                 if !in_viewport {
                     // request deinit
                     WIDGET.reinit();
-                } else {
-                    c.children()[1].render(frame);
                 }
             } else {
                 // is inited and cannot deinit
@@ -407,6 +409,9 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
             if not_inited.is_none() {
                 // child is actual child
                 c.children().last_mut().unwrap().render_update(update);
+            } else {
+                // update bounds
+                c.children()[0].render_update(update);
             }
         }
         _ => {}

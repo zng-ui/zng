@@ -52,7 +52,6 @@ unique_id_64! {
 }
 static WIDGET_ID_NAMES: parking_lot::RwLock<NameIdMap<WidgetId>> = parking_lot::const_rwlock(NameIdMap::new());
 impl WidgetId {
-
     /// Get or generate an id with associated name.
     ///
     /// If the `name` is already associated with an id, returns it.
