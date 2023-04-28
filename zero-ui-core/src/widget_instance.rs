@@ -326,15 +326,14 @@ pub trait UiNode: Any + Send {
     where
         Self: Sized,
     {
-        use crate::widget_base::nodes;
-
         if self.is_widget() {
             return self.boxed();
         }
 
-        let node = nodes::widget_inner(self.cfg_boxed());
-        let wgt = nodes::widget(node, WidgetId::new_unique());
-        wgt.boxed()
+        into_widget! {
+            crate::widget_base::child = self;
+        }
+        .boxed()
     }
 
     /// Downcast to `T`, if `self` is `T` or `self` is a [`BoxedUiNode`] that is `T`.
@@ -404,6 +403,19 @@ pub trait UiNode: Any + Send {
             UiNodeOp::Render { frame } => self.render(frame),
             UiNodeOp::RenderUpdate { update } => self.render_update(update),
         }
+    }
+}
+
+/// See [`UiNode::into_widget`]
+#[allow(non_camel_case_types)]
+#[crate::widget($crate::widget_instance::into_widget)]
+struct into_widget(crate::widget_base::WidgetBase);
+impl into_widget {
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(|b| {
+            let child = b.capture_ui_node(crate::property_id!(crate::widget_base::child)).unwrap();
+            b.set_child(child);
+        });
     }
 }
 

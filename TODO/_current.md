@@ -17,5 +17,7 @@
 * Review parallel node operations.
     - Recursive fold uses the `identity` function more then the core count.
 
-* Review `into_widget` and functions that use it.
-    - It is an *anonymous* widget, looks weird in inspector.
+* Review *widgets* that use `into_widget`.
+    - `view(..)`.
+    - Refactor then to an standard widget.
+    - Generics can be work around using BoxedUiNode for `view`.
