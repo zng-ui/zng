@@ -1,11 +1,11 @@
 //! Crate visible macros and utilities.
 
 use crate::{text::Txt, units::Deadline};
+use hashbrown::hash_map;
 use rand::Rng;
 use rayon::prelude::*;
 use rustc_hash::FxHasher;
 use std::{
-    collections::{hash_map, HashMap},
     fmt,
     hash::{BuildHasher, Hasher},
     num::{NonZeroU32, NonZeroU64},
@@ -916,19 +916,34 @@ pub const fn fx_set_new<K>() -> FxHashSet<K> {
     hashbrown::HashSet::with_hasher(BuildFxHasher::new())
 }
 
+struct ConstDefaultHashBuilder;
+impl BuildHasher for ConstDefaultHashBuilder {
+    type Hasher = std::collections::hash_map::DefaultHasher;
+
+    fn build_hasher(&self) -> Self::Hasher {
+        std::collections::hash_map::DefaultHasher::default()
+    }
+}
+
+type DefaultHashMap<K, V> = hashbrown::HashMap<K, V, ConstDefaultHashBuilder>;
+
+const fn default_hash_map_new<K, V>() -> DefaultHashMap<K, V> {
+    hashbrown::HashMap::with_hasher(ConstDefaultHashBuilder)
+}
+
 /// Bidirectional map between a `Txt` and a [`unique_id!`] generated id type.
 pub struct NameIdMap<I> {
-    name_to_id: HashMap<Txt, I>,
+    name_to_id: DefaultHashMap<Txt, I>,
     id_to_name: IdMap<I, Txt>,
 }
 impl<I> NameIdMap<I>
 where
     I: Copy + PartialEq + Eq + std::hash::Hash + fmt::Debug,
 {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         NameIdMap {
-            name_to_id: HashMap::default(),
-            id_to_name: IdMap::default(),
+            name_to_id: default_hash_map_new(),
+            id_to_name: IdMap::new(),
         }
     }
 

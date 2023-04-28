@@ -50,11 +50,8 @@ unique_id_64! {
     /// [`name`]: WidgetId::name
     pub struct WidgetId;
 }
+static WIDGET_ID_NAMES: parking_lot::RwLock<NameIdMap<WidgetId>> = parking_lot::const_rwlock(NameIdMap::new());
 impl WidgetId {
-    fn name_map() -> parking_lot::MappedMutexGuard<'static, NameIdMap<Self>> {
-        static NAME_MAP: Mutex<Option<NameIdMap<WidgetId>>> = parking_lot::const_mutex(None);
-        parking_lot::MutexGuard::map(NAME_MAP.lock(), |m| m.get_or_insert_with(NameIdMap::new))
-    }
 
     /// Get or generate an id with associated name.
     ///
@@ -62,7 +59,7 @@ impl WidgetId {
     /// If the `name` is new, generates a new id and associated it with the name.
     /// If `name` is an empty string just returns a new id.
     pub fn named(name: impl Into<Txt>) -> Self {
-        Self::name_map().get_id_or_insert(name.into(), Self::new_unique)
+        WIDGET_ID_NAMES.write().get_id_or_insert(name.into(), Self::new_unique)
     }
 
     /// Calls [`named`] in a debug build and [`new_unique`] in a release build.
@@ -92,12 +89,12 @@ impl WidgetId {
     ///
     /// [`NameUsed`]: IdNameError::NameUsed
     pub fn named_new(name: impl Into<Txt>) -> Result<Self, IdNameError<Self>> {
-        Self::name_map().new_named(name.into(), Self::new_unique)
+        WIDGET_ID_NAMES.write().new_named(name.into(), Self::new_unique)
     }
 
     /// Returns the name associated with the id or `""`.
     pub fn name(self) -> Txt {
-        Self::name_map().get_name(self)
+        WIDGET_ID_NAMES.read().get_name(self)
     }
 
     /// Associate a `name` with the id, if it is not named.
@@ -109,7 +106,7 @@ impl WidgetId {
     /// [`NameUsed`]: IdNameError::NameUsed
     /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
     pub fn set_name(self, name: impl Into<Txt>) -> Result<(), IdNameError<Self>> {
-        Self::name_map().set(name.into(), self)
+        WIDGET_ID_NAMES.write().set(name.into(), self)
     }
 }
 impl fmt::Debug for WidgetId {
