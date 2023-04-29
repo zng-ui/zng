@@ -552,6 +552,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #(#input_idents: #storage_tys),*
             }
             #cfg
+            #[doc(hidden)]
             impl #impl_gens #core::widget_builder::PropertyArgs for #ident_args #ty_gens #where_gens {
                 fn clone_boxed(&self) -> std::boxed::Box<dyn #core::widget_builder::PropertyArgs> {
                     Box::new(std::clone::Clone::clone(self))
@@ -579,6 +580,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #[allow(non_camel_case_types)]
             #vis struct #ident_inputs { }
             #cfg
+            #[doc(hidden)]
             impl #ident_inputs {
                 #named_into
                 #get_when_input
@@ -608,6 +610,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             let docs = &mtd_attrs.docs;
             quote! {
                 #cfg
+                #[doc(hidden)]
                 impl #generics_impl #target #generics {
                     #(#docs)*
                     #vis fn #ident #impl_gens(&self, #(#input_idents: #input_tys),*) #where_gens {
@@ -672,10 +675,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
             }
             #cfg
+            #[doc(hidden)]
             impl self::#ident for #core::widget_base::WidgetBase {
                 type MetaType = ();
             }
             #cfg
+            #[doc(hidden)]
             impl self::#ident for #core::widget_builder::WgtInfo {
                 type MetaType = #ident_meta;
             }

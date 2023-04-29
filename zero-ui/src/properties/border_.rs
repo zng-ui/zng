@@ -1,6 +1,5 @@
 use crate::prelude::new_property::*;
 
-#[doc(inline)]
 pub use crate::core::border::{border_align, corner_radius, corner_radius_fit, CornerRadiusFit};
 use crate::core::border::{border_node, BORDER};
 
