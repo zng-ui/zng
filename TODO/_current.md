@@ -1,3 +1,6 @@
+* Implement `View!`?
+    - We refactored `view`, is not `into_widget` by default.
+
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.
     - The problem is the custom accumulator `T`, need to smuggle this type pass the `dyn`.
 
@@ -12,8 +15,3 @@
 
 * Review parallel node operations.
     - Recursive fold uses the `identity` function more then the core count.
-
-* Review *widgets* that use `into_widget`.
-    - `view(..)`.
-    - Refactor then to an standard widget.
-    - Generics can be work around using BoxedUiNode for `view`.

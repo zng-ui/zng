@@ -91,17 +91,18 @@ fn icons() -> impl UiNode {
                     select_font("two_tone"),
                 ]
             },
-            view(selected_font, show_font(icons::outlined::all()), |font| {
-                match font.get_new() {
-                    Some("filled") => View::Update(show_font(icons::filled::all())),
-                    Some("outlined") => View::Update(show_font(icons::outlined::all())),
-                    Some("rounded") => View::Update(show_font(icons::rounded::all())),
-                    Some("sharp") => View::Update(show_font(icons::sharp::all())),
-                    Some("two_tone") => View::Update(show_font(icons::two_tone::all())),
-                    None => View::Same,
-                    Some(_) => unreachable!(),
+            view(selected_font, hn!(|a: &ViewArgs<&'static str>| {
+                if let Some(f) = a.get_new() {
+                    a.set_view(match f {
+                        "filled" => show_font(icons::filled::all()),
+                        "outlined" => show_font(icons::outlined::all()),
+                        "rounded" => show_font(icons::rounded::all()),
+                        "sharp" => show_font(icons::sharp::all()),
+                        "two_tone" => show_font(icons::two_tone::all()),
+                        _ => unreachable!(),
+                    });
                 }
-            }),
+            })).into_widget(),
         ]
     }
 }

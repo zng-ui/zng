@@ -57,14 +57,13 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 
 /// Custom background generated using a [`WidgetFn<()>`].
 ///
-/// This is the equivalent of setting [`background`] to the [`presenter_default`] node.
+/// This is the equivalent of setting [`background`] to the [`presenter`] node.
 ///
 /// [`WidgetFn<()>`]: WidgetFn
 /// [`background`]: fn@background
-/// [`presenter_default`]: WidgetFn::presenter_default
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn background_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
-    background(child, WidgetFn::presenter_default(wgt_fn))
+    background(child, presenter((), wgt_fn))
 }
 
 /// Single color background property.
@@ -244,14 +243,13 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 
 /// Custom foreground generated using a [`WidgetFn<()>`].
 ///
-/// This is the equivalent of setting [`foreground`] to the [`presenter_default`] node.
+/// This is the equivalent of setting [`foreground`] to the [`presenter`] node.
 ///
 /// [`WidgetFn<()>`]: WidgetFn
 /// [`foreground`]: fn@background
-/// [`presenter_default`]: WidgetFn::presenter_default
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
-    foreground(child, WidgetFn::presenter_default(wgt_fn))
+    foreground(child, presenter((), wgt_fn))
 }
 
 /// Foreground highlight border overlay.

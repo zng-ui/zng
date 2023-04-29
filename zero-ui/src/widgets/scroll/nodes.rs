@@ -233,20 +233,14 @@ pub fn h_scrollbar_presenter() -> impl UiNode {
 }
 
 fn scrollbar_presenter(var: impl IntoVar<WidgetFn<ScrollBarArgs>>, orientation: Orientation) -> impl UiNode {
-    WidgetFn::presenter(var, move |is_new| {
-        if is_new {
-            DataUpdate::Update(ScrollBarArgs::new(orientation))
-        } else {
-            DataUpdate::Same
-        }
-    })
+    crate::widgets::presenter(ScrollBarArgs::new(orientation), var)
 }
 
 /// Create a node that generates and presents the [scrollbar joiner].
 ///
 /// [scrollbar joiner]: SCROLLBAR_JOINER_GEN_VAR
 pub fn scrollbar_joiner_presenter() -> impl UiNode {
-    WidgetFn::presenter_default(SCROLLBAR_JOINER_GEN_VAR)
+    crate::widgets::presenter((), SCROLLBAR_JOINER_GEN_VAR)
 }
 
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],

@@ -1088,13 +1088,13 @@ pub fn focused_removed_by_deleting() {
 
     let buttons = ui_vec! {
         Button! { child = Text!("Button 0") },
-        view(exist.clone(), NilUiNode.boxed(), move |exist| {
-            if exist.get() {
-                View::Update(Button! { id = button1_id; child = Text!("Button 1") }.boxed())
+        view(exist.clone(), hn!(|a: &ViewArgs<bool>| {
+            if a.data().get() {
+                a.set_view(Button! { id = button1_id; child = Text!("Button 1") });
             } else {
-                View::Update(NilUiNode.boxed())
+                a.unset_view();
             }
-        }),
+        })),
         Button! { child = Text!("Button 2") }
     };
 
@@ -1185,20 +1185,16 @@ pub fn focus_continued_after_widget_id_move() {
 
     let mut app = app.run(view(
         do_move_id.clone(),
-        Wgt! { focusable = true; id; }.boxed(),
-        move |do_move_id| {
-            if do_move_id.get() {
-                View::Update({
-                    Container! {
-                        id = "some_other_place";
-                        child = Button! { id; child = Text!("Button 1") };
-                    }
-                    .boxed()
-                })
-            } else {
-                View::Same
+        hn!(|a: &ViewArgs<bool>| {
+            if a.data().get() {
+                a.set_view(Container! {
+                    id = "some_other_place";
+                    child = Button! { id; child = Text!("Button 1") };
+                });
+            } else if a.is_nil() {
+                a.set_view(Wgt! { focusable = true; id; });
             }
-        },
+        }),
     ));
 
     assert_eq!(Some(id), app.focused());

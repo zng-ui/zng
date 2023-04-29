@@ -267,7 +267,7 @@ pub mod prelude {
             },
         };
         #[doc(no_inline)]
-        pub use crate::widgets::{layouts::stack_nodes, wgt_fn, DataUpdate, WidgetFn};
+        pub use crate::widgets::{layouts::stack_nodes, presenter, presenter_opt, wgt_fn, WidgetFn};
     }
 
     /// All the types you need to declare a new widget or widget mixin.
@@ -355,9 +355,9 @@ pub mod prelude {
         pub use crate::widgets::{
             focusable_mix::FocusableMix,
             layouts::{stack_nodes, stack_nodes_layout_by},
-            style,
+            presenter, presenter_opt, style,
             style::{style_fn, Style, StyleFn, StyleMix},
-            wgt_fn, Container, DataUpdate, WidgetFn,
+            wgt_fn, Container, WidgetFn,
         };
     }
 }

@@ -128,46 +128,17 @@ context_local! {
 ///
 /// The image widget adds this node around the [`image_presenter`] node.
 pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
-    let mut image_handle = None::<(VarHandle, WidgetId)>;
-
-    let view = WidgetFn::presenter_map(
-        IMAGE_ERROR_GEN_VAR,
-        move |is_new| {
-            if is_new {
-                if let Some((handle, id)) = &mut image_handle {
-                    let current_id = WIDGET.id();
-                    if *id != current_id {
-                        *id = current_id;
-                        *handle = CONTEXT_IMAGE_VAR.subscribe(current_id);
-                    }
+    let view = presenter_opt(
+        CONTEXT_IMAGE_VAR.map(|i| i.error().map(|e| ImgErrorArgs { error: e })),
+        IMAGE_ERROR_GEN_VAR.map(|f| {
+            wgt_fn!(f, |e| {
+                if IN_ERROR_VIEW.get_clone() {
+                    NilUiNode.boxed()
                 } else {
-                    let id = WIDGET.id();
-                    image_handle = Some((CONTEXT_IMAGE_VAR.subscribe(id), id));
+                    with_context_local(f(e), &IN_ERROR_VIEW, true).boxed()
                 }
-            }
-
-            if IN_ERROR_VIEW.get_clone() {
-                // avoid recursion.
-                DataUpdate::None
-            } else if is_new {
-                // init or fn changed.
-                if let Some(e) = CONTEXT_IMAGE_VAR.get().error() {
-                    DataUpdate::Update(ImgErrorArgs { error: e })
-                } else {
-                    DataUpdate::None
-                }
-            } else if let Some(new) = CONTEXT_IMAGE_VAR.get_new() {
-                // image var update.
-                if let Some(e) = new.error() {
-                    DataUpdate::Update(ImgErrorArgs { error: e })
-                } else {
-                    DataUpdate::None
-                }
-            } else {
-                DataUpdate::Same
-            }
-        },
-        |view| with_context_local(view, &IN_ERROR_VIEW, true),
+            })
+        }),
     );
 
     stack_nodes_layout_by(ui_vec![view, child], 1, |constraints, _, img_size| {
@@ -185,46 +156,17 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
 ///
 /// The image widget adds this node around the [`image_error_presenter`] node.
 pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
-    let mut image_handle = None;
-
-    let view = WidgetFn::presenter_map(
-        IMAGE_LOADING_GEN_VAR,
-        move |is_new| {
-            if is_new {
-                if let Some((handle, id)) = &mut image_handle {
-                    let current_id = WIDGET.id();
-                    if *id != current_id {
-                        *id = current_id;
-                        *handle = CONTEXT_IMAGE_VAR.subscribe(current_id);
-                    }
+    let view = presenter_opt(
+        CONTEXT_IMAGE_VAR.map(|i| if i.is_loading() { Some(ImgLoadingArgs {}) } else { None }),
+        IMAGE_LOADING_GEN_VAR.map(|f| {
+            wgt_fn!(f, |a| {
+                if IN_LOADING_VIEW.get_clone() {
+                    NilUiNode.boxed()
                 } else {
-                    let id = WIDGET.id();
-                    image_handle = Some((CONTEXT_IMAGE_VAR.subscribe(id), id));
+                    with_context_local(f(a), &IN_LOADING_VIEW, true).boxed()
                 }
-            }
-
-            if IN_LOADING_VIEW.get_clone() {
-                // avoid recursion.
-                DataUpdate::None
-            } else if is_new {
-                // init or fn changed.
-                if CONTEXT_IMAGE_VAR.with(Img::is_loading) {
-                    DataUpdate::Update(ImgLoadingArgs {})
-                } else {
-                    DataUpdate::None
-                }
-            } else if let Some(new) = CONTEXT_IMAGE_VAR.get_new() {
-                // image var update.
-                if new.is_loading() {
-                    DataUpdate::Update(ImgLoadingArgs {})
-                } else {
-                    DataUpdate::None
-                }
-            } else {
-                DataUpdate::Same
-            }
-        },
-        |view| with_context_local(view, &IN_LOADING_VIEW, true),
+            })
+        }),
     );
 
     stack_nodes_layout_by(ui_vec![view, child], 1, |constraints, _, img_size| {
