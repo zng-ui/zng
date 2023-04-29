@@ -339,9 +339,7 @@ pub fn view<D: VarValue>(data: impl IntoVar<D>, update: impl WidgetHandler<ViewA
 
             if let Some(child) = replace.lock().take() {
                 // skip update if nil -> nil, otherwise updates
-                let current_is_nil = c.child().actual_type_id() == TypeId::of::<NilUiNode>();
-                let new_is_nil = child.actual_type_id() == TypeId::of::<NilUiNode>();
-                if current_is_nil != new_is_nil || !current_is_nil {
+                if c.child().actual_type_id() != TypeId::of::<NilUiNode>() || child.actual_type_id() != TypeId::of::<NilUiNode>() {
                     c.child().deinit();
                     *c.child() = child;
                     c.child().init();
