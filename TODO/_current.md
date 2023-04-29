@@ -1,5 +1,3 @@
-* View functions are not widgets, but they are exported `widgets::*`; 
-
 * Implement `par_fold_reduce` for `BoxedUiNodeList`.
     - The problem is the custom accumulator `T`, need to smuggle this type pass the `dyn`.
 

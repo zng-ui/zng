@@ -1,7 +1,11 @@
 use crate::prelude::new_widget::*;
 
 /// Base single content container.
-#[widget($crate::widgets::Container)]
+#[widget($crate::widgets::Container {
+    ($child:expr) => {
+        child = $child;
+    }
+})]
 pub struct Container(WidgetBase);
 impl Container {
     fn widget_intrinsic(&mut self) {

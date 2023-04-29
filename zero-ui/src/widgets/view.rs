@@ -162,6 +162,8 @@ pub use crate::wgt_fn;
 ///
 /// See also [`presenter_opt`] for a presenter that is nil with the data is `None` and [`view`] for
 /// avoiding a info tree rebuild for every data update.
+///
+/// Note that this node is not a full widget, it can be used as part of an widget without adding to the info tree.
 pub fn presenter<D: VarValue>(data: impl IntoVar<D>, update: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
     let data = data.into_var();
     let update = update.into_var();
@@ -190,6 +192,8 @@ pub fn presenter<D: VarValue>(data: impl IntoVar<D>, update: impl IntoVar<Widget
 /// Node that presents `data` using `update` if data is available, otherwise presents nil.
 ///
 /// This behaves like [`presenter`], but `update` is not called if `data` is `None`.
+///
+/// Note that this node is not a full widget, it can be used as part of an widget without adding to the info tree.
 pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, update: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
     let data = data.into_var();
     let update = update.into_var();
@@ -277,15 +281,17 @@ impl<D: VarValue> ViewArgs<D> {
 /// args, note that the data variable is available in [`ViewArgs::data`], a good view will bind to the variable
 /// to support some changes, only replacing the UI for major changes.
 ///
+/// Note that this node is not a full widget, it can be used as part of an widget without adding to the info tree.
+///
 /// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
 ///
 /// fn countdown(n: impl IntoVar<usize>) -> impl UiNode {
-///     view(n, hn!(|a: &ViewArgs<usize>| {
+///     Container!(view(n, hn!(|a: &ViewArgs<usize>| {
 ///         // we generate a new view on the first call or when the data has changed to zero.
-///         if a.is_first() || a.data().get_new() == Some(0) {
+///         if a.is_nil() || a.data().get_new() == Some(0) {
 ///             a.set_view(if a.data().get() > 0 {
 ///                 // countdown view
 ///                 Text! {
@@ -302,7 +308,7 @@ impl<D: VarValue> ViewArgs<D> {
 ///                 }
 ///             });
 ///         }
-///     }))
+///     })))
 /// }
 /// ```
 pub fn view<D: VarValue>(data: impl IntoVar<D>, update: impl WidgetHandler<ViewArgs<D>>) -> impl UiNode {

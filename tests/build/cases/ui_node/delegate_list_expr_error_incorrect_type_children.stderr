@@ -9,7 +9,7 @@ error[E0277]: the trait bound `NotANodeList: zero_ui::prelude::UiNodeList` is no
   |
   = help: the following other types implement trait `zero_ui::prelude::UiNodeList`:
             <implementers-list>
-note: required by a bound in `info_all`
+note: required by a bound in `zero_ui::zero_ui_core::widget_instance::ui_node_list_default::info_all`
  --> $WORKSPACE/zero-ui-core/src/widget_instance.rs
   |
   |     pub fn info_all(list: &mut impl UiNodeList, info: &mut WidgetInfoBuilder) {

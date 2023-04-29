@@ -1,6 +1,8 @@
 use crate::prelude::new_widget::*;
 
 /// Node that fills the widget area with a color.
+///
+/// Note that this node is not a full widget, it can be used as part of an widget without adding to the info tree.
 pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
     let color = color.into_var();
     let mut render_size = PxSize::zero();
