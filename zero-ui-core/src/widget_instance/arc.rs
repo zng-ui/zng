@@ -605,7 +605,7 @@ mod impls {
 
         fn par_fold_reduce<TF, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> TF
         where
-            TF: Send,
+            TF: Send + 'static,
             I: Fn() -> TF + Send + Sync,
             F: Fn(TF, usize, &mut BoxedUiNode) -> TF + Send + Sync,
             R: Fn(TF, TF) -> TF + Send + Sync,

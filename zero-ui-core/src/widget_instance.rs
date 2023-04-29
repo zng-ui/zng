@@ -477,7 +477,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// [associative]: https://en.wikipedia.org/wiki/Associative_property
     fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
-        T: Send,
+        T: Send + 'static,
         I: Fn() -> T + Send + Sync,
         F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync;
@@ -889,6 +889,12 @@ pub trait UiNodeListBoxed: Any + Send {
     fn with_node_boxed(&mut self, index: usize, f: &mut dyn FnMut(&mut BoxedUiNode));
     fn for_each_boxed(&mut self, f: &mut dyn FnMut(usize, &mut BoxedUiNode));
     fn par_each_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync));
+    fn par_fold_reduce_boxed(
+        &mut self,
+        identity: &(dyn Fn() -> Box<dyn Any + Send> + Send + Sync),
+        fold: &(dyn Fn(Box<dyn Any + Send>, usize, &mut BoxedUiNode) -> Box<dyn Any + Send> + Send + Sync),
+        reduce: &(dyn Fn(Box<dyn Any + Send>, Box<dyn Any + Send>) -> Box<dyn Any + Send> + Send + Sync),
+    ) -> Box<dyn Any + Send>;
     fn measure_each_boxed(
         &mut self,
         wm: &mut WidgetMeasure,
@@ -925,6 +931,15 @@ impl<L: UiNodeList> UiNodeListBoxed for L {
 
     fn par_each_boxed(&mut self, f: &(dyn Fn(usize, &mut BoxedUiNode) + Send + Sync)) {
         self.par_each(f)
+    }
+
+    fn par_fold_reduce_boxed(
+        &mut self,
+        identity: &(dyn Fn() -> Box<dyn Any + Send> + Send + Sync),
+        fold: &(dyn Fn(Box<dyn Any + Send>, usize, &mut BoxedUiNode) -> Box<dyn Any + Send> + Send + Sync),
+        reduce: &(dyn Fn(Box<dyn Any + Send>, Box<dyn Any + Send>) -> Box<dyn Any + Send> + Send + Sync),
+    ) -> Box<dyn Any + Send> {
+        self.par_fold_reduce(identity, fold, reduce)
     }
 
     fn measure_each_boxed(
@@ -1109,18 +1124,30 @@ impl UiNodeList for BoxedUiNodeList {
         self.as_mut().par_each_boxed(&f)
     }
 
-    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, _reduce: R) -> T
+    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
-        T: Send,
+        T: Send + 'static,
         I: Fn() -> T + Send + Sync,
         F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,
     {
-        let mut r = Some(identity());
-        self.as_mut().for_each_boxed(&mut |i, node| {
-            r = Some(fold(r.take().unwrap(), i, node));
-        });
-        r.unwrap()
+        self.as_mut()
+            .par_fold_reduce_boxed(
+                &move || Box::new(Some(identity())),
+                &move |mut r, i, n| {
+                    let r_mut = r.downcast_mut::<Option<T>>().unwrap();
+                    *r_mut = Some(fold(r_mut.take().unwrap(), i, n));
+                    r
+                },
+                &|mut a, b| {
+                    let a_mut = a.downcast_mut::<Option<T>>().unwrap();
+                    *a_mut = Some(reduce(a_mut.take().unwrap(), b.downcast::<Option<T>>().unwrap().unwrap()));
+                    a
+                },
+            )
+            .downcast::<Option<T>>()
+            .unwrap()
+            .unwrap()
     }
 
     fn len(&self) -> usize {

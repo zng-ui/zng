@@ -258,7 +258,7 @@ impl UiNodeList for UiNodeVec {
 
     fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
-        T: Send,
+        T: Send + 'static,
         I: Fn() -> T + Send + Sync,
         F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,
@@ -333,7 +333,7 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChainImpl<A, B> {
 
     fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
-        T: Send,
+        T: Send + 'static,
         I: Fn() -> T + Send + Sync,
         F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,
@@ -574,7 +574,7 @@ where
 
     fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, _: R) -> T
     where
-        T: Send,
+        T: Send + 'static,
         I: Fn() -> T + Send + Sync,
         F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,
@@ -1201,7 +1201,7 @@ impl UiNodeList for EditableUiNodeList {
 
     fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
-        T: Send,
+        T: Send + 'static,
         I: Fn() -> T + Send + Sync,
         F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,
@@ -1527,7 +1527,7 @@ impl UiNodeList for Vec<BoxedUiNodeList> {
 
     fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
-        T: Send,
+        T: Send + 'static,
         I: Fn() -> T + Send + Sync,
         F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,
@@ -1821,7 +1821,7 @@ where
     /// This method behaves the same as [`UiNodeList::par_fold_reduce`], with the added data.
     pub fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
-        T: Send,
+        T: Send + 'static,
         I: Fn() -> T + Send + Sync,
         F: Fn(T, usize, &mut BoxedUiNode, &mut D) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,
@@ -2010,7 +2010,7 @@ where
 
     fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
-        T: Send,
+        T: Send + 'static,
         I: Fn() -> T + Send + Sync,
         F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,

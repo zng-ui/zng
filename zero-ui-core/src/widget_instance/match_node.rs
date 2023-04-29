@@ -925,7 +925,7 @@ impl<L: UiNodeList> UiNodeList for MatchNodeChildren<L> {
 
     fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
     where
-        T: Send,
+        T: Send + 'static,
         I: Fn() -> T + Send + Sync,
         F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,
