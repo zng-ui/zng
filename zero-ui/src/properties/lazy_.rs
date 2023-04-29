@@ -418,14 +418,14 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
                 // child is actual child
                 let last = c.children().len() - 1;
 
+                c.children()[last].render_update(update);
+
                 if last == 1 {
                     update.hidden(|u| {
                         // update bounds (not used but can be inspected)
                         c.children()[0].render_update(u);
                     });
                 }
-
-                c.children()[last].render_update(update);
             } else {
                 // update bounds
                 c.children()[0].render_update(update);
