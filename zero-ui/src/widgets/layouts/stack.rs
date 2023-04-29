@@ -348,18 +348,19 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
     let align_baseline = children_align.is_baseline();
 
     children.for_each(|_, c, o| {
-        let (size, baseline) = c
-            .with_context(|| {
-                let bounds = WIDGET.bounds();
-                (bounds.outer_size(), bounds.final_baseline())
-            })
-            .unwrap_or_default();
+        if let Some((size, baseline)) = c.with_context(|| {
+            let bounds = WIDGET.bounds();
+            (bounds.outer_size(), bounds.final_baseline())
+        }) {
+            let child_offset = (items_size - size).to_vector() * child_align;
+            o.child_offset += children_offset + child_offset;
 
-        let child_offset = (items_size - size).to_vector() * child_align;
-        o.child_offset += children_offset + child_offset;
-
-        if align_baseline {
-            o.child_offset.y += baseline;
+            if align_baseline {
+                o.child_offset.y += baseline;
+            }
+        } else {
+            // non-widgets only align with item_bounds
+            o.child_offset += children_offset;
         }
     });
 

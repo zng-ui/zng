@@ -102,7 +102,7 @@ fn icons() -> impl UiNode {
                         _ => unreachable!(),
                     });
                 }
-            })).into_widget(),
+            })),
         ]
     }
 }
