@@ -277,8 +277,6 @@ impl<D: VarValue> ViewArgs<D> {
 /// args, note that the data variable is available in [`ViewArgs::data`], a good view will bind to the variable
 /// to support some changes, only replacing the UI for major changes.
 ///
-/// !!: TODO, handle `async_hn` and `set_view`.
-///
 /// # Examples
 ///
 /// ```
@@ -310,18 +308,17 @@ impl<D: VarValue> ViewArgs<D> {
 pub fn view<D: VarValue>(data: impl IntoVar<D>, update: impl WidgetHandler<ViewArgs<D>>) -> impl UiNode {
     let data = data.into_var().boxed();
     let mut update = update.cfg_boxed();
+    let replace = Arc::new(Mutex::new(None));
 
     match_node(NilUiNode.boxed(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&data);
-            let replace = Arc::new(Mutex::new(None));
             update.event(&ViewArgs {
                 data: data.clone(),
                 replace: replace.clone(),
                 is_nil: true,
             });
-            let replace = replace.lock().take();
-            if let Some(child) = replace {
+            if let Some(child) = replace.lock().take() {
                 *c.child() = child;
             }
         }
@@ -331,21 +328,24 @@ pub fn view<D: VarValue>(data: impl IntoVar<D>, update: impl WidgetHandler<ViewA
         }
         UiNodeOp::Update { .. } => {
             if data.is_new() {
-                let is_nil = c.child().actual_type_id() == TypeId::of::<NilUiNode>();
-                let replace = Arc::new(Mutex::new(None));
                 update.event(&ViewArgs {
                     data: data.clone(),
                     replace: replace.clone(),
-                    is_nil,
+                    is_nil: c.child().actual_type_id() == TypeId::of::<NilUiNode>(),
                 });
-                let replace = replace.lock().take();
-                if let Some(child) = replace {
-                    if is_nil != (child.actual_type_id() == TypeId::of::<NilUiNode>()) {
-                        c.child().deinit();
-                        *c.child() = child;
-                        c.child().init();
-                        WIDGET.update_info().layout().render();
-                    }
+            }
+
+            update.update();
+
+            if let Some(child) = replace.lock().take() {
+                // skip update if nil -> nil, otherwise updates
+                let current_is_nil = c.child().actual_type_id() == TypeId::of::<NilUiNode>();
+                let new_is_nil = child.actual_type_id() == TypeId::of::<NilUiNode>();
+                if current_is_nil != new_is_nil || !current_is_nil {
+                    c.child().deinit();
+                    *c.child() = child;
+                    c.child().init();
+                    WIDGET.update_info().layout().render();
                 }
             }
         }
