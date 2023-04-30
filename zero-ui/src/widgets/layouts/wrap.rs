@@ -121,7 +121,7 @@ pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSp
         }
         UiNodeOp::Update { .. } => {
             if size.is_new() {
-                UPDATES.layout();
+                WIDGET.layout();
             }
         }
         UiNodeOp::Measure { desired_size, .. } => {

@@ -24,7 +24,7 @@ use crate::{
     text::Txt,
     timer::TIMERS_SV,
     units::*,
-    var::{AnyVar, VarHandle, VarHandles, VARS},
+    var::{AnyVar, Var, VarHandle, VarHandles, VarValue, VARS},
     widget_info::{
         InlineSegmentPos, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoTree, WidgetInlineMeasure, WidgetLayout, WidgetMeasure,
         WidgetPath,
@@ -838,7 +838,7 @@ impl WIDGET {
         if !flags.contains(UpdateFlags::LAYOUT) {
             flags.insert(UpdateFlags::LAYOUT);
             drop(flags);
-            UPDATES.layout();
+            UPDATES.layout(w.id);
         }
         self
     }
@@ -856,7 +856,7 @@ impl WIDGET {
         if !flags.contains(UpdateFlags::RENDER) {
             flags.insert(UpdateFlags::RENDER);
             drop(flags);
-            UPDATES.render();
+            UPDATES.render(w.id);
         }
         self
     }
@@ -874,7 +874,7 @@ impl WIDGET {
         if !flags.contains(UpdateFlags::RENDER_UPDATE) {
             flags.insert(UpdateFlags::RENDER_UPDATE);
             drop(flags);
-            UPDATES.render();
+            UPDATES.render_update(w.id);
         }
         self
     }
@@ -968,13 +968,74 @@ impl WIDGET {
         w.var_handles.lock().push(s);
         self
     }
+    /// Subscribe to receive updates when the `var` changes and the `predicate` approves the new value.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_var_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+        todo!("!!: ")
+    }
 
-    /// Subscribe to receive events from `event`.
+    /// Subscribe to receive info rebuild requests when the `var` changes.
+    pub fn sub_var_info(&self, var: impl AnyVar) -> &Self {
+        todo!("!!:")
+    }
+    /// Subscribe to receive info rebuild requests when the `var` changes and the `predicate` approves the new value.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_var_info_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+        todo!("!!: ")
+    }
+
+    /// Subscribe to receive layout requests when the `var` changes.
+    pub fn sub_var_layout(&self, var: impl AnyVar) -> &Self {
+        todo!("!!:")
+    }
+    /// Subscribe to receive layout requests when the `var` changes and the `predicate` approves the new value.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_var_layout_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+        todo!("!!: ")
+    }
+
+    /// Subscribe to receive render requests when the `var` changes.
+    pub fn sub_var_render(&self, var: impl AnyVar) -> &Self {
+        todo!("!!:")
+    }
+    /// Subscribe to receive render requests when the `var` changes and the `predicate` approves the new value.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_var_render_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
+        todo!("!!: ")
+    }
+
+    /// Subscribe to receive render update requests when the `var` changes.
+    pub fn sub_var_render_update(&self, var: impl AnyVar) -> &Self {
+        todo!("!!:")
+    }
+    /// Subscribe to receive render update requests when the `var` changes and the `predicate` approves the new value.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_var_render_update_when<T: VarValue>(
+        &self,
+        var: &impl Var<T>,
+        predicate: impl Fn(&T) -> bool + Send + Sync + 'static,
+    ) -> &Self {
+        todo!("!!: ")
+    }
+
+    /// Subscribe to receive events from `event` when the event targets this widget.
     pub fn sub_event<A: EventArgs>(&self, event: &Event<A>) -> &Self {
         let w = WIDGET_CTX.get();
         let s = event.subscribe(w.id);
         w.event_handles.lock().push(s);
         self
+    }
+
+    /// Subscribe to receive events from `event`  when the event targets this widget and the `predicate` approves the new event.
+    ///
+    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
+    pub fn sub_event_when<A: EventArgs>(&self, event: &Event<A>, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) -> &Self {
+        todo!("!!:")
     }
 
     /// Hold the `handle` until the widget is deinited.
@@ -1481,12 +1542,18 @@ impl UPDATES {
         UPDATES_SV.write().flag_update(UpdateFlags::UPDATE);
     }
 
-    /// Schedules a layout update that will affect all app extensions.
+    /// Schedules an info rebuild that affects the `target`.
     ///
-    /// Note that you must use [`WIDGET.layout`] to request a layout update for an widget.
+    /// After the current update cycle ends a new update will happen that requests an info rebuild that includes the `target` widget.
+    pub fn update_info(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+        todo!("!!:")
+    }
+
+    /// Schedules a layout update that affects the `target`.
     ///
-    /// [`WIDGET.layout`]: WIDGET::layout
-    pub fn layout(&self) -> &Self {
+    /// After the current update cycle ends and there are no more updates requested a layout pass is issued that includes the `target` widget.
+    pub fn layout(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+        // !!: TODO target
         UpdatesTrace::log_layout();
         self.layout_internal();
         self
@@ -1495,16 +1562,29 @@ impl UPDATES {
         UPDATES_SV.write().flag_update(UpdateFlags::LAYOUT);
     }
 
-    /// Schedules a render update that will affect all app extensions.
+    /// Schedules a full render that affects the `target`.
     ///
-    /// Note that you must use [`WIDGET.render`] or [`WIDGET.render_update`] to request a render update for an widget.
+    /// After the current update cycle ends and there are no more updates or layouts requested a render pass is issued that
+    /// includes the `target` widget.
     ///
-    /// [`WIDGET.render`]: WIDGET::render
-    /// [`WIDGET.render_update`]: WIDGET::render_update
-    pub fn render(&self) -> &Self {
+    /// If no `target` is provided only the app extensions receive a render request.
+    pub fn render(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+        // !!: TODO target
         self.render_internal();
         self
     }
+
+    /// Schedules a render update that affects the `target`.
+    ///
+    /// After the current update cycle ends and there are no more updates or layouts requested a render pass is issued that
+    /// includes the `target` widget marked for render update only. Note that if a full render was requested for another widget
+    /// on the same window this request is upgraded to a full frame render.
+    pub fn render_update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+        // !!: TODO target
+        self.render_internal();
+        self
+    }
+
     pub(crate) fn render_internal(&self) {
         UPDATES_SV.write().flag_update(UpdateFlags::RENDER);
     }

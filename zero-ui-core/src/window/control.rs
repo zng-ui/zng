@@ -109,7 +109,7 @@ impl HeadedCtrl {
     pub fn update(&mut self, updates: &WidgetUpdates) {
         if self.window.is_none() && !self.waiting_view {
             // we request a view on the first layout.
-            UPDATES.layout();
+            UPDATES.layout(None);
 
             if let Some(enforced_fullscreen) = self.kiosk {
                 // enforce kiosk in pre-init.
@@ -202,7 +202,7 @@ impl HeadedCtrl {
                 if let Some(auto) = self.vars.auto_size().get_new() {
                     if auto != AutoSize::DISABLED {
                         self.content.layout_requested = true;
-                        UPDATES.layout();
+                        UPDATES.layout(None);
                     }
                 }
 
@@ -247,7 +247,7 @@ impl HeadedCtrl {
                         if font_size_dip != self.root_font_size {
                             self.root_font_size = font_size_dip;
                             self.content.layout_requested = true;
-                            UPDATES.layout();
+                            UPDATES.layout(None);
                         }
                     }
                 }
@@ -308,14 +308,14 @@ impl HeadedCtrl {
 
                     if ico.get().is_loading() && self.window.is_none() && !self.waiting_view {
                         if self.icon_deadline.has_elapsed() {
-                            UPDATES.layout();
+                            UPDATES.layout(None);
                         } else {
                             TIMERS
                                 .on_deadline(
                                     self.icon_deadline,
                                     app_hn_once!(ico, |_| {
                                         if ico.get().is_loading() {
-                                            UPDATES.layout();
+                                            UPDATES.layout(None);
                                         }
                                     }),
                                 )
@@ -380,7 +380,7 @@ impl HeadedCtrl {
                 }
                 if m.scale_factor().is_new() || m.size().is_new() || m.ppi().is_new() {
                     self.content.layout_requested = true;
-                    UPDATES.layout();
+                    UPDATES.layout(None);
                 }
             }
 
@@ -444,7 +444,7 @@ impl HeadedCtrl {
                         self.vars.0.actual_monitor.set_ne(Some(monitor));
                         self.monitor = None;
                         self.content.layout_requested = true;
-                        UPDATES.layout();
+                        UPDATES.layout(None);
                     }
                 }
 
@@ -478,10 +478,10 @@ impl HeadedCtrl {
 
                                 // we skip layout & render when minimized.
                                 if self.content.layout_requested {
-                                    UPDATES.layout();
+                                    UPDATES.layout(None);
                                 }
                                 if !matches!(self.content.render_requested, RenderUpdate::None) {
-                                    UPDATES.render();
+                                    UPDATES.render(None);
                                 }
                             }
                             _ => {}
@@ -504,7 +504,7 @@ impl HeadedCtrl {
                         size_change = Some(size);
 
                         self.content.layout_requested = true;
-                        UPDATES.layout();
+                        UPDATES.layout(None);
 
                         if args.cause == EventCause::System {
                             // resize by system (user)
@@ -520,7 +520,7 @@ impl HeadedCtrl {
                         self.content.pending_render = RenderUpdate::RenderUpdate;
                     }
                     self.content.render_requested = mem::replace(&mut self.content.pending_render, RenderUpdate::None);
-                    UPDATES.render();
+                    UPDATES.render(None);
                 }
 
                 if state_change.is_some() || pos_change.is_some() || size_change.is_some() {
@@ -601,7 +601,7 @@ impl HeadedCtrl {
                     .unwrap_or_default();
                 self.vars.0.actual_color_scheme.set_ne(scheme);
 
-                UPDATES.layout().render();
+                UPDATES.layout(None).render(None);
 
                 for update in mem::take(&mut self.delayed_view_updates) {
                     update(&args.window);
@@ -634,7 +634,7 @@ impl HeadedCtrl {
                 self.content.render_requested = RenderUpdate::Render;
                 self.content.is_rendering = false;
 
-                UPDATES.layout().render();
+                UPDATES.layout(None).render(None);
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.window {
@@ -650,7 +650,7 @@ impl HeadedCtrl {
                     self.content.render_requested = RenderUpdate::Render;
                     self.content.is_rendering = false;
 
-                    UPDATES.layout().render();
+                    UPDATES.layout(None).render(None);
                 }
             }
         }
@@ -1065,11 +1065,11 @@ impl HeadlessWithRendererCtrl {
                 || self.vars.font_size().is_new()
             {
                 self.content.layout_requested = true;
-                UPDATES.layout();
+                UPDATES.layout(None);
             }
         } else {
             // we init on the first layout.
-            UPDATES.layout();
+            UPDATES.layout(None);
         }
 
         if update_parent(&mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
@@ -1099,7 +1099,7 @@ impl HeadlessWithRendererCtrl {
                 self.surface = Some(args.surface.clone());
                 self.vars.0.render_mode.set_ne(args.data.render_mode);
 
-                UPDATES.render();
+                UPDATES.render(None);
 
                 for update in mem::take(&mut self.delayed_view_updates) {
                     update(&args.surface);
@@ -1117,7 +1117,7 @@ impl HeadlessWithRendererCtrl {
                 self.content.layout_requested = true;
                 self.content.render_requested = RenderUpdate::Render;
 
-                UPDATES.layout().render();
+                UPDATES.layout(None).render(None);
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.surface {
@@ -1130,7 +1130,7 @@ impl HeadlessWithRendererCtrl {
                     self.content.layout_requested = true;
                     self.content.render_requested = RenderUpdate::Render;
 
-                    UPDATES.layout().render();
+                    UPDATES.layout(None).render(None);
                 }
             }
         }
@@ -1295,15 +1295,15 @@ impl HeadlessCtrl {
     pub fn update(&mut self, updates: &WidgetUpdates) {
         if self.vars.size().is_new() || self.vars.min_size().is_new() || self.vars.max_size().is_new() || self.vars.auto_size().is_new() {
             self.content.layout_requested = true;
-            UPDATES.layout();
+            UPDATES.layout(None);
         }
 
         if matches!(self.content.init_state, InitState::Init) {
             self.content.layout_requested = true;
             self.content.pending_render = RenderUpdate::Render;
 
-            UPDATES.layout();
-            UPDATES.render();
+            UPDATES.layout(None);
+            UPDATES.render(None);
         }
 
         if update_parent(&mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
@@ -1524,18 +1524,18 @@ impl ContentCtrl {
     pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
         if self.root_ctx.take_layout() {
             self.layout_requested = true;
-            UPDATES.layout();
+            UPDATES.layout(None);
         }
         if self.root_ctx.is_pending_render() {
             let _ = self.root_ctx.take_render();
             self.render_requested = RenderUpdate::Render;
-            UPDATES.render();
+            UPDATES.render(None);
         } else if self.root_ctx.is_pending_render_update() {
             let _ = self.root_ctx.take_render_update();
             if !matches!(&self.render_requested, RenderUpdate::Render) {
                 self.render_requested = RenderUpdate::RenderUpdate;
             }
-            UPDATES.render();
+            UPDATES.render(None);
         }
 
         if self.root_ctx.take_info() {
@@ -1573,13 +1573,13 @@ impl ContentCtrl {
                     RenderUpdate::None => {}
                     RenderUpdate::Render => {
                         self.render_requested = RenderUpdate::Render;
-                        UPDATES.render();
+                        UPDATES.render(None);
                     }
                     RenderUpdate::RenderUpdate => {
                         if !matches!(self.render_requested, RenderUpdate::Render) {
                             self.render_requested = RenderUpdate::RenderUpdate;
                         }
-                        UPDATES.render();
+                        UPDATES.render(None);
                     }
                 }
 
