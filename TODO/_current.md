@@ -7,7 +7,6 @@
     - [ ] Design API in event.
             - Missing `subscribe_when`.
     - [x] Implement `_when` var.
-    - [ ] Implement `_when` event.
     - [ ] Refactor info invalidation to include an `WidgetUpdates` like list.
     - [ ] Refactor layout invalidation to include an `WidgetUpdates` like list.
     - [ ] Refactor render invalidation to include an `WidgetUpdates` like list.

@@ -1049,13 +1049,6 @@ impl WIDGET {
         self
     }
 
-    /// Subscribe to receive events from `event`  when the event targets this widget and the `predicate` approves the new event.
-    ///
-    /// Note that the `predicate` does not run in the widget context, it runs on the app context.
-    pub fn sub_event_when<A: EventArgs>(&self, event: &Event<A>, predicate: impl Fn(&A) -> bool + Send + Sync + 'static) -> &Self {
-        todo!("!!:")
-    }
-
     /// Hold the `handle` until the widget is deinited.
     pub fn push_event_handle(&self, handle: EventHandle) {
         WIDGET_CTX.get().event_handles.lock().push(handle);
