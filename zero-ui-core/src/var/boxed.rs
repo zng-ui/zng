@@ -161,8 +161,8 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).hook(pos_modify_action)
     }
 
-    fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
-        (**self).subscribe(widget_id)
+    fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
+        (**self).subscribe(op, widget_id)
     }
 
     fn strong_count(&self) -> usize {

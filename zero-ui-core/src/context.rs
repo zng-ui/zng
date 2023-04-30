@@ -961,56 +961,74 @@ impl WIDGET {
         self.with_state(|s| s.contains(id))
     }
 
-    /// Subscribe to receive updates when the `var` changes.
-    pub fn sub_var(&self, var: &impl AnyVar) -> &Self {
+    /// Subscribe to receive [`UpdateOp`] when the `var` changes.
+    pub fn sub_var_op(&self, op: UpdateOp, var: &impl AnyVar) -> &Self {
         let w = WIDGET_CTX.get();
-        let s = var.subscribe(w.id);
+        let s = var.subscribe(op, w.id);
         w.var_handles.lock().push(s);
         self
+    }
+
+    /// Subscribe to receive [`UpdateOp`] when the `var` changes.
+    pub fn sub_var_op_when<T: VarValue>(
+        &self,
+        op: UpdateOp,
+        var: &impl Var<T>,
+        predicate: impl Fn(&T) -> bool + Send + Sync + 'static,
+    ) -> &Self {
+        let w = WIDGET_CTX.get();
+        let s = var.subscribe_when(op, w.id, predicate);
+        w.var_handles.lock().push(s);
+        self
+    }
+
+    /// Subscribe to receive updates when the `var` changes.
+    pub fn sub_var(&self, var: &impl AnyVar) -> &Self {
+        self.sub_var_op(UpdateOp::Update, var)
     }
     /// Subscribe to receive updates when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
     pub fn sub_var_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
-        todo!("!!: ")
+        self.sub_var_op_when(UpdateOp::Update, var, predicate)
     }
 
     /// Subscribe to receive info rebuild requests when the `var` changes.
-    pub fn sub_var_info(&self, var: impl AnyVar) -> &Self {
-        todo!("!!:")
+    pub fn sub_var_info(&self, var: &impl AnyVar) -> &Self {
+        self.sub_var_op(UpdateOp::Info, var)
     }
     /// Subscribe to receive info rebuild requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
     pub fn sub_var_info_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
-        todo!("!!: ")
+        self.sub_var_op_when(UpdateOp::Info, var, predicate)
     }
 
     /// Subscribe to receive layout requests when the `var` changes.
-    pub fn sub_var_layout(&self, var: impl AnyVar) -> &Self {
-        todo!("!!:")
+    pub fn sub_var_layout(&self, var: &impl AnyVar) -> &Self {
+        self.sub_var_op(UpdateOp::Layout, var)
     }
     /// Subscribe to receive layout requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
     pub fn sub_var_layout_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
-        todo!("!!: ")
+        self.sub_var_op_when(UpdateOp::Layout, var, predicate)
     }
 
     /// Subscribe to receive render requests when the `var` changes.
-    pub fn sub_var_render(&self, var: impl AnyVar) -> &Self {
-        todo!("!!:")
+    pub fn sub_var_render(&self, var: &impl AnyVar) -> &Self {
+        self.sub_var_op(UpdateOp::Render, var)
     }
     /// Subscribe to receive render requests when the `var` changes and the `predicate` approves the new value.
     ///
     /// Note that the `predicate` does not run in the widget context, it runs on the app context.
     pub fn sub_var_render_when<T: VarValue>(&self, var: &impl Var<T>, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> &Self {
-        todo!("!!: ")
+        self.sub_var_op_when(UpdateOp::Render, var, predicate)
     }
 
     /// Subscribe to receive render update requests when the `var` changes.
-    pub fn sub_var_render_update(&self, var: impl AnyVar) -> &Self {
-        todo!("!!:")
+    pub fn sub_var_render_update(&self, var: &impl AnyVar) -> &Self {
+        self.sub_var_op(UpdateOp::RenderUpdate, var)
     }
     /// Subscribe to receive render update requests when the `var` changes and the `predicate` approves the new value.
     ///
@@ -1020,7 +1038,7 @@ impl WIDGET {
         var: &impl Var<T>,
         predicate: impl Fn(&T) -> bool + Send + Sync + 'static,
     ) -> &Self {
-        todo!("!!: ")
+        self.sub_var_op_when(UpdateOp::RenderUpdate, var, predicate)
     }
 
     /// Subscribe to receive events from `event` when the event targets this widget.
@@ -1438,6 +1456,48 @@ impl UpdatesService {
     }
 }
 
+/// Specify what app extension and widget operation must be run to satisfy an update request targeting an widget.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UpdateOp {
+    /// The [`AppExtension::update_preview`], [`AppExtension::update_ui`] and [`AppExtension::update`] are called in order,
+    /// this is a normal update cycle.
+    ///
+    /// The [`UiNode::update`] is called for the target widget, parent widgets and any other widget that requested update
+    /// in the same cycle. This call happens inside [`AppExtension::update_ui`].
+    ///
+    /// [`AppExtension::update_preview`]: crate::app::AppExtension::update_preview
+    /// [`AppExtension::update_ui`]: crate::app::AppExtension::update_ui
+    /// [`AppExtension::update`]: crate::app::AppExtension::update
+    Update,
+    /// The normal [`Update`] cycle runs, and after the info tree of windows that inited or deinited widgets are rebuild
+    /// by calling [`UiNode::info`].  The target widget is also flagged for rebuild.
+    ///
+    /// [`Update`]: Update::Render
+    Info,
+    /// The [`AppExtension::layout`] is called the an update cycle happens without generating anymore update requests.
+    ///
+    /// The [`UiNode::layout`] is called for the widget target, parent widgets and any other widget that depends on
+    /// layout metrics that have changed or that also requested layout update.
+    ///
+    /// [`AppExtension::layout`]: crate::app::AppExtension::layout
+    Layout,
+    /// The [`AppExtension::render`] is called after an update and layout cycle happens generating anymore requests for update or layout.
+    ///
+    /// The [`UiNode::render`] is called for the target widget, parent widgets and all other widgets that also requested render
+    /// or that requested [`RenderUpdate`] in the same window.
+    ///
+    /// [`RenderUpdate`]: UpdateOp::RenderUpdate
+    /// [`AppExtension::render`]: crate::app::AppExtension::render
+    Render,
+    /// Same behavior as [`Render`], except that windows where all widgets only requested render update are rendered
+    /// using [`UiNode::render_update`] instead of the full render.
+    ///
+    /// This OP is upgraded to [`Render`] if any other widget requests a full render in the same window.
+    ///
+    /// [`Render`]: UpdateOp::Render
+    RenderUpdate,
+}
+
 /// Update pump and schedule service.
 pub struct UPDATES;
 impl UPDATES {
@@ -1498,6 +1558,18 @@ impl UPDATES {
     /// Create an std task waker that wakes the event loop and updates all `targets`.
     pub fn waker(&self, targets: Vec<WidgetId>) -> Waker {
         UPDATES_SV.read().event_sender.as_ref().unwrap().waker(targets)
+    }
+
+    /// Schedules an [`UpdateOp`] that optionally affects the `target` widget.
+    pub fn update_op(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> &Self {
+        let target = target.into();
+        match op {
+            UpdateOp::Update => self.update(target),
+            UpdateOp::Info => self.update_info(target),
+            UpdateOp::Layout => self.layout(target),
+            UpdateOp::Render => self.render(target),
+            UpdateOp::RenderUpdate => self.render_update(target),
+        }
     }
 
     /// Schedules an update that affects the `target`.

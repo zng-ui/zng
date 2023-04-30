@@ -148,8 +148,8 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.0.get().hook(pos_modify_action)
     }
 
-    fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
-        self.0.get().subscribe(widget_id)
+    fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
+        self.0.get().subscribe(op, widget_id)
     }
 
     fn strong_count(&self) -> usize {

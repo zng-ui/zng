@@ -258,7 +258,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
 
                 let rsp = CONFIG.read(key);
                 let loading = enabled.loading_timeout().and_then(|t| WINDOW_CTRL.loading_handle(t));
-                rsp.subscribe(WIDGET.id()).perm();
+                rsp.subscribe(UpdateOp::Update, WIDGET.id()).perm();
 
                 task = Task::Read { rsp, loading };
             }

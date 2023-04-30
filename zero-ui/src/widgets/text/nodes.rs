@@ -161,7 +161,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
     impl LoadingFontFaceList {
         fn new(face: ResponseVar<FontFaceList>) -> Self {
             Self {
-                _var_handle: face.subscribe(WIDGET.id()),
+                _var_handle: face.subscribe(UpdateOp::Update, WIDGET.id()),
                 result: face,
                 _loading: WINDOW_CTRL.loading_handle(1.secs()),
             }
@@ -231,7 +231,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             let editable = TEXT_EDITABLE_VAR.get();
             let caret_opacity = if editable && FOCUS.focused().get().map(|p| p.widget_id()) == Some(WIDGET.id()) {
                 let v = KEYBOARD.caret_animation();
-                _caret_opacity_handle = Some(v.subscribe(WIDGET.id()));
+                _caret_opacity_handle = Some(v.subscribe(UpdateOp::Update, WIDGET.id()));
                 v
             } else {
                 var(0.fct()).read_only()
@@ -273,7 +273,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     args.propagation().stop();
 
                     let new_animation = KEYBOARD.caret_animation();
-                    _caret_opacity_handle = Some(new_animation.subscribe(WIDGET.id()));
+                    _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::Update, WIDGET.id()));
                     resolved.as_mut().unwrap().caret_opacity = new_animation;
 
                     if args.is_backspace() {
@@ -299,7 +299,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 if TEXT_EDITABLE_VAR.get() {
                     if args.is_focused(WIDGET.id()) {
                         let new_animation = KEYBOARD.caret_animation();
-                        _caret_opacity_handle = Some(new_animation.subscribe(WIDGET.id()));
+                        _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::Update, WIDGET.id()));
                         resolved.as_mut().unwrap().caret_opacity = new_animation;
                     } else {
                         _caret_opacity_handle = None;
@@ -394,7 +394,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                     if FOCUS.focused().get().map(|p| p.widget_id()) == Some(id) {
                         let new_animation = KEYBOARD.caret_animation();
-                        _caret_opacity_handle = Some(new_animation.subscribe(id));
+                        _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::Update, id));
                         r.caret_opacity = new_animation;
                     }
                 } else {

@@ -48,7 +48,7 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         VarHandle::dummy()
     }
 
-    fn subscribe(&self, _: WidgetId) -> VarHandle {
+    fn subscribe(&self, _: UpdateOp, _: WidgetId) -> VarHandle {
         VarHandle::dummy()
     }
 

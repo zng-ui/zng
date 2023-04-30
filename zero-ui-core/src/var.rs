@@ -13,7 +13,7 @@ use std::{
 };
 
 use crate::{
-    context::UPDATES,
+    context::{UpdateOp, UPDATES},
     handler::{app_hn, app_hn_once, AppHandler, AppHandlerArgs},
     units::*,
 };
@@ -490,13 +490,13 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
     fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle;
 
-    /// Register the widget to receive update when this variable is new.
+    /// Register the widget to receive an [`UpdateOp`] when this variable is new.
     ///
     /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
     ///
     /// [`NEW`]: VarCapabilities::NEW
-    fn subscribe(&self, widget_id: WidgetId) -> VarHandle {
-        self.hook(var_subscribe(widget_id))
+    fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
+        self.hook(var_subscribe(op, widget_id))
     }
 
     /// Gets the number of strong references to the variable.
@@ -1927,6 +1927,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         self.with(move |s| s.layout_dft_y(default))
     }
 
+    /// Register the widget to receive an [`UpdateOp`] when this variable is new and the `predicate` approves the new value.
+    ///
+    /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
+    ///
+    /// [`NEW`]: VarCapabilities::NEW
+    fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle {
+        self.hook(var_subscribe_when(op, widget_id, predicate))
+    }
+
     /*
     after https://github.com/rust-lang/rust/issues/20041
 
@@ -1999,10 +2008,27 @@ where
     crate::text::formatx!("{value:?}")
 }
 
-fn var_subscribe(widget_id: WidgetId) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
+fn var_subscribe(op: UpdateOp, widget_id: WidgetId) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
     Box::new(move |_| {
-        UPDATES.update(widget_id);
+        UPDATES.update_op(op, widget_id);
         true
+    })
+}
+
+fn var_subscribe_when<T: VarValue>(
+    op: UpdateOp,
+    widget_id: WidgetId,
+    when: impl Fn(&T) -> bool + Send + Sync + 'static,
+) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
+    Box::new(move |a| {
+        if let Some(a) = a.as_any().downcast_ref::<T>() {
+            if when(a) {
+                UPDATES.update_op(op, widget_id);
+            }
+            true
+        } else {
+            false
+        }
     })
 }
 

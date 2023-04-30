@@ -1,12 +1,12 @@
 * Direct updates.
     - [x] Design API in `WIDGET`.
-    - [ ] Design API in `UPDATES`.
+    - [x] Design API in `UPDATES`.
             - Missing `_when` overloads.
-    - [ ] Design API in var.
+    - [x] Design API in var.
             - Missing `subscribe_when`.
     - [ ] Design API in event.
             - Missing `subscribe_when`.
-    - [ ] Implement `_when` var.
+    - [x] Implement `_when` var.
     - [ ] Implement `_when` event.
     - [ ] Refactor info invalidation to include an `WidgetUpdates` like list.
     - [ ] Refactor layout invalidation to include an `WidgetUpdates` like list.

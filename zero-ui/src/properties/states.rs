@@ -223,7 +223,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
                         let duration = GESTURES.shortcut_pressed_duration().get();
                         if duration != Duration::default() {
                             let dl = TIMERS.deadline(duration);
-                            dl.subscribe(WIDGET.id()).perm();
+                            dl.subscribe(UpdateOp::Update, WIDGET.id()).perm();
                             shortcut_press = Some(dl);
                             let _ = state.set_ne(true);
                         }

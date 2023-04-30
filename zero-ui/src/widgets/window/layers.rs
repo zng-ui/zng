@@ -145,7 +145,7 @@ impl LAYERS {
                     _info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
 
                     if mode.with(|m| matches!(&m.transform, AnchorTransform::Cursor(_))) {
-                        mouse_pos_handle = Some(MOUSE.position().subscribe(WIDGET.id()));
+                        mouse_pos_handle = Some(MOUSE.position().subscribe(UpdateOp::Update, WIDGET.id()));
                     } else if mode.with(|m| matches!(&m.transform, AnchorTransform::CursorOnce(_))) {
                         cursor_once_pending = true;
                     }
@@ -206,7 +206,7 @@ impl LAYERS {
                         }
                         if matches!(&mode.transform, AnchorTransform::Cursor(_)) {
                             if mouse_pos_handle.is_none() {
-                                mouse_pos_handle = Some(MOUSE.position().subscribe(WIDGET.id()));
+                                mouse_pos_handle = Some(MOUSE.position().subscribe(UpdateOp::Update, WIDGET.id()));
                             }
                             cursor_once_pending = false;
                         } else {

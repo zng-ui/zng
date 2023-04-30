@@ -243,7 +243,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                                 TooltipState::Open(open_tooltip(tip.get(), disabled_only), duration_timer())
                             } else {
                                 let delay = TIMERS.deadline(delay);
-                                delay.subscribe(WIDGET.id()).perm();
+                                delay.subscribe(UpdateOp::Update, WIDGET.id()).perm();
                                 TooltipState::Delay(delay)
                             };
                         }
@@ -306,7 +306,7 @@ fn duration_timer() -> Option<DeadlineVar> {
     let duration = TOOLTIP_DURATION_VAR.get();
     if duration > Duration::ZERO {
         let dur = TIMERS.deadline(duration);
-        dur.subscribe(WIDGET.id()).perm();
+        dur.subscribe(UpdateOp::Update, WIDGET.id()).perm();
         Some(dur)
     } else {
         None
