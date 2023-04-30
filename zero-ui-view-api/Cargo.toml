@@ -21,7 +21,6 @@ duct = { version = "0.13", optional = true }
 
 tracing = "0.1"
 flume = { version = "0.10", default-features  = false }
-bitflags = "2"
 num-traits = "0.2"
 rustc-hash = "1"
 
