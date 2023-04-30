@@ -338,7 +338,7 @@ pub use zero_ui_proc_macros::ui_node;
 /// ## Capture
 ///
 /// After the nest group and before default the `, capture, ` value indicates that the property is capture-only. This flag
-/// changes how the property must be declared, the first argument is a property input and the function can have only one input, 
+/// changes how the property must be declared, the first argument is a property input and the function can have only one input,
 /// no return type is allowed and the function body must be empty, unused input warnings are suppressed by the expanded code.
 ///
 /// Capture-only properties must be captured by a widget and implemented as part of the widget's intrinsics, the reason for

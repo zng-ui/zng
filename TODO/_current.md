@@ -4,4 +4,5 @@
       cycle.
 
 * Finish test edit & selection.
+    - No char event is emitted for tab?
 * Implement localization.

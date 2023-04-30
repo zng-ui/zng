@@ -126,6 +126,11 @@ impl CharInputArgs {
     pub fn is_backspace(&self) -> bool {
         self.character == '\u{8}'
     }
+
+    /// Returns `true` if the character is delete.
+    pub fn is_delete(&self) -> bool {
+        self.character == '\u{7F}'
+    }
 }
 
 event! {

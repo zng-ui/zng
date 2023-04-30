@@ -282,6 +282,12 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 t.to_mut().to_mut().pop();
                             }
                         });
+                    } else if args.is_delete() {
+                        let _ = text.modify(move |t| {
+                            if !t.as_ref().is_empty() {
+                                t.to_mut().to_mut().remove(0);
+                            }
+                        });
                     } else {
                         let c = args.character;
                         let _ = text.modify(move |t| {
