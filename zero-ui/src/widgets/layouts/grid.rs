@@ -35,7 +35,7 @@ impl Grid {
 ///
 /// [`Cell!`]: struct@Cell
 #[property(CHILD, capture, widget_impl(Grid))]
-pub fn cells(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
+pub fn cells(cells: impl UiNodeList) {}
 
 /// Column definitions.
 ///
@@ -66,7 +66,7 @@ pub fn cells(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
 /// [`Column!`]: struct@Column
 /// [`lft`]: LengthUnits::lft
 #[property(CHILD, capture, widget_impl(Grid))]
-pub fn columns(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
+pub fn columns(cells: impl UiNodeList) {}
 
 /// Row definitions.
 ///
@@ -74,7 +74,7 @@ pub fn columns(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
 ///
 /// [`columns`]: fn@columns
 #[property(CHILD, capture, widget_impl(Grid))]
-pub fn rows(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
+pub fn rows(cells: impl UiNodeList) {}
 
 /// Widget function used when new rows or columns are needed to cover a cell placement.
 ///
@@ -83,7 +83,7 @@ pub fn rows(child: impl UiNode, cells: impl UiNodeList) -> impl UiNode {}
 ///
 /// [`auto_grow_mode`]: fn@auto_grow_mode
 #[property(CONTEXT, capture, widget_impl(Grid))]
-pub fn auto_grow_fn(child: impl UiNode, auto_grow: impl IntoVar<WidgetFn<AutoGrowFnArgs>>) -> impl UiNode {}
+pub fn auto_grow_fn(auto_grow: impl IntoVar<WidgetFn<AutoGrowFnArgs>>) {}
 
 /// Maximum inclusive index that can be covered by auto-generated columns or rows. If a cell is outside this index and
 /// is not covered by predefined columns or rows a new one is auto generated for it, but if the cell is also outside this
@@ -91,11 +91,11 @@ pub fn auto_grow_fn(child: impl UiNode, auto_grow: impl IntoVar<WidgetFn<AutoGro
 ///
 /// Is `AutoGrowMode::Rows(u32::MAX)` by default.
 #[property(CONTEXT, capture, widget_impl(Grid))]
-pub fn auto_grow_mode(child: impl UiNode, mode: impl IntoVar<AutoGrowMode>) -> impl UiNode {}
+pub fn auto_grow_mode(mode: impl IntoVar<AutoGrowMode>) {}
 
 /// Space in-between cells.
 #[property(LAYOUT, capture, widget_impl(Grid))]
-pub fn spacing(child: impl UiNode, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {}
+pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
 
 /// Grid node.
 ///

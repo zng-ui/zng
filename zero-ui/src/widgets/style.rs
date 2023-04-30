@@ -97,7 +97,7 @@ impl<P> StyleMix<P> {
 ///
 /// Is `nil` by default.
 #[property(WIDGET, capture, default(StyleFn::nil()), widget_impl(StyleMix<P>))]
-pub fn style_fn(_child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {}
+pub fn style_fn(style: impl IntoVar<StyleFn>) {}
 
 /// Helper for declaring properties that [extend] a style set from a context var.
 ///

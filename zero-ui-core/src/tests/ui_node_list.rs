@@ -108,9 +108,7 @@ impl ListWgt {
     }
 }
 #[crate::property(CHILD, capture, widget_impl(ListWgt))]
-pub fn children(child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
-    child
-}
+pub fn children(children: impl UiNodeList) {}
 
 mod util {
     use std::thread::{self, ThreadId};

@@ -337,9 +337,15 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// ## Capture
 ///
-/// After the nest group and before default the `, capture, ` value indicates that the property is capture-only. The property
-/// implementation is discarded in the case, and the unused inputs don't generate warnings. Because it is for widget capture only
-/// the nest group only affects metadata that may end-up in an UI inspector.
+/// After the nest group and before default the `, capture, ` value indicates that the property is capture-only. This flag
+/// changes how the property must be declared, the first argument is a property input and the function can have only one input, 
+/// no return type is allowed and the function body must be empty, unused input warnings are suppressed by the expanded code.
+///
+/// Capture-only properties must be captured by a widget and implemented as part of the widget's intrinsics, the reason for
+/// a property function is purely to define the property signature and metadata, the capture-only property function can also
+/// be used to set a property dynamically, such as in a style widget that is applied on the actual widget that captures the property.
+///
+/// A documentation sections explaining capture-only properties is generated for the property, it is also tagged differently in the functions list.
 ///
 /// ```
 /// # fn main() { }
@@ -347,9 +353,7 @@ pub use zero_ui_proc_macros::ui_node;
 ///
 /// /// Children property, must be captured by panel widgets.
 /// #[property(CONTEXT, capture)]
-/// pub fn children(_ignored: impl UiNode, children: impl UiNodeList) -> impl UiNode {
-///     _ignored
-/// }
+/// pub fn children(children: impl UiNodeList) { }
 /// ```
 ///
 /// # Args

@@ -61,7 +61,7 @@ impl Wrap {
 /// [`line_spacing`]: fn@crate::widgets::text::txt_align
 /// [`word_spacing`]: fn@crate::widgets::text::word_spacing
 #[property(LAYOUT, capture, widget_impl(Wrap))]
-pub fn spacing(child: impl UiNode, spacing: impl IntoVar<GridSpacing>) -> impl UiNode {}
+pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
 
 /// Children align.
 ///
@@ -72,7 +72,7 @@ pub fn spacing(child: impl UiNode, spacing: impl IntoVar<GridSpacing>) -> impl U
 /// [`TEXT_ALIGN_VAR`]: crate::widgets::text::TEXT_ALIGN_VAR
 /// [`txt_align`]: fn@crate::widgets::text::txt_align
 #[property(LAYOUT, capture, widget_impl(Wrap))]
-pub fn children_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {}
+pub fn children_align(align: impl IntoVar<Align>) {}
 
 /// Wrap node.
 ///

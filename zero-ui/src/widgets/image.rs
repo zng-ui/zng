@@ -28,7 +28,7 @@ impl Image {
 ///
 /// Can be a file path, an URI, binary included in the app and more.
 #[property(CONTEXT, capture, widget_impl(Image))]
-pub fn source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {}
+pub fn source(source: impl IntoVar<ImageSource>) {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
     let node = nodes::image_presenter();

@@ -88,21 +88,21 @@ impl Window {
 
 /// Window position when it opens.
 #[property(LAYOUT, capture, widget_impl(Window))]
-pub fn start_position(child: impl UiNode, position: impl IntoValue<StartPosition>) -> impl UiNode {}
+pub fn start_position(position: impl IntoValue<StartPosition>) {}
 
 /// If the Inspector can be opened for this window.
 ///
 /// The default value is `true`, but only applies if built with the `inspector` feature.
 #[cfg(inspector)]
 #[property(LAYOUT, capture, widget_impl(Window))]
-pub fn can_inspect(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {}
+pub fn can_inspect(enabled: impl IntoVar<bool>) {}
 
 /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
 ///
 /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
 /// is taken from the monitor. In headless mode these values can be configured manually.
 #[property(LAYOUT, capture, widget_impl(Window))]
-pub fn headless_monitor(child: impl UiNode, monitor: impl IntoValue<HeadlessMonitor>) -> impl UiNode {}
+pub fn headless_monitor(monitor: impl IntoValue<HeadlessMonitor>) {}
 
 /// If the window is forced to be the foreground keyboard focus after opening.
 ///
@@ -110,7 +110,7 @@ pub fn headless_monitor(child: impl UiNode, monitor: impl IntoValue<HeadlessMoni
 /// only if the process that started the window already has focus. Setting the property to `true` ensures that focus
 /// is moved to the new window, potentially stealing the focus from other apps and disrupting the user.
 #[property(CONTEXT, capture, widget_impl(Window))]
-pub fn start_focused(child: impl UiNode, enabled: impl IntoValue<bool>) -> impl UiNode {}
+pub fn start_focused(enabled: impl IntoValue<bool>) {}
 
 /// Lock-in kiosk mode.
 ///
@@ -121,7 +121,7 @@ pub fn start_focused(child: impl UiNode, enabled: impl IntoValue<bool>) -> impl 
 /// you still need to setup a kiosk environment, it does not block `ALT+TAB`. This just stops the
 /// app itself from accidentally exiting kiosk mode.
 #[property(CONTEXT, capture, widget_impl(Window))]
-pub fn kiosk(child: impl UiNode, kiosk: impl IntoValue<bool>) -> impl UiNode {}
+pub fn kiosk(kiosk: impl IntoValue<bool>) {}
 
 /// If semi-transparent content is "see-through", mixin with the OS pixels "behind" the window.
 ///
@@ -135,7 +135,7 @@ pub fn kiosk(child: impl UiNode, kiosk: impl IntoValue<bool>) -> impl UiNode {}
 /// [`clear_color`]: fn@clear_color
 /// [`background_color`]: fn@background_color
 #[property(CONTEXT, capture, widget_impl(Window))]
-pub fn allow_transparency(child: impl UiNode, allow: impl IntoValue<bool>) -> impl UiNode {}
+pub fn allow_transparency(allow: impl IntoValue<bool>) {}
 
 /// Render performance mode overwrite for this window, if set to `None` the [`WINDOWS.default_render_mode`] is used.
 ///
@@ -161,7 +161,7 @@ pub fn allow_transparency(child: impl UiNode, allow: impl IntoValue<bool>) -> im
 ///
 /// [`WINDOWS.default_render_mode`]: crate::core::window::WINDOWS::default_render_mode
 #[property(CONTEXT, capture, widget_impl(Window))]
-pub fn render_mode(child: impl UiNode, mode: impl IntoValue<Option<RenderMode>>) -> impl UiNode {}
+pub fn render_mode(mode: impl IntoValue<Option<RenderMode>>) {}
 
 /// Event just after the window opens.
 ///

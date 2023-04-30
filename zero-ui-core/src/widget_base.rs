@@ -800,45 +800,18 @@ context_var! {
 }
 
 /// Defines the widget innermost node.
-///
-/// # Capture Only
-///
-/// This property must be [captured] during widget build and redirected to [`WidgetBuilding::set_child`] in the container widget.
-///
-/// [captured]: crate::widget#property-capture
-/// [`WidgetBase`]: struct@WidgetBase
 #[property(CHILD, capture, default(FillUiNode))]
-pub fn child(_child: impl UiNode, child: impl UiNode) -> impl UiNode {
-    _child
-}
+pub fn child(child: impl UiNode) {}
 
 /// Defines the panel widget innermost nodes.
-///
-/// # Capture Only
-///
-/// This property must be [captured] during widget build and used directly in the panel node.
-///
-/// [captured]: crate::widget#property-capture
 #[property(CHILD, capture)]
-pub fn children(_child: impl UiNode, children: impl UiNodeList) -> impl UiNode {
-    _child
-}
+pub fn children(children: impl UiNodeList) {}
 
 /// Defines the unique ID for the widget instance.
 ///
 /// Note that the `id` can convert from a `&'static str` unique name.
-///
-/// # Capture Only
-///
-/// This property must be [captured] during widget build, this function only logs an error. The
-/// [`WidgetBase`] widget captures this property if present.
-///
-/// [captured]: crate::widget#property-capture
-/// [`WidgetBase`]: struct@WidgetBase
 #[property(CONTEXT, capture, default(WidgetId::new_unique()), widget_impl(WidgetBase))]
-pub fn id(_child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
-    _child
-}
+pub fn id(id: impl IntoValue<WidgetId>) {}
 
 /// Enabled properties.
 ///

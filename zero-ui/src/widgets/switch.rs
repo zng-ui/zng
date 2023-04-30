@@ -25,11 +25,11 @@ impl Switch {
 
 /// Index of the active child.
 #[property(CHILD, capture, widget_impl(Switch))]
-pub fn index(child: impl UiNode, index: impl IntoVar<usize>) -> impl UiNode {}
+pub fn index(index: impl IntoVar<usize>) {}
 
 /// List of nodes that can be switched too.
 #[property(CHILD, capture, widget_impl(Switch))]
-pub fn options(child: impl UiNode, options: impl UiNodeList) -> impl UiNode {}
+pub fn options(options: impl UiNodeList) {}
 
 /// Switch node.
 ///

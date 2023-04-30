@@ -24,7 +24,7 @@ pub struct Scroll(ScrollUinitsMix<ScrollbarFnMix<Container>>);
 ///
 /// By default scrolls in both dimensions.
 #[property(CONTEXT, capture, default(ScrollMode::ALL), widget_impl(Scroll))]
-pub fn mode(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {}
+pub fn mode(mode: impl IntoVar<ScrollMode>) {}
 
 impl Scroll {
     fn widget_intrinsic(&mut self) {
@@ -55,7 +55,7 @@ impl Scroll {
 ///
 /// Disabled by default.
 #[property(CONTEXT, capture, default(false), widget_impl(Scroll))]
-pub fn clip_to_viewport(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {}
+pub fn clip_to_viewport(clip: impl IntoVar<bool>) {}
 
 /// Properties that define scroll units.
 #[widget_mixin]

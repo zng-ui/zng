@@ -24,7 +24,7 @@ impl Icon {
 
 /// The glyph icon.
 #[property(CONTEXT, capture, widget_impl(Icon))]
-pub fn ico(child: impl UiNode, ico: impl IntoVar<GlyphIcon>) -> impl UiNode {}
+pub fn ico(ico: impl IntoVar<GlyphIcon>) {}
 
 fn on_build(wgt: &mut WidgetBuilding) {
     let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(ico)) {

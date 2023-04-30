@@ -91,7 +91,7 @@ pub struct Text(
 ///
 /// Set to an empty string (`""`) by default.
 #[property(CHILD, capture, default(""), widget_impl(Text))]
-pub fn txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {}
+pub fn txt(txt: impl IntoVar<Txt>) {}
 
 impl Text {
     fn widget_intrinsic(&mut self) {

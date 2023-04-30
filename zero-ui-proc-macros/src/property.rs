@@ -41,22 +41,44 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     let mut attrs = Attributes::new(mem::take(&mut item.attrs));
     let mut mtd_attrs = Attributes::new(vec![]);
     mtd_attrs.docs = attrs.docs.clone();
+    let mut extra_docs = quote!();
 
-    attrs.tag_doc("P", "This function is also a widget property");
-    mtd_attrs.tag_doc("P", "This method is a widget property");
-
-    if item.sig.inputs.len() < 2 {
-        errors.push(
-            "property functions must have at least 2 inputs: child: impl UiNode, arg0..",
-            item.sig.inputs.span(),
-        );
+    if capture {
+        attrs.tag_doc("c", "Capture-only property function");
+        mtd_attrs.tag_doc("c", "Capture-only property method");
+        extra_docs = quote! {
+            ///
+            /// # Capture-Only
+            ///
+            /// This property is capture-only, it only defines a property signature, it does not implement any behavior by itself.
+            /// Widgets can capture and implement this property as part of their intrinsics, otherwise it will have no
+            /// effect if set on a widget that does not implement it.
+        };
 
         if item.sig.inputs.is_empty() {
-            // patch to continue validation.
-            let core = crate_core();
-            item.sig.inputs.push(parse_quote!(__child__: impl #core::widget_instance::UiNode));
+            errors.push(
+                "capture property functions must have at least 1 input: arg0, ..",
+                item.sig.inputs.span(),
+            );
+        }
+    } else {
+        attrs.tag_doc("P", "Property function");
+        mtd_attrs.tag_doc("P", "Property method");
+
+        if item.sig.inputs.len() < 2 {
+            errors.push(
+                "property functions must have at least 2 inputs: child: impl UiNode, arg0, ..",
+                item.sig.inputs.span(),
+            );
         }
     }
+
+    if item.sig.inputs.is_empty() {
+        // patch to continue validation.
+        let core = crate_core();
+        item.sig.inputs.push(parse_quote!(__child__: impl #core::widget_instance::UiNode));
+    }
+
     if let Some(async_) = &item.sig.asyncness {
         errors.push("property functions cannot be `async`", async_.span());
     }
@@ -74,7 +96,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     }
 
     let inputs: Vec<_> = item.sig.inputs.iter().map(|arg| Input::from_arg(arg, &mut errors)).collect();
-    if !inputs[0].ty.is_empty() {
+    if !inputs[0].ty.is_empty() && !capture {
         // first param passed Input::from_arg validation, check if is node.
         if !matches!(inputs[0].kind, InputKind::UiNode) {
             errors.push("first input must be `impl UiNode`", inputs[0].ty.span());
@@ -83,27 +105,31 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     let mut item = item;
     if capture {
-        let child = &inputs[0].ident;
-        let inputs = inputs[1..].iter().map(|i| &i.ident);
+        let inputs = inputs.iter().map(|i| &i.ident);
+        if !item.block.stmts.is_empty() {
+            errors.push("capture property must have an empty body", item.block.span());
+        }
         item.block.stmts.clear();
         item.block.stmts.push(parse_quote! {
             let _ = (#(#inputs,)*);
         });
-        item.block.stmts.push(Stmt::Expr(
-            parse_quote! {
-                #child
-            },
-            None,
-        ));
     }
     let item = item;
+    let first_input = if capture { 0 } else { 1 };
 
     let output_span = match &item.sig.output {
         ReturnType::Default => {
-            errors.push("output type must be `impl UiNode`", item.sig.ident.span());
+            if !capture {
+                errors.push("output type must be `impl UiNode`", item.sig.ident.span());
+            }
             proc_macro2::Span::call_site()
         }
-        ReturnType::Type(_, ty) => ty.span(),
+        ReturnType::Type(_, ty) => {
+            if capture {
+                errors.push("capture must not have output", ty.span());
+            }
+            ty.span()
+        }
     };
 
     // validate generics
@@ -134,7 +160,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             Some(d) => Some((d.default.span(), d.args.to_token_stream())),
             None => {
                 let mut default = quote!();
-                for input in &inputs[1..] {
+                let first_input = if capture { 0 } else { 1 };
+                for input in &inputs[first_input..] {
                     match input.kind {
                         InputKind::Var => {
                             if ident_str.starts_with("is_") || ident_str.starts_with("has_") {
@@ -207,7 +234,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         let mut allowed_in_when_expr = true;
         let mut allowed_in_when_assign = true;
 
-        for (i, input) in inputs[1..].iter().enumerate() {
+        for (i, input) in inputs[first_input..].iter().enumerate() {
             let ident = &input.ident;
             let input_ty = &input.ty;
             input_idents.push(ident);
@@ -445,7 +472,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
         }
 
-        let mut sorted_inputs: Vec<_> = inputs[1..].iter().collect();
+        let mut sorted_inputs: Vec<_> = inputs[first_input..].iter().collect();
         sorted_inputs.sort_by_key(|i| &i.ident);
         let sorted_idents: Vec<_> = sorted_inputs.iter().map(|i| &i.ident).collect();
         let sorted_tys: Vec<_> = sorted_inputs.iter().map(|i| &i.ty).collect();
@@ -543,6 +570,19 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
             }
         };
+        let instantiate = if capture {
+            quote! {
+                #[allow(unused)]
+                use self::#ident;
+                __child__
+            }
+        } else {
+            quote! {
+                let #node_instance = #ident(__child__, #instantiate);
+                #core::widget_instance::UiNode::boxed(#node_instance)
+            }
+        };
+
         let args = quote! {
             #cfg
             #[doc(hidden)]
@@ -563,8 +603,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 }
 
                 fn instantiate(&self, __child__: #core::widget_instance::BoxedUiNode) -> #core::widget_instance::BoxedUiNode {
-                    let #node_instance = #ident(__child__, #instantiate);
-                    #core::widget_instance::UiNode::boxed(#node_instance)
+                    #instantiate
                 }
 
                 #get_var
@@ -695,6 +734,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     let r = quote! {
         #attrs
+        #extra_docs
         #item
         #extra
         #errors

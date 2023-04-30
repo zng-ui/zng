@@ -70,7 +70,7 @@ impl Stack {
 
 /// Stack direction.
 #[property(LAYOUT, capture, widget_impl(Stack))]
-pub fn direction(child: impl UiNode, direction: impl IntoVar<StackDirection>) -> impl UiNode {}
+pub fn direction(direction: impl IntoVar<StackDirection>) {}
 
 /// Space in-between items.
 ///
@@ -79,7 +79,7 @@ pub fn direction(child: impl UiNode, direction: impl IntoVar<StackDirection>) ->
 ///
 /// [`direction`]: fn@direction
 #[property(LAYOUT, capture, widget_impl(Stack))]
-pub fn spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {}
+pub fn spacing(spacing: impl IntoVar<Length>) {}
 
 /// Items alignment.
 ///
@@ -90,7 +90,7 @@ pub fn spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode
 /// [`FILL`]: Align::FILL
 /// [`direction`]: fn@direction
 #[property(LAYOUT, capture, default(Align::FILL), widget_impl(Stack))]
-pub fn children_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {}
+pub fn children_align(align: impl IntoVar<Align>) {}
 
 /// Stack node.
 ///
