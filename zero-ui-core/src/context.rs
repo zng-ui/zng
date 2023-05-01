@@ -1027,7 +1027,8 @@ impl WIDGET {
         let mut try_reuse = true;
 
         // take RENDER, RENDER_UPDATE
-        let _ = ctx.flags
+        let _ = ctx
+            .flags
             .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
                 if f.intersects(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE) {
                     try_reuse = false;

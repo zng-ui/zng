@@ -195,7 +195,7 @@ impl LAYERS {
                     if let Some(anchor) = anchor.get_new() {
                         anchor_info = WINDOW.widget_tree().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                         if mode.with(|m| m.interactivity) {
-                            widget.with_context(|| WIDGET.update_info());
+                            WIDGET.update_info();
                         }
                         WIDGET.layout().render();
                     }
@@ -483,7 +483,7 @@ impl LAYERS {
     }
 }
 
-fn adjust_viewport_bound(transform: PxTransform, widget: &impl UiNode) -> PxTransform {
+fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> PxTransform {
     let window_bounds = WINDOW_CTRL.vars().actual_size_px().get();
     let wgt_bounds = PxBox::from(widget.with_context(|| WIDGET.bounds().outer_size()).unwrap_or_else(PxSize::zero));
     let wgt_bounds = transform.outer_transformed(wgt_bounds).unwrap_or_default();
@@ -1119,7 +1119,7 @@ impl_from_and_into_var! {
 }
 
 pub(super) fn node(child: impl UiNode) -> impl UiNode {
-    type SortFn = fn(&BoxedUiNode, &BoxedUiNode) -> std::cmp::Ordering;
+    type SortFn = fn(&mut BoxedUiNode, &mut BoxedUiNode) -> std::cmp::Ordering;
 
     let layers = EditableUiNodeList::new();
     let layered = layers.reference();

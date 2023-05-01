@@ -838,7 +838,7 @@ pub mod cell {
         }
 
         /// Get the cell info stored in the `wgt` state.
-        pub fn get_wgt(wgt: &impl UiNode) -> Self {
+        pub fn get_wgt(wgt: &mut impl UiNode) -> Self {
             wgt.with_context(Self::get).unwrap_or_default()
         }
     }

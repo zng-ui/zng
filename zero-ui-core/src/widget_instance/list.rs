@@ -477,7 +477,7 @@ context_local! {
 pub struct SortingList<L, S>
 where
     L: UiNodeList,
-    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + Send + 'static,
+    S: Fn(&mut BoxedUiNode, &mut BoxedUiNode) -> Ordering + Send + 'static,
 {
     list: L,
 
@@ -487,7 +487,7 @@ where
 impl<L, S> SortingList<L, S>
 where
     L: UiNodeList,
-    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + Send + 'static,
+    S: Fn(&mut BoxedUiNode, &mut BoxedUiNode) -> Ordering + Send + 'static,
 {
     /// New from list and sort function.
     pub fn new(list: L, sort: S) -> Self {
@@ -506,8 +506,7 @@ where
             let mut taken_a = NilUiNode.boxed();
             map.sort_by(|&a, &b| {
                 self.list.with_node(a, |a| mem::swap(a, &mut taken_a));
-                let result = self.list.with_node(b, |b| (self.sort)(&taken_a, b));
-
+                let result = self.list.with_node(b, |b| (self.sort)(&mut taken_a, b));
                 self.list.with_node(a, |a| mem::swap(a, &mut taken_a));
 
                 result
@@ -545,7 +544,7 @@ where
 impl<L, S> UiNodeList for SortingList<L, S>
 where
     L: UiNodeList,
-    S: Fn(&BoxedUiNode, &BoxedUiNode) -> Ordering + Send + 'static,
+    S: Fn(&mut BoxedUiNode, &mut BoxedUiNode) -> Ordering + Send + 'static,
 {
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
@@ -596,8 +595,13 @@ where
 
     fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
         let start = vec.len();
-        self.list.drain_into(vec);
-        vec[start..].sort_by(&self.sort);
+        self.with_map(|map, list| {
+            list.drain_into(vec);
+            for (i, o) in map.iter().enumerate() {
+                // !!: TODO fix this, need mutable node to sort.
+                vec.swap(i + start, o + start);
+            }
+        });
         self.map.clear();
     }
 
