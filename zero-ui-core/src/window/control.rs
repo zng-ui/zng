@@ -932,7 +932,13 @@ impl HeadedCtrl {
             }
 
             let scale_factor = self.monitor.as_ref().unwrap().scale_factor().get();
-            self.content.render(Some(view.renderer()), scale_factor, self.resize_wait_id.take());
+            self.content.render(
+                Some(view.renderer()),
+                scale_factor,
+                self.resize_wait_id.take(),
+                render_widgets,
+                render_update_widgets,
+            );
         }
     }
 
@@ -1227,7 +1233,8 @@ impl HeadlessWithRendererCtrl {
 
         if let Some(view) = &self.surface {
             let fct = self.vars.0.scale_factor.get();
-            self.content.render(Some(view.renderer()), fct, None);
+            self.content
+                .render(Some(view.renderer()), fct, None, render_widgets, render_update_widgets);
         }
     }
 
@@ -1395,7 +1402,7 @@ impl HeadlessCtrl {
         }
 
         let fct = self.vars.0.scale_factor.get();
-        self.content.render(None, fct, None);
+        self.content.render(None, fct, None, render_widgets, render_update_widgets);
     }
 
     pub fn focus(&mut self) {
@@ -1486,7 +1493,7 @@ struct ContentCtrl {
     clear_color: RenderColor,
 
     is_rendering: bool,
-    pending_render: RenderUpdate,
+    pending_render: RenderUpdate, // !!: review this
 
     layout_requested: bool,
     render_requested: RenderUpdate,
@@ -1524,7 +1531,7 @@ impl ContentCtrl {
                 self.commands.update(&self.vars);
 
                 update_widgets.with_window(|| {
-                    WIDGET.with_context(&self.root_ctx, || {
+                    WIDGET.with_context(&mut self.root_ctx, || {
                         update_widgets.with_widget(|| {
                             self.root.update(update_widgets);
                         });
@@ -1538,7 +1545,7 @@ impl ContentCtrl {
             }
             InitState::Init => {
                 self.commands.init(&self.vars);
-                WIDGET.with_context(&self.root_ctx, || {
+                WIDGET.with_context(&mut self.root_ctx, || {
                     self.root.init();
                     // requests info, layout and render just in case `root` is a blank.
                     WIDGET.update_info().layout().render();
@@ -1568,6 +1575,7 @@ impl ContentCtrl {
 
         if self.root_ctx.take_info() {
             let mut info = WidgetInfoBuilder::new(
+                Arc::default(),
                 WINDOW.id(),
                 self.root_ctx.id(),
                 self.root_ctx.bounds(),
@@ -1575,7 +1583,7 @@ impl ContentCtrl {
                 self.vars.0.scale_factor.get(),
             );
 
-            WIDGET.with_context(&self.root_ctx, || {
+            WIDGET.with_context(&mut self.root_ctx, || {
                 self.root.info(&mut info);
             });
 
@@ -1625,7 +1633,7 @@ impl ContentCtrl {
         debug_assert!(matches!(self.init_state, InitState::Inited));
 
         update.with_window(|| {
-            WIDGET.with_context(&self.root_ctx, || {
+            WIDGET.with_context(&mut self.root_ctx, || {
                 update.with_widget(|| {
                     self.root.event(update);
                 })
@@ -1634,7 +1642,7 @@ impl ContentCtrl {
     }
 
     pub fn close(&mut self) {
-        WIDGET.with_context(&self.root_ctx, || {
+        WIDGET.with_context(&mut self.root_ctx, || {
             self.root.deinit();
         });
 
@@ -1682,7 +1690,7 @@ impl ContentCtrl {
 
         self.layout_pass = self.layout_pass.next();
 
-        WIDGET.with_context(&self.root_ctx, || {
+        WIDGET.with_context(&mut self.root_ctx, || {
             let metrics = LayoutMetrics::new(scale_factor, viewport_size, root_font_size).with_screen_ppi(screen_ppi);
             LAYOUT.with_root_context(self.layout_pass, metrics, || {
                 let mut root_cons = LAYOUT.constraints();
@@ -1713,7 +1721,14 @@ impl ContentCtrl {
         })
     }
 
-    pub fn render(&mut self, renderer: Option<ViewRenderer>, scale_factor: Factor, wait_id: Option<FrameWaitId>) {
+    pub fn render(
+        &mut self,
+        renderer: Option<ViewRenderer>,
+        scale_factor: Factor,
+        wait_id: Option<FrameWaitId>,
+        render_widgets: Arc<WidgetUpdates>,
+        render_update_widgets: Arc<WidgetUpdates>,
+    ) {
         match mem::replace(&mut self.render_requested, RenderUpdate::None) {
             // RENDER FULL FRAME
             RenderUpdate::Render => {
@@ -1728,6 +1743,8 @@ impl ContentCtrl {
                 let default_text_aa = FONTS.system_font_aa().get();
 
                 let mut frame = FrameBuilder::new(
+                    render_widgets,
+                    render_update_widgets,
                     self.frame_id,
                     self.root_ctx.id(),
                     &self.root_ctx.bounds(),
@@ -1737,7 +1754,7 @@ impl ContentCtrl {
                     default_text_aa,
                 );
 
-                let frame = WIDGET.with_context(&self.root_ctx, || {
+                let frame = WIDGET.with_context(&mut self.root_ctx, || {
                     self.root.render(&mut frame);
                     frame.finalize(&WINDOW.widget_tree())
                 });
@@ -1779,6 +1796,7 @@ impl ContentCtrl {
                 self.frame_id = self.frame_id.next_update();
 
                 let mut update = FrameUpdate::new(
+                    render_update_widgets,
                     self.frame_id,
                     self.root_ctx.id(),
                     self.root_ctx.bounds(),
@@ -1786,7 +1804,7 @@ impl ContentCtrl {
                     self.clear_color,
                 );
 
-                let update = WIDGET.with_context(&self.root_ctx, || {
+                let update = WIDGET.with_context(&mut self.root_ctx, || {
                     self.root.render_update(&mut update);
                     update.finalize(&WINDOW.widget_tree())
                 });

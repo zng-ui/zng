@@ -1111,7 +1111,7 @@ impl AppWindowTask {
     }
 
     fn update(&mut self) -> bool {
-        WINDOW.with_context(&self.ctx, || {
+        WINDOW.with_context(&mut self.ctx, || {
             self.task.get_mut().update();
         });
         self.task.get_mut().is_ready()
@@ -1157,7 +1157,7 @@ struct AppWindow {
 }
 impl AppWindow {
     fn ctrl_in_ctx(&mut self, action: impl FnOnce(&mut WindowCtrl)) {
-        let info_update = WINDOW.with_context(&self.ctx, || {
+        let info_update = WINDOW.with_context(&mut self.ctx, || {
             action(self.ctrl.get_mut());
             self.ctrl.get_mut().window_updates()
         });
@@ -1195,7 +1195,7 @@ impl AppWindow {
     }
 
     pub fn close(mut self) {
-        WINDOW.with_context(&self.ctx, || {
+        WINDOW.with_context(&mut self.ctx, || {
             self.ctrl.get_mut().close();
         });
     }

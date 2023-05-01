@@ -143,7 +143,15 @@ impl Eq for WidgetInfoTree {}
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     pub fn wgt(window_id: WindowId, root_id: WidgetId) -> Self {
-        WidgetInfoBuilder::new(window_id, root_id, WidgetBoundsInfo::new(), WidgetBorderInfo::new(), 1.fct()).finalize(None)
+        WidgetInfoBuilder::new(
+            Arc::default(),
+            window_id,
+            root_id,
+            WidgetBoundsInfo::new(),
+            WidgetBorderInfo::new(),
+            1.fct(),
+        )
+        .finalize(None)
     }
 
     /// Statistics abound the info tree.

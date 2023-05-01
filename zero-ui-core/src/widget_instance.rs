@@ -310,7 +310,7 @@ pub trait UiNode: Any + Send {
     /// Returns `None` if the node does not represent an widget.
     ///
     /// [`is_widget`]: UiNode::is_widget
-    fn with_context<R, F>(&self, f: F) -> Option<R>
+    fn with_context<R, F>(&mut self, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
     {
@@ -1067,7 +1067,7 @@ impl UiNode for BoxedUiNode {
         self.as_ref().is_widget_boxed()
     }
 
-    fn with_context<R, F>(&self, f: F) -> Option<R>
+    fn with_context<R, F>(&mut self, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
     {
@@ -1294,7 +1294,7 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn with_context<R, F>(&self, f: F) -> Option<R>
+    fn with_context<R, F>(&mut self, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
     {

@@ -572,7 +572,7 @@ mod impls {
             self.delegate_owned(UiNode::is_widget).unwrap_or(false)
         }
 
-        fn with_context<R, F>(&self, f: F) -> Option<R>
+        fn with_context<R, F>(&mut self, f: F) -> Option<R>
         where
             F: FnOnce() -> R,
         {

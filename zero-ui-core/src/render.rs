@@ -4,7 +4,7 @@ use crate::{
     app::view_process::ViewRenderer,
     border::BorderSides,
     color::{self, filters::RenderFilter, RenderColor},
-    context::{WIDGET, WINDOW},
+    context::{UpdateFlags, WidgetUpdates, WIDGET, WINDOW},
     crate_util::ParallelSegmentOffsets,
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
@@ -15,7 +15,7 @@ use crate::{
     widget_instance::WidgetId,
 };
 
-use std::{marker::PhantomData, mem};
+use std::{marker::PhantomData, mem, sync::Arc};
 
 use rayon::prelude::*;
 use webrender_api::{FontRenderMode, PipelineId};
@@ -142,6 +142,9 @@ struct WidgetData {
 
 /// A full frame builder.
 pub struct FrameBuilder {
+    render_widgets: Arc<WidgetUpdates>,
+    render_update_widgets: Arc<WidgetUpdates>,
+
     frame_id: FrameId,
     pipeline_id: PipelineId,
     widget_id: WidgetId,
@@ -176,6 +179,9 @@ pub struct FrameBuilder {
 impl FrameBuilder {
     /// New builder.
     ///
+    /// * `render_widgets` - External render requests.
+    /// * `render_update_widgets` - External render update requests.
+    ///
     /// * `frame_id` - Id of the new frame.
     /// * `root_id` - Id of the window root widget.
     /// * `renderer` - Connection to the renderer connection that will render the frame, is `None` in renderless mode.
@@ -184,6 +190,8 @@ impl FrameBuilder {
     /// because WebRender does not let us change the initial clear color.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        render_widgets: Arc<WidgetUpdates>,
+        render_update_widgets: Arc<WidgetUpdates>,
         frame_id: FrameId,
         root_id: WidgetId,
         root_bounds: &WidgetBoundsInfo,
@@ -204,6 +212,8 @@ impl FrameBuilder {
         root_bounds.set_outer_transform(PxTransform::identity(), info_tree);
 
         FrameBuilder {
+            render_widgets,
+            render_update_widgets,
             frame_id,
             pipeline_id,
             widget_id: root_id,
@@ -241,6 +251,8 @@ impl FrameBuilder {
 
     /// [`new`](Self::new) with only the inputs required for renderless mode.
     pub fn new_renderless(
+        render_widgets: Arc<WidgetUpdates>,
+        render_update_widgets: Arc<WidgetUpdates>,
         frame_id: FrameId,
         root_id: WidgetId,
         root_bounds: &WidgetBoundsInfo,
@@ -248,7 +260,17 @@ impl FrameBuilder {
         scale_factor: Factor,
         default_font_aa: FontAntiAliasing,
     ) -> Self {
-        Self::new(frame_id, root_id, root_bounds, info_tree, None, scale_factor, default_font_aa)
+        Self::new(
+            render_widgets,
+            render_update_widgets,
+            frame_id,
+            root_id,
+            root_bounds,
+            info_tree,
+            None,
+            scale_factor,
+            default_font_aa,
+        )
     }
 
     /// Pixel scale factor used by the renderer.
@@ -370,7 +392,7 @@ impl FrameBuilder {
     /// during this period properties can configure the widget stacking context and actual rendering and transforms
     /// are discouraged.
     ///
-    /// If `reuse` is `Some` and the widget has been rendered before  and [`can_reuse`] allows reuse, the `render`
+    /// If the widget has been rendered before, render was not requested for it and [`can_reuse`] allows reuse, the `render`
     /// closure is not called, an only a reference to the widget range in the previous frame is send.
     ///
     /// If the widget is collapsed during layout it is not rendered. See [`WidgetLayout::collapse`] for more details.
@@ -379,7 +401,7 @@ impl FrameBuilder {
     /// [`push_inner`]: Self::push_inner
     /// [`can_reuse`]: Self::can_reuse
     /// [`WidgetLayout::collapse`]: crate::widget_info::WidgetLayout::collapse
-    pub fn push_widget(&mut self, reuse: &mut Option<ReuseRange>, render: impl FnOnce(&mut Self)) {
+    pub fn push_widget(&mut self, render: impl FnOnce(&mut Self)) {
         let id = WIDGET.id();
 
         if self.widget_data.is_some() && WIDGET.parent_id().is_some() {
@@ -401,10 +423,12 @@ impl FrameBuilder {
             return;
         }
 
+        let mut try_reuse = true;
+
         let prev_outer = bounds.outer_transform();
         let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
         if prev_outer != outer_transform {
-            *reuse = None;
+            try_reuse = false;
         }
         bounds.set_outer_transform(outer_transform, &tree);
         let outer_bounds = bounds.outer_bounds();
@@ -417,7 +441,7 @@ impl FrameBuilder {
                     let partial = cull != outer_bounds;
                     if partial || bounds.is_partially_culled() {
                         // partial cull, cannot reuse because descendant vis may have changed.
-                        *reuse = None;
+                        try_reuse = false;
                         bounds.set_is_partially_culled(partial);
                     }
                 }
@@ -437,21 +461,24 @@ impl FrameBuilder {
         };
         let parent_can_reuse = mem::replace(&mut self.can_reuse, can_reuse);
 
+        try_reuse &= can_reuse;
+
         self.widget_count += 1;
         let widget_z = self.widget_count;
+
+        let mut reuse = if try_reuse {
+            WIDGET.take_render_reuse(&self.render_widgets, &self.render_update_widgets)
+        } else {
+            None
+        };
 
         let mut undo_prev_outer_transform = None;
         if reuse.is_some() {
             // check if is possible to reuse.
-
-            if !self.can_reuse {
-                *reuse = None; // reuse is stale because the widget was previously not rendered, or is disabled by user.
-            } else if prev_outer != outer_transform {
-                if let Some(undo_prev) = prev_outer.inverse() {
-                    undo_prev_outer_transform = Some(undo_prev);
-                } else {
-                    *reuse = None; // cannot reuse because cannot undo prev-transform.
-                }
+            if let Some(undo_prev) = prev_outer.inverse() {
+                undo_prev_outer_transform = Some(undo_prev);
+            } else {
+                reuse = None; // cannot reuse because cannot undo prev-transform.
             }
         }
 
@@ -464,7 +491,7 @@ impl FrameBuilder {
         let child_offset = mem::take(&mut self.child_offset);
 
         // try to reuse, or calls the closure and saves the reuse range.
-        self.push_reuse(reuse, |frame| {
+        self.push_reuse(&mut reuse, |frame| {
             // did not reuse, render widget.
 
             reused = false;
@@ -483,6 +510,8 @@ impl FrameBuilder {
             frame.widget_id = parent_widget;
             frame.widget_data = None;
         });
+
+        WIDGET.set_render_reuse(reuse);
 
         if reused {
             // if did reuse, patch transforms and z-indexes.
@@ -1328,6 +1357,8 @@ impl FrameBuilder {
         }
 
         ParallelBuilder(Some(Self {
+            render_widgets: self.render_widgets.clone(),
+            render_update_widgets: self.render_update_widgets.clone(),
             frame_id: self.frame_id,
             pipeline_id: self.pipeline_id,
             widget_id: self.widget_id,
@@ -1637,6 +1668,7 @@ impl crate::border::LineStyle {
 ///
 /// Any [`FrameValueKey`] used in the creation of the frame can be used for updating the frame.
 pub struct FrameUpdate {
+    render_update_widgets: Arc<WidgetUpdates>,
     pipeline_id: PipelineId,
 
     transforms: Vec<FrameValueUpdate<PxTransform>>,
@@ -1662,11 +1694,13 @@ pub struct FrameUpdate {
 impl FrameUpdate {
     /// New frame update builder.
     ///
+    /// * `render_update_widgets` - External update requests.
     /// * `frame_id` - Id of the frame that will be updated.
     /// * `root_id` - Id of the window root widget.
     /// * `renderer` - Reference to the renderer that will update.
     /// * `clear_color` - The current clear color.
     pub fn new(
+        render_update_widgets: Arc<WidgetUpdates>,
         frame_id: FrameId,
         root_id: WidgetId,
         root_bounds: WidgetBoundsInfo,
@@ -1682,6 +1716,7 @@ impl FrameUpdate {
             .unwrap_or_else(PipelineId::dummy);
 
         FrameUpdate {
+            render_update_widgets,
             pipeline_id,
             widget_id: root_id,
             widget_bounds: root_bounds,
@@ -1875,12 +1910,11 @@ impl FrameUpdate {
 
     /// Update the widget's outer transform.
     ///
-    /// If the widget did not request render-update you can set `reuse` to try and only update outer/inner transforms of descendants.
-    /// If the widget is reused the `render_update` is not called, the `reuse` flag can be ignored if [`can_reuse_widget`] does not allow
-    /// it or if the previous transform is not invertible.
+    /// If render-update was not requested for the widget and [`can_reuse_widget`] only update outer/inner transforms of descendants.
+    /// If the widget is reused the `render_update` is not called.
     ///
     /// [`can_reuse_widget`]: Self::can_reuse_widget
-    pub fn update_widget(&mut self, reuse: bool, render_update: impl FnOnce(&mut Self)) {
+    pub fn update_widget(&mut self, render_update: impl FnOnce(&mut Self)) {
         let id = WIDGET.id();
 
         if self.inner_transform.is_some() && WIDGET.parent_id().is_some() {
@@ -1899,7 +1933,10 @@ impl FrameUpdate {
         let parent_can_reuse = self.can_reuse_widget;
         let parent_bounds = mem::replace(&mut self.widget_bounds, bounds.clone());
 
-        if self.can_reuse_widget && reuse {
+        if !WIDGET.take_update(UpdateFlags::RENDER_UPDATE)
+            && self.can_reuse_widget
+            && !self.render_update_widgets.delivery_list().enter_widget(id)
+        {
             let _span = tracing::trace_span!("reuse-descendants", id=?self.widget_id).entered();
 
             let prev_outer = bounds.outer_transform();
@@ -2041,6 +2078,7 @@ impl FrameUpdate {
         }
 
         ParallelBuilder(Some(Self {
+            render_update_widgets: self.render_update_widgets.clone(),
             pipeline_id: self.pipeline_id,
             current_clear_color: self.current_clear_color,
             frame_id: self.frame_id,

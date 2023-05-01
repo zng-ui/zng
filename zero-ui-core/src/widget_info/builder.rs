@@ -3,8 +3,8 @@ use std::hash::Hash;
 use crate::{
     border::BORDER,
     context::{
-        InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, StateId, StateMapMut, StateValue, WidgetUpdates, LAYOUT,
-        WIDGET, WINDOW,
+        InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, StateId, StateMapMut, StateValue, UpdateFlags, WidgetUpdates,
+        LAYOUT, WIDGET, WINDOW,
     },
     text::TextSegmentKind,
 };
@@ -18,6 +18,7 @@ pub enum WidgetInfoMeta {}
 ///
 /// See [`WidgetInfoTree`] for more details.
 pub struct WidgetInfoBuilder {
+    info_widgets: Arc<WidgetUpdates>,
     window_id: WindowId,
 
     node: tree::NodeId,
@@ -37,6 +38,7 @@ pub struct WidgetInfoBuilder {
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information.
     pub fn new(
+        info_widgets: Arc<WidgetUpdates>,
         window_id: WindowId,
         root_id: WidgetId,
         root_bounds_info: WidgetBoundsInfo,
@@ -57,6 +59,7 @@ impl WidgetInfoBuilder {
         lookup.insert(root_id, root_node);
 
         WidgetInfoBuilder {
+            info_widgets,
             window_id,
             node: root_node,
             tree,
@@ -115,17 +118,33 @@ impl WidgetInfoBuilder {
         self.with_meta(|mut s| s.flag(id));
     }
 
-    /// Calls `f` in a new widget context.
-    ///
-    /// Only call this in widget node implementations.
-    ///
-    /// # Panics
-    ///
-    /// If the `id` was already pushed or reused in this builder.
-    pub fn push_widget(&mut self, id: WidgetId, bounds_info: WidgetBoundsInfo, border_info: WidgetBorderInfo, f: impl FnOnce(&mut Self)) {
+    /// Calls `f` to build the context widget info, note that `f` is only called if the widget info cannot be reused.
+    pub fn push_widget(&mut self, f: impl FnOnce(&mut Self)) {
+        let id = WIDGET.id();
+        if !WIDGET.take_update(UpdateFlags::INFO) && !self.info_widgets.delivery_list().enter_widget(id) {
+            // reuse
+            let tree = WINDOW.widget_tree();
+            if let Some(wgt) = tree.get(id) {
+                self.tree.index_mut(self.node).push_reuse(wgt.node(), &mut |old_data| {
+                    let r = old_data.clone();
+                    r.cache.lock().interactivity = None;
+                    for filter in &r.interactivity_filters {
+                        self.interactivity_filters.push(filter.clone());
+                    }
+                    r
+                });
+                return;
+            } else {
+                tracing::error!("cannot reuse `{:?}`, not found in previous tree", id)
+            }
+        }
+
         let parent_node = self.node;
         let parent_widget_id = self.widget_id;
         let parent_meta = mem::take(&mut self.meta);
+
+        let bounds_info = WIDGET.bounds();
+        let border_info = WIDGET.border();
 
         self.widget_id = id;
         self.node = self
@@ -152,41 +171,6 @@ impl WidgetInfoBuilder {
 
         self.node = parent_node;
         self.widget_id = parent_widget_id;
-    }
-
-    /// Reuse the widget info branch from the previous tree.
-    ///
-    /// All info state is preserved in the new info tree, all [interactivity filters] registered by the widget also affect
-    /// the new info tree.
-    ///
-    /// Only call this in widget node implementations that monitor the updates requested by their content.
-    ///
-    /// # Panics
-    ///
-    /// If the `WIDGET.id()` was already pushed or reused in this builder.
-    ///
-    /// [interactivity filters]: Self::push_interactivity_filter
-    pub fn push_widget_reuse(&mut self) {
-        let id = WIDGET.id();
-
-        debug_assert_ne!(
-            self.widget_id, id,
-            "can only call `push_widget` or `push_widget_reuse` for each widget"
-        );
-
-        let tree = WINDOW.widget_tree();
-        let wgt = tree
-            .get(id)
-            .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", id));
-
-        self.tree.index_mut(self.node).push_reuse(wgt.node(), &mut |old_data| {
-            let r = old_data.clone();
-            r.cache.lock().interactivity = None;
-            for filter in &r.interactivity_filters {
-                self.interactivity_filters.push(filter.clone());
-            }
-            r
-        });
     }
 
     /// Add the `interactivity` bits to the current widget's interactivity, it will affect the widget and all descendants.
@@ -234,6 +218,7 @@ impl WidgetInfoBuilder {
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
         let tree = Tree::new(self.tree.root().value().clone());
         ParallelBuilder(Some(Self {
+            info_widgets: self.info_widgets.clone(),
             window_id: self.window_id,
             widget_id: self.widget_id,
             meta: self.meta.clone(),
@@ -733,15 +718,13 @@ impl WidgetMeasure {
     }
 
     /// Measure an widget.
-    ///
-    /// The `reuse` flag indicates if the cached measure or layout size can be returned instead of calling `measure`. It should
-    /// only be `false` if the widget has a pending layout request.
-    pub fn with_widget(&mut self, reuse: bool, measure: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
+    pub fn with_widget(&mut self, measure: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         let metrics = LAYOUT.metrics();
         let bounds = WIDGET.bounds();
 
         let snap = metrics.snapshot();
-        if reuse {
+        if false {
+            // !!: TODO, if layout is invalidated we can't reuse (some var may have changed).
             let measure_uses = bounds.measure_metrics_used();
             if bounds.measure_metrics().map(|m| m.masked_eq(&snap, measure_uses)).unwrap_or(false) {
                 let mut reused = false;
@@ -844,7 +827,7 @@ impl WidgetLayout {
             inline: None,
             child_count: None,
         }
-        .with_widget(false, layout)
+        .with_widget(layout)
     }
 
     /// Start a parallel layout.
@@ -880,13 +863,13 @@ impl WidgetLayout {
 
     /// Defines a widget scope, translations inside `layout` target the widget's inner offset.
     ///
-    /// If `reuse` is `true` and none of the used metrics have changed skips calling `layout` and returns the current outer-size, the
-    /// outer transform is still updated.
+    /// If the widget layout is not invalidated and none of the used metrics have changed skips calling
+    /// `layout` and returns the current outer-size, the outer transform is still updated.
     ///
     /// The default widget constructor calls this, see [`widget_base::nodes::widget`].
     ///
     /// [`widget_base::nodes::widget`]: crate::widget_base::nodes::widget
-    pub fn with_widget(&mut self, reuse: bool, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
+    pub fn with_widget(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         let metrics = LAYOUT.metrics();
         let bounds = WIDGET.bounds();
 
@@ -894,9 +877,12 @@ impl WidgetLayout {
         if let Some(child_count) = &mut self.child_count {
             *child_count += 1;
         }
-        if reuse {
+
+        if !WIDGET.take_update(UpdateFlags::LAYOUT) && !self.layout_widgets.delivery_list().enter_widget(WIDGET.id()) {
+            // layout not invalidated by request
             let uses = bounds.metrics_used();
             if bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false) {
+                // layout not invalidated by used metrics
                 LAYOUT.register_metrics_use(uses); // propagate to parent
                 return bounds.outer_size();
             }

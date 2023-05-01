@@ -64,11 +64,11 @@ impl WindowCtxData {
 /// Defines the backing data of [`WINDOW`].
 ///
 /// Each window owns this data and calls [`WINDOW.with_context`](WINDOW::with_context) to delegate to it's child node.
-pub struct WindowCtx(Mutex<Option<Arc<WindowCtxData>>>);
+pub struct WindowCtx(Option<Arc<WindowCtxData>>);
 impl WindowCtx {
     /// New window context.
     pub fn new(id: WindowId, mode: WindowMode) -> Self {
-        Self(Mutex::new(Some(Arc::new(WindowCtxData {
+        Self(Some(Arc::new(WindowCtxData {
             id,
             mode,
             state: RwLock::new(OwnedStateMap::default()),
@@ -76,7 +76,7 @@ impl WindowCtx {
 
             #[cfg(any(test, doc, feature = "test_util"))]
             frame_id: Mutex::new(crate::render::FrameId::first()),
-        }))))
+        })))
     }
 
     /// Sets the widget tree, must be called after every info update.
@@ -84,34 +84,34 @@ impl WindowCtx {
     /// Window contexts are partially available in the window new closure, but values like the `widget_tree` is
     /// available on init, so a [`WidgetInfoTree::wgt`] must be set as soon as the window and widget ID are available.
     pub fn set_widget_tree(&mut self, widget_tree: WidgetInfoTree) {
-        *self.0.get_mut().as_mut().unwrap().widget_tree.write() = Some(widget_tree);
+        *self.0.as_mut().unwrap().widget_tree.write() = Some(widget_tree);
     }
 
     /// Gets the window ID.
     pub fn id(&self) -> WindowId {
-        self.0.lock().as_ref().unwrap().id
+        self.0.as_ref().unwrap().id
     }
 
     /// Gets the window mode.
     pub fn mode(&self) -> WindowMode {
-        self.0.lock().as_ref().unwrap().mode
+        self.0.as_ref().unwrap().mode
     }
 
     /// Gets the window tree.
     pub fn widget_tree(&self) -> WidgetInfoTree {
-        self.0.lock().as_ref().unwrap().widget_tree.read().as_ref().unwrap().clone()
+        self.0.as_ref().unwrap().widget_tree.read().as_ref().unwrap().clone()
     }
 
     /// Call `f` with an exclusive lock to the window state.
     pub fn with_state<R>(&mut self, f: impl FnOnce(&mut OwnedStateMap<WINDOW>) -> R) -> R {
-        f(&mut self.0.get_mut().as_mut().unwrap().state.write())
+        f(&mut self.0.as_mut().unwrap().state.write())
     }
 }
 
 struct WidgetCtxData {
-    parent_id: Mutex<Option<WidgetId>>,
+    parent_id: Atomic<Option<WidgetId>>,
     id: WidgetId,
-    flags: Mutex<UpdateFlags>,
+    flags: Atomic<UpdateFlags>,
     state: RwLock<OwnedStateMap<WIDGET>>,
     var_handles: Mutex<VarHandles>,
     event_handles: Mutex<EventHandles>,
@@ -124,12 +124,6 @@ impl WidgetCtxData {
     fn no_context() -> Self {
         panic!("no widget in context")
     }
-
-    fn take_flag(&self, flag: UpdateFlags) -> bool {
-        let c = self.flags.lock().contains(flag);
-        self.flags.lock().remove(flag);
-        c
-    }
 }
 
 /// Defines the backing data of [`WIDGET`].
@@ -137,178 +131,90 @@ impl WidgetCtxData {
 /// Each widget owns this data and calls [`WIDGET.with_context`] to delegate to it's child node.
 ///
 /// [`WIDGET.with_context`]: WIDGET::with_context
-pub struct WidgetCtx(Mutex<Option<Arc<WidgetCtxData>>>);
+pub struct WidgetCtx(Option<Arc<WidgetCtxData>>);
 impl WidgetCtx {
     /// New widget context.
     pub fn new(id: WidgetId) -> Self {
-        Self(Mutex::new(Some(Arc::new(WidgetCtxData {
-            parent_id: Mutex::new(None),
+        Self(Some(Arc::new(WidgetCtxData {
+            parent_id: Atomic::new(None),
             id,
-            flags: Mutex::new(UpdateFlags::empty()),
+            flags: Atomic::new(UpdateFlags::empty()),
             state: RwLock::new(OwnedStateMap::default()),
             var_handles: Mutex::new(VarHandles::dummy()),
             event_handles: Mutex::new(EventHandles::dummy()),
             bounds: Mutex::new(WidgetBoundsInfo::default()),
             border: Mutex::new(WidgetBorderInfo::default()),
             render_reuse: Mutex::new(None),
-        }))))
+        })))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new_test(id: WidgetId, bounds: WidgetBoundsInfo, border: WidgetBorderInfo) -> Self {
+        let ctx = Self::new(id);
+        let c = ctx.0.as_ref().unwrap();
+        *c.bounds.lock() = bounds;
+        *c.border.lock() = border;
+        ctx
     }
 
     /// Drops all var and event handles.
     pub fn deinit(&mut self) {
-        let ctx = self.0.get_mut().as_mut().unwrap();
+        let ctx = self.0.as_mut().unwrap();
         ctx.var_handles.lock().clear();
         ctx.event_handles.lock().clear();
-        *ctx.flags.lock() = UpdateFlags::empty();
-    }
-
-    fn take_flag(&self, flag: UpdateFlags) -> bool {
-        let mut ctx = self.0.lock();
-        let ctx = ctx.as_mut().unwrap();
-        ctx.take_flag(flag)
-    }
-
-    fn contains_flag(&self, flag: UpdateFlags) -> bool {
-        self.0.lock().as_ref().unwrap().flags.lock().contains(flag)
-    }
-
-    /// Returns `true` once if a info rebuild was requested in a previous [`WIDGET.with_context`] call.
-    ///
-    /// Child nodes can request updates using [`WIDGET.update_info`].
-    ///
-    /// [`WIDGET.with_context`]: WIDGET::with_context
-    /// [`WIDGET.update_info`]: WIDGET::update_info
-    pub fn take_info(&mut self) -> bool {
-        self.take_flag(UpdateFlags::INFO)
-    }
-
-    /// Returns `true` if re-layout was requested for the widget.
-    pub fn is_pending_layout(&self) -> bool {
-        self.contains_flag(UpdateFlags::LAYOUT)
-    }
-
-    /// Returns `true` once if a re-layout was requested in a previous [`WIDGET.with_context`] call.
-    ///
-    /// Child nodes can request updates using [`WIDGET.layout`].    
-    ///  
-    /// [`WIDGET.with_context`]: WIDGET::with_context
-    /// [`WIDGET.layout`]: WIDGET::layout
-    pub fn take_layout(&mut self) -> bool {
-        self.take_flag(UpdateFlags::LAYOUT)
-    }
-
-    /// Returns `true` if full re-render was requested for the widget.
-    ///
-    /// Note that [`take_render`] will upgrade [`is_pending_render_update`] to full render.
-    ///
-    /// [`take_render`]: Self::take_render
-    /// [`is_pending_render_update`]: Self::is_pending_render_update
-    pub fn is_pending_render(&self) -> bool {
-        self.contains_flag(UpdateFlags::RENDER)
-    }
-
-    /// Returns the render reuse range once if a re-render was **not** requested in a previous [`WIDGET.with_context`] call.
-    ///
-    /// Child nodes can request updates using [`WIDGET.render`]. Upgrades [`WIDGET.render_update`] requests to a full render request,
-    /// the widget node will receive a single call to [`UiNode::render`] or [`UiNode::render_update`], if any other widget in the window
-    /// requests full render the render updates are converted to full render.
-    ///
-    /// The updated reuse range must be stored using [`set_render_reuse`] after the widget is pushed onto the frame.
-    ///
-    /// [`take_render_update`]: Self::take_render_update
-    /// [`set_render_reuse`]: Self::set_render_reuse
-    /// [`WIDGET.with_context`]: WIDGET::with_context
-    /// [`WIDGET.render`]: WIDGET::render
-    /// [`WIDGET.render_update`]: WIDGET::render_update
-    pub fn take_render(&self) -> Option<ReuseRange> {
-        let mut ctx = self.0.lock();
-        let ctx = ctx.as_mut().unwrap();
-
-        let mut flags = ctx.flags.lock();
-        if flags.contains(UpdateFlags::RENDER) || flags.contains(UpdateFlags::RENDER_UPDATE) {
-            flags.remove(UpdateFlags::RENDER);
-            flags.remove(UpdateFlags::RENDER_UPDATE);
-            *ctx.render_reuse.lock() = None;
-            None
-        } else {
-            ctx.render_reuse.lock().take()
-        }
-    }
-
-    /// Gets a copy of the stored render reuse range.
-    ///
-    /// Note that widget render implementers must use [`take_render`], this method is only for inspecting the value.
-    ///
-    /// [`take_render`]: Self::take_render
-    pub fn render_reuse(&self) -> Option<ReuseRange> {
-        self.0.lock().as_ref().unwrap().render_reuse.lock().clone()
-    }
-
-    /// Store a render reuse range that can be used next render if no render request is made.
-    pub fn set_render_reuse(&self, range: Option<ReuseRange>) {
-        let mut ctx = self.0.lock();
-        *ctx.as_mut().unwrap().render_reuse.lock() = range;
-    }
-
-    /// Returns `true` if frame update was requested for the widget.
-    pub fn is_pending_render_update(&self) -> bool {
-        self.contains_flag(UpdateFlags::RENDER_UPDATE)
-    }
-
-    /// Returns `true` once if a re-render was requested in a previous [`WIDGET.with_context`] call.
-    ///
-    /// Child nodes can request updates using [`WIDGET.render_update`].
-    ///
-    /// Logs an error if a full render is requested, must be called after [`take_render`].
-    ///
-    /// [`take_render`]: Self::take_render
-    ///
-    /// [`WIDGET.with_context`]: WIDGET::with_context
-    /// [`WIDGET.render_update`]: WIDGET::render_update
-    pub fn take_render_update(&self) -> bool {
-        let mut ctx = self.0.lock();
-        let ctx = ctx.as_mut().unwrap();
-
-        let mut flags = ctx.flags.lock();
-        if flags.contains(UpdateFlags::RENDER) {
-            tracing::error!("widget `{:?}` called `take_render_update` before `take_render`", ctx.id);
-        }
-        let r = flags.contains(UpdateFlags::RENDER_UPDATE);
-        flags.remove(UpdateFlags::RENDER_UPDATE);
-        r
+        ctx.flags.store(UpdateFlags::empty(), atomic::Ordering::Relaxed);
+        *ctx.render_reuse.lock() = None;
     }
 
     /// Returns `true` if reinit was requested for the widget.
+    ///
+    /// Note that widget implementers must use [`take_reinit`] to fulfill the request.
+    ///
+    /// [`take_reinit`]: Self::take_reinit
     pub fn is_pending_reinit(&self) -> bool {
-        self.contains_flag(UpdateFlags::REINIT)
+        self.0
+            .as_ref()
+            .unwrap()
+            .flags
+            .load(atomic::Ordering::Relaxed)
+            .contains(UpdateFlags::REINIT)
     }
 
     /// Returns `true` if an [`WIDGET.reinit`] request was made.
     ///
-    /// Unlike other requests, the widget re-init immediately.
+    /// Unlike other requests, the widget implement must re-init immediately.
     ///
     /// [`WIDGET.reinit`]: WIDGET::reinit
     pub fn take_reinit(&mut self) -> bool {
-        self.take_flag(UpdateFlags::REINIT)
+        let mut ctx = self.0.as_mut().unwrap();
+
+        let mut flags = ctx.flags.load(atomic::Ordering::Relaxed);
+        let r = flags.contains(UpdateFlags::REINIT);
+        if r {
+            flags.remove(UpdateFlags::REINIT);
+            ctx.flags.store(flags, atomic::Ordering::Relaxed);
+        }
+
+        r
     }
 
     /// Gets the widget id.
     pub fn id(&self) -> WidgetId {
-        self.0.lock().as_ref().unwrap().id
+        self.0.as_ref().unwrap().id
     }
     /// Gets the widget bounds.
     pub fn bounds(&self) -> WidgetBoundsInfo {
-        self.0.lock().as_ref().unwrap().bounds.lock().clone()
+        self.0.as_ref().unwrap().bounds.lock().clone()
     }
 
     /// Gets the widget borders.
     pub fn border(&self) -> WidgetBorderInfo {
-        self.0.lock().as_ref().unwrap().border.lock().clone()
+        self.0.as_ref().unwrap().border.lock().clone()
     }
 
     /// Call `f` with an exclusive lock to the widget state.
     pub fn with_state<R>(&mut self, f: impl FnOnce(&mut OwnedStateMap<WIDGET>) -> R) -> R {
-        f(&mut self.0.get_mut().as_mut().unwrap().state.write())
+        f(&mut self.0.as_mut().unwrap().state.write())
     }
 }
 
@@ -328,13 +234,12 @@ impl WINDOW {
     /// Calls `f` while the window is set to `ctx`.
     ///
     /// The `ctx` must be `Some(_)`, it will be moved to the [`WINDOW`] storage and back to `ctx` after `f` returns.
-    pub fn with_context<R>(&self, ctx: &WindowCtx, f: impl FnOnce() -> R) -> R {
-        let mut ctx = ctx.0.lock();
-        let _span = match &*ctx {
+    pub fn with_context<R>(&self, ctx: &mut WindowCtx, f: impl FnOnce() -> R) -> R {
+        let _span = match ctx.0.as_mut() {
             Some(c) => UpdatesTrace::window_span(c.id),
             None => panic!("window is required"),
         };
-        WINDOW_CTX.with_context(&mut ctx, f)
+        WINDOW_CTX.with_context(&mut ctx.0, f)
     }
 
     /// Calls `f` while no window is available in the context.
@@ -459,7 +364,7 @@ impl WINDOW {
         let root_id = WidgetId::new_unique();
         let mut ctx = WindowCtx::new(window_id, WindowMode::Headless);
         ctx.set_widget_tree(WidgetInfoTree::wgt(window_id, root_id));
-        WINDOW.with_context(&ctx, || {
+        WINDOW.with_context(&mut ctx, || {
             WINDOW.set_state(
                 &TEST_WINDOW_CFG,
                 TestWindowCfg {
@@ -467,8 +372,8 @@ impl WINDOW {
                 },
             );
 
-            let ctx = WidgetCtx::new(root_id);
-            WIDGET.with_context(&ctx, f)
+            let mut ctx = WidgetCtx::new(root_id);
+            WIDGET.with_context(&mut ctx, f)
         })
     }
 
@@ -506,6 +411,7 @@ impl WINDOW {
     pub fn test_info(&self, content: &mut impl UiNode) -> ContextUpdates {
         let l_size = self.test_window_size();
         let mut info = crate::widget_info::WidgetInfoBuilder::new(
+            Arc::default(),
             WINDOW.id(),
             WIDGET.id(),
             WidgetBoundsInfo::new_size(l_size, l_size),
@@ -610,6 +516,8 @@ impl WINDOW {
             *frame_id = frame_id.next();
 
             let f = FrameBuilder::new_renderless(
+                Arc::default(),
+                Arc::default(),
                 *frame_id,
                 wgt.id,
                 &wgt.bounds.lock(),
@@ -643,7 +551,14 @@ impl WINDOW {
             let mut frame_id = win.frame_id.lock();
             *frame_id = frame_id.next_update();
 
-            let f = FrameUpdate::new(*frame_id, wgt.id, wgt.bounds.lock().clone(), None, crate::color::RenderColor::BLACK);
+            let f = FrameUpdate::new(
+                Arc::default(),
+                *frame_id,
+                wgt.id,
+                wgt.bounds.lock().clone(),
+                None,
+                crate::color::RenderColor::BLACK,
+            );
             f
         };
 
@@ -668,44 +583,42 @@ impl WIDGET {
     /// Calls `f` while the widget is set to `ctx`.
     ///
     /// The `ctx` must be `Some(_)`, it will be moved to the [`WIDGET`] storage and back to `ctx` after `f` returns.
-    pub fn with_context<R>(&self, ctx: &WidgetCtx, f: impl FnOnce() -> R) -> R {
+    pub fn with_context<R>(&self, ctx: &mut WidgetCtx, f: impl FnOnce() -> R) -> R {
         let parent_id = WIDGET.try_id();
 
-        let mut ctx = ctx.0.lock();
-        let old_flags = if let Some(ctx) = &mut *ctx {
-            *ctx.parent_id.lock() = parent_id;
-            mem::replace(&mut *ctx.flags.lock(), UpdateFlags::empty())
+        if let Some(ctx) = ctx.0.as_mut() {
+            ctx.parent_id.store(parent_id, atomic::Ordering::Relaxed);
         } else {
             unreachable!()
-        };
+        }
 
-        let r = WIDGET_CTX.with_context(&mut ctx, f);
+        let r = WIDGET_CTX.with_context(&mut ctx.0, f);
 
-        let ctx = ctx.as_mut().unwrap();
+        let ctx = ctx.0.as_mut().unwrap();
+
+        let wgt_flags = ctx.flags.load(atomic::Ordering::Relaxed);
 
         if let Some(parent) = parent_id.map(|_| WIDGET_CTX.get()) {
-            if ctx.take_flag(UpdateFlags::UPDATE) {
-                // only used to avoid making too many `UPDATES.update(wgt_id)` requests.
-                parent.flags.lock().insert(UpdateFlags::UPDATE);
-            }
+            // INFO is used by the parent window, the others are used to avoid making many `UPDATES` insertions,
+            // the parents will already be included in the delivery list.
+            let propagate = wgt_flags
+                & (UpdateFlags::UPDATE | UpdateFlags::INFO | UpdateFlags::LAYOUT | UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
 
-            // used by window to immediately rebuild info.
-            if ctx.flags.lock().contains(UpdateFlags::INFO) {
-                parent.flags.lock().insert(UpdateFlags::INFO);
-            }
-
-            // invalidate layout & render
-            if ctx.flags.lock().contains(UpdateFlags::LAYOUT) {
-                parent.flags.lock().insert(UpdateFlags::LAYOUT);
-            }
-            if ctx.flags.lock().contains(UpdateFlags::RENDER) {
-                parent.flags.lock().insert(UpdateFlags::RENDER);
-            } else if ctx.flags.lock().contains(UpdateFlags::RENDER_UPDATE) {
-                parent.flags.lock().insert(UpdateFlags::RENDER_UPDATE);
-            }
+            let _ = parent
+                .flags
+                .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut u| {
+                    if !u.contains(propagate) {
+                        u.insert(propagate);
+                        Some(u)
+                    } else {
+                        None
+                    }
+                });
+            ctx.parent_id.store(None, atomic::Ordering::Relaxed);
+        } else {
+            // is at root, register `UPDATES`
+            UPDATES.update_flags_root(wgt_flags, WINDOW.id(), ctx.id);
         }
-        ctx.parent_id.lock().take();
-        ctx.flags.lock().insert(old_flags);
 
         r
     }
@@ -819,11 +732,16 @@ impl WIDGET {
 
     fn update_impl(&self, flag: UpdateFlags, op: UpdateOp) -> &Self {
         let w = WIDGET_CTX.get();
-        let mut flags = w.flags.lock();
-        if !flags.contains(flag) {
-            flags.insert(flag);
+        if !w.flags.load(atomic::Ordering::Relaxed).contains(flag) {
+            let _ = w.flags.fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
+                if !f.contains(flag) {
+                    f.insert(flag);
+                    Some(f)
+                } else {
+                    None
+                }
+            });
             let id = w.id;
-            drop(flags);
             UPDATES.update_op(op, id);
         }
         self
@@ -883,7 +801,17 @@ impl WIDGET {
     ///                       If a reinit is requested during update the widget is reinited immediately after the update.
     /// * Other methods: Reinit request is flagged and an [`UiNode::update`] is requested for the widget.
     pub fn reinit(&self) {
-        WIDGET_CTX.get().flags.lock().insert(UpdateFlags::REINIT);
+        let _ = WIDGET_CTX
+            .get()
+            .flags
+            .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
+                if !f.contains(UpdateFlags::REINIT) {
+                    f.insert(UpdateFlags::REINIT);
+                    Some(f)
+                } else {
+                    None
+                }
+            });
     }
 
     /// Calls `f` with a read lock on the current widget state map.
@@ -1076,7 +1004,53 @@ impl WIDGET {
     ///
     /// Panics if not called inside an widget.
     pub fn parent_id(&self) -> Option<WidgetId> {
-        *WIDGET_CTX.get().parent_id.lock()
+        WIDGET_CTX.get().parent_id.load(atomic::Ordering::Relaxed)
+    }
+
+    /// Remove update flag and returns if it was present.
+    pub(crate) fn take_update(&self, flag: UpdateFlags) -> bool {
+        let mut r = false;
+        let _ = WIDGET_CTX
+            .get()
+            .flags
+            .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
+                if f.contains(flag) {
+                    r = true;
+                    f.remove(flag);
+                    Some(f)
+                } else {
+                    None
+                }
+            });
+        r
+    }
+
+    /// Remove the render reuse range if render was not invalidated on this widget.
+    pub(crate) fn take_render_reuse(&self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) -> Option<ReuseRange> {
+        let ctx = WIDGET_CTX.get();
+        let mut try_reuse = true;
+
+        // take RENDER, RENDER_UPDATE
+        ctx.flags
+            .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
+                if f.intersects(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE) {
+                    try_reuse = false;
+                    f.remove(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
+                    Some(f)
+                } else {
+                    None
+                }
+            });
+
+        if try_reuse && !render_widgets.delivery_list.enter_widget(ctx.id) && !render_update_widgets.delivery_list.enter_widget(ctx.id) {
+            ctx.render_reuse.lock().take()
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn set_render_reuse(&self, range: Option<ReuseRange>) {
+        *WIDGET_CTX.get().render_reuse.lock() = range;
     }
 }
 
@@ -1555,6 +1529,31 @@ impl UPDATES {
         UPDATES_SV.read().event_sender.as_ref().unwrap().waker(targets)
     }
 
+    pub(crate) fn update_flags_root(&self, flags: UpdateFlags, window_id: WindowId, root_id: WidgetId) {
+        if flags.is_empty() {
+            return;
+        }
+
+        let mut u = UPDATES_SV.write();
+        if flags.contains(UpdateFlags::UPDATE) {
+            u.update_widgets.insert_updates_root(window_id, root_id);
+        }
+        if flags.contains(UpdateFlags::INFO) {
+            u.info_widgets.insert_updates_root(window_id, root_id);
+        }
+        if flags.contains(UpdateFlags::LAYOUT) {
+            u.layout_widgets.insert_updates_root(window_id, root_id);
+        }
+
+        if flags.contains(UpdateFlags::RENDER) {
+            u.render_widgets.insert_updates_root(window_id, root_id);
+        } else if flags.contains(UpdateFlags::RENDER_UPDATE) {
+            u.render_update_widgets.insert_updates_root(window_id, root_id);
+        }
+
+        u.update_ext |= flags;
+    }
+
     /// Schedules an [`UpdateOp`] that optionally affects the `target` widget.
     pub fn update_op(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> &Self {
         let target = target.into();
@@ -2029,6 +2028,10 @@ impl UpdateDeliveryList {
                 self.widgets.insert(*w);
             }
         }
+    }
+    pub(crate) fn insert_updates_root(&mut self, window_id: WindowId, root_id: WidgetId) {
+        self.windows.insert(window_id);
+        self.widgets.insert(root_id);
     }
 
     /// Insert the ancestors of `wgt` and `wgt` up-to the inner most that is included in the subscribers.

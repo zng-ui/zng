@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{units::*, widget_info::*, window::WindowId};
 
 use super::*;
@@ -14,7 +16,7 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
     where
         F: FnMut(&mut Self),
     {
-        self.push_widget(
+        let mut ctx = WidgetCtx::new_test(
             WidgetId::named(name),
             WidgetBoundsInfo::new_test(
                 rect,
@@ -29,7 +31,9 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
                 }),
             ),
             WidgetBorderInfo::new(),
-            |builder| {
+        );
+        WIDGET.with_context(&mut ctx, || {
+            self.push_widget(|builder| {
                 let mut meta = FocusInfoBuilder::new(builder);
                 match focus {
                     FocusInfo::NotFocusable => {}
@@ -58,8 +62,8 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
                     }
                 }
                 inner(builder);
-            },
-        )
+            })
+        });
     }
 }
 
@@ -95,6 +99,7 @@ impl WidgetFocusInfoExt for WidgetFocusInfo {
 
 fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> WidgetInfoTree {
     let mut builder = WidgetInfoBuilder::new(
+        Arc::default(),
         WindowId::named("w"),
         WidgetId::named("w"),
         WidgetBoundsInfo::new_test(

@@ -15,7 +15,7 @@ use std::{
 
 use crate::{
     clmv,
-    context::{AppLocal, UpdateDeliveryList, UpdateSubscribers, WIDGET, WINDOW},
+    context::{AppLocal, UpdateDeliveryList, UpdateFlags, UpdateSubscribers, WIDGET, WINDOW},
     crate_util::{IdEntry, IdMap, IdSet},
     handler::{AppHandler, AppHandlerArgs},
     widget_instance::WidgetId,
@@ -516,7 +516,7 @@ impl EventUpdate {
     where
         H: FnOnce() -> R,
     {
-        if self.delivery_list.enter_widget(WIDGET.id()) {
+        if WIDGET.take_update(UpdateFlags::UPDATE) || self.delivery_list.enter_widget(WIDGET.id()) {
             if self.args.propagation().is_stopped() {
                 None
             } else {

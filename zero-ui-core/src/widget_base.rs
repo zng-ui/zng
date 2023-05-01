@@ -478,7 +478,7 @@ pub mod nodes {
         }
         impl<C: UiNode> UiNode for WidgetNode<C> {
             fn init(&mut self) {
-                WIDGET.with_context(&self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, || {
                     #[cfg(debug_assertions)]
                     if self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::init` called in inited widget {:?}", WIDGET.id());
@@ -496,7 +496,7 @@ pub mod nodes {
             }
 
             fn deinit(&mut self) {
-                WIDGET.with_context(&self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", WIDGET.id());
@@ -514,20 +514,15 @@ pub mod nodes {
             }
 
             fn info(&mut self, info: &mut WidgetInfoBuilder) {
-                let rebuild = self.ctx.take_info();
-                WIDGET.with_context(&self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", WIDGET.id());
                     }
 
-                    if rebuild {
-                        info.push_widget(WIDGET.id(), WIDGET.bounds(), WIDGET.border(), |info| {
-                            self.child.info(info);
-                        });
-                    } else {
-                        info.push_widget_reuse();
-                    }
+                    info.push_widget(|info| {
+                        self.child.info(info);
+                    });
                 });
 
                 if self.ctx.is_pending_reinit() {
@@ -541,7 +536,7 @@ pub mod nodes {
                     self.init();
                 }
 
-                WIDGET.with_context(&self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event().name(), WIDGET.id());
@@ -565,7 +560,7 @@ pub mod nodes {
                     return;
                 }
 
-                WIDGET.with_context(&self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", WIDGET.id());
@@ -583,14 +578,13 @@ pub mod nodes {
             }
 
             fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-                let reuse = !self.ctx.is_pending_layout();
-                let desired_size = WIDGET.with_context(&self.ctx, || {
+                let desired_size = WIDGET.with_context(&mut self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", WIDGET.id());
                     }
 
-                    wm.with_widget(reuse, |wm| {
+                    wm.with_widget(|wm| {
                         let child_size = self.child.measure(wm);
 
                         // verify that inline row segments fit in row size
@@ -623,14 +617,13 @@ pub mod nodes {
             }
 
             fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-                let reuse = !self.ctx.take_layout();
-                let final_size = WIDGET.with_context(&self.ctx, || {
+                let final_size = WIDGET.with_context(&mut self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", WIDGET.id());
                     }
 
-                    wl.with_widget(reuse, |wl| {
+                    wl.with_widget(|wl| {
                         let child_size = self.child.layout(wl);
 
                         // verify that inline row segments fit in row rectangle
@@ -666,16 +659,14 @@ pub mod nodes {
             }
 
             fn render(&mut self, frame: &mut FrameBuilder) {
-                let mut reuse = self.ctx.take_render();
-                WIDGET.with_context(&self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", WIDGET.id());
                     }
 
-                    frame.push_widget(&mut reuse, |frame| self.child.render(frame));
+                    frame.push_widget(|frame| self.child.render(frame));
                 });
-                self.ctx.set_render_reuse(reuse);
 
                 if self.ctx.is_pending_reinit() {
                     UPDATES.update(self.ctx.id());
@@ -683,18 +674,17 @@ pub mod nodes {
             }
 
             fn render_update(&mut self, update: &mut FrameUpdate) {
-                let reuse = !self.ctx.take_render_update();
-
-                WIDGET.with_context(&self.ctx, || {
+                WIDGET.with_context(&mut self.ctx, || {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", WIDGET.id());
                     }
 
-                    update.update_widget(reuse, |update| self.child.render_update(update));
+                    update.update_widget(|update| self.child.render_update(update));
                 });
 
                 if self.ctx.is_pending_reinit() {
+                    // !!: review this, we are generating a search request for this widget
                     UPDATES.update(self.ctx.id());
                 }
             }
@@ -703,11 +693,11 @@ pub mod nodes {
                 true
             }
 
-            fn with_context<R, F>(&self, f: F) -> Option<R>
+            fn with_context<R, F>(&mut self, f: F) -> Option<R>
             where
                 F: FnOnce() -> R,
             {
-                WIDGET.with_context(&self.ctx, || Some(f()))
+                WIDGET.with_context(&mut self.ctx, || Some(f()))
             }
 
             fn into_widget(self) -> BoxedUiNode
