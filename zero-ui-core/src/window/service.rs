@@ -90,7 +90,7 @@ impl WindowsService {
         };
         self.open_requests.push(request);
         self.open_loading.insert(id, WindowLoading::new());
-        UPDATES.update_ext();
+        UPDATES.update(None);
 
         response
     }
@@ -130,7 +130,7 @@ impl WindowsService {
 
         let (responder, response) = response_var();
         self.close_requests.push(CloseWindowRequest { responder, windows: group });
-        UPDATES.update_ext();
+        UPDATES.update(None);
 
         Ok(response)
     }
@@ -531,7 +531,7 @@ impl WINDOWS {
         if !self.is_focused(window_id)? {
             let mut w = WINDOWS_SV.write();
             w.focus_request = Some(window_id);
-            UPDATES.update_ext();
+            UPDATES.update(None);
         }
         Ok(())
     }
@@ -570,7 +570,7 @@ impl WINDOWS {
         let mut w = WINDOWS_SV.write();
         if w.windows_info.contains_key(&window_id) {
             w.bring_to_top_requests.push(window_id);
-            UPDATES.update_ext();
+            UPDATES.update(None);
             Ok(())
         } else {
             Err(WindowNotFound(window_id))
@@ -691,7 +691,7 @@ impl WINDOWS {
             WINDOWS_SV.write().latest_color_scheme = args.color_scheme;
 
             // we skipped request fulfillment until this event.
-            UPDATES.update_ext();
+            UPDATES.update(None);
         }
 
         Self::with_detached_windows(|windows, parallel| {
@@ -793,11 +793,11 @@ impl WINDOWS {
         }
     }
 
-    pub(super) fn on_ui_update(updates: &mut WidgetUpdates) {
+    pub(super) fn on_ui_update(update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
         Self::fullfill_requests();
 
-        if updates.delivery_list_mut().has_pending_search() {
-            updates
+        if update_widgets.delivery_list_mut().has_pending_search() {
+            update_widgets
                 .delivery_list_mut()
                 .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
@@ -805,11 +805,11 @@ impl WINDOWS {
         Self::with_detached_windows(|windows, parallel| {
             if windows.len() > 1 && parallel.contains(ParallelWin::UPDATE) {
                 windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
-                    window.update(updates);
+                    window.update(update_widgets);
                 });
             } else {
                 for (_, window) in windows.iter_mut() {
-                    window.update(updates);
+                    window.update(update_widgets);
                 }
             }
         });
@@ -1184,7 +1184,7 @@ impl WindowLoading {
                 let t = TIMERS.on_deadline(
                     deadline,
                     app_hn_once!(|_| {
-                        UPDATES.update_ext();
+                        UPDATES.update(None);
                     }),
                 );
                 self.timer = Some(t);

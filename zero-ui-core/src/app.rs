@@ -301,10 +301,13 @@ pub trait AppExtension: 'static {
 
     /// Called just before [`update`](Self::update).
     ///
-    /// Only extensions that generate windows must handle this method. The [`UiNode::update`](crate::widget_instance::UiNode::update)
-    /// method is called here.
-    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
-        let _ = updates;
+    /// Only extensions that manage windows must handle this method. The [`UiNode::update`] and [`UiNode::info`]
+    /// methods are called here.
+    ///
+    /// [`UiNode::update`]: crate::widget_instance::UiNode::update
+    /// [`UiNode::info`]: crate::widget_instance::UiNode::info
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
+        let _ = (update_widgets, info_widgets);
     }
 
     /// Called after every [`update_ui`](Self::update_ui).
@@ -314,10 +317,23 @@ pub trait AppExtension: 'static {
     fn update(&mut self) {}
 
     /// Called after every sequence of updates if layout was requested.
-    fn layout(&mut self) {}
+    ///
+    /// The [`UiNode::layout`] method is called here by extensions that manage windows.
+    ///
+    /// [`UiNode::layout`]: crate::widget_instance::UiNode::layout
+    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+        let _ = layout_widgets;
+    }
 
     /// Called after every sequence of updates and layout if render was requested.
-    fn render(&mut self) {}
+    ///
+    /// The [`UiNode::render`] and [`UiNode::render_update`] methods are called here by extensions that manage windows.
+    ///
+    /// [`UiNode::render`]: crate::widget_instance::UiNode::render
+    /// [`UiNode::render_update`]: crate::widget_instance::UiNode::render_update
+    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+        let _ = (render_widgets, render_update_widgets);
+    }
 
     /// Called when the application is exiting.
     ///
@@ -342,13 +358,13 @@ pub trait AppExtensionBoxed: 'static {
     fn init_boxed(&mut self);
     fn enable_device_events_boxed(&self) -> bool;
     fn update_preview_boxed(&mut self);
-    fn update_ui_boxed(&mut self, updates: &mut WidgetUpdates);
+    fn update_ui_boxed(&mut self, updates: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates);
     fn update_boxed(&mut self);
     fn event_preview_boxed(&mut self, update: &mut EventUpdate);
     fn event_ui_boxed(&mut self, update: &mut EventUpdate);
     fn event_boxed(&mut self, update: &mut EventUpdate);
-    fn layout_boxed(&mut self);
-    fn render_boxed(&mut self);
+    fn layout_boxed(&mut self, layout_widgets: &mut WidgetUpdates);
+    fn render_boxed(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates);
     fn deinit_boxed(&mut self);
 }
 impl<T: AppExtension> AppExtensionBoxed for T {
@@ -372,8 +388,8 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.update_preview();
     }
 
-    fn update_ui_boxed(&mut self, updates: &mut WidgetUpdates) {
-        self.update_ui(updates);
+    fn update_ui_boxed(&mut self, updates: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
+        self.update_ui(updates, info_widgets);
     }
 
     fn update_boxed(&mut self) {
@@ -392,12 +408,12 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.event(update);
     }
 
-    fn layout_boxed(&mut self) {
-        self.layout();
+    fn layout_boxed(&mut self, layout_widgets: &mut WidgetUpdates) {
+        self.layout(layout_widgets);
     }
 
-    fn render_boxed(&mut self) {
-        self.render();
+    fn render_boxed(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+        self.render(render_widgets, render_update_widgets);
     }
 
     fn deinit_boxed(&mut self) {
@@ -425,8 +441,8 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().update_preview_boxed();
     }
 
-    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
-        self.as_mut().update_ui_boxed(updates);
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
+        self.as_mut().update_ui_boxed(update_widgets, info_widgets);
     }
 
     fn update(&mut self) {
@@ -445,12 +461,12 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().event_boxed(update);
     }
 
-    fn layout(&mut self) {
-        self.as_mut().layout_boxed();
+    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+        self.as_mut().layout_boxed(layout_widgets);
     }
 
-    fn render(&mut self) {
-        self.as_mut().render_boxed();
+    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+        self.as_mut().render_boxed(render_widgets, render_update_widgets);
     }
 
     fn deinit(&mut self) {
@@ -504,9 +520,9 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
         self.0.update_preview();
     }
 
-    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
         let _span = UpdatesTrace::extension_span::<E>("update_ui");
-        self.0.update_ui(updates);
+        self.0.update_ui(update_widgets, info_widgets);
     }
 
     fn update(&mut self) {
@@ -514,14 +530,14 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
         self.0.update();
     }
 
-    fn layout(&mut self) {
+    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
         let _span = UpdatesTrace::extension_span::<E>("layout");
-        self.0.layout();
+        self.0.layout(layout_widgets);
     }
 
-    fn render(&mut self) {
+    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
         let _span = UpdatesTrace::extension_span::<E>("render");
-        self.0.render();
+        self.0.render(render_widgets, render_update_widgets);
     }
 
     fn deinit(&mut self) {
@@ -934,9 +950,7 @@ struct RunningApp<E: AppExtension> {
 
     pending_view_events: Vec<zero_ui_view_api::Event>,
     pending_view_frame_events: Vec<zero_ui_view_api::EventFrameRendered>,
-    pending_app_events: Vec<EventUpdate>,
-    pending_layout: bool,
-    pending_render: bool,
+    pending: ContextUpdates,
 
     // cleans on drop
     _scope: AppScope,
@@ -968,9 +982,17 @@ impl<E: AppExtension> RunningApp<E> {
 
             pending_view_events: Vec::with_capacity(100),
             pending_view_frame_events: Vec::with_capacity(5),
-            pending_app_events: Vec::with_capacity(100),
-            pending_layout: false,
-            pending_render: false,
+            pending: ContextUpdates {
+                events: Vec::with_capacity(100),
+                update: false,
+                layout: false,
+                render: false,
+                update_widgets: WidgetUpdates::default(),
+                info_widgets: WidgetUpdates::default(),
+                layout_widgets: WidgetUpdates::default(),
+                render_widgets: WidgetUpdates::default(),
+                render_update_widgets: WidgetUpdates::default(),
+            },
 
             _scope: scope,
         }
@@ -1336,9 +1358,6 @@ impl<E: AppExtension> RunningApp<E> {
                     // notify immediately.
                     if is_respawn {
                         VIEW_PROCESS.on_respawed(generation);
-
-                        // discard pending events.
-                        self.pending_app_events.clear();
                     }
 
                     VIEW_PROCESS.handle_inited(generation);
@@ -1386,10 +1405,7 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn has_pending_updates(&mut self) -> bool {
-        !self.pending_view_events.is_empty()
-            || !self.pending_app_events.is_empty()
-            || UPDATES.has_pending_updates()
-            || !self.receiver.is_empty()
+        !self.pending_view_events.is_empty() || !self.pending.has_updates() || UPDATES.has_pending_updates() || !self.receiver.is_empty()
     }
 
     fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
@@ -1518,23 +1534,23 @@ impl<E: AppExtension> RunningApp<E> {
 
                 TimersService::notify();
 
-                self.pending_app_events.extend(u.events);
-                self.pending_layout |= u.layout;
-                self.pending_render |= u.render;
+                self.pending |= u;
 
-                if !u.update {
+                if !mem::take(&mut self.pending.update) {
                     return false;
                 }
 
                 let _s = tracing::debug_span!("extensions").entered();
 
+                let mut update_widgets = mem::take(&mut self.pending.update_widgets);
+                let mut info_widgets = mem::take(&mut self.pending.info_widgets);
+
                 self.extensions.update_preview();
                 observer.update_preview();
                 UPDATES.on_pre_updates();
 
-                let mut wgt_updates = u.update_widgets;
-                self.extensions.update_ui(&mut wgt_updates);
-                observer.update_ui(&mut wgt_updates);
+                self.extensions.update_ui(&mut update_widgets, &mut info_widgets);
+                observer.update_ui(&mut update_widgets, &mut info_widgets);
 
                 self.extensions.update();
                 observer.update();
@@ -1550,7 +1566,7 @@ impl<E: AppExtension> RunningApp<E> {
         let _s = tracing::debug_span!("apply_update_events").entered();
 
         loop {
-            let events: Vec<_> = self.pending_app_events.drain(..).collect();
+            let events: Vec<_> = self.pending.events.drain(..).collect();
             if events.is_empty() {
                 break;
             }
@@ -1583,22 +1599,27 @@ impl<E: AppExtension> RunningApp<E> {
     fn finish_frame<O: AppEventObserver>(&mut self, observer: &mut O) {
         debug_assert!(!self.view_is_busy());
 
-        while mem::take(&mut self.pending_layout) {
+        while mem::take(&mut self.pending.layout) {
             let _s = tracing::debug_span!("apply_layout").entered();
 
+            let mut layout_widgets = mem::take(&mut self.pending.layout_widgets);
+
             self.loop_monitor.maybe_trace(|| {
-                self.extensions.layout();
-                observer.layout();
+                self.extensions.layout(&mut layout_widgets);
+                observer.layout(&mut layout_widgets);
             });
 
             self.apply_updates(observer);
         }
 
-        if mem::take(&mut self.pending_render) {
+        if mem::take(&mut self.pending.render) {
             let _s = tracing::debug_span!("apply_render").entered();
 
-            self.extensions.render();
-            observer.render();
+            let mut render_widgets = mem::take(&mut self.pending.render_widgets);
+            let mut render_update_widgets = mem::take(&mut self.pending.render_update_widgets);
+
+            self.extensions.render(&mut render_widgets, &mut render_update_widgets);
+            observer.render(&mut render_widgets, &mut render_update_widgets);
         }
 
         self.loop_monitor.finish_frame();
@@ -1926,18 +1947,22 @@ pub trait AppEventObserver {
     fn update_preview(&mut self) {}
 
     /// Called just after [`AppExtension::update_ui`].
-    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
-        let _ = updates;
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
+        let _ = (update_widgets, info_widgets);
     }
 
     /// Called just after [`AppExtension::update`].
     fn update(&mut self) {}
 
     /// Called just after [`AppExtension::layout`].
-    fn layout(&mut self) {}
+    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+        let _ = layout_widgets;
+    }
 
     /// Called just after [`AppExtension::render`].
-    fn render(&mut self) {}
+    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+        let _ = (render_widgets, render_update_widgets);
+    }
 
     /// Cast to dynamically dispatched observer, this can help avoid code bloat.
     ///
@@ -1961,10 +1986,10 @@ trait AppEventObserverDyn {
     fn event_ui_dyn(&mut self, update: &mut EventUpdate);
     fn event_dyn(&mut self, update: &mut EventUpdate);
     fn update_preview_dyn(&mut self);
-    fn update_ui_dyn(&mut self, updates: &mut WidgetUpdates);
+    fn update_ui_dyn(&mut self, updates: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates);
     fn update_dyn(&mut self);
-    fn layout_dyn(&mut self);
-    fn render_dyn(&mut self);
+    fn layout_dyn(&mut self, layout_widgets: &mut WidgetUpdates);
+    fn render_dyn(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates);
 }
 impl<O: AppEventObserver> AppEventObserverDyn for O {
     fn raw_event_dyn(&mut self, ev: &zero_ui_view_api::Event) {
@@ -1987,20 +2012,20 @@ impl<O: AppEventObserver> AppEventObserverDyn for O {
         self.update_preview()
     }
 
-    fn update_ui_dyn(&mut self, updates: &mut WidgetUpdates) {
-        self.update_ui(updates)
+    fn update_ui_dyn(&mut self, update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
+        self.update_ui(update_widgets, info_widgets)
     }
 
     fn update_dyn(&mut self) {
         self.update()
     }
 
-    fn layout_dyn(&mut self) {
-        self.layout()
+    fn layout_dyn(&mut self, layout_widgets: &mut WidgetUpdates) {
+        self.layout(layout_widgets)
     }
 
-    fn render_dyn(&mut self) {
-        self.render()
+    fn render_dyn(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+        self.render(render_widgets, render_update_widgets)
     }
 }
 impl<'a> AppEventObserver for DynAppEventObserver<'a> {
@@ -2024,20 +2049,20 @@ impl<'a> AppEventObserver for DynAppEventObserver<'a> {
         self.0.update_preview_dyn()
     }
 
-    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
-        self.0.update_ui_dyn(updates)
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
+        self.0.update_ui_dyn(update_widgets, info_widgets)
     }
 
     fn update(&mut self) {
         self.0.update_dyn()
     }
 
-    fn layout(&mut self) {
-        self.0.layout_dyn()
+    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+        self.0.layout_dyn(layout_widgets)
     }
 
-    fn render(&mut self) {
-        self.0.render_dyn()
+    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+        self.0.render_dyn(render_widgets, render_update_widgets)
     }
 
     fn as_dyn(&mut self) -> DynAppEventObserver {
@@ -2069,9 +2094,9 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.update_preview();
     }
 
-    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
-        self.0.update_ui(updates);
-        self.1.update_ui(updates);
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
+        self.0.update_ui(update_widgets, info_widgets);
+        self.1.update_ui(update_widgets, info_widgets);
     }
 
     fn update(&mut self) {
@@ -2079,14 +2104,14 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.update();
     }
 
-    fn layout(&mut self) {
-        self.0.layout();
-        self.1.layout();
+    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+        self.0.layout(layout_widgets);
+        self.1.layout(layout_widgets);
     }
 
-    fn render(&mut self) {
-        self.0.render();
-        self.1.render();
+    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+        self.0.render(render_widgets, render_update_widgets);
+        self.1.render(render_widgets, render_update_widgets);
     }
 
     fn event_preview(&mut self, update: &mut EventUpdate) {
@@ -2137,9 +2162,9 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn update_ui(&mut self, updates: &mut WidgetUpdates) {
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
         for ext in self {
-            ext.update_ui(updates);
+            ext.update_ui(update_widgets, info_widgets);
         }
     }
 
@@ -2167,15 +2192,15 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn layout(&mut self) {
+    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
         for ext in self {
-            ext.layout();
+            ext.layout(layout_widgets);
         }
     }
 
-    fn render(&mut self) {
+    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
         for ext in self {
-            ext.render();
+            ext.render(render_widgets, render_update_widgets);
         }
     }
 

@@ -93,7 +93,7 @@ impl AppProcessService {
         } else {
             let (responder, response) = response_var();
             self.exit_requests = Some(responder);
-            UPDATES.update_ext();
+            UPDATES.update(None);
             response
         }
     }

@@ -806,41 +806,48 @@ impl WIDGET {
         WINDOW.widget_tree().get(WIDGET.id()).expect("widget info not init")
     }
 
+    /// Schedule an [`UpdateOp`] for the current widget.
+    pub fn update_op(&self, op: UpdateOp) -> &Self {
+        match op {
+            UpdateOp::Update => self.update(),
+            UpdateOp::Info => self.update_info(),
+            UpdateOp::Layout => self.layout(),
+            UpdateOp::Render => self.render(),
+            UpdateOp::RenderUpdate => self.render_update(),
+        }
+    }
+
+    fn update_impl(&self, flag: UpdateFlags, op: UpdateOp) -> &Self {
+        let w = WIDGET_CTX.get();
+        let mut flags = w.flags.lock();
+        if !flags.contains(flag) {
+            flags.insert(flag);
+            let id = w.id;
+            drop(flags);
+            UPDATES.update_op(op, id);
+        }
+        self
+    }
+
     /// Schedule an update for the current widget.
     ///
     /// After the current update cycle the app-extensions, parent window and widgets will update again.
     pub fn update(&self) -> &Self {
-        let w = WIDGET_CTX.get();
-        let mut flags = w.flags.lock();
-        if !flags.contains(UpdateFlags::UPDATE) {
-            flags.insert(UpdateFlags::UPDATE);
-            let id = w.id;
-            drop(flags);
-            UPDATES.update(id);
-        }
-        self
+        self.update_impl(UpdateFlags::UPDATE, UpdateOp::Update)
     }
 
     /// Schedule an info rebuild for the current widget.
     ///
     /// After all requested updates apply the parent window and widgets will re-build the info tree.
     pub fn update_info(&self) -> &Self {
-        WIDGET_CTX.get().flags.lock().insert(UpdateFlags::INFO);
-        self
+        self.update_impl(UpdateFlags::INFO, UpdateOp::Info)
     }
 
     /// Schedule a re-layout for the current widget.
     ///
     /// After all requested updates apply the parent window and widgets will re-layout.
     pub fn layout(&self) -> &Self {
-        let w = WIDGET_CTX.get();
-        let mut flags = w.flags.lock();
-        if !flags.contains(UpdateFlags::LAYOUT) {
-            flags.insert(UpdateFlags::LAYOUT);
-            drop(flags);
-            UPDATES.layout(w.id);
-        }
-        self
+        self.update_impl(UpdateFlags::LAYOUT, UpdateOp::Layout)
     }
 
     /// Schedule a re-render for the current widget.
@@ -851,14 +858,7 @@ impl WIDGET {
     ///
     /// [`render_update`]: Self::render_update
     pub fn render(&self) -> &Self {
-        let w = WIDGET_CTX.get();
-        let mut flags = w.flags.lock();
-        if !flags.contains(UpdateFlags::RENDER) {
-            flags.insert(UpdateFlags::RENDER);
-            drop(flags);
-            UPDATES.render(w.id);
-        }
-        self
+        self.update_impl(UpdateFlags::RENDER, UpdateOp::Render)
     }
 
     /// Schedule a frame update for the current widget.
@@ -869,14 +869,7 @@ impl WIDGET {
     ///
     /// [`render`]: Self::render
     pub fn render_update(&self) -> &Self {
-        let w = WIDGET_CTX.get();
-        let mut flags = w.flags.lock();
-        if !flags.contains(UpdateFlags::RENDER_UPDATE) {
-            flags.insert(UpdateFlags::RENDER_UPDATE);
-            drop(flags);
-            UPDATES.render_update(w.id);
-        }
-        self
+        self.update_impl(UpdateFlags::RENDER_UPDATE, UpdateOp::RenderUpdate)
     }
 
     /// Flags the widget to re-init after the current update returns.
@@ -1403,8 +1396,12 @@ app_local! {
 struct UpdatesService {
     event_sender: Option<AppEventSender>,
 
-    flags: UpdateFlags,
+    update_ext: UpdateFlags,
     update_widgets: UpdateDeliveryList,
+    info_widgets: UpdateDeliveryList,
+    layout_widgets: UpdateDeliveryList,
+    render_widgets: UpdateDeliveryList,
+    render_update_widgets: UpdateDeliveryList,
 
     pre_handlers: Mutex<Vec<UpdateHandler>>,
     pos_handlers: Mutex<Vec<UpdateHandler>>,
@@ -1416,21 +1413,18 @@ impl UpdatesService {
     fn new() -> Self {
         Self {
             event_sender: None,
-            flags: UpdateFlags::empty(),
+            update_ext: UpdateFlags::empty(),
             update_widgets: UpdateDeliveryList::new_any(),
+            info_widgets: UpdateDeliveryList::new_any(),
+            layout_widgets: UpdateDeliveryList::new_any(),
+            render_widgets: UpdateDeliveryList::new_any(),
+            render_update_widgets: UpdateDeliveryList::new_any(),
 
             pre_handlers: Mutex::new(vec![]),
             pos_handlers: Mutex::new(vec![]),
 
             app_is_awake: false,
             awake_pending: false,
-        }
-    }
-
-    fn flag_update(&mut self, flag: UpdateFlags) {
-        if !self.flags.contains(flag) {
-            self.flags.insert(flag);
-            self.send_awake();
         }
     }
 
@@ -1505,14 +1499,20 @@ impl UPDATES {
         let events = EVENTS.apply_updates();
         VARS.apply_updates();
 
-        let (update, update_widgets, layout, render) = UPDATES.take_updates();
+        let (update, update_widgets, info_widgets) = UPDATES.take_updates();
+        let (layout, layout_widgets) = UPDATES.take_layout();
+        let (render, render_widgets, render_update_widgets) = UPDATES.take_render();
 
         ContextUpdates {
             events,
             update,
             update_widgets,
+            info_widgets,
             layout,
+            layout_widgets,
             render,
+            render_widgets,
+            render_update_widgets,
         }
     }
 
@@ -1539,8 +1539,10 @@ impl UPDATES {
     /// If a call to `apply_updates` will generate updates (ignoring timers).
     #[must_use]
     pub fn has_pending_updates(&self) -> bool {
-        let us = !UPDATES_SV.read().flags.is_empty();
-        us || VARS.has_pending_updates() || EVENTS_SV.write().has_pending_updates() || TIMERS_SV.read().has_pending_updates()
+        !UPDATES_SV.read().update_ext.is_empty()
+            || VARS.has_pending_updates()
+            || EVENTS_SV.write().has_pending_updates()
+            || TIMERS_SV.read().has_pending_updates()
     }
 
     /// Create an [`AppEventSender`] that can be used to awake the app and send app events from threads outside of the app.
@@ -1570,15 +1572,13 @@ impl UPDATES {
     /// After the current update cycle ends a new update will happen that includes the `target` widget.
     pub fn update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
         UpdatesTrace::log_update();
-        self.update_internal(target.into());
-        self
-    }
-    pub(crate) fn update_internal(&self, target: Option<WidgetId>) {
         let mut u = UPDATES_SV.write();
-        u.flag_update(UpdateFlags::UPDATE);
-        if let Some(id) = target {
+        u.update_ext.insert(UpdateFlags::UPDATE);
+        u.send_awake();
+        if let Some(id) = target.into() {
             u.update_widgets.search_widget(id);
         }
+        self
     }
 
     pub(crate) fn send_awake(&self) {
@@ -1587,44 +1587,37 @@ impl UPDATES {
 
     pub(crate) fn recv_update_internal(&mut self, targets: Vec<WidgetId>) {
         let mut u = UPDATES_SV.write();
-        u.flags.insert(UpdateFlags::UPDATE);
+        u.send_awake();
         for id in targets {
             u.update_widgets.search_widget(id);
         }
-    }
-
-    /// Schedules an update that only affects the app extensions.
-    ///
-    /// This is the equivalent of calling [`update`] with a `None`.
-    ///
-    /// [`update`]: Self::update
-    pub fn update_ext(&self) -> &Self {
-        UpdatesTrace::log_update();
-        self.update_ext_internal();
-        self
-    }
-    pub(crate) fn update_ext_internal(&self) {
-        UPDATES_SV.write().flag_update(UpdateFlags::UPDATE);
     }
 
     /// Schedules an info rebuild that affects the `target`.
     ///
     /// After the current update cycle ends a new update will happen that requests an info rebuild that includes the `target` widget.
     pub fn update_info(&self, target: impl Into<Option<WidgetId>>) -> &Self {
-        todo!("!!:")
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::INFO);
+        u.send_awake();
+        if let Some(id) = target.into() {
+            u.info_widgets.search_widget(id);
+        }
+        self
     }
 
     /// Schedules a layout update that affects the `target`.
     ///
     /// After the current update cycle ends and there are no more updates requested a layout pass is issued that includes the `target` widget.
     pub fn layout(&self, target: impl Into<Option<WidgetId>>) -> &Self {
-        // !!: TODO target
         UpdatesTrace::log_layout();
-        self.layout_internal();
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::LAYOUT);
+        u.send_awake();
+        if let Some(id) = target.into() {
+            u.layout_widgets.search_widget(id);
+        }
         self
-    }
-    pub(crate) fn layout_internal(&self) {
-        UPDATES_SV.write().flag_update(UpdateFlags::LAYOUT);
     }
 
     /// Schedules a full render that affects the `target`.
@@ -1634,8 +1627,12 @@ impl UPDATES {
     ///
     /// If no `target` is provided only the app extensions receive a render request.
     pub fn render(&self, target: impl Into<Option<WidgetId>>) -> &Self {
-        // !!: TODO target
-        self.render_internal();
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::RENDER);
+        u.send_awake();
+        if let Some(id) = target.into() {
+            u.render_widgets.search_widget(id);
+        }
         self
     }
 
@@ -1645,13 +1642,13 @@ impl UPDATES {
     /// includes the `target` widget marked for render update only. Note that if a full render was requested for another widget
     /// on the same window this request is upgraded to a full frame render.
     pub fn render_update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
-        // !!: TODO target
-        self.render_internal();
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::RENDER_UPDATE);
+        u.send_awake();
+        if let Some(id) = target.into() {
+            u.render_update_widgets.search_widget(id);
+        }
         self
-    }
-
-    pub(crate) fn render_internal(&self) {
-        UPDATES_SV.write().flag_update(UpdateFlags::RENDER);
     }
 
     /// Schedule an *once* handler to run when these updates are applied.
@@ -1660,7 +1657,8 @@ impl UPDATES {
     /// one call it is scheduled to update in *preview* updates.
     pub fn run<H: AppHandler<UpdateArgs>>(&self, handler: H) -> OnUpdateHandle {
         let mut u = UPDATES_SV.write();
-        u.flag_update(UpdateFlags::UPDATE);
+        u.update_ext.insert(UpdateFlags::UPDATE);
+        u.send_awake();
         Self::push_handler(u.pos_handlers.get_mut(), true, handler, true)
     }
 
@@ -1754,19 +1752,54 @@ impl UPDATES {
         });
     }
 
-    pub(super) fn take_updates(&self) -> (bool, WidgetUpdates, bool, bool) {
+    /// Returns (update_ext, update_widgets, info_widgets)
+    pub(super) fn take_updates(&self) -> (bool, WidgetUpdates, WidgetUpdates) {
         let mut u = UPDATES_SV.write();
-        let update = u.flags.contains(UpdateFlags::UPDATE);
-        let layout = u.flags.contains(UpdateFlags::LAYOUT);
-        let render = u.flags.contains(UpdateFlags::RENDER);
-        u.flags = UpdateFlags::empty();
+
+        let ext = u.update_ext.intersects(UpdateFlags::UPDATE | UpdateFlags::INFO);
+        u.update_ext.remove(UpdateFlags::UPDATE | UpdateFlags::INFO);
+
         (
-            update,
+            ext,
             WidgetUpdates {
                 delivery_list: mem::take(&mut u.update_widgets),
             },
-            layout,
-            render,
+            WidgetUpdates {
+                delivery_list: mem::take(&mut u.info_widgets),
+            },
+        )
+    }
+
+    /// Returns (layout_ext, layout_widgets)
+    pub(super) fn take_layout(&self) -> (bool, WidgetUpdates) {
+        let mut u = UPDATES_SV.write();
+
+        let ext = u.update_ext.contains(UpdateFlags::LAYOUT);
+        u.update_ext.remove(UpdateFlags::LAYOUT);
+
+        (
+            ext,
+            WidgetUpdates {
+                delivery_list: mem::take(&mut u.layout_widgets),
+            },
+        )
+    }
+
+    /// Returns (render_ext, render_widgets, render_update_widgets)
+    pub(super) fn take_render(&self) -> (bool, WidgetUpdates, WidgetUpdates) {
+        let mut u = UPDATES_SV.write();
+
+        let ext = u.update_ext.intersects(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
+        u.update_ext.remove(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
+
+        (
+            ext,
+            WidgetUpdates {
+                delivery_list: mem::take(&mut u.render_widgets),
+            },
+            WidgetUpdates {
+                delivery_list: mem::take(&mut u.render_update_widgets),
+            },
         )
     }
 
@@ -2049,9 +2082,23 @@ impl UpdateDeliveryList {
 
     /// Copy windows, widgets and search from `other`, trusting that all values are allowed.
     fn extend_unchecked(&mut self, other: UpdateDeliveryList) {
-        self.windows.extend(other.windows);
-        self.widgets.extend(other.widgets);
-        self.search.extend(other.search)
+        if self.windows.is_empty() {
+            self.windows = other.windows;
+        } else {
+            self.windows.extend(other.windows);
+        }
+
+        if self.widgets.is_empty() {
+            self.widgets = other.widgets;
+        } else {
+            self.widgets.extend(other.widgets);
+        }
+
+        if self.search.is_empty() {
+            self.search = other.search;
+        } else {
+            self.search.extend(other.search);
+        }
     }
 
     /// Returns `true` if the window is on the list.
@@ -2103,20 +2150,46 @@ pub struct ContextUpdates {
 
     /// Update requested.
     ///
-    /// When this is `true`, [`update`](Self::update) may contain widgets, if not then only
-    /// app extensions must update.
+    /// When this is `true`, [`update_widgets`](Self::update_widgets) or [`info_widgets`](Self::info_widgets)
+    /// may contain widgets, if not then only app extensions must update.
     pub update: bool,
+
+    /// Layout requested.
+    ///
+    /// When this is `true`, [`layout_widgets`](Self::layout_widgets)
+    /// may contain widgets, if not then only app extensions must update.
+    pub layout: bool,
+
+    /// Render requested.
+    ///
+    /// When this is `true`, [`render_widgets`](Self::render_widgets) or [`render_update_widgets`](Self::render_update_widgets)
+    /// may contain widgets, if not then only app extensions must update.
+    pub render: bool,
 
     /// Update targets.
     ///
     /// When this is not empty [`update`](Self::update) is `true`.
     pub update_widgets: WidgetUpdates,
 
-    /// Layout requested.
-    pub layout: bool,
+    /// Info rebuild targets.
+    ///
+    /// When this is not empty [`update`](Self::update) is `true`.
+    pub info_widgets: WidgetUpdates,
 
-    /// Full frame or frame update requested.
-    pub render: bool,
+    /// Layout targets.
+    ///
+    /// When this is not empty [`layout`](Self::layout) is `true`.
+    pub layout_widgets: WidgetUpdates,
+
+    /// Full render targets.
+    ///
+    /// When this is not empty [`render`](Self::render) is `true`.
+    pub render_widgets: WidgetUpdates,
+
+    /// Render update targets.
+    ///
+    /// When this is not empty [`render`](Self::render) is `true`.
+    pub render_update_widgets: WidgetUpdates,
 }
 impl ContextUpdates {
     /// If has events, update, layout or render was requested.
@@ -2129,8 +2202,12 @@ impl std::ops::BitOrAssign for ContextUpdates {
         self.events.extend(rhs.events);
         self.update |= rhs.update;
         self.update_widgets.extend(rhs.update_widgets);
+        self.info_widgets.extend(rhs.info_widgets);
         self.layout |= rhs.layout;
+        self.layout_widgets.extend(rhs.layout_widgets);
         self.render |= rhs.render;
+        self.render_widgets.extend(rhs.render_widgets);
+        self.render_update_widgets.extend(rhs.render_update_widgets);
     }
 }
 impl std::ops::BitOr for ContextUpdates {

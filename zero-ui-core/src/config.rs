@@ -231,13 +231,13 @@ impl ConfigService {
                 }
                 !finished
             }));
-            UPDATES.update_ext();
+            UPDATES.update(None);
         } else {
             // no source, just respond with `None`.
             self.once_tasks.push(Box::new(move |_| {
                 respond(None);
             }));
-            UPDATES.update_ext();
+            UPDATES.update(None);
         }
     }
 
@@ -261,7 +261,7 @@ impl ConfigService {
                             }
                         });
                     }));
-                    UPDATES.update_ext();
+                    UPDATES.update(None);
                 } else {
                     // not observed anymore or changed type.
                     entry.remove();
@@ -288,7 +288,7 @@ impl ConfigService {
                     self.once_tasks.push(Box::new(move |status| {
                         status.modify(move |s| s.to_mut().set_write_error(ConfigError::new(e)));
                     }));
-                    UPDATES.update_ext();
+                    UPDATES.update(None);
                 }
             }
         }
@@ -323,7 +323,7 @@ impl ConfigService {
 
             !finished
         }));
-        UPDATES.update_ext();
+        UPDATES.update(None);
     }
 
     fn var<K, T, D>(&mut self, key: K, default_value: D) -> impl Var<T>

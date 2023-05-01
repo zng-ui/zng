@@ -332,7 +332,7 @@ impl<T: VarValue> VarData<T> {
             self.with(|val| {
                 meta.hooks.retain(|h| h.call(val));
             });
-            UPDATES.update_ext();
+            UPDATES.update(None);
         }
     }
 }

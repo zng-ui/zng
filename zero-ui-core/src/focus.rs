@@ -434,7 +434,7 @@ impl AppExtension for FocusManager {
         }
     }
 
-    fn render(&mut self) {
+    fn render(&mut self, _: &mut WidgetUpdates, _: &mut WidgetUpdates) {
         if let Some(tree) = self.pending_render.take() {
             self.on_info_tree_update(tree);
         } else {
@@ -656,7 +656,7 @@ impl FOCUS {
         let mut f = FOCUS_SV.write();
         f.pending_window_focus = None;
         f.request = Some(request);
-        UPDATES.update_ext();
+        UPDATES.update(None);
     }
 
     /// Enables focus highlight for the current focus if the key-press allows it.
@@ -674,7 +674,7 @@ impl FOCUS {
     pub fn highlight(&self) {
         let mut f = FOCUS_SV.write();
         f.pending_highlight = true;
-        UPDATES.update_ext();
+        UPDATES.update(None);
     }
 
     /// Focus the widget if it is focusable and change the highlight.

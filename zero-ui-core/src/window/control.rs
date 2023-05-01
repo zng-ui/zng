@@ -1505,7 +1505,7 @@ impl ContentCtrl {
             }
 
             InitState::SkipOne => {
-                UPDATES.update_ext();
+                UPDATES.update(None);
                 self.init_state = InitState::Init;
             }
             InitState::Init => {

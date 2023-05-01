@@ -174,7 +174,7 @@ impl FONTS {
         let mut ft = FONTS_SV.write();
         if !ft.prune_requested {
             ft.prune_requested = true;
-            UPDATES.update_ext();
+            UPDATES.update(None);
         }
     }
 
@@ -1598,7 +1598,7 @@ impl GenericFontsService {
 
     fn notify(&mut self, change: FontChange) {
         if self.updates.is_empty() {
-            UPDATES.update_ext();
+            UPDATES.update(None);
         }
         self.updates.push(FontChangedArgs::now(change));
     }

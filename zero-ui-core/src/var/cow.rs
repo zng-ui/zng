@@ -110,7 +110,7 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                         *value = new_value;
                         *last_update = VARS.update_id();
                         hooks.retain(|h| h.call(value));
-                        UPDATES.update_ext();
+                        UPDATES.update(None);
                     }
                 }
             }

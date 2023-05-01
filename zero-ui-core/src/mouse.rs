@@ -1680,7 +1680,7 @@ impl MOUSE {
     pub fn capture_widget(&self, widget_id: WidgetId) {
         let mut m = MOUSE_SV.write();
         m.capture_request = Some((widget_id, CaptureMode::Widget));
-        UPDATES.update_ext();
+        UPDATES.update(None);
     }
 
     /// Set a widget to be the root of a capture subtree.
@@ -1692,7 +1692,7 @@ impl MOUSE {
     pub fn capture_subtree(&self, widget_id: WidgetId) {
         let mut m = MOUSE_SV.write();
         m.capture_request = Some((widget_id, CaptureMode::Subtree));
-        UPDATES.update_ext();
+        UPDATES.update(None);
     }
 
     /// Release the current mouse capture back to window.
@@ -1702,7 +1702,7 @@ impl MOUSE {
     pub fn release_capture(&self) {
         let mut m = MOUSE_SV.write();
         m.release_requested = true;
-        UPDATES.update_ext();
+        UPDATES.update(None);
     }
 }
 

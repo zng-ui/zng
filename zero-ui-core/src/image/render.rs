@@ -57,7 +57,7 @@ impl ImagesService {
             render: Box::new(render),
             image: result.downgrade(),
         });
-        UPDATES.update_ext();
+        UPDATES.update(None);
     }
 }
 

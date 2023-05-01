@@ -369,7 +369,7 @@ impl<T: VarValue> ArcWhenVar<T> {
             active.with(|value| {
                 data.hooks.retain(|h| h.call(value));
             });
-            UPDATES.update_ext();
+            UPDATES.update(None);
         })
     }
 
