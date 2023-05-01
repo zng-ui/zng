@@ -826,6 +826,7 @@ impl WidgetMeasure {
 
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
+    layout_widgets: Arc<WidgetUpdates>,
     bounds: WidgetBoundsInfo,
     nest_group: LayoutNestGroup,
     inline: Option<WidgetInlineInfo>,
@@ -835,8 +836,9 @@ impl WidgetLayout {
     /// Defines the root widget outer-bounds scope.
     ///
     /// The default window implementation calls this.
-    pub fn with_root_widget(layout_widgets: &WidgetUpdates, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
+    pub fn with_root_widget(layout_widgets: Arc<WidgetUpdates>, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         Self {
+            layout_widgets,
             bounds: WIDGET.bounds(),
             nest_group: LayoutNestGroup::Inner,
             inline: None,
@@ -859,6 +861,7 @@ impl WidgetLayout {
             tracing::error!("called `parallel_split` outside child scope");
         }
         ParallelBuilder(Some(WidgetLayout {
+            layout_widgets: self.layout_widgets.clone(),
             bounds: self.bounds.clone(),
             nest_group: LayoutNestGroup::Child,
             inline: None,

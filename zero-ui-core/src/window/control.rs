@@ -1,6 +1,6 @@
 //! This module implements Management of window content and synchronization of WindowVars and View-Process.
 
-use std::mem;
+use std::{mem, sync::Arc};
 
 use crate::{
     app::{
@@ -106,7 +106,7 @@ impl HeadedCtrl {
         }
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
         if self.window.is_none() && !self.waiting_view {
             // we request a view on the first layout.
             UPDATES.layout(None);
@@ -662,7 +662,7 @@ impl HeadedCtrl {
         self.content.ui_event(update);
     }
 
-    pub fn layout(&mut self, layout_widgets: &WidgetUpdates) {
+    pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
         if !self.content.layout_requested && !layout_widgets.delivery_list().enter_window(WINDOW.id()) {
             return;
         }
@@ -723,7 +723,7 @@ impl HeadedCtrl {
         if state == WindowState::Normal && self.vars.auto_size().get() != AutoSize::DISABLED {
             // layout content to get auto-size size.
             size = self.content.layout(
-                &WidgetUpdates::default(),
+                Arc::default(),
                 scale_factor,
                 screen_ppi,
                 min_size,
@@ -822,7 +822,7 @@ impl HeadedCtrl {
     }
 
     /// Layout for already open window.
-    fn layout_update(&mut self, layout_widgets: &WidgetUpdates) {
+    fn layout_update(&mut self, layout_widgets: Arc<WidgetUpdates>) {
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().get();
         let screen_ppi = m.ppi().get();
@@ -890,7 +890,7 @@ impl HeadedCtrl {
             self.monitor = Some(self.vars.monitor().get().select_fallback());
         }
 
-        self.layout_update(&WidgetUpdates::default());
+        self.layout_update(Arc::default());
 
         let request = WindowRequest {
             id: WINDOW.id().get(),
@@ -921,7 +921,7 @@ impl HeadedCtrl {
         }
     }
 
-    pub fn render(&mut self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) {
+    pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
         if matches!(self.content.render_requested, RenderUpdate::None) {
             return;
         }
@@ -1070,7 +1070,7 @@ impl HeadlessWithRendererCtrl {
         }
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
         if self.surface.is_some() {
             if self.vars.size().is_new()
                 || self.vars.min_size().is_new()
@@ -1158,7 +1158,7 @@ impl HeadlessWithRendererCtrl {
         self.content.ui_event(update);
     }
 
-    pub fn layout(&mut self, layout_widgets: &WidgetUpdates) {
+    pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
         if !self.content.layout_requested {
             return;
         }
@@ -1220,7 +1220,7 @@ impl HeadlessWithRendererCtrl {
         self.headless_simulator.layout();
     }
 
-    pub fn render(&mut self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) {
+    pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
         if matches!(self.content.render_requested, RenderUpdate::None) {
             return;
         }
@@ -1313,7 +1313,7 @@ impl HeadlessCtrl {
         }
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
         if self.vars.size().is_new() || self.vars.min_size().is_new() || self.vars.max_size().is_new() || self.vars.auto_size().is_new() {
             self.content.layout_requested = true;
             UPDATES.layout(None);
@@ -1348,7 +1348,7 @@ impl HeadlessCtrl {
         self.content.ui_event(update);
     }
 
-    pub fn layout(&mut self, layout_widgets: &WidgetUpdates) {
+    pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
         if !self.content.layout_requested && !layout_widgets.delivery_list().enter_window(WINDOW.id()) {
             return;
         }
@@ -1384,7 +1384,7 @@ impl HeadlessCtrl {
         self.headless_simulator.layout();
     }
 
-    pub fn render(&mut self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) {
+    pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
         if matches!(self.content.render_requested, RenderUpdate::None) {
             return;
         }
@@ -1518,7 +1518,7 @@ impl ContentCtrl {
         }
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
         match self.init_state {
             InitState::Inited => {
                 self.commands.update(&self.vars);
@@ -1652,7 +1652,7 @@ impl ContentCtrl {
     #[allow(clippy::too_many_arguments)]
     pub fn layout(
         &mut self,
-        layout_widgets: &WidgetUpdates,
+        layout_widgets: Arc<WidgetUpdates>,
         scale_factor: Factor,
         screen_ppi: f32,
         min_size: PxSize,
@@ -1879,7 +1879,7 @@ impl WindowCtrl {
         })
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.update(update_widgets, info_widgets),
             WindowCtrlMode::Headless(c) => c.update(update_widgets, info_widgets),
@@ -1912,7 +1912,7 @@ impl WindowCtrl {
         }
     }
 
-    pub fn layout(&mut self, layout_widgets: &WidgetUpdates) {
+    pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.layout(layout_widgets),
             WindowCtrlMode::Headless(c) => c.layout(layout_widgets),
@@ -1920,7 +1920,7 @@ impl WindowCtrl {
         }
     }
 
-    pub fn render(&mut self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) {
+    pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.render(render_widgets, render_update_widgets),
             WindowCtrlMode::Headless(c) => c.render(render_widgets, render_update_widgets),

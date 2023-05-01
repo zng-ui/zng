@@ -1,24 +1,12 @@
 * Direct updates.
-    - [x] Design API in `WIDGET`.
-    - [x] Design API in `UPDATES`.
-            - Missing `_when` overloads.
-    - [x] Design API in var.
-            - Missing `subscribe_when`.
-    - [ ] Design API in event.
-            - Missing `subscribe_when`.
-    - [x] Implement `_when` var.
-    - [ ] Refactor info invalidation to include an `WidgetUpdates` like list.
-        - Right now we check for info updates after every node OP?
-        - In `ctrl_in_ctx`, need to move to update only.
-        - Need to still support the old update flag because of new inited widgets (they are not in the info tree searched by the delivery list).
-    - [ ] Refactor layout invalidation to include an `WidgetUpdates` like list.
-        - Need to move the `WidgetUpdates` list to the `WidgetLayout`.
-        - Can't have a lifetime in `WidgetLayout` cause of `par_fold_reduce`.
-        - Have window request an `Arc<WidgetUpdates>`, the service then takes it from the `&mut WidgetUpdates` for the duration of the call.
-        - Right now it is `&WidgetUpdates`.
-    - [ ] Refactor render invalidation to include an `WidgetUpdates` like list.
-        - Render update too, but it can be upgraded to full render.
-    - [ ] Refactor widgets to use new APIs.
+    - Remove old update tracking in WIDGET.
+        - `take_layout` and others.
+    - Implement delivery list and reuse invalidation in `WidgetLayout`, `WidgetInfoBuilder`, `FrameBuilder` and `FrameUpdate`.
+    - How does info delivery list work for items that are just inited and not part of any info tree yet?
+        - Info may need to keep both ways of tracking delivery.
+        - Info also needs to be refactored in window?
+            - Right now info is rebuild after any node OP that requests it (in `ctrl_in_ctx`).
+            - We could keep this, document that info updates as soon as possible for windows.
     - Test all.
     - Merge.
 

@@ -803,17 +803,28 @@ impl WINDOWS {
             }
         }
 
+        let info_widgets_arc = Arc::new(mem::take(info_widgets));
+
         Self::with_detached_windows(|windows, parallel| {
             if windows.len() > 1 && parallel.contains(ParallelWin::UPDATE) {
                 windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
-                    window.update(update_widgets, info_widgets);
+                    window.update(update_widgets, info_widgets_arc.clone());
                 });
             } else {
                 for (_, window) in windows.iter_mut() {
-                    window.update(update_widgets, info_widgets);
+                    window.update(update_widgets, info_widgets_arc.clone());
                 }
             }
         });
+
+        match Arc::try_unwrap(info_widgets_arc) {
+            Ok(w) => {
+                *info_widgets = w;
+            }
+            Err(_) => {
+                tracing::error!("info_widgets not released by window")
+            }
+        }
     }
 
     pub(super) fn on_update() {
@@ -943,17 +954,28 @@ impl WINDOWS {
                 .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
 
+        let layout_widgets_arc = Arc::new(mem::take(layout_widgets));
+
         Self::with_detached_windows(|windows, parallel| {
             if windows.len() > 1 && parallel.contains(ParallelWin::LAYOUT) {
                 windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
-                    window.layout(layout_widgets);
+                    window.layout(layout_widgets_arc.clone());
                 })
             } else {
                 for (_, window) in windows.iter_mut() {
-                    window.layout(layout_widgets);
+                    window.layout(layout_widgets_arc.clone());
                 }
             }
         });
+
+        match Arc::try_unwrap(layout_widgets_arc) {
+            Ok(w) => {
+                *layout_widgets = w;
+            }
+            Err(_) => {
+                tracing::error!("layout_widgets not released by window")
+            }
+        }
     }
 
     pub(super) fn on_render(render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
@@ -964,17 +986,37 @@ impl WINDOWS {
             }
         }
 
+        let render_widgets_arc = Arc::new(mem::take(render_widgets));
+        let render_update_widgets_arc = Arc::new(mem::take(render_update_widgets));
+
         Self::with_detached_windows(|windows, parallel| {
             if windows.len() > 1 && parallel.contains(ParallelWin::RENDER) {
                 windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
-                    window.render(render_widgets, render_update_widgets);
+                    window.render(render_widgets_arc.clone(), render_update_widgets_arc.clone());
                 });
             } else {
                 for (_, window) in windows.iter_mut() {
-                    window.render(render_widgets, render_update_widgets);
+                    window.render(render_widgets_arc.clone(), render_update_widgets_arc.clone());
                 }
             }
         });
+
+        match Arc::try_unwrap(render_widgets_arc) {
+            Ok(w) => {
+                *render_widgets = w;
+            }
+            Err(_) => {
+                tracing::error!("render_widgets not released by window")
+            }
+        }
+        match Arc::try_unwrap(render_update_widgets_arc) {
+            Ok(w) => {
+                *render_update_widgets = w;
+            }
+            Err(_) => {
+                tracing::error!("render_update_widgets not released by window")
+            }
+        }
     }
 
     /// Takes ownership of [`Windows::windows`] for the duration of the call to `f`.
@@ -1132,15 +1174,15 @@ impl AppWindow {
         self.ctrl_in_ctx(|ctrl| ctrl.ui_event(update))
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
         self.ctrl_in_ctx(|ctrl| ctrl.update(update_widgets, info_widgets));
     }
 
-    pub fn layout(&mut self, layout_widgets: &WidgetUpdates) {
+    pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
         self.ctrl_in_ctx(|ctrl| ctrl.layout(layout_widgets));
     }
 
-    pub fn render(&mut self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) {
+    pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
         self.ctrl_in_ctx(|ctrl| ctrl.render(render_widgets, render_update_widgets));
     }
 

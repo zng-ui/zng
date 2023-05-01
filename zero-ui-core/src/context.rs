@@ -562,7 +562,7 @@ impl WINDOW {
             metrics = metrics.with_constraints(c);
         }
         let size = LAYOUT.with_context(metrics, || {
-            crate::widget_info::WidgetLayout::with_root_widget(&WidgetUpdates::default(), |wl| content.layout(wl))
+            crate::widget_info::WidgetLayout::with_root_widget(Arc::default(), |wl| content.layout(wl))
         });
         (size, UPDATES.apply())
     }
@@ -590,7 +590,7 @@ impl WINDOW {
             .with_constraints(layout_constraints.0)
             .with_inline_constraints(Some(InlineConstraints::Layout(layout_constraints.1)));
         let layout_size = LAYOUT.with_context(metrics, || {
-            crate::widget_info::WidgetLayout::with_root_widget(&WidgetUpdates::default(), |wl| content.layout(wl))
+            crate::widget_info::WidgetLayout::with_root_widget(Arc::default(), |wl| content.layout(wl))
         });
 
         ((measure_size, layout_size), UPDATES.apply())
