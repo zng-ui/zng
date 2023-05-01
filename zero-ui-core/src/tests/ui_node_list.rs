@@ -135,7 +135,7 @@ mod util {
         })
     }
 
-    pub fn get_init_thread(wgt: &impl UiNode) -> ThreadId {
+    pub fn get_init_thread(wgt: &mut impl UiNode) -> ThreadId {
         wgt.with_context(|| WIDGET.get_state(&INIT_THREAD_ID).expect("did not log init thread"))
             .expect("node is not an widget")
     }

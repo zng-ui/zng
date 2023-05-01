@@ -681,7 +681,7 @@ impl Z_INDEX {
     /// Gets the index set on the `widget`.
     ///
     /// Returns `DEFAULT` if the node is not an widget.
-    pub fn get_wgt(&self, widget: &impl UiNode) -> ZIndex {
+    pub fn get_wgt(&self, widget: &mut impl UiNode) -> ZIndex {
         widget.with_context(|| self.get()).unwrap_or_default()
     }
 }
@@ -1064,7 +1064,11 @@ impl EditableUiNodeList {
                     }
                 }
                 for (id, to) in r.move_id {
-                    if let Some(r) = self.vec.iter().position(|w| w.with_context(|| WIDGET.id() == id).unwrap_or(false)) {
+                    if let Some(r) = self
+                        .vec
+                        .iter_mut()
+                        .position(|w| w.with_context(|| WIDGET.id() == id).unwrap_or(false))
+                    {
                         let i = to(r, self.len());
 
                         if r != i {
@@ -1142,7 +1146,11 @@ impl EditableUiNodeList {
                 }
 
                 for (id, to) in r.move_id {
-                    if let Some(r) = self.vec.iter().position(|w| w.with_context(|| WIDGET.id() == id).unwrap_or(false)) {
+                    if let Some(r) = self
+                        .vec
+                        .iter_mut()
+                        .position(|w| w.with_context(|| WIDGET.id() == id).unwrap_or(false))
+                    {
                         let i = to(r, self.len());
 
                         if r != i {

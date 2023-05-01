@@ -186,7 +186,7 @@ impl WidgetCtx {
     ///
     /// [`WIDGET.reinit`]: WIDGET::reinit
     pub fn take_reinit(&mut self) -> bool {
-        let mut ctx = self.0.as_mut().unwrap();
+        let ctx = self.0.as_mut().unwrap();
 
         let mut flags = ctx.flags.load(atomic::Ordering::Relaxed);
         let r = flags.contains(UpdateFlags::REINIT);
@@ -599,8 +599,6 @@ impl WIDGET {
         let wgt_flags = ctx.flags.load(atomic::Ordering::Relaxed);
 
         if let Some(parent) = parent_id.map(|_| WIDGET_CTX.get()) {
-            // INFO is used by the parent window, the others are used to avoid making many `UPDATES` insertions,
-            // the parents will already be included in the delivery list.
             let propagate = wgt_flags
                 & (UpdateFlags::UPDATE | UpdateFlags::INFO | UpdateFlags::LAYOUT | UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
 
@@ -730,10 +728,11 @@ impl WIDGET {
         }
     }
 
-    fn update_impl(&self, flag: UpdateFlags, op: UpdateOp) -> &Self {
-        let w = WIDGET_CTX.get();
-        if !w.flags.load(atomic::Ordering::Relaxed).contains(flag) {
-            let _ = w.flags.fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
+    fn update_impl(&self, flag: UpdateFlags) -> &Self {
+        let _ = WIDGET_CTX
+            .get()
+            .flags
+            .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
                 if !f.contains(flag) {
                     f.insert(flag);
                     Some(f)
@@ -741,9 +740,6 @@ impl WIDGET {
                     None
                 }
             });
-            let id = w.id;
-            UPDATES.update_op(op, id);
-        }
         self
     }
 
@@ -751,21 +747,21 @@ impl WIDGET {
     ///
     /// After the current update cycle the app-extensions, parent window and widgets will update again.
     pub fn update(&self) -> &Self {
-        self.update_impl(UpdateFlags::UPDATE, UpdateOp::Update)
+        self.update_impl(UpdateFlags::UPDATE)
     }
 
     /// Schedule an info rebuild for the current widget.
     ///
     /// After all requested updates apply the parent window and widgets will re-build the info tree.
     pub fn update_info(&self) -> &Self {
-        self.update_impl(UpdateFlags::INFO, UpdateOp::Info)
+        self.update_impl(UpdateFlags::INFO)
     }
 
     /// Schedule a re-layout for the current widget.
     ///
     /// After all requested updates apply the parent window and widgets will re-layout.
     pub fn layout(&self) -> &Self {
-        self.update_impl(UpdateFlags::LAYOUT, UpdateOp::Layout)
+        self.update_impl(UpdateFlags::LAYOUT)
     }
 
     /// Schedule a re-render for the current widget.
@@ -776,7 +772,7 @@ impl WIDGET {
     ///
     /// [`render_update`]: Self::render_update
     pub fn render(&self) -> &Self {
-        self.update_impl(UpdateFlags::RENDER, UpdateOp::Render)
+        self.update_impl(UpdateFlags::RENDER)
     }
 
     /// Schedule a frame update for the current widget.
@@ -787,7 +783,7 @@ impl WIDGET {
     ///
     /// [`render`]: Self::render
     pub fn render_update(&self) -> &Self {
-        self.update_impl(UpdateFlags::RENDER_UPDATE, UpdateOp::RenderUpdate)
+        self.update_impl(UpdateFlags::RENDER_UPDATE)
     }
 
     /// Flags the widget to re-init after the current update returns.
@@ -1031,7 +1027,7 @@ impl WIDGET {
         let mut try_reuse = true;
 
         // take RENDER, RENDER_UPDATE
-        ctx.flags
+        let _ = ctx.flags
             .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
                 if f.intersects(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE) {
                     try_reuse = false;
@@ -1473,7 +1469,8 @@ impl UPDATES {
         let events = EVENTS.apply_updates();
         VARS.apply_updates();
 
-        let (update, update_widgets, info_widgets) = UPDATES.take_updates();
+        let (update, update_widgets) = UPDATES.take_update();
+        let (info, info_widgets) = UPDATES.take_info();
         let (layout, layout_widgets) = UPDATES.take_layout();
         let (render, render_widgets, render_update_widgets) = UPDATES.take_render();
 
@@ -1481,6 +1478,7 @@ impl UPDATES {
             events,
             update,
             update_widgets,
+            info,
             info_widgets,
             layout,
             layout_widgets,
@@ -1751,18 +1749,30 @@ impl UPDATES {
         });
     }
 
-    /// Returns (update_ext, update_widgets, info_widgets)
-    pub(super) fn take_updates(&self) -> (bool, WidgetUpdates, WidgetUpdates) {
+    /// Returns (update_ext, update_widgets)
+    pub(super) fn take_update(&self) -> (bool, WidgetUpdates) {
         let mut u = UPDATES_SV.write();
 
-        let ext = u.update_ext.intersects(UpdateFlags::UPDATE | UpdateFlags::INFO);
-        u.update_ext.remove(UpdateFlags::UPDATE | UpdateFlags::INFO);
+        let ext = u.update_ext.contains(UpdateFlags::UPDATE);
+        u.update_ext.remove(UpdateFlags::UPDATE);
 
         (
             ext,
             WidgetUpdates {
                 delivery_list: mem::take(&mut u.update_widgets),
             },
+        )
+    }
+
+    /// Returns (info_ext, info_widgets)
+    pub(super) fn take_info(&self) -> (bool, WidgetUpdates) {
+        let mut u = UPDATES_SV.write();
+
+        let ext = u.update_ext.contains(UpdateFlags::INFO);
+        u.update_ext.remove(UpdateFlags::INFO);
+
+        (
+            ext,
             WidgetUpdates {
                 delivery_list: mem::take(&mut u.info_widgets),
             },
@@ -2153,9 +2163,15 @@ pub struct ContextUpdates {
 
     /// Update requested.
     ///
-    /// When this is `true`, [`update_widgets`](Self::update_widgets) or [`info_widgets`](Self::info_widgets)
+    /// When this is `true`, [`update_widgets`](Self::update_widgets)
     /// may contain widgets, if not then only app extensions must update.
     pub update: bool,
+
+    /// Info rebuild requested.
+    ///
+    /// When this is `true`, [`info_widgets`](Self::info_widgets)
+    /// may contain widgets, if not then only app extensions must update.
+    pub info: bool,
 
     /// Layout requested.
     ///
@@ -2176,7 +2192,7 @@ pub struct ContextUpdates {
 
     /// Info rebuild targets.
     ///
-    /// When this is not empty [`update`](Self::update) is `true`.
+    /// When this is not empty [`info`](Self::info) is `true`.
     pub info_widgets: WidgetUpdates,
 
     /// Layout targets.
@@ -2197,7 +2213,7 @@ pub struct ContextUpdates {
 impl ContextUpdates {
     /// If has events, update, layout or render was requested.
     pub fn has_updates(&self) -> bool {
-        self.update || self.layout || self.render
+        self.update || self.info || self.layout || self.render
     }
 }
 impl std::ops::BitOrAssign for ContextUpdates {
@@ -2205,6 +2221,7 @@ impl std::ops::BitOrAssign for ContextUpdates {
         self.events.extend(rhs.events);
         self.update |= rhs.update;
         self.update_widgets.extend(rhs.update_widgets);
+        self.info |= rhs.info;
         self.info_widgets.extend(rhs.info_widgets);
         self.layout |= rhs.layout;
         self.layout_widgets.extend(rhs.layout_widgets);

@@ -68,12 +68,16 @@ impl AppExtension for WindowManager {
         WINDOWS::on_event(update);
     }
 
-    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
-        WINDOWS::on_ui_update(update_widgets, info_widgets);
+    fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
+        WINDOWS::on_ui_update(update_widgets);
     }
 
     fn update(&mut self) {
         WINDOWS::on_update();
+    }
+
+    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
+        WINDOWS::on_info(info_widgets);
     }
 
     fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {

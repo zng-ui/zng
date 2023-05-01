@@ -809,7 +809,7 @@ pub trait UiNodeBoxed: Any + Send {
     fn render_update_boxed(&mut self, update: &mut FrameUpdate);
 
     fn is_widget_boxed(&self) -> bool;
-    fn with_context_boxed(&self, f: &mut dyn FnMut());
+    fn with_context_boxed(&mut self, f: &mut dyn FnMut());
     fn into_widget_boxed(self: Box<Self>) -> BoxedUiNode;
     fn as_any_boxed(&self) -> &dyn Any;
     fn as_any_mut_boxed(&mut self) -> &mut dyn Any;
@@ -871,7 +871,7 @@ impl<U: UiNode> UiNodeBoxed for U {
         self
     }
 
-    fn with_context_boxed(&self, f: &mut dyn FnMut()) {
+    fn with_context_boxed(&mut self, f: &mut dyn FnMut()) {
         self.with_context(f);
     }
 
@@ -1073,7 +1073,7 @@ impl UiNode for BoxedUiNode {
     {
         let mut f = Some(f);
         let mut r = None;
-        self.as_ref().with_context_boxed(&mut || r = Some((f.take().unwrap())()));
+        self.as_mut().with_context_boxed(&mut || r = Some((f.take().unwrap())()));
         r
     }
 

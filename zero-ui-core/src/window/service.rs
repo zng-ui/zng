@@ -793,38 +793,26 @@ impl WINDOWS {
         }
     }
 
-    pub(super) fn on_ui_update(update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
+    pub(super) fn on_ui_update(update_widgets: &mut WidgetUpdates) {
         Self::fullfill_requests();
 
-        for list in [&mut *update_widgets, &mut *info_widgets] {
-            if list.delivery_list_mut().has_pending_search() {
-                list.delivery_list_mut()
-                    .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
-            }
+        if update_widgets.delivery_list_mut().has_pending_search() {
+            update_widgets
+                .delivery_list_mut()
+                .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
         }
-
-        let info_widgets_arc = Arc::new(mem::take(info_widgets));
 
         Self::with_detached_windows(|windows, parallel| {
             if windows.len() > 1 && parallel.contains(ParallelWin::UPDATE) {
                 windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
-                    window.update(update_widgets, info_widgets_arc.clone());
+                    window.update(update_widgets);
                 });
             } else {
                 for (_, window) in windows.iter_mut() {
-                    window.update(update_widgets, info_widgets_arc.clone());
+                    window.update(update_widgets);
                 }
             }
         });
-
-        match Arc::try_unwrap(info_widgets_arc) {
-            Ok(w) => {
-                *info_widgets = w;
-            }
-            Err(_) => {
-                tracing::error!("info_widgets not released by window")
-            }
-        }
     }
 
     pub(super) fn on_update() {
@@ -944,6 +932,37 @@ impl WINDOWS {
                     w.bring_to_top();
                 }
             });
+        }
+    }
+
+    pub(super) fn on_info(info_widgets: &mut WidgetUpdates) {
+        if info_widgets.delivery_list_mut().has_pending_search() {
+            info_widgets
+                .delivery_list_mut()
+                .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
+        }
+
+        let info_widgets_arc = Arc::new(mem::take(info_widgets));
+
+        Self::with_detached_windows(|windows, parallel| {
+            if windows.len() > 1 && parallel.contains(ParallelWin::LAYOUT) {
+                windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
+                    window.info(info_widgets_arc.clone());
+                })
+            } else {
+                for (_, window) in windows.iter_mut() {
+                    window.info(info_widgets_arc.clone());
+                }
+            }
+        });
+
+        match Arc::try_unwrap(info_widgets_arc) {
+            Ok(w) => {
+                *info_widgets = w;
+            }
+            Err(_) => {
+                tracing::error!("info_widgets not released by window")
+            }
         }
     }
 
@@ -1156,14 +1175,8 @@ struct AppWindow {
     ctx: WindowCtx,
 }
 impl AppWindow {
-    fn ctrl_in_ctx(&mut self, action: impl FnOnce(&mut WindowCtrl)) {
-        let info_update = WINDOW.with_context(&mut self.ctx, || {
-            action(self.ctrl.get_mut());
-            self.ctrl.get_mut().window_updates()
-        });
-        if let Some(new) = info_update {
-            self.ctx.set_widget_tree(new);
-        }
+    fn ctrl_in_ctx<R>(&mut self, action: impl FnOnce(&mut WindowCtrl) -> R) -> R {
+        WINDOW.with_context(&mut self.ctx, || action(self.ctrl.get_mut()))
     }
 
     pub fn pre_event(&mut self, update: &EventUpdate) {
@@ -1174,8 +1187,15 @@ impl AppWindow {
         self.ctrl_in_ctx(|ctrl| ctrl.ui_event(update))
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
-        self.ctrl_in_ctx(|ctrl| ctrl.update(update_widgets, info_widgets));
+    pub fn update(&mut self, update_widgets: &WidgetUpdates) {
+        self.ctrl_in_ctx(|ctrl| ctrl.update(update_widgets));
+    }
+
+    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) {
+        let info_update = self.ctrl_in_ctx(|ctrl| ctrl.info(info_widgets));
+        if let Some(new) = info_update {
+            self.ctx.set_widget_tree(new);
+        }
     }
 
     pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {

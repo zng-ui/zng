@@ -576,7 +576,7 @@ mod impls {
         where
             F: FnOnce() -> R,
         {
-            self.delegate_owned(|n| n.with_context(f)).flatten()
+            self.delegate_owned_mut(|n| n.with_context(f)).flatten()
         }
     }
 

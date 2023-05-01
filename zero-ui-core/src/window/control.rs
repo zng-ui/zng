@@ -106,7 +106,7 @@ impl HeadedCtrl {
         }
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates) {
         if self.window.is_none() && !self.waiting_view {
             // we request a view on the first layout.
             UPDATES.layout(None);
@@ -424,12 +424,7 @@ impl HeadedCtrl {
             }
         }
 
-        self.content.update(update_widgets, info_widgets);
-    }
-
-    #[must_use]
-    pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
-        self.content.window_updates()
+        self.content.update(update_widgets);
     }
 
     pub fn pre_event(&mut self, update: &EventUpdate) {
@@ -660,6 +655,11 @@ impl HeadedCtrl {
 
     pub fn ui_event(&mut self, update: &EventUpdate) {
         self.content.ui_event(update);
+    }
+
+    #[must_use]
+    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) -> Option<WidgetInfoTree> {
+        self.content.info(info_widgets)
     }
 
     pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
@@ -1076,7 +1076,7 @@ impl HeadlessWithRendererCtrl {
         }
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates) {
         if self.surface.is_some() {
             if self.vars.size().is_new()
                 || self.vars.min_size().is_new()
@@ -1101,12 +1101,12 @@ impl HeadlessWithRendererCtrl {
             }
         }
 
-        self.content.update(update_widgets, info_widgets);
+        self.content.update(update_widgets);
     }
 
     #[must_use]
-    pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
-        self.content.window_updates()
+    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) -> Option<WidgetInfoTree> {
+        self.content.info(info_widgets)
     }
 
     pub fn pre_event(&mut self, update: &EventUpdate) {
@@ -1320,7 +1320,7 @@ impl HeadlessCtrl {
         }
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates) {
         if self.vars.size().is_new() || self.vars.min_size().is_new() || self.vars.max_size().is_new() || self.vars.auto_size().is_new() {
             self.content.layout_requested = true;
             UPDATES.layout(None);
@@ -1338,12 +1338,12 @@ impl HeadlessCtrl {
             self.var_bindings = update_headless_vars(self.headless_monitor.scale_factor, &self.vars);
         }
 
-        self.content.update(update_widgets, info_widgets);
+        self.content.update(update_widgets);
     }
 
     #[must_use]
-    pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
-        self.content.window_updates()
+    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) -> Option<WidgetInfoTree> {
+        self.content.info(info_widgets)
     }
 
     pub fn pre_event(&mut self, update: &EventUpdate) {
@@ -1525,7 +1525,7 @@ impl ContentCtrl {
         }
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates) {
         match self.init_state {
             InitState::Inited => {
                 self.commands.update(&self.vars);
@@ -1556,27 +1556,12 @@ impl ContentCtrl {
     }
 
     #[must_use]
-    pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
-        if self.root_ctx.take_layout() {
-            self.layout_requested = true;
-            UPDATES.layout(None);
-        }
-        if self.root_ctx.is_pending_render() {
-            let _ = self.root_ctx.take_render();
-            self.render_requested = RenderUpdate::Render;
-            UPDATES.render(None);
-        } else if self.root_ctx.is_pending_render_update() {
-            let _ = self.root_ctx.take_render_update();
-            if !matches!(&self.render_requested, RenderUpdate::Render) {
-                self.render_requested = RenderUpdate::RenderUpdate;
-            }
-            UPDATES.render(None);
-        }
-
-        if self.root_ctx.take_info() {
+    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) -> Option<WidgetInfoTree> {
+        let win_id = WINDOW.id();
+        if info_widgets.delivery_list().enter_window(win_id) {
             let mut info = WidgetInfoBuilder::new(
-                Arc::default(),
-                WINDOW.id(),
+                info_widgets,
+                win_id,
                 self.root_ctx.id(),
                 self.root_ctx.bounds(),
                 self.root_ctx.border(),
@@ -1897,20 +1882,20 @@ impl WindowCtrl {
         })
     }
 
-    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: Arc<WidgetUpdates>) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates) {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.update(update_widgets, info_widgets),
-            WindowCtrlMode::Headless(c) => c.update(update_widgets, info_widgets),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.update(update_widgets, info_widgets),
+            WindowCtrlMode::Headed(c) => c.update(update_widgets),
+            WindowCtrlMode::Headless(c) => c.update(update_widgets),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.update(update_widgets),
         }
     }
 
     #[must_use]
-    pub fn window_updates(&mut self) -> Option<WidgetInfoTree> {
+    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) -> Option<WidgetInfoTree> {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.window_updates(),
-            WindowCtrlMode::Headless(c) => c.window_updates(),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.window_updates(),
+            WindowCtrlMode::Headed(c) => c.info(info_widgets),
+            WindowCtrlMode::Headless(c) => c.info(info_widgets),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.info(info_widgets),
         }
     }
 

@@ -250,6 +250,7 @@ impl FrameBuilder {
     }
 
     /// [`new`](Self::new) with only the inputs required for renderless mode.
+    #[allow(clippy::too_many_arguments)]
     pub fn new_renderless(
         render_widgets: Arc<WidgetUpdates>,
         render_update_widgets: Arc<WidgetUpdates>,

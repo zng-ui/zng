@@ -24,7 +24,7 @@ pub struct EmptyWgt(crate::widget_base::WidgetBase);
 pub fn implicit_inherited() {
     let _app = App::minimal().run_headless(false);
     let expected = WidgetId::new_unique();
-    let wgt = EmptyWgt! {
+    let mut wgt = EmptyWgt! {
         id = expected;
     };
     let actual = wgt.with_context(|| WIDGET.id()).expect("expected widget");
@@ -66,8 +66,8 @@ pub fn wgt_default_values() {
     });
 
     // test default values used.
-    assert!(util::traced(&default, "foo_wgt"));
-    assert!(util::traced(&default, "bar_wgt"));
+    assert!(util::traced(&mut default, "foo_wgt"));
+    assert!(util::traced(&mut default, "bar_wgt"));
 }
 #[test]
 pub fn wgt_assign_values() {
@@ -84,12 +84,12 @@ pub fn wgt_assign_values() {
     });
 
     // test new values used.
-    assert!(util::traced(&default, "foo!"));
-    assert!(util::traced(&default, "bar!"));
+    assert!(util::traced(&mut default, "foo!"));
+    assert!(util::traced(&mut default, "bar!"));
 
     // test default values not used.
-    assert!(!util::traced(&default, "foo_wgt"));
-    assert!(!util::traced(&default, "bar_wgt"));
+    assert!(!util::traced(&mut default, "foo_wgt"));
+    assert!(!util::traced(&mut default, "bar_wgt"));
 }
 
 /*
@@ -116,9 +116,9 @@ pub fn wgt_with_new_value_for_inherited() {
         default.init();
     });
 
-    assert!(util::traced(&default, "reset_wgt"));
-    assert!(util::traced(&default, "reset_bar_wgt"));
-    assert!(!util::traced(&default, "bar_wgt"));
+    assert!(util::traced(&mut default, "reset_wgt"));
+    assert!(util::traced(&mut default, "reset_bar_wgt"));
+    assert!(!util::traced(&mut default, "bar_wgt"));
 }
 
 /*
@@ -142,14 +142,14 @@ pub fn unset_default_value() {
         let mut default = DefaultValueWgt!();
         default.init();
 
-        assert!(util::traced(&default, "default_value_wgt"));
+        assert!(util::traced(&mut default, "default_value_wgt"));
 
         let mut no_default = DefaultValueWgt! {
             util::trace = unset!;
         };
         no_default.init();
 
-        assert!(!util::traced(&no_default, "default_value_wgt"));
+        assert!(!util::traced(&mut no_default, "default_value_wgt"));
     });
 }
 
@@ -169,10 +169,10 @@ pub fn value_init_order() {
         wgt.init();
 
         // values evaluated in typed order.
-        assert_eq!(util::sorted_value_init(&wgt), ["count_border", "count_context"]);
+        assert_eq!(util::sorted_value_init(&mut wgt), ["count_border", "count_context"]);
 
         // but properties init in the nest group order.
-        assert_eq!(util::sorted_node_init(&wgt), ["count_context", "count_border"]);
+        assert_eq!(util::sorted_node_init(&mut wgt), ["count_context", "count_border"]);
     });
 }
 
@@ -191,13 +191,13 @@ pub fn wgt_child_property_init_order() {
 
         // values evaluated in typed order.
         assert_eq!(
-            util::sorted_value_init(&wgt),
+            util::sorted_value_init(&mut wgt),
             ["count_border", "count_child_layout", "count_context"]
         );
 
         // but properties init in the nest group order (child first).
         assert_eq!(
-            util::sorted_node_init(&wgt),
+            util::sorted_node_init(&mut wgt),
             ["count_context", "count_border", "count_child_layout"]
         );
     });
@@ -232,13 +232,13 @@ pub fn wgt_same_nest_group_order() {
         wgt.init();
 
         // values evaluated in typed order.
-        assert_eq!(util::sorted_value_init(&wgt), ["border_a", "border_b"]);
+        assert_eq!(util::sorted_value_init(&mut wgt), ["border_a", "border_b"]);
 
         // properties with the same nest group are set in reversed typed order.
         // inner_a is set after inner_b so it will contain inner_b:
         // let node = border_b(child, ..);
         // let node = border_a(node, ..);
-        assert_eq!(util::sorted_node_init(&wgt), ["border_a", "border_b"]);
+        assert_eq!(util::sorted_node_init(&mut wgt), ["border_a", "border_b"]);
 
         Position::reset();
         // order of declaration(in the widget) doesn't impact the order of evaluation,
@@ -249,8 +249,8 @@ pub fn wgt_same_nest_group_order() {
         };
         wgt.init();
 
-        assert_eq!(util::sorted_value_init(&wgt), ["border_b", "border_a"]);
-        assert_eq!(util::sorted_node_init(&wgt), ["border_b", "border_a"]);
+        assert_eq!(util::sorted_value_init(&mut wgt), ["border_b", "border_a"]);
+        assert_eq!(util::sorted_node_init(&mut wgt), ["border_b", "border_a"]);
     });
 }
 
@@ -279,18 +279,18 @@ pub fn wgt_when() {
         let mut wgt = WhenWgt!();
         WINDOW.test_init(&mut wgt);
 
-        assert!(util::traced(&wgt, "boo!"));
+        assert!(util::traced(&mut wgt, "boo!"));
 
         util::set_state(&mut wgt, true);
         WINDOW.test_update(&mut wgt, None); // state
         WINDOW.test_update(&mut wgt, None); // when
-        assert!(util::traced(&wgt, "ok."));
+        assert!(util::traced(&mut wgt, "ok."));
 
         util::set_state(&mut wgt, false);
         WINDOW.test_update(&mut wgt, None); // state
         WINDOW.test_update(&mut wgt, None); // when
 
-        assert!(util::traced(&wgt, "boo!"));
+        assert!(util::traced(&mut wgt, "boo!"));
     });
 }
 #[test]
@@ -307,18 +307,18 @@ pub fn widget_user_when() {
         };
         wgt.init();
 
-        assert!(util::traced(&wgt, "A"));
+        assert!(util::traced(&mut wgt, "A"));
 
         util::set_state(&mut wgt, true);
         WINDOW.test_update(&mut wgt, None); // state
         WINDOW.test_update(&mut wgt, None); // when
 
-        assert!(util::traced(&wgt, "B"));
+        assert!(util::traced(&mut wgt, "B"));
 
         util::set_state(&mut wgt, false); // state
         WINDOW.test_update(&mut wgt, None); // when
 
-        assert!(util::traced(&wgt, "A"));
+        assert!(util::traced(&mut wgt, "A"));
     });
 }
 
@@ -350,18 +350,18 @@ pub fn wgt_multi_when() {
         let mut wgt = MultiWhenWgt!();
         wgt.init();
 
-        assert!(util::traced(&wgt, "default"));
+        assert!(util::traced(&mut wgt, "default"));
 
         util::set_state(&mut wgt, true);
         WINDOW.test_update(&mut wgt, None); // state
         WINDOW.test_update(&mut wgt, None); // when
 
-        assert!(util::traced(&wgt, "state_1"));
+        assert!(util::traced(&mut wgt, "state_1"));
 
         util::set_state(&mut wgt, false);
         WINDOW.test_update(&mut wgt, None);
 
-        assert!(util::traced(&wgt, "default"));
+        assert!(util::traced(&mut wgt, "default"));
     });
 }
 
@@ -407,8 +407,8 @@ pub fn wgt_cfg_property() {
         let mut wgt = CfgPropertyWgt!();
         wgt.init();
 
-        assert!(util::traced(&wgt, "always-trace"));
-        assert!(!util::traced(&wgt, "never-trace"));
+        assert!(util::traced(&mut wgt, "always-trace"));
+        assert!(!util::traced(&mut wgt, "never-trace"));
     });
 }
 #[test]
@@ -433,8 +433,8 @@ pub fn user_cfg_property() {
 
         wgt.init();
 
-        assert!(util::traced(&wgt, "always-trace"));
-        assert!(!util::traced(&wgt, "never-trace"));
+        assert!(util::traced(&mut wgt, "always-trace"));
+        assert!(!util::traced(&mut wgt, "never-trace"));
     });
 }
 
@@ -477,18 +477,18 @@ pub fn wgt_cfg_when() {
 
         wgt.init();
 
-        assert!(util::traced(&wgt, "trace"));
+        assert!(util::traced(&mut wgt, "trace"));
 
         util::set_state(&mut wgt, true);
         WINDOW.test_update(&mut wgt, None); // state
         WINDOW.test_update(&mut wgt, None); // when
 
-        assert!(util::traced(&wgt, "is_state"));
+        assert!(util::traced(&mut wgt, "is_state"));
 
         util::set_state(&mut wgt, false);
         WINDOW.test_update(&mut wgt, None);
 
-        assert!(util::traced(&wgt, "trace"));
+        assert!(util::traced(&mut wgt, "trace"));
     });
 }
 
@@ -518,18 +518,18 @@ pub fn user_cfg_when() {
 
         wgt.init();
 
-        assert!(util::traced(&wgt, "trace"));
+        assert!(util::traced(&mut wgt, "trace"));
 
         util::set_state(&mut wgt, true);
         WINDOW.test_update(&mut wgt, None); // state
         WINDOW.test_update(&mut wgt, None); // when
 
-        assert!(util::traced(&wgt, "is_state"));
+        assert!(util::traced(&mut wgt, "is_state"));
 
         util::set_state(&mut wgt, false);
         WINDOW.test_update(&mut wgt, None);
 
-        assert!(util::traced(&wgt, "trace"));
+        assert!(util::traced(&mut wgt, "trace"));
     });
 }
 
@@ -571,7 +571,7 @@ pub fn property_nest_group_sorting_value_init1() {
 
         // assert that value init is the same as typed.
         pretty_assertions::assert_eq!(
-            util::sorted_value_init(&wgt),
+            util::sorted_value_init(&mut wgt),
             [
                 "count_border",
                 "count_border2",
@@ -622,7 +622,7 @@ pub fn property_nest_group_sorting_value_init2() {
 
         // assert that value init is the same as typed.
         pretty_assertions::assert_eq!(
-            util::sorted_value_init(&wgt),
+            util::sorted_value_init(&mut wgt),
             [
                 "count_child_context",
                 "count_child_context2",
@@ -642,7 +642,7 @@ pub fn property_nest_group_sorting_value_init2() {
         );
     });
 }
-fn assert_node_order(wgt: &impl UiNode) {
+fn assert_node_order(wgt: &mut impl UiNode) {
     // assert that `UiNode::init` position is sorted by `child` and
     // property priorities, followed by the typed position.
     pretty_assertions::assert_eq!(
@@ -677,7 +677,7 @@ pub fn property_nest_group_sorting_node_init1() {
         let mut wgt = property_nest_group_sorting_init1();
         wgt.init();
 
-        assert_node_order(&wgt);
+        assert_node_order(&mut wgt);
     });
 }
 #[test]
@@ -689,7 +689,7 @@ pub fn property_nest_group_sorting_node_init2() {
         let mut wgt = property_nest_group_sorting_init2();
         wgt.init();
 
-        assert_node_order(&wgt);
+        assert_node_order(&mut wgt);
     });
 }
 #[widget($crate::tests::widget::PropertyNestGroupSortingInheritedWgt)]
@@ -720,7 +720,7 @@ pub fn property_nest_group_sorting_node_inherited_init() {
         };
         wgt.init();
 
-        assert_node_order(&wgt);
+        assert_node_order(&mut wgt);
     });
 }
 
@@ -756,7 +756,7 @@ pub fn property_nest_group_sorting_defaults() {
 
         let mut wgt = PropertyNestGroupSortingDefaultsWgt!();
         wgt.init();
-        assert_node_order(&wgt);
+        assert_node_order(&mut wgt);
     });
 }
 
@@ -780,7 +780,7 @@ pub fn when_property_member_default() {
         };
         wgt.init();
 
-        assert!(util::traced(&wgt, "true"));
+        assert!(util::traced(&mut wgt, "true"));
     });
 }
 
@@ -801,7 +801,7 @@ pub fn when_property_member_index() {
         };
 
         wgt.init();
-        assert!(util::traced(&wgt, "true"));
+        assert!(util::traced(&mut wgt, "true"));
     });
 }
 
@@ -822,7 +822,7 @@ pub fn when_property_member_named() {
         };
 
         wgt.init();
-        assert!(util::traced(&wgt, "true"));
+        assert!(util::traced(&mut wgt, "true"));
     });
 }
 
@@ -841,7 +841,7 @@ pub fn when_property_member_default_method() {
            }
         };
         wgt.init();
-        assert!(util::traced(&wgt, "true"));
+        assert!(util::traced(&mut wgt, "true"));
     });
 }
 
@@ -861,7 +861,7 @@ pub fn when_property_member_indexed_method() {
         };
         wgt.init();
 
-        assert!(util::traced(&wgt, "true"));
+        assert!(util::traced(&mut wgt, "true"));
     });
 }
 
@@ -890,13 +890,13 @@ pub fn when_reuse() {
             let mut wgt = builder.build();
 
             wgt.init();
-            assert!(!util::traced(&wgt, "true"), "traced `true` in {pass} pass");
-            assert!(util::traced(&wgt, "false"), "did not trace `false` in {pass} pass");
+            assert!(!util::traced(&mut wgt, "true"), "traced `true` in {pass} pass");
+            assert!(util::traced(&mut wgt, "false"), "did not trace `false` in {pass} pass");
 
             util::set_state(&mut wgt, true);
             WINDOW.test_update(&mut wgt, None); // state
             WINDOW.test_update(&mut wgt, None); // when
-            assert!(util::traced(&wgt, "true"), "did not trace `true` after when in {pass} pass");
+            assert!(util::traced(&mut wgt, "true"), "did not trace `true` after when in {pass} pass");
 
             util::set_state(&mut wgt, false);
             WINDOW.test_update(&mut wgt, None);
@@ -923,14 +923,14 @@ pub fn allowed_in_when_without_wgt_assign1() {
         };
 
         wgt.init();
-        assert!(util::traced(&wgt, "default-trace"));
-        assert!(!util::traced(&wgt, "when-trace"));
+        assert!(util::traced(&mut wgt, "default-trace"));
+        assert!(!util::traced(&mut wgt, "when-trace"));
 
         util::set_state(&mut wgt, true);
         WINDOW.test_update(&mut wgt, None); // state update
         WINDOW.test_update(&mut wgt, None); // when update
 
-        assert!(util::traced(&wgt, "when-trace"));
+        assert!(util::traced(&mut wgt, "when-trace"));
     });
 }
 
@@ -946,13 +946,13 @@ pub fn allowed_in_when_without_wgt_assign2() {
         };
 
         wgt.init();
-        assert!(util::traced(&wgt, "default-trace"));
-        assert!(!util::traced(&wgt, "when-trace"));
+        assert!(util::traced(&mut wgt, "default-trace"));
+        assert!(!util::traced(&mut wgt, "when-trace"));
 
         util::set_state(&mut wgt, true);
         WINDOW.test_update(&mut wgt, None); // state update
         WINDOW.test_update(&mut wgt, None); // when update
-        assert!(util::traced(&wgt, "when-trace"));
+        assert!(util::traced(&mut wgt, "when-trace"));
     });
 }
 
@@ -979,8 +979,8 @@ pub fn generated_name_collision() {
 
         wgt.init();
 
-        assert!(util::traced(&wgt, "!"));
-        assert!(util::traced(&wgt, "false"));
+        assert!(util::traced(&mut wgt, "!"));
+        assert!(util::traced(&mut wgt, "false"));
     });
 }
 
@@ -1003,8 +1003,8 @@ pub fn generated_name_collision_in_when() {
         WINDOW.test_update(&mut wgt, None); // state
         WINDOW.test_update(&mut wgt, None); // when
 
-        assert!(util::traced(&wgt, "3"));
-        assert!(!util::traced(&wgt, "2"));
+        assert!(util::traced(&mut wgt, "3"));
+        assert!(!util::traced(&mut wgt, "2"));
     });
 }
 
@@ -1027,8 +1027,8 @@ pub fn generated_name_collision_in_when_assign() {
         WINDOW.test_update(&mut wgt, None); // state update
         WINDOW.test_update(&mut wgt, None); // when update
 
-        assert!(util::traced(&wgt, "1"));
-        assert!(util::traced(&wgt, "true"));
+        assert!(util::traced(&mut wgt, "1"));
+        assert!(util::traced(&mut wgt, "true"));
     });
 }
 
@@ -1060,8 +1060,8 @@ pub fn name_collision_wgt_when() {
         WINDOW.test_update(&mut wgt, None); // state update
         WINDOW.test_update(&mut wgt, None); // when update
 
-        assert!(util::traced(&wgt, "3"));
-        assert!(!util::traced(&wgt, "2"));
+        assert!(util::traced(&mut wgt, "3"));
+        assert!(!util::traced(&mut wgt, "2"));
     });
 }
 
@@ -1133,7 +1133,7 @@ pub mod util {
     }
 
     /// Probe for a [`trace`] in the widget state.
-    pub fn traced(wgt: &impl UiNode, trace: &'static str) -> bool {
+    pub fn traced(wgt: &mut impl UiNode, trace: &'static str) -> bool {
         wgt.with_context(|| WIDGET.with_state(|s| s.get(&TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default()))
             .expect("expected widget")
     }
@@ -1260,7 +1260,7 @@ pub mod util {
     }
 
     /// Gets the [`Position`] tags sorted by call to [`Position::next`].
-    pub fn sorted_value_init(wgt: &impl UiNode) -> Vec<&'static str> {
+    pub fn sorted_value_init(wgt: &mut impl UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
         wgt.with_context(|| {
             if let Some(m) = WIDGET.get_state(&VALUE_POSITION_ID) {
@@ -1274,7 +1274,7 @@ pub mod util {
     }
 
     /// Gets the [`Position`] tags sorted by the [`UiNode::init` call.
-    pub fn sorted_node_init(wgt: &impl UiNode) -> Vec<&'static str> {
+    pub fn sorted_node_init(wgt: &mut impl UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
         wgt.with_context(|| {
             if let Some(m) = WIDGET.get_state(&NODE_POSITION_ID) {
