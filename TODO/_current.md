@@ -8,7 +8,14 @@
             - Missing `subscribe_when`.
     - [x] Implement `_when` var.
     - [ ] Refactor info invalidation to include an `WidgetUpdates` like list.
+        - Right now we check for info updates after every node OP?
+        - In `ctrl_in_ctx`, need to move to update only.
+        - Need to still support the old update flag because of new inited widgets (they are not in the info tree searched by the delivery list).
     - [ ] Refactor layout invalidation to include an `WidgetUpdates` like list.
+        - Need to move the `WidgetUpdates` list to the `WidgetLayout`.
+        - Can't have a lifetime in `WidgetLayout` cause of `par_fold_reduce`.
+        - Have window request an `Arc<WidgetUpdates>`, the service then takes it from the `&mut WidgetUpdates` for the duration of the call.
+        - Right now it is `&WidgetUpdates`.
     - [ ] Refactor render invalidation to include an `WidgetUpdates` like list.
         - Render update too, but it can be upgraded to full render.
     - [ ] Refactor widgets to use new APIs.

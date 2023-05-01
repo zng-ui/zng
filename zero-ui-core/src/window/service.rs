@@ -796,20 +796,21 @@ impl WINDOWS {
     pub(super) fn on_ui_update(update_widgets: &mut WidgetUpdates, info_widgets: &mut WidgetUpdates) {
         Self::fullfill_requests();
 
-        if update_widgets.delivery_list_mut().has_pending_search() {
-            update_widgets
-                .delivery_list_mut()
-                .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
+        for list in [&mut *update_widgets, &mut *info_widgets] {
+            if list.delivery_list_mut().has_pending_search() {
+                list.delivery_list_mut()
+                    .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
+            }
         }
 
         Self::with_detached_windows(|windows, parallel| {
             if windows.len() > 1 && parallel.contains(ParallelWin::UPDATE) {
                 windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
-                    window.update(update_widgets);
+                    window.update(update_widgets, info_widgets);
                 });
             } else {
                 for (_, window) in windows.iter_mut() {
-                    window.update(update_widgets);
+                    window.update(update_widgets, info_widgets);
                 }
             }
         });
@@ -935,29 +936,42 @@ impl WINDOWS {
         }
     }
 
-    pub(super) fn on_layout() {
+    pub(super) fn on_layout(layout_widgets: &mut WidgetUpdates) {
+        if layout_widgets.delivery_list_mut().has_pending_search() {
+            layout_widgets
+                .delivery_list_mut()
+                .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
+        }
+
         Self::with_detached_windows(|windows, parallel| {
             if windows.len() > 1 && parallel.contains(ParallelWin::LAYOUT) {
                 windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
-                    window.layout();
+                    window.layout(layout_widgets);
                 })
             } else {
                 for (_, window) in windows.iter_mut() {
-                    window.layout();
+                    window.layout(layout_widgets);
                 }
             }
         });
     }
 
-    pub(super) fn on_render() {
+    pub(super) fn on_render(render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+        for list in [&mut *render_widgets, &mut *render_update_widgets] {
+            if list.delivery_list_mut().has_pending_search() {
+                list.delivery_list_mut()
+                    .fulfill_search(WINDOWS_SV.read().windows_info.values().map(|w| &w.widget_tree));
+            }
+        }
+
         Self::with_detached_windows(|windows, parallel| {
             if windows.len() > 1 && parallel.contains(ParallelWin::RENDER) {
                 windows.par_iter_mut().with_ctx().for_each(|(_, window)| {
-                    window.render();
+                    window.render(render_widgets, render_update_widgets);
                 });
             } else {
                 for (_, window) in windows.iter_mut() {
-                    window.render();
+                    window.render(render_widgets, render_update_widgets);
                 }
             }
         });
@@ -1118,16 +1132,16 @@ impl AppWindow {
         self.ctrl_in_ctx(|ctrl| ctrl.ui_event(update))
     }
 
-    pub fn update(&mut self, updates: &WidgetUpdates) {
-        self.ctrl_in_ctx(|ctrl| ctrl.update(updates));
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
+        self.ctrl_in_ctx(|ctrl| ctrl.update(update_widgets, info_widgets));
     }
 
-    pub fn layout(&mut self) {
-        self.ctrl_in_ctx(|ctrl| ctrl.layout());
+    pub fn layout(&mut self, layout_widgets: &WidgetUpdates) {
+        self.ctrl_in_ctx(|ctrl| ctrl.layout(layout_widgets));
     }
 
-    pub fn render(&mut self) {
-        self.ctrl_in_ctx(|ctrl| ctrl.render());
+    pub fn render(&mut self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) {
+        self.ctrl_in_ctx(|ctrl| ctrl.render(render_widgets, render_update_widgets));
     }
 
     pub fn focus(&mut self) {

@@ -106,7 +106,7 @@ impl HeadedCtrl {
         }
     }
 
-    pub fn update(&mut self, updates: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
         if self.window.is_none() && !self.waiting_view {
             // we request a view on the first layout.
             UPDATES.layout(None);
@@ -424,7 +424,7 @@ impl HeadedCtrl {
             }
         }
 
-        self.content.update(updates);
+        self.content.update(update_widgets, info_widgets);
     }
 
     #[must_use]
@@ -662,8 +662,8 @@ impl HeadedCtrl {
         self.content.ui_event(update);
     }
 
-    pub fn layout(&mut self) {
-        if !self.content.layout_requested {
+    pub fn layout(&mut self, layout_widgets: &WidgetUpdates) {
+        if !self.content.layout_requested && !layout_widgets.delivery_list().enter_window(WINDOW.id()) {
             return;
         }
 
@@ -671,7 +671,7 @@ impl HeadedCtrl {
             if matches!(self.state.as_ref().map(|s| s.state), Some(WindowState::Minimized)) {
                 return;
             }
-            self.layout_update();
+            self.layout_update(layout_widgets);
         } else if self.respawned && !self.waiting_view {
             self.layout_respawn();
         } else if !self.waiting_view {
@@ -722,9 +722,16 @@ impl HeadedCtrl {
         let state = self.vars.state().get();
         if state == WindowState::Normal && self.vars.auto_size().get() != AutoSize::DISABLED {
             // layout content to get auto-size size.
-            size = self
-                .content
-                .layout(scale_factor, screen_ppi, min_size, max_size, size, root_font_size, false);
+            size = self.content.layout(
+                &WidgetUpdates::default(),
+                scale_factor,
+                screen_ppi,
+                min_size,
+                max_size,
+                size,
+                root_font_size,
+                false,
+            );
         }
 
         // Layout initial position in the monitor space.
@@ -815,7 +822,7 @@ impl HeadedCtrl {
     }
 
     /// Layout for already open window.
-    fn layout_update(&mut self) {
+    fn layout_update(&mut self, layout_widgets: &WidgetUpdates) {
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().get();
         let screen_ppi = m.ppi().get();
@@ -841,9 +848,16 @@ impl HeadedCtrl {
             }
         }
 
-        let size = self
-            .content
-            .layout(scale_factor, screen_ppi, min_size, max_size, size, root_font_size, skip_auto_size);
+        let size = self.content.layout(
+            layout_widgets,
+            scale_factor,
+            screen_ppi,
+            min_size,
+            max_size,
+            size,
+            root_font_size,
+            skip_auto_size,
+        );
 
         if size != current_size {
             assert!(!skip_auto_size);
@@ -876,7 +890,7 @@ impl HeadedCtrl {
             self.monitor = Some(self.vars.monitor().get().select_fallback());
         }
 
-        self.layout_update();
+        self.layout_update(&WidgetUpdates::default());
 
         let request = WindowRequest {
             id: WINDOW.id().get(),
@@ -907,7 +921,7 @@ impl HeadedCtrl {
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) {
         if matches!(self.content.render_requested, RenderUpdate::None) {
             return;
         }
@@ -1056,7 +1070,7 @@ impl HeadlessWithRendererCtrl {
         }
     }
 
-    pub fn update(&mut self, updates: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
         if self.surface.is_some() {
             if self.vars.size().is_new()
                 || self.vars.min_size().is_new()
@@ -1081,7 +1095,7 @@ impl HeadlessWithRendererCtrl {
             }
         }
 
-        self.content.update(updates);
+        self.content.update(update_widgets, info_widgets);
     }
 
     #[must_use]
@@ -1144,7 +1158,7 @@ impl HeadlessWithRendererCtrl {
         self.content.ui_event(update);
     }
 
-    pub fn layout(&mut self) {
+    pub fn layout(&mut self, layout_widgets: &WidgetUpdates) {
         if !self.content.layout_requested {
             return;
         }
@@ -1162,9 +1176,16 @@ impl HeadlessWithRendererCtrl {
             (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
         });
 
-        let size = self
-            .content
-            .layout(scale_factor, screen_ppi, min_size, max_size, size, root_font_size, false);
+        let size = self.content.layout(
+            layout_widgets,
+            scale_factor,
+            screen_ppi,
+            min_size,
+            max_size,
+            size,
+            root_font_size,
+            false,
+        );
         let size = size.to_dip(scale_factor.0);
 
         if let Some(view) = &self.surface {
@@ -1199,7 +1220,7 @@ impl HeadlessWithRendererCtrl {
         self.headless_simulator.layout();
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) {
         if matches!(self.content.render_requested, RenderUpdate::None) {
             return;
         }
@@ -1292,7 +1313,7 @@ impl HeadlessCtrl {
         }
     }
 
-    pub fn update(&mut self, updates: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
         if self.vars.size().is_new() || self.vars.min_size().is_new() || self.vars.max_size().is_new() || self.vars.auto_size().is_new() {
             self.content.layout_requested = true;
             UPDATES.layout(None);
@@ -1310,7 +1331,7 @@ impl HeadlessCtrl {
             self.var_bindings = update_headless_vars(self.headless_monitor.scale_factor, &self.vars);
         }
 
-        self.content.update(updates);
+        self.content.update(update_widgets, info_widgets);
     }
 
     #[must_use]
@@ -1327,8 +1348,8 @@ impl HeadlessCtrl {
         self.content.ui_event(update);
     }
 
-    pub fn layout(&mut self) {
-        if !self.content.layout_requested {
+    pub fn layout(&mut self, layout_widgets: &WidgetUpdates) {
+        if !self.content.layout_requested && !layout_widgets.delivery_list().enter_window(WINDOW.id()) {
             return;
         }
 
@@ -1349,14 +1370,21 @@ impl HeadlessCtrl {
             (min_size, max_size, size.min(max_size).max(min_size), root_font_size)
         });
 
-        let _surface_size = self
-            .content
-            .layout(scale_factor, screen_ppi, min_size, max_size, size, root_font_size, false);
+        let _surface_size = self.content.layout(
+            layout_widgets,
+            scale_factor,
+            screen_ppi,
+            min_size,
+            max_size,
+            size,
+            root_font_size,
+            false,
+        );
 
         self.headless_simulator.layout();
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) {
         if matches!(self.content.render_requested, RenderUpdate::None) {
             return;
         }
@@ -1490,15 +1518,15 @@ impl ContentCtrl {
         }
     }
 
-    pub fn update(&mut self, updates: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
         match self.init_state {
             InitState::Inited => {
                 self.commands.update(&self.vars);
 
-                updates.with_window(|| {
+                update_widgets.with_window(|| {
                     WIDGET.with_context(&self.root_ctx, || {
-                        updates.with_widget(|| {
-                            self.root.update(updates);
+                        update_widgets.with_widget(|| {
+                            self.root.update(update_widgets);
                         });
                     });
                 });
@@ -1624,6 +1652,7 @@ impl ContentCtrl {
     #[allow(clippy::too_many_arguments)]
     pub fn layout(
         &mut self,
+        layout_widgets: &WidgetUpdates,
         scale_factor: Factor,
         screen_ppi: f32,
         min_size: PxSize,
@@ -1633,7 +1662,7 @@ impl ContentCtrl {
         skip_auto_size: bool,
     ) -> PxSize {
         debug_assert!(matches!(self.init_state, InitState::Inited));
-        debug_assert!(self.layout_requested);
+        debug_assert!(self.layout_requested || layout_widgets.delivery_list().enter_window(WINDOW.id()));
 
         let _s = tracing::trace_span!("window.on_layout", window = %WINDOW.id().sequential()).entered();
 
@@ -1665,7 +1694,9 @@ impl ContentCtrl {
                         root_cons = root_cons.with_unbounded_y();
                     }
                 }
-                let desired_size = LAYOUT.with_constraints(root_cons, || WidgetLayout::with_root_widget(|wl| self.root.layout(wl)));
+                let desired_size = LAYOUT.with_constraints(root_cons, || {
+                    WidgetLayout::with_root_widget(layout_widgets, |wl| self.root.layout(wl))
+                });
 
                 let mut final_size = viewport_size;
                 if !skip_auto_size {
@@ -1848,11 +1879,11 @@ impl WindowCtrl {
         })
     }
 
-    pub fn update(&mut self, updates: &WidgetUpdates) {
+    pub fn update(&mut self, update_widgets: &WidgetUpdates, info_widgets: &WidgetUpdates) {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.update(updates),
-            WindowCtrlMode::Headless(c) => c.update(updates),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.update(updates),
+            WindowCtrlMode::Headed(c) => c.update(update_widgets, info_widgets),
+            WindowCtrlMode::Headless(c) => c.update(update_widgets, info_widgets),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.update(update_widgets, info_widgets),
         }
     }
 
@@ -1881,19 +1912,19 @@ impl WindowCtrl {
         }
     }
 
-    pub fn layout(&mut self) {
+    pub fn layout(&mut self, layout_widgets: &WidgetUpdates) {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.layout(),
-            WindowCtrlMode::Headless(c) => c.layout(),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.layout(),
+            WindowCtrlMode::Headed(c) => c.layout(layout_widgets),
+            WindowCtrlMode::Headless(c) => c.layout(layout_widgets),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.layout(layout_widgets),
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.render(),
-            WindowCtrlMode::Headless(c) => c.render(),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.render(),
+            WindowCtrlMode::Headed(c) => c.render(render_widgets, render_update_widgets),
+            WindowCtrlMode::Headless(c) => c.render(render_widgets, render_update_widgets),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.render(render_widgets, render_update_widgets),
         }
     }
 

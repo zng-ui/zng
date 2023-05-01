@@ -77,11 +77,11 @@ impl AppExtension for WindowManager {
     }
 
     fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
-        WINDOWS::on_layout();
+        WINDOWS::on_layout(layout_widgets);
     }
 
     fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
-        WINDOWS::on_render();
+        WINDOWS::on_render(render_widgets, render_update_widgets);
     }
 }
 

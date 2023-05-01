@@ -3,7 +3,8 @@ use std::hash::Hash;
 use crate::{
     border::BORDER,
     context::{
-        InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, StateId, StateMapMut, StateValue, LAYOUT, WIDGET, WINDOW,
+        InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, StateId, StateMapMut, StateValue, WidgetUpdates, LAYOUT,
+        WIDGET, WINDOW,
     },
     text::TextSegmentKind,
 };
@@ -834,7 +835,7 @@ impl WidgetLayout {
     /// Defines the root widget outer-bounds scope.
     ///
     /// The default window implementation calls this.
-    pub fn with_root_widget(layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
+    pub fn with_root_widget(layout_widgets: &WidgetUpdates, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         Self {
             bounds: WIDGET.bounds(),
             nest_group: LayoutNestGroup::Inner,
