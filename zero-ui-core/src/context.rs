@@ -1525,9 +1525,9 @@ impl UPDATES {
         UPDATES_SV.read().event_sender.as_ref().unwrap().clone()
     }
 
-    /// Create an std task waker that wakes the event loop and updates all `targets`.
-    pub fn waker(&self, targets: Vec<WidgetId>) -> Waker {
-        UPDATES_SV.read().event_sender.as_ref().unwrap().waker(targets)
+    /// Create an std task waker that wakes the event loop and updates.
+    pub fn waker(&self, target: impl Into<Option<WidgetId>>) -> Waker {
+        UPDATES_SV.read().event_sender.as_ref().unwrap().waker(target)
     }
 
     pub(crate) fn update_flags_root(&self, flags: UpdateFlags, window_id: WindowId, root_id: WidgetId) {
@@ -1603,14 +1603,6 @@ impl UPDATES {
 
     pub(crate) fn send_awake(&self) {
         UPDATES_SV.write().send_awake();
-    }
-
-    pub(crate) fn recv_update_internal(&mut self, targets: Vec<WidgetId>) {
-        let mut u = UPDATES_SV.write();
-        u.send_awake();
-        for id in targets {
-            u.update_widgets.search_widget(id);
-        }
     }
 
     /// Schedules an info rebuild that affects the `target`.

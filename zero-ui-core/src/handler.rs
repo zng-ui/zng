@@ -1825,7 +1825,7 @@ impl HeadlessApp {
         let future = task::with_deadline(future, timeout);
         let mut future = std::pin::pin!(future);
 
-        let waker = UPDATES.waker(vec![]);
+        let waker = UPDATES.waker(None);
         let mut cx = std::task::Context::from_waker(&waker);
 
         loop {

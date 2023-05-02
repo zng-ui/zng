@@ -1420,7 +1420,9 @@ impl<E: AppExtension> RunningApp<E> {
             },
             AppEvent::Event(ev) => EVENTS.notify(ev.get()),
             AppEvent::Var => VARS.receive_sended_modify(),
-            AppEvent::Update(targets) => UPDATES.recv_update_internal(targets),
+            AppEvent::Update(op, target) => {
+                UPDATES.update_op(op, target);
+            }
             AppEvent::CheckUpdate => {}
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
@@ -2272,7 +2274,7 @@ pub(crate) enum AppEvent {
     /// Notify [`VARS`](crate::var::VARS).
     Var,
     /// Do an update cycle.
-    Update(Vec<WidgetId>),
+    Update(UpdateOp, Option<WidgetId>),
     /// Resume a panic in the app thread.
     ResumeUnwind(PanicPayload),
     /// Check for pending updates.
@@ -2303,19 +2305,10 @@ impl AppEventSender {
     }
 
     /// Causes an update cycle to happen in the app.
-    pub fn send_update(&self, targets: Vec<WidgetId>) -> Result<(), AppDisconnected<()>> {
+    pub fn send_update(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> Result<(), AppDisconnected<()>> {
         UpdatesTrace::log_update();
-        self.send_app_event(AppEvent::Update(targets)).map_err(|_| AppDisconnected(()))
-    }
-
-    /// Causes an update cycle that only affects app extensions to happen in the app.
-    ///
-    /// This is the equivalent of calling [`send_update`] with an empty vec.
-    ///
-    /// [`send_update`]: Self::send_update
-    pub fn send_ext_update(&self) -> Result<(), AppDisconnected<()>> {
-        UpdatesTrace::log_update();
-        self.send_update(vec![])
+        self.send_app_event(AppEvent::Update(op, target.into()))
+            .map_err(|_| AppDisconnected(()))
     }
 
     /// [`VarSender`](crate::var::VarSender) util.
@@ -2345,8 +2338,8 @@ impl AppEventSender {
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).
-    pub fn waker(&self, targets: Vec<WidgetId>) -> Waker {
-        Arc::new(AppWaker(self.0.clone(), targets)).into()
+    pub fn waker(&self, target: impl Into<Option<WidgetId>>) -> Waker {
+        Arc::new(AppWaker(self.0.clone(), target.into())).into()
     }
 
     /// Create an unbound channel that causes an extension update for each message received.
@@ -2376,13 +2369,13 @@ impl AppEventSender {
     }
 }
 
-struct AppWaker(flume::Sender<AppEvent>, Vec<WidgetId>);
+struct AppWaker(flume::Sender<AppEvent>, Option<WidgetId>);
 impl std::task::Wake for AppWaker {
     fn wake(self: std::sync::Arc<Self>) {
-        let _ = match std::sync::Arc::try_unwrap(self) {
-            Ok(w) => w.0.send(AppEvent::Update(w.1)),
-            Err(arc) => arc.0.send(AppEvent::Update(arc.1.clone())),
-        };
+        self.wake_by_ref()
+    }
+    fn wake_by_ref(self: &Arc<Self>) {
+        let _ = self.0.send(AppEvent::Update(UpdateOp::Update, self.1));
     }
 }
 
@@ -2404,7 +2397,7 @@ impl<T> Clone for AppExtSender<T> {
 impl<T: Send> AppExtSender<T> {
     /// Send an extension update and `msg`, blocks until the app receives the message.
     pub fn send(&self, msg: T) -> Result<(), AppDisconnected<T>> {
-        match self.update.send_ext_update() {
+        match self.update.send_update(UpdateOp::Update, None) {
             Ok(()) => self.sender.send(msg).map_err(|e| AppDisconnected(e.0)),
             Err(_) => Err(AppDisconnected(msg)),
         }
@@ -2412,7 +2405,7 @@ impl<T: Send> AppExtSender<T> {
 
     /// Send an extension update and `msg`, blocks until the app receives the message or `dur` elapses.
     pub fn send_timeout(&self, msg: T, dur: Duration) -> Result<(), TimeoutOrAppDisconnected> {
-        match self.update.send_ext_update() {
+        match self.update.send_update(UpdateOp::Update, None) {
             Ok(()) => self.sender.send_timeout(msg, dur).map_err(|e| match e {
                 flume::SendTimeoutError::Timeout(_) => TimeoutOrAppDisconnected::Timeout,
                 flume::SendTimeoutError::Disconnected(_) => TimeoutOrAppDisconnected::AppDisconnected,
@@ -2423,7 +2416,7 @@ impl<T: Send> AppExtSender<T> {
 
     /// Send an extension update and `msg`, blocks until the app receives the message or `deadline` is reached.
     pub fn send_deadline(&self, msg: T, deadline: Instant) -> Result<(), TimeoutOrAppDisconnected> {
-        match self.update.send_ext_update() {
+        match self.update.send_update(UpdateOp::Update, None) {
             Ok(()) => self.sender.send_deadline(msg, deadline).map_err(|e| match e {
                 flume::SendTimeoutError::Timeout(_) => TimeoutOrAppDisconnected::Timeout,
                 flume::SendTimeoutError::Disconnected(_) => TimeoutOrAppDisconnected::AppDisconnected,

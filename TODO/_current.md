@@ -1,5 +1,4 @@
 * Direct updates.
-    - Review receive update (include UpdateOp?)
     - !!: TODOs
     - Test all.
     - Merge.

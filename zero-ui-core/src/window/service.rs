@@ -15,7 +15,7 @@ use crate::app::{
     AppEventSender,
 };
 use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
-use crate::context::{WidgetUpdates, WindowCtx};
+use crate::context::{UpdateOp, WidgetUpdates, WindowCtx};
 use crate::context::{UPDATES, WINDOW};
 use crate::crate_util::{IdMap, IdSet};
 use crate::event::{AnyEventArgs, EventUpdate};
@@ -1292,7 +1292,7 @@ struct WindowLoadingHandleData {
 }
 impl Drop for WindowLoadingHandleData {
     fn drop(&mut self) {
-        let _ = self.update.send_ext_update();
+        let _ = self.update.send_update(UpdateOp::Update, None);
     }
 }
 impl PartialEq for WindowLoadingHandle {

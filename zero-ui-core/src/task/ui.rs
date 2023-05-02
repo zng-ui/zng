@@ -49,7 +49,7 @@ impl<R> UiTask<R> {
     {
         UiTask(UiTaskState::Pending {
             future: Box::pin(task),
-            event_loop_waker: UPDATES.waker(target.into_iter().collect()),
+            event_loop_waker: UPDATES.waker(target),
         })
     }
 
