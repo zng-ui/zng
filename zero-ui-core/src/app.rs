@@ -1554,11 +1554,11 @@ impl<E: AppExtension> RunningApp<E> {
         let mut run = true;
         while run {
             run = self.loop_monitor.update(|| {
-                self.pending |= UPDATES.apply();
+                self.pending |= UPDATES.apply_updates();
 
                 TimersService::notify();
 
-                if !mem::take(&mut self.pending.update) {
+                if !mem::take(&mut self.pending.update) && !self.pending.info {
                     return false;
                 }
 
@@ -1573,7 +1573,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.extensions.update_ui(&mut update_widgets);
                 observer.update_ui(&mut update_widgets);
 
-                self.pending |= UPDATES.apply();
+                self.pending |= UPDATES.apply_updates();
                 if mem::take(&mut self.pending.info) {
                     let mut info_widgets = mem::take(&mut self.pending.info_widgets);
                     self.extensions.info(&mut info_widgets);
@@ -1627,6 +1627,8 @@ impl<E: AppExtension> RunningApp<E> {
     fn finish_frame<O: AppEventObserver>(&mut self, observer: &mut O) {
         debug_assert!(!self.view_is_busy());
 
+        self.pending |= UPDATES.apply_layout_render();
+
         while mem::take(&mut self.pending.layout) {
             let _s = tracing::debug_span!("apply_layout").entered();
 
@@ -1638,6 +1640,7 @@ impl<E: AppExtension> RunningApp<E> {
             });
 
             self.apply_updates(observer);
+            self.pending |= UPDATES.apply_layout_render();
         }
 
         if mem::take(&mut self.pending.render) {

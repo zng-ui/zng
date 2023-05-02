@@ -34,13 +34,13 @@ use crate::{
 };
 
 bitflags! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub(crate) struct UpdateFlags: u8 {
-        const REINIT = 0b1000_0000;
-        const INFO =   0b0001_0000;
-        const UPDATE = 0b0000_0001;
-        const LAYOUT = 0b0000_0010;
-        const RENDER = 0b0000_0100;
+        const REINIT =        0b1000_0000;
+        const INFO =          0b0001_0000;
+        const UPDATE =        0b0000_0001;
+        const LAYOUT =        0b0000_0010;
+        const RENDER =        0b0000_0100;
         const RENDER_UPDATE = 0b0000_1000;
     }
 }
@@ -1463,19 +1463,19 @@ impl UPDATES {
         UPDATES_SV.write().event_sender = Some(event_sender);
     }
 
-    /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update
-    /// requests and a time for the loop to awake and update.
     #[must_use]
+    #[cfg(any(test, doc, feature = "test_util"))]
     pub(crate) fn apply(&self) -> ContextUpdates {
+        self.apply_updates() | self.apply_layout_render()
+    }
+
+    #[must_use]
+    pub(crate) fn apply_updates(&self) -> ContextUpdates {
         let events = EVENTS.apply_updates();
         VARS.apply_updates();
 
-        // !!: review this, we don't need to take layout & render yet, may actually be useful to know a window
-        //     has pending render (see Focus service)
         let (update, update_widgets) = UPDATES.take_update();
         let (info, info_widgets) = UPDATES.take_info();
-        let (layout, layout_widgets) = UPDATES.take_layout();
-        let (render, render_widgets, render_update_widgets) = UPDATES.take_render();
 
         ContextUpdates {
             events,
@@ -1483,6 +1483,24 @@ impl UPDATES {
             update_widgets,
             info,
             info_widgets,
+            layout: false,
+            layout_widgets: WidgetUpdates::default(),
+            render: false,
+            render_widgets: WidgetUpdates::default(),
+            render_update_widgets: WidgetUpdates::default(),
+        }
+    }
+    #[must_use]
+    pub(crate) fn apply_layout_render(&self) -> ContextUpdates {
+        let (layout, layout_widgets) = UPDATES.take_layout();
+        let (render, render_widgets, render_update_widgets) = UPDATES.take_render();
+
+        ContextUpdates {
+            events: vec![],
+            update: false,
+            update_widgets: WidgetUpdates::default(),
+            info: false,
+            info_widgets: WidgetUpdates::default(),
             layout,
             layout_widgets,
             render,
@@ -1514,7 +1532,7 @@ impl UPDATES {
     /// If a call to `apply_updates` will generate updates (ignoring timers).
     #[must_use]
     pub fn has_pending_updates(&self) -> bool {
-        !UPDATES_SV.read().update_ext.is_empty()
+        UPDATES_SV.read().update_ext.intersects(UpdateFlags::UPDATE | UpdateFlags::INFO)
             || VARS.has_pending_updates()
             || EVENTS_SV.write().has_pending_updates()
             || TIMERS_SV.read().has_pending_updates()
