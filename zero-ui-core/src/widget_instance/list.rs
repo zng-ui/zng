@@ -597,10 +597,7 @@ where
         let start = vec.len();
         self.with_map(|map, list| {
             list.drain_into(vec);
-            for (i, o) in map.iter().enumerate() {
-                // !!: TODO fix this, need mutable node to sort.
-                vec.swap(i + start, o + start);
-            }
+            sort_by_indices(&mut vec[start..], map.to_vec());
         });
         self.map.clear();
     }
@@ -641,6 +638,24 @@ where
 
     fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+}
+
+// thanks https://stackoverflow.com/a/69774341
+fn sort_by_indices<T>(data: &mut [T], mut indices: Vec<usize>) {
+    for idx in 0..data.len() {
+        if indices[idx] != idx {
+            let mut current_idx = idx;
+            loop {
+                let target_idx = indices[current_idx];
+                indices[current_idx] = current_idx;
+                if indices[target_idx] == target_idx {
+                    break;
+                }
+                data.swap(current_idx, target_idx);
+                current_idx = target_idx;
+            }
+        }
     }
 }
 

@@ -579,7 +579,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
                 InlineMode::Allow => child.layout(wl),
                 InlineMode::Inline => {
                     if LAYOUT.inline_constraints().is_none() {
-                        WidgetMeasure::new().with_inline_visual(|wm| child.measure(wm));
+                        wl.to_measure(None).with_inline_visual(|wm| child.measure(wm));
                         wl.with_inline_visual(|wl| child.layout(wl))
                     } else {
                         // already enabled by parent

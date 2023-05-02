@@ -400,7 +400,7 @@ impl InlineLayout {
             return known;
         }
 
-        self.measure_rows(&metrics, children, child_align, spacing);
+        self.measure_rows(wm, &metrics, children, child_align, spacing);
 
         if let Some(inline) = wm.inline() {
             inline.first_wrapped = self.first_wrapped;
@@ -430,8 +430,9 @@ impl InlineLayout {
     }
 
     pub fn estimate_layout(wl: &mut WidgetLayout, children_len: usize, child_size: PxSize, spacing: PxGridSpacing) -> PxSize {
+        let is_inline = wl.inline().is_some();
+        let mut wm = wl.to_measure(if is_inline { Some(Default::default()) } else { None });
         let size = if let Some(inline) = wl.inline() {
-            let mut wm = WidgetMeasure::new_inline();
             let mut size = Self::estimate_measure(&mut wm, children_len, child_size, spacing);
             if let Some(m_inline) = wm.inline() {
                 inline.invalidate_negative_space();
@@ -458,7 +459,7 @@ impl InlineLayout {
             }
             size
         } else {
-            Self::estimate_measure(&mut WidgetMeasure::new(), children_len, child_size, spacing)
+            Self::estimate_measure(&mut wm, children_len, child_size, spacing)
         };
 
         let width = LAYOUT.constraints().x.fill_or(size.width);
@@ -472,7 +473,7 @@ impl InlineLayout {
 
         if inline_constraints.is_none() {
             // if not already measured by parent inline
-            self.measure_rows(&metrics, children, child_align, spacing);
+            self.measure_rows(&mut wl.to_measure(None), &metrics, children, child_align, spacing);
         }
         if self.has_bidi_inline && !self.bidi_layout_fresh {
             self.layout_bidi(inline_constraints.clone(), direction, spacing.column);
@@ -721,7 +722,14 @@ impl InlineLayout {
         constraints.clamp_size(PxSize::new(panel_width, panel_height))
     }
 
-    fn measure_rows(&mut self, metrics: &LayoutMetrics, children: &mut PanelList, child_align: Align, spacing: PxGridSpacing) {
+    fn measure_rows(
+        &mut self,
+        wm: &mut WidgetMeasure,
+        metrics: &LayoutMetrics,
+        children: &mut PanelList,
+        child_align: Align,
+        spacing: PxGridSpacing,
+    ) {
         self.rows.begin_reuse();
         self.bidi_layout_fresh = false;
 
@@ -754,7 +762,7 @@ impl InlineLayout {
                     inline_constrain -= row.size.width;
                 }
 
-                let (inline, size) = LAYOUT.measure_inline(inline_constrain, row.size.height - spacing.row, child);
+                let (inline, size) = LAYOUT.measure_inline(wm, inline_constrain, row.size.height - spacing.row, child);
 
                 if size.is_empty() {
                     row.item_segs.push(ItemSegsInfo::new_collapsed());

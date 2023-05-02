@@ -673,22 +673,29 @@ impl PartialEq for WidgetInlineInfo {
 }
 
 /// Represents the in-progress measure pass for a widget tree.
-#[derive(Default)]
+///
+/// Use [`WidgetLayout::to_measure`] to instantiate.
 pub struct WidgetMeasure {
+    layout_widgets: Arc<WidgetUpdates>,
     inline: Option<WidgetInlineMeasure>,
     inline_locked: bool,
 }
 impl WidgetMeasure {
-    /// New default.
-    pub fn new() -> Self {
-        Self::default()
+    pub(crate) fn new(layout_widgets: Arc<WidgetUpdates>) -> Self {
+        Self {
+            layout_widgets,
+            inline: None,
+            inline_locked: false,
+        }
     }
 
-    /// New with inline active.
-    pub fn new_inline() -> Self {
-        let mut s = Self::new();
-        s.inline = Some(Default::default());
-        s
+    /// New with no widget layouts invalidated.
+    ///
+    /// Prefer [`WidgetLayout::to_measure`] instead of this.
+    pub fn new_reuse(inline: Option<WidgetInlineMeasure>) -> Self {
+        let mut r = Self::new(Arc::default());
+        r.inline = inline;
+        r
     }
 
     /// If the parent widget is doing inline flow layout.
@@ -723,8 +730,7 @@ impl WidgetMeasure {
         let bounds = WIDGET.bounds();
 
         let snap = metrics.snapshot();
-        if false {
-            // !!: TODO, if layout is invalidated we can't reuse (some var may have changed).
+        if !WIDGET.layout_is_pending(&self.layout_widgets) {
             let measure_uses = bounds.measure_metrics_used();
             if bounds.measure_metrics().map(|m| m.masked_eq(&snap, measure_uses)).unwrap_or(false) {
                 let mut reused = false;
@@ -804,6 +810,28 @@ impl WidgetMeasure {
         bounds.set_measure_outer_size(size);
 
         size
+    }
+
+    /// Start a parallel measure.
+    ///
+    /// Returns an instance that can be used to acquire multiple mutable [`WidgetMeasure`] during measure.
+    /// The [`parallel_fold`] method must be called after the parallel processing is done.
+    ///
+    /// Must be called outside of the [child] scope.
+    ///
+    /// [child]: Self::with_child
+    /// [`parallel_fold`]: Self::parallel_fold
+    pub fn parallel_split(&self) -> ParallelBuilder<WidgetMeasure> {
+        ParallelBuilder(Some(Self {
+            layout_widgets: self.layout_widgets.clone(),
+            inline: self.inline.clone(),
+            inline_locked: self.inline_locked,
+        }))
+    }
+
+    /// Collect the parallel changes back.
+    pub fn parallel_fold(&mut self, mut split: ParallelBuilder<WidgetMeasure>) {
+        let _ = split.take();
     }
 }
 
@@ -1179,6 +1207,17 @@ impl WidgetLayout {
     /// [`LayoutMetrics::inline_constraints`]: crate::context::LayoutMetrics::inline_constraints
     pub fn inline(&mut self) -> Option<&mut WidgetInlineInfo> {
         self.inline.as_mut()
+    }
+
+    /// Create an [`WidgetMeasure`] for an [`UiNode::measure`] call.
+    ///
+    /// [`UiNode::measure`]: crate::widget_instance::UiNode::measure
+    pub fn to_measure(&self, inline: Option<WidgetInlineMeasure>) -> WidgetMeasure {
+        WidgetMeasure {
+            layout_widgets: self.layout_widgets.clone(),
+            inline,
+            inline_locked: false,
+        }
     }
 }
 

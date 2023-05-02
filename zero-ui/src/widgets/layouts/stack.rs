@@ -161,55 +161,63 @@ pub fn lazy_sample(
                 WIDGET.layout();
             }
         }
-        UiNodeOp::Measure { desired_size, .. }
-        | UiNodeOp::Layout {
-            final_size: desired_size, ..
-        } => {
-            let constraints = LAYOUT.constraints();
-            if let Some(known) = constraints.fill_or_exact() {
-                child.delegated();
-                *desired_size = known;
-                return;
-            }
-
-            let len = Px(children_len.get() as i32);
-            if len.0 == 0 {
-                child.delegated();
-                return;
-            }
-
-            let child_size = child.measure(&mut WidgetMeasure::new());
-
-            let direction = direction.get();
-            let dv = direction.vector(LayoutDirection::LTR);
-            let ds = if dv.x == 0 && dv.y != 0 {
-                // vertical stack
-                let spacing = spacing.layout_y();
-                PxSize::new(child_size.width, (len - Px(1)) * (child_size.height + spacing) + child_size.height)
-            } else if dv.x != 0 && dv.y == 0 {
-                // horizontal stack
-                let spacing = spacing.layout_x();
-                PxSize::new((len - Px(1)) * (child_size.width + spacing) + child_size.width, child_size.height)
-            } else {
-                // unusual stack
-                let spacing = spacing_from_direction(dv, spacing.get());
-
-                let mut item_rect = PxRect::from_size(child_size);
-                let mut item_bounds = euclid::Box2D::zero();
-                let mut child_spacing = PxVector::zero();
-                for _ in 0..len.0 {
-                    let offset = direction.layout(item_rect, child_size) + child_spacing;
-                    item_rect.origin = offset.to_point();
-                    let item_box = item_rect.to_box2d();
-                    item_bounds.min = item_bounds.min.min(item_box.min);
-                    item_bounds.max = item_bounds.max.max(item_box.max);
-                    child_spacing = spacing;
+        op @ UiNodeOp::Measure { .. } | op @ UiNodeOp::Layout { .. } => {
+            let mut measure = |wm| {
+                let constraints = LAYOUT.constraints();
+                if let Some(known) = constraints.fill_or_exact() {
+                    child.delegated();
+                    return known;
                 }
 
-                item_bounds.size()
+                let len = Px(children_len.get() as i32);
+                if len.0 == 0 {
+                    child.delegated();
+                    return PxSize::zero();
+                }
+
+                let child_size = child.measure(wm);
+
+                let direction = direction.get();
+                let dv = direction.vector(LayoutDirection::LTR);
+                let ds = if dv.x == 0 && dv.y != 0 {
+                    // vertical stack
+                    let spacing = spacing.layout_y();
+                    PxSize::new(child_size.width, (len - Px(1)) * (child_size.height + spacing) + child_size.height)
+                } else if dv.x != 0 && dv.y == 0 {
+                    // horizontal stack
+                    let spacing = spacing.layout_x();
+                    PxSize::new((len - Px(1)) * (child_size.width + spacing) + child_size.width, child_size.height)
+                } else {
+                    // unusual stack
+                    let spacing = spacing_from_direction(dv, spacing.get());
+
+                    let mut item_rect = PxRect::from_size(child_size);
+                    let mut item_bounds = euclid::Box2D::zero();
+                    let mut child_spacing = PxVector::zero();
+                    for _ in 0..len.0 {
+                        let offset = direction.layout(item_rect, child_size) + child_spacing;
+                        item_rect.origin = offset.to_point();
+                        let item_box = item_rect.to_box2d();
+                        item_bounds.min = item_bounds.min.min(item_box.min);
+                        item_bounds.max = item_bounds.max.max(item_box.max);
+                        child_spacing = spacing;
+                    }
+
+                    item_bounds.size()
+                };
+
+                constraints.fill_size_or(ds)
             };
 
-            *desired_size = constraints.fill_size_or(ds);
+            match op {
+                UiNodeOp::Measure { wm, desired_size } => {
+                    *desired_size = measure(wm);
+                }
+                UiNodeOp::Layout { wl, final_size } => {
+                    *final_size = measure(&mut wl.to_measure(None));
+                }
+                _ => unreachable!(),
+            }
         }
         _ => {}
     })
@@ -225,7 +233,7 @@ fn measure(wm: &mut WidgetMeasure, children: &mut PanelList, direction: StackDir
     let child_align = direction.filter_align(children_align);
 
     let spacing = layout_spacing(&metrics, &direction, spacing);
-    let max_size = child_max_size(children, child_align);
+    let max_size = child_max_size(wm, children, child_align);
 
     // layout children, size, raw position + spacing only.
     let mut item_bounds = euclid::Box2D::zero();
@@ -281,7 +289,7 @@ fn layout(wl: &mut WidgetLayout, children: &mut PanelList, direction: StackDirec
     let child_align = direction.filter_align(children_align);
 
     let spacing = layout_spacing(&metrics, &direction, spacing);
-    let max_size = child_max_size(children, child_align);
+    let max_size = child_max_size(&mut wl.to_measure(None), children, child_align);
 
     // layout children, size, raw position + spacing only.
     let mut item_bounds = euclid::Box2D::zero();
@@ -389,7 +397,7 @@ fn spacing_from_direction(direction_vector: euclid::Vector2D<i8, ()>, spacing: L
 }
 
 /// Max size to layout each child with.
-fn child_max_size(children: &mut PanelList, child_align: Align) -> PxSize {
+fn child_max_size(wm: &mut WidgetMeasure, children: &mut PanelList, child_align: Align) -> PxSize {
     let constraints = LAYOUT.constraints();
 
     // need measure when children fill, but the panel does not.
@@ -429,7 +437,7 @@ fn child_max_size(children: &mut PanelList, child_align: Align) -> PxSize {
     // find largest child, the others will fill to its size.
     if need_measure {
         let max_items = LAYOUT.with_constraints(measure_constraints.with_new_min(Px(0), Px(0)), || {
-            children.measure_each(&mut WidgetMeasure::new(), |_, c, _, wm| c.measure(wm), PxSize::max)
+            children.measure_each(wm, |_, c, _, wm| c.measure(wm), PxSize::max)
         });
 
         max_size = constraints.clamp_size(max_size.max(max_items));

@@ -139,10 +139,10 @@ fn scroll_node(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewp
             let c = LAYOUT.constraints();
             {
                 joiner.width = LAYOUT.with_constraints(c.with_min_x(Px(0)).with_fill(false, true), || {
-                    children.with_node(1, |n| n.measure(&mut WidgetMeasure::new())).width
+                    children.with_node(1, |n| n.measure(&mut wl.to_measure(None))).width
                 });
                 joiner.height = LAYOUT.with_constraints(c.with_min_y(Px(0)).with_fill(true, false), || {
-                    children.with_node(2, |n| n.measure(&mut WidgetMeasure::new())).height
+                    children.with_node(2, |n| n.measure(&mut wl.to_measure(None))).height
                 });
             }
             joiner.width = LAYOUT.with_constraints(c.with_min_x(Px(0)).with_fill(false, true).with_less_y(joiner.height), || {

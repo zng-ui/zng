@@ -1123,7 +1123,7 @@ pub fn child_insert(
                     let mut constraints_y = LAYOUT.constraints().y;
                     if constraints_y.fill_or_exact().is_none() {
                         // measure to find fill height
-                        let mut wm = WidgetMeasure::new();
+                        let mut wm = wl.to_measure(None);
                         let wm = &mut wm;
                         let mut spacing = spacing;
 
@@ -1193,7 +1193,7 @@ pub fn child_insert(
                     if constraints_x.fill_or_exact().is_none() {
                         // measure fill width
 
-                        let mut wm = WidgetMeasure::new();
+                        let mut wm = wl.to_measure(None);
                         let wm = &mut wm;
                         let mut spacing = spacing;
 

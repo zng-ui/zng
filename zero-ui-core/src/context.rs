@@ -490,7 +490,7 @@ impl WINDOW {
         let metrics = LayoutMetrics::new(1.fct(), viewport, font_size)
             .with_constraints(measure_constraints.0)
             .with_inline_constraints(Some(InlineConstraints::Measure(measure_constraints.1)));
-        let measure_size = LAYOUT.with_context(metrics, || content.measure(&mut WidgetMeasure::new()));
+        let measure_size = LAYOUT.with_context(metrics, || content.measure(&mut WidgetMeasure::new(Arc::default())));
 
         let metrics = LayoutMetrics::new(1.fct(), viewport, font_size)
             .with_constraints(layout_constraints.0)
@@ -1005,6 +1005,11 @@ impl WIDGET {
         WIDGET_CTX.get().parent_id.load(atomic::Ordering::Relaxed)
     }
 
+    pub(crate) fn layout_is_pending(&self, layout_widgets: &WidgetUpdates) -> bool {
+        let ctx = WIDGET_CTX.get();
+        ctx.flags.load(atomic::Ordering::Relaxed).contains(UpdateFlags::LAYOUT) || layout_widgets.delivery_list.enter_widget(ctx.id)
+    }
+
     /// Remove update flag and returns if it was present.
     pub(crate) fn take_update(&self, flag: UpdateFlags) -> bool {
         let mut r = false;
@@ -1214,10 +1219,16 @@ impl LAYOUT {
     ///
     /// Returns the inline requirements of the child and its desired bounds size, returns `None` requirements if the child
     /// disables inline or is not a full widget.
-    pub fn measure_inline(&self, first_max: Px, mid_clear_min: Px, child: &mut impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
+    pub fn measure_inline(
+        &self,
+        wm: &mut WidgetMeasure,
+        first_max: Px,
+        mid_clear_min: Px,
+        child: &mut impl UiNode,
+    ) -> (Option<WidgetInlineMeasure>, PxSize) {
         let constraints = InlineConstraints::Measure(InlineConstraintsMeasure { first_max, mid_clear_min });
         let metrics = self.metrics().with_inline_constraints(Some(constraints));
-        let size = self.with_context(metrics, || child.measure(&mut WidgetMeasure::new_inline()));
+        let size = self.with_context(metrics, || child.measure(wm));
         let inline = child.with_context(|| WIDGET.bounds().measure_inline()).flatten();
         (inline, size)
     }

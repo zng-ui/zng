@@ -526,7 +526,7 @@ pub mod nodes {
                 });
 
                 if self.ctx.is_pending_reinit() {
-                    UPDATES.update(self.ctx.id());
+                    WIDGET.with_context(&mut self.ctx, || WIDGET.update());
                 }
             }
 
@@ -610,7 +610,7 @@ pub mod nodes {
                 });
 
                 if self.ctx.is_pending_reinit() {
-                    UPDATES.update(self.ctx.id());
+                    WIDGET.with_context(&mut self.ctx, || WIDGET.update());
                 }
 
                 desired_size
@@ -652,7 +652,7 @@ pub mod nodes {
                 });
 
                 if self.ctx.is_pending_reinit() {
-                    UPDATES.update(self.ctx.id());
+                    WIDGET.with_context(&mut self.ctx, || WIDGET.update());
                 }
 
                 final_size
@@ -669,7 +669,7 @@ pub mod nodes {
                 });
 
                 if self.ctx.is_pending_reinit() {
-                    UPDATES.update(self.ctx.id());
+                    WIDGET.with_context(&mut self.ctx, || WIDGET.update());
                 }
             }
 
@@ -684,8 +684,7 @@ pub mod nodes {
                 });
 
                 if self.ctx.is_pending_reinit() {
-                    // !!: review this, we are generating a search request for this widget
-                    UPDATES.update(self.ctx.id());
+                    WIDGET.with_context(&mut self.ctx, || WIDGET.update());
                 }
             }
 

@@ -173,7 +173,7 @@ pub fn node(
             is_measured = false;
             last_layout = LAYOUT.metrics();
 
-            let (spacing, grid_size) = grid.grid_layout(&mut WidgetMeasure::new(), c.children(), &spacing);
+            let (spacing, grid_size) = grid.grid_layout(&mut wl.to_measure(None), c.children(), &spacing);
             let constrains = last_layout.constraints();
 
             if grid.is_collapse() {
@@ -260,7 +260,7 @@ pub fn node(
 
             if mem::take(&mut is_measured) {
                 LAYOUT.with_context(last_layout.clone(), || {
-                    let _ = grid.grid_layout(&mut WidgetMeasure::new(), c.children(), &spacing);
+                    let _ = grid.grid_layout(&mut WidgetMeasure::new_reuse(None), c.children(), &spacing);
                 });
             }
 
@@ -319,7 +319,7 @@ pub fn node(
 
             if mem::take(&mut is_measured) {
                 LAYOUT.with_context(last_layout.clone(), || {
-                    let _ = grid.grid_layout(&mut WidgetMeasure::new(), c.children(), &spacing);
+                    let _ = grid.grid_layout(&mut WidgetMeasure::new_reuse(None), c.children(), &spacing);
                 });
             }
 

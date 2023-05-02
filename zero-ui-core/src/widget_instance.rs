@@ -590,14 +590,25 @@ pub trait UiNodeList: UiNodeListBoxed {
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
     {
         if self.len() > 1 && PARALLEL_VAR.get().contains(Parallel::LAYOUT) {
-            self.par_fold_reduce(
-                PxSize::zero,
-                |a, i, n| {
-                    let b = measure(i, n, &mut WidgetMeasure::new());
-                    fold_size(a, b)
+            // fold a tuple of `(wm, size)`
+            let (pwm, size) = self.par_fold_reduce(
+                || (wm.parallel_split(), PxSize::zero()),
+                |(mut awm, asize), i, n| {
+                    let bsize = measure(i, n, &mut awm);
+                    (awm, fold_size(asize, bsize))
                 },
-                &fold_size,
-            )
+                |(mut awm, asize), (bwm, bsize)| {
+                    (
+                        {
+                            awm.parallel_fold(bwm);
+                            awm
+                        },
+                        fold_size(asize, bsize),
+                    )
+                },
+            );
+            wm.parallel_fold(pwm);
+            size
         } else {
             let mut size = PxSize::zero();
             self.for_each(|i, n| {
