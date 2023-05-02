@@ -420,7 +420,7 @@ impl AppExtension for FocusManager {
             {
                 // we need up-to-date due to visibility or spatial movement and that is affected by both layout and render.
                 // so we delay responding to the event if a render or layout was requested when the tree was invalidated.
-                if args.pending_render {
+                if UPDATES.is_pending_render(args.window_id) {
                     self.pending_render = Some(args.tree.clone());
                 } else {
                     // no visual change, update interactivity changes.

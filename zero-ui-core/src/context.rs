@@ -1707,6 +1707,12 @@ impl UPDATES {
         self
     }
 
+    /// Returns `true` is render or render update is requested for the window.
+    pub fn is_pending_render(&self, window_id: WindowId) -> bool {
+        let u = UPDATES_SV.read();
+        u.render_widgets.enter_window(window_id) || u.render_update_widgets.enter_window(window_id)
+    }
+
     /// Schedule an *once* handler to run when these updates are applied.
     ///
     /// The callback is any of the *once* [`AppHandler`], including async handlers. If the handler is async and does not finish in
