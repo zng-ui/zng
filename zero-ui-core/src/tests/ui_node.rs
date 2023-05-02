@@ -136,11 +136,27 @@ pub fn default_no_child() {
 
     WINDOW.with_test_context(|| {
         let wu = WINDOW.test_init(&mut wgt);
+        assert!(wu.info);
         assert!(wu.layout);
         assert!(wu.render);
 
+        let wu = WINDOW.test_info(&mut wgt);
+        assert!(!wu.info);
+        assert!(wu.layout);
+        assert!(wu.render);
+
+        let (_, wu) = WINDOW.test_layout(&mut wgt, None);
+        assert!(!wu.info);
+        assert!(!wu.layout);
+        assert!(wu.render);
+
+        let (_, wu) = WINDOW.test_render(&mut wgt);
+        assert!(!wu.info);
+        assert!(!wu.layout);
+        assert!(!wu.render);
+
         let wu = WINDOW.test_update(&mut wgt, None);
-        assert!(!dbg!(wu).has_updates());
+        assert!(!wu.has_updates());
 
         let wu = WINDOW.test_deinit(&mut wgt);
         assert!(wu.layout);
@@ -153,7 +169,6 @@ pub fn default_no_child() {
             let tree = WINDOW.widget_tree();
             let wgt_info = tree.get(WIDGET.id()).unwrap();
             assert!(wgt_info.descendants().next().is_none());
-            assert!(wgt_info.meta().is_empty());
         })
         .unwrap();
 

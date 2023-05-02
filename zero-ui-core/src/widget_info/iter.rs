@@ -407,7 +407,8 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        context::{WidgetCtx, WIDGET},
+        app::App,
+        context::{WidgetCtx, WIDGET, WINDOW},
         units::FactorUnits,
         widget_info::{iter::TreeIterator, TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree},
         widget_instance::WidgetId,
@@ -426,7 +427,9 @@ mod tests {
         where
             F: FnMut(&mut Self),
         {
-            WIDGET.with_context(&mut WidgetCtx::new(WidgetId::named(name)), || self.push_widget(inner));
+            WINDOW.with_test_context(|| {
+                WIDGET.with_context(&mut WidgetCtx::new(WidgetId::named(name)), || self.push_widget(inner));
+            });
         }
     }
 
@@ -440,6 +443,7 @@ mod tests {
     }
 
     fn data() -> WidgetInfoTree {
+        let _scope = App::minimal();
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),
@@ -573,6 +577,7 @@ mod tests {
     }
 
     fn data_nested() -> WidgetInfoTree {
+        let _scope = App::minimal();
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),
@@ -694,6 +699,7 @@ mod tests {
     }
 
     fn data_deep() -> WidgetInfoTree {
+        let _scope = App::minimal();
         let mut builder = WidgetInfoBuilder::new(
             Arc::default(),
             WindowId::named("w"),

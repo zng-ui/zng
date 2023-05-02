@@ -134,8 +134,6 @@ impl WidgetInfoBuilder {
                     r
                 });
                 return;
-            } else {
-                tracing::error!("cannot reuse `{:?}`, not found in previous tree", id)
             }
         }
 

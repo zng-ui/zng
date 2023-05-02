@@ -421,6 +421,7 @@ impl FrameBuilder {
             for info in tree.get(id).unwrap().self_and_descendants() {
                 info.bounds_info().set_rendered(None, &tree);
             }
+            let _ = WIDGET.take_update(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
             return;
         }
 
@@ -470,6 +471,7 @@ impl FrameBuilder {
         let mut reuse = if try_reuse {
             WIDGET.take_render_reuse(&self.render_widgets, &self.render_update_widgets)
         } else {
+            let _ = WIDGET.take_update(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
             None
         };
 

@@ -619,10 +619,14 @@ impl WIDGET {
                     }
                 });
             ctx.parent_id.store(None, atomic::Ordering::Relaxed);
-        } else {
+        } else if let Some(window_id) = WINDOW.try_id() {
             // is at root, register `UPDATES`
-            UPDATES.update_flags_root(wgt_flags, WINDOW.id(), ctx.id);
+            UPDATES.update_flags_root(wgt_flags, window_id, ctx.id);
             // some builders don't clear the root widget flags like they do for other widgets.
+            ctx.flags.store(UpdateFlags::empty(), atomic::Ordering::Relaxed);
+        } else {
+            // used outside window
+            UPDATES.update_flags(wgt_flags, ctx.id);
             ctx.flags.store(UpdateFlags::empty(), atomic::Ordering::Relaxed);
         }
 
@@ -1024,14 +1028,14 @@ impl WIDGET {
         ctx.flags.load(atomic::Ordering::Relaxed).contains(UpdateFlags::LAYOUT) || layout_widgets.delivery_list.enter_widget(ctx.id)
     }
 
-    /// Remove update flag and returns if it was present.
+    /// Remove update flag and returns if it intersected.
     pub(crate) fn take_update(&self, flag: UpdateFlags) -> bool {
         let mut r = false;
         let _ = WIDGET_CTX
             .get()
             .flags
             .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
-                if f.contains(flag) {
+                if f.intersects(flag) {
                     r = true;
                     f.remove(flag);
                     Some(f)
@@ -1493,7 +1497,7 @@ impl UPDATES {
     #[must_use]
     #[cfg(any(test, doc, feature = "test_util"))]
     pub(crate) fn apply(&self) -> ContextUpdates {
-        self.apply_updates() | self.apply_layout_render()
+        self.apply_updates() | self.apply_info() | self.apply_layout_render()
     }
 
     #[must_use]
@@ -1619,6 +1623,34 @@ impl UPDATES {
             u.render_widgets.insert_updates_root(window_id, root_id);
         } else if flags.contains(UpdateFlags::RENDER_UPDATE) {
             u.render_update_widgets.insert_updates_root(window_id, root_id);
+        }
+
+        u.update_ext |= flags;
+    }
+
+    pub(crate) fn update_flags(&self, flags: UpdateFlags, target: impl Into<Option<WidgetId>>) {
+        if flags.is_empty() {
+            return;
+        }
+
+        let mut u = UPDATES_SV.write();
+
+        if let Some(id) = target.into() {
+            if flags.contains(UpdateFlags::UPDATE) {
+                u.update_widgets.search_widget(id);
+            }
+            if flags.contains(UpdateFlags::INFO) {
+                u.info_widgets.search_widget(id);
+            }
+            if flags.contains(UpdateFlags::LAYOUT) {
+                u.layout_widgets.search_widget(id);
+            }
+
+            if flags.contains(UpdateFlags::RENDER) {
+                u.render_widgets.search_widget(id);
+            } else if flags.contains(UpdateFlags::RENDER_UPDATE) {
+                u.render_update_widgets.search_widget(id);
+            }
         }
 
         u.update_ext |= flags;
