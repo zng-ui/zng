@@ -616,6 +616,7 @@ impl WIDGET {
         } else {
             // is at root, register `UPDATES`
             UPDATES.update_flags_root(wgt_flags, WINDOW.id(), ctx.id);
+            // some builders don't clear the root widget flags like they do for other widgets.
             ctx.flags.store(UpdateFlags::empty(), atomic::Ordering::Relaxed);
         }
 
@@ -1476,12 +1477,28 @@ impl UPDATES {
         VARS.apply_updates();
 
         let (update, update_widgets) = UPDATES.take_update();
-        let (info, info_widgets) = UPDATES.take_info();
 
         ContextUpdates {
             events,
             update,
             update_widgets,
+            info: false,
+            info_widgets: WidgetUpdates::default(),
+            layout: false,
+            layout_widgets: WidgetUpdates::default(),
+            render: false,
+            render_widgets: WidgetUpdates::default(),
+            render_update_widgets: WidgetUpdates::default(),
+        }
+    }
+    #[must_use]
+    pub(crate) fn apply_info(&self) -> ContextUpdates {
+        let (info, info_widgets) = UPDATES.take_info();
+
+        ContextUpdates {
+            events: vec![],
+            update: false,
+            update_widgets: WidgetUpdates::default(),
             info,
             info_widgets,
             layout: false,
@@ -2302,7 +2319,7 @@ pub struct ContextUpdates {
 impl ContextUpdates {
     /// If has events, update, layout or render was requested.
     pub fn has_updates(&self) -> bool {
-        self.update || self.info || self.layout || self.render
+        !self.events.is_empty() || self.update || self.info || self.layout || self.render
     }
 }
 impl std::ops::BitOrAssign for ContextUpdates {

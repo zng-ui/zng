@@ -291,6 +291,13 @@ pub trait AppExtension: 'static {
         let _ = update;
     }
 
+    /// Called before and after an update cycle. The [`UiNode::info`] method is called here.
+    ///
+    /// [`UiNode::info`]: crate::widget_instance::UiNode::info
+    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
+        let _ = info_widgets;
+    }
+
     /// Called just before [`update_ui`](Self::update_ui).
     ///
     /// Extensions can handle this method to interact with updates before the UI.
@@ -307,14 +314,6 @@ pub trait AppExtension: 'static {
     /// [`UiNode::update`]: crate::widget_instance::UiNode::update
     fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
         let _ = update_widgets;
-    }
-    /// Called after [`update_ui`] if info rebuild was requested. The [`UiNode::info`]
-    /// method is called here.
-    ///
-    /// [`update_ui`]: Self::update_ui
-    /// [`UiNode::info`]: crate::widget_instance::UiNode::info
-    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
-        let _ = info_widgets;
     }
 
     /// Called after every [`update_ui`](Self::update_ui) and [`info`](Self::info).
@@ -1554,36 +1553,39 @@ impl<E: AppExtension> RunningApp<E> {
         let mut run = true;
         while run {
             run = self.loop_monitor.update(|| {
-                self.pending |= UPDATES.apply_updates();
-                TimersService::notify();
+                let mut any = false;
 
-                if !mem::take(&mut self.pending.update) && !self.pending.info {
-                    return false;
-                }
-
-                let _s = tracing::debug_span!("extensions").entered();
-
-                let mut update_widgets = mem::take(&mut self.pending.update_widgets);
-
-                self.extensions.update_preview();
-                observer.update_preview();
-                UPDATES.on_pre_updates();
-
-                self.extensions.update_ui(&mut update_widgets);
-                observer.update_ui(&mut update_widgets);
-
-                self.pending |= UPDATES.apply_updates();
+                self.pending |= UPDATES.apply_info();
                 if mem::take(&mut self.pending.info) {
+                    any = true;
+                    let _s = tracing::debug_span!("info").entered();
+
                     let mut info_widgets = mem::take(&mut self.pending.info_widgets);
                     self.extensions.info(&mut info_widgets);
                     observer.info(&mut info_widgets);
                 }
 
-                self.extensions.update();
-                observer.update();
-                UPDATES.on_updates();
+                self.pending |= UPDATES.apply_updates();
+                TimersService::notify();
+                if mem::take(&mut self.pending.update) {
+                    any = true;
+                    let _s = tracing::debug_span!("update").entered();
 
-                true
+                    let mut update_widgets = mem::take(&mut self.pending.update_widgets);
+
+                    self.extensions.update_preview();
+                    observer.update_preview();
+                    UPDATES.on_pre_updates();
+
+                    self.extensions.update_ui(&mut update_widgets);
+                    observer.update_ui(&mut update_widgets);
+
+                    self.extensions.update();
+                    observer.update();
+                    UPDATES.on_updates();
+                }
+
+                any
             });
         }
     }
