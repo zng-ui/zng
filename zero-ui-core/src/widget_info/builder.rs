@@ -187,14 +187,13 @@ impl WidgetInfoBuilder {
     /// Register a closure that returns the [`Interactivity`] allowed for each widget.
     ///
     /// Widgets [`interactivity`] is computed from all interactivity filters and parents. Interactivity filters are global to the
-    /// widget tree, and are re-registered for the tree if the current widget is [reused].
+    /// widget tree, and are re-registered for the tree if the current widget is reused.
     ///
     /// Note that the filter can make the assumption that parent widgets affect all descendants and if the filter is intended to
     /// affect only the current widget and descendants you can use [`push_interactivity`] instead.
     ///
     /// [`interactivity`]: WidgetInfo::interactivity
     /// [`push_interactivity`]: Self::push_interactivity
-    /// [reused]: Self::push_widget_reuse
     pub fn push_interactivity_filter(&mut self, filter: impl Fn(&InteractivityFilterArgs) -> Interactivity + Send + Sync + 'static) {
         let filter = Arc::new(filter);
         self.interactivity_filters.push(filter.clone());
@@ -817,9 +816,6 @@ impl WidgetMeasure {
     /// Returns an instance that can be used to acquire multiple mutable [`WidgetMeasure`] during measure.
     /// The [`parallel_fold`] method must be called after the parallel processing is done.
     ///
-    /// Must be called outside of the [child] scope.
-    ///
-    /// [child]: Self::with_child
     /// [`parallel_fold`]: Self::parallel_fold
     pub fn parallel_split(&self) -> ParallelBuilder<WidgetMeasure> {
         ParallelBuilder(Some(Self {

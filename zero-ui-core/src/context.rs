@@ -1443,7 +1443,7 @@ pub enum UpdateOp {
     /// The normal [`Update`] cycle runs, and after the info tree of windows that inited or deinited widgets are rebuild
     /// by calling [`UiNode::info`].  The target widget is also flagged for rebuild.
     ///
-    /// [`Update`]: Update::Render
+    /// [`Update`]: UpdateOp::Render
     Info,
     /// The [`AppExtension::layout`] is called the an update cycle happens without generating anymore update requests.
     ///

@@ -534,7 +534,7 @@ pub mod state_map {
 /// // after the property is used and the widget initializes:
 ///
 /// /// Get the value from outside the widget.
-/// fn get_foo_outer(widget: &impl UiNode) -> u32 {
+/// fn get_foo_outer(widget: &mut impl UiNode) -> u32 {
 ///     widget.with_context(|| WIDGET.get_state(&FOO_ID)).flatten().unwrap_or_default()
 /// }
 ///
