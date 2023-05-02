@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{units::*, widget_info::*, window::WindowId};
+use crate::{app::App, units::*, widget_info::*, window::WindowId};
 
 use super::*;
 
@@ -32,37 +32,39 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
             ),
             WidgetBorderInfo::new(),
         );
-        WIDGET.with_context(&mut ctx, || {
-            self.push_widget(|builder| {
-                let mut meta = FocusInfoBuilder::new(builder);
-                match focus {
-                    FocusInfo::NotFocusable => {}
-                    FocusInfo::Focusable {
-                        tab_index,
-                        skip_directional,
-                    } => {
-                        meta.tab_index(tab_index);
-                        meta.skip_directional(skip_directional);
+        WINDOW.with_test_context(|| {
+            WIDGET.with_context(&mut ctx, || {
+                self.push_widget(|builder| {
+                    let mut meta = FocusInfoBuilder::new(builder);
+                    match focus {
+                        FocusInfo::NotFocusable => {}
+                        FocusInfo::Focusable {
+                            tab_index,
+                            skip_directional,
+                        } => {
+                            meta.tab_index(tab_index);
+                            meta.skip_directional(skip_directional);
+                        }
+                        FocusInfo::FocusScope {
+                            tab_index,
+                            skip_directional,
+                            tab_nav,
+                            directional_nav,
+                            on_focus,
+                            alt,
+                        } => {
+                            meta.scope(true);
+                            meta.tab_index(tab_index);
+                            meta.skip_directional(skip_directional);
+                            meta.tab_nav(tab_nav);
+                            meta.directional_nav(directional_nav);
+                            meta.on_focus(on_focus);
+                            meta.alt_scope(alt);
+                        }
                     }
-                    FocusInfo::FocusScope {
-                        tab_index,
-                        skip_directional,
-                        tab_nav,
-                        directional_nav,
-                        on_focus,
-                        alt,
-                    } => {
-                        meta.scope(true);
-                        meta.tab_index(tab_index);
-                        meta.skip_directional(skip_directional);
-                        meta.tab_nav(tab_nav);
-                        meta.directional_nav(directional_nav);
-                        meta.on_focus(on_focus);
-                        meta.alt_scope(alt);
-                    }
-                }
-                inner(builder);
-            })
+                    inner(builder);
+                })
+            });
         });
     }
 }
@@ -98,6 +100,7 @@ impl WidgetFocusInfoExt for WidgetFocusInfo {
 }
 
 fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> WidgetInfoTree {
+    let _scope = App::minimal();
     let mut builder = WidgetInfoBuilder::new(
         Arc::default(),
         WindowId::named("w"),

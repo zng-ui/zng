@@ -394,6 +394,7 @@ impl WINDOW {
     /// [`with_test_context`]: Self::with_test_context
     pub fn test_init(&self, content: &mut impl UiNode) -> ContextUpdates {
         content.init();
+        WIDGET.test_root_updates();
         UPDATES.apply()
     }
 
@@ -402,6 +403,7 @@ impl WINDOW {
     /// [`with_test_context`]: Self::with_test_context
     pub fn test_deinit(&self, content: &mut impl UiNode) -> ContextUpdates {
         content.deinit();
+        WIDGET.test_root_updates();
         UPDATES.apply()
     }
 
@@ -421,6 +423,7 @@ impl WINDOW {
         content.info(&mut info);
         let tree = info.finalize(Some(self.widget_tree()));
         *WINDOW_CTX.get().widget_tree.write() = Some(tree);
+        WIDGET.test_root_updates();
         UPDATES.apply()
     }
 
@@ -430,6 +433,7 @@ impl WINDOW {
     pub fn test_event(&self, content: &mut impl UiNode, update: &mut EventUpdate) -> ContextUpdates {
         update.delivery_list_mut().fulfill_search([&WINDOW.widget_tree()].into_iter());
         content.event(update);
+        WIDGET.test_root_updates();
         UPDATES.apply()
     }
 
@@ -454,6 +458,7 @@ impl WINDOW {
 
             content.update(&updates);
         }
+        WIDGET.test_root_updates();
         UPDATES.apply()
     }
 
@@ -470,6 +475,7 @@ impl WINDOW {
         let size = LAYOUT.with_context(metrics, || {
             crate::widget_info::WidgetLayout::with_root_widget(Arc::default(), |wl| content.layout(wl))
         });
+        WIDGET.test_root_updates();
         (size, UPDATES.apply())
     }
 
@@ -498,7 +504,7 @@ impl WINDOW {
         let layout_size = LAYOUT.with_context(metrics, || {
             crate::widget_info::WidgetLayout::with_root_widget(Arc::default(), |wl| content.layout(wl))
         });
-
+        WIDGET.test_root_updates();
         ((measure_size, layout_size), UPDATES.apply())
     }
 
@@ -534,7 +540,7 @@ impl WINDOW {
 
         let tree = WINDOW_CTX.get().widget_tree.read().as_ref().unwrap().clone();
         let f = frame.finalize(&tree);
-
+        WIDGET.test_root_updates();
         (f, UPDATES.apply())
     }
 
@@ -567,7 +573,7 @@ impl WINDOW {
         });
         let tree = WINDOW_CTX.get().widget_tree.read().as_ref().unwrap().clone();
         let f = update.finalize(&tree);
-
+        WIDGET.test_root_updates();
         (f, UPDATES.apply())
     }
 
@@ -621,6 +627,14 @@ impl WIDGET {
         }
 
         r
+    }
+    #[cfg(any(test, doc, feature = "test_util"))]
+    pub(crate) fn test_root_updates(&self) {
+        let ctx = WIDGET_CTX.get();
+        // is at root, register `UPDATES`
+        UPDATES.update_flags_root(ctx.flags.load(atomic::Ordering::Relaxed), WINDOW.id(), ctx.id);
+        // some builders don't clear the root widget flags like they do for other widgets.
+        ctx.flags.store(UpdateFlags::empty(), atomic::Ordering::Relaxed);
     }
 
     /// Calls `f` while no widget is available in the context.

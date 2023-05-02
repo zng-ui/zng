@@ -140,7 +140,7 @@ pub fn default_no_child() {
         assert!(wu.render);
 
         let wu = WINDOW.test_update(&mut wgt, None);
-        assert!(!wu.has_updates());
+        assert!(!dbg!(wu).has_updates());
 
         let wu = WINDOW.test_deinit(&mut wgt);
         assert!(wu.layout);
@@ -186,7 +186,6 @@ mod util {
         event::{event, event_args, EventUpdate},
         render::{FrameBuilder, FrameUpdate},
         units::*,
-        widget_base,
         widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
         widget_instance::{UiNode, WidgetId},
     };
@@ -327,12 +326,11 @@ mod util {
     }
 
     pub fn test_wgt(node: impl UiNode) -> impl UiNode {
-        let node = MinSizeNode {
+        MinSizeNode {
             child: node,
             min_size: PxSize::new(Px(1), Px(1)),
-        };
-        let node = widget_base::nodes::widget_inner(node);
-        widget_base::nodes::widget(node, crate::widget_instance::WidgetId::new_unique())
+        }
+        .into_widget()
     }
 
     struct MinSizeNode<C> {
