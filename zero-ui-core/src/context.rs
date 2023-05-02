@@ -1532,11 +1532,19 @@ impl UPDATES {
 
     /// If a call to `apply_updates` will generate updates (ignoring timers).
     #[must_use]
-    pub fn has_pending_updates(&self) -> bool {
+    pub(crate) fn has_pending_updates(&self) -> bool {
         UPDATES_SV.read().update_ext.intersects(UpdateFlags::UPDATE | UpdateFlags::INFO)
             || VARS.has_pending_updates()
             || EVENTS_SV.write().has_pending_updates()
             || TIMERS_SV.read().has_pending_updates()
+    }
+
+    #[must_use]
+    pub(crate) fn has_pending_layout_or_render(&self) -> bool {
+        UPDATES_SV
+            .read()
+            .update_ext
+            .intersects(UpdateFlags::LAYOUT | UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE)
     }
 
     /// Create an [`AppEventSender`] that can be used to awake the app and send app events from threads outside of the app.

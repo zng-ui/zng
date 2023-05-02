@@ -1429,7 +1429,7 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn has_pending_updates(&mut self) -> bool {
-        !self.pending_view_events.is_empty() || !self.pending.has_updates() || UPDATES.has_pending_updates() || !self.receiver.is_empty()
+        !self.pending_view_events.is_empty() || self.pending.has_updates() || UPDATES.has_pending_updates() || !self.receiver.is_empty()
     }
 
     fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
@@ -1539,7 +1539,7 @@ impl<E: AppExtension> RunningApp<E> {
         if self.extensions.0.exit() {
             UPDATES.on_app_sleep();
             ControlFlow::Exit
-        } else if self.has_pending_updates() {
+        } else if self.has_pending_updates() || UPDATES.has_pending_layout_or_render() {
             ControlFlow::Poll
         } else {
             UPDATES.on_app_sleep();

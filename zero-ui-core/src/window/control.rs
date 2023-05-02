@@ -904,7 +904,7 @@ impl HeadedCtrl {
 
     pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
         let w_id = WINDOW.id();
-        if !render_widgets.delivery_list().enter_window(w_id) && render_update_widgets.delivery_list().enter_window(w_id) {
+        if !render_widgets.delivery_list().enter_window(w_id) && !render_update_widgets.delivery_list().enter_window(w_id) {
             return;
         }
 
