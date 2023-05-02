@@ -1555,7 +1555,6 @@ impl<E: AppExtension> RunningApp<E> {
         while run {
             run = self.loop_monitor.update(|| {
                 self.pending |= UPDATES.apply_updates();
-
                 TimersService::notify();
 
                 if !mem::take(&mut self.pending.update) && !self.pending.info {

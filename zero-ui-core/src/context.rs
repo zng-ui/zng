@@ -616,6 +616,7 @@ impl WIDGET {
         } else {
             // is at root, register `UPDATES`
             UPDATES.update_flags_root(wgt_flags, WINDOW.id(), ctx.id);
+            ctx.flags.store(UpdateFlags::empty(), atomic::Ordering::Relaxed);
         }
 
         r
