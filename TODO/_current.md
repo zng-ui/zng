@@ -1,11 +1,5 @@
 * Direct updates.
-    - Review/refactor window update flags.
-        - `layout_requested`, `pending_render`.
-        - `WIDGET` now already requests all pending updates for the root widget and
-           the other widgets are updated by a flag internal to `WIDGET` too.
-        - So we may be able to just check `enter_window` in the delivery list?
-            - Window requests some updates itself, right now this is a request with `None` target and setting the window flag.
-            - Could change to a request to the `WindowId` directly?
+    - Review receive update (include UpdateOp?)
     - !!: TODOs
     - Test all.
     - Merge.

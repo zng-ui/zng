@@ -675,16 +675,6 @@ event_args! {
         /// New widget tree.
         pub tree: WidgetInfoTree,
 
-        /// If a layout was requested with this change.
-        ///
-        /// If `true` the widget bounds and visibility may be out-of-date until after the next layout.
-        pub pending_layout: bool,
-
-        /// If a frame rebuild was requested with this change.
-        ///
-        /// If `true` the widget visibility may be out-of-date until after the next render.
-        pub pending_render: bool,
-
         ..
 
         /// Broadcast to all widgets.

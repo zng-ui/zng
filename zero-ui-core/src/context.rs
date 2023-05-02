@@ -1470,6 +1470,8 @@ impl UPDATES {
         let events = EVENTS.apply_updates();
         VARS.apply_updates();
 
+        // !!: review this, we don't need to take layout & render yet, may actually be useful to know a window
+        //     has pending render (see Focus service)
         let (update, update_widgets) = UPDATES.take_update();
         let (info, info_widgets) = UPDATES.take_info();
         let (layout, layout_widgets) = UPDATES.take_layout();
@@ -1565,6 +1567,17 @@ impl UPDATES {
         }
     }
 
+    /// Schedules an [`UpdateOp`] for the window only.
+    pub fn update_op_window(&self, op: UpdateOp, target: WindowId) -> &Self {
+        match op {
+            UpdateOp::Update => self.update_window(target),
+            UpdateOp::Info => self.update_info_window(target),
+            UpdateOp::Layout => self.layout_window(target),
+            UpdateOp::Render => self.render_window(target),
+            UpdateOp::RenderUpdate => self.render_update_window(target),
+        }
+    }
+
     /// Schedules an update that affects the `target`.
     ///
     /// After the current update cycle ends a new update will happen that includes the `target` widget.
@@ -1576,6 +1589,15 @@ impl UPDATES {
         if let Some(id) = target.into() {
             u.update_widgets.search_widget(id);
         }
+        self
+    }
+
+    /// Schedules an update for the window only.
+    pub fn update_window(&self, target: WindowId) -> &Self {
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::UPDATE);
+        u.send_awake();
+        u.update_widgets.insert_window(target);
         self
     }
 
@@ -1604,6 +1626,15 @@ impl UPDATES {
         self
     }
 
+    /// Schedules an info rebuild for the window only.
+    pub fn update_info_window(&self, target: WindowId) -> &Self {
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::INFO);
+        u.send_awake();
+        u.info_widgets.insert_window(target);
+        self
+    }
+
     /// Schedules a layout update that affects the `target`.
     ///
     /// After the current update cycle ends and there are no more updates requested a layout pass is issued that includes the `target` widget.
@@ -1615,6 +1646,15 @@ impl UPDATES {
         if let Some(id) = target.into() {
             u.layout_widgets.search_widget(id);
         }
+        self
+    }
+
+    /// Schedules a layout update for the window only.
+    pub fn layout_window(&self, target: WindowId) -> &Self {
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::LAYOUT);
+        u.send_awake();
+        u.layout_widgets.insert_window(target);
         self
     }
 
@@ -1634,6 +1674,15 @@ impl UPDATES {
         self
     }
 
+    /// Schedules a new frame for the window only.
+    pub fn render_window(&self, target: WindowId) -> &Self {
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::RENDER);
+        u.send_awake();
+        u.render_widgets.insert_window(target);
+        self
+    }
+
     /// Schedules a render update that affects the `target`.
     ///
     /// After the current update cycle ends and there are no more updates or layouts requested a render pass is issued that
@@ -1646,6 +1695,15 @@ impl UPDATES {
         if let Some(id) = target.into() {
             u.render_update_widgets.search_widget(id);
         }
+        self
+    }
+
+    /// Schedules a render update for the window only.
+    pub fn render_update_window(&self, target: WindowId) -> &Self {
+        let mut u = UPDATES_SV.write();
+        u.update_ext.insert(UpdateFlags::RENDER_UPDATE);
+        u.send_awake();
+        u.render_update_widgets.insert_window(target);
         self
     }
 
@@ -2057,6 +2115,11 @@ impl UpdateDeliveryList {
         if any {
             self.windows.insert(wgt.tree().window_id());
         }
+    }
+
+    /// Insert the window by itself.
+    pub fn insert_window(&mut self, id: WindowId) {
+        self.windows.insert(id);
     }
 
     /// Register all subscribers for search and delivery.

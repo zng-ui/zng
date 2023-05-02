@@ -109,7 +109,7 @@ impl HeadedCtrl {
     pub fn update(&mut self, update_widgets: &WidgetUpdates) {
         if self.window.is_none() && !self.waiting_view {
             // we request a view on the first layout.
-            UPDATES.layout(None);
+            UPDATES.layout_window(WINDOW.id());
 
             if let Some(enforced_fullscreen) = self.kiosk {
                 // enforce kiosk in pre-init.
@@ -201,8 +201,7 @@ impl HeadedCtrl {
 
                 if let Some(auto) = self.vars.auto_size().get_new() {
                     if auto != AutoSize::DISABLED {
-                        self.content.layout_requested = true;
-                        UPDATES.layout(None);
+                        UPDATES.layout_window(WINDOW.id());
                     }
                 }
 
@@ -246,8 +245,7 @@ impl HeadedCtrl {
 
                         if font_size_dip != self.root_font_size {
                             self.root_font_size = font_size_dip;
-                            self.content.layout_requested = true;
-                            UPDATES.layout(None);
+                            UPDATES.layout_window(WINDOW.id());
                         }
                     }
                 }
@@ -308,14 +306,14 @@ impl HeadedCtrl {
 
                     if ico.get().is_loading() && self.window.is_none() && !self.waiting_view {
                         if self.icon_deadline.has_elapsed() {
-                            UPDATES.layout(None);
+                            UPDATES.layout_window(WINDOW.id());
                         } else {
                             TIMERS
                                 .on_deadline(
                                     self.icon_deadline,
                                     app_hn_once!(ico, |_| {
                                         if ico.get().is_loading() {
-                                            UPDATES.layout(None);
+                                            UPDATES.layout_window(WINDOW.id());
                                         }
                                     }),
                                 )
@@ -379,8 +377,7 @@ impl HeadedCtrl {
                     self.vars.0.scale_factor.set_ne(fct);
                 }
                 if m.scale_factor().is_new() || m.size().is_new() || m.ppi().is_new() {
-                    self.content.layout_requested = true;
-                    UPDATES.layout(None);
+                    UPDATES.layout_window(WINDOW.id());
                 }
             }
 
@@ -438,8 +435,7 @@ impl HeadedCtrl {
                     if self.vars.0.actual_monitor.get().map(|m| m != monitor).unwrap_or(true) {
                         self.vars.0.actual_monitor.set_ne(Some(monitor));
                         self.monitor = None;
-                        self.content.layout_requested = true;
-                        UPDATES.layout(None);
+                        UPDATES.layout_window(WINDOW.id());
                     }
                 }
 
@@ -472,12 +468,8 @@ impl HeadedCtrl {
                                 });
 
                                 // we skip layout & render when minimized.
-                                if self.content.layout_requested {
-                                    UPDATES.layout(None);
-                                }
-                                if !matches!(self.content.render_requested, RenderUpdate::None) {
-                                    UPDATES.render(None);
-                                }
+                                let w_id = WINDOW.id();
+                                UPDATES.layout_window(w_id).render_window(w_id);
                             }
                             _ => {}
                         }
@@ -498,8 +490,7 @@ impl HeadedCtrl {
                         self.vars.0.actual_size.set_ne(size);
                         size_change = Some(size);
 
-                        self.content.layout_requested = true;
-                        UPDATES.layout(None);
+                        UPDATES.layout_window(WINDOW.id());
 
                         if args.cause == EventCause::System {
                             // resize by system (user)
@@ -511,11 +502,7 @@ impl HeadedCtrl {
                 if let Some(id) = args.frame_wait_id {
                     self.resize_wait_id = Some(id);
 
-                    if !matches!(self.content.pending_render, RenderUpdate::Render) {
-                        self.content.pending_render = RenderUpdate::RenderUpdate;
-                    }
-                    self.content.render_requested = mem::replace(&mut self.content.pending_render, RenderUpdate::None);
-                    UPDATES.render(None);
+                    UPDATES.render_update_window(WINDOW.id());
                 }
 
                 if state_change.is_some() || pos_change.is_some() || size_change.is_some() {
@@ -571,7 +558,7 @@ impl HeadedCtrl {
             if args.window_id == WINDOW.id() {
                 self.waiting_view = false;
 
-                WINDOWS.set_renderer(WINDOW.id(), args.window.renderer());
+                WINDOWS.set_renderer(args.window_id, args.window.renderer());
 
                 self.window = Some(args.window.clone());
                 self.vars.0.render_mode.set_ne(args.data.render_mode);
@@ -596,7 +583,7 @@ impl HeadedCtrl {
                     .unwrap_or_default();
                 self.vars.0.actual_color_scheme.set_ne(scheme);
 
-                UPDATES.layout(None).render(None);
+                UPDATES.layout_window(args.window_id).render_window(args.window_id);
 
                 for update in mem::take(&mut self.delayed_view_updates) {
                     update(&args.window);
@@ -616,7 +603,8 @@ impl HeadedCtrl {
                 self.vars.0.actual_color_scheme.set_ne(scheme);
             }
         } else if let Some(args) = RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.on(update) {
-            if args.window_id == WINDOW.id() && self.window.is_none() && self.waiting_view {
+            let w_id = WINDOW.id();
+            if args.window_id == w_id && self.window.is_none() && self.waiting_view {
                 tracing::error!("view-process failed to open a window, {}", args.error);
 
                 // was waiting view and failed, treat like a respawn.
@@ -625,11 +613,7 @@ impl HeadedCtrl {
                 self.delayed_view_updates = vec![];
                 self.respawned = true;
 
-                self.content.layout_requested = true;
-                self.content.render_requested = RenderUpdate::Render;
-                self.content.is_rendering = false;
-
-                UPDATES.layout(None).render(None);
+                UPDATES.layout_window(w_id).render_window(w_id);
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.window {
@@ -641,11 +625,8 @@ impl HeadedCtrl {
                     self.delayed_view_updates = vec![];
                     self.respawned = true;
 
-                    self.content.layout_requested = true;
-                    self.content.render_requested = RenderUpdate::Render;
-                    self.content.is_rendering = false;
-
-                    UPDATES.layout(None).render(None);
+                    let w_id = WINDOW.id();
+                    UPDATES.layout_window(w_id).render_window(w_id);
                 }
             }
         }
@@ -663,7 +644,7 @@ impl HeadedCtrl {
     }
 
     pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
-        if !self.content.layout_requested && !layout_widgets.delivery_list().enter_window(WINDOW.id()) {
+        if !layout_widgets.delivery_list().enter_window(WINDOW.id()) {
             return;
         }
 
@@ -922,7 +903,8 @@ impl HeadedCtrl {
     }
 
     pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
-        if matches!(self.content.render_requested, RenderUpdate::None) {
+        let w_id = WINDOW.id();
+        if !render_widgets.delivery_list().enter_window(w_id) && render_update_widgets.delivery_list().enter_window(w_id) {
             return;
         }
 
@@ -1084,12 +1066,11 @@ impl HeadlessWithRendererCtrl {
                 || self.vars.auto_size().is_new()
                 || self.vars.font_size().is_new()
             {
-                self.content.layout_requested = true;
-                UPDATES.layout(None);
+                UPDATES.layout_window(WINDOW.id());
             }
         } else {
             // we init on the first layout.
-            UPDATES.layout(None);
+            UPDATES.layout_window(WINDOW.id());
         }
 
         if update_parent(&mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
@@ -1119,7 +1100,7 @@ impl HeadlessWithRendererCtrl {
                 self.surface = Some(args.surface.clone());
                 self.vars.0.render_mode.set_ne(args.data.render_mode);
 
-                UPDATES.render(None);
+                UPDATES.render_window(args.window_id);
 
                 for update in mem::take(&mut self.delayed_view_updates) {
                     update(&args.surface);
@@ -1134,10 +1115,7 @@ impl HeadlessWithRendererCtrl {
                 self.waiting_view = false;
                 self.delayed_view_updates = vec![];
 
-                self.content.layout_requested = true;
-                self.content.render_requested = RenderUpdate::Render;
-
-                UPDATES.layout(None).render(None);
+                UPDATES.layout_window(args.window_id).render_window(args.window_id);
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.surface {
@@ -1146,11 +1124,8 @@ impl HeadlessWithRendererCtrl {
 
                     self.surface = None;
 
-                    self.content.is_rendering = false;
-                    self.content.layout_requested = true;
-                    self.content.render_requested = RenderUpdate::Render;
-
-                    UPDATES.layout(None).render(None);
+                    let w_id = WINDOW.id();
+                    UPDATES.layout_window(w_id).render_window(w_id);
                 }
             }
         }
@@ -1165,7 +1140,7 @@ impl HeadlessWithRendererCtrl {
     }
 
     pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
-        if !self.content.layout_requested {
+        if !layout_widgets.delivery_list().enter_window(WINDOW.id()) {
             return;
         }
 
@@ -1227,7 +1202,8 @@ impl HeadlessWithRendererCtrl {
     }
 
     pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
-        if matches!(self.content.render_requested, RenderUpdate::None) {
+        let w_id = WINDOW.id();
+        if !render_widgets.delivery_list().enter_window(w_id) && !render_update_widgets.delivery_list().enter_window(w_id) {
             return;
         }
 
@@ -1322,16 +1298,12 @@ impl HeadlessCtrl {
 
     pub fn update(&mut self, update_widgets: &WidgetUpdates) {
         if self.vars.size().is_new() || self.vars.min_size().is_new() || self.vars.max_size().is_new() || self.vars.auto_size().is_new() {
-            self.content.layout_requested = true;
-            UPDATES.layout(None);
+            UPDATES.layout_window(WINDOW.id());
         }
 
         if matches!(self.content.init_state, InitState::Init) {
-            self.content.layout_requested = true;
-            self.content.pending_render = RenderUpdate::Render;
-
-            UPDATES.layout(None);
-            UPDATES.render(None);
+            let w_id = WINDOW.id();
+            UPDATES.layout_window(w_id).render_window(w_id);
         }
 
         if update_parent(&mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
@@ -1356,11 +1328,12 @@ impl HeadlessCtrl {
     }
 
     pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
-        if !self.content.layout_requested && !layout_widgets.delivery_list().enter_window(WINDOW.id()) {
+        let w_id = WINDOW.id();
+        if !layout_widgets.delivery_list().enter_window(w_id) {
             return;
         }
 
-        if !WINDOWS.try_load(WINDOW.id()) {
+        if !WINDOWS.try_load(w_id) {
             return;
         }
 
@@ -1392,12 +1365,13 @@ impl HeadlessCtrl {
     }
 
     pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
-        if matches!(self.content.render_requested, RenderUpdate::None) {
+        let w_id = WINDOW.id();
+        if !render_widgets.delivery_list().enter_window(w_id) && !render_update_widgets.delivery_list().enter_window(w_id) {
             return;
         }
 
         // layout and render cannot happen yet
-        if !WINDOWS.try_load(WINDOW.id()) {
+        if !WINDOWS.try_load(w_id) {
             return;
         }
 
@@ -1472,13 +1446,6 @@ enum InitState {
     Inited,
 }
 
-#[derive(Clone, Copy, Debug)]
-enum RenderUpdate {
-    None,
-    Render,
-    RenderUpdate,
-}
-
 /// Implementer of window UI node tree initialization and management.
 struct ContentCtrl {
     vars: WindowVars,
@@ -1491,12 +1458,6 @@ struct ContentCtrl {
     init_state: InitState,
     frame_id: FrameId,
     clear_color: RenderColor,
-
-    is_rendering: bool,
-    pending_render: RenderUpdate, // !!: review this
-
-    layout_requested: bool,
-    render_requested: RenderUpdate,
 
     previous_transforms: IdMap<WidgetId, PxTransform>,
 }
@@ -1514,12 +1475,6 @@ impl ContentCtrl {
             init_state: InitState::SkipOne,
             frame_id: FrameId::INVALID,
             clear_color: RenderColor::BLACK,
-
-            is_rendering: false,
-            pending_render: RenderUpdate::None,
-
-            layout_requested: false,
-            render_requested: RenderUpdate::None,
 
             previous_transforms: IdMap::default(),
         }
@@ -1574,11 +1529,7 @@ impl ContentCtrl {
 
             let info = info.finalize(Some(WINDOW.widget_tree()));
 
-            WINDOWS.set_widget_tree(
-                info.clone(),
-                self.layout_requested,
-                !matches!(self.render_requested, RenderUpdate::None),
-            );
+            WINDOWS.set_widget_tree(info.clone());
 
             Some(info)
         } else {
@@ -1589,21 +1540,6 @@ impl ContentCtrl {
     pub fn pre_event(&mut self, update: &EventUpdate) {
         if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
-                self.is_rendering = false;
-                match mem::replace(&mut self.pending_render, RenderUpdate::None) {
-                    RenderUpdate::None => {}
-                    RenderUpdate::Render => {
-                        self.render_requested = RenderUpdate::Render;
-                        UPDATES.render(None);
-                    }
-                    RenderUpdate::RenderUpdate => {
-                        if !matches!(self.render_requested, RenderUpdate::Render) {
-                            self.render_requested = RenderUpdate::RenderUpdate;
-                        }
-                        UPDATES.render(None);
-                    }
-                }
-
                 let image = args.frame_image.as_ref().cloned().map(Img::new);
 
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), args.window_id, args.frame_id, image);
@@ -1655,11 +1591,8 @@ impl ContentCtrl {
         skip_auto_size: bool,
     ) -> PxSize {
         debug_assert!(matches!(self.init_state, InitState::Inited));
-        debug_assert!(self.layout_requested || layout_widgets.delivery_list().enter_window(WINDOW.id()));
 
         let _s = tracing::trace_span!("window.on_layout", window = %WINDOW.id().sequential()).entered();
-
-        self.layout_requested = false;
 
         let auto_size = self.vars.auto_size().get();
 
@@ -1714,113 +1647,92 @@ impl ContentCtrl {
         render_widgets: Arc<WidgetUpdates>,
         render_update_widgets: Arc<WidgetUpdates>,
     ) {
-        match mem::replace(&mut self.render_requested, RenderUpdate::None) {
+        let w_id = WINDOW.id();
+        if render_widgets.delivery_list().enter_window(w_id) {
             // RENDER FULL FRAME
-            RenderUpdate::Render => {
-                if self.is_rendering {
-                    self.pending_render = RenderUpdate::Render;
-                    return;
-                }
-                let _s = tracing::trace_span!("window.on_render", window = %WINDOW.id().sequential()).entered();
+            let _s = tracing::trace_span!("window.on_render", window = %WINDOW.id().sequential()).entered();
 
-                self.frame_id = self.frame_id.next();
+            self.frame_id = self.frame_id.next();
 
-                let default_text_aa = FONTS.system_font_aa().get();
+            let default_text_aa = FONTS.system_font_aa().get();
 
-                let mut frame = FrameBuilder::new(
-                    render_widgets,
-                    render_update_widgets,
-                    self.frame_id,
-                    self.root_ctx.id(),
-                    &self.root_ctx.bounds(),
-                    &WINDOW.widget_tree(),
-                    renderer.clone(),
-                    scale_factor,
-                    default_text_aa,
-                );
+            let mut frame = FrameBuilder::new(
+                render_widgets,
+                render_update_widgets,
+                self.frame_id,
+                self.root_ctx.id(),
+                &self.root_ctx.bounds(),
+                &WINDOW.widget_tree(),
+                renderer.clone(),
+                scale_factor,
+                default_text_aa,
+            );
 
-                let frame = WIDGET.with_context(&mut self.root_ctx, || {
-                    self.root.render(&mut frame);
-                    frame.finalize(&WINDOW.widget_tree())
+            let frame = WIDGET.with_context(&mut self.root_ctx, || {
+                self.root.render(&mut frame);
+                frame.finalize(&WINDOW.widget_tree())
+            });
+
+            self.notify_transform_changes();
+
+            self.clear_color = frame.clear_color;
+
+            let capture_image = self.take_capture_image();
+
+            if let Some(renderer) = renderer {
+                let _: Ignore = renderer.render(FrameRequest {
+                    id: self.frame_id,
+                    pipeline_id: frame.display_list.pipeline_id(),
+                    clear_color: self.clear_color,
+                    display_list: frame.display_list,
+                    capture_image,
+                    wait_id,
                 });
-
-                self.notify_transform_changes();
-
-                self.clear_color = frame.clear_color;
-
-                let capture_image = self.take_capture_image();
-
-                if let Some(renderer) = renderer {
-                    let _: Ignore = renderer.render(FrameRequest {
-                        id: self.frame_id,
-                        pipeline_id: frame.display_list.pipeline_id(),
-                        clear_color: self.clear_color,
-                        display_list: frame.display_list,
-                        capture_image,
-                        wait_id,
-                    });
-
-                    self.is_rendering = true;
-                } else {
-                    // simulate frame in headless
-                    FRAME_IMAGE_READY_EVENT.notify(FrameImageReadyArgs::now(WINDOW.id(), self.frame_id, None));
-                }
+            } else {
+                // simulate frame in headless
+                FRAME_IMAGE_READY_EVENT.notify(FrameImageReadyArgs::now(WINDOW.id(), self.frame_id, None));
             }
-
+        } else if render_update_widgets.delivery_list().enter_window(w_id) {
             // RENDER UPDATE
-            RenderUpdate::RenderUpdate => {
-                if self.is_rendering {
-                    if !matches!(self.pending_render, RenderUpdate::Render) {
-                        self.pending_render = RenderUpdate::RenderUpdate;
-                    }
-                    return;
-                }
+            let _s = tracing::trace_span!("window.on_render_update", window = %WINDOW.id().sequential()).entered();
 
-                let _s = tracing::trace_span!("window.on_render_update", window = %WINDOW.id().sequential()).entered();
+            self.frame_id = self.frame_id.next_update();
 
-                self.frame_id = self.frame_id.next_update();
+            let mut update = FrameUpdate::new(
+                render_update_widgets,
+                self.frame_id,
+                self.root_ctx.id(),
+                self.root_ctx.bounds(),
+                renderer.as_ref(),
+                self.clear_color,
+            );
 
-                let mut update = FrameUpdate::new(
-                    render_update_widgets,
-                    self.frame_id,
-                    self.root_ctx.id(),
-                    self.root_ctx.bounds(),
-                    renderer.as_ref(),
-                    self.clear_color,
-                );
+            let update = WIDGET.with_context(&mut self.root_ctx, || {
+                self.root.render_update(&mut update);
+                update.finalize(&WINDOW.widget_tree())
+            });
 
-                let update = WIDGET.with_context(&mut self.root_ctx, || {
-                    self.root.render_update(&mut update);
-                    update.finalize(&WINDOW.widget_tree())
-                });
+            self.notify_transform_changes();
 
-                self.notify_transform_changes();
-
-                if let Some(c) = update.clear_color {
-                    self.clear_color = c;
-                }
-
-                let capture_image = self.take_capture_image();
-
-                if let Some(renderer) = renderer {
-                    let _: Ignore = renderer.render_update(FrameUpdateRequest {
-                        id: self.frame_id,
-                        transforms: update.transforms,
-                        floats: update.floats,
-                        colors: update.colors,
-                        clear_color: update.clear_color,
-                        capture_image,
-                        wait_id,
-                    });
-
-                    self.is_rendering = true;
-                } else {
-                    // simulate frame in headless
-                    FRAME_IMAGE_READY_EVENT.notify(FrameImageReadyArgs::now(WINDOW.id(), self.frame_id, None));
-                }
+            if let Some(c) = update.clear_color {
+                self.clear_color = c;
             }
-            RenderUpdate::None => {
-                debug_assert!(false, "self.render_requested != RenderUpdate::None")
+
+            let capture_image = self.take_capture_image();
+
+            if let Some(renderer) = renderer {
+                let _: Ignore = renderer.render_update(FrameUpdateRequest {
+                    id: self.frame_id,
+                    transforms: update.transforms,
+                    floats: update.floats,
+                    colors: update.colors,
+                    clear_color: update.clear_color,
+                    capture_image,
+                    wait_id,
+                });
+            } else {
+                // simulate frame in headless
+                FRAME_IMAGE_READY_EVENT.notify(FrameImageReadyArgs::now(WINDOW.id(), self.frame_id, None));
             }
         }
     }

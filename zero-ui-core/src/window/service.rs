@@ -586,18 +586,12 @@ impl WINDOWS {
     }
 
     /// Update widget info tree associated with the window.
-    pub(super) fn set_widget_tree(&self, info_tree: WidgetInfoTree, pending_layout: bool, pending_render: bool) {
+    pub(super) fn set_widget_tree(&self, info_tree: WidgetInfoTree) {
         if let Some(info) = WINDOWS_SV.write().windows_info.get_mut(&info_tree.window_id()) {
             let prev_tree = info.widget_tree.clone();
             info.widget_tree = info_tree.clone();
 
-            let args = WidgetInfoChangedArgs::now(
-                info_tree.window_id(),
-                prev_tree.clone(),
-                info_tree.clone(),
-                pending_layout,
-                pending_render,
-            );
+            let args = WidgetInfoChangedArgs::now(info_tree.window_id(), prev_tree.clone(), info_tree.clone());
             WIDGET_INFO_CHANGED_EVENT.notify(args);
 
             let mut targets = IdSet::default();
