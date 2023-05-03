@@ -4,7 +4,7 @@ use crate::{
     app::view_process::ViewRenderer,
     border::BorderSides,
     color::{self, filters::RenderFilter, RenderColor},
-    context::{UpdateFlags, WidgetUpdates, WIDGET, WINDOW},
+    context::{RenderUpdates, UpdateFlags, WIDGET, WINDOW},
     crate_util::ParallelSegmentOffsets,
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
@@ -142,8 +142,8 @@ struct WidgetData {
 
 /// A full frame builder.
 pub struct FrameBuilder {
-    render_widgets: Arc<WidgetUpdates>,
-    render_update_widgets: Arc<WidgetUpdates>,
+    render_widgets: Arc<RenderUpdates>,
+    render_update_widgets: Arc<RenderUpdates>,
 
     frame_id: FrameId,
     pipeline_id: PipelineId,
@@ -190,8 +190,8 @@ impl FrameBuilder {
     /// because WebRender does not let us change the initial clear color.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        render_widgets: Arc<WidgetUpdates>,
-        render_update_widgets: Arc<WidgetUpdates>,
+        render_widgets: Arc<RenderUpdates>,
+        render_update_widgets: Arc<RenderUpdates>,
         frame_id: FrameId,
         root_id: WidgetId,
         root_bounds: &WidgetBoundsInfo,
@@ -252,8 +252,8 @@ impl FrameBuilder {
     /// [`new`](Self::new) with only the inputs required for renderless mode.
     #[allow(clippy::too_many_arguments)]
     pub fn new_renderless(
-        render_widgets: Arc<WidgetUpdates>,
-        render_update_widgets: Arc<WidgetUpdates>,
+        render_widgets: Arc<RenderUpdates>,
+        render_update_widgets: Arc<RenderUpdates>,
         frame_id: FrameId,
         root_id: WidgetId,
         root_bounds: &WidgetBoundsInfo,
@@ -1678,7 +1678,7 @@ impl crate::border::LineStyle {
 ///
 /// Any [`FrameValueKey`] used in the creation of the frame can be used for updating the frame.
 pub struct FrameUpdate {
-    render_update_widgets: Arc<WidgetUpdates>,
+    render_update_widgets: Arc<RenderUpdates>,
     pipeline_id: PipelineId,
 
     transforms: Vec<FrameValueUpdate<PxTransform>>,
@@ -1710,7 +1710,7 @@ impl FrameUpdate {
     /// * `renderer` - Reference to the renderer that will update.
     /// * `clear_color` - The current clear color.
     pub fn new(
-        render_update_widgets: Arc<WidgetUpdates>,
+        render_update_widgets: Arc<RenderUpdates>,
         frame_id: FrameId,
         root_id: WidgetId,
         root_bounds: WidgetBoundsInfo,

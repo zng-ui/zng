@@ -294,7 +294,7 @@ pub trait AppExtension: 'static {
     /// Called before and after an update cycle. The [`UiNode::info`] method is called here.
     ///
     /// [`UiNode::info`]: crate::widget_instance::UiNode::info
-    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
         let _ = info_widgets;
     }
 
@@ -327,7 +327,7 @@ pub trait AppExtension: 'static {
     /// The [`UiNode::layout`] method is called here by extensions that manage windows.
     ///
     /// [`UiNode::layout`]: crate::widget_instance::UiNode::layout
-    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         let _ = layout_widgets;
     }
 
@@ -337,7 +337,7 @@ pub trait AppExtension: 'static {
     ///
     /// [`UiNode::render`]: crate::widget_instance::UiNode::render
     /// [`UiNode::render_update`]: crate::widget_instance::UiNode::render_update
-    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         let _ = (render_widgets, render_update_widgets);
     }
 
@@ -369,9 +369,9 @@ pub trait AppExtensionBoxed: 'static {
     fn event_preview_boxed(&mut self, update: &mut EventUpdate);
     fn event_ui_boxed(&mut self, update: &mut EventUpdate);
     fn event_boxed(&mut self, update: &mut EventUpdate);
-    fn info_boxed(&mut self, info_widgets: &mut WidgetUpdates);
-    fn layout_boxed(&mut self, layout_widgets: &mut WidgetUpdates);
-    fn render_boxed(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates);
+    fn info_boxed(&mut self, info_widgets: &mut InfoUpdates);
+    fn layout_boxed(&mut self, layout_widgets: &mut LayoutUpdates);
+    fn render_boxed(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates);
     fn deinit_boxed(&mut self);
 }
 impl<T: AppExtension> AppExtensionBoxed for T {
@@ -399,7 +399,7 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.update_ui(updates);
     }
 
-    fn info_boxed(&mut self, info_widgets: &mut WidgetUpdates) {
+    fn info_boxed(&mut self, info_widgets: &mut InfoUpdates) {
         self.info(info_widgets);
     }
 
@@ -419,11 +419,11 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.event(update);
     }
 
-    fn layout_boxed(&mut self, layout_widgets: &mut WidgetUpdates) {
+    fn layout_boxed(&mut self, layout_widgets: &mut LayoutUpdates) {
         self.layout(layout_widgets);
     }
 
-    fn render_boxed(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    fn render_boxed(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         self.render(render_widgets, render_update_widgets);
     }
 
@@ -472,15 +472,15 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().event_boxed(update);
     }
 
-    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
         self.as_mut().info_boxed(info_widgets);
     }
 
-    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         self.as_mut().layout_boxed(layout_widgets);
     }
 
-    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         self.as_mut().render_boxed(render_widgets, render_update_widgets);
     }
 
@@ -545,17 +545,17 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
         self.0.update();
     }
 
-    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
         let _span = UpdatesTrace::extension_span::<E>("info");
         self.0.info(info_widgets);
     }
 
-    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         let _span = UpdatesTrace::extension_span::<E>("layout");
         self.0.layout(layout_widgets);
     }
 
-    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         let _span = UpdatesTrace::extension_span::<E>("render");
         self.0.render(render_widgets, render_update_widgets);
     }
@@ -1009,10 +1009,10 @@ impl<E: AppExtension> RunningApp<E> {
                 layout: false,
                 render: false,
                 update_widgets: WidgetUpdates::default(),
-                info_widgets: WidgetUpdates::default(),
-                layout_widgets: WidgetUpdates::default(),
-                render_widgets: WidgetUpdates::default(),
-                render_update_widgets: WidgetUpdates::default(),
+                info_widgets: InfoUpdates::default(),
+                layout_widgets: LayoutUpdates::default(),
+                render_widgets: RenderUpdates::default(),
+                render_update_widgets: RenderUpdates::default(),
             },
 
             _scope: scope,
@@ -1987,17 +1987,17 @@ pub trait AppEventObserver {
     fn update(&mut self) {}
 
     /// Called just after [`AppExtension::info`].
-    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
         let _ = info_widgets;
     }
 
     /// Called just after [`AppExtension::layout`].
-    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         let _ = layout_widgets;
     }
 
     /// Called just after [`AppExtension::render`].
-    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         let _ = (render_widgets, render_update_widgets);
     }
 
@@ -2025,9 +2025,9 @@ trait AppEventObserverDyn {
     fn update_preview_dyn(&mut self);
     fn update_ui_dyn(&mut self, updates: &mut WidgetUpdates);
     fn update_dyn(&mut self);
-    fn info_dyn(&mut self, info_widgets: &mut WidgetUpdates);
-    fn layout_dyn(&mut self, layout_widgets: &mut WidgetUpdates);
-    fn render_dyn(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates);
+    fn info_dyn(&mut self, info_widgets: &mut InfoUpdates);
+    fn layout_dyn(&mut self, layout_widgets: &mut LayoutUpdates);
+    fn render_dyn(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates);
 }
 impl<O: AppEventObserver> AppEventObserverDyn for O {
     fn raw_event_dyn(&mut self, ev: &zero_ui_view_api::Event) {
@@ -2058,15 +2058,15 @@ impl<O: AppEventObserver> AppEventObserverDyn for O {
         self.update()
     }
 
-    fn info_dyn(&mut self, info_widgets: &mut WidgetUpdates) {
+    fn info_dyn(&mut self, info_widgets: &mut InfoUpdates) {
         self.info(info_widgets)
     }
 
-    fn layout_dyn(&mut self, layout_widgets: &mut WidgetUpdates) {
+    fn layout_dyn(&mut self, layout_widgets: &mut LayoutUpdates) {
         self.layout(layout_widgets)
     }
 
-    fn render_dyn(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    fn render_dyn(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         self.render(render_widgets, render_update_widgets)
     }
 }
@@ -2099,15 +2099,15 @@ impl<'a> AppEventObserver for DynAppEventObserver<'a> {
         self.0.update_dyn()
     }
 
-    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
         self.0.info_dyn(info_widgets)
     }
 
-    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         self.0.layout_dyn(layout_widgets)
     }
 
-    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         self.0.render_dyn(render_widgets, render_update_widgets)
     }
 
@@ -2150,17 +2150,17 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.update();
     }
 
-    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
         self.0.info(info_widgets);
         self.1.info(info_widgets);
     }
 
-    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         self.0.layout(layout_widgets);
         self.1.layout(layout_widgets);
     }
 
-    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         self.0.render(render_widgets, render_update_widgets);
         self.1.render(render_widgets, render_update_widgets);
     }
@@ -2243,19 +2243,19 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
         for ext in self {
             ext.info(info_widgets);
         }
     }
 
-    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         for ext in self {
             ext.layout(layout_widgets);
         }
     }
 
-    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         for ext in self {
             ext.render(render_widgets, render_update_widgets);
         }

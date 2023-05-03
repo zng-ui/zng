@@ -1023,7 +1023,7 @@ impl WIDGET {
         WIDGET_CTX.get().parent_id.load(atomic::Ordering::Relaxed)
     }
 
-    pub(crate) fn layout_is_pending(&self, layout_widgets: &WidgetUpdates) -> bool {
+    pub(crate) fn layout_is_pending(&self, layout_widgets: &LayoutUpdates) -> bool {
         let ctx = WIDGET_CTX.get();
         ctx.flags.load(atomic::Ordering::Relaxed).contains(UpdateFlags::LAYOUT) || layout_widgets.delivery_list.enter_widget(ctx.id)
     }
@@ -1047,7 +1047,7 @@ impl WIDGET {
     }
 
     /// Remove the render reuse range if render was not invalidated on this widget.
-    pub(crate) fn take_render_reuse(&self, render_widgets: &WidgetUpdates, render_update_widgets: &WidgetUpdates) -> Option<ReuseRange> {
+    pub(crate) fn take_render_reuse(&self, render_widgets: &RenderUpdates, render_update_widgets: &RenderUpdates) -> Option<ReuseRange> {
         let ctx = WIDGET_CTX.get();
         let mut try_reuse = true;
 
@@ -1512,12 +1512,12 @@ impl UPDATES {
             update,
             update_widgets,
             info: false,
-            info_widgets: WidgetUpdates::default(),
+            info_widgets: InfoUpdates::default(),
             layout: false,
-            layout_widgets: WidgetUpdates::default(),
+            layout_widgets: LayoutUpdates::default(),
             render: false,
-            render_widgets: WidgetUpdates::default(),
-            render_update_widgets: WidgetUpdates::default(),
+            render_widgets: RenderUpdates::default(),
+            render_update_widgets: RenderUpdates::default(),
         }
     }
     #[must_use]
@@ -1531,10 +1531,10 @@ impl UPDATES {
             info,
             info_widgets,
             layout: false,
-            layout_widgets: WidgetUpdates::default(),
+            layout_widgets: LayoutUpdates::default(),
             render: false,
-            render_widgets: WidgetUpdates::default(),
-            render_update_widgets: WidgetUpdates::default(),
+            render_widgets: RenderUpdates::default(),
+            render_update_widgets: RenderUpdates::default(),
         }
     }
     #[must_use]
@@ -1547,7 +1547,7 @@ impl UPDATES {
             update: false,
             update_widgets: WidgetUpdates::default(),
             info: false,
-            info_widgets: WidgetUpdates::default(),
+            info_widgets: InfoUpdates::default(),
             layout,
             layout_widgets,
             render,
@@ -1923,7 +1923,7 @@ impl UPDATES {
     }
 
     /// Returns (info_ext, info_widgets)
-    pub(super) fn take_info(&self) -> (bool, WidgetUpdates) {
+    pub(super) fn take_info(&self) -> (bool, InfoUpdates) {
         let mut u = UPDATES_SV.write();
 
         let ext = u.update_ext.contains(UpdateFlags::INFO);
@@ -1931,14 +1931,14 @@ impl UPDATES {
 
         (
             ext,
-            WidgetUpdates {
+            InfoUpdates {
                 delivery_list: mem::take(&mut u.info_widgets),
             },
         )
     }
 
     /// Returns (layout_ext, layout_widgets)
-    pub(super) fn take_layout(&self) -> (bool, WidgetUpdates) {
+    pub(super) fn take_layout(&self) -> (bool, LayoutUpdates) {
         let mut u = UPDATES_SV.write();
 
         let ext = u.update_ext.contains(UpdateFlags::LAYOUT);
@@ -1946,14 +1946,14 @@ impl UPDATES {
 
         (
             ext,
-            WidgetUpdates {
+            LayoutUpdates {
                 delivery_list: mem::take(&mut u.layout_widgets),
             },
         )
     }
 
     /// Returns (render_ext, render_widgets, render_update_widgets)
-    pub(super) fn take_render(&self) -> (bool, WidgetUpdates, WidgetUpdates) {
+    pub(super) fn take_render(&self) -> (bool, RenderUpdates, RenderUpdates) {
         let mut u = UPDATES_SV.write();
 
         let ext = u.update_ext.intersects(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
@@ -1961,10 +1961,10 @@ impl UPDATES {
 
         (
             ext,
-            WidgetUpdates {
+            RenderUpdates {
                 delivery_list: mem::take(&mut u.render_widgets),
             },
-            WidgetUpdates {
+            RenderUpdates {
                 delivery_list: mem::take(&mut u.render_update_widgets),
             },
         )
@@ -2095,7 +2095,7 @@ impl WidgetUpdates {
         &mut self.delivery_list
     }
 
-    /// Calls `handle` if the event targets the current [`WINDOW`].
+    /// Calls `handle` if update was requested for the [`WINDOW`].
     pub fn with_window<H, R>(&self, handle: H) -> Option<R>
     where
         H: FnOnce() -> R,
@@ -2107,7 +2107,7 @@ impl WidgetUpdates {
         }
     }
 
-    /// Calls `handle` if the event targets the current [`WIDGET`].
+    /// Calls `handle` if update was requested for the [`WIDGET`].
     pub fn with_widget<H, R>(&self, handle: H) -> Option<R>
     where
         H: FnOnce() -> R,
@@ -2121,6 +2121,123 @@ impl WidgetUpdates {
 
     /// Copy all delivery from `other` onto `self`.
     pub fn extend(&mut self, other: WidgetUpdates) {
+        self.delivery_list.extend_unchecked(other.delivery_list)
+    }
+}
+
+/// Widget info updates of the current cycle.
+#[derive(Debug, Default)]
+pub struct InfoUpdates {
+    delivery_list: UpdateDeliveryList,
+}
+impl InfoUpdates {
+    /// New with list.
+    pub fn new(delivery_list: UpdateDeliveryList) -> Self {
+        Self { delivery_list }
+    }
+
+    /// Request delivery list.
+    pub fn delivery_list(&self) -> &UpdateDeliveryList {
+        &self.delivery_list
+    }
+
+    /// Request delivery list.
+    pub fn delivery_list_mut(&mut self) -> &mut UpdateDeliveryList {
+        &mut self.delivery_list
+    }
+
+    /// Calls `handle` if info rebuild was requested for the [`WINDOW`].
+    pub fn with_window<H, R>(&self, handle: H) -> Option<R>
+    where
+        H: FnOnce() -> R,
+    {
+        if self.delivery_list.enter_window(WINDOW.id()) {
+            Some(handle())
+        } else {
+            None
+        }
+    }
+
+    /// Copy all delivery from `other` onto `self`.
+    pub fn extend(&mut self, other: InfoUpdates) {
+        self.delivery_list.extend_unchecked(other.delivery_list)
+    }
+}
+
+/// Widget layout updates of the current cycle.
+#[derive(Debug, Default)]
+pub struct LayoutUpdates {
+    delivery_list: UpdateDeliveryList,
+}
+impl LayoutUpdates {
+    /// New with list.
+    pub fn new(delivery_list: UpdateDeliveryList) -> Self {
+        Self { delivery_list }
+    }
+
+    /// Request delivery list.
+    pub fn delivery_list(&self) -> &UpdateDeliveryList {
+        &self.delivery_list
+    }
+
+    /// Request delivery list.
+    pub fn delivery_list_mut(&mut self) -> &mut UpdateDeliveryList {
+        &mut self.delivery_list
+    }
+
+    /// Calls `handle` if layout rebuild was requested for the [`WINDOW`].
+    pub fn with_window<H, R>(&self, handle: H) -> Option<R>
+    where
+        H: FnOnce() -> R,
+    {
+        if self.delivery_list.enter_window(WINDOW.id()) {
+            Some(handle())
+        } else {
+            None
+        }
+    }
+
+    /// Copy all delivery from `other` onto `self`.
+    pub fn extend(&mut self, other: LayoutUpdates) {
+        self.delivery_list.extend_unchecked(other.delivery_list)
+    }
+}
+
+/// Widget render updates of the current cycle.
+#[derive(Debug, Default)]
+pub struct RenderUpdates {
+    delivery_list: UpdateDeliveryList,
+}
+impl RenderUpdates {
+    /// New with list.
+    pub fn new(delivery_list: UpdateDeliveryList) -> Self {
+        Self { delivery_list }
+    }
+
+    /// Request delivery list.
+    pub fn delivery_list(&self) -> &UpdateDeliveryList {
+        &self.delivery_list
+    }
+
+    /// Request delivery list.
+    pub fn delivery_list_mut(&mut self) -> &mut UpdateDeliveryList {
+        &mut self.delivery_list
+    }
+
+    /// Calls `handle` if render frame rebuild or update was requested for the [`WINDOW`].
+    pub fn with_window<H, R>(&self, handle: H) -> Option<R>
+    where
+        H: FnOnce() -> R,
+    {
+        if self.delivery_list.enter_window(WINDOW.id()) {
+            Some(handle())
+        } else {
+            None
+        }
+    }
+
+    /// Copy all delivery from `other` onto `self`.
+    pub fn extend(&mut self, other: RenderUpdates) {
         self.delivery_list.extend_unchecked(other.delivery_list)
     }
 }
@@ -2356,22 +2473,22 @@ pub struct ContextUpdates {
     /// Info rebuild targets.
     ///
     /// When this is not empty [`info`](Self::info) is `true`.
-    pub info_widgets: WidgetUpdates,
+    pub info_widgets: InfoUpdates,
 
     /// Layout targets.
     ///
     /// When this is not empty [`layout`](Self::layout) is `true`.
-    pub layout_widgets: WidgetUpdates,
+    pub layout_widgets: LayoutUpdates,
 
     /// Full render targets.
     ///
     /// When this is not empty [`render`](Self::render) is `true`.
-    pub render_widgets: WidgetUpdates,
+    pub render_widgets: RenderUpdates,
 
     /// Render update targets.
     ///
     /// When this is not empty [`render`](Self::render) is `true`.
-    pub render_update_widgets: WidgetUpdates,
+    pub render_update_widgets: RenderUpdates,
 }
 impl ContextUpdates {
     /// If has events, update, layout or render was requested.

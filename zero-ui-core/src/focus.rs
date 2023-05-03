@@ -434,7 +434,7 @@ impl AppExtension for FocusManager {
         }
     }
 
-    fn render(&mut self, _: &mut WidgetUpdates, _: &mut WidgetUpdates) {
+    fn render(&mut self, _: &mut RenderUpdates, _: &mut RenderUpdates) {
         if let Some(tree) = self.pending_render.take() {
             self.on_info_tree_update(tree);
         } else {

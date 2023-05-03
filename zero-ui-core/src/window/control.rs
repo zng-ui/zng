@@ -11,7 +11,9 @@ use crate::{
         view_process::*,
     },
     color::{ColorScheme, RenderColor},
-    context::{LayoutMetrics, LayoutPassId, WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW},
+    context::{
+        InfoUpdates, LayoutMetrics, LayoutPassId, LayoutUpdates, RenderUpdates, WidgetCtx, WidgetUpdates, LAYOUT, UPDATES, WIDGET, WINDOW,
+    },
     crate_util::{IdEntry, IdMap},
     event::{AnyEventArgs, EventUpdate},
     image::{ImageVar, Img, IMAGES},
@@ -639,11 +641,11 @@ impl HeadedCtrl {
     }
 
     #[must_use]
-    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) -> Option<WidgetInfoTree> {
+    pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
         self.content.info(info_widgets)
     }
 
-    pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
+    pub fn layout(&mut self, layout_widgets: Arc<LayoutUpdates>) {
         if !layout_widgets.delivery_list().enter_window(WINDOW.id()) {
             return;
         }
@@ -803,7 +805,7 @@ impl HeadedCtrl {
     }
 
     /// Layout for already open window.
-    fn layout_update(&mut self, layout_widgets: Arc<WidgetUpdates>) {
+    fn layout_update(&mut self, layout_widgets: Arc<LayoutUpdates>) {
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().get();
         let screen_ppi = m.ppi().get();
@@ -902,7 +904,7 @@ impl HeadedCtrl {
         }
     }
 
-    pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
+    pub fn render(&mut self, render_widgets: Arc<RenderUpdates>, render_update_widgets: Arc<RenderUpdates>) {
         let w_id = WINDOW.id();
         if !render_widgets.delivery_list().enter_window(w_id) && !render_update_widgets.delivery_list().enter_window(w_id) {
             return;
@@ -1086,7 +1088,7 @@ impl HeadlessWithRendererCtrl {
     }
 
     #[must_use]
-    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) -> Option<WidgetInfoTree> {
+    pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
         self.content.info(info_widgets)
     }
 
@@ -1139,7 +1141,7 @@ impl HeadlessWithRendererCtrl {
         self.content.ui_event(update);
     }
 
-    pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
+    pub fn layout(&mut self, layout_widgets: Arc<LayoutUpdates>) {
         if !layout_widgets.delivery_list().enter_window(WINDOW.id()) {
             return;
         }
@@ -1201,7 +1203,7 @@ impl HeadlessWithRendererCtrl {
         self.headless_simulator.layout();
     }
 
-    pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
+    pub fn render(&mut self, render_widgets: Arc<RenderUpdates>, render_update_widgets: Arc<RenderUpdates>) {
         let w_id = WINDOW.id();
         if !render_widgets.delivery_list().enter_window(w_id) && !render_update_widgets.delivery_list().enter_window(w_id) {
             return;
@@ -1314,7 +1316,7 @@ impl HeadlessCtrl {
     }
 
     #[must_use]
-    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) -> Option<WidgetInfoTree> {
+    pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
         self.content.info(info_widgets)
     }
 
@@ -1327,7 +1329,7 @@ impl HeadlessCtrl {
         self.content.ui_event(update);
     }
 
-    pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
+    pub fn layout(&mut self, layout_widgets: Arc<LayoutUpdates>) {
         let w_id = WINDOW.id();
         if !layout_widgets.delivery_list().enter_window(w_id) {
             return;
@@ -1364,7 +1366,7 @@ impl HeadlessCtrl {
         self.headless_simulator.layout();
     }
 
-    pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
+    pub fn render(&mut self, render_widgets: Arc<RenderUpdates>, render_update_widgets: Arc<RenderUpdates>) {
         let w_id = WINDOW.id();
         if !render_widgets.delivery_list().enter_window(w_id) && !render_update_widgets.delivery_list().enter_window(w_id) {
             return;
@@ -1511,7 +1513,7 @@ impl ContentCtrl {
     }
 
     #[must_use]
-    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) -> Option<WidgetInfoTree> {
+    pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
         let win_id = WINDOW.id();
         if info_widgets.delivery_list().enter_window(win_id) {
             let mut info = WidgetInfoBuilder::new(
@@ -1581,7 +1583,7 @@ impl ContentCtrl {
     #[allow(clippy::too_many_arguments)]
     pub fn layout(
         &mut self,
-        layout_widgets: Arc<WidgetUpdates>,
+        layout_widgets: Arc<LayoutUpdates>,
         scale_factor: Factor,
         screen_ppi: f32,
         min_size: PxSize,
@@ -1644,8 +1646,8 @@ impl ContentCtrl {
         renderer: Option<ViewRenderer>,
         scale_factor: Factor,
         wait_id: Option<FrameWaitId>,
-        render_widgets: Arc<WidgetUpdates>,
-        render_update_widgets: Arc<WidgetUpdates>,
+        render_widgets: Arc<RenderUpdates>,
+        render_update_widgets: Arc<RenderUpdates>,
     ) {
         let w_id = WINDOW.id();
         if render_widgets.delivery_list().enter_window(w_id) {
@@ -1803,7 +1805,7 @@ impl WindowCtrl {
     }
 
     #[must_use]
-    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) -> Option<WidgetInfoTree> {
+    pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.info(info_widgets),
             WindowCtrlMode::Headless(c) => c.info(info_widgets),
@@ -1827,7 +1829,7 @@ impl WindowCtrl {
         }
     }
 
-    pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
+    pub fn layout(&mut self, layout_widgets: Arc<LayoutUpdates>) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.layout(layout_widgets),
             WindowCtrlMode::Headless(c) => c.layout(layout_widgets),
@@ -1835,7 +1837,7 @@ impl WindowCtrl {
         }
     }
 
-    pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
+    pub fn render(&mut self, render_widgets: Arc<RenderUpdates>, render_update_widgets: Arc<RenderUpdates>) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.render(render_widgets, render_update_widgets),
             WindowCtrlMode::Headless(c) => c.render(render_widgets, render_update_widgets),

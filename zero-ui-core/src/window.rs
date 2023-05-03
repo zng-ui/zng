@@ -25,7 +25,7 @@ use crate::{
         raw_events::{RawWindowFocusArgs, RAW_WINDOW_FOCUS_EVENT},
         AppExtended, AppExtension, ControlFlow, HeadlessApp,
     },
-    context::WidgetUpdates,
+    context::{InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates},
     event::EventUpdate,
     image::ImageVar,
 };
@@ -76,15 +76,15 @@ impl AppExtension for WindowManager {
         WINDOWS::on_update();
     }
 
-    fn info(&mut self, info_widgets: &mut WidgetUpdates) {
+    fn info(&mut self, info_widgets: &mut InfoUpdates) {
         WINDOWS::on_info(info_widgets);
     }
 
-    fn layout(&mut self, layout_widgets: &mut WidgetUpdates) {
+    fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         WINDOWS::on_layout(layout_widgets);
     }
 
-    fn render(&mut self, render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         WINDOWS::on_render(render_widgets, render_update_widgets);
     }
 }

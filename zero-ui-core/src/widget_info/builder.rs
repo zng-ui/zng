@@ -3,8 +3,8 @@ use std::hash::Hash;
 use crate::{
     border::BORDER,
     context::{
-        InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, StateId, StateMapMut, StateValue, UpdateFlags, WidgetUpdates,
-        LAYOUT, WIDGET, WINDOW,
+        InfoUpdates, InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, LayoutUpdates, StateId, StateMapMut, StateValue,
+        UpdateFlags, LAYOUT, WIDGET, WINDOW,
     },
     text::TextSegmentKind,
 };
@@ -18,7 +18,7 @@ pub enum WidgetInfoMeta {}
 ///
 /// See [`WidgetInfoTree`] for more details.
 pub struct WidgetInfoBuilder {
-    info_widgets: Arc<WidgetUpdates>,
+    info_widgets: Arc<InfoUpdates>,
     window_id: WindowId,
 
     node: tree::NodeId,
@@ -38,7 +38,7 @@ pub struct WidgetInfoBuilder {
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information.
     pub fn new(
-        info_widgets: Arc<WidgetUpdates>,
+        info_widgets: Arc<InfoUpdates>,
         window_id: WindowId,
         root_id: WidgetId,
         root_bounds_info: WidgetBoundsInfo,
@@ -673,12 +673,12 @@ impl PartialEq for WidgetInlineInfo {
 ///
 /// Use [`WidgetLayout::to_measure`] to instantiate.
 pub struct WidgetMeasure {
-    layout_widgets: Arc<WidgetUpdates>,
+    layout_widgets: Arc<LayoutUpdates>,
     inline: Option<WidgetInlineMeasure>,
     inline_locked: bool,
 }
 impl WidgetMeasure {
-    pub(crate) fn new(layout_widgets: Arc<WidgetUpdates>) -> Self {
+    pub(crate) fn new(layout_widgets: Arc<LayoutUpdates>) -> Self {
         Self {
             layout_widgets,
             inline: None,
@@ -831,7 +831,7 @@ impl WidgetMeasure {
 
 /// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
-    layout_widgets: Arc<WidgetUpdates>,
+    layout_widgets: Arc<LayoutUpdates>,
     bounds: WidgetBoundsInfo,
     nest_group: LayoutNestGroup,
     inline: Option<WidgetInlineInfo>,
@@ -841,7 +841,7 @@ impl WidgetLayout {
     /// Defines the root widget outer-bounds scope.
     ///
     /// The default window implementation calls this.
-    pub fn with_root_widget(layout_widgets: Arc<WidgetUpdates>, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
+    pub fn with_root_widget(layout_widgets: Arc<LayoutUpdates>, layout: impl FnOnce(&mut Self) -> PxSize) -> PxSize {
         Self {
             layout_widgets,
             bounds: WIDGET.bounds(),

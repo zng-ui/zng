@@ -15,7 +15,7 @@ use crate::app::{
     AppEventSender,
 };
 use crate::app::{APP_PROCESS, EXIT_REQUESTED_EVENT};
-use crate::context::{UpdateOp, WidgetUpdates, WindowCtx};
+use crate::context::{RenderUpdates, UpdateOp, WidgetUpdates, WindowCtx};
 use crate::context::{UPDATES, WINDOW};
 use crate::crate_util::{IdMap, IdSet};
 use crate::event::{AnyEventArgs, EventUpdate};
@@ -929,7 +929,7 @@ impl WINDOWS {
         }
     }
 
-    pub(super) fn on_info(info_widgets: &mut WidgetUpdates) {
+    pub(super) fn on_info(info_widgets: &mut InfoUpdates) {
         if info_widgets.delivery_list_mut().has_pending_search() {
             info_widgets
                 .delivery_list_mut()
@@ -960,7 +960,7 @@ impl WINDOWS {
         }
     }
 
-    pub(super) fn on_layout(layout_widgets: &mut WidgetUpdates) {
+    pub(super) fn on_layout(layout_widgets: &mut LayoutUpdates) {
         if layout_widgets.delivery_list_mut().has_pending_search() {
             layout_widgets
                 .delivery_list_mut()
@@ -991,7 +991,7 @@ impl WINDOWS {
         }
     }
 
-    pub(super) fn on_render(render_widgets: &mut WidgetUpdates, render_update_widgets: &mut WidgetUpdates) {
+    pub(super) fn on_render(render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         for list in [&mut *render_widgets, &mut *render_update_widgets] {
             if list.delivery_list_mut().has_pending_search() {
                 list.delivery_list_mut()
@@ -1185,18 +1185,18 @@ impl AppWindow {
         self.ctrl_in_ctx(|ctrl| ctrl.update(update_widgets));
     }
 
-    pub fn info(&mut self, info_widgets: Arc<WidgetUpdates>) {
+    pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) {
         let info_update = self.ctrl_in_ctx(|ctrl| ctrl.info(info_widgets));
         if let Some(new) = info_update {
             self.ctx.set_widget_tree(new);
         }
     }
 
-    pub fn layout(&mut self, layout_widgets: Arc<WidgetUpdates>) {
+    pub fn layout(&mut self, layout_widgets: Arc<LayoutUpdates>) {
         self.ctrl_in_ctx(|ctrl| ctrl.layout(layout_widgets));
     }
 
-    pub fn render(&mut self, render_widgets: Arc<WidgetUpdates>, render_update_widgets: Arc<WidgetUpdates>) {
+    pub fn render(&mut self, render_widgets: Arc<RenderUpdates>, render_update_widgets: Arc<RenderUpdates>) {
         self.ctrl_in_ctx(|ctrl| ctrl.render(render_widgets, render_update_widgets));
     }
 
