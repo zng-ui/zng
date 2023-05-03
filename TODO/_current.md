@@ -1,7 +1,3 @@
-* Clean, update.
-    - Webrender for Fx113?
-    - Only 3 days to stable release.
-
 * Finish text edit & selection.
     - No char event is emitted for tab?
     - Implement cursor position.

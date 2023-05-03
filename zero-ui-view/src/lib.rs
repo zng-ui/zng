@@ -1694,7 +1694,7 @@ impl RenderNotifier for WrNotifier {
 
     fn wake_up(&self, _: bool) {}
 
-    fn new_frame_ready(&self, _document_id: DocumentId, _scrolled: bool, composite_needed: bool) {
+    fn new_frame_ready(&self, _document_id: DocumentId, _scrolled: bool, composite_needed: bool, _: FramePublishId) {
         let msg = FrameReadyMsg { composite_needed };
         let _ = self.sender.frame_ready(self.id, msg);
     }
