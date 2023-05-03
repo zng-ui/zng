@@ -1881,8 +1881,8 @@ impl Default for AnimationsConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            caret_blink_interval: Duration::from_millis(100),
-            caret_blink_timeout: Duration::MAX,
+            caret_blink_interval: Duration::from_millis(530),
+            caret_blink_timeout: Duration::from_secs(5),
         }
     }
 }
