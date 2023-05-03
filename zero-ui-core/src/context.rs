@@ -2112,7 +2112,7 @@ impl WidgetUpdates {
     where
         H: FnOnce() -> R,
     {
-        if self.delivery_list.enter_widget(WIDGET.id()) {
+        if WIDGET.take_update(UpdateFlags::UPDATE) || self.delivery_list.enter_widget(WIDGET.id()) {
             Some(handle())
         } else {
             None
