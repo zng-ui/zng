@@ -1538,7 +1538,7 @@ impl ParallelSegmentOffsets {
             .find_map(|&(i, o)| if i == id { Some(o) } else { None })
             .unwrap_or_else(|| {
                 if id != 0 {
-                    tracing::error!("segment offset for `{id}` not found");
+                    tracing::error!(target: "parallel", "segment offset for `{id}` not found");
                 }
                 0
             })
@@ -1557,7 +1557,7 @@ impl ParallelSegmentOffsets {
     /// Merge parallel segment at the given `offset`.
     pub fn parallel_fold(&mut self, mut split: Self, offset: usize) {
         if !Arc::ptr_eq(&self.id_gen, &split.id_gen) {
-            tracing::error!("cannot parallel fold segments not split from the same root");
+            tracing::error!(target: "parallel", "cannot parallel fold segments not split from the same root");
             return;
         }
 

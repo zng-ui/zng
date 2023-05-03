@@ -540,27 +540,27 @@ impl FrameBuilder {
             if update_transforms {
                 let transform_patch = transform_patch.unwrap();
 
-                // patch current widget's inner.
-                bounds.set_inner_transform(bounds.inner_transform().then(&transform_patch), &tree, id, self.parent_inner_bounds);
-
                 // patch descendants outer and inner.
                 let update_transforms_and_z = |info: WidgetInfo| {
-                    let bounds = info.bounds_info();
+                    let b = info.bounds_info();
 
-                    bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), &tree);
-                    bounds.set_inner_transform(
-                        bounds.inner_transform().then(&transform_patch),
+                    if b != bounds {
+                        // only patch outer of descendants
+                        b.set_outer_transform(b.outer_transform().then(&transform_patch), &tree);
+                    }
+                    b.set_inner_transform(
+                        b.inner_transform().then(&transform_patch),
                         &tree,
                         info.id(),
                         info.parent().map(|p| p.inner_bounds()),
                     );
 
-                    if let Some(i) = bounds.render_info() {
+                    if let Some(i) = b.render_info() {
                         let (back, front) = info.z_index().unwrap();
                         let back = back.0 as i64 + z_patch;
                         let front = front.0 as i64 + z_patch;
 
-                        bounds.set_rendered(
+                        b.set_rendered(
                             Some(WidgetRenderInfo {
                                 visible: i.visible,
                                 seg_id,
@@ -572,7 +572,7 @@ impl FrameBuilder {
                     }
                 };
 
-                let targets = current_wgt.descendants();
+                let targets = current_wgt.self_and_descendants();
                 if PARALLEL_VAR.get().contains(Parallel::RENDER) {
                     targets.par_bridge().for_each(update_transforms_and_z);
                 } else {
@@ -584,15 +584,22 @@ impl FrameBuilder {
 
                     if let Some(i) = bounds.render_info() {
                         let (back, front) = info.z_index().unwrap();
-                        let back = back.0 as i64 + z_patch;
-                        let front = front.0 as i64 + z_patch;
-
+                        let mut back = back.0 as i64 + z_patch;
+                        let mut front = front.0 as i64 + z_patch;
+                        if back < 0 {
+                            tracing::error!("incorrect back Z-index ({back}) after patch ({z_patch})");
+                            back = 0;
+                        }
+                        if front < 0 {
+                            tracing::error!("incorrect front Z-index ({front}) after patch ({z_patch})");
+                            front = 0;
+                        }
                         bounds.set_rendered(
                             Some(WidgetRenderInfo {
                                 visible: i.visible,
                                 seg_id,
-                                back: back.try_into().unwrap(),
-                                front: front.try_into().unwrap(),
+                                back: back as _,
+                                front: front as _,
                             }),
                             &tree,
                         );
