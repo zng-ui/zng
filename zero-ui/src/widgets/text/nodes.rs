@@ -29,7 +29,8 @@ pub struct ResolvedText {
 
     /// Caret opacity.
     ///
-    /// This variable is replaced often, the text resolver subscribes to it automatically.
+    /// This variable is replaced often, the text resolver subscribes to it for
+    /// [`UpdateOp::RenderUpdate`] automatically.
     pub caret_opacity: ReadOnlyArcVar<Factor>,
 
     /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
@@ -176,41 +177,22 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
+            // for r.text
             WIDGET
                 .sub_var(&text)
-                .sub_var(&LANG_VAR)
-                .sub_var(&DIRECTION_VAR)
+                .sub_var(&TEXT_TRANSFORM_VAR)
+                .sub_var(&WHITE_SPACE_VAR)
+                .sub_var(&DIRECTION_VAR);
+            // for r.font_face & r.synthesis
+            WIDGET
                 .sub_var(&FONT_FAMILY_VAR)
                 .sub_var(&FONT_STYLE_VAR)
                 .sub_var(&FONT_WEIGHT_VAR)
                 .sub_var(&FONT_STRETCH_VAR)
-                .sub_var(&TEXT_TRANSFORM_VAR)
-                .sub_var(&WHITE_SPACE_VAR)
-                .sub_var(&FONT_SIZE_VAR)
-                .sub_var(&FONT_VARIATIONS_VAR)
-                .sub_var(&LINE_HEIGHT_VAR)
-                .sub_var(&LETTER_SPACING_VAR)
-                .sub_var(&WORD_SPACING_VAR)
-                .sub_var(&LINE_SPACING_VAR)
-                .sub_var(&WORD_BREAK_VAR)
-                .sub_var(&LINE_BREAK_VAR)
-                .sub_var(&TAB_LENGTH_VAR)
-                .sub_var(&FONT_FEATURES_VAR)
-                .sub_var(&TEXT_ALIGN_VAR)
-                .sub_var(&TEXT_COLOR_VAR)
                 .sub_var(&FONT_SYNTHESIS_VAR)
-                .sub_var(&FONT_AA_VAR)
-                .sub_var(&OVERLINE_THICKNESS_VAR)
-                .sub_var(&OVERLINE_STYLE_VAR)
-                .sub_var(&OVERLINE_COLOR_VAR)
-                .sub_var(&STRIKETHROUGH_THICKNESS_VAR)
-                .sub_var(&STRIKETHROUGH_STYLE_VAR)
-                .sub_var(&STRIKETHROUGH_COLOR_VAR)
-                .sub_var(&UNDERLINE_THICKNESS_VAR)
-                .sub_var(&UNDERLINE_COLOR_VAR)
-                .sub_var(&UNDERLINE_SKIP_VAR)
-                .sub_var(&UNDERLINE_POSITION_VAR)
-                .sub_var(&CARET_COLOR_VAR);
+                .sub_var(&LANG_VAR);
+            // for editable mode
+            WIDGET.sub_var(&TEXT_EDITABLE_VAR);
 
             let style = FONT_STYLE_VAR.get();
             let weight = FONT_WEIGHT_VAR.get();
@@ -299,7 +281,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 if TEXT_EDITABLE_VAR.get() {
                     if args.is_focused(WIDGET.id()) {
                         let new_animation = KEYBOARD.caret_animation();
-                        _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::Update, WIDGET.id()));
+                        _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::RenderUpdate, WIDGET.id()));
                         resolved.as_mut().unwrap().caret_opacity = new_animation;
                     } else {
                         _caret_opacity_handle = None;
@@ -336,7 +318,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             let r = resolved.as_mut().unwrap();
 
             // update `r.text`, affects layout.
-            if text.is_new() || TEXT_TRANSFORM_VAR.is_new() || WHITE_SPACE_VAR.is_new() || LANG_VAR.is_new() {
+            if text.is_new() || TEXT_TRANSFORM_VAR.is_new() || WHITE_SPACE_VAR.is_new() || DIRECTION_VAR.is_new() {
                 let text = text.get();
                 let text = TEXT_TRANSFORM_VAR.with(|t| t.transform(text));
                 let text = WHITE_SPACE_VAR.with(|t| t.transform(text));
@@ -375,7 +357,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     loading_faces = Some(LoadingFontFaceList::new(faces));
                 }
             }
-
             // update `r.synthesis`, affects render
             if FONT_SYNTHESIS_VAR.is_new() || FONT_STYLE_VAR.is_new() || FONT_WEIGHT_VAR.is_new() {
                 let synthesis = FONT_SYNTHESIS_VAR.get() & r.faces.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
@@ -384,6 +365,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     WIDGET.render();
                 }
             }
+
             if let Some(enabled) = TEXT_EDITABLE_VAR.get_new() {
                 if enabled && event_handles.0.is_empty() {
                     // actually enabled.
@@ -394,7 +376,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                     if FOCUS.focused().get().map(|p| p.widget_id()) == Some(id) {
                         let new_animation = KEYBOARD.caret_animation();
-                        _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::Update, id));
+                        _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::RenderUpdate, id));
                         r.caret_opacity = new_animation;
                     }
                 } else {
@@ -734,7 +716,30 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            // other subscriptions are handled by the `resolve_text` node.
+            WIDGET
+                .sub_var(&FONT_SIZE_VAR)
+                .sub_var(&FONT_VARIATIONS_VAR)
+                .sub_var(&LETTER_SPACING_VAR)
+                .sub_var(&WORD_SPACING_VAR)
+                .sub_var(&LINE_SPACING_VAR)
+                .sub_var(&LINE_HEIGHT_VAR)
+                .sub_var(&TAB_LENGTH_VAR);
+            WIDGET
+                .sub_var(&UNDERLINE_POSITION_VAR)
+                .sub_var(&UNDERLINE_SKIP_VAR)
+                .sub_var_layout(&OVERLINE_THICKNESS_VAR)
+                .sub_var_layout(&STRIKETHROUGH_THICKNESS_VAR)
+                .sub_var_layout(&UNDERLINE_THICKNESS_VAR);
+            WIDGET
+                .sub_var(&LINE_BREAK_VAR)
+                .sub_var(&WORD_BREAK_VAR)
+                .sub_var(&HYPHENS_VAR)
+                .sub_var(&HYPHEN_CHAR_VAR)
+                .sub_var(&TEXT_WRAP_VAR);
+
+            WIDGET.sub_var(&FONT_FEATURES_VAR);
+            // LANG_VAR already subscribed by `resolve_text`.
+
             txt.shaping_args.lang = LANG_VAR.get();
             txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into();
             txt.shaping_args.line_break = LINE_BREAK_VAR.get();
@@ -770,10 +775,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 WIDGET.layout();
             }
 
-            if OVERLINE_THICKNESS_VAR.is_new() || STRIKETHROUGH_THICKNESS_VAR.is_new() || UNDERLINE_THICKNESS_VAR.is_new() {
-                WIDGET.layout();
-            }
-
             if let Some(lb) = LINE_BREAK_VAR.get_new() {
                 if txt.shaping_args.line_break != lb {
                     txt.shaping_args.line_break = lb;
@@ -781,7 +782,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     WIDGET.layout();
                 }
             }
-
             if let Some(wb) = WORD_BREAK_VAR.get_new() {
                 if txt.shaping_args.word_break != wb {
                     txt.shaping_args.word_break = wb;
@@ -789,7 +789,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     WIDGET.layout();
                 }
             }
-
             if let Some(h) = HYPHENS_VAR.get_new() {
                 if txt.shaping_args.hyphens != h {
                     txt.shaping_args.hyphens = h;
@@ -797,7 +796,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     WIDGET.layout();
                 }
             }
-
             if let Some(c) = HYPHEN_CHAR_VAR.get_new() {
                 txt.shaping_args.hyphen_char = c;
                 if Hyphens::None != txt.shaping_args.hyphens {
@@ -805,7 +803,6 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     WIDGET.layout();
                 }
             }
-
             if TEXT_WRAP_VAR.is_new() {
                 txt.pending.insert(Layout::RESHAPE);
                 WIDGET.layout();
@@ -936,11 +933,8 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_strikethroughs`] node.
 pub fn render_underlines(child: impl UiNode) -> impl UiNode {
     match_node(child, move |_, op| match op {
-        UiNodeOp::Update { .. } => {
-            // subscriptions are handled by the `resolve_text` node.
-            if UNDERLINE_STYLE_VAR.is_new() || UNDERLINE_COLOR_VAR.is_new() {
-                WIDGET.render();
-            }
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&UNDERLINE_STYLE_VAR).sub_var_render(&UNDERLINE_COLOR_VAR);
         }
         UiNodeOp::Render { frame } => {
             let t = LayoutText::get();
@@ -971,11 +965,10 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_overlines`] node.
 pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
     match_node(child, move |_, op| match op {
-        UiNodeOp::Update { .. } => {
-            // subscriptions are handled by the `resolve_text` node.
-            if STRIKETHROUGH_STYLE_VAR.is_new() || STRIKETHROUGH_COLOR_VAR.is_new() {
-                WIDGET.render();
-            }
+        UiNodeOp::Init => {
+            WIDGET
+                .sub_var_render(&STRIKETHROUGH_STYLE_VAR)
+                .sub_var_render(&STRIKETHROUGH_COLOR_VAR);
         }
         UiNodeOp::Render { frame } => {
             let t = LayoutText::get();
@@ -1005,11 +998,8 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_overlines(child: impl UiNode) -> impl UiNode {
     match_node(child, move |_, op| match op {
-        UiNodeOp::Update { .. } => {
-            // subscriptions are handled by the `resolve_text` node.
-            if OVERLINE_STYLE_VAR.is_new() || OVERLINE_COLOR_VAR.is_new() {
-                WIDGET.render();
-            }
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&OVERLINE_STYLE_VAR).sub_var_render(&OVERLINE_COLOR_VAR);
         }
         UiNodeOp::Render { frame } => {
             let t = LayoutText::get();
@@ -1038,34 +1028,11 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 ///
 /// The `Text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
 pub fn render_caret(child: impl UiNode) -> impl UiNode {
-    let mut color = rgba(0, 0, 0, 0);
     let color_key = FrameValueKey::new_unique();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            // subscriptions are handled by the text resolver node.
-
-            color = if TEXT_EDITABLE_VAR.get() {
-                let mut c = CARET_COLOR_VAR.get();
-                c.alpha *= ResolvedText::get().caret_opacity.get().0;
-                c
-            } else {
-                rgba(0, 0, 0, 0)
-            };
-        }
-        UiNodeOp::Update { .. } => {
-            let c = if TEXT_EDITABLE_VAR.get() {
-                let mut c = CARET_COLOR_VAR.get();
-                c.alpha *= ResolvedText::get().caret_opacity.get().0;
-                c
-            } else {
-                rgba(0, 0, 0, 0)
-            };
-
-            if color != c {
-                color = c;
-                WIDGET.render_update();
-            }
+            WIDGET.sub_var_render_update(&CARET_COLOR_VAR);
         }
         UiNodeOp::Render { frame } => {
             child.render(frame);
@@ -1073,18 +1040,24 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             if TEXT_EDITABLE_VAR.get() {
                 let t = LayoutText::get();
 
+                let mut c = CARET_COLOR_VAR.get();
+                c.alpha = ResolvedText::get().caret_opacity.get().0;
+
                 let mut clip_rect = PxRect::from_size(t.shaped_text.align_size());
                 clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
                 clip_rect.size.height = t.shaped_text.line_height();
 
-                frame.push_color(clip_rect, color_key.bind(color.into(), true));
+                frame.push_color(clip_rect, color_key.bind(c.into(), true));
             }
         }
         UiNodeOp::RenderUpdate { update } => {
             child.render_update(update);
 
+            let mut c = CARET_COLOR_VAR.get();
+            c.alpha = ResolvedText::get().caret_opacity.get().0;
+
             if TEXT_EDITABLE_VAR.get() {
-                update.update_color(color_key.update(color.into(), true))
+                update.update_color(color_key.update(c.into(), true))
             }
         }
         _ => {}
