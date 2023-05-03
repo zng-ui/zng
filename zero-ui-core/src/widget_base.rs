@@ -470,6 +470,8 @@ pub mod nodes {
 
             #[cfg(debug_assertions)]
             inited: bool,
+            #[cfg(debug_assertions)]
+            info_built: bool,
         }
         impl<C: UiNode> UiNode for WidgetNode<C> {
             fn init(&mut self) {
@@ -485,6 +487,7 @@ pub mod nodes {
                     #[cfg(debug_assertions)]
                     {
                         self.inited = true;
+                        self.info_built = false;
                     }
                 });
                 self.ctx.take_reinit(); // ignore reinit request
@@ -503,6 +506,7 @@ pub mod nodes {
                     #[cfg(debug_assertions)]
                     {
                         self.inited = false;
+                        self.info_built = false;
                     }
                 });
                 self.ctx.deinit();
@@ -513,6 +517,11 @@ pub mod nodes {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", WIDGET.id());
+                    }
+
+                    #[cfg(debug_assertions)]
+                    {
+                        self.info_built = true;
                     }
 
                     info.push_widget(|info| {
@@ -535,6 +544,8 @@ pub mod nodes {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in not inited widget {:?}", update.event().name(), WIDGET.id());
+                    } else if !self.info_built {
+                        tracing::error!(target: "widget_base", "`UiNode::event::<{}>` called in widget {:?} before first info build", update.event().name(), WIDGET.id());
                     }
 
                     update.with_widget(|| {
@@ -559,6 +570,8 @@ pub mod nodes {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", WIDGET.id());
+                    } else if !self.info_built {
+                        tracing::error!(target: "widget_base", "`UiNode::update` called in widget {:?} before first info build", WIDGET.id());
                     }
 
                     updates.with_widget(|| {
@@ -577,6 +590,8 @@ pub mod nodes {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", WIDGET.id());
+                    } else if !self.info_built {
+                        tracing::error!(target: "widget_base", "`UiNode::measure` called in widget {:?} before first info build", WIDGET.id());
                     }
 
                     wm.with_widget(|wm| {
@@ -616,6 +631,8 @@ pub mod nodes {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", WIDGET.id());
+                    } else if !self.info_built {
+                        tracing::error!(target: "widget_base", "`UiNode::layout` called in widget {:?} before first info build", WIDGET.id());
                     }
 
                     wl.with_widget(|wl| {
@@ -658,6 +675,8 @@ pub mod nodes {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", WIDGET.id());
+                    } else if !self.info_built {
+                        tracing::error!(target: "widget_base", "`UiNode::render` called in widget {:?} before first info build", WIDGET.id());
                     }
 
                     frame.push_widget(|frame| self.child.render(frame));
@@ -673,6 +692,8 @@ pub mod nodes {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", WIDGET.id());
+                    } else if !self.info_built {
+                        tracing::error!(target: "widget_base", "`UiNode::render_update` called in widget {:?} before first info build", WIDGET.id());
                     }
 
                     update.update_widget(|update| self.child.render_update(update));
@@ -708,6 +729,8 @@ pub mod nodes {
 
             #[cfg(debug_assertions)]
             inited: false,
+            #[cfg(debug_assertions)]
+            info_built: false,
         }
         .cfg_boxed()
     }

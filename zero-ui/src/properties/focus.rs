@@ -341,19 +341,41 @@ pub fn is_return_focus_within(child: impl UiNode, state: impl IntoVar<bool>) -> 
     })
 }
 
-/// If the widget is focused on init.
+/// If the widget is focused on info init.
 ///
-/// When the widget is inited a [`FOCUS.focus_widget_or_related`] request is made for the widget.
+/// When the widget is inited and present in the info tree a [`FOCUS.focus_widget_or_related`] request is made for the widget.
 #[property(CONTEXT, default(false))]
 pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
-    match_node(child, move |child, op| {
-        if let UiNodeOp::Init = op {
-            child.init();
 
+    enum State {
+        WaitInfo,
+        InfoInited,
+        Done,
+    }
+    let mut state = State::WaitInfo;
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
             if enabled.get() {
+                state = State::WaitInfo;
+            } else {
+                state = State::Done;
+            }
+        }
+        UiNodeOp::Info { .. } => {
+            if let State::WaitInfo = &state {
+                state = State::InfoInited;
+                // next update will be after the info is in tree.
+                WIDGET.update();
+            }
+        }
+        UiNodeOp::Update { .. } => {
+            if let State::InfoInited = &state {
+                state = State::Done;
                 FOCUS.focus_widget_or_related(WIDGET.id(), false);
             }
         }
+        _ => {}
     })
 }

@@ -3,7 +3,7 @@
 //! These events map very close to the [`UiNode`] methods. The event handler have non-standard signatures
 //! and the event does not consider the widget's [`interactivity`](crate::core::widget_info::WidgetInfo::interactivity).
 
-use std::{mem, time::Instant};
+use std::time::Instant;
 
 use crate::core::{context::*, handler::*, units::*, widget_instance::*, *};
 
@@ -187,16 +187,27 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>
 pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();
     let mut count = 1;
-    let mut pending = false;
+    enum State {
+        WaitInfo,
+        InfoInited,
+        Done,
+    }
+    let mut state = State::WaitInfo;
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            pending = true;
-            WIDGET.update();
+            state = State::WaitInfo;
+        }
+        UiNodeOp::Info { .. } => {
+            if let State::WaitInfo = &state {
+                state = State::InfoInited;
+                WIDGET.update();
+            }
         }
         UiNodeOp::Update { updates } => {
             child.update(updates);
 
-            if mem::take(&mut pending) {
+            if let State::InfoInited = &state {
+                state = State::Done;
                 handler.event(&OnNodeOpArgs::now(UiNodeOpMethod::Update, count));
                 count = count.wrapping_add(1);
             }

@@ -510,6 +510,7 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                         spacing = 4;
                         children = ui_vec![
                             Button! {
+                                focus_on_init = true;
                                 child = Strong!("Close");
                                 on_click = hn_once!(state, |_| {
                                     state.set(CloseState::Close);

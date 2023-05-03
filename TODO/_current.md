@@ -1,3 +1,5 @@
+* Window cancelling close dialog with keyboard causes freeze?
+
 * Finish text edit & selection.
     - No char event is emitted for tab?
     - Implement cursor position.
