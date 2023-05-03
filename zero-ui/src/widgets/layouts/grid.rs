@@ -126,7 +126,7 @@ pub fn node(
 
     match_node_list(children, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&auto_grow_fn).sub_var(&auto_grow_mode).sub_var(&spacing);
+            WIDGET.sub_var(&auto_grow_fn).sub_var(&auto_grow_mode).sub_var_layout(&spacing);
             c.init_all();
             grid.update(c.children(), auto_grow_mode.get(), &auto_grow_fn);
         }
@@ -137,10 +137,6 @@ pub fn node(
             is_measured = false;
         }
         UiNodeOp::Update { updates } => {
-            if spacing.is_new() {
-                WIDGET.layout();
-            }
-
             let mut any = false;
             c.update_all(updates, &mut any);
 

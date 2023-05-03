@@ -61,19 +61,11 @@ fn on_build(wgt: &mut WidgetBuilding) {
     wgt.set_child(match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
             WIDGET
-                .sub_var(&orientation)
-                .sub_var(&length)
-                .sub_var(&stroke_thickness)
-                .sub_var(&color)
-                .sub_var(&style);
-        }
-        UiNodeOp::Update { .. } => {
-            if stroke_thickness.is_new() || length.is_new() || orientation.is_new() {
-                WIDGET.layout();
-            }
-            if color.is_new() || style.is_new() {
-                WIDGET.render();
-            }
+                .sub_var_layout(&stroke_thickness)
+                .sub_var_layout(&orientation)
+                .sub_var_layout(&length)
+                .sub_var_render(&color)
+                .sub_var_render(&style);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             let metrics = LAYOUT.metrics();

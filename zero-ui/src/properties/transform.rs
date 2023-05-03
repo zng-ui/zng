@@ -16,13 +16,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&transform);
-        }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-            if transform.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&transform);
         }
         UiNodeOp::Layout { wl, final_size } => {
             let size = child.layout(wl);

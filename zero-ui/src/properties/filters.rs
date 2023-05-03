@@ -17,9 +17,10 @@ use crate::core::color::filters::{self as cf, Filter};
 /// [`opacity`]: fn@opacity
 #[property(CONTEXT, default(Filter::default()))]
 pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
-    filter_impl(child, filter, false)
+    filter_any(child, filter, false)
 }
-fn filter_impl(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: bool) -> impl UiNode {
+/// impl any filter, may need layout or not.
+fn filter_any(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: bool) -> impl UiNode {
     let filter = filter.into_var();
     let mut render_filter = None;
     match_node(child, move |child, op| match op {
@@ -39,10 +40,15 @@ fn filter_impl(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: b
             });
         }
         UiNodeOp::Layout { .. } => {
-            if render_filter.is_none() {
-                render_filter = Some(filter.layout());
-                WIDGET.render();
-            }
+            filter.with(|f| {
+                if f.needs_layout() {
+                    let f = Some(f.layout());
+                    if render_filter != f {
+                        render_filter = f;
+                        WIDGET.render();
+                    }
+                }
+            });
         }
         UiNodeOp::Render { frame } => {
             if target_child {
@@ -51,6 +57,59 @@ fn filter_impl(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: b
                 });
             } else {
                 frame.push_inner_filter(render_filter.clone().unwrap(), |frame| child.render(frame));
+            }
+        }
+        _ => {}
+    })
+}
+
+/// impl filters that need layout.
+fn filter_layout(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: bool) -> impl UiNode {
+    let filter = filter.into_var();
+
+    let mut render_filter = None;
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_layout(&filter);
+        }
+        UiNodeOp::Layout { .. } => {
+            filter.with(|f| {
+                if f.needs_layout() {
+                    let f = Some(f.layout());
+                    if render_filter != f {
+                        render_filter = f;
+                        WIDGET.render();
+                    }
+                }
+            });
+        }
+        UiNodeOp::Render { frame } => {
+            if target_child {
+                frame.push_filter(MixBlendMode::Normal.into(), render_filter.as_ref().unwrap(), |frame| {
+                    child.render(frame)
+                });
+            } else {
+                frame.push_inner_filter(render_filter.clone().unwrap(), |frame| child.render(frame));
+            }
+        }
+        _ => {}
+    })
+}
+
+/// impl filters that only need render.
+fn filter_render(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: bool) -> impl UiNode {
+    let filter = filter.into_var().map(|f| f.try_render().unwrap());
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render(&filter);
+        }
+        UiNodeOp::Render { frame } => {
+            if target_child {
+                filter.with(|f| {
+                    frame.push_filter(MixBlendMode::Normal.into(), f, |frame| child.render(frame));
+                });
+            } else {
+                frame.push_inner_filter(filter.get(), |frame| child.render(frame));
             }
         }
         _ => {}
@@ -70,7 +129,7 @@ fn filter_impl(child: impl UiNode, filter: impl IntoVar<Filter>, target_child: b
 /// [`child_opacity`]: fn@child_opacity
 #[property(CHILD_CONTEXT, default(Filter::default()))]
 pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
-    filter_impl(child, filter, true)
+    filter_any(child, filter, true)
 }
 
 /// Inverts the colors of the widget.
@@ -82,7 +141,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(false))]
 pub fn invert_color(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter(child, amount.into_var().map(|&a| cf::invert(a)))
+    filter_render(child, amount.into_var().map(|&a| cf::invert(a)), false)
 }
 
 /// Blur the widget.
@@ -92,7 +151,7 @@ pub fn invert_color(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl Ui
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(0))]
 pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
-    filter(child, radius.into_var().map(|r| cf::blur(r.clone())))
+    filter_layout(child, radius.into_var().map(|r| cf::blur(r.clone())), false)
 }
 
 /// Sepia tone the widget.
@@ -104,7 +163,7 @@ pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(false))]
 pub fn sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter(child, amount.into_var().map(|&a| cf::sepia(a)))
+    filter_render(child, amount.into_var().map(|&a| cf::sepia(a)), false)
 }
 
 /// Grayscale tone the widget.
@@ -116,7 +175,7 @@ pub fn sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(false))]
 pub fn grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter(child, amount.into_var().map(|&a| cf::grayscale(a)))
+    filter_render(child, amount.into_var().map(|&a| cf::grayscale(a)), false)
 }
 
 /// Drop-shadow effect for the widget.
@@ -133,11 +192,12 @@ pub fn drop_shadow(
     blur_radius: impl IntoVar<Length>,
     color: impl IntoVar<Rgba>,
 ) -> impl UiNode {
-    filter(
+    filter_layout(
         child,
         merge_var!(offset.into_var(), blur_radius.into_var(), color.into_var(), |o, r, &c| {
             cf::drop_shadow(o.clone(), r.clone(), c)
         }),
+        false,
     )
 }
 
@@ -150,7 +210,7 @@ pub fn drop_shadow(
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(1.0))]
 pub fn brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter(child, amount.into_var().map(|&a| cf::brightness(a)))
+    filter_render(child, amount.into_var().map(|&a| cf::brightness(a)), false)
 }
 
 /// Adjust the widget colors contrast.
@@ -162,7 +222,7 @@ pub fn brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNo
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(1.0))]
 pub fn contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter(child, amount.into_var().map(|&a| cf::contrast(a)))
+    filter_render(child, amount.into_var().map(|&a| cf::contrast(a)), false)
 }
 
 /// Adjust the widget colors saturation.
@@ -174,7 +234,7 @@ pub fn contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode
 /// [`filter`]: fn@filter
 #[property(CONTEXT, default(1.0))]
 pub fn saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
-    filter(child, amount.into_var().map(|&a| cf::saturate(a)))
+    filter_render(child, amount.into_var().map(|&a| cf::saturate(a)), false)
 }
 
 /// Hue shift the widget colors.
@@ -187,7 +247,7 @@ pub fn saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode
 /// [`hue`]: Hsla::hue
 #[property(CONTEXT, default(0.deg()))]
 pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
-    filter(child, angle.into_var().map(|&a| cf::hue_rotate(a)))
+    filter_render(child, angle.into_var().map(|&a| cf::hue_rotate(a)), false)
 }
 
 /// Custom color filter.
@@ -195,7 +255,7 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
 /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
 #[property(CONTEXT, default(cf::ColorMatrix::identity()))]
 pub fn color_matrix(child: impl UiNode, matrix: impl IntoVar<cf::ColorMatrix>) -> impl UiNode {
-    filter(child, matrix.into_var().map(|&m| cf::color_matrix(m)))
+    filter_render(child, matrix.into_var().map(|&m| cf::color_matrix(m)), false)
 }
 
 /// Opacity/transparency of the widget.
@@ -214,12 +274,7 @@ fn opacity_impl(child: impl UiNode, alpha: impl IntoVar<Factor>, target_child: b
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&alpha);
-        }
-        UiNodeOp::Update { .. } => {
-            if alpha.is_new() {
-                WIDGET.render_update();
-            }
+            WIDGET.sub_var_render_update(&alpha);
         }
         UiNodeOp::Render { frame } => {
             let opacity = frame_key.bind_var(&alpha, |f| f.0);

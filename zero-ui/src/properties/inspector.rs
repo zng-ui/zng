@@ -126,12 +126,7 @@ fn show_widget_tree(
     let cancel_space = SpatialFrameId::new_unique();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&mode);
-        }
-        UiNodeOp::Update { .. } => {
-            if mode.is_new() {
-                WIDGET.render();
-            }
+            WIDGET.sub_var_render(&mode);
         }
         UiNodeOp::Render { frame } => {
             child.render(frame);

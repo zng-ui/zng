@@ -400,12 +400,7 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Txt>) -> impl UiNode {
     let anchor = anchor.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&anchor);
-        }
-        UiNodeOp::Update { .. } => {
-            if anchor.is_new() {
-                WIDGET.update_info();
-            }
+            WIDGET.sub_var_info(&anchor);
         }
         UiNodeOp::Info { info } => {
             info.set_meta(&ANCHOR_ID, anchor.get());

@@ -212,6 +212,11 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
             }
             c.children().clear(); // drop placeholder, if any
         }
+        UiNodeOp::Update { .. } => {
+            if mode.is_new() {
+                WIDGET.reinit();
+            }
+        }
         UiNodeOp::Measure { wm, desired_size } => {
             let mut size = c.with_node(0, |n| n.measure(wm));
 

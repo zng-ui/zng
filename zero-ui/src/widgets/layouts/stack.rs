@@ -109,14 +109,17 @@ pub fn node(
 
     match_node_list(children, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&direction).sub_var(&spacing).sub_var(&children_align);
+            WIDGET
+                .sub_var_layout(&direction)
+                .sub_var_layout(&spacing)
+                .sub_var_layout(&children_align);
         }
         UiNodeOp::Update { updates } => {
             let mut changed = false;
             c.update_all(updates, &mut changed);
 
-            if changed || direction.is_new() || spacing.is_new() || children_align.is_new() {
-                WIDGET.layout().render();
+            if changed {
+                WIDGET.layout();
             }
         }
         UiNodeOp::Measure { wm, desired_size } => {
@@ -154,12 +157,10 @@ pub fn lazy_sample(
 
     match_node(child_sample, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&children_len).sub_var(&direction).sub_var(&spacing);
-        }
-        UiNodeOp::Update { .. } => {
-            if children_len.is_new() || direction.is_new() || spacing.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET
+                .sub_var_layout(&children_len)
+                .sub_var_layout(&direction)
+                .sub_var_layout(&spacing);
         }
         op @ UiNodeOp::Measure { .. } | op @ UiNodeOp::Layout { .. } => {
             let mut measure = |wm| {
@@ -544,12 +545,7 @@ pub fn stack_nodes_layout_by(
 
     match_node_list(nodes, move |children, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&index);
-        }
-        UiNodeOp::Update { .. } => {
-            if index.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&index);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let index = index.get();

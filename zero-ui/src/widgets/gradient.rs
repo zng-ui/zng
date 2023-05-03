@@ -31,13 +31,7 @@ pub fn linear_gradient_ext(
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&axis).sub_var(&stops).sub_var(&extend_mode);
-        }
-        UiNodeOp::Update { .. } => {
-            if axis.is_new() || stops.is_new() || extend_mode.is_new() {
-                render_size = PxSize::zero();
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&axis).sub_var_layout(&stops).sub_var_layout(&extend_mode);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             *desired_size = LAYOUT.constraints().fill_size();
@@ -93,17 +87,11 @@ pub fn linear_gradient_full(
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
             WIDGET
-                .sub_var(&axis)
-                .sub_var(&stops)
-                .sub_var(&extend_mode)
-                .sub_var(&tile_size)
-                .sub_var(&tile_spacing);
-        }
-        UiNodeOp::Update { .. } => {
-            if axis.is_new() || stops.is_new() || extend_mode.is_new() || tile_size.is_new() || tile_spacing.is_new() {
-                render_size = PxSize::zero();
-                WIDGET.layout();
-            }
+                .sub_var_layout(&axis)
+                .sub_var_layout(&stops)
+                .sub_var_layout(&extend_mode)
+                .sub_var_layout(&tile_size)
+                .sub_var_layout(&tile_spacing);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             *desired_size = LAYOUT.constraints().fill_size();
@@ -186,13 +174,11 @@ pub fn radial_gradient_ext(
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&center).sub_var(&radius).sub_var(&stops).sub_var(&extend_mode);
-        }
-        UiNodeOp::Update { .. } => {
-            if center.is_new() || radius.is_new() || stops.is_new() || extend_mode.is_new() {
-                render_size = PxSize::zero();
-                WIDGET.layout();
-            }
+            WIDGET
+                .sub_var_layout(&center)
+                .sub_var_layout(&radius)
+                .sub_var_layout(&stops)
+                .sub_var_layout(&extend_mode);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             *desired_size = LAYOUT.constraints().fill_size();
@@ -254,18 +240,12 @@ pub fn radial_gradient_full(
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
             WIDGET
-                .sub_var(&center)
-                .sub_var(&radius)
-                .sub_var(&stops)
-                .sub_var(&extend_mode)
-                .sub_var(&tile_size)
-                .sub_var(&tile_spacing);
-        }
-        UiNodeOp::Update { .. } => {
-            if center.is_new() || radius.is_new() || stops.is_new() || extend_mode.is_new() || tile_size.is_new() || tile_spacing.is_new() {
-                render_size = PxSize::zero();
-                WIDGET.layout();
-            }
+                .sub_var_layout(&center)
+                .sub_var_layout(&radius)
+                .sub_var_layout(&stops)
+                .sub_var_layout(&extend_mode)
+                .sub_var_layout(&tile_size)
+                .sub_var_layout(&tile_spacing);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             *desired_size = LAYOUT.constraints().fill_size();
@@ -346,13 +326,11 @@ pub fn conic_gradient_ext(
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&center).sub_var(&angle).sub_var(&stops).sub_var(&extend_mode);
-        }
-        UiNodeOp::Update { .. } => {
-            if center.is_new() || angle.is_new() || stops.is_new() || extend_mode.is_new() {
-                render_size = PxSize::zero();
-                WIDGET.layout();
-            }
+            WIDGET
+                .sub_var_layout(&center)
+                .sub_var_layout(&angle)
+                .sub_var_layout(&stops)
+                .sub_var_layout(&extend_mode);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             *desired_size = LAYOUT.constraints().fill_size();
@@ -416,18 +394,12 @@ pub fn conic_gradient_full(
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
             WIDGET
-                .sub_var(&center)
-                .sub_var(&angle)
-                .sub_var(&stops)
-                .sub_var(&extend_mode)
-                .sub_var(&tile_size)
-                .sub_var(&tile_spacing);
-        }
-        UiNodeOp::Update { .. } => {
-            if center.is_new() || angle.is_new() || stops.is_new() || extend_mode.is_new() {
-                render_size = PxSize::zero();
-                WIDGET.layout();
-            }
+                .sub_var_layout(&center)
+                .sub_var_layout(&angle)
+                .sub_var_layout(&stops)
+                .sub_var_layout(&extend_mode)
+                .sub_var_layout(&tile_size)
+                .sub_var_layout(&tile_spacing);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             *desired_size = LAYOUT.constraints().fill_size();

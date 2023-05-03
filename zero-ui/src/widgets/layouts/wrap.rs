@@ -86,13 +86,13 @@ pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, child
 
     match_node_list(children, move |children, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&spacing).sub_var(&children_align);
+            WIDGET.sub_var_layout(&spacing).sub_var_layout(&children_align);
         }
         UiNodeOp::Update { updates } => {
             let mut any = false;
             children.update_all(updates, &mut any);
 
-            if any || spacing.is_new() || children_align.is_new() {
+            if any {
                 WIDGET.layout();
             }
         }
@@ -117,12 +117,7 @@ pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSp
     let size = child_size.into_var();
     let sample = match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&size);
-        }
-        UiNodeOp::Update { .. } => {
-            if size.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&size);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             *desired_size = size.layout();
@@ -143,12 +138,7 @@ pub fn lazy_sample(children_len: impl IntoVar<usize>, spacing: impl IntoVar<Grid
 
     match_node(child_sample, move |sample, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&children_len).sub_var(&spacing);
-        }
-        UiNodeOp::Update { .. } => {
-            if children_len.is_new() || spacing.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&children_len).sub_var_layout(&spacing);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let child_size = sample.measure(wm);

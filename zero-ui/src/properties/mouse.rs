@@ -25,7 +25,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&cursor).sub_event(&MOUSE_HOVERED_EVENT);
+            WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
         }
         UiNodeOp::Deinit => {
             hovered_binding = None;
@@ -71,12 +71,7 @@ pub fn click_mode(child: impl UiNode, mode: impl IntoVar<Option<ClickMode>>) -> 
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&mode);
-        }
-        UiNodeOp::Update { .. } => {
-            if mode.is_new() {
-                WIDGET.update_info();
-            }
+            WIDGET.sub_var_info(&mode);
         }
         UiNodeOp::Info { info } => {
             info.set_click_mode(mode.get());

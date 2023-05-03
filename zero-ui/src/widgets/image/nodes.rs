@@ -202,14 +202,14 @@ pub fn image_presenter() -> impl UiNode {
         UiNodeOp::Init => {
             WIDGET
                 .sub_var(&CONTEXT_IMAGE_VAR)
-                .sub_var(&IMAGE_CROP_VAR)
-                .sub_var(&IMAGE_SCALE_PPI_VAR)
-                .sub_var(&IMAGE_SCALE_FACTOR_VAR)
-                .sub_var(&IMAGE_SCALE_VAR)
-                .sub_var(&IMAGE_FIT_VAR)
-                .sub_var(&IMAGE_ALIGN_VAR)
-                .sub_var(&IMAGE_RENDERING_VAR)
-                .sub_var(&IMAGE_OFFSET_VAR);
+                .sub_var_layout(&IMAGE_CROP_VAR)
+                .sub_var_layout(&IMAGE_SCALE_PPI_VAR)
+                .sub_var_layout(&IMAGE_SCALE_FACTOR_VAR)
+                .sub_var_layout(&IMAGE_SCALE_VAR)
+                .sub_var_layout(&IMAGE_FIT_VAR)
+                .sub_var_layout(&IMAGE_ALIGN_VAR)
+                .sub_var_layout(&IMAGE_OFFSET_VAR)
+                .sub_var_render(&IMAGE_RENDERING_VAR);
 
             img_size = CONTEXT_IMAGE_VAR.with(Img::size);
         }
@@ -222,21 +222,6 @@ pub fn image_presenter() -> impl UiNode {
                 } else if img.is_loaded() {
                     WIDGET.render();
                 }
-            }
-
-            if IMAGE_FIT_VAR.is_new()
-                || IMAGE_SCALE_VAR.is_new()
-                || IMAGE_SCALE_FACTOR_VAR.is_new()
-                || IMAGE_SCALE_PPI_VAR.is_new()
-                || IMAGE_CROP_VAR.is_new()
-                || IMAGE_ALIGN_VAR.is_new()
-                || IMAGE_OFFSET_VAR.is_new()
-            {
-                WIDGET.layout();
-            }
-
-            if IMAGE_RENDERING_VAR.is_new() {
-                WIDGET.render();
             }
         }
         UiNodeOp::Measure { desired_size, .. } => {

@@ -518,7 +518,7 @@ pub type FrameValueKey<T> = webrender_api::PropertyBindingKey<T>;
 /// Represents a frame value that may be updated.
 ///
 /// This value is send in a full frame request, after frame updates may be send targeting the key.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum FrameValue<T> {
     /// Value that is updated with frame update requests.
     Bind {
@@ -812,7 +812,7 @@ impl DisplayListCache {
 }
 
 /// Represents one of the filters applied to a stacking context.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum FilterOp {
     /// Blur, width and height in pixels.
     Blur(f32, f32),

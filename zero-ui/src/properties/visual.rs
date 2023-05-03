@@ -291,14 +291,7 @@ pub fn foreground_highlight(
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&offsets).sub_var(&widths).sub_var(&sides);
-        }
-        UiNodeOp::Update { .. } => {
-            if offsets.is_new() || widths.is_new() {
-                WIDGET.layout();
-            } else if sides.is_new() {
-                WIDGET.render();
-            }
+            WIDGET.sub_var_layout(&offsets).sub_var_layout(&widths).sub_var_render(&sides);
         }
         UiNodeOp::Layout { wl, final_size } => {
             let size = child.layout(wl);
@@ -548,13 +541,7 @@ pub fn inline(child: impl UiNode, mode: impl IntoVar<InlineMode>) -> impl UiNode
     let mode = mode.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&mode);
-        }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-            if mode.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&mode);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             *desired_size = match mode.get() {

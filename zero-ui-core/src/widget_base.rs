@@ -402,12 +402,7 @@ pub mod nodes {
 
         match_node(child, move |child, op| match op {
             UiNodeOp::Init => {
-                WIDGET.sub_var(&HitTestMode::var());
-            }
-            UiNodeOp::Update { .. } => {
-                if HitTestMode::var().is_new() {
-                    WIDGET.layout();
-                }
+                WIDGET.sub_var_layout(&HitTestMode::var());
             }
             UiNodeOp::Layout { wl, final_size } => {
                 *final_size = wl.with_inner(|wl| child.layout(wl));
@@ -731,12 +726,7 @@ pub mod nodes {
 
         match_node(child, move |child, op| match op {
             UiNodeOp::Init => {
-                WIDGET.sub_var(&interactive);
-            }
-            UiNodeOp::Update { .. } => {
-                if interactive.is_new() {
-                    WIDGET.update_info();
-                }
+                WIDGET.sub_var_info(&interactive);
             }
             UiNodeOp::Info { info } => {
                 if interactive.get() {
@@ -847,12 +837,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         child,
         clmv!(enabled, |_, op| match op {
             UiNodeOp::Init => {
-                WIDGET.sub_var(&enabled);
-            }
-            UiNodeOp::Update { .. } => {
-                if enabled.is_new() {
-                    WIDGET.update_info();
-                }
+                WIDGET.sub_var_info(&enabled);
             }
             UiNodeOp::Info { info } => {
                 if !enabled.get() {
@@ -888,12 +873,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&interactive);
-        }
-        UiNodeOp::Update { .. } => {
-            if interactive.is_new() {
-                WIDGET.update_info();
-            }
+            WIDGET.sub_var_info(&interactive);
         }
         UiNodeOp::Info { info } => {
             if !interactive.get() {
@@ -1135,12 +1115,7 @@ context_var! {
 pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> impl UiNode {
     let child = match_node(child, |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&HitTestMode::var());
-        }
-        UiNodeOp::Update { .. } => {
-            if HitTestMode::var().is_new() {
-                WIDGET.render();
-            }
+            WIDGET.sub_var_render(&HitTestMode::var());
         }
         UiNodeOp::Render { frame } => match HitTestMode::var().get() {
             HitTestMode::Disabled => {

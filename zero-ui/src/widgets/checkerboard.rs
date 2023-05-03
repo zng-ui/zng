@@ -70,23 +70,13 @@ pub fn node() -> impl UiNode {
     let mut render_size = PxSize::zero();
     let mut tile_size = PxSize::zero();
     let mut center = PxPoint::zero();
-    let mut colors = [RenderColor::BLACK, RenderColor::WHITE];
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&COLORS_VAR).sub_var(&SIZE_VAR).sub_var(&OFFSET_VAR);
-
-            let (c0, c1) = COLORS_VAR.get();
-            colors = [c0.into(), c1.into()];
-        }
-        UiNodeOp::Update { .. } => {
-            if let Some((c0, c1)) = COLORS_VAR.get_new() {
-                colors = [c0.into(), c1.into()];
-                WIDGET.render();
-            }
-            if SIZE_VAR.is_new() || OFFSET_VAR.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET
+                .sub_var_render(&COLORS_VAR)
+                .sub_var_layout(&SIZE_VAR)
+                .sub_var_layout(&OFFSET_VAR);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             *desired_size = LAYOUT.constraints().fill_size();
@@ -119,6 +109,8 @@ pub fn node() -> impl UiNode {
             }
         }
         UiNodeOp::Render { frame } => {
+            let (c0, c1) = COLORS_VAR.get();
+            let colors = [c0.into(), c1.into()];
             frame.push_conic_gradient(
                 PxRect::from_size(render_size),
                 center,

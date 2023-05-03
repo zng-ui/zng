@@ -10,12 +10,7 @@ pub fn flood(color: impl IntoVar<Rgba>) -> impl UiNode {
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&color);
-        }
-        UiNodeOp::Update { .. } => {
-            if color.is_new() {
-                WIDGET.render_update();
-            }
+            WIDGET.sub_var_render_update(&color);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             *desired_size = LAYOUT.constraints().fill_size();

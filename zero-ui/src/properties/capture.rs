@@ -102,7 +102,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&enabled);
+            WIDGET.sub_var_info(&enabled);
             WINDOW.init_state_default(&MODAL_WIDGETS); // insert window state
         }
         UiNodeOp::Deinit => {
@@ -113,11 +113,6 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             let widget_id = WIDGET.id();
             if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
                 mws.last_in_tree = None;
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            if enabled.is_new() {
-                WIDGET.update_info();
             }
         }
         UiNodeOp::Info { info } => {

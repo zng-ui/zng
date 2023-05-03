@@ -47,12 +47,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
     let margin = margin.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&margin);
-        }
-        UiNodeOp::Update { .. } => {
-            if margin.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&margin);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let margin = margin.layout();
@@ -104,12 +99,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
     let alignment = alignment.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&alignment);
-        }
-        UiNodeOp::Update { .. } => {
-            if alignment.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&alignment);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let align = alignment.get();
@@ -160,12 +150,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
     let offset = offset.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&offset);
-        }
-        UiNodeOp::Update { .. } => {
-            if offset.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&offset);
         }
         UiNodeOp::Layout { wl, final_size } => {
             let size = child.layout(wl);
@@ -206,12 +191,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     let x = x.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&x);
-        }
-        UiNodeOp::Update { .. } => {
-            if x.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&x);
         }
         UiNodeOp::Layout { wl, final_size } => {
             let size = child.layout(wl);
@@ -252,12 +232,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     let y = y.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&y);
-        }
-        UiNodeOp::Update { .. } => {
-            if y.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&y);
         }
         UiNodeOp::Layout { wl, final_size } => {
             let size = child.layout(wl);
@@ -307,12 +282,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
     let min_size = min_size.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&min_size);
-        }
-        UiNodeOp::Update { .. } => {
-            if min_size.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&min_size);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let c = LAYOUT.constraints();
@@ -365,12 +335,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
     let min_width = min_width.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&min_width);
-        }
-        UiNodeOp::Update { .. } => {
-            if min_width.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&min_width);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let c = LAYOUT.constraints();
@@ -425,12 +390,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
     let min_height = min_height.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&min_height);
-        }
-        UiNodeOp::Update { .. } => {
-            if min_height.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&min_height);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let c = LAYOUT.constraints();
@@ -486,12 +446,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
     let max_size = max_size.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&max_size);
-        }
-        UiNodeOp::Update { .. } => {
-            if max_size.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&max_size);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let max = with_fill_metrics(|d| max_size.layout_dft(d));
@@ -542,12 +497,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
     let max_width = max_width.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&max_width);
-        }
-        UiNodeOp::Update { .. } => {
-            if max_width.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&max_width);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let max = with_fill_metrics(|d| max_width.layout_dft_x(d.width));
@@ -602,12 +552,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
     let max_height = max_height.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&max_height);
-        }
-        UiNodeOp::Update { .. } => {
-            if max_height.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&max_height);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let max = with_fill_metrics(|d| max_height.layout_dft_y(d.height));
@@ -841,12 +786,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
     let baseline = baseline.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&baseline);
-        }
-        UiNodeOp::Update { .. } => {
-            if baseline.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&baseline);
         }
         UiNodeOp::Layout { wl, final_size } => {
             let size = child.layout(wl);
@@ -875,12 +815,7 @@ pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNo
     let sticky = sticky.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&sticky);
-        }
-        UiNodeOp::Update { .. } => {
-            if sticky.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&sticky);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             if !sticky.get() {
@@ -915,12 +850,7 @@ pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiN
     let sticky = sticky.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&sticky);
-        }
-        UiNodeOp::Update { .. } => {
-            if sticky.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&sticky);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             if !sticky.get() {
@@ -955,12 +885,7 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
     let sticky = sticky.into_var();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&sticky);
-        }
-        UiNodeOp::Update { .. } => {
-            if sticky.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&sticky);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             if !sticky.get() {
@@ -1067,12 +992,7 @@ pub fn child_insert(
 
     match_node_list(ui_vec![child, insert], move |children, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&place).sub_var(&spacing);
-        }
-        UiNodeOp::Update { .. } => {
-            if place.is_new() || spacing.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&place).sub_var_layout(&spacing);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let c = LAYOUT.constraints();

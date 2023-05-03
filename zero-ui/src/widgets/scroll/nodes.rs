@@ -28,19 +28,12 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             WIDGET
-                .sub_var(&mode)
-                .sub_var(&SCROLL_VERTICAL_OFFSET_VAR)
-                .sub_var(&SCROLL_HORIZONTAL_OFFSET_VAR);
+                .sub_var_layout(&mode)
+                .sub_var_layout(&SCROLL_VERTICAL_OFFSET_VAR)
+                .sub_var_layout(&SCROLL_HORIZONTAL_OFFSET_VAR);
         }
         UiNodeOp::Info { info } => {
             info.set_meta(&SCROLL_INFO_ID, scroll_info.clone());
-        }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-
-            if mode.is_new() || SCROLL_VERTICAL_OFFSET_VAR.is_new() || SCROLL_HORIZONTAL_OFFSET_VAR.is_new() {
-                WIDGET.layout();
-            }
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let constraints = LAYOUT.constraints();
@@ -255,7 +248,9 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&VERTICAL_LINE_UNIT_VAR).sub_var(&HORIZONTAL_LINE_UNIT_VAR);
+            WIDGET
+                .sub_var_layout(&VERTICAL_LINE_UNIT_VAR)
+                .sub_var_layout(&HORIZONTAL_LINE_UNIT_VAR);
 
             let scope = WIDGET.id();
 
@@ -354,7 +349,9 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&VERTICAL_PAGE_UNIT_VAR).sub_var(&HORIZONTAL_PAGE_UNIT_VAR);
+            WIDGET
+                .sub_var_layout(&VERTICAL_PAGE_UNIT_VAR)
+                .sub_var_layout(&HORIZONTAL_PAGE_UNIT_VAR);
 
             let scope = WIDGET.id();
 
@@ -378,10 +375,6 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             down.set_enabled(SCROLL.can_scroll_down());
             left.set_enabled(SCROLL.can_scroll_left());
             right.set_enabled(SCROLL.can_scroll_right());
-
-            if VERTICAL_PAGE_UNIT_VAR.is_new() || HORIZONTAL_PAGE_UNIT_VAR.is_new() {
-                WIDGET.layout();
-            }
         }
         UiNodeOp::Event { update } => {
             child.event(update);

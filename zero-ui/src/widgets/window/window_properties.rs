@@ -122,12 +122,7 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
     let clear_color = color.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&clear_color);
-        }
-        UiNodeOp::Update { .. } => {
-            if clear_color.is_new() {
-                WIDGET.render_update();
-            }
+            WIDGET.sub_var_render_update(&clear_color);
         }
         UiNodeOp::Render { frame } => {
             frame.set_clear_color(clear_color.get().into());

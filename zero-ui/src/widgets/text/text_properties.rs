@@ -73,12 +73,7 @@ pub fn font_family(child: impl UiNode, names: impl IntoVar<FontNames>) -> impl U
 pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
     let child = match_node(child, |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&FONT_SIZE_VAR);
-        }
-        UiNodeOp::Update { .. } => {
-            if FONT_SIZE_VAR.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&FONT_SIZE_VAR);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let font_size = FONT_SIZE_VAR.get();
@@ -616,12 +611,7 @@ pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
 pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -> impl UiNode {
     let child = match_node(child, |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&DIRECTION_VAR);
-        }
-        UiNodeOp::Update { .. } => {
-            if DIRECTION_VAR.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&DIRECTION_VAR);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             *desired_size = LAYOUT.with_direction(DIRECTION_VAR.get(), || child.measure(wm));

@@ -80,7 +80,7 @@ fn thumb_layout(child: impl UiNode) -> impl UiNode {
             WIDGET
                 .sub_event(&MOUSE_MOVE_EVENT)
                 .sub_event(&MOUSE_INPUT_EVENT)
-                .sub_var(&THUMB_OFFSET_VAR);
+                .sub_var_layout(&THUMB_OFFSET_VAR);
         }
         UiNodeOp::Event { update } => {
             if let Some((md, start_offset)) = mouse_down {
@@ -142,11 +142,6 @@ fn thumb_layout(child: impl UiNode) -> impl UiNode {
 
                     args.propagation().stop();
                 }
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            if THUMB_OFFSET_VAR.is_new() {
-                WIDGET.layout();
             }
         }
         UiNodeOp::Layout { wl, .. } => {

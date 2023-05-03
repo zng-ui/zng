@@ -10,12 +10,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
     let focusable = focusable.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&focusable);
-        }
-        UiNodeOp::Update { .. } => {
-            if focusable.is_new() {
-                WIDGET.update_info();
-            }
+            WIDGET.sub_var_info(&focusable);
         }
         UiNodeOp::Info { info } => {
             FocusInfoBuilder::new(info).focusable(focusable.get());
@@ -30,12 +25,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
     let tab_index = tab_index.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&tab_index);
-        }
-        UiNodeOp::Update { .. } => {
-            if tab_index.is_new() {
-                WIDGET.update_info();
-            }
+            WIDGET.sub_var_info(&tab_index);
         }
         UiNodeOp::Info { info } => {
             FocusInfoBuilder::new(info).tab_index(tab_index.get());
@@ -61,12 +51,7 @@ fn focus_scope_impl(child: impl UiNode, is_scope: impl IntoVar<bool>, is_alt: bo
     let is_scope = is_scope.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&is_scope);
-        }
-        UiNodeOp::Update { .. } => {
-            if is_scope.is_new() {
-                WIDGET.update_info();
-            }
+            WIDGET.sub_var_info(&is_scope);
         }
         UiNodeOp::Info { info } => {
             let mut info = FocusInfoBuilder::new(info);
@@ -86,12 +71,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
     let behavior = behavior.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&behavior);
-        }
-        UiNodeOp::Update { .. } => {
-            if behavior.is_new() {
-                WIDGET.update_info();
-            }
+            WIDGET.sub_var_info(&behavior);
         }
         UiNodeOp::Info { info } => {
             FocusInfoBuilder::new(info).on_focus(behavior.get());
@@ -106,14 +86,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
     let tab_nav = tab_nav.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            if tab_nav.is_new() {
-                WIDGET.update_info();
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            if tab_nav.is_new() {
-                WIDGET.update_info();
-            }
+            WIDGET.sub_var_info(&tab_nav);
         }
         UiNodeOp::Info { info } => {
             FocusInfoBuilder::new(info).tab_nav(tab_nav.get());
@@ -128,12 +101,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
     let directional_nav = directional_nav.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&directional_nav);
-        }
-        UiNodeOp::Update { .. } => {
-            if directional_nav.is_new() {
-                WIDGET.update_info();
-            }
+            WIDGET.sub_var_info(&directional_nav);
         }
         UiNodeOp::Info { info } => {
             FocusInfoBuilder::new(info).directional_nav(directional_nav.get());
@@ -170,12 +138,7 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
     let enabled = enabled.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&enabled);
-        }
-        UiNodeOp::Update { .. } => {
-            if enabled.is_new() {
-                WIDGET.update_info();
-            }
+            WIDGET.sub_var_info(&enabled);
         }
         UiNodeOp::Info { info } => {
             FocusInfoBuilder::new(info).skip_directional(enabled.get());

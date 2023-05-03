@@ -21,12 +21,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
         widths,
         match_node_leaf(move |op| match op {
             UiNodeOp::Init => {
-                WIDGET.sub_var(&sides);
-            }
-            UiNodeOp::Update { .. } => {
-                if sides.is_new() {
-                    WIDGET.render();
-                }
+                WIDGET.sub_var_render(&sides);
             }
             UiNodeOp::Measure { desired_size, .. } => {
                 *desired_size = LAYOUT.constraints().fill_size();

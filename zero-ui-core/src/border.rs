@@ -721,12 +721,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
     match_node(content, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&BORDER_ALIGN_VAR);
-        }
-        UiNodeOp::Update { .. } => {
-            if BORDER_ALIGN_VAR.is_new() {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&BORDER_ALIGN_VAR);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             let offsets = BORDER.inner_offsets();
@@ -825,19 +820,12 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 /// This node disables inline layout for the widget.
 pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>, border_visual: impl UiNode) -> impl UiNode {
     let offsets = border_offsets.into_var();
-    let mut layout_offsets = SideOffsets::zero();
     let mut render_offsets = PxSideOffsets::zero();
     let mut border_rect = PxRect::zero();
 
     match_node_list(ui_vec![child, border_visual], move |children, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&offsets);
-            layout_offsets = offsets.get();
-        }
-        UiNodeOp::Update { .. } => {
-            if offsets.get_new_ne(&mut layout_offsets) {
-                WIDGET.layout();
-            }
+            WIDGET.sub_var_layout(&offsets);
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let offsets = offsets.layout();
@@ -855,7 +843,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             // `wl` is targeting the child transform, child nodes are naturally inside borders, so we
             // need to add to the offset and take the size, fill_nodes optionally cancel this transform.
 
-            let offsets = layout_offsets.layout();
+            let offsets = offsets.layout();
             if render_offsets != offsets {
                 render_offsets = offsets;
                 WIDGET.render();
