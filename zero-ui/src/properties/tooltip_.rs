@@ -2,7 +2,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{fmt, mem};
 
-use zero_ui_core::task::parking_lot::Mutex;
+use atomic::Atomic;
+use atomic::Ordering::Relaxed;
 
 use crate::core::{mouse::MOUSE_HOVERED_EVENT, timer::DeadlineVar};
 
@@ -170,7 +171,7 @@ enum TooltipState {
     Closed,
     Delay(DeadlineVar),
     /// Tip layer ID and duration deadline.
-    Open(Arc<Mutex<Option<WidgetId>>>, Option<DeadlineVar>),
+    Open(Arc<Atomic<Option<WidgetId>>>, Option<DeadlineVar>),
 }
 impl fmt::Debug for TooltipState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -193,7 +194,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
         UiNodeOp::Deinit => {
             child.deinit();
             if let TooltipState::Open(tooltip_id, _) = mem::take(&mut state) {
-                LAYERS.remove(tooltip_id.lock().unwrap());
+                LAYERS.remove(tooltip_id.load(Relaxed).unwrap());
                 TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
             }
         }
@@ -202,14 +203,14 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 if let TooltipState::Open(tooltip_id, _) = &state {
-                    if !WINDOW.widget_tree().contains(tooltip_id.lock().unwrap()) {
+                    if !WINDOW.widget_tree().contains(tooltip_id.load(Relaxed).unwrap()) {
                         // already closed (from the layer probably)
                         state = TooltipState::Closed;
                     }
                 }
                 match &state {
                     TooltipState::Open(tooltip_id, _) => {
-                        let tooltip_id = tooltip_id.lock().unwrap();
+                        let tooltip_id = tooltip_id.load(Relaxed).unwrap();
                         if !args
                             .target
                             .as_ref()
@@ -259,13 +260,13 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                     if let Some(t) = &timer {
                         if let Some(t) = t.get_new() {
                             if t.has_elapsed() {
-                                LAYERS.remove(tooltip_id.lock().unwrap());
+                                LAYERS.remove(tooltip_id.load(Relaxed).unwrap());
                                 TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
                                 state = TooltipState::Closed;
                             }
                         }
                     } else if let Some(func) = tip.get_new() {
-                        LAYERS.remove(tooltip_id.lock().unwrap());
+                        LAYERS.remove(tooltip_id.load(Relaxed).unwrap());
                         *tooltip_id = open_tooltip(func, disabled_only);
                     }
                 }
@@ -283,8 +284,8 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
     })
 }
 
-fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> Arc<Mutex<Option<WidgetId>>> {
-    let child_id = Arc::new(Mutex::new(None));
+fn open_tooltip(func: WidgetFn<TooltipArgs>, disabled: bool) -> Arc<Atomic<Option<WidgetId>>> {
+    let child_id = Arc::new(Atomic::new(None));
     let anchor_id = WIDGET.id();
 
     let tooltip = tooltip_layer_wgt(func(TooltipArgs { disabled }).boxed(), child_id.clone(), anchor_id);
@@ -313,7 +314,7 @@ fn duration_timer() -> Option<DeadlineVar> {
     }
 }
 
-fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Mutex<Option<WidgetId>>>, anchor_id: WidgetId) -> impl UiNode {
+fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>, anchor_id: WidgetId) -> impl UiNode {
     match_widget(child, move |c, op| match op {
         UiNodeOp::Init => {
             // try init, some nodes become a full widget only after init.
@@ -338,7 +339,7 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Mutex<Option<WidgetId>>>,
                 // so we need to duplicate cleanup logic here.
                 WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
 
-                *child_id.lock() = Some(WIDGET.id());
+                child_id.store(Some(WIDGET.id()), Relaxed);
             });
         }
         UiNodeOp::Event { update } => {

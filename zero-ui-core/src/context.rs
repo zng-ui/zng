@@ -2,7 +2,7 @@
 
 use std::{fmt, mem, sync::Arc, task::Waker};
 
-use atomic::Atomic;
+use atomic::{Atomic, Ordering::Relaxed};
 use parking_lot::{Mutex, RwLock};
 
 mod state;
@@ -52,7 +52,7 @@ struct WindowCtxData {
     widget_tree: RwLock<Option<WidgetInfoTree>>,
 
     #[cfg(any(test, doc, feature = "test_util"))]
-    frame_id: Mutex<crate::render::FrameId>,
+    frame_id: Atomic<crate::render::FrameId>,
 }
 impl WindowCtxData {
     #[track_caller]
@@ -75,7 +75,7 @@ impl WindowCtx {
             widget_tree: RwLock::new(None),
 
             #[cfg(any(test, doc, feature = "test_util"))]
-            frame_id: Mutex::new(crate::render::FrameId::first()),
+            frame_id: Atomic::new(crate::render::FrameId::first()),
         })))
     }
 
@@ -162,7 +162,7 @@ impl WidgetCtx {
         let ctx = self.0.as_mut().unwrap();
         ctx.var_handles.lock().clear();
         ctx.event_handles.lock().clear();
-        ctx.flags.store(UpdateFlags::empty(), atomic::Ordering::Relaxed);
+        ctx.flags.store(UpdateFlags::empty(), Relaxed);
         *ctx.render_reuse.lock() = None;
     }
 
@@ -172,12 +172,7 @@ impl WidgetCtx {
     ///
     /// [`take_reinit`]: Self::take_reinit
     pub fn is_pending_reinit(&self) -> bool {
-        self.0
-            .as_ref()
-            .unwrap()
-            .flags
-            .load(atomic::Ordering::Relaxed)
-            .contains(UpdateFlags::REINIT)
+        self.0.as_ref().unwrap().flags.load(Relaxed).contains(UpdateFlags::REINIT)
     }
 
     /// Returns `true` if an [`WIDGET.reinit`] request was made.
@@ -188,11 +183,11 @@ impl WidgetCtx {
     pub fn take_reinit(&mut self) -> bool {
         let ctx = self.0.as_mut().unwrap();
 
-        let mut flags = ctx.flags.load(atomic::Ordering::Relaxed);
+        let mut flags = ctx.flags.load(Relaxed);
         let r = flags.contains(UpdateFlags::REINIT);
         if r {
             flags.remove(UpdateFlags::REINIT);
-            ctx.flags.store(flags, atomic::Ordering::Relaxed);
+            ctx.flags.store(flags, Relaxed);
         }
 
         r
@@ -518,13 +513,13 @@ impl WINDOW {
             let win = WINDOW_CTX.get();
             let wgt = WIDGET_CTX.get();
 
-            let mut frame_id = win.frame_id.lock();
-            *frame_id = frame_id.next();
+            let frame_id = win.frame_id.load(Relaxed);
+            win.frame_id.store(frame_id.next(), Relaxed);
 
             let f = FrameBuilder::new_renderless(
                 Arc::default(),
                 Arc::default(),
-                *frame_id,
+                frame_id,
                 wgt.id,
                 &wgt.bounds.lock(),
                 win.widget_tree.read().as_ref().unwrap(),
@@ -554,12 +549,12 @@ impl WINDOW {
             let win = WINDOW_CTX.get();
             let wgt = WIDGET_CTX.get();
 
-            let mut frame_id = win.frame_id.lock();
-            *frame_id = frame_id.next_update();
+            let frame_id = win.frame_id.load(Relaxed);
+            win.frame_id.store(frame_id.next_update(), Relaxed);
 
             let f = FrameUpdate::new(
                 Arc::default(),
-                *frame_id,
+                frame_id,
                 wgt.id,
                 wgt.bounds.lock().clone(),
                 None,
@@ -593,7 +588,7 @@ impl WIDGET {
         let parent_id = WIDGET.try_id();
 
         if let Some(ctx) = ctx.0.as_mut() {
-            ctx.parent_id.store(parent_id, atomic::Ordering::Relaxed);
+            ctx.parent_id.store(parent_id, Relaxed);
         } else {
             unreachable!()
         }
@@ -602,32 +597,30 @@ impl WIDGET {
 
         let ctx = ctx.0.as_mut().unwrap();
 
-        let wgt_flags = ctx.flags.load(atomic::Ordering::Relaxed);
+        let wgt_flags = ctx.flags.load(Relaxed);
 
         if let Some(parent) = parent_id.map(|_| WIDGET_CTX.get()) {
             let propagate = wgt_flags
                 & (UpdateFlags::UPDATE | UpdateFlags::INFO | UpdateFlags::LAYOUT | UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
 
-            let _ = parent
-                .flags
-                .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut u| {
-                    if !u.contains(propagate) {
-                        u.insert(propagate);
-                        Some(u)
-                    } else {
-                        None
-                    }
-                });
-            ctx.parent_id.store(None, atomic::Ordering::Relaxed);
+            let _ = parent.flags.fetch_update(Relaxed, Relaxed, |mut u| {
+                if !u.contains(propagate) {
+                    u.insert(propagate);
+                    Some(u)
+                } else {
+                    None
+                }
+            });
+            ctx.parent_id.store(None, Relaxed);
         } else if let Some(window_id) = WINDOW.try_id() {
             // is at root, register `UPDATES`
             UPDATES.update_flags_root(wgt_flags, window_id, ctx.id);
             // some builders don't clear the root widget flags like they do for other widgets.
-            ctx.flags.store(UpdateFlags::empty(), atomic::Ordering::Relaxed);
+            ctx.flags.store(UpdateFlags::empty(), Relaxed);
         } else {
             // used outside window
             UPDATES.update_flags(wgt_flags, ctx.id);
-            ctx.flags.store(UpdateFlags::empty(), atomic::Ordering::Relaxed);
+            ctx.flags.store(UpdateFlags::empty(), Relaxed);
         }
 
         r
@@ -636,9 +629,9 @@ impl WIDGET {
     pub(crate) fn test_root_updates(&self) {
         let ctx = WIDGET_CTX.get();
         // is at root, register `UPDATES`
-        UPDATES.update_flags_root(ctx.flags.load(atomic::Ordering::Relaxed), WINDOW.id(), ctx.id);
+        UPDATES.update_flags_root(ctx.flags.load(Relaxed), WINDOW.id(), ctx.id);
         // some builders don't clear the root widget flags like they do for other widgets.
-        ctx.flags.store(UpdateFlags::empty(), atomic::Ordering::Relaxed);
+        ctx.flags.store(UpdateFlags::empty(), Relaxed);
     }
 
     /// Calls `f` while no widget is available in the context.
@@ -749,17 +742,14 @@ impl WIDGET {
     }
 
     fn update_impl(&self, flag: UpdateFlags) -> &Self {
-        let _ = WIDGET_CTX
-            .get()
-            .flags
-            .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
-                if !f.contains(flag) {
-                    f.insert(flag);
-                    Some(f)
-                } else {
-                    None
-                }
-            });
+        let _ = WIDGET_CTX.get().flags.fetch_update(Relaxed, Relaxed, |mut f| {
+            if !f.contains(flag) {
+                f.insert(flag);
+                Some(f)
+            } else {
+                None
+            }
+        });
         self
     }
 
@@ -817,17 +807,14 @@ impl WIDGET {
     ///                       If a reinit is requested during update the widget is reinited immediately after the update.
     /// * Other methods: Reinit request is flagged and an [`UiNode::update`] is requested for the widget.
     pub fn reinit(&self) {
-        let _ = WIDGET_CTX
-            .get()
-            .flags
-            .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
-                if !f.contains(UpdateFlags::REINIT) {
-                    f.insert(UpdateFlags::REINIT);
-                    Some(f)
-                } else {
-                    None
-                }
-            });
+        let _ = WIDGET_CTX.get().flags.fetch_update(Relaxed, Relaxed, |mut f| {
+            if !f.contains(UpdateFlags::REINIT) {
+                f.insert(UpdateFlags::REINIT);
+                Some(f)
+            } else {
+                None
+            }
+        });
     }
 
     /// Calls `f` with a read lock on the current widget state map.
@@ -1020,29 +1007,26 @@ impl WIDGET {
     ///
     /// Panics if not called inside an widget.
     pub fn parent_id(&self) -> Option<WidgetId> {
-        WIDGET_CTX.get().parent_id.load(atomic::Ordering::Relaxed)
+        WIDGET_CTX.get().parent_id.load(Relaxed)
     }
 
     pub(crate) fn layout_is_pending(&self, layout_widgets: &LayoutUpdates) -> bool {
         let ctx = WIDGET_CTX.get();
-        ctx.flags.load(atomic::Ordering::Relaxed).contains(UpdateFlags::LAYOUT) || layout_widgets.delivery_list.enter_widget(ctx.id)
+        ctx.flags.load(Relaxed).contains(UpdateFlags::LAYOUT) || layout_widgets.delivery_list.enter_widget(ctx.id)
     }
 
     /// Remove update flag and returns if it intersected.
     pub(crate) fn take_update(&self, flag: UpdateFlags) -> bool {
         let mut r = false;
-        let _ = WIDGET_CTX
-            .get()
-            .flags
-            .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
-                if f.intersects(flag) {
-                    r = true;
-                    f.remove(flag);
-                    Some(f)
-                } else {
-                    None
-                }
-            });
+        let _ = WIDGET_CTX.get().flags.fetch_update(Relaxed, Relaxed, |mut f| {
+            if f.intersects(flag) {
+                r = true;
+                f.remove(flag);
+                Some(f)
+            } else {
+                None
+            }
+        });
         r
     }
 
@@ -1052,17 +1036,15 @@ impl WIDGET {
         let mut try_reuse = true;
 
         // take RENDER, RENDER_UPDATE
-        let _ = ctx
-            .flags
-            .fetch_update(atomic::Ordering::Relaxed, atomic::Ordering::Relaxed, |mut f| {
-                if f.intersects(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE) {
-                    try_reuse = false;
-                    f.remove(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
-                    Some(f)
-                } else {
-                    None
-                }
-            });
+        let _ = ctx.flags.fetch_update(Relaxed, Relaxed, |mut f| {
+            if f.intersects(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE) {
+                try_reuse = false;
+                f.remove(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
+                Some(f)
+            } else {
+                None
+            }
+        });
 
         if try_reuse && !render_widgets.delivery_list.enter_widget(ctx.id) && !render_update_widgets.delivery_list.enter_widget(ctx.id) {
             ctx.render_reuse.lock().take()
@@ -1151,7 +1133,7 @@ impl LAYOUT {
     pub fn capture_metrics_use<R>(&self, f: impl FnOnce() -> R) -> (LayoutMask, R) {
         METRICS_USED_CTX.with_context_value(Atomic::new(LayoutMask::empty()), || {
             let r = f();
-            let uses = METRICS_USED_CTX.get().load(atomic::Ordering::Relaxed);
+            let uses = METRICS_USED_CTX.get().load(Relaxed);
             (uses, r)
         })
     }
@@ -1161,8 +1143,8 @@ impl LAYOUT {
     /// Note that the value methods already register by the [`LayoutMetrics`] getter methods.
     pub fn register_metrics_use(&self, uses: LayoutMask) {
         let ctx = METRICS_USED_CTX.get();
-        let m = ctx.load(atomic::Ordering::Relaxed);
-        ctx.store(m | uses, atomic::Ordering::Relaxed);
+        let m = ctx.load(Relaxed);
+        ctx.store(m | uses, Relaxed);
     }
 
     /// Current size constraints.

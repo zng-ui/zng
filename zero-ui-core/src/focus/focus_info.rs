@@ -1,3 +1,4 @@
+use atomic::{Atomic, Ordering::Relaxed};
 use parking_lot::Mutex;
 
 use crate::{
@@ -659,7 +660,7 @@ impl WidgetFocusInfo {
         }
     }
     fn inner_alt_scope(&self) -> Option<WidgetFocusInfo> {
-        let inner_alt = *self.info.meta().get(&FOCUS_INFO_ID).unwrap().inner_alt.lock();
+        let inner_alt = self.info.meta().get(&FOCUS_INFO_ID).unwrap().inner_alt.load(Relaxed);
         if let Some(id) = inner_alt {
             if let Some(wgt) = self.info.tree().get(id) {
                 let wgt = wgt.into_focus_info(self.focus_disabled_widgets(), self.focus_hidden_widgets());
@@ -1592,7 +1593,7 @@ impl FocusTreeData {
                         for parent in wgt.ancestors() {
                             if let Some(info) = parent.meta().get(&FOCUS_INFO_ID) {
                                 if info.build().is_scope() {
-                                    *info.inner_alt.lock() = Some(*id);
+                                    info.inner_alt.store(Some(*id), Relaxed);
                                     break;
                                 }
                             }
@@ -1622,7 +1623,7 @@ struct FocusInfoData {
     directional_nav: Option<DirectionalNav>,
     skip_directional: Option<bool>,
 
-    inner_alt: Mutex<Option<WidgetId>>,
+    inner_alt: Atomic<Option<WidgetId>>,
 }
 impl FocusInfoData {
     /// Build a [`FocusInfo`] from the collected configuration in `self`.

@@ -2,7 +2,7 @@ use std::{
     any::Any,
     fmt,
     sync::{
-        atomic::{self, AtomicBool},
+        atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
     },
     time::Instant,
@@ -69,7 +69,7 @@ impl EventPropagationHandle {
     pub fn stop(&self) {
         // Is `Arc` to make `EventArgs` send, but stop handle is only useful in the UI thread, so
         // we don't need any ordering.
-        self.0.store(true, atomic::Ordering::Relaxed);
+        self.0.store(true, Relaxed);
     }
 
     /// If the handler must skip this event instance.
@@ -81,7 +81,7 @@ impl EventPropagationHandle {
     /// [`UiNode`]: crate::widget_instance::UiNode
     /// [`AppExtension`]: crate::app::AppExtension
     pub fn is_stopped(&self) -> bool {
-        self.0.load(atomic::Ordering::Relaxed)
+        self.0.load(Relaxed)
     }
 }
 impl Default for EventPropagationHandle {

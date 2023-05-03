@@ -1,8 +1,5 @@
 * Use direct updates in properties that only request info, layout or render on var update.
 
-* Use `Atomic<T>` in places we use `Mutex<Copy>` or `RwLock<Copy>`.
-    - `WidgetCtxData`.
-
 * Finish test edit & selection.
     - No char event is emitted for tab?
     - Implement cursor position.
