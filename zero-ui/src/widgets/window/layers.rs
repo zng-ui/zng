@@ -501,27 +501,25 @@ fn adjust_viewport_bound(transform: PxTransform, widget: &mut impl UiNode) -> Px
     transform.then_translate(correction.cast())
 }
 
-#[derive(Clone, Debug, Default)]
-enum LayerRemove {
-    #[default]
-    Allowed,
-    Request,
-    Requested(EditableUiNodeListRef),
-}
-
 static WINDOW_PRE_INIT_LAYERS_ID: StaticStateId<Vec<Mutex<BoxedUiNode>>> = StaticStateId::new_unique();
 static WINDOW_LAYERS_ID: StaticStateId<LayersCtx> = StaticStateId::new_unique();
 static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
-static LAYER_REMOVE_ID: StaticStateId<LayerRemove> = StaticStateId::new_unique();
-static LAYER_REMOVING_ID: StaticStateId<bool> = StaticStateId::new_unique();
 
+static HAS_LAYER_REMOVE_HANDLERS_ID: StaticStateId<()> = StaticStateId::new_unique();
 event_args! {
     /// Arguments for [`on_layer_remove_requested`].
     pub struct LayerRemoveRequestedArgs {
+        list: EditableUiNodeListRef,
         ..
         /// No target, only the layered widget receives the event.
         fn delivery_list(&self, _delivery_list: &mut UpdateDeliveryList) {}
     }
+}
+event! {
+    static LAYER_REMOVE_REQUESTED_EVENT: LayerRemoveRequestedArgs;
+}
+context_var! {
+    static IS_LAYER_REMOVING_VAR: bool = false;
 }
 
 /// Event that a layered widget receives when it is about to be removed.
@@ -536,25 +534,15 @@ pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler
     let mut handler = handler.cfg_boxed();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
+            WIDGET.flag_state(&HAS_LAYER_REMOVE_HANDLERS_ID);
         }
-        UiNodeOp::Deinit => {
-            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
+        UiNodeOp::Event { update } => {
+            if let Some(args) = LAYER_REMOVE_REQUESTED_EVENT.on(update) {
+                handler.event(args);
+            }
         }
         UiNodeOp::Update { .. } => {
-            if let LayerRemove::Requested(list) = WIDGET.get_state(&LAYER_REMOVE_ID).unwrap_or_default() {
-                let args = LayerRemoveRequestedArgs::now();
-                handler.event(&args);
-                match args.propagation().is_stopped() {
-                    true => {
-                        WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
-                    }
-                    false => {
-                        WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
-                        list.remove(WIDGET.id());
-                    }
-                }
-            }
+            handler.update();
         }
         _ => {}
     })
@@ -565,54 +553,57 @@ pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler
 pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
     let delay = delay.into_var();
     let mut timer = None::<DeadlineHandle>;
+
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
-            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
+            WIDGET.flag_state(&HAS_LAYER_REMOVE_HANDLERS_ID);
         }
         UiNodeOp::Deinit => {
-            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
-            WIDGET.set_state(&LAYER_REMOVING_ID, false);
             timer = None;
+            let _ = IS_LAYER_REMOVING_VAR.set_ne(false);
         }
-        UiNodeOp::Update { .. } => {
-            if let LayerRemove::Requested(list) = WIDGET.get_state(&LAYER_REMOVE_ID).unwrap_or_default() {
-                let delay = delay.get();
-                if delay == Duration::ZERO {
-                    WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
-                    list.remove(WIDGET.id());
-                    return;
-                }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = LAYER_REMOVE_REQUESTED_EVENT.on(update) {
                 if let Some(timer) = &timer {
                     if timer.has_executed() {
-                        WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Allowed);
-                        list.remove(WIDGET.id());
+                        // allow
+                        return;
+                    } else {
+                        args.propagation().stop();
+                        // timer already running.
                         return;
                     }
-                } else {
+                }
+
+                let delay = delay.get();
+                if delay != Duration::ZERO {
+                    args.propagation().stop();
+
+                    let list = args.list.clone();
                     let id = WIDGET.id();
+
+                    let _ = IS_LAYER_REMOVING_VAR.set(true);
+
                     timer = Some(TIMERS.on_deadline(
                         delay,
                         app_hn_once!(|_| {
                             list.remove(id);
                         }),
                     ));
-                    WIDGET.set_state(&LAYER_REMOVING_ID, true);
                 }
-                WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Request);
             }
         }
         _ => {}
     })
 }
 
+/// If remove was requested for this layered widget and it is just awaiting for the [`layer_remove_delay`].
+///
+/// [`layer_remove_delay`]: fn@layer_remove_delay
 #[property(CONTEXT)]
 pub fn is_layer_removing(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    widget_state_is_state(
-        child,
-        |state| state.get_clone(&LAYER_REMOVING_ID).unwrap_or_default(),
-        |_| false,
-        state,
-    )
+    // reverse context var, is set by `layer_remove_delay`.
+    with_context_var(child, IS_LAYER_REMOVING_VAR, state)
 }
 
 /// Represents a layer in a window.
@@ -1155,21 +1146,17 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
                     editable_list.retain_mut(|n| {
                         enum Action {
                             Remove,
-                            Update,
+                            Event,
                             Retain,
                         }
                         let remove_requested = retains.iter_mut().any(|r| !r(n));
                         let action = n
                             .with_context(|| {
                                 if remove_requested {
-                                    let state = WIDGET.get_state(&LAYER_REMOVE_ID).unwrap_or_default();
-                                    match state {
-                                        LayerRemove::Allowed => Action::Remove,
-                                        LayerRemove::Request => {
-                                            WIDGET.set_state(&LAYER_REMOVE_ID, LayerRemove::Requested(layered.clone()));
-                                            Action::Update
-                                        }
-                                        LayerRemove::Requested(_) => Action::Retain,
+                                    if WIDGET.get_state(&HAS_LAYER_REMOVE_HANDLERS_ID).is_some() {
+                                        Action::Event
+                                    } else {
+                                        Action::Remove
                                     }
                                 } else {
                                     Action::Retain
@@ -1184,13 +1171,22 @@ pub(super) fn node(child: impl UiNode) -> impl UiNode {
                                 changed = true;
                                 false
                             }
-                            Action::Update => {
+                            Action::Event => {
+                                let args = LayerRemoveRequestedArgs::now(layered.clone());
+                                let propagation = args.propagation().clone();
                                 let mut delivery_list = UpdateDeliveryList::new_any();
                                 n.with_context(|| {
                                     delivery_list.insert_wgt(&WIDGET.info());
                                 });
-                                n.update(&WidgetUpdates::new(delivery_list));
-                                true
+                                n.event(&LAYER_REMOVE_REQUESTED_EVENT.new_update_custom(args, delivery_list));
+                                if propagation.is_stopped() {
+                                    true
+                                } else {
+                                    n.deinit();
+                                    WIDGET.info();
+                                    changed = true;
+                                    false
+                                }
                             }
                             Action::Retain => true,
                         }
