@@ -455,8 +455,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
 
     /// If the variable current value was set by an active animation.
     ///
-    /// The variable [`is_new`] when this changes to `true`, but it can change to `false` at any time
-    /// without the value updating.
+    /// The variable [`is_new`] when this changes.
     ///
     /// [`is_new`]: AnyVar::is_new
     fn is_animating(&self) -> bool;
@@ -917,9 +916,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         types::WaitIsNewFut::new(self)
     }
 
-    /// Create a future that awaits for [`is_animating`] to be `false`.
+    /// Create a future that awaits for [`is_animating`] to change from `true` to `false`.
     ///
-    /// The future can only be used in app bound async code, it can be reused.
+    /// The future can only be used in app bound async code, it can be reused. If the variable
+    /// is not animating at the moment of this call the future will await until the animation starts and stops.
     ///
     /// [`is_animating`]: AnyVar::is_animating
     fn wait_animation(&self) -> types::WaitIsNotAnimatingFut<Self> {

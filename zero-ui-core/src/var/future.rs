@@ -79,19 +79,22 @@ impl<'a, V: AnyVar> Future for WaitIsNewFut<'a, V> {
 /// See [`Var::wait_animation`].
 pub struct WaitIsNotAnimatingFut<'a, V: AnyVar> {
     var: &'a V,
+    observed_animation_start: bool,
 }
 impl<'a, V: AnyVar> WaitIsNotAnimatingFut<'a, V> {
     pub(super) fn new(var: &'a V) -> Self {
-        Self { var }
+        Self {
+            observed_animation_start: var.is_animating(),
+            var,
+        }
     }
 }
 impl<'a, V: AnyVar> Future for WaitIsNotAnimatingFut<'a, V> {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
-        match self.var.is_animating() {
-            false => Poll::Ready(()),
-            true => {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
+        if self.observed_animation_start {
+            if self.var.is_animating() {
                 let waker = cx.waker().clone();
                 let handle = self.var.hook(Box::new(move |_| {
                     waker.wake_by_ref();
@@ -101,9 +104,25 @@ impl<'a, V: AnyVar> Future for WaitIsNotAnimatingFut<'a, V> {
                     handle.perm();
                     Poll::Pending
                 } else {
+                    self.observed_animation_start = false;
                     Poll::Ready(())
                 }
+            } else {
+                self.observed_animation_start = false;
+                Poll::Ready(())
             }
+        } else {
+            let waker = cx.waker().clone();
+            self.var
+                .hook(Box::new(move |_| {
+                    waker.wake_by_ref();
+                    false
+                }))
+                .perm();
+            if self.var.is_animating() {
+                self.observed_animation_start = true;
+            }
+            Poll::Pending
         }
     }
 }

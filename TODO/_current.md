@@ -1,7 +1,5 @@
-* Window example, cancel close dialog with keyboard causes freeze?
-    - `modal` is not closed.
-    - `animation.await` never returns.
-    - Can still interact with dialog using keyboard, it just has opacity=0
+* Fix `is_animating` not updating var when it changes to `false`.
+
 * Focus example, review holding move press in nested focusables.
 
 * Finish text edit & selection.

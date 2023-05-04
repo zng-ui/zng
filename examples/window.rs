@@ -35,6 +35,7 @@ async fn main_window() -> WindowRoot {
     let background = var(colors::BLACK);
 
     Window! {
+        zero_ui::core::widget_base::parallel = false;
         background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
         title;
@@ -521,7 +522,6 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                                 child = Text!("Cancel");
                                 on_click = async_hn!(opacity, state, |_| {
                                     opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
-                                    task::yield_one().await;
                                     opacity.wait_animation().await;
 
                                     state.set(CloseState::Ask);

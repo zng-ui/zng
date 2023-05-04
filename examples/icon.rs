@@ -235,7 +235,6 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl UiNode {
                         args.propagation().stop();
 
                         opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
-                        task::yield_one().await;
                         opacity.wait_animation().await;
 
                         LAYERS.remove("expanded-icon");
