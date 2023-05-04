@@ -39,6 +39,30 @@ impl PartialEq for FactorPercent {
         about_eq(self.0, other.0, EPSILON_100)
     }
 }
+impl ops::Mul for FactorPercent {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self(self.0 * rhs.0)
+    }
+}
+impl ops::MulAssign for FactorPercent {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
+    }
+}
+impl ops::Div for FactorPercent {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Self(self.0 / rhs.0)
+    }
+}
+impl ops::DivAssign for FactorPercent {
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
+    }
+}
 impl_from_and_into_var! {
     fn from(n: Factor) -> FactorPercent {
         FactorPercent(n.0 * 100.0)
@@ -149,6 +173,32 @@ impl ops::DivAssign for Factor {
         *self = *self / rhs;
     }
 }
+
+impl ops::Mul<Factor> for FactorPercent {
+    type Output = FactorPercent;
+
+    fn mul(self, rhs: Factor) -> Self {
+        Self(self.0 * rhs.0)
+    }
+}
+impl ops::Div<Factor> for FactorPercent {
+    type Output = FactorPercent;
+
+    fn div(self, rhs: Factor) -> Self {
+        Self(self.0 / rhs.0)
+    }
+}
+impl ops::MulAssign<Factor> for FactorPercent {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for FactorPercent {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
 impl ops::Mul<Factor> for Px {
     type Output = Px;
 
