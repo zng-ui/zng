@@ -1267,8 +1267,8 @@ impl UiNodeList for EditableUiNodeList {
     }
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        self.vec.update_all(updates, &mut ());
         self.fullfill_requests(observer);
-        self.vec.update_all(updates, observer);
     }
 
     fn measure_each<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize

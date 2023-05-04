@@ -1,6 +1,3 @@
-* Update before info init in layered widget.
-    - Maybe inside editable list?
-    
 * Window example, cancel close dialog with keyboard causes freeze?
 * Focus example, review holding move press in nested focusables.
 
