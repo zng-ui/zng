@@ -898,7 +898,7 @@ pub async fn yield_one() {
 
 /// A future that is [`Pending`] once and wakes the current task.
 ///
-/// After the first `.await` the future is always [`Ready`] and on the first `.await` if calls [`wake`].
+/// After the first `.await` the future is always [`Ready`] and on the first `.await` it calls [`wake`].
 ///
 /// [`Pending`]: std::task::Poll::Pending
 /// [`Ready`]: std::task::Poll::Ready

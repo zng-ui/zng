@@ -1877,7 +1877,7 @@ pub struct AnimationsConfig {
     pub caret_blink_timeout: Duration,
 }
 impl Default for AnimationsConfig {
-    /// true, 100ms, MAX.
+    /// true, 530ms, 5s.
     fn default() -> Self {
         Self {
             enabled: true,
