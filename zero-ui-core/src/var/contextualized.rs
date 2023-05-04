@@ -152,6 +152,10 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         self.borrow_init().hook(pos_modify_action)
     }
 
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        self.borrow_init().hook_animation_stop(handler)
+    }
+
     fn strong_count(&self) -> usize {
         Arc::strong_count(&self.init)
     }

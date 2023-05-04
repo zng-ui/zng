@@ -191,6 +191,13 @@ impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
         }
     }
 
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        match &*self.0.read_recursive() {
+            Data::Source { source, .. } => source.hook_animation_stop(handler),
+            Data::Owned { animation, .. } => animation.hook_animation_stop(handler),
+        }
+    }
+
     fn strong_count(&self) -> usize {
         Arc::strong_count(&self.0)
     }

@@ -148,6 +148,10 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.0.get().hook(pos_modify_action)
     }
 
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        self.0.get().hook_animation_stop(handler)
+    }
+
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
         self.0.get().subscribe(op, widget_id)
     }

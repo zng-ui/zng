@@ -94,33 +94,76 @@ impl<'a, V: AnyVar> Future for WaitIsNotAnimatingFut<'a, V> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
         if self.observed_animation_start {
+            // already observed `is_animating` in a previous poll.
+
             if self.var.is_animating() {
-                let waker = cx.waker().clone();
-                let handle = self.var.hook(Box::new(move |_| {
-                    waker.wake_by_ref();
-                    false
-                }));
-                if self.var.is_animating() {
-                    handle.perm();
-                    Poll::Pending
-                } else {
-                    self.observed_animation_start = false;
-                    Poll::Ready(())
+                // still animating, but received poll so an animation was overridden and stopped.
+                // try hook with new animation.
+
+                loop {
+                    let waker = cx.waker().clone();
+                    let r = self.var.hook_animation_stop(Box::new(move || {
+                        waker.wake_by_ref();
+                    }));
+                    if r.is_err() {
+                        // failed to hook with new animation too.
+                        if self.var.is_animating() {
+                            // but has yet another animation, try again.
+                            continue;
+                        } else {
+                            // observed `is_animating` changing to `false`.
+                            self.observed_animation_start = false;
+                            return Poll::Ready(());
+                        }
+                    } else {
+                        // new animation hook setup ok, break loop.
+                        return Poll::Pending;
+                    }
                 }
             } else {
+                // now observed change to `false`.
                 self.observed_animation_start = false;
                 Poll::Ready(())
             }
         } else {
+            // have not observed `is_animating` yet.
+
+            // hook with normal var updates, `is_animating && is_new` is always `true`.
             let waker = cx.waker().clone();
-            self.var
-                .hook(Box::new(move |_| {
-                    waker.wake_by_ref();
-                    false
-                }))
-                .perm();
+            let start_hook = self.var.hook(Box::new(move |_| {
+                waker.wake_by_ref();
+                false
+            }));
+
             if self.var.is_animating() {
+                // observed `is_animating` already, changed in other thread during the `hook` setup.
                 self.observed_animation_start = true;
+
+                loop {
+                    // hook with animation stop.
+                    let waker = cx.waker().clone();
+                    let r = self.var.hook_animation_stop(Box::new(move || {
+                        waker.wake_by_ref();
+                    }));
+                    if r.is_err() {
+                        // failed to hook, animation already stopped during hook setup.
+                        if self.var.is_animating() {
+                            // but var is still animating, reason a new animation replaced the previous one (that stopped).
+                            // continue to hook with new animation.
+                            continue;
+                        } else {
+                            // we have observed `is_animating` changing to `false` in one poll call.
+                            self.observed_animation_start = false;
+                            return Poll::Ready(());
+                        }
+                    } else {
+                        // animation hook setup ok, break loop.
+                        return Poll::Pending;
+                    }
+                }
+            } else {
+                // updates hook ok.
+                start_hook.perm();
             }
             Poll::Pending
         }

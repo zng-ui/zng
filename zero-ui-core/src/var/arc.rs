@@ -83,6 +83,10 @@ impl<T: VarValue> AnyVar for ArcVar<T> {
         self.0.push_hook(pos_modify_action)
     }
 
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        self.0.push_animation_hook(handler)
+    }
+
     fn strong_count(&self) -> usize {
         Arc::strong_count(&self.0)
     }

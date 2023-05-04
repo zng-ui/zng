@@ -305,6 +305,10 @@ impl<T: VarValue> VarData<T> {
         hook
     }
 
+    pub fn push_animation_hook(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        self.meta.lock().animation.hook_animation_stop(handler)
+    }
+
     /// Calls `modify` on the value, if modified the value is replaced and the previous value returned.
     pub fn apply_modify(&self, modify: impl FnOnce(&mut Cow<T>)) {
         {

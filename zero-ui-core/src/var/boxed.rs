@@ -161,6 +161,10 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).hook(pos_modify_action)
     }
 
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        (**self).hook_animation_stop(handler)
+    }
+
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
         (**self).subscribe(op, widget_id)
     }

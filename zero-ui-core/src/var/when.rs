@@ -446,6 +446,10 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
         handle
     }
 
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        self.active().hook_animation_stop(handler)
+    }
+
     fn strong_count(&self) -> usize {
         Arc::strong_count(&self.0)
     }

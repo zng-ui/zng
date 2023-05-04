@@ -35,7 +35,6 @@ async fn main_window() -> WindowRoot {
     let background = var(colors::BLACK);
 
     Window! {
-        zero_ui::core::widget_base::parallel = false;
         background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
         title;

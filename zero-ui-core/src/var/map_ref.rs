@@ -86,6 +86,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         }))
     }
 
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        self.source.hook_animation_stop(handler)
+    }
+
     fn strong_count(&self) -> usize {
         self.source.strong_count()
     }
@@ -302,6 +306,10 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
                 true
             }
         }))
+    }
+
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        self.source.hook_animation_stop(handler)
     }
 
     fn strong_count(&self) -> usize {

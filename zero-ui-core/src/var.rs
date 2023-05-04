@@ -455,9 +455,15 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
 
     /// If the variable current value was set by an active animation.
     ///
-    /// The variable [`is_new`] when this changes.
+    /// The variable [`is_new`] when this changes to `true`, but it **may not be new** when the value changes to `false`.
+    /// If the variable is not touched at the last frame of the animation that has last set it, it will not update
+    /// just because that animation has ended. You can use [`hook_animation_stop`] to get a notification when the
+    /// last animation stops, or use [`wait_animation`] to get a future that is ready when `is_animating` changes
+    /// from `true` to `false`.
     ///
     /// [`is_new`]: AnyVar::is_new
+    /// [`hook_animation_stop`]: AnyVar::hook_animation_stop
+    /// [`wait_animation`]: Var::wait_animation
     fn is_animating(&self) -> bool;
 
     /// Gets a value that indicates the *importance* clearance that is needed to modify this variable.
@@ -488,6 +494,19 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// [`on_new`]: Var::on_new
     /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
     fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle;
+
+    /// Register a `handler` to be called when the current animation stops.
+    ///
+    /// Note that the `handler` is owned by the animation, not the variable, it will only be called/dropped when the
+    /// animation stops.
+    ///
+    /// Returns the `handler` as an error if the variable is not animating. Note that if you are interacting
+    /// with the variable from a non-UI thread the variable can stops animating between checking [`is_animating`]
+    /// and registering the hook, in this case the `handler` will be returned as an error aswell.
+    ///
+    /// [`modify_importance`]: AnyVar::modify_importance
+    /// [`is_animating`]: AnyVar::is_animating
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>>;
 
     /// Register the widget to receive an [`UpdateOp`] when this variable is new.
     ///

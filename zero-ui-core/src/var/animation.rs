@@ -74,6 +74,18 @@ pub mod easing;
 #[doc(inline)]
 pub use zero_ui_proc_macros::easing;
 
+#[derive(Default)]
+pub(super) struct AnimationHandleData {
+    on_drop: Mutex<Vec<Box<dyn FnOnce() + Send>>>,
+}
+impl Drop for AnimationHandleData {
+    fn drop(&mut self) {
+        for f in self.on_drop.get_mut().drain(..) {
+            f()
+        }
+    }
+}
+
 /// Represents a running animation created by [`Animations.animate`].
 ///
 /// Drop all clones of this handle to stop the animation, or call [`perm`] to drop the handle
@@ -83,10 +95,10 @@ pub use zero_ui_proc_macros::easing;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(transparent)]
 #[must_use = "the animation stops if the handle is dropped"]
-pub struct AnimationHandle(crate_util::Handle<()>);
+pub struct AnimationHandle(crate_util::Handle<AnimationHandleData>);
 impl AnimationHandle {
-    pub(super) fn new() -> (crate_util::HandleOwner<()>, Self) {
-        let (owner, handle) = crate_util::Handle::new(());
+    pub(super) fn new() -> (crate_util::HandleOwner<AnimationHandleData>, Self) {
+        let (owner, handle) = crate_util::Handle::new(AnimationHandleData::default());
         (owner, AnimationHandle(handle))
     }
 
@@ -95,7 +107,7 @@ impl AnimationHandle {
     /// Note that `Option<AnimationHandle>` takes up the same space as `AnimationHandle` and avoids an allocation.
     pub fn dummy() -> Self {
         assert_non_null!(AnimationHandle);
-        AnimationHandle(crate_util::Handle::dummy(()))
+        AnimationHandle(crate_util::Handle::dummy(AnimationHandleData::default()))
     }
 
     /// Drop the handle but does **not** stop.
@@ -127,11 +139,25 @@ impl AnimationHandle {
     pub fn downgrade(&self) -> WeakAnimationHandle {
         WeakAnimationHandle(self.0.downgrade())
     }
+
+    /// Register a `handler` to be called once when the animation stops.
+    ///
+    /// Returns the `handler` if the animation has already stopped.
+    ///
+    /// [`importance`]: ModifyInfo::importance
+    pub fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        if !self.is_stopped() {
+            self.0.data().on_drop.lock().push(handler);
+            Ok(())
+        } else {
+            Err(handler)
+        }
+    }
 }
 
 /// Weak [`AnimationHandle`].
 #[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
-pub struct WeakAnimationHandle(pub(super) crate_util::WeakHandle<()>);
+pub struct WeakAnimationHandle(pub(super) crate_util::WeakHandle<AnimationHandleData>);
 impl WeakAnimationHandle {
     /// New weak handle that does not upgrade.
     pub fn new() -> Self {
@@ -1014,6 +1040,23 @@ impl ModifyInfo {
     /// [`importance`]: Self::importance
     pub fn is_animating(&self) -> bool {
         self.handle.as_ref().map(|h| h.upgrade().is_some()).unwrap_or(false)
+    }
+
+    /// Returns `true` if `self` and `other` have the same animation or are both not animating.
+    pub fn animation_eq(&self, other: &Self) -> bool {
+        self.handle == other.handle
+    }
+
+    /// Register a `handler` to be called once when the current animation stops.
+    ///
+    /// [`importance`]: Self::importance
+    pub fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        if let Some(h) = &self.handle {
+            if let Some(h) = h.upgrade() {
+                return h.hook_animation_stop(handler);
+            }
+        }
+        Err(handler)
     }
 }
 

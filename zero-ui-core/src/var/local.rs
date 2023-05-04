@@ -48,6 +48,10 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         VarHandle::dummy()
     }
 
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        Err(handler)
+    }
+
     fn subscribe(&self, _: UpdateOp, _: WidgetId) -> VarHandle {
         VarHandle::dummy()
     }

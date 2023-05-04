@@ -69,6 +69,10 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self.1.hook(pos_modify_action)
     }
 
+    fn hook_animation_stop(&self, handler: Box<dyn FnOnce() + Send>) -> Result<(), Box<dyn FnOnce() + Send>> {
+        self.1.hook_animation_stop(handler)
+    }
+
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
         self.1.subscribe(op, widget_id)
     }
