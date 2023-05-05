@@ -182,6 +182,7 @@ pub fn presenter<D: VarValue>(data: impl IntoVar<D>, update: impl IntoVar<Widget
                 c.child().deinit();
                 *c.child() = update.get()(data.get());
                 c.child().init();
+                c.delegated();
                 WIDGET.update_info().layout().render();
             }
         }
@@ -215,10 +216,12 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, update: impl In
                     c.child().deinit();
                     *c.child() = update.get()(data);
                     c.child().init();
+                    c.delegated();
                     WIDGET.update_info().layout().render();
                 } else if c.child().actual_type_id() != TypeId::of::<NilUiNode>() {
                     c.child().deinit();
                     *c.child() = NilUiNode.boxed();
+                    c.delegated();
                     WIDGET.update_info().layout().render();
                 }
             }
@@ -349,6 +352,7 @@ pub fn view<D: VarValue>(data: impl IntoVar<D>, update: impl WidgetHandler<ViewA
                     c.child().deinit();
                     *c.child() = child;
                     c.child().init();
+                    c.delegated();
                     WIDGET.update_info().layout().render();
                 }
             }
