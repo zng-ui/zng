@@ -1,7 +1,5 @@
-* Focus example, review holding move press in nested focusables.
-
 * Finish text edit & selection.
-    - No char event is emitted for tab?
+    - Implement `accepts_return`.
     - Implement cursor position.
     - Implement selection.
 

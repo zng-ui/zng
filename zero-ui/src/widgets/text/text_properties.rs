@@ -831,6 +831,9 @@ context_var! {
     /// Text is editable.
     pub static TEXT_EDITABLE_VAR: bool = false;
 
+    /// Accepts `tab` input when editable.
+    pub static ACCEPTS_TAB_VAR: bool = true;
+
     /// Caret color, inherits from [`TEXT_COLOR_VAR`].
     pub static CARET_COLOR_VAR: Rgba = TEXT_COLOR_VAR;
 }
@@ -844,6 +847,16 @@ context_var! {
 #[property(CONTEXT, default(TEXT_EDITABLE_VAR), widget_impl(TextEditMix<P>))]
 pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, TEXT_EDITABLE_VAR, enabled)
+}
+
+/// If the `'\t'` character is inserted when tab is pressed and the text is editable.
+///
+/// If not enabled or the text is not editable, then pressing tab moves the focus like normal.
+///
+/// Sets the [`ACCEPTS_TAB_VAR`].
+#[property(CONTEXT, default(ACCEPTS_TAB_VAR), widget_impl(TextEditMix<P>))]
+pub fn accepts_tab(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, ACCEPTS_TAB_VAR, enabled)
 }
 
 /// Sets the [`CARET_COLOR_VAR`].

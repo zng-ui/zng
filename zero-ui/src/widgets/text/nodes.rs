@@ -4,11 +4,12 @@ use std::{fmt, sync::Arc};
 
 use atomic::{Atomic, Ordering};
 use font_features::FontVariations;
+use zero_ui_core::keyboard::Key;
 
 use super::text_properties::*;
 use crate::core::{
     focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
-    keyboard::{CHAR_INPUT_EVENT, KEYBOARD},
+    keyboard::{CHAR_INPUT_EVENT, KEYBOARD, KEY_INPUT_EVENT},
     text::*,
     window::{WindowLoadingHandle, WINDOW_CTRL},
 };
@@ -230,6 +231,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
             if editable {
                 event_handles.push(CHAR_INPUT_EVENT.subscribe(WIDGET.id()));
+                event_handles.push(KEY_INPUT_EVENT.subscribe(WIDGET.id()));
                 event_handles.push(FOCUS_CHANGED_EVENT.subscribe(WIDGET.id()));
             }
 
@@ -252,6 +254,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             if let Some(args) = CHAR_INPUT_EVENT.on(update) {
                 if !args.propagation().is_stopped() && text.capabilities().contains(VarCapabilities::MODIFY) && args.is_enabled(WIDGET.id())
                 {
+                    if args.character == '\t' && !ACCEPTS_TAB_VAR.get() {
+                        return;
+                    }
                     args.propagation().stop();
 
                     let new_animation = KEYBOARD.caret_animation();
@@ -276,6 +281,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             t.to_mut().to_mut().push(c);
                         });
                     }
+                }
+            } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
+                if args.key == Some(Key::Tab) && ACCEPTS_TAB_VAR.get() {
+                    args.propagation().stop();
                 }
             } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if TEXT_EDITABLE_VAR.get() {
@@ -372,6 +381,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 
                     let id = WIDGET.id();
                     event_handles.push(CHAR_INPUT_EVENT.subscribe(id));
+                    event_handles.push(KEY_INPUT_EVENT.subscribe(id));
                     event_handles.push(FOCUS_CHANGED_EVENT.subscribe(id));
 
                     if FOCUS.focused().get().map(|p| p.widget_id()) == Some(id) {
