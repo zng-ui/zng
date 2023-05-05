@@ -109,6 +109,8 @@ pub fn allow_missing_delegate() {
         WINDOW.with_test_context(|| {
             WINDOW.test_init(&mut wgt);
             assert_only_traced!(wgt, "init");
+            WINDOW.test_info(&mut wgt);
+            assert_only_traced!(wgt, "info");
 
             WINDOW.test_update(&mut wgt, None);
             assert_did_not_trace!(wgt);

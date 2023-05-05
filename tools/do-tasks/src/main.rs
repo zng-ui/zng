@@ -204,7 +204,7 @@ fn doc(mut args: Vec<&str>) {
 //        Run all unit, doc, integration and build tests.
 fn test(mut args: Vec<&str>) {
     let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
-    let env = &[("RUST_BACKTRACE", "1")];
+    let env = &[("RUST_BACKTRACE", "full")];
 
     if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
         // unit tests:

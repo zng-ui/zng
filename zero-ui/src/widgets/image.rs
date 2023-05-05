@@ -62,6 +62,7 @@ mod tests {
         let ok = Arc::new(AtomicBool::new(false));
         let window_id = app.open_window(async_clmv!(ok, {
             Window! {
+                crate::core::widget_base::parallel = false;
                 child = Image! {
                     source = img.clone();
                     img_error_fn = wgt_fn!(ok, |_| {

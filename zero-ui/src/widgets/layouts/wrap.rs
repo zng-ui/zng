@@ -1018,7 +1018,9 @@ mod tests {
             };
 
             WINDOW.test_init(&mut panel);
+            WINDOW.test_info(&mut panel);
             WINDOW.test_init(&mut estimate);
+            WINDOW.test_info(&mut estimate);
 
             let m_constraints = PxConstraints2d::new_unbounded().with_max_x(Px(1184));
             let measure_constraints = InlineConstraintsMeasure {
@@ -1084,7 +1086,9 @@ mod tests {
             };
 
             WINDOW.test_init(&mut panel);
+            WINDOW.test_info(&mut panel);
             WINDOW.test_init(&mut estimate);
+            WINDOW.test_info(&mut estimate);
 
             let m_constraints = PxConstraints2d::new_unbounded().with_max_x(Px(1184));
             let measure_constraints = InlineConstraintsMeasure {

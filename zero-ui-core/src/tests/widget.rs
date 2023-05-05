@@ -278,6 +278,7 @@ pub fn wgt_when() {
     WINDOW.with_test_context(|| {
         let mut wgt = WhenWgt!();
         WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&mut wgt);
 
         assert!(util::traced(&mut wgt, "boo!"));
 
@@ -305,7 +306,8 @@ pub fn widget_user_when() {
                 util::live_trace = "B";
             }
         };
-        wgt.init();
+        WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&mut wgt);
 
         assert!(util::traced(&mut wgt, "A"));
 
@@ -348,7 +350,8 @@ pub fn wgt_multi_when() {
 
     WINDOW.with_test_context(|| {
         let mut wgt = MultiWhenWgt!();
-        wgt.init();
+        WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&mut wgt);
 
         assert!(util::traced(&mut wgt, "default"));
 
@@ -475,7 +478,8 @@ pub fn wgt_cfg_when() {
     WINDOW.with_test_context(|| {
         let mut wgt = CfgWhenWgt!();
 
-        wgt.init();
+        WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&mut wgt);
 
         assert!(util::traced(&mut wgt, "trace"));
 
@@ -516,7 +520,8 @@ pub fn user_cfg_when() {
             }
         };
 
-        wgt.init();
+        WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&mut wgt);
 
         assert!(util::traced(&mut wgt, "trace"));
 
@@ -889,7 +894,8 @@ pub fn when_reuse() {
             };
             let mut wgt = builder.build();
 
-            wgt.init();
+            WINDOW.test_init(&mut wgt);
+            WINDOW.test_info(&mut wgt);
             assert!(!util::traced(&mut wgt, "true"), "traced `true` in {pass} pass");
             assert!(util::traced(&mut wgt, "false"), "did not trace `false` in {pass} pass");
 
@@ -922,7 +928,8 @@ pub fn allowed_in_when_without_wgt_assign1() {
             }
         };
 
-        wgt.init();
+        WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&mut wgt);
         assert!(util::traced(&mut wgt, "default-trace"));
         assert!(!util::traced(&mut wgt, "when-trace"));
 
@@ -945,7 +952,8 @@ pub fn allowed_in_when_without_wgt_assign2() {
             }
         };
 
-        wgt.init();
+        WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&mut wgt);
         assert!(util::traced(&mut wgt, "default-trace"));
         assert!(!util::traced(&mut wgt, "when-trace"));
 
@@ -998,7 +1006,8 @@ pub fn generated_name_collision_in_when() {
             }
         };
 
-        wgt.init();
+        WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&mut wgt);
         util::set_state(&mut wgt, true);
         WINDOW.test_update(&mut wgt, None); // state
         WINDOW.test_update(&mut wgt, None); // when
@@ -1022,7 +1031,8 @@ pub fn generated_name_collision_in_when_assign() {
             }
         };
 
-        wgt.init();
+        WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&mut wgt);
         util::set_state(&mut wgt, true);
         WINDOW.test_update(&mut wgt, None); // state update
         WINDOW.test_update(&mut wgt, None); // when update
@@ -1055,7 +1065,8 @@ pub fn name_collision_wgt_when() {
     WINDOW.with_test_context(|| {
         let mut wgt = NameCollisionWgtWhen!();
 
-        wgt.init();
+        WINDOW.test_init(&mut wgt);
+        WINDOW.test_info(&mut wgt);
         util::set_state(&mut wgt, true);
         WINDOW.test_update(&mut wgt, None); // state update
         WINDOW.test_update(&mut wgt, None); // when update
