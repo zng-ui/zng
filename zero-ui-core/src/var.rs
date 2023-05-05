@@ -940,6 +940,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// The future can only be used in app bound async code, it can be reused. If the variable
     /// is not animating at the moment of this call the future will await until the animation starts and stops.
     ///
+    /// If the variable does have the [`VarCapabilities::NEW`] the returned future is always ready.
+    ///
     /// [`is_animating`]: AnyVar::is_animating
     fn wait_animation(&self) -> types::WaitIsNotAnimatingFut<Self> {
         types::WaitIsNotAnimatingFut::new(self)

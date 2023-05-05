@@ -1,4 +1,3 @@
-* Review `wait_animation` in vars that do not have `MODIFY` capability.
 * Focus example, review holding move press in nested focusables.
 
 * Finish text edit & selection.
