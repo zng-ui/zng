@@ -43,6 +43,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     mtd_attrs.docs = attrs.docs.clone();
     let mut extra_docs = quote!();
 
+    // note that the tags "c" and "P" are used by the `widget.js` to find properties.
     if capture {
         attrs.tag_doc("c", "Capture-only property function");
         mtd_attrs.tag_doc("c", "Capture-only property method");
@@ -649,7 +650,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             let docs = &mtd_attrs.docs;
             quote! {
                 #cfg
-                #[doc(hidden)]
                 impl #generics_impl #target #generics {
                     #(#docs)*
                     #vis fn #ident #impl_gens(&self, #(#input_idents: #input_tys),*) #where_gens {

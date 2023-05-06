@@ -9,7 +9,7 @@ use std::{
 
 use rayon::prelude::*;
 
-/// Scrapes all use of the [`l10n!`] macro in Rust files selected by a glob pattern.
+/// Scrapes all use of the `l10n!` macro in Rust files selected by a glob pattern.
 ///
 /// The `custom_macro_names` can contain extra macro names to search in the form of the name literal only (no :: or !).
 ///
@@ -271,7 +271,7 @@ fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flu
     Ok(output)
 }
 
-/// Represents one call to [`l10n!`] or similar macro in a Rust code file.
+/// Represents one call to `l10n!` or similar macro in a Rust code file.
 ///
 /// Use [`scrape_fluent_text`] to collect entries.
 #[derive(Debug, Clone)]
@@ -289,7 +289,7 @@ pub struct FluentEntry {
     /// The resource template/fallback.
     pub message: String,
 }
-/// Represnets all calls to [`l10n!`] or similat macro scraped from selected Rust code files.
+/// Represnets all calls to `l10n!` or similat macro scraped from selected Rust code files.
 ///
 /// Use [`scrape_fluent_text`] to collect entries.
 pub struct FluentTemplate {
@@ -344,7 +344,7 @@ fn write_file(mut file: Box<dyn io::Write + Send>, mut entries: Vec<FluentEntry>
                 file.write_fmt(format_args!("{prefix}# {line}"))?;
                 prefix = "\n";
             }
-            
+
             if id != prev_id {
                 // write id
                 prev_id = id;

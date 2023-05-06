@@ -379,7 +379,7 @@ impl Attributes {
 
     /// Insert a tag on the first doc line, generate a doc if none are present.
     pub fn tag_doc(&mut self, text: &str, help: &str) {
-        let txt = format!("<strong title='{help}'><code>{text}</code></strong>  ");
+        let txt = format!("<strong title='{help}' data-tag='{text}'><code>{text}</code></strong>  ");
         for first in self.docs.iter_mut() {
             match syn::parse2::<DocAttr>(first.tokens()) {
                 Ok(doc) => {
