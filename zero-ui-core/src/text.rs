@@ -1,9 +1,9 @@
 //! Font resolving and text shaping.
 
 pub use crate::render::webrender_api::{GlyphIndex, GlyphInstance};
-use crate::units::*;
 use crate::var::animation::Transitionable;
 use crate::var::impl_from_and_into_var;
+use crate::{context_var, units::*};
 use derive_more as dm;
 use std::hash::Hash;
 use std::{
@@ -12,6 +12,11 @@ use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
+
+context_var! {
+    /// Language of text in a widget context.
+    pub static LANG_VAR: Lang = Lang::default();
+}
 
 /// Identifies the language, region and script of text.
 ///

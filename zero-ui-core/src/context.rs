@@ -16,6 +16,7 @@ pub use local::*;
 
 use crate::{
     app::{AppDisconnected, AppEventSender, LoopTimer},
+    context_var,
     crate_util::{Handle, HandleOwner, IdSet, WeakHandle},
     event::{Event, EventArgs, EventHandle, EventHandles, EventUpdate, EVENTS, EVENTS_SV},
     formatx,
@@ -2827,6 +2828,11 @@ impl LayoutMetrics {
     pub fn snapshot(&self) -> LayoutMetricsSnapshot {
         self.s.clone()
     }
+}
+
+context_var! {
+    /// Wrap direction of text in a widget context.
+    pub static DIRECTION_VAR: LayoutDirection = LayoutDirection::default();
 }
 
 /// Defines the layout flow direction.

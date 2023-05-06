@@ -11,6 +11,9 @@ members = [
     "zero-ui",
     "zero-ui-material-icons",
 
+    # tools:
+    "zero-ui-l10n-scraper",
+
     # examples:
     "examples",
     "examples/util",

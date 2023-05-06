@@ -576,18 +576,6 @@ pub fn txt_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn
 #[widget_mixin]
 pub struct LangMix<P>(P);
 
-context_var! {
-    /// Language of [`Text!`] spans.
-    ///
-    /// [`Text!`]: struct@crate::widgets::Text
-    pub static LANG_VAR: Lang = Lang::default();
-
-    /// Flow direction of [`Text!`] spans.
-    ///
-    /// [`Text!`]: struct@crate::widgets::Text
-    pub static DIRECTION_VAR: LayoutDirection = LayoutDirection::default();
-}
-
 /// Sets the text language and script for the widget and descendants.
 ///
 /// This property affects all texts inside the widget and the layout direction.
