@@ -6,7 +6,6 @@
 
 # Localization
 
-* Fix comments in attributes.
 * Implement proc-macro.
 * Add example file to Cargo.toml.
 

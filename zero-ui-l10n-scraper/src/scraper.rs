@@ -331,54 +331,136 @@ impl FluentTemplate {
 }
 fn write_file(mut file: Box<dyn io::Write + Send>, mut entries: Vec<FluentEntry>) -> io::Result<()> {
     entries.sort_by(|a, b| a.message_id.cmp(&b.message_id));
+    let entries = entries;
 
-    let mut prev_id = "";
-    for entry in &entries {
-        if let Some((id, attribute)) = entry.message_id.split_once('.') {
-            // blank line
+    let mut i = 0;
+    while i < entries.len() {
+        if i > 0 {
+            // blank line between entries
             file.write_fmt(format_args!("\n"))?;
+        }
 
-            // write comments
-            let mut prefix = "";
-            for line in entry.comments.lines() {
-                file.write_fmt(format_args!("{prefix}# {line}"))?;
-                prefix = "\n";
-            }
+        if let Some((id, _)) = entries[i].message_id.split_once('.') {
+            // message-id.attribute with only attribute message
 
-            if id != prev_id {
-                // write id
-                prev_id = id;
-                file.write_fmt(format_args!("\n{id} = "))?;
-            }
-            // write attribute
-            file.write_fmt(format_args!("\n    .{} = ", attribute))?;
-            // write message
-            let mut prefix = "";
-            for msg in entry.message.lines() {
-                file.write_fmt(format_args!("{prefix}{msg}"))?;
-                prefix = "\n        ";
-            }
-        } else {
-            prev_id = entry.message_id.as_str();
+            // # attribute1:
+            // #     comments for attribute1
+            // # attribute2:
+            // #     comments for attribute1
+            // message-id =
+            //    .attribute1 = msg1
+            //    .attribute2 = msg2
 
-            // blank line
-            file.write_fmt(format_args!("\n"))?;
-            // write comments
-            let mut prefix = "";
-            for line in entry.comments.lines() {
-                file.write_fmt(format_args!("{prefix}# {line}"))?;
-                prefix = "\n";
+            // write comments of attributes first
+            let mut j = i;
+            while j < entries.len() {
+                if let Some((next_id, attribute)) = entries[j].message_id.split_once('.') {
+                    if next_id == id {
+                        if !entries[j].comments.is_empty() {
+                            file.write_fmt(format_args!("# {attribute}:\n"))?;
+
+                            for line in entries[j].comments.lines() {
+                                file.write_fmt(format_args!("#    {line}\n"))?;
+                            }
+                        }
+                        j += 1;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
             }
 
             // write id
-            file.write_fmt(format_args!("\n{} = ", entry.message_id))?;
-            // write message
-            let mut prefix = "";
-            for msg in entry.message.lines() {
-                file.write_fmt(format_args!("{prefix}{msg}"))?;
-                prefix = "\n    ";
+            file.write_fmt(format_args!("{id} = \n"))?;
+
+            // write attributes
+            for entry in &entries[i..j] {
+                let (_, attribute) = entry.message_id.split_once('.').unwrap();
+
+                file.write_fmt(format_args!("    .{attribute} = "))?;
+
+                let mut multi_line_fmt = "";
+                for line in entry.message.lines() {
+                    file.write_fmt(format_args!("{multi_line_fmt}{line}\n"))?;
+                    multi_line_fmt = "        ";
+                }
             }
+
+            if j > i {
+                i = j - 1;
+            }
+        } else {
+            // message-id with message
+
+            // # comments for message-id
+            // #
+            // # attribute1:
+            // #     comments for attribute1
+            // # attribute2:
+            // #     comments for attribute1
+            // message-id = msg
+            //    .attribute1 = msg1
+            //    .attribute2 = msg2
+
+            let mut attr_comment_prefix = "";
+
+            if !entries[i].comments.is_empty() {
+                for line in entries[i].comments.lines() {
+                    file.write_fmt(format_args!("# {line}\n"))?;
+                }
+                // blank line between id comment and first attribute comment
+                attr_comment_prefix = "\n";
+            }
+
+            // write comments of attributes first
+            let mut j = i + 1;
+            while j < entries.len() {
+                if let Some((next_id, attribute)) = entries[j].message_id.split_once('.') {
+                    if next_id == entries[i].message_id {
+                        if !entries[j].comments.is_empty() {
+                            file.write_fmt(format_args!("#{attr_comment_prefix} {attribute}:\n"))?;
+                            attr_comment_prefix = "";
+
+                            for line in entries[j].comments.lines() {
+                                file.write_fmt(format_args!("#    {line}\n"))?;
+                            }
+                        }
+                        j += 1;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            // write id
+            file.write_fmt(format_args!("{} = ", entries[i].message_id))?;
+            let mut multi_line_fmt = "";
+            for line in entries[i].message.lines() {
+                file.write_fmt(format_args!("{multi_line_fmt}{line}\n"))?;
+                multi_line_fmt = "    ";
+            }
+
+            // write attributes
+            for entry in &entries[i + 1..j] {
+                let (_, attribute) = entry.message_id.split_once('.').unwrap();
+
+                file.write_fmt(format_args!("    .{attribute} = "))?;
+
+                let mut multi_line_fmt = "";
+                for line in entry.message.lines() {
+                    file.write_fmt(format_args!("{multi_line_fmt}{line}\n"))?;
+                    multi_line_fmt = "        ";
+                }
+            }
+
+            i = j - 1;
         }
+
+        i += 1;
     }
     Ok(())
 }
