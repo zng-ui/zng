@@ -9,10 +9,10 @@ impl L10N {}
 ///
 /// # Syntax
 ///
-/// Macro expects a resource ID string literal a *template* string literal that is also used
+/// Macro expects a message ID string literal a *message template* string literal that is also used
 /// as fallback, followed by optional named format arguments `arg = <arg>,..`.
 ///
-/// The *template* string syntax is the [Fluent Project] syntax, interpolations in the form of `"{$var}"` are resolved to a local `$var`.
+/// The message string syntax is the [Fluent Project] syntax, interpolations in the form of `"{$var}"` are resolved to a local `$var`.
 ///
 /// ```
 /// # use zero_ui_core::l10n::*;
@@ -23,7 +23,7 @@ impl L10N {}
 ///
 /// The `zero-ui-l10n-scrapper` tool can be used to collect all localizable text of Rust code files, it is a text based search that
 /// matches this macro name and the two first input literals, avoid renaming this macro to support scrapping, otherwise you will
-/// have to declare the template file manually.
+/// have to declare the message file manually.
 ///
 /// The scrapper also has some support for comments, if the previous code line from a [`l10n!`] call is a comment starting with
 /// prefix `l10n: #comment` the `#comment` is collected, same for a suffix comment in the same line of the [`l10n!`] call.
@@ -31,25 +31,25 @@ impl L10N {}
 /// [Fluent Project]: https://projectfluent.org/fluent/guide/
 #[macro_export]
 macro_rules! l10n {
-    ($resource_id:tt, $template:tt $(,)?) => {
+    ($message_id:tt, $message:tt $(,)?) => {
         $crate::l10n_impl! {
-            resource_id { $resource_id }
-            template { $template }
+            message_id { $message_id }
+            message { $message }
         }
     };
-    ($resource_id:tt, $template:tt, $($arg:ident = $arg_expr:expr),* $(,)?) => {
+    ($message_id:tt, $message:tt, $($arg:ident = $arg_expr:expr),* $(,)?) => {
         {
             $(
                 let $arg = $arg_expr;
             )*
             $crate::l10n_impl! {
-                resource_id { $resource_id }
-                template { $template }
+                message_id { $message_id }
+                message { $message }
             }
         }
     };
     ($($error:tt)*) => {
-        std::compile_error!(r#"expected ("resource-id") or ("id", "template") or ("id", "t", arg=expr)"#)
+        std::compile_error!(r#"expected ("message-id") or ("id", "message") or ("id", "msg {$arg}", arg=expr)"#)
     }
 }
 #[doc(inline)]

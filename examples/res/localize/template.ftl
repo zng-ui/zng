@@ -1,6 +1,6 @@
 
 # About button
 button = Button
-
 # Main window title
-window.title = Localize Example
+window = 
+    .title = Localize Example

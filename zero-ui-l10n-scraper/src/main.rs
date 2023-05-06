@@ -1,4 +1,4 @@
-pub mod scrap;
+pub mod scraper;
 
 use std::io::Write;
 
@@ -19,10 +19,6 @@ struct Args {
     /// Custom macro names, comma separated
     #[arg(short, long, default_value = "")]
     macros: String,
-
-    /// Sort entries by the resource ID
-    #[arg(short, long, default_value_t = true)]
-    sort: bool,
 }
 
 fn main() {
@@ -32,7 +28,7 @@ fn main() {
 
     let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
 
-    match scrap::scrap_fluent_text(&args.input, &custom_macro_names) {
+    match scraper::scrape_fluent_text(&args.input, &custom_macro_names) {
         Ok(t) => {
             match t.entries.len() {
                 0 => {

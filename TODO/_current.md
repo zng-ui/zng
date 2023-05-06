@@ -6,12 +6,7 @@
 
 # Localization
 
-* Fix attribute syntax.
-```fluent
-this.wrong = text
-this = 
-    .right = 
-```
+* Fix comments in attributes.
 * Implement proc-macro.
 * Add example file to Cargo.toml.
 

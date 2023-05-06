@@ -2,47 +2,44 @@
 
 use std::{
     collections::{hash_map, HashMap},
-    fmt, io, mem,
+    io, mem,
     path::PathBuf,
     sync::Arc,
 };
 
 use rayon::prelude::*;
 
-/// Scraps all use of the [`l10n!`] macro in Rust files selected by a glob pattern.
+/// Scrapes all use of the [`l10n!`] macro in Rust files selected by a glob pattern.
 ///
 /// The `custom_macro_names` can contain extra macro names to search in the form of the name literal only (no :: or !).
 ///
-/// Scrapper does not match text inside doc comments or normal comments, but it may match text in code files that
+/// Scraper does not match text inside doc comments or normal comments, but it may match text in code files that
 /// are not linked in the `Cargo.toml`.
 ///
-/// See [`FluentEntry`] for details on what is scrapped.
+/// See [`FluentEntry`] for details on what is scraped.
 ///
 /// # Panics
 ///
 /// Panics if `code_files_glob` had an incorrect pattern.
-pub fn scrap_fluent_text(code_files_glob: &str, custom_macro_names: &[&str]) -> io::Result<FluentTemplate> {
+pub fn scrape_fluent_text(code_files_glob: &str, custom_macro_names: &[&str]) -> io::Result<FluentTemplate> {
     let num_threads = rayon::max_num_threads();
     let mut buf = Vec::with_capacity(num_threads);
 
-    let mut r = FluentTemplate {
-        entries: vec![],
-        sort_by_id: true,
-    };
+    let mut r = FluentTemplate { entries: vec![] };
     for file in glob::glob(code_files_glob).unwrap() {
         buf.push(file.map_err(|e| e.into_error())?);
         if buf.len() == num_threads {
-            r.entries.extend(scrap_files(&mut buf, custom_macro_names)?);
+            r.entries.extend(scrape_files(&mut buf, custom_macro_names)?);
         }
     }
     if !buf.is_empty() {
-        r.entries.extend(scrap_files(&mut buf, custom_macro_names)?);
+        r.entries.extend(scrape_files(&mut buf, custom_macro_names)?);
     }
 
     Ok(r)
 }
-fn scrap_files(buf: &mut Vec<PathBuf>, custom_macro_names: &[&str]) -> io::Result<Vec<FluentEntry>> {
-    buf.par_drain(..).map(|f| scrap_file(f, custom_macro_names)).reduce(
+fn scrape_files(buf: &mut Vec<PathBuf>, custom_macro_names: &[&str]) -> io::Result<Vec<FluentEntry>> {
+    buf.par_drain(..).map(|f| scrape_file(f, custom_macro_names)).reduce(
         || Ok(vec![]),
         |a, b| match (a, b) {
             (Ok(mut a), Ok(b)) => {
@@ -53,7 +50,7 @@ fn scrap_files(buf: &mut Vec<PathBuf>, custom_macro_names: &[&str]) -> io::Resul
         },
     )
 }
-fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<FluentEntry>> {
+fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<FluentEntry>> {
     let file = std::fs::read_to_string(file)?;
     let mut s = file.as_str();
 
@@ -71,8 +68,8 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
     let mut entry = FluentEntry {
         l10n_file: l10n_file.clone(),
         comments: String::new(),
-        resource_id: String::new(),
-        template: String::new(),
+        message_id: String::new(),
+        message: String::new(),
     };
     let mut last_comment_line = 0;
     let mut last_entry_line = 0;
@@ -85,7 +82,7 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
         OpenGroup,
         StrLiteralId,
         Comma,
-        StrLiteralTemplate,
+        StrLiteralMessage,
     }
     let mut expect = Expect::CommentOrMacroName;
 
@@ -155,7 +152,7 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
             Expect::StrLiteralId => match token.kind {
                 rustc_lexer::TokenKind::Literal { kind, .. } => match kind {
                     rustc_lexer::LiteralKind::Str { .. } | rustc_lexer::LiteralKind::RawStr { .. } => {
-                        entry.resource_id = s[..token.len]
+                        entry.message_id = s[..token.len]
                             .trim_start_matches('r')
                             .trim_matches('#')
                             .trim_matches('"')
@@ -191,7 +188,7 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
             },
             Expect::Comma => match token.kind {
                 rustc_lexer::TokenKind::Comma => {
-                    expect = Expect::StrLiteralTemplate;
+                    expect = Expect::StrLiteralMessage;
                 }
                 rustc_lexer::TokenKind::LineComment => {
                     // comment inside macro
@@ -212,14 +209,14 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
                 rustc_lexer::TokenKind::Whitespace => {}
                 _ => {
                     entry.comments.clear();
-                    entry.resource_id.clear();
+                    entry.message_id.clear();
                     expect = Expect::CommentOrMacroName;
                 }
             },
-            Expect::StrLiteralTemplate => match token.kind {
+            Expect::StrLiteralMessage => match token.kind {
                 rustc_lexer::TokenKind::Literal { kind, .. } => match kind {
                     rustc_lexer::LiteralKind::Str { .. } | rustc_lexer::LiteralKind::RawStr { .. } => {
-                        entry.template = s[..token.len]
+                        entry.message = s[..token.len]
                             .trim_start_matches('r')
                             .trim_matches('#')
                             .trim_matches('"')
@@ -230,8 +227,8 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
                             FluentEntry {
                                 l10n_file: l10n_file.clone(),
                                 comments: String::new(),
-                                resource_id: String::new(),
-                                template: String::new(),
+                                message_id: String::new(),
+                                message: String::new(),
                             },
                         ));
                         last_entry_line = line;
@@ -240,7 +237,7 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
                     }
                     _ => {
                         entry.comments.clear();
-                        entry.resource_id.clear();
+                        entry.message_id.clear();
                         expect = Expect::CommentOrMacroName;
                     }
                 },
@@ -263,7 +260,7 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
                 rustc_lexer::TokenKind::Whitespace => {}
                 _ => {
                     entry.comments.clear();
-                    entry.resource_id.clear();
+                    entry.message_id.clear();
                     expect = Expect::CommentOrMacroName;
                 }
             },
@@ -276,7 +273,7 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
 
 /// Represents one call to [`l10n!`] or similar macro in a Rust code file.
 ///
-/// Use [`scrap_fluent_text`] to collect entries.
+/// Use [`scrape_fluent_text`] to collect entries.
 #[derive(Debug, Clone)]
 pub struct FluentEntry {
     /// Resource file selected for this resource.
@@ -287,30 +284,17 @@ pub struct FluentEntry {
     /// Comments in the line before the macro call or the same line that starts with `l10n: #comment`.
     pub comments: String,
 
-    /// The resource ID.
-    pub resource_id: String,
+    /// The message ID, can contain raw ".attribute".
+    pub message_id: String,
     /// The resource template/fallback.
-    pub template: String,
+    pub message: String,
 }
-impl fmt::Display for FluentEntry {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f)?;
-        for line in self.comments.lines() {
-            writeln!(f, "# {line}")?;
-        }
-        writeln!(f, "{} = {}", self.resource_id, self.template)
-    }
-}
-
-/// Represnets all calls to [`l10n!`] or similat macro scrapped from selected Rust code files.
+/// Represnets all calls to [`l10n!`] or similat macro scraped from selected Rust code files.
 ///
-/// Use [`scrap_fluent_text`] to collect entries.
+/// Use [`scrape_fluent_text`] to collect entries.
 pub struct FluentTemplate {
-    /// Scrapped entries.
+    /// Scraped entries.
     pub entries: Vec<FluentEntry>,
-
-    /// If the output entries are sorted by the resource ID, is `true` by default.
-    pub sort_by_id: bool,
 }
 impl FluentTemplate {
     /// Write all entries to new FLT files.
@@ -322,7 +306,7 @@ impl FluentTemplate {
     pub fn write(self, select_l10n_file: impl Fn(&str) -> io::Result<Box<dyn io::Write + Send>> + Send + Sync) -> io::Result<()> {
         if self.entries.iter().all(|e| e.l10n_file.is_empty()) {
             // simple output.
-            return write_file(select_l10n_file("")?, self.entries, self.sort_by_id);
+            return write_file(select_l10n_file("")?, self.entries);
         }
 
         // group fy l10n file and request the files.
@@ -341,16 +325,60 @@ impl FluentTemplate {
 
         groups
             .into_par_iter()
-            .map(|(_, (file, entries))| write_file(file, entries, self.sort_by_id))
+            .map(|(_, (file, entries))| write_file(file, entries))
             .reduce(|| Ok(()), |a, b| if a.is_err() { a } else { b })
     }
 }
-fn write_file(mut file: Box<dyn io::Write + Send>, mut entries: Vec<FluentEntry>, sort_by_id: bool) -> io::Result<()> {
-    if sort_by_id {
-        entries.sort_by(|a, b| a.resource_id.cmp(&b.resource_id));
-    }
-    for entry in entries {
-        file.write_fmt(format_args!("{entry}"))?;
+fn write_file(mut file: Box<dyn io::Write + Send>, mut entries: Vec<FluentEntry>) -> io::Result<()> {
+    entries.sort_by(|a, b| a.message_id.cmp(&b.message_id));
+
+    let mut prev_id = "";
+    for entry in &entries {
+        if let Some((id, attribute)) = entry.message_id.split_once('.') {
+            // blank line
+            file.write_fmt(format_args!("\n"))?;
+
+            // write comments
+            let mut prefix = "";
+            for line in entry.comments.lines() {
+                file.write_fmt(format_args!("{prefix}# {line}"))?;
+                prefix = "\n";
+            }
+            
+            if id != prev_id {
+                // write id
+                prev_id = id;
+                file.write_fmt(format_args!("\n{id} = "))?;
+            }
+            // write attribute
+            file.write_fmt(format_args!("\n    .{} = ", attribute))?;
+            // write message
+            let mut prefix = "";
+            for msg in entry.message.lines() {
+                file.write_fmt(format_args!("{prefix}{msg}"))?;
+                prefix = "\n        ";
+            }
+        } else {
+            prev_id = entry.message_id.as_str();
+
+            // blank line
+            file.write_fmt(format_args!("\n"))?;
+            // write comments
+            let mut prefix = "";
+            for line in entry.comments.lines() {
+                file.write_fmt(format_args!("{prefix}# {line}"))?;
+                prefix = "\n";
+            }
+
+            // write id
+            file.write_fmt(format_args!("\n{} = ", entry.message_id))?;
+            // write message
+            let mut prefix = "";
+            for msg in entry.message.lines() {
+                file.write_fmt(format_args!("{prefix}{msg}"))?;
+                prefix = "\n    ";
+            }
+        }
     }
     Ok(())
 }
