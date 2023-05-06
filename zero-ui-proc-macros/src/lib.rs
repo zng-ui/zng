@@ -27,6 +27,7 @@ mod widget_util;
 
 mod any_all;
 
+mod l10n;
 mod lang;
 
 /// Expands an impl into a `UiNode` impl.
@@ -138,4 +139,10 @@ pub fn trace(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn lang(input: TokenStream) -> TokenStream {
     lang::expand(input)
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn l10n(input: TokenStream) -> TokenStream {
+    l10n::expand(input)
 }

@@ -59,10 +59,6 @@ name = "headless"
 path = "headless.rs"
 
 [[example]]
-name = "hit_test"
-path = "hit_test.rs"
-
-[[example]]
 name = "icon"
 path = "icon.rs"
 
@@ -73,6 +69,10 @@ path = "image.rs"
 [[example]]
 name = "layer"
 path = "layer.rs"
+
+[[example]]
+name = "localize"
+path = "localize.rs"
 
 [[example]]
 name = "markdown"

@@ -32,7 +32,8 @@ impl L10N {}
 #[macro_export]
 macro_rules! l10n {
     ($message_id:tt, $message:tt $(,)?) => {
-        $crate::l10n_impl! {
+        $crate::l10n::__l10n! {
+            l10n_path { $crate::l10n::L10N }
             message_id { $message_id }
             message { $message }
         }
@@ -42,15 +43,116 @@ macro_rules! l10n {
             $(
                 let $arg = $arg_expr;
             )*
-            $crate::l10n_impl! {
+            $crate::l10n::__l10n! {
+                l10n_path { $crate::l10n::L10N }
                 message_id { $message_id }
                 message { $message }
             }
         }
     };
     ($($error:tt)*) => {
-        std::compile_error!(r#"expected ("message-id") or ("id", "message") or ("id", "msg {$arg}", arg=expr)"#)
+        std::compile_error!(r#"expected ("id", "message") or ("id", "msg {$arg}", arg=expr)"#)
     }
 }
+use fluent::types::FluentNumber;
 #[doc(inline)]
 pub use l10n;
+
+#[doc(hidden)]
+pub use zero_ui_proc_macros::l10n as __l10n;
+
+use crate::text::{Lang, Txt, LANG_VAR};
+use crate::var::*;
+
+impl L10N {
+    /// Gets a variable that is a localized message identified by `id` in the localization context
+    /// where the variable is first used. The variable will update when the contextual language changes.
+    ///
+    /// If the message has variable arguments they must be provided using [`L10nMessageBuilder::arg`], the
+    /// returned variable will also update when the arg variables update.
+    ///
+    /// The `id` can be compond with an attribute `"msg-id.attribute"`, the `fallback` is used
+    /// when the message is not found in the localization context.
+    ///
+    /// Prefer using the [`l10n!`] macro instead of this method, the macro does compile time validation.
+    pub fn message(&self, id: Txt, fallback: Txt) -> L10nMessageBuilder {
+        L10nMessageBuilder {
+            id,
+            fallback,
+            args: vec![],
+        }
+    }
+
+    /// Function called by `l10n!`.
+    #[doc(hidden)]
+    pub fn l10n_message(&self, id: &'static str, fallback: &'static str) -> L10nMessageBuilder {
+        self.message(Txt::from_static(id), Txt::from_static(fallback))
+    }
+}
+
+/// Represents lazy loaded localization data retrieved from an specific data source.
+#[derive(Clone, Debug)]
+pub struct L10nResource {}
+impl L10nResource {
+    /// Empty resource, never finds any message.
+    pub fn empty() -> Self {
+        Self {}
+    }
+
+    /// Search for the message in the resources.
+    pub fn raw_message(&self, lang: &Lang, id: &str) -> Option<Txt> {
+        // !!: TODO
+        let _ = (lang, id);
+        None
+    }
+}
+
+context_var! {
+    /// Represents the contextual [`L10nResource`], togheter with the [`LANG_VAR`]
+    /// a localized message can be retrieved.
+    static L10N_RESOURCE_VAR: L10nResource = L10nResource::empty();
+}
+
+/// Localized message variable builder.
+///
+/// See [`L10N.message`] for more details.
+pub struct L10nMessageBuilder {
+    id: Txt,
+    fallback: Txt,
+    args: Vec<(Txt, BoxedVar<L10nArgument>)>,
+}
+impl L10nMessageBuilder {
+    /// Add a format arg variable.
+    pub fn arg(mut self, name: Txt, value: impl IntoVar<L10nArgument>) -> Self {
+        self.args.push((name, value.into_var().boxed()));
+        self
+    }
+    #[doc(hidden)]
+    pub fn l10n_arg(self, name: &'static str, value: impl IntoVar<L10nArgument>) -> Self {
+        self.arg(Txt::from_static(name), value)
+    }
+
+    /// Build the variable.
+    pub fn build(self) -> impl Var<Txt> {
+        let Self { id, fallback, args } = self;
+        merge_var!(L10N_RESOURCE_VAR, LANG_VAR, move |res, lang| {
+            // !!: TODO
+            let _ = args;
+            match res.raw_message(lang, &id) {
+                Some(f) => f,
+                None => fallback.clone(),
+            }
+        })
+    }
+}
+
+/// Represents an argument value for a localization message.
+///
+/// See [`L10nMessageBuilder::arg`] for more details.
+#[derive(Clone, Debug)]
+pub enum L10nArgument {
+    /// String.
+    Txt(Txt),
+    /// Number, with optional style details.
+    Number(FluentNumber),
+} // !!: TODO, see https://docs.rs/fluent/0.16.0/fluent/enum.FluentValue.html

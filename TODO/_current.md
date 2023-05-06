@@ -6,8 +6,8 @@
 
 # Localization
 
-* Implement proc-macro.
-* Add example file to Cargo.toml.
+* Implement builder.
+* Move `Lang` and lang related stuff to `l10n` module.
 
 ## Design
 

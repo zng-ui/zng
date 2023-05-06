@@ -26,24 +26,10 @@ fn app_main() {
         Window! {
             // l10n: Main window title
             title = l10n!("window.title", "Localize Example");
-            child = Stack! {
-                direction = StackDirection::left_to_right();
-                spacing = 20;
-                align = Align::CENTER;
-                children = ui_vec![
-                    Stack! {
-                        direction = StackDirection::top_to_bottom();
-                        spacing = 5;
-                        sticky_width = true;
-                        children = ui_vec![
-                            Button! {
-                                child = Text!(l10n!("button", "Button")); // l10n: About button
-                            }
-                        ];
-                    },
-                    dyn_buttons(),
-                ]
-            };
+            child_align = Align::CENTER;
+            child = Button! {
+                child = Text!(l10n!("button", "Button")); // l10n: About button
+            }
         }
     })
 }
