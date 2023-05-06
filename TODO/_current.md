@@ -6,9 +6,12 @@
 
 # Localization
 
-* Fix comment collection.
-    - Prev line, allow tokens at the begining of the line that has the macro.
-    - Same line, track line-breaks, trailing comment is a // on the same line as the macro end.
+* Fix attribute syntax.
+```fluent
+this.wrong = text
+this = 
+    .right = 
+```
 * Implement proc-macro.
 * Add example file to Cargo.toml.
 

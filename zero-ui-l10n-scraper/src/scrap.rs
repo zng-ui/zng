@@ -67,13 +67,16 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
 
     let mut l10n_file = Arc::new(String::new());
 
-    let mut output = vec![];
+    let mut output: Vec<FluentEntry> = vec![];
     let mut entry = FluentEntry {
         l10n_file: l10n_file.clone(),
         comments: String::new(),
         resource_id: String::new(),
         template: String::new(),
     };
+    let mut last_comment_line = 0;
+    let mut last_entry_line = 0;
+    let mut line = 0;
 
     #[derive(Clone, Copy)]
     enum Expect {
@@ -87,32 +90,49 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
     let mut expect = Expect::CommentOrMacroName;
 
     for token in rustc_lexer::tokenize(s) {
+        line += s[..token.len].chars().filter(|&a| a == '\n').count();
+
         match expect {
             Expect::CommentOrMacroName => match token.kind {
                 rustc_lexer::TokenKind::LineComment => {
-                    let c = s[..token.len].trim().trim_start_matches('\\').trim_start();
+                    let c = s[..token.len].trim().trim_start_matches('/').trim_start();
                     if let Some(c) = c.strip_prefix("l10n:") {
                         let c = c.trim_start();
-                        if !entry.comments.is_empty() {
-                            entry.comments.push('\n');
+
+                        // comment still on the last already inserted entry lines
+                        if last_entry_line == line && !output.is_empty() {
+                            let last = output.len() - 1;
+                            if !output[last].comments.is_empty() {
+                                output[last].comments.push('\n');
+                            }
+                            output[last].comments.push_str(c);
+                        } else {
+                            if !entry.comments.is_empty() {
+                                if (line - last_comment_line) > 1 {
+                                    entry.comments.clear();
+                                } else {
+                                    entry.comments.push('\n');
+                                }
+                            }
+                            entry.comments.push_str(c);
+                            last_comment_line = line;
                         }
-                        entry.comments.push_str(c);
                     } else if let Some(c) = c.strip_prefix("l10n-source:") {
                         l10n_file = Arc::new(c.trim_start().to_owned())
                     }
                 }
                 rustc_lexer::TokenKind::Ident => {
+                    if (line - last_comment_line) > 1 {
+                        entry.comments.clear();
+                    }
+
                     let ident = &s[..token.len];
                     if ["l10n"].iter().chain(custom_macro_names).any(|&i| i == ident) {
                         expect = Expect::Bang;
-                    } else {
-                        entry.comments.clear();
                     }
                 }
                 rustc_lexer::TokenKind::Whitespace => {}
-                _ => {
-                    entry.comments.clear();
-                }
+                _ => {}
             },
             Expect::Bang => {
                 if "!" == &s[..token.len] {
@@ -147,6 +167,22 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
                         expect = Expect::CommentOrMacroName;
                     }
                 },
+                rustc_lexer::TokenKind::LineComment => {
+                    // comment inside macro
+
+                    let c = s[..token.len].trim().trim_start_matches('/').trim_start();
+                    if let Some(c) = c.strip_prefix("l10n:") {
+                        let c = c.trim_start();
+
+                        if !entry.comments.is_empty() {
+                            entry.comments.push('\n');
+                        }
+                        entry.comments.push_str(c);
+                        last_comment_line = line;
+                    } else if let Some(c) = c.strip_prefix("l10n-source:") {
+                        l10n_file = Arc::new(c.trim_start().to_owned())
+                    }
+                }
                 rustc_lexer::TokenKind::Whitespace => {}
                 _ => {
                     entry.comments.clear();
@@ -156,6 +192,22 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
             Expect::Comma => match token.kind {
                 rustc_lexer::TokenKind::Comma => {
                     expect = Expect::StrLiteralTemplate;
+                }
+                rustc_lexer::TokenKind::LineComment => {
+                    // comment inside macro
+
+                    let c = s[..token.len].trim().trim_start_matches('/').trim_start();
+                    if let Some(c) = c.strip_prefix("l10n:") {
+                        let c = c.trim_start();
+
+                        if !entry.comments.is_empty() {
+                            entry.comments.push('\n');
+                        }
+                        entry.comments.push_str(c);
+                        last_comment_line = line;
+                    } else if let Some(c) = c.strip_prefix("l10n-source:") {
+                        l10n_file = Arc::new(c.trim_start().to_owned())
+                    }
                 }
                 rustc_lexer::TokenKind::Whitespace => {}
                 _ => {
@@ -182,6 +234,7 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
                                 template: String::new(),
                             },
                         ));
+                        last_entry_line = line;
 
                         expect = Expect::CommentOrMacroName;
                     }
@@ -191,6 +244,22 @@ fn scrap_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<Vec<Flue
                         expect = Expect::CommentOrMacroName;
                     }
                 },
+                rustc_lexer::TokenKind::LineComment => {
+                    // comment inside macro
+
+                    let c = s[..token.len].trim().trim_start_matches('/').trim_start();
+                    if let Some(c) = c.strip_prefix("l10n:") {
+                        let c = c.trim_start();
+
+                        if !entry.comments.is_empty() {
+                            entry.comments.push('\n');
+                        }
+                        entry.comments.push_str(c);
+                        last_comment_line = line;
+                    } else if let Some(c) = c.strip_prefix("l10n-source:") {
+                        l10n_file = Arc::new(c.trim_start().to_owned())
+                    }
+                }
                 rustc_lexer::TokenKind::Whitespace => {}
                 _ => {
                     entry.comments.clear();

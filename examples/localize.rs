@@ -37,7 +37,7 @@ fn app_main() {
                         sticky_width = true;
                         children = ui_vec![
                             Button! {
-                                child = Text!(l10n!("button", "Button")); // L10n: Some button
+                                child = Text!(l10n!("button", "Button")); // l10n: About button
                             }
                         ];
                     },
