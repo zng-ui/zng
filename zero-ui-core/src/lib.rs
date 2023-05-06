@@ -21,7 +21,6 @@ extern crate self as zero_ui_core;
 
 #[macro_use]
 mod crate_util;
-pub mod l10n;
 
 #[cfg(any(test, feature = "test_util"))]
 pub use crate_util::test_log;
@@ -38,9 +37,11 @@ pub mod app;
 pub mod border;
 pub mod color;
 pub mod config;
+pub mod l10n;
 pub mod context;
 pub mod event;
 pub mod focus;
+pub mod fs;
 pub mod gesture;
 pub mod gradient;
 pub mod image;
