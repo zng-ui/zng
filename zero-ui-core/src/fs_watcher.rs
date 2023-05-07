@@ -114,8 +114,11 @@ impl WATCHER {
         read: impl FnMut(io::Result<File>) -> Option<O> + Send + 'static,
     ) -> ReadOnlyArcVar<O> {
         let path = file.into();
-        let handle = self.watch(path);
-        let (read, var) = ReadToVar::new(handle, path, init, std::fs::File::open, read);
+        let handle = self.watch(path.clone());
+        fn open(p: &Path) -> io::Result<File> {
+            std::fs::File::open(p)
+        }
+        let (read, var) = ReadToVar::new(handle, path, init, open, read);
         WATCHER_SV.write().read_to_var.push(read);
         var
     }
@@ -133,8 +136,11 @@ impl WATCHER {
         read: impl FnMut(io::Result<fs::ReadDir>) -> Option<O> + Send + 'static,
     ) -> ReadOnlyArcVar<O> {
         let path = dir.into();
-        let handle = self.watch_dir(path, recursive);
-        let (read, var) = ReadToVar::new(handle, path, init, std::fs::read_dir, read);
+        let handle = self.watch_dir(path.clone(), recursive);
+        fn open(p: &Path) -> io::Result<fs::ReadDir> {
+            std::fs::read_dir(p)
+        }
+        let (read, var) = ReadToVar::new(handle, path, init, open, read);
         WATCHER_SV.write().read_to_var.push(read);
         var
     }
@@ -147,8 +153,8 @@ impl WATCHER {
         let file = file.into();
         let handle = self.watch(file.clone());
         FS_CHANGES_EVENT.on_event(FilterAppHandler::new(handler, move |args| {
-            let _handle = handle;
-            args.events_for_path(&file).is_some()
+            let _handle = &handle;
+            args.events_for_path(&file).next().is_some()
         }))
     }
 
@@ -160,8 +166,8 @@ impl WATCHER {
         let dir = dir.into();
         let handle = self.watch_dir(dir.clone(), recursive);
         FS_CHANGES_EVENT.on_event(FilterAppHandler::new(handler, move |args| {
-            let _handle = handle;
-            args.events_for_path(&dir).is_some()
+            let _handle = &handle;
+            args.events_for_path(&dir).next().is_some()
         }))
     }
 }
@@ -309,7 +315,9 @@ impl WatcherService {
 
     fn update(&mut self) {
         if let Some(n) = self.poll_interval.get_new() {
-            self.watcher.get_mut().configure(notify::Config::default().with_poll_interval(n));
+            if let Err(e) = self.watcher.get_mut().configure(notify::Config::default().with_poll_interval(n)) {
+                tracing::error!("error setting the watcher poll interval: {e}");
+            }
         }
         if !self.debounce_buffer.is_empty() {
             if let Some(n) = self.debounce.get_new() {
@@ -370,16 +378,16 @@ fn notify_watcher_handle(r: notify::Result<notify::Event>) {
 }
 
 struct ReadToVar {
-    read: Box<dyn Fn(&Arc<AtomicBool>, &WatcherHandle, ReadEvent)>,
+    read: Box<dyn Fn(&Arc<AtomicBool>, &WatcherHandle, ReadEvent) + Send + Sync>,
     pending: Arc<AtomicBool>,
     handle: WatcherHandle,
 }
 impl ReadToVar {
-    fn new<O: VarValue, R>(
+    fn new<O: VarValue, R: 'static>(
         handle: WatcherHandle,
         path: PathBuf,
         init: O,
-        load: impl Fn(&Path) -> io::Result<R>,
+        load: fn(&Path) -> io::Result<R>,
         read: impl FnMut(io::Result<R>) -> Option<O> + Send + 'static,
     ) -> (Self, ReadOnlyArcVar<O>) {
         let path = Arc::new(path);
@@ -414,7 +422,7 @@ impl ReadToVar {
             task::spawn_wait(clmv!(read, wk_var, path, handle, pending, || {
                 let mut read = read.lock();
                 while pending.swap(false, Ordering::Relaxed) {
-                    if let Some(update) = read(fs::File::open(path.as_path())) {
+                    if let Some(update) = read(load(path.as_path())) {
                         if let Some(var) = wk_var.upgrade() {
                             var.set(update);
                         } else {
