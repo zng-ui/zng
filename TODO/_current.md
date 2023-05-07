@@ -9,7 +9,6 @@
 * Implement the `FS` service.
     - watch event and args.
     - Read/parse to variable.
-    - Filtered on-handlers.
     - Config, debounce.
     - Support paths that don't exist yet.
         - `CONFIG` supports this.

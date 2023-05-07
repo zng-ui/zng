@@ -654,6 +654,7 @@ struct EventHandleData {
 
 /// Represents an event widget subscription, handler callback or hook.
 #[derive(Clone)]
+#[must_use = "the event subscription or handler is dropped if the handle is dropped"]
 pub struct EventHandle(Option<Arc<EventHandleData>>);
 impl PartialEq for EventHandle {
     fn eq(&self, other: &Self) -> bool {

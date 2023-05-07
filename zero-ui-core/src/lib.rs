@@ -41,7 +41,7 @@ pub mod l10n;
 pub mod context;
 pub mod event;
 pub mod focus;
-pub mod fs;
+pub mod fs_watcher;
 pub mod gesture;
 pub mod gradient;
 pub mod image;

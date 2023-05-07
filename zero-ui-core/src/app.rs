@@ -11,6 +11,7 @@ use parking_lot::Mutex;
 use crate::config::ConfigManager;
 use crate::crate_util::{IdNameError, NameIdMap, PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, EVENTS};
+use crate::fs_watcher::FsWatcherManager;
 use crate::image::ImageManager;
 use crate::task::ui::UiTask;
 use crate::text::Txt;
@@ -752,6 +753,7 @@ impl App {
     ///
     /// Extensions included.
     ///
+    /// * [`FsWatcherManager`]
     /// * [`ConfigManager`]
     /// * [`MouseManager`]
     /// * [`KeyboardManager`]
@@ -763,6 +765,7 @@ impl App {
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> AppExtended<impl AppExtension> {
         App::minimal()
+            .extend(FsWatcherManager::default())
             .extend(ConfigManager::default())
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
@@ -797,6 +800,7 @@ impl App {
     ///
     /// Extensions included.
     ///
+    /// * [`FsWatcherManager`]
     /// * [`ConfigManager`]
     /// * [`MouseManager`]
     /// * [`KeyboardManager`]
@@ -808,6 +812,7 @@ impl App {
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         App::minimal()
+            .extend(FsWatcherManager::default())
             .extend(ConfigManager::default())
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
