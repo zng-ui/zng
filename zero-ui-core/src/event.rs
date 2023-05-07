@@ -566,7 +566,7 @@ impl UpdateSubscribers for AnyEvent {
                 IdEntry::Occupied(e) => {
                     let t = e.get().retain();
                     if !t {
-                        e.remove();
+                        let _ = e.remove();
                     }
                     t
                 }

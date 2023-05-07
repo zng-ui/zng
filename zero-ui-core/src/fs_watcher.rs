@@ -9,12 +9,13 @@ use std::{
 };
 
 use atomic::Ordering;
+use hashbrown::HashMap;
 use parking_lot::Mutex;
 
 use crate::{
     app::AppExtension,
     context::app_local,
-    crate_util::HandleOwner,
+    crate_util::{Handle, HandleOwner},
     event::{event, event_args, EventHandle},
     handler::{app_hn_once, AppHandler, FilterAppHandler},
     task,
@@ -223,17 +224,12 @@ event! {
 /// Represents an active file or directory watcher in [`WATCHER`].
 #[derive(Clone)]
 #[must_use = "the watcher is dropped if the handle is dropped"]
-pub struct WatcherHandle(crate::crate_util::Handle<()>);
+pub struct WatcherHandle(Handle<()>);
 
 impl WatcherHandle {
-    fn new() -> (HandleOwner<()>, Self) {
-        let (owner, handle) = crate::crate_util::Handle::new(());
-        (owner, Self(handle))
-    }
-
     /// Handle to no watcher.
     pub fn dummy() -> Self {
-        Self(crate::crate_util::Handle::dummy(()))
+        Self(Handle::dummy(()))
     }
 
     /// If [`perm`](Self::perm) was called in another clone of this handle.
@@ -269,7 +265,7 @@ struct WatcherService {
     debounce: ArcVar<Duration>,
     poll_interval: ArcVar<Duration>,
 
-    watcher: Mutex<Box<dyn notify::Watcher + Send>>, // mutex for Sync only
+    watcher: Watchers,
 
     debounce_oldest: Instant,
     debounce_buffer: Vec<notify::Result<notify::Event>>,
@@ -282,7 +278,7 @@ impl WatcherService {
         Self {
             debounce: var(100.ms()),
             poll_interval: var(10.secs()),
-            watcher: Mutex::new(Box::new(notify::NullWatcher)),
+            watcher: Watchers::new(),
             debounce_oldest: Instant::now(),
             debounce_buffer: vec![],
             debounce_timer: None,
@@ -291,22 +287,7 @@ impl WatcherService {
     }
 
     fn init_watcher(&mut self) {
-        *self.watcher.get_mut() = match notify::recommended_watcher(notify_watcher_handle) {
-            Ok(w) => Box::new(w),
-            Err(e) => {
-                tracing::error!("error creating watcher\n{e}\nfallback to slow poll watcher");
-                match notify::PollWatcher::new(
-                    notify_watcher_handle,
-                    notify::Config::default().with_poll_interval(self.poll_interval.get()),
-                ) {
-                    Ok(w) => Box::new(w),
-                    Err(e) => {
-                        tracing::error!("error creating poll watcher\n{e}\nfs watching disabled");
-                        Box::new(notify::NullWatcher)
-                    }
-                }
-            }
-        };
+        self.watcher.init();
     }
 
     fn event(&mut self, args: &FsChangesArgs) {
@@ -315,9 +296,7 @@ impl WatcherService {
 
     fn update(&mut self) {
         if let Some(n) = self.poll_interval.get_new() {
-            if let Err(e) = self.watcher.get_mut().configure(notify::Config::default().with_poll_interval(n)) {
-                tracing::error!("error setting the watcher poll interval: {e}");
-            }
+            self.watcher.set_poll_interval(n);
         }
         if !self.debounce_buffer.is_empty() {
             if let Some(n) = self.debounce.get_new() {
@@ -330,18 +309,21 @@ impl WatcherService {
     }
 
     fn watch(&mut self, file: PathBuf) -> WatcherHandle {
-        let (owner, handle) = WatcherHandle::new();
-        // !!: TODO
-        handle
+        self.watcher.watch(file)
     }
 
     fn watch_dir(&mut self, dir: PathBuf, recursive: bool) -> WatcherHandle {
-        let (owner, handle) = WatcherHandle::new();
-        // !!: TODO
-        handle
+        self.watcher.watch_dir(dir, recursive)
     }
 
     fn on_watcher(&mut self, r: notify::Result<notify::Event>) {
+        if let Ok(r) = &r {
+            if !self.watcher.allow(r) {
+                // file parent watcher, file not affected.
+                return;
+            }
+        }
+
         let notify = !self.debounce_buffer.is_empty() && self.debounce_oldest.elapsed() >= self.debounce.get();
 
         self.debounce_buffer.push(r);
@@ -457,9 +439,195 @@ impl ReadToVar {
         !self.handle.is_dropped()
     }
 }
-
 enum ReadEvent<'a> {
     Update,
     Event(&'a FsChangesArgs),
     Init,
+}
+
+struct Watchers {
+    dirs: HashMap<PathBuf, DirWatcher>,
+    watcher: Mutex<Box<dyn notify::Watcher + Send>>, // mutex for Sync only
+    poll_interval: Duration,
+}
+impl Watchers {
+    fn new() -> Self {
+        Self {
+            dirs: HashMap::default(),
+            watcher: Mutex::new(Box::new(notify::NullWatcher)),
+            poll_interval: 10.secs(),
+        }
+    }
+
+    fn watch(&mut self, file: PathBuf) -> WatcherHandle {
+        self.watch_insert(file, WatchMode::File(std::ffi::OsString::new()))
+    }
+
+    fn watch_dir(&mut self, dir: PathBuf, recursive: bool) -> WatcherHandle {
+        self.watch_insert(dir, if recursive { WatchMode::Descendants } else { WatchMode::Children })
+    }
+
+    /// path can still contain the file name if mode is `WatchMode::File("")`
+    fn watch_insert(&mut self, mut path: PathBuf, mut mode: WatchMode) -> WatcherHandle {
+        use path_absolutize::*;
+        path = match path.absolutize() {
+            Ok(p) => p.to_path_buf(),
+            Err(e) => {
+                tracing::error!("cannot watch `{}`, failed to absolutize `{}`", path.display(), e);
+                return WatcherHandle::dummy();
+            }
+        };
+
+        if let WatchMode::File(name) = &mut mode {
+            if let Some(n) = path.file_name() {
+                *name = n.to_os_string();
+                path.pop();
+            } else {
+                tracing::error!("cannot file watch `{}`", path.display());
+                return WatcherHandle::dummy();
+            }
+        }
+
+        let w = self.dirs.entry(path.clone()).or_default();
+
+        for (m, handle) in &w.modes {
+            if m == &mode {
+                if let Some(h) = handle.weak_handle().upgrade() {
+                    return WatcherHandle(h);
+                }
+            }
+        }
+
+        let (owner, handle) = Handle::new(());
+
+        let recursive = matches!(&mode, WatchMode::Descendants);
+
+        if w.modes.is_empty() {
+            Self::inner_watch_dir(&mut **self.watcher.get_mut(), path.as_path(), recursive);
+        } else {
+            let was_recursive = w.recursive();
+            if !was_recursive && recursive {
+                let watcher = &mut **self.watcher.get_mut();
+                Self::inner_unwatch_dir(watcher, path.as_path());
+                Self::inner_watch_dir(watcher, path.as_path(), recursive);
+            }
+        }
+
+        w.modes.push((mode, owner));
+
+        WatcherHandle(handle)
+    }
+
+    fn cleanup(&mut self) {
+        let watcher = &mut **self.watcher.get_mut();
+        self.dirs.retain(|k, v| {
+            let r = v.retain();
+            if !r {
+                Self::inner_unwatch_dir(watcher, k);
+            }
+            r
+        })
+    }
+
+    fn set_poll_interval(&mut self, interval: Duration) {
+        self.poll_interval = interval;
+        if let Err(e) = self
+            .watcher
+            .get_mut()
+            .configure(notify::Config::default().with_poll_interval(interval))
+        {
+            tracing::error!("error setting the watcher poll interval: {e}");
+        }
+    }
+
+    fn init(&mut self) {
+        *self.watcher.get_mut() = match notify::recommended_watcher(notify_watcher_handle) {
+            Ok(w) => Box::new(w),
+            Err(e) => {
+                tracing::error!("error creating watcher\n{e}\nfallback to slow poll watcher");
+                match notify::PollWatcher::new(
+                    notify_watcher_handle,
+                    notify::Config::default().with_poll_interval(self.poll_interval),
+                ) {
+                    Ok(w) => Box::new(w),
+                    Err(e) => {
+                        tracing::error!("error creating poll watcher\n{e}\nfs watching disabled");
+                        Box::new(notify::NullWatcher)
+                    }
+                }
+            }
+        };
+
+        self.cleanup();
+
+        let watcher = &mut **self.watcher.get_mut();
+        for (dir, w) in &self.dirs {
+            Self::inner_watch_dir(watcher, dir.as_path(), w.recursive());
+        }
+    }
+
+    fn inner_watch_dir(watcher: &mut dyn notify::Watcher, dir: &Path, recursive: bool) {
+        let recursive = if recursive {
+            notify::RecursiveMode::Recursive
+        } else {
+            notify::RecursiveMode::NonRecursive
+        };
+        if let Err(e) = watcher.watch(dir, recursive) {
+            match e.kind {
+                notify::ErrorKind::Generic(e) => tracing::error!("cannot watch `{}`, {e}", dir.display()),
+                notify::ErrorKind::Io(e) => tracing::error!("cannot watch `{}`, {e}", dir.display()),
+                notify::ErrorKind::PathNotFound => todo!("!!: review this, "),
+                notify::ErrorKind::MaxFilesWatch => {
+                    tracing::error!("reached sytem limit of files watcher, will use slow polling watcher");
+                    todo!("!!: implement fallback");
+                }
+                notify::ErrorKind::InvalidConfig(e) => unreachable!("{e:?}"),
+                notify::ErrorKind::WatchNotFound => unreachable!(),
+            }
+            todo!("!!: use a backup polling watcher until the dir is created")
+        }
+    }
+
+    fn inner_unwatch_dir(watcher: &mut dyn notify::Watcher, dir: &Path) {
+        if let Err(e) = watcher.unwatch(dir) {
+            match e.kind {
+                notify::ErrorKind::Generic(e) => {
+                    tracing::error!("cannot unwatch `{}`, {e}", dir.display());
+                }
+                notify::ErrorKind::Io(e) => {
+                    tracing::error!("cannot unwatch `{}`, {e}", dir.display());
+                }
+                notify::ErrorKind::PathNotFound => {}  // ok?
+                notify::ErrorKind::WatchNotFound => {} // ok
+                notify::ErrorKind::InvalidConfig(_) => unreachable!(),
+                notify::ErrorKind::MaxFilesWatch => unreachable!(),
+            }
+        }
+    }
+
+    fn allow(&self, r: &notify::Event) -> bool {
+        todo!("!!: check if r interests any DirWatcher")
+    }
+}
+
+#[derive(PartialEq, Eq)]
+enum WatchMode {
+    File(std::ffi::OsString),
+    Children,
+    Descendants,
+}
+
+#[derive(Default)]
+struct DirWatcher {
+    modes: Vec<(WatchMode, HandleOwner<()>)>,
+}
+impl DirWatcher {
+    fn recursive(&self) -> bool {
+        self.modes.iter().any(|m| matches!(&m.0, WatchMode::Descendants))
+    }
+
+    fn retain(&mut self) -> bool {
+        self.modes.retain(|(_, h)| !h.is_dropped());
+        !self.modes.is_empty()
+    }
 }
