@@ -127,6 +127,7 @@ pub mod prelude {
         handler::*,
         image::ImageSource,
         keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
+        l10n::l10n,
         mouse::{ButtonState, ClickMode, MouseButton, MouseMoveArgs},
         render::RenderMode,
         task::{self, rayon::prelude::*},
@@ -138,7 +139,6 @@ pub mod prelude {
             formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Hyphens, Justify, LineBreak,
             TextTransformFn, ToText, Txt, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak, FONTS,
         },
-        l10n::l10n,
         timer::TIMERS,
         units::{
             self, rotate, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_x, translate_y, Align, AngleUnits,

@@ -134,6 +134,7 @@ smallvec = { version = "1", features = ["const_new"] }
 const-random = "0.1.15"
 atomic = "0.5"
 notify = "5"
+glob = "0.3"
 
 # serde
 serde = "1"

@@ -2,10 +2,10 @@
 
 use std::{
     fs::{self, File},
-    io,
-    path::PathBuf,
+    io, mem,
+    path::{Path, PathBuf},
     sync::{atomic::AtomicBool, Arc},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use atomic::Ordering;
@@ -16,8 +16,9 @@ use crate::{
     context::app_local,
     crate_util::HandleOwner,
     event::{event, event_args, EventHandle},
-    handler::{async_app_hn, AppHandler},
+    handler::{app_hn_once, AppHandler, FilterAppHandler},
     task,
+    timer::{DeadlineHandle, TIMERS},
     units::*,
     var::*,
 };
@@ -38,14 +39,18 @@ use crate::{
 #[derive(Default)]
 pub struct FsWatcherManager {}
 impl AppExtension for FsWatcherManager {
+    fn init(&mut self) {
+        WATCHER_SV.write().init_watcher();
+    }
+
+    fn event_preview(&mut self, update: &mut crate::event::EventUpdate) {
+        if let Some(args) = FS_CHANGES_EVENT.on(update) {
+            WATCHER_SV.write().event(args);
+        }
+    }
+
     fn update_preview(&mut self) {
-        let sv = WATCHER_SV.read();
-        if let Some(new) = sv.debounce.get_new() {
-            todo!()
-        }
-        if let Some(new) = sv.poll_interval.get_new() {
-            todo!()
-        }
+        WATCHER_SV.write().update();
     }
 }
 
@@ -61,7 +66,7 @@ impl WATCHER {
     /// Is `100.ms()` by default, this helps secure the app against being overwelmed, and to detect
     /// file changes when the file is temporarly removed and another file move to have its name.
     pub fn debounce(&self) -> ArcVar<Duration> {
-        todo!()
+        WATCHER_SV.read().debounce.clone()
     }
 
     /// When an efficient watcher cannot be used a poll watcher fallback is used, the poll watcher reads
@@ -69,7 +74,7 @@ impl WATCHER {
     ///
     /// Is `10.secs()` by default.
     pub fn poll_interval(&self) -> ArcVar<Duration> {
-        todo!()
+        WATCHER_SV.read().poll_interval.clone()
     }
 
     /// Enable file change events for the `file`.
@@ -83,7 +88,7 @@ impl WATCHER {
     ///
     /// [`watch_dir`]: WATCHER::watch_dir
     pub fn watch(&self, file: impl Into<PathBuf>) -> WatcherHandle {
-        todo!("!!: watch the parent dir and filter, to avoid issues when the file is temporarily removed and replaced with another")
+        WATCHER_SV.write().watch(file.into())
     }
 
     /// Enable file change events for files inside `dir`, also include inner directories if `recursive` is `true`.
@@ -94,11 +99,11 @@ impl WATCHER {
     /// any error creating the watcher, such as if the directory does not exist yet a slower polling watcher will retry periodically    
     /// until the efficient watcher can be created or the handle is dropped.
     pub fn watch_dir(&self, dir: impl Into<PathBuf>, recursive: bool) -> WatcherHandle {
-        todo!("!!: HANDLE")
+        WATCHER_SV.write().watch_dir(dir.into(), recursive)
     }
 
     /// Read a file into a variable, the `init` value will start the variable and the `read` closure will be called
-    /// every time the file changes, if the closure returns `Some(O)` the variable updates with the new value.
+    /// once imediatly and every time the file changes, if the closure returns `Some(O)` the variable updates with the new value.
     ///
     /// Dropping the variable drops the read watch. The `read` closure is non-blocking, it is called in a [`task::wait`]
     /// background thread.
@@ -108,12 +113,15 @@ impl WATCHER {
         init: O,
         read: impl FnMut(io::Result<File>) -> Option<O> + Send + 'static,
     ) -> ReadOnlyArcVar<O> {
-        // !!: TODO
-        ReadFile::new(file.into(), init, read).1
+        let path = file.into();
+        let handle = self.watch(path);
+        let (read, var) = ReadToVar::new(handle, path, init, std::fs::File::open, read);
+        WATCHER_SV.write().read_to_var.push(read);
+        var
     }
 
     /// Read a directory into a variable,  the `init` value will start the variable and the `read` closure will be called
-    /// every time any changes happen inside the dir, if the closure returns `Some(O)` the variable updates with the new value.
+    /// once imediatly and every time any changes happen inside the dir, if the closure returns `Some(O)` the variable updates with the new value.
     ///
     /// Dropping the variable drops the read watch. The `read` closure is non-blocking, it is called in a [`task::wait`]
     /// background thread.
@@ -124,29 +132,52 @@ impl WATCHER {
         init: O,
         read: impl FnMut(io::Result<fs::ReadDir>) -> Option<O> + Send + 'static,
     ) -> ReadOnlyArcVar<O> {
-        todo!()
+        let path = dir.into();
+        let handle = self.watch_dir(path, recursive);
+        let (read, var) = ReadToVar::new(handle, path, init, std::fs::read_dir, read);
+        WATCHER_SV.write().read_to_var.push(read);
+        var
     }
 
     /// Watch `file` and calls `handler` every time it changes.
     ///
     /// Note that the `handler` is blocking, use [`async_app_hn!`] and [`task::wait`] to run IO without
     /// blocking the app.
-    pub fn on_file_changed(&self, file: impl Into<PathBuf>, handler: impl AppHandler<PathChangedArgs>) -> EventHandle {
-        todo!()
+    pub fn on_file_changed(&self, file: impl Into<PathBuf>, handler: impl AppHandler<FsChangesArgs>) -> EventHandle {
+        let file = file.into();
+        let handle = self.watch(file.clone());
+        FS_CHANGES_EVENT.on_event(FilterAppHandler::new(handler, move |args| {
+            let _handle = handle;
+            args.events_for_path(&file).is_some()
+        }))
     }
 
     /// Watch `dir` and calls `handler` every time something inside it changes.
     ///
     /// Note that the `handler` is blocking, use [`async_app_hn!`] and [`task::wait`] to run IO without
     /// blocking the app.
-    pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, handler: impl AppHandler<PathChangedArgs>) -> EventHandle {
-        todo!()
+    pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, handler: impl AppHandler<FsChangesArgs>) -> EventHandle {
+        let dir = dir.into();
+        let handle = self.watch_dir(dir.clone(), recursive);
+        FS_CHANGES_EVENT.on_event(FilterAppHandler::new(handler, move |args| {
+            let _handle = handle;
+            args.events_for_path(&dir).is_some()
+        }))
     }
 }
 
 event_args! {
      /// [`FS_CHANGES_EVENT`] arguments.
-    pub struct PathChangedArgs {
+    pub struct FsChangesArgs {
+        /// Timestamp of the first result in `changes`. This is roughly the `timestamp` minus the [`WATCHER.debounce`]
+        /// interval.
+        ///
+        /// [`WATCHER.debounce`]: WATCHER::debounce
+        pub first_change_ts: Instant,
+
+        /// All notify changes since the last event.
+        pub changes: Arc<Vec<notify::Result<notify::Event>>>,
+
         ..
 
         /// None, only app level handlers receive this event.
@@ -155,10 +186,32 @@ event_args! {
         }
     }
 }
+impl FsChangesArgs {
+    /// Iterate over all change events.
+    pub fn events(&self) -> impl Iterator<Item = &notify::Event> + '_ {
+        self.changes.iter().filter_map(|r| r.as_ref().ok())
+    }
+
+    /// Iterate over all file watcher errors.
+    pub fn errors(&self) -> impl Iterator<Item = &notify::Error> + '_ {
+        self.changes.iter().filter_map(|r| r.as_ref().err())
+    }
+
+    /// Iterate over all change events that affects paths selected by the `glob` pattern.
+    pub fn events_for(&self, glob: &str) -> Result<impl Iterator<Item = &notify::Event> + '_, glob::PatternError> {
+        let glob = glob::Pattern::new(glob)?;
+        Ok(self.events().filter(move |ev| ev.paths.iter().any(|p| glob.matches_path(p))))
+    }
+
+    /// Iterate over all change events that affects paths that are equal to `path` or inside it.
+    pub fn events_for_path<'a>(&'a self, path: &'a Path) -> impl Iterator<Item = &notify::Event> + 'a {
+        self.events().filter(move |ev| ev.paths.iter().any(|p| p.starts_with(path)))
+    }
+}
 
 event! {
     /// Event sent by the [`WATCHER`] service on directories or files that are watched.
-    pub static FS_CHANGES_EVENT: PathChangedArgs;
+    pub static FS_CHANGES_EVENT: FsChangesArgs;
 }
 
 /// Represents an active file or directory watcher in [`WATCHER`].
@@ -203,52 +256,202 @@ impl WatcherHandle {
 }
 
 app_local! {
-    static WATCHER_SV: WatcherService = WatcherService {
-        debounce: var(100.ms()),
-        poll_interval: var(10.secs()),
-    };
+    static WATCHER_SV: WatcherService = WatcherService::new();
 }
 
 struct WatcherService {
     debounce: ArcVar<Duration>,
     poll_interval: ArcVar<Duration>,
+
+    watcher: Mutex<Box<dyn notify::Watcher + Send>>, // mutex for Sync only
+
+    debounce_oldest: Instant,
+    debounce_buffer: Vec<notify::Result<notify::Event>>,
+    debounce_timer: Option<DeadlineHandle>,
+
+    read_to_var: Vec<ReadToVar>,
+}
+impl WatcherService {
+    fn new() -> Self {
+        Self {
+            debounce: var(100.ms()),
+            poll_interval: var(10.secs()),
+            watcher: Mutex::new(Box::new(notify::NullWatcher)),
+            debounce_oldest: Instant::now(),
+            debounce_buffer: vec![],
+            debounce_timer: None,
+            read_to_var: vec![],
+        }
+    }
+
+    fn init_watcher(&mut self) {
+        *self.watcher.get_mut() = match notify::recommended_watcher(notify_watcher_handle) {
+            Ok(w) => Box::new(w),
+            Err(e) => {
+                tracing::error!("error creating watcher\n{e}\nfallback to slow poll watcher");
+                match notify::PollWatcher::new(
+                    notify_watcher_handle,
+                    notify::Config::default().with_poll_interval(self.poll_interval.get()),
+                ) {
+                    Ok(w) => Box::new(w),
+                    Err(e) => {
+                        tracing::error!("error creating poll watcher\n{e}\nfs watching disabled");
+                        Box::new(notify::NullWatcher)
+                    }
+                }
+            }
+        };
+    }
+
+    fn event(&mut self, args: &FsChangesArgs) {
+        self.read_to_var.retain_mut(|f| f.on_event(args));
+    }
+
+    fn update(&mut self) {
+        if let Some(n) = self.poll_interval.get_new() {
+            self.watcher.get_mut().configure(notify::Config::default().with_poll_interval(n));
+        }
+        if !self.debounce_buffer.is_empty() {
+            if let Some(n) = self.debounce.get_new() {
+                if self.debounce_oldest.elapsed() >= n {
+                    self.notify();
+                }
+            }
+        }
+        self.read_to_var.retain_mut(|f| f.retain());
+    }
+
+    fn watch(&mut self, file: PathBuf) -> WatcherHandle {
+        let (owner, handle) = WatcherHandle::new();
+        // !!: TODO
+        handle
+    }
+
+    fn watch_dir(&mut self, dir: PathBuf, recursive: bool) -> WatcherHandle {
+        let (owner, handle) = WatcherHandle::new();
+        // !!: TODO
+        handle
+    }
+
+    fn on_watcher(&mut self, r: notify::Result<notify::Event>) {
+        let notify = !self.debounce_buffer.is_empty() && self.debounce_oldest.elapsed() >= self.debounce.get();
+
+        self.debounce_buffer.push(r);
+
+        if notify {
+            self.notify();
+        } else if self.debounce_timer.is_none() {
+            self.debounce_timer = Some(TIMERS.on_deadline(
+                self.debounce.get(),
+                app_hn_once!(|_| {
+                    WATCHER_SV.write().on_debounce_timer();
+                }),
+            ));
+        }
+    }
+
+    fn on_debounce_timer(&mut self) {
+        if !self.debounce_buffer.is_empty() {
+            self.notify();
+        }
+    }
+
+    fn notify(&mut self) {
+        let changes = mem::take(&mut self.debounce_buffer);
+        let now = Instant::now();
+        let first_change_ts = mem::replace(&mut self.debounce_oldest, now);
+        self.debounce_timer = None;
+
+        FS_CHANGES_EVENT.notify(FsChangesArgs::new(now, Default::default(), first_change_ts, changes));
+    }
+}
+fn notify_watcher_handle(r: notify::Result<notify::Event>) {
+    WATCHER_SV.write().on_watcher(r)
 }
 
-struct ReadFile {
-    read: Box<dyn Fn(Arc<AtomicBool>, WatcherHandle)>,
+struct ReadToVar {
+    read: Box<dyn Fn(&Arc<AtomicBool>, &WatcherHandle, ReadEvent)>,
     pending: Arc<AtomicBool>,
     handle: WatcherHandle,
 }
-impl ReadFile {
-    fn new<O: VarValue>(path: PathBuf, init: O, read: impl FnMut(fs::File) -> Option<O> + Send + 'static) -> (Self, ReadOnlyArcVar<O>) {
-        let handle = WATCHER.watch(path.clone());
+impl ReadToVar {
+    fn new<O: VarValue, R>(
+        handle: WatcherHandle,
+        path: PathBuf,
+        init: O,
+        load: impl Fn(&Path) -> io::Result<R>,
+        read: impl FnMut(io::Result<R>) -> Option<O> + Send + 'static,
+    ) -> (Self, ReadOnlyArcVar<O>) {
         let path = Arc::new(path);
         let var = var(init);
 
         let pending = Arc::new(AtomicBool::new(false));
         let read = Arc::new(Mutex::new(read));
         let wk_var = var.downgrade();
-        let read = Box::new(move |pending, handle| {
+
+        // read task "drains" pending, drops handle if the var is dropped.
+        let read = Box::new(move |pending: &Arc<AtomicBool>, handle: &WatcherHandle, ev: ReadEvent| {
             if wk_var.strong_count() == 0 {
-                handle.force_drop();
+                handle.clone().force_drop();
+                return;
+            };
+
+            let spawn = match ev {
+                ReadEvent::Update => false,
+                ReadEvent::Event(args) => !pending.load(Ordering::Relaxed) && args.events_for_path(&path).next().is_some(),
+                ReadEvent::Init => true,
+            };
+
+            if !spawn {
                 return;
             }
-            if pending.load(Ordering::Relaxed) {
-                task::spawn_wait(clmv!(read, wk_var, path, || {
-                    let mut read = read.lock();
-                    while pending.swap(Ordering::Relaxed, false) {
-                        if let Some(update) = read(fs::File::open(path.as_path())) {
-                            if let Some(var) = wk_var.upgrade() {
-                                var.set(update);
-                            } else {
-                                handle.unsubscribe();
-                            }
+
+            pending.store(true, Ordering::Relaxed);
+            if read.try_lock().is_none() {
+                // another task already running.
+                return;
+            }
+            task::spawn_wait(clmv!(read, wk_var, path, handle, pending, || {
+                let mut read = read.lock();
+                while pending.swap(false, Ordering::Relaxed) {
+                    if let Some(update) = read(fs::File::open(path.as_path())) {
+                        if let Some(var) = wk_var.upgrade() {
+                            var.set(update);
+                        } else {
+                            // var dropped
+                            handle.force_drop();
+                            break;
                         }
                     }
-                }));
-            }
+                }
+            }));
         });
+        read(&pending, &handle, ReadEvent::Init);
 
         (Self { read, pending, handle }, var.read_only())
     }
+
+    /// Match the event and flag variable update.
+    ///
+    /// Returns if the variable is still alive.
+    pub fn on_event(&mut self, args: &FsChangesArgs) -> bool {
+        if !self.handle.is_dropped() {
+            (self.read)(&self.pending, &self.handle, ReadEvent::Event(args));
+        }
+        !self.handle.is_dropped()
+    }
+
+    /// Returns if the variable is still alive.
+    fn retain(&mut self) -> bool {
+        if !self.handle.is_dropped() {
+            (self.read)(&self.pending, &self.handle, ReadEvent::Update);
+        }
+        !self.handle.is_dropped()
+    }
+}
+
+enum ReadEvent<'a> {
+    Update,
+    Event(&'a FsChangesArgs),
+    Init,
 }

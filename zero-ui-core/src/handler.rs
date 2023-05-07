@@ -12,6 +12,7 @@
 
 use std::any::Any;
 use std::future::Future;
+use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 use std::{mem, thread};
 
@@ -28,8 +29,7 @@ use crate::task::ui::UiTask;
 pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     /// Called every time the handler's event happens in the widget context.
     ///
-    /// Returns `true` when the event handler is async and it has not finished handing the event, if this
-    /// is the case the handler also requests a widget [`info`] rebuild.
+    /// Returns `true` when the event handler is async and it has not finished handing the event.
     ///
     /// [`update`]: WidgetHandler::update
     /// [`info`]: crate::widget_instance::UiNode::info
@@ -1145,6 +1145,80 @@ macro_rules! async_app_hn_once {
 }
 #[doc(inline)]
 pub use crate::async_app_hn_once;
+
+/// Widget handler wrapper that filters the events, only delegating to `self` when `filter` returns `true`.
+pub struct FilteWidgetHandler<A, H, F> {
+    _args: PhantomData<fn() -> A>,
+    handler: H,
+    filter: F,
+}
+impl<A, H, F> FilteWidgetHandler<A, H, F>
+where
+    A: Clone + 'static,
+    H: WidgetHandler<A>,
+    F: FnMut(&A) -> bool + Send + 'static,
+{
+    /// New filter handler.
+    pub fn new(handler: H, filter: F) -> Self {
+        Self {
+            handler,
+            filter,
+            _args: PhantomData,
+        }
+    }
+}
+impl<A, H, F> WidgetHandler<A> for FilteWidgetHandler<A, H, F>
+where
+    A: Clone + 'static,
+    H: WidgetHandler<A>,
+    F: FnMut(&A) -> bool + Send + 'static,
+{
+    fn event(&mut self, args: &A) -> bool {
+        if (self.filter)(args) {
+            self.handler.event(args)
+        } else {
+            false
+        }
+    }
+
+    fn update(&mut self) -> bool {
+        self.handler.update()
+    }
+}
+
+/// App handler wrapper that filters the events, only delegating to `self` when `filter` returns `true`.
+pub struct FilterAppHandler<A, H, F> {
+    _args: PhantomData<fn() -> A>,
+    handler: H,
+    filter: F,
+}
+impl<A, H, F> FilterAppHandler<A, H, F>
+where
+    A: Clone + 'static,
+    H: AppHandler<A>,
+    F: FnMut(&A) -> bool + Send + 'static,
+{
+    /// New filter handler.
+    pub fn new(handler: H, filter: F) -> Self {
+        Self {
+            handler,
+            filter,
+            _args: PhantomData,
+        }
+    }
+}
+impl<A, H, F> AppHandler<A> for FilterAppHandler<A, H, F>
+where
+    A: Clone + 'static,
+    H: AppHandler<A>,
+    F: FnMut(&A) -> bool + Send + 'static,
+{
+    fn event(&mut self, args: &A, handler_args: &AppHandlerArgs) {
+        if (self.filter)(args) {
+            self.handler.event(args, handler_args);
+        }
+    }
+}
 
 ///<span data-del-macro-root></span> Clone move closure.
 ///
