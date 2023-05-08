@@ -7,6 +7,12 @@
 # WATCHER
 
 * Test the `WATCHER` service.
+    - Event not received until the app window is interacted with.
+        - Print in the `notify` handle shows an imediate response.
+        - Issue is the timer not elapsing.
+        - Issue is that the `TIMERS.on_*` does not wake the app so the new timer is never used.
+            - Fixed, review other `TIMERS` methods and other services.
+        - The `notify` handle also does not run in the app context?
 * Use the new service in `CONFIG`.
 
 # Localization

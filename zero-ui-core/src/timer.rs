@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     app::LoopTimer,
-    context::app_local,
+    context::{app_local, UPDATES},
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     units::Deadline,
@@ -93,6 +93,7 @@ impl TimersService {
             })),
             pending: false,
         });
+        UPDATES.update(None); // wake app to update timer.
         handle
     }
 
