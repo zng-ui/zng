@@ -6,9 +6,7 @@
 
 # WATCHER
 
-* Test the `WATCHER`.
-    - Dir to var.
-    - Missing path (poll now uses `walkdir`).
+* Implement and test `sync`.
 * Use the new service in `CONFIG`.
 
 # Localization

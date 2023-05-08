@@ -153,6 +153,66 @@ impl WATCHER {
         var
     }
 
+    /// Bind a file with a variable, the `file` will be `read` when it changes and be `write` when the variable changes,
+    /// writes are atomic and will not cause a `read`. The `init` value is used to create the variable, if the `file`
+    /// exists it will be `read` once at the begining.
+    ///
+    /// Dropping the variable drops the read watch. The `read` and `write` closures are non-blocking, they are called in a [`task::wait`]
+    /// background thread.
+    ///
+    /// # Sync
+    ///
+    /// The file synchronization ensures that the file never ends in a partially written state by writting
+    /// to a temporary file and commiting a replace if the write succeeded. The file is write-locked for the duration
+    /// of `write` call, but the contents are not touched until commit.
+    ///
+    /// Race conditions favor the variable value, the file timestamp is not checked on write, if another app
+    /// writes to the file at the same time the variable updates the watcher will only await for the write-lock
+    /// and override the file with the variable latest value.
+    ///
+    /// Note that the file is written even if the variable is only touched, the value is also cloned.
+    ///
+    /// The [`FsWatcherManager`] blocks on app exit until all writes commit or cancel.
+    ///
+    /// ## Read Errors
+    ///
+    /// Not-found errors are handled by the watcher by calling `write` using the current variable value, other read errors
+    /// are passed to `read`. If `read` returns a value for an error the `write` closure is called to override the file,
+    /// otherwise only the variable is set and this variable update does not cause a `write`.
+    ///
+    /// ## Write Errors
+    ///
+    /// If `write` fails the file is not touched and the temporary file is removed, if the file path
+    /// does not exit all missing parent folders and the file will be created automatically before the `write`
+    /// call.
+    ///
+    /// Note that [`WriteFile::commit`] must be called to flush the temporary file and attempt to atomically rename
+    /// it, if the file is dropped without commit it will cancel and log an error, you must call [`WriteFile::cancel`]
+    /// to correctly avoid writting.
+    ///
+    /// If the cleanup after commit fails the error is logged and ignored.
+    ///
+    /// If write fails to even create the file and/or acquire q write lock on it this error is the input for
+    /// the `write` closure.
+    ///
+    /// ## Error Handling
+    ///
+    /// You can call services or set other variables from inside the `read` and `write` closures, this can be
+    /// used to get a signal out that perhaps drops the sync var (to stop watching), alert the user that the
+    /// file is out of sync and initiate some sort of recovery routine.
+    ///
+    /// If the file synchronization is not important you can just ignore it, the watcher will try again
+    /// on the next variable or file update.
+    pub fn sync<O: VarValue>(
+        &self,
+        file: impl Into<PathBuf>,
+        init: O,
+        read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
+        write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
+    ) -> ArcVar<O> {
+        todo!()
+    }
+
     /// Watch `file` and calls `handler` every time it changes.
     ///
     /// Note that the `handler` is blocking, use [`async_app_hn!`] and [`task::wait`] to run IO without
@@ -195,7 +255,7 @@ impl WatchFile {
     }
 
     /// Deserialize the file contents as JSON.
-    pub fn json<O>(&mut self) -> Result<O, serde_json::Error>
+    pub fn json<O>(&mut self) -> serde_json::Result<O>
     where
         O: serde::de::DeserializeOwned,
     {
@@ -220,6 +280,83 @@ impl ops::Deref for WatchFile {
 impl ops::DerefMut for WatchFile {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+/// Represents an open write file provided by [`WATCHER.sync`].
+///
+/// This type implements *atomic* writting by actually writting to a temporary file and renaming
+/// it over the actual file on commit.
+///
+/// This type dereferences to the temporary file, not the actual one, the metadata will reflect this.
+pub struct WriteFile {
+    actual_file: fs::File,
+    tmp_file: fs::File,
+    cleaned: bool,
+}
+
+impl Drop for WriteFile {
+    fn drop(&mut self) {
+        if !self.cleaned {
+            tracing::error!("dropped sync write file without commit or cancel");
+            self.clean();
+        }
+    }
+}
+impl ops::Deref for WriteFile {
+    type Target = fs::File;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tmp_file
+    }
+}
+impl ops::DerefMut for WriteFile {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.tmp_file
+    }
+}
+impl WriteFile {
+    /// Open or create the file.
+    pub fn open(path: &Path) -> Self {
+        todo!()
+    }
+
+    /// Write the text string.
+    pub fn write_text(&mut self, txt: &str) -> io::Result<()> {
+        use io::Write;
+        self.tmp_file.write_all(txt.as_bytes())
+    }
+
+    /// Serialize and write.
+    ///
+    /// If `pretty` is `true` the JSON is formatted for human reading.
+    pub fn write_json<O: serde::Serialize>(&mut self, value: &O, pretty: bool) -> serde_json::Result<()> {
+        let buf = io::BufWriter::new(&mut self.tmp_file);
+        if pretty {
+            serde_json::to_writer_pretty(buf, value)
+        } else {
+            serde_json::to_writer(buf, value)
+        }
+    }
+
+    /// Commit write, flush and atomically replace the actual file with the new one.
+    pub fn commit(mut self) -> io::Result<()> {
+        let r = self.replace_actual();
+        self.clean();
+        r
+    }
+
+    /// Cancel write, the file will not be updated.
+    pub fn cancel(mut self) {
+        self.clean();
+    }
+
+    fn replace_actual(&mut self) -> io::Result<()> {
+        todo!()
+    }
+
+    fn clean(&mut self) {
+        self.cleaned = true;
     }
 }
 
@@ -352,6 +489,7 @@ struct WatcherService {
     debounce_timer: Option<DeadlineHandle>,
 
     read_to_var: Vec<ReadToVar>,
+    sync_with_var: Vec<SyncWithVar>,
 }
 impl WatcherService {
     fn new() -> Self {
@@ -363,6 +501,7 @@ impl WatcherService {
             debounce_buffer: vec![],
             debounce_timer: None,
             read_to_var: vec![],
+            sync_with_var: vec![],
         }
     }
 
@@ -524,6 +663,14 @@ enum ReadEvent<'a> {
     Update,
     Event(&'a FsChangesArgs),
     Init,
+}
+
+struct SyncWithVar {}
+
+impl SyncWithVar {
+    fn new() -> Self {
+        Self {}
+    }
 }
 
 struct Watchers {
