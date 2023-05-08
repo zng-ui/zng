@@ -136,6 +136,7 @@ atomic = "0.5"
 notify = "5"
 glob = "0.3"
 path-absolutize = "3"
+walkdir = "2"
 
 # serde
 serde = "1"

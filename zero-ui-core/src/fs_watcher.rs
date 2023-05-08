@@ -1,8 +1,7 @@
 //! File system events and service.
 
 use std::{
-    fs::{self, File},
-    io, mem,
+    fmt, fs, io, mem, ops,
     path::{Path, PathBuf},
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
@@ -20,6 +19,7 @@ use crate::{
     event::{event, event_args, EventHandle},
     handler::{app_hn_once, AppHandler, FilterAppHandler},
     task,
+    text::Txt,
     timer::{DeadlineHandle, TIMERS},
     units::*,
     var::*,
@@ -72,9 +72,10 @@ impl WATCHER {
     }
 
     /// When an efficient watcher cannot be used a poll watcher fallback is used, the poll watcher reads
-    /// the directory or path every elapse of this interval.
+    /// the directory or path every elapse of this interval. The poll watcher is also used for paths that
+    /// do not exist yet, that is also affected by this interval.
     ///
-    /// Is `10.secs()` by default.
+    /// Is `1.secs()` by default.
     pub fn poll_interval(&self) -> ArcVar<Duration> {
         WATCHER_SV.read().poll_interval.clone()
     }
@@ -113,12 +114,12 @@ impl WATCHER {
         &self,
         file: impl Into<PathBuf>,
         init: O,
-        read: impl FnMut(io::Result<File>) -> Option<O> + Send + 'static,
+        read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
     ) -> ReadOnlyArcVar<O> {
         let path = file.into();
         let handle = self.watch(path.clone());
-        fn open(p: &Path) -> io::Result<File> {
-            std::fs::File::open(p)
+        fn open(p: &Path) -> io::Result<WatchFile> {
+            std::fs::File::open(p).map(WatchFile)
         }
         let (read, var) = ReadToVar::new(handle, path, init, open, read);
         WATCHER_SV.write().read_to_var.push(read);
@@ -128,6 +129,8 @@ impl WATCHER {
     /// Read a directory into a variable,  the `init` value will start the variable and the `read` closure will be called
     /// once imediatly and every time any changes happen inside the dir, if the closure returns `Some(O)` the variable updates with the new value.
     ///
+    /// The directory walker is pre-configured to skip the `dir` itself and to kave a max-depth of 1 if not `recursive`, these configs can.
+    ///
     /// Dropping the variable drops the read watch. The `read` closure is non-blocking, it is called in a [`task::wait`]
     /// background thread.
     pub fn read_dir<O: VarValue>(
@@ -135,14 +138,17 @@ impl WATCHER {
         dir: impl Into<PathBuf>,
         recursive: bool,
         init: O,
-        read: impl FnMut(io::Result<fs::ReadDir>) -> Option<O> + Send + 'static,
+        read: impl FnMut(walkdir::WalkDir) -> Option<O> + Send + 'static,
     ) -> ReadOnlyArcVar<O> {
         let path = dir.into();
         let handle = self.watch_dir(path.clone(), recursive);
-        fn open(p: &Path) -> io::Result<fs::ReadDir> {
-            std::fs::read_dir(p)
+        fn open(p: &Path) -> walkdir::WalkDir {
+            walkdir::WalkDir::new(p).min_depth(1).max_depth(1)
         }
-        let (read, var) = ReadToVar::new(handle, path, init, open, read);
+        fn open_recursive(p: &Path) -> walkdir::WalkDir {
+            walkdir::WalkDir::new(p).min_depth(1)
+        }
+        let (read, var) = ReadToVar::new(handle, path, init, if recursive { open_recursive } else { open }, read);
         WATCHER_SV.write().read_to_var.push(read);
         var
     }
@@ -171,6 +177,79 @@ impl WATCHER {
             let _handle = &handle;
             args.events_for_path(&dir).next().is_some()
         }))
+    }
+}
+
+/// Represents an open read-only file provided by [`WATCHER.read`].
+///
+/// This type is a thin wrapper aroung the [`std::fs::File`] with some convenience parsing methods.
+#[derive(Debug)]
+pub struct WatchFile(pub fs::File);
+impl WatchFile {
+    /// Read the file contents as a text string.
+    pub fn text(&mut self) -> io::Result<Txt> {
+        use std::io::Read;
+        let mut s = String::new();
+        self.0.read_to_string(&mut s)?;
+        Ok(Txt::from(s))
+    }
+
+    /// Deserialize the file contents as JSON.
+    pub fn json<O>(&mut self) -> Result<O, serde_json::Error>
+    where
+        O: serde::de::DeserializeOwned,
+    {
+        serde_json::from_reader(io::BufReader::new(&mut self.0))
+    }
+
+    /// Read file and parse it.
+    pub fn parse<O: std::str::FromStr>(&mut self) -> Result<O, WatchFileParseError<O::Err>> {
+        use std::io::Read;
+        let mut s = String::new();
+        self.0.read_to_string(&mut s)?;
+        O::from_str(&s).map_err(WatchFileParseError::Parse)
+    }
+}
+impl ops::Deref for WatchFile {
+    type Target = fs::File;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ops::DerefMut for WatchFile {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+/// Error for [`WatchFile::parse`].
+#[derive(Debug)]
+pub enum WatchFileParseError<E> {
+    /// Error reading the file.
+    Io(io::Error),
+    /// Error parsing the file.
+    Parse(E),
+}
+impl<E> From<io::Error> for WatchFileParseError<E> {
+    fn from(value: io::Error) -> Self {
+        Self::Io(value)
+    }
+}
+impl<E: fmt::Display> fmt::Display for WatchFileParseError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WatchFileParseError::Io(e) => write!(f, "read error, {e}"),
+            WatchFileParseError::Parse(e) => write!(f, "parse error, {e}"),
+        }
+    }
+}
+impl<E: std::error::Error + 'static> std::error::Error for WatchFileParseError<E> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            WatchFileParseError::Io(e) => Some(e),
+            WatchFileParseError::Parse(e) => Some(e),
+        }
     }
 }
 
@@ -278,7 +357,7 @@ impl WatcherService {
     fn new() -> Self {
         Self {
             debounce: var(100.ms()),
-            poll_interval: var(10.secs()),
+            poll_interval: var(1.secs()),
             watcher: Watchers::new(),
             debounce_oldest: Instant::now(),
             debounce_buffer: vec![],
@@ -371,8 +450,8 @@ impl ReadToVar {
         handle: WatcherHandle,
         path: PathBuf,
         init: O,
-        load: fn(&Path) -> io::Result<R>,
-        read: impl FnMut(io::Result<R>) -> Option<O> + Send + 'static,
+        load: fn(&Path) -> R,
+        read: impl FnMut(R) -> Option<O> + Send + 'static,
     ) -> (Self, ReadOnlyArcVar<O>) {
         let path = Arc::new(path);
         let var = var(init);
@@ -460,7 +539,7 @@ impl Watchers {
             dirs: HashMap::default(),
             watcher: Mutex::new(Box::new(notify::NullWatcher)),
             error_watcher: None,
-            poll_interval: 10.secs(),
+            poll_interval: 1.secs(),
         }
     }
 
@@ -488,7 +567,7 @@ impl Watchers {
                 *name = n.to_os_string();
                 path.pop();
             } else {
-                tracing::error!("cannot file watch `{}`", path.display());
+                tracing::error!("cannot watch file `{}`", path.display());
                 return WatcherHandle::dummy();
             }
         }
@@ -601,12 +680,20 @@ impl Watchers {
         };
         if let Err(e) = watcher.watch(dir, recursive) {
             match e.kind {
-                notify::ErrorKind::Generic(e) => tracing::error!("cannot watch `{}`, {e}", dir.display()),
+                notify::ErrorKind::Generic(e) => {
+                    if dir.try_exists().unwrap_or(true) {
+                        tracing::error!("cannot watch dir `{}`, {e}", dir.display())
+                    } else {
+                        return Err(notify::ErrorKind::PathNotFound);
+                    }
+                }
                 notify::ErrorKind::Io(e) => {
                     if let io::ErrorKind::NotFound = e.kind() {
                         return Err(notify::ErrorKind::PathNotFound);
+                    } else if dir.try_exists().unwrap_or(true) {
+                        tracing::error!("cannot watch dir `{}`, {e}", dir.display())
                     } else {
-                        tracing::error!("cannot watch `{}`, {e}", dir.display())
+                        return Err(notify::ErrorKind::PathNotFound);
                     }
                 }
                 e @ notify::ErrorKind::PathNotFound | e @ notify::ErrorKind::MaxFilesWatch => return Err(e),
@@ -632,10 +719,10 @@ impl Watchers {
         if let Err(e) = watcher.unwatch(dir) {
             match e.kind {
                 notify::ErrorKind::Generic(e) => {
-                    tracing::error!("cannot unwatch `{}`, {e}", dir.display());
+                    tracing::error!("cannot unwatch dir `{}`, {e}", dir.display());
                 }
                 notify::ErrorKind::Io(e) => {
-                    tracing::error!("cannot unwatch `{}`, {e}", dir.display());
+                    tracing::error!("cannot unwatch dir `{}`, {e}", dir.display());
                 }
                 notify::ErrorKind::PathNotFound => {}  // ok?
                 notify::ErrorKind::WatchNotFound => {} // ok
@@ -840,7 +927,24 @@ struct PollEntry {
 impl PollInfo {
     fn new(path: &Path, recursive: bool) -> Self {
         let mut paths = HashMap::new();
-        recursive_collect(&mut paths, path, recursive);
+
+        for entry in walkdir::WalkDir::new(path)
+            .min_depth(1)
+            .max_depth(if recursive { usize::MAX } else { 1 })
+            .into_iter()
+            .flatten()
+        {
+            if let Some(modified) = entry.metadata().ok().and_then(|m| m.modified().ok()) {
+                paths.insert(
+                    entry.into_path(),
+                    PollEntry {
+                        modified,
+                        update_flag: false,
+                    },
+                );
+            }
+        }
+
         Self {
             recursive,
             paths,
@@ -850,7 +954,48 @@ impl PollInfo {
 
     fn poll(&mut self, root: &Path, handler: &mut impl notify::EventHandler) {
         self.update_flag = !self.update_flag;
-        recursive_update(&mut self.paths, root, self.recursive, self.update_flag, handler);
+        for entry in walkdir::WalkDir::new(root)
+            .min_depth(1)
+            .max_depth(if self.recursive { usize::MAX } else { 1 })
+            .into_iter()
+            .flatten()
+        {
+            if let Some((is_dir, modified)) = entry.metadata().ok().and_then(|m| Some((m.is_dir(), m.modified().ok()?))) {
+                match self.paths.entry(entry.into_path()) {
+                    hashbrown::hash_map::Entry::Occupied(mut e) => {
+                        let info = e.get_mut();
+                        info.update_flag = self.update_flag;
+                        if info.modified != modified {
+                            info.modified = modified;
+
+                            handler.handle_event(Ok(notify::Event {
+                                kind: notify::EventKind::Modify(notify::event::ModifyKind::Metadata(
+                                    notify::event::MetadataKind::WriteTime,
+                                )),
+                                paths: vec![e.key().clone()],
+                                attrs: Default::default(),
+                            }))
+                        }
+                    }
+                    hashbrown::hash_map::Entry::Vacant(e) => {
+                        handler.handle_event(Ok(notify::Event {
+                            kind: notify::EventKind::Create(if is_dir {
+                                notify::event::CreateKind::Folder
+                            } else {
+                                notify::event::CreateKind::File
+                            }),
+                            paths: vec![e.key().clone()],
+                            attrs: Default::default(),
+                        }));
+
+                        e.insert(PollEntry {
+                            modified,
+                            update_flag: self.update_flag,
+                        });
+                    }
+                }
+            }
+        }
 
         self.paths.retain(|k, e| {
             let retain = e.update_flag == self.update_flag;
@@ -863,77 +1008,5 @@ impl PollInfo {
             }
             retain
         });
-    }
-}
-fn recursive_collect(paths: &mut HashMap<PathBuf, PollEntry>, path: &Path, recursive: bool) {
-    if let Ok(dirs) = std::fs::read_dir(path) {
-        for entry in dirs.flatten() {
-            if let Ok(meta) = entry.metadata() {
-                if let Ok(modified) = meta.modified() {
-                    let path = entry.path();
-                    if recursive && meta.is_dir() {
-                        recursive_collect(paths, &path, recursive);
-                    }
-                    paths.insert(
-                        path,
-                        PollEntry {
-                            modified,
-                            update_flag: false,
-                        },
-                    );
-                }
-            }
-        }
-    }
-}
-
-fn recursive_update(
-    paths: &mut HashMap<PathBuf, PollEntry>,
-    path: &Path,
-    recursive: bool,
-    update_flag: bool,
-    handler: &mut impl notify::EventHandler,
-) {
-    if let Ok(dirs) = std::fs::read_dir(path) {
-        for entry in dirs.flatten() {
-            if let Ok(meta) = entry.metadata() {
-                if let Ok(modified) = meta.modified() {
-                    let path = entry.path();
-                    if recursive && meta.is_dir() {
-                        recursive_update(paths, &path, recursive, update_flag, handler);
-                    }
-                    match paths.entry(path) {
-                        hashbrown::hash_map::Entry::Occupied(mut e) => {
-                            let info = e.get_mut();
-                            info.update_flag = update_flag;
-                            if info.modified != modified {
-                                info.modified = modified;
-
-                                handler.handle_event(Ok(notify::Event {
-                                    kind: notify::EventKind::Modify(notify::event::ModifyKind::Metadata(
-                                        notify::event::MetadataKind::WriteTime,
-                                    )),
-                                    paths: vec![e.key().clone()],
-                                    attrs: Default::default(),
-                                }))
-                            }
-                        }
-                        hashbrown::hash_map::Entry::Vacant(e) => {
-                            handler.handle_event(Ok(notify::Event {
-                                kind: notify::EventKind::Create(if meta.is_dir() {
-                                    notify::event::CreateKind::Folder
-                                } else {
-                                    notify::event::CreateKind::File
-                                }),
-                                paths: vec![e.key().clone()],
-                                attrs: Default::default(),
-                            }));
-
-                            e.insert(PollEntry { modified, update_flag });
-                        }
-                    }
-                }
-            }
-        }
     }
 }

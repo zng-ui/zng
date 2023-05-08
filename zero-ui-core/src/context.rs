@@ -1416,8 +1416,15 @@ impl UpdatesService {
     fn send_awake(&mut self) {
         if !self.app_is_awake && !self.awake_pending {
             self.awake_pending = true;
-            if let Err(AppDisconnected(())) = self.event_sender.as_ref().unwrap().send_check_update() {
-                tracing::error!("no app connected to update");
+            match self.event_sender.as_ref() {
+                Some(s) => {
+                    if let Err(AppDisconnected(())) = s.send_check_update() {
+                        tracing::error!("no app connected to update");
+                    }
+                }
+                None => {
+                    tracing::error!("no app connected yet to update");
+                }
             }
         }
     }

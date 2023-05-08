@@ -6,8 +6,9 @@
 
 # WATCHER
 
-* Review other `TIMERS` methods and other services not awaking the app.
-* Test the `WATCHER` service.
+* Test the `WATCHER`.
+    - Dir to var.
+    - Missing path (poll now uses `walkdir`).
 * Use the new service in `CONFIG`.
 
 # Localization
@@ -24,3 +25,9 @@
 * Other macros:
     - `l10n_txt!("id", "fmt")`, is scrapped and expands to `l10n!("id", "fmt").get()`.
     - `l10n_str!("id", "fmt")`, is scrapped and expands to `l10n!("id", "fmt").get().to_string()` or equivalent.
+
+# Other
+
+* Review external crate re-exports.
+    - We re-export `rayon` and `parking_lot`, are we the only ones to do this?
+    - Users are expected to import the crate even if our API surface types form it?

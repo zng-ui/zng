@@ -61,6 +61,7 @@ impl TimersService {
     fn deadline(&mut self, deadline: impl Into<Deadline>) -> DeadlineVar {
         let timer = var(deadline.into());
         self.deadlines.push(timer.downgrade());
+        UPDATES.send_awake();
         timer.read_only()
     }
 
@@ -71,6 +72,7 @@ impl TimersService {
             handle: owner,
             weak_var: timer.downgrade(),
         });
+        UPDATES.send_awake();
         timer.read_only()
     }
 
@@ -93,7 +95,7 @@ impl TimersService {
             })),
             pending: false,
         });
-        UPDATES.update(None); // wake app to update timer.
+        UPDATES.send_awake();
         handle
     }
 
@@ -110,6 +112,7 @@ impl TimersService {
             })),
             pending: None,
         });
+        UPDATES.send_awake();
         handle
     }
 

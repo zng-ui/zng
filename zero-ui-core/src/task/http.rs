@@ -577,8 +577,8 @@ impl Response {
     }
 
     /// Read the response body as a string.
-    pub async fn text(&mut self) -> std::io::Result<String> {
-        self.0.text().await
+    pub async fn text(&mut self) -> std::io::Result<Txt> {
+        self.0.text().await.map(Txt::from)
     }
 
     /// Get the effective URI of this response. This value differs from the
@@ -734,10 +734,10 @@ impl Body {
     /// Read the body and try to convert to UTF-8.
     ///
     /// Consider using [`Response::text`], it uses the header encoding information if available.
-    pub async fn text_utf8(&mut self) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn text_utf8(&mut self) -> Result<Txt, Box<dyn std::error::Error>> {
         let bytes = self.bytes().await?;
         let r = String::from_utf8(bytes)?;
-        Ok(r)
+        Ok(Txt::from(r))
     }
 
     /// Read some bytes from the body, returns how many bytes where read.
@@ -768,6 +768,11 @@ impl From<()> for Body {
 impl From<String> for Body {
     fn from(body: String) -> Self {
         Body(body.into())
+    }
+}
+impl From<Txt> for Body {
+    fn from(body: Txt) -> Self {
+        Body(String::from(body).into())
     }
 }
 impl From<Vec<u8>> for Body {
@@ -813,7 +818,7 @@ pub async fn get(uri: impl TryUri) -> Result<Response, Error> {
 /// Send a GET request to the `uri` and read the response as a string.
 ///
 /// The [`default_client`]  is used to send the request.
-pub async fn get_text(uri: impl TryUri) -> Result<String, Error> {
+pub async fn get_text(uri: impl TryUri) -> Result<Txt, Error> {
     default_client().get_text(uri).await
 }
 
@@ -1134,7 +1139,7 @@ impl Client {
     }
 
     /// Send a GET request to the `uri` and read the response as a string.
-    pub async fn get_text(&self, uri: impl TryUri) -> Result<String, Error> {
+    pub async fn get_text(&self, uri: impl TryUri) -> Result<Txt, Error> {
         let mut r = self.get(uri).await?;
         let r = r.text().await?;
         Ok(r)
