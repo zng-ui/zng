@@ -10,6 +10,7 @@ use std::{
 
 use atomic::Ordering;
 use hashbrown::HashMap;
+use notify::Watcher as _;
 use parking_lot::Mutex;
 
 use crate::{
@@ -545,7 +546,7 @@ impl Watchers {
             Ok(w) => Box::new(w),
             Err(e) => {
                 tracing::error!("error creating watcher\n{e}\nfallback to slow poll watcher");
-                match notify::PollWatcher::new(
+                match PollWatcher::new(
                     notify_watcher_handle,
                     notify::Config::default().with_poll_interval(self.poll_interval),
                 ) {
@@ -606,7 +607,45 @@ impl Watchers {
     }
 
     fn allow(&self, r: &notify::Event) -> bool {
-        todo!("!!: check if r interests any DirWatcher")
+        for (dir, w) in &self.dirs {
+            for (mode, _) in &w.modes {
+                match mode {
+                    WatchMode::File(f) => {
+                        for path in &r.paths {
+                            if let Some(name) = path.file_name() {
+                                if name == f {
+                                    if let Some(path) = path.parent() {
+                                        if path == dir {
+                                            // matched exact `dir/name`
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    WatchMode::Children => {
+                        for path in &r.paths {
+                            if let Some(path) = path.parent() {
+                                if path == dir {
+                                    // matched `dir/*`
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    WatchMode::Descendants => {
+                        for path in &r.paths {
+                            if path.starts_with(dir) {
+                                // matched `dir/**`
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
     }
 }
 
@@ -629,5 +668,212 @@ impl DirWatcher {
     fn retain(&mut self) -> bool {
         self.modes.retain(|(_, h)| !h.is_dropped());
         !self.modes.is_empty()
+    }
+}
+
+enum PollMsg {
+    Watch(PathBuf, bool),
+    Unwatch(PathBuf),
+    SetConfig(notify::Config),
+}
+
+/// Polling watcher.
+///
+/// We don't use the `notify` poll watcher to ignore path not found.
+struct PollWatcher {
+    sender: flume::Sender<PollMsg>,
+    worker: Option<std::thread::JoinHandle<()>>,
+}
+
+impl PollWatcher {
+    fn send_msg(&mut self, msg: PollMsg) {
+        if self.sender.send(msg).is_err() {
+            if let Some(worker) = self.worker.take() {
+                if let Err(panic) = worker.join() {
+                    std::panic::resume_unwind(panic);
+                }
+            }
+        }
+    }
+}
+impl notify::Watcher for PollWatcher {
+    fn new<F: notify::EventHandler>(mut event_handler: F, mut config: notify::Config) -> notify::Result<Self>
+    where
+        Self: Sized,
+    {
+        let (sender, rcv) = flume::unbounded();
+        let mut dirs = HashMap::<PathBuf, PollInfo, _, _>::new();
+        let worker = std::thread::Builder::new()
+            .name(String::from("poll-watcher"))
+            .spawn(move || loop {
+                match rcv.recv_timeout(config.poll_interval()) {
+                    Ok(msg) => match msg {
+                        PollMsg::Watch(d, r) => {
+                            let info = PollInfo::new(&d, r);
+                            dirs.insert(d, info);
+                        }
+                        PollMsg::Unwatch(d) => {
+                            if dirs.remove(&d).is_none() {
+                                event_handler.handle_event(Err(notify::Error {
+                                    kind: notify::ErrorKind::WatchNotFound,
+                                    paths: vec![d],
+                                }))
+                            }
+                        }
+                        PollMsg::SetConfig(c) => config = c,
+                    },
+                    Err(e) => match e {
+                        flume::RecvTimeoutError::Timeout => {}           // ok
+                        flume::RecvTimeoutError::Disconnected => return, // stop thread
+                    },
+                }
+
+                for (dir, info) in &mut dirs {
+                    info.poll(dir, &mut event_handler);
+                }
+            })
+            .expect("failed to spawn poll-watcher thread");
+
+        Ok(Self {
+            sender,
+            worker: Some(worker),
+        })
+    }
+
+    fn watch(&mut self, path: &Path, recursive_mode: notify::RecursiveMode) -> notify::Result<()> {
+        let msg = PollMsg::Watch(path.to_path_buf(), matches!(recursive_mode, notify::RecursiveMode::Recursive));
+        self.send_msg(msg);
+        Ok(())
+    }
+
+    fn unwatch(&mut self, path: &Path) -> notify::Result<()> {
+        let msg = PollMsg::Unwatch(path.to_path_buf());
+        self.send_msg(msg);
+        Ok(())
+    }
+
+    fn configure(&mut self, option: notify::Config) -> notify::Result<bool> {
+        let msg = PollMsg::SetConfig(option);
+        self.send_msg(msg);
+        Ok(true)
+    }
+
+    fn kind() -> notify::WatcherKind
+    where
+        Self: Sized,
+    {
+        notify::WatcherKind::PollWatcher
+    }
+}
+#[derive(Default)]
+struct PollInfo {
+    recursive: bool,
+    paths: HashMap<PathBuf, PollEntry>,
+    /// entries with `update_flag` not-eq this are removed.
+    update_flag: bool,
+}
+struct PollEntry {
+    modified: std::time::SystemTime,
+    /// flipped by `recursive_update` if visited.
+    update_flag: bool,
+}
+impl PollInfo {
+    fn new(path: &Path, recursive: bool) -> Self {
+        let mut paths = HashMap::new();
+        recursive_collect(&mut paths, path, recursive);
+        Self {
+            recursive,
+            paths,
+            update_flag: false,
+        }
+    }
+
+    fn poll(&mut self, root: &Path, handler: &mut impl notify::EventHandler) {
+        self.update_flag = !self.update_flag;
+        recursive_update(&mut self.paths, root, self.recursive, self.update_flag, handler);
+
+        self.paths.retain(|k, e| {
+            let retain = e.update_flag == self.update_flag;
+            if !retain {
+                handler.handle_event(Ok(notify::Event {
+                    kind: notify::EventKind::Remove(notify::event::RemoveKind::Any),
+                    paths: vec![k.clone()],
+                    attrs: Default::default(),
+                }));
+            }
+            retain
+        });
+    }
+}
+fn recursive_collect(paths: &mut HashMap<PathBuf, PollEntry>, path: &Path, recursive: bool) {
+    if let Ok(dirs) = std::fs::read_dir(path) {
+        for entry in dirs.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if let Ok(modified) = meta.modified() {
+                    let path = entry.path();
+                    if recursive && meta.is_dir() {
+                        recursive_collect(paths, &path, recursive);
+                    }
+                    paths.insert(
+                        path,
+                        PollEntry {
+                            modified,
+                            update_flag: false,
+                        },
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn recursive_update(
+    paths: &mut HashMap<PathBuf, PollEntry>,
+    path: &Path,
+    recursive: bool,
+    update_flag: bool,
+    handler: &mut impl notify::EventHandler,
+) {
+    if let Ok(dirs) = std::fs::read_dir(path) {
+        for entry in dirs.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if let Ok(modified) = meta.modified() {
+                    let path = entry.path();
+                    if recursive && meta.is_dir() {
+                        recursive_update(paths, &path, recursive, update_flag, handler);
+                    }
+                    match paths.entry(path) {
+                        hashbrown::hash_map::Entry::Occupied(mut e) => {
+                            let info = e.get_mut();
+                            info.update_flag = update_flag;
+                            if info.modified != modified {
+                                info.modified = modified;
+
+                                handler.handle_event(Ok(notify::Event {
+                                    kind: notify::EventKind::Modify(notify::event::ModifyKind::Metadata(
+                                        notify::event::MetadataKind::WriteTime,
+                                    )),
+                                    paths: vec![e.key().clone()],
+                                    attrs: Default::default(),
+                                }))
+                            }
+                        }
+                        hashbrown::hash_map::Entry::Vacant(e) => {
+                            handler.handle_event(Ok(notify::Event {
+                                kind: notify::EventKind::Create(if meta.is_dir() {
+                                    notify::event::CreateKind::Folder
+                                } else {
+                                    notify::event::CreateKind::File
+                                }),
+                                paths: vec![e.key().clone()],
+                                attrs: Default::default(),
+                            }));
+
+                            e.insert(PollEntry { modified, update_flag });
+                        }
+                    }
+                }
+            }
+        }
     }
 }
