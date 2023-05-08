@@ -8,14 +8,16 @@ use std::{
 };
 
 use atomic::Ordering;
+use fs2::FileExt as _;
 use hashbrown::HashMap;
 use notify::Watcher as _;
 use parking_lot::Mutex;
+use path_absolutize::Absolutize;
 
 use crate::{
     app::AppExtension,
     context::app_local,
-    crate_util::{Handle, HandleOwner},
+    crate_util::{Handle, HandleOwner, RunOnDrop},
     event::{event, event_args, EventHandle},
     handler::{app_hn_once, AppHandler, FilterAppHandler},
     task,
@@ -154,7 +156,7 @@ impl WATCHER {
     }
 
     /// Bind a file with a variable, the `file` will be `read` when it changes and be `write` when the variable changes,
-    /// writes are atomic and will not cause a `read`. The `init` value is used to create the variable, if the `file`
+    /// writes are only applied on success and will not cause a `read`. The `init` value is used to create the variable, if the `file`
     /// exists it will be `read` once at the begining.
     ///
     /// Dropping the variable drops the read watch. The `read` and `write` closures are non-blocking, they are called in a [`task::wait`]
@@ -162,15 +164,11 @@ impl WATCHER {
     ///
     /// # Sync
     ///
-    /// The file synchronization ensures that the file never ends in a partially written state by writting
-    /// to a temporary file and commiting a replace if the write succeeded. The file is write-locked for the duration
-    /// of `write` call, but the contents are not touched until commit.
+    /// The file synchronization ensures that the file is only actually modified when writting is finisehd by writting
+    /// to a temporary file and commiting a replace only if the write succeeded. The file is write-locked for the duration
+    /// of `write` call, but the contents are not touched until commit. See [`WriteFile`] for more details.
     ///
-    /// Race conditions favor the variable value, the file timestamp is not checked on write, if another app
-    /// writes to the file at the same time the variable updates the watcher will only await for the write-lock
-    /// and override the file with the variable latest value.
-    ///
-    /// Note that the file is written even if the variable is only touched, the value is also cloned.
+    /// Note that the file is written even if the variable is only touched, the value is also cloned for each write.
     ///
     /// The [`FsWatcherManager`] blocks on app exit until all writes commit or cancel.
     ///
@@ -186,7 +184,7 @@ impl WATCHER {
     /// does not exit all missing parent folders and the file will be created automatically before the `write`
     /// call.
     ///
-    /// Note that [`WriteFile::commit`] must be called to flush the temporary file and attempt to atomically rename
+    /// Note that [`WriteFile::commit`] must be called to flush the temporary file and attempt to rename
     /// it, if the file is dropped without commit it will cancel and log an error, you must call [`WriteFile::cancel`]
     /// to correctly avoid writting.
     ///
@@ -285,16 +283,32 @@ impl ops::DerefMut for WatchFile {
 
 /// Represents an open write file provided by [`WATCHER.sync`].
 ///
-/// This type implements *atomic* writting by actually writting to a temporary file and renaming
-/// it over the actual file on commit.
+/// This type actually writes to a temporary file and rename it over the actual file on commit only.
+/// The dereferenced [`fs::File`] is the temporary file, not the actual one.
 ///
-/// This type dereferences to the temporary file, not the actual one, the metadata will reflect this.
+/// # Transaction
+///
+/// To minimize the risk of file corruption exclusive locks are used, both the target file and the temp file
+/// are locked. An empty lock file is also used to cover the moment when boths files are unlocked for the rename operation
+/// and the moment the temp file is aquired.
+///
+/// The temp file is the actual file path with file extension replaced with `{path/file-name}.6eIw3bYMS0uKaQMkTIQacQ-{n}.tmp`, the `n` is a
+/// number from 0 to 999, if a temp file exists unlocked it will be reused.
+///
+/// The lock file is  `{path/file-name}.6eIw3bYMS0uKaQMkTIQacQ-lock.tmp`. Note that this
+/// lock file only helps for apps that use [`WriteFile`], but even without it the risk is minimal as the slow
+/// write operations are already flushed when it is time to commit.
+///
+/// [`WATCHER.sync`]: WATCHER::sync
 pub struct WriteFile {
-    actual_file: fs::File,
-    tmp_file: fs::File,
+    actual_file: Option<fs::File>,
+    temp_file: Option<fs::File>,
+
+    actual_path: PathBuf,
+    temp_path: PathBuf,
+
     cleaned: bool,
 }
-
 impl Drop for WriteFile {
     fn drop(&mut self) {
         if !self.cleaned {
@@ -307,31 +321,65 @@ impl ops::Deref for WriteFile {
     type Target = fs::File;
 
     fn deref(&self) -> &Self::Target {
-        &self.tmp_file
+        self.temp_file.as_ref().unwrap()
     }
 }
 impl ops::DerefMut for WriteFile {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.tmp_file
+        self.temp_file.as_mut().unwrap()
     }
 }
 impl WriteFile {
     /// Open or create the file.
-    pub fn open(path: &Path) -> Self {
-        todo!()
+    pub fn open(path: PathBuf) -> io::Result<Self> {
+        let actual_path = path.absolutize()?.into_owned();
+        if !actual_path.exists() {
+            if let Some(parent) = actual_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+        }
+
+        let _transaction = Self::transaction_lock(&actual_path)?;
+
+        let actual_file = fs::OpenOptions::new().append(true).create(true).open(&actual_path)?;
+        actual_file.lock_exclusive()?;
+
+        let mut temp_path = actual_path.with_extension(".6eIw3bYMS0uKaQMkTIQacQ-0.tmp");
+        let mut n = 1;
+        let temp_file = loop {
+            if let Ok(f) = fs::OpenOptions::new().write(true).truncate(true).create(true).open(&temp_path) {
+                if f.try_lock_exclusive().is_ok() {
+                    break f;
+                }
+            }
+
+            temp_path = actual_path.with_extension(format!(".6eIw3bYMS0uKaQMkTIQacQ-{n}.tmp"));
+            n += 1;
+            if n > 1000 {
+                return Err(io::Error::new(io::ErrorKind::AlreadyExists, "cannot create temporary file"));
+            }
+        };
+
+        Ok(Self {
+            actual_file: Some(actual_file),
+            temp_file: Some(temp_file),
+            actual_path,
+            temp_path,
+            cleaned: false,
+        })
     }
 
     /// Write the text string.
     pub fn write_text(&mut self, txt: &str) -> io::Result<()> {
         use io::Write;
-        self.tmp_file.write_all(txt.as_bytes())
+        self.write_all(txt.as_bytes())
     }
 
     /// Serialize and write.
     ///
     /// If `pretty` is `true` the JSON is formatted for human reading.
     pub fn write_json<O: serde::Serialize>(&mut self, value: &O, pretty: bool) -> serde_json::Result<()> {
-        let buf = io::BufWriter::new(&mut self.tmp_file);
+        let buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
         if pretty {
             serde_json::to_writer_pretty(buf, value)
         } else {
@@ -339,7 +387,7 @@ impl WriteFile {
         }
     }
 
-    /// Commit write, flush and atomically replace the actual file with the new one.
+    /// Commit write, flush and replace the actual file with the new one.
     pub fn commit(mut self) -> io::Result<()> {
         let r = self.replace_actual();
         self.clean();
@@ -352,11 +400,43 @@ impl WriteFile {
     }
 
     fn replace_actual(&mut self) -> io::Result<()> {
-        todo!()
+        use io::Write;
+        let mut temp_file = self.temp_file.take().unwrap();
+        temp_file.flush()?;
+        temp_file.sync_data()?;
+
+        let _transaction = Self::transaction_lock(&self.actual_path)?;
+
+        temp_file.unlock()?;
+        drop(temp_file);
+
+        let actual_file = self.actual_file.take().unwrap();
+        actual_file.unlock()?;
+        drop(actual_file);
+
+        fs::rename(&self.temp_path, &self.actual_path)?;
+
+        Ok(())
     }
 
     fn clean(&mut self) {
         self.cleaned = true;
+
+        if let Err(e) = fs::remove_file(&self.temp_path) {
+            tracing::debug!("failed to cleanup temp file, {e}")
+        }
+    }
+
+    fn transaction_lock(actual_path: &Path) -> io::Result<impl Drop> {
+        let transaction_path = actual_path.with_extension(".6eIw3bYMS0uKaQMkTIQacQ-lock.tmp");
+        let transaction_lock = fs::OpenOptions::new().create(true).write(true).open(&transaction_path)?;
+        transaction_lock.lock_exclusive()?;
+        Ok(RunOnDrop::new(move || {
+            let _ = transaction_lock.unlock();
+            if let Err(e) = fs::remove_file(transaction_path) {
+                tracing::debug!("failed to cleanup temp file, {e}")
+            }
+        }))
     }
 }
 
