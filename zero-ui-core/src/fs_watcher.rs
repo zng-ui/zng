@@ -356,8 +356,9 @@ impl WatcherService {
         FS_CHANGES_EVENT.notify(FsChangesArgs::new(now, Default::default(), first_change_ts, changes));
     }
 }
-fn notify_watcher_handle(r: notify::Result<notify::Event>) {
-    WATCHER_SV.write().on_watcher(r)
+fn notify_watcher_handler() -> impl notify::EventHandler {
+    let mut ctx = crate::context::LocalContext::capture();
+    move |r| ctx.with_context(|| WATCHER_SV.write().on_watcher(r))
 }
 
 struct ReadToVar {
@@ -562,12 +563,12 @@ impl Watchers {
     }
 
     fn init(&mut self) {
-        *self.watcher.get_mut() = match notify::recommended_watcher(notify_watcher_handle) {
+        *self.watcher.get_mut() = match notify::recommended_watcher(notify_watcher_handler()) {
             Ok(w) => Box::new(w),
             Err(e) => {
                 tracing::error!("error creating watcher\n{e}\nfallback to slow poll watcher");
                 match PollWatcher::new(
-                    notify_watcher_handle,
+                    notify_watcher_handler(),
                     notify::Config::default().with_poll_interval(self.poll_interval),
                 ) {
                     Ok(w) => Box::new(w),
@@ -618,7 +619,11 @@ impl Watchers {
 
     fn inner_watch_error_dir(watcher: &mut Option<PollWatcher>, dir: &Path, recursive: bool, poll_interval: Duration) {
         let watcher = watcher.get_or_insert_with(|| {
-            PollWatcher::new(notify_watcher_handle, notify::Config::default().with_poll_interval(poll_interval)).unwrap()
+            PollWatcher::new(
+                notify_watcher_handler(),
+                notify::Config::default().with_poll_interval(poll_interval),
+            )
+            .unwrap()
         });
         Self::inner_watch_dir(watcher, dir, recursive).unwrap();
     }
