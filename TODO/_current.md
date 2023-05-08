@@ -4,15 +4,9 @@
 * Implement cursor position.
 * Implement selection.
 
-# FS
+# WATCHER
 
-* Implement the `FS` service.
-    - watch event and args.
-    - Read/parse to variable.
-    - Config, debounce.
-    - Support paths that don't exist yet.
-        - `CONFIG` supports this.
-
+* Test the `WATCHER` service.
 * Use the new service in `CONFIG`.
 
 # Localization

@@ -449,6 +449,8 @@ enum ReadEvent<'a> {
 struct Watchers {
     dirs: HashMap<PathBuf, DirWatcher>,
     watcher: Mutex<Box<dyn notify::Watcher + Send>>, // mutex for Sync only
+    // watcher for paths that the system watcher cannot watch yet.
+    error_watcher: Option<PollWatcher>,
     poll_interval: Duration,
 }
 impl Watchers {
@@ -456,6 +458,7 @@ impl Watchers {
         Self {
             dirs: HashMap::default(),
             watcher: Mutex::new(Box::new(notify::NullWatcher)),
+            error_watcher: None,
             poll_interval: 10.secs(),
         }
     }
@@ -504,13 +507,23 @@ impl Watchers {
         let recursive = matches!(&mode, WatchMode::Descendants);
 
         if w.modes.is_empty() {
-            Self::inner_watch_dir(&mut **self.watcher.get_mut(), path.as_path(), recursive);
+            if Self::inner_watch_dir(&mut **self.watcher.get_mut(), &path, recursive).is_err() {
+                Self::inner_watch_error_dir(&mut self.error_watcher, &path, recursive, self.poll_interval);
+                w.is_in_error_watcher = true;
+            }
         } else {
             let was_recursive = w.recursive();
             if !was_recursive && recursive {
                 let watcher = &mut **self.watcher.get_mut();
-                Self::inner_unwatch_dir(watcher, path.as_path());
-                Self::inner_watch_dir(watcher, path.as_path(), recursive);
+
+                if mem::take(&mut w.is_in_error_watcher) {
+                    Self::inner_unwatch_dir(self.error_watcher.as_mut().unwrap(), &path);
+                } else {
+                    Self::inner_unwatch_dir(watcher, &path);
+                }
+                if Self::inner_watch_dir(watcher, &path, recursive).is_err() {
+                    Self::inner_watch_error_dir(&mut self.error_watcher, &path, recursive, self.poll_interval);
+                }
             }
         }
 
@@ -524,7 +537,11 @@ impl Watchers {
         self.dirs.retain(|k, v| {
             let r = v.retain();
             if !r {
-                Self::inner_unwatch_dir(watcher, k);
+                if v.is_in_error_watcher {
+                    Self::inner_unwatch_dir(self.error_watcher.as_mut().unwrap(), k);
+                } else {
+                    Self::inner_unwatch_dir(watcher, k);
+                }
             }
             r
         })
@@ -538,6 +555,9 @@ impl Watchers {
             .configure(notify::Config::default().with_poll_interval(interval))
         {
             tracing::error!("error setting the watcher poll interval: {e}");
+        }
+        if let Some(w) = &mut self.error_watcher {
+            w.configure(notify::Config::default().with_poll_interval(interval)).unwrap();
         }
     }
 
@@ -562,12 +582,17 @@ impl Watchers {
         self.cleanup();
 
         let watcher = &mut **self.watcher.get_mut();
-        for (dir, w) in &self.dirs {
-            Self::inner_watch_dir(watcher, dir.as_path(), w.recursive());
+        for (dir, w) in &mut self.dirs {
+            let recursive = w.recursive();
+            if Self::inner_watch_dir(watcher, dir.as_path(), recursive).is_err() {
+                Self::inner_watch_error_dir(&mut self.error_watcher, dir, recursive, self.poll_interval);
+                w.is_in_error_watcher = true;
+            }
         }
     }
 
-    fn inner_watch_dir(watcher: &mut dyn notify::Watcher, dir: &Path, recursive: bool) {
+    /// Returns Ok, or Err `PathNotFound` or `MaxFilesWatch` that can be handled using the fallback watcher.
+    fn inner_watch_dir(watcher: &mut dyn notify::Watcher, dir: &Path, recursive: bool) -> Result<(), notify::ErrorKind> {
         let recursive = if recursive {
             notify::RecursiveMode::Recursive
         } else {
@@ -576,17 +601,26 @@ impl Watchers {
         if let Err(e) = watcher.watch(dir, recursive) {
             match e.kind {
                 notify::ErrorKind::Generic(e) => tracing::error!("cannot watch `{}`, {e}", dir.display()),
-                notify::ErrorKind::Io(e) => tracing::error!("cannot watch `{}`, {e}", dir.display()),
-                notify::ErrorKind::PathNotFound => todo!("!!: review this, "),
-                notify::ErrorKind::MaxFilesWatch => {
-                    tracing::error!("reached sytem limit of files watcher, will use slow polling watcher");
-                    todo!("!!: implement fallback");
+                notify::ErrorKind::Io(e) => {
+                    if let io::ErrorKind::NotFound = e.kind() {
+                        return Err(notify::ErrorKind::PathNotFound);
+                    } else {
+                        tracing::error!("cannot watch `{}`, {e}", dir.display())
+                    }
                 }
+                e @ notify::ErrorKind::PathNotFound | e @ notify::ErrorKind::MaxFilesWatch => return Err(e),
                 notify::ErrorKind::InvalidConfig(e) => unreachable!("{e:?}"),
                 notify::ErrorKind::WatchNotFound => unreachable!(),
             }
-            todo!("!!: use a backup polling watcher until the dir is created")
         }
+        Ok(())
+    }
+
+    fn inner_watch_error_dir(watcher: &mut Option<PollWatcher>, dir: &Path, recursive: bool, poll_interval: Duration) {
+        let watcher = watcher.get_or_insert_with(|| {
+            PollWatcher::new(notify_watcher_handle, notify::Config::default().with_poll_interval(poll_interval)).unwrap()
+        });
+        Self::inner_watch_dir(watcher, dir, recursive).unwrap();
     }
 
     fn inner_unwatch_dir(watcher: &mut dyn notify::Watcher, dir: &Path) {
@@ -606,9 +640,11 @@ impl Watchers {
         }
     }
 
-    fn allow(&self, r: &notify::Event) -> bool {
-        for (dir, w) in &self.dirs {
-            for (mode, _) in &w.modes {
+    fn allow(&mut self, r: &notify::Event) -> bool {
+        for (dir, w) in &mut self.dirs {
+            let mut matched = false;
+
+            'modes: for (mode, _) in &w.modes {
                 match mode {
                     WatchMode::File(f) => {
                         for path in &r.paths {
@@ -616,8 +652,9 @@ impl Watchers {
                                 if name == f {
                                     if let Some(path) = path.parent() {
                                         if path == dir {
-                                            // matched exact `dir/name`
-                                            return true;
+                                            // matched `dir/exact`
+                                            matched = true;
+                                            break 'modes;
                                         }
                                     }
                                 }
@@ -629,7 +666,8 @@ impl Watchers {
                             if let Some(path) = path.parent() {
                                 if path == dir {
                                     // matched `dir/*`
-                                    return true;
+                                    matched = true;
+                                    break 'modes;
                                 }
                             }
                         }
@@ -638,11 +676,27 @@ impl Watchers {
                         for path in &r.paths {
                             if path.starts_with(dir) {
                                 // matched `dir/**`
-                                return true;
+                                matched = true;
+                                break 'modes;
                             }
                         }
                     }
                 }
+            }
+
+            if matched {
+                if mem::take(&mut w.is_in_error_watcher) {
+                    // poll watcher managed to reach the path without error, try to move to the
+                    // more performant system watcher.
+                    Self::inner_unwatch_dir(self.error_watcher.as_mut().unwrap(), dir);
+                    let recursive = w.recursive();
+                    if Self::inner_watch_dir(&mut **self.watcher.get_mut(), dir, recursive).is_err() {
+                        // failed again
+                        Self::inner_watch_error_dir(&mut self.error_watcher, dir, recursive, self.poll_interval);
+                        w.is_in_error_watcher = true;
+                    }
+                }
+                return true;
             }
         }
         false
@@ -658,6 +712,7 @@ enum WatchMode {
 
 #[derive(Default)]
 struct DirWatcher {
+    is_in_error_watcher: bool,
     modes: Vec<(WatchMode, HandleOwner<()>)>,
 }
 impl DirWatcher {
