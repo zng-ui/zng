@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use atomic::Ordering;
+use atomic::{Atomic, Ordering};
 use fs2::FileExt as _;
 use hashbrown::HashMap;
 use notify::Watcher as _;
@@ -208,7 +208,12 @@ impl WATCHER {
         read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
         write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
     ) -> ArcVar<O> {
-        todo!()
+        let file = file.into();
+        let handle = self.watch(file.clone());
+
+        let (sync, var) = SyncWithVar::new(handle, file, init, read, write);
+        WATCHER_SV.write().sync_with_var.push(sync);
+        var
     }
 
     /// Watch `file` and calls `handler` every time it changes.
@@ -591,6 +596,7 @@ impl WatcherService {
 
     fn event(&mut self, args: &FsChangesArgs) {
         self.read_to_var.retain_mut(|f| f.on_event(args));
+        self.sync_with_var.retain_mut(|f| f.on_event(args));
     }
 
     fn update(&mut self) {
@@ -605,6 +611,7 @@ impl WatcherService {
             }
         }
         self.read_to_var.retain_mut(|f| f.retain());
+        self.sync_with_var.retain_mut(|f| f.retain());
     }
 
     fn watch(&mut self, file: PathBuf) -> WatcherHandle {
@@ -667,11 +674,14 @@ struct ReadToVar {
 impl ReadToVar {
     fn new<O: VarValue, R: 'static>(
         handle: WatcherHandle,
-        path: PathBuf,
+        mut path: PathBuf,
         init: O,
         load: fn(&Path) -> R,
         read: impl FnMut(R) -> Option<O> + Send + 'static,
     ) -> (Self, ReadOnlyArcVar<O>) {
+        if let Ok(p) = path.absolutize() {
+            path = p.into_owned();
+        }
         let path = Arc::new(path);
         let var = var(init);
 
@@ -745,11 +755,191 @@ enum ReadEvent<'a> {
     Init,
 }
 
-struct SyncWithVar {}
-
+struct SyncWithVar {
+    task: Box<dyn Fn(&Arc<Atomic<SyncFlags>>, &WatcherHandle, SyncEvent) + Send + Sync>,
+    pending: Arc<Atomic<SyncFlags>>,
+    handle: WatcherHandle,
+}
 impl SyncWithVar {
-    fn new() -> Self {
-        Self {}
+    fn new<O: VarValue>(
+        handle: WatcherHandle,
+        mut file: PathBuf,
+        init: O,
+        read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
+        write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
+    ) -> (Self, ArcVar<O>) {
+        if let Ok(p) = file.absolutize() {
+            file = p.into_owned();
+        }
+        let path = Arc::new(file);
+        let var = var(init);
+
+        let pending = Arc::new(Atomic::new(SyncFlags::empty()));
+        let read = Arc::new(Mutex::new(read));
+        let write = Arc::new(Mutex::new(write));
+        let wk_var = var.downgrade();
+
+        // task "drains" pending, drops handle if the var is dropped.
+        let task = Box::new(move |pending: &Arc<Atomic<SyncFlags>>, handle: &WatcherHandle, ev: SyncEvent| {
+            let var = match wk_var.upgrade() {
+                Some(v) => v,
+                None => {
+                    handle.clone().force_drop();
+                    return;
+                }
+            };
+
+            enum Op {
+                Read,
+                Write,
+                None,
+            }
+
+            let op = match ev {
+                SyncEvent::Update => {
+                    if var.is_new() && !SyncFlags::pop(pending, SyncFlags::SKIP_WRITE) {
+                        Op::Write
+                    } else {
+                        Op::None
+                    }
+                }
+                SyncEvent::Event(args) => {
+                    if args.events_for_path(&path).next().is_some() && !SyncFlags::pop(pending, SyncFlags::SKIP_READ) {
+                        Op::Read
+                    } else {
+                        Op::None
+                    }
+                }
+                SyncEvent::Init => {
+                    if path.exists() {
+                        Op::Read
+                    } else {
+                        Op::Write
+                    }
+                }
+            };
+            drop(var);
+
+            match op {
+                Op::Read => {
+                    SyncFlags::atomic_insert(pending, SyncFlags::READ);
+                    if read.try_lock().is_none() {
+                        // another spawn is already reading
+                        return;
+                    }
+
+                    task::spawn_wait(clmv!(read, wk_var, path, handle, pending, || {
+                        let mut read = read.lock();
+
+                        while SyncFlags::pop(&pending, SyncFlags::READ) {
+                            if wk_var.strong_count() == 0 {
+                                handle.force_drop();
+                                return;
+                            }
+
+                            if let Some(update) = read(fs::File::open(path.as_path()).map(WatchFile)) {
+                                if let Some(var) = wk_var.upgrade() {
+                                    SyncFlags::atomic_insert(&pending, SyncFlags::SKIP_WRITE);
+                                    var.set(update);
+                                } else {
+                                    handle.force_drop();
+                                    return;
+                                }
+                            }
+                        }
+                    }));
+                }
+                Op::Write => {
+                    SyncFlags::atomic_insert(pending, SyncFlags::WRITE);
+                    if write.try_lock().is_none() {
+                        // another spawn is already writting
+                        return;
+                    }
+
+                    task::spawn_wait(clmv!(write, wk_var, path, handle, pending, || {
+                        let mut write = write.lock();
+
+                        while SyncFlags::pop(&pending, SyncFlags::WRITE) {
+                            let value = if let Some(var) = wk_var.upgrade() {
+                                var.get()
+                            } else {
+                                handle.force_drop();
+                                return;
+                            };
+
+                            write(value, WriteFile::open(path.to_path_buf()));
+
+                            if wk_var.strong_count() == 0 {
+                                handle.force_drop();
+                                return;
+                            }
+                        }
+                    }));
+                }
+                Op::None => {}
+            }
+        });
+        task(&pending, &handle, SyncEvent::Init);
+
+        (Self { task, pending, handle }, var)
+    }
+
+    // Match the event and flag variable update.
+    ///
+    /// Returns if the variable is still alive.
+    pub fn on_event(&mut self, args: &FsChangesArgs) -> bool {
+        if !self.handle.is_dropped() {
+            (self.task)(&self.pending, &self.handle, SyncEvent::Event(args));
+        }
+        !self.handle.is_dropped()
+    }
+
+    /// Returns if the variable is still alive.
+    fn retain(&mut self) -> bool {
+        if !self.handle.is_dropped() {
+            (self.task)(&self.pending, &self.handle, SyncEvent::Update);
+        }
+        !self.handle.is_dropped()
+    }
+}
+enum SyncEvent<'a> {
+    Update,
+    Event(&'a FsChangesArgs),
+    Init,
+}
+bitflags! {
+    #[derive(Clone, Copy)]
+    struct SyncFlags: u8 {
+        const READ  = 0b0000_0001;
+        const WRITE = 0b0000_0010;
+        const SKIP_READ = 0b0000_0100;
+        const SKIP_WRITE = 0b0000_1000;
+    }
+}
+impl SyncFlags {
+    fn atomic_insert(f: &Atomic<Self>, flag: Self) {
+        let _ = f.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |mut f| {
+            if f.contains(flag) {
+                None
+            } else {
+                f.insert(flag);
+                Some(f)
+            }
+        });
+    }
+
+    fn pop(f: &Atomic<Self>, flag: Self) -> bool {
+        let mut contains = false;
+        let _ = f.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |mut f| {
+            if f.contains(flag) {
+                contains = true;
+                f.remove(flag);
+                Some(f)
+            } else {
+                None
+            }
+        });
+        contains
     }
 }
 

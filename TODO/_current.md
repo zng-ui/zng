@@ -6,7 +6,7 @@
 
 # WATCHER
 
-* Implement and test `sync`.
+* Test `sync`.
 * Use the new service in `CONFIG`.
 
 # Localization
