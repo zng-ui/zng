@@ -4,42 +4,10 @@
 * Implement cursor position.
 * Implement selection.
 
-# WATCHER
+# CONFIG-2
 
-* Test `sync`.
-```rust
-fn test_sync() -> impl UiNode {
-    Toggle! {
-        child = Text!("signal");
-        style_fn = toggle::CheckStyle!();
-        checked = WATCHER.sync(
-            "F://Test/Temp/signal.txt",
-            true,
-            |r| {
-                // try
-                match (|| r?.parse())() {
-                    Ok(b) => Some(b),
-                    Err(e) => {
-                        tracing::error!("{e}");
-                        None
-                    }
-                }
-            },
-            |b, w| {
-                // try
-                if let Err(e) = (move || {
-                    let mut w = w?;
-                    w.write_fmt(format_args!("{b}"))?;
-                    w.commit()
-                })() {
-                    tracing::error!("{e}");
-                }
-            }
-        );
-    }
-}
-```
-* Use the new service in `CONFIG`.
+* Re-implement `CONFIG` to use `WATCHER`.
+    - Review !!:.
 
 # Localization
 
