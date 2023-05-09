@@ -543,13 +543,13 @@ mod impls {
         }
 
         fn event(&mut self, update: &EventUpdate) {
-            self.on_event(update);
             self.delegate_owned_mut_with_handles(|n| n.event(update));
+            self.on_event(update);
         }
 
         fn update(&mut self, updates: &WidgetUpdates) {
-            self.on_update(updates);
             self.delegate_owned_mut_with_handles(|n| n.update(updates));
+            self.on_update(updates);
         }
 
         fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
@@ -641,14 +641,14 @@ mod impls {
         }
 
         fn event_all(&mut self, update: &EventUpdate) {
-            self.on_event(update);
             self.delegate_owned_mut_with_handles(|l| l.event_all(update));
+            self.on_event(update);
         }
 
         fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
-            self.on_update(updates);
             let _ = observer;
             self.delegate_owned_mut_with_handles(|l| l.update_all(updates, observer));
+            self.on_update(updates);
         }
 
         fn render_all(&mut self, frame: &mut FrameBuilder) {

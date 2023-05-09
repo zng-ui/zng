@@ -61,3 +61,5 @@ fn test_sync() -> impl UiNode {
 * Review external crate re-exports.
     - We re-export `rayon` and `parking_lot`, are we the only ones to do this?
     - Users are expected to import the crate even if our API surface types form it?
+* Implement something to only show one tooltip at a time.
+* Fix `layer_remove_delay` not receiving `LAYER_REMOVE_REQUESTED_EVENT` after reinit.

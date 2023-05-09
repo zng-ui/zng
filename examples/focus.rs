@@ -128,14 +128,14 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
                                 Window! {
                                     title = "Detached Button";
                                     child_align = Align::CENTER;
-                                    child = wwk.upgrade().unwrap().take_when(true);
+                                    child = wwk.upgrade().unwrap().take_on_init();
                                 }
                             });
                         });
                     };
                     btn.boxed()
                 });
-                detach_focused.take_when(true).into_widget()
+                detach_focused.take_on_init().into_widget()
             },
             // Disable Window
             disable_window(window_enabled.clone()),
