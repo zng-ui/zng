@@ -118,14 +118,7 @@ impl WATCHER {
         init: O,
         read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
     ) -> ReadOnlyArcVar<O> {
-        let path = file.into();
-        let handle = self.watch(path.clone());
-        fn open(p: &Path) -> io::Result<WatchFile> {
-            std::fs::File::open(p).map(WatchFile)
-        }
-        let (read, var) = ReadToVar::new(handle, path, init, open, read);
-        WATCHER_SV.write().read_to_var.push(read);
-        var
+        WATCHER_SV.write().read(file.into(), init, read)
     }
 
     /// Read a directory into a variable,  the `init` value will start the variable and the `read` closure will be called
@@ -142,17 +135,7 @@ impl WATCHER {
         init: O,
         read: impl FnMut(walkdir::WalkDir) -> Option<O> + Send + 'static,
     ) -> ReadOnlyArcVar<O> {
-        let path = dir.into();
-        let handle = self.watch_dir(path.clone(), recursive);
-        fn open(p: &Path) -> walkdir::WalkDir {
-            walkdir::WalkDir::new(p).min_depth(1).max_depth(1)
-        }
-        fn open_recursive(p: &Path) -> walkdir::WalkDir {
-            walkdir::WalkDir::new(p).min_depth(1)
-        }
-        let (read, var) = ReadToVar::new(handle, path, init, if recursive { open_recursive } else { open }, read);
-        WATCHER_SV.write().read_to_var.push(read);
-        var
+        WATCHER_SV.write().read_dir(dir.into(), recursive, init, read)
     }
 
     /// Bind a file with a variable, the `file` will be `read` when it changes and be `write` when the variable changes,
@@ -208,12 +191,7 @@ impl WATCHER {
         read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
         write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
     ) -> ArcVar<O> {
-        let file = file.into();
-        let handle = self.watch(file.clone());
-
-        let (sync, var) = SyncWithVar::new(handle, file, init, read, write);
-        WATCHER_SV.write().sync_with_var.push(sync);
-        var
+        WATCHER_SV.write().sync(file.into(), init, read, write)
     }
 
     /// Watch `file` and calls `handler` every time it changes.
@@ -622,6 +600,54 @@ impl WatcherService {
         self.watcher.watch_dir(dir, recursive)
     }
 
+    fn read<O: VarValue>(
+        &mut self,
+        file: PathBuf,
+        init: O,
+        read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
+    ) -> ReadOnlyArcVar<O> {
+        let handle = self.watch(file.clone());
+        fn open(p: &Path) -> io::Result<WatchFile> {
+            std::fs::File::open(p).map(WatchFile)
+        }
+        let (read, var) = ReadToVar::new(handle, file, init, open, read);
+        self.read_to_var.push(read);
+        var
+    }
+
+    fn read_dir<O: VarValue>(
+        &mut self,
+        dir: PathBuf,
+        recursive: bool,
+        init: O,
+        read: impl FnMut(walkdir::WalkDir) -> Option<O> + Send + 'static,
+    ) -> ReadOnlyArcVar<O> {
+        let handle = self.watch_dir(dir.clone(), recursive);
+        fn open(p: &Path) -> walkdir::WalkDir {
+            walkdir::WalkDir::new(p).min_depth(1).max_depth(1)
+        }
+        fn open_recursive(p: &Path) -> walkdir::WalkDir {
+            walkdir::WalkDir::new(p).min_depth(1)
+        }
+        let (read, var) = ReadToVar::new(handle, dir, init, if recursive { open_recursive } else { open }, read);
+        self.read_to_var.push(read);
+        var
+    }
+
+    fn sync<O: VarValue>(
+        &mut self,
+        file: PathBuf,
+        init: O,
+        read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
+        write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
+    ) -> ArcVar<O> {
+        let handle = self.watch(file.clone());
+
+        let (sync, var) = SyncWithVar::new(handle, file, init, read, write);
+        self.sync_with_var.push(sync);
+        var
+    }
+
     fn on_watcher(&mut self, r: notify::Result<notify::Event>) {
         if let Ok(r) = &r {
             if !self.watcher.allow(r) {
@@ -694,7 +720,7 @@ impl ReadToVar {
             if wk_var.strong_count() == 0 {
                 handle.clone().force_drop();
                 return;
-            };
+            }
 
             let spawn = match ev {
                 ReadEvent::Update => false,
