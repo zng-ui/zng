@@ -1263,7 +1263,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         O: VarValue,
         M: FnMut(&T) -> Option<O> + Send + 'static,
         B: FnMut(&O) -> Option<T> + Send + 'static,
-        I: Fn() -> O,
+        I: Fn() -> O + Send + Sync + 'static,
     {
         let me = self.clone();
         let map = Arc::new(Mutex::new(map));
