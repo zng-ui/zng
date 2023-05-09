@@ -7,7 +7,6 @@
 # WATCHER
 
 * Test `sync`.
-    - Access deined.
 ```rust
 fn test_sync() -> impl UiNode {
     Toggle! {

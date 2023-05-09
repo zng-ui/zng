@@ -269,7 +269,7 @@ mod file_cache {
         units::TimeUnits,
     };
     use async_trait::async_trait;
-    use fs2::FileExt;
+    use fs4::FileExt;
 
     use super::*;
 

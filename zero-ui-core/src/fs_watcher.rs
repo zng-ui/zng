@@ -8,7 +8,7 @@ use std::{
 };
 
 use atomic::{Atomic, Ordering};
-use fs2::FileExt as _;
+use fs4::FileExt as _;
 use hashbrown::HashMap;
 use notify::Watcher as _;
 use parking_lot::Mutex;
@@ -17,7 +17,7 @@ use path_absolutize::Absolutize;
 use crate::{
     app::AppExtension,
     context::app_local,
-    crate_util::{Handle, HandleOwner, RunOnDrop},
+    crate_util::{unlock_ok, Handle, HandleOwner, RunOnDrop},
     event::{event, event_args, EventHandle},
     handler::{app_hn_once, AppHandler, FilterAppHandler},
     task,
@@ -324,7 +324,7 @@ impl WriteFile {
 
         let _transaction = Self::transaction_lock(&actual_path)?;
 
-        let actual_file = fs::OpenOptions::new().append(true).create(true).open(&actual_path)?;
+        let actual_file = fs::OpenOptions::new().write(true).create(true).open(&actual_path)?;
         actual_file.lock_exclusive()?;
 
         let mut temp_path = actual_path.with_extension(".6eIw3bYMS0uKaQMkTIQacQ-0.tmp");
@@ -390,11 +390,11 @@ impl WriteFile {
 
         let _transaction = Self::transaction_lock(&self.actual_path)?;
 
-        temp_file.unlock()?;
+        unlock_ok(&temp_file)?;
         drop(temp_file);
 
         let actual_file = self.actual_file.take().unwrap();
-        actual_file.unlock()?;
+        unlock_ok(&actual_file)?;
         drop(actual_file);
 
         fs::rename(&self.temp_path, &self.actual_path)?;

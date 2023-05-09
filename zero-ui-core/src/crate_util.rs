@@ -1220,9 +1220,9 @@ pub fn test_log() {
     }
 }
 
-/// Calls [`fs2::FileExt::unlock`] and ignores "already unlocked" errors.
+/// Calls [`fs4::FileExt::unlock`] and ignores "already unlocked" errors.
 #[allow(unused)] // http only
-pub fn unlock_ok(file: &impl fs2::FileExt) -> std::io::Result<()> {
+pub fn unlock_ok(file: &impl fs4::FileExt) -> std::io::Result<()> {
     if let Err(e) = file.unlock() {
         if let Some(code) = e.raw_os_error() {
             #[cfg(windows)]
@@ -1316,7 +1316,7 @@ pub fn f32_cmp(a: &f32, b: &f32) -> std::cmp::Ordering {
 mod tests {
     use super::*;
     use crate::widget_instance::WidgetId;
-    use fs2::FileExt;
+    use fs4::FileExt;
 
     #[test]
     pub fn sequential_id() {
