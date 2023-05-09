@@ -138,7 +138,7 @@ impl ConfigService {
         self.vars.retain(|key, var| match var.upgrade() {
             Some((any_var, write)) => {
                 if write {
-                    // var was set by the user, start a write task.
+                    // var was set by e user, start a write task.
                     var_tasks.push(var.write(ConfigVarTaskArgs { key, var: any_var }));
                 } else if read_all || read.contains(key) {
                     // source notified a potential change, start a read task.
