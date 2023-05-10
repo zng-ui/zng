@@ -11,16 +11,12 @@
 # CONFIG-2
 
 * Re-implement `CONFIG` to use `WATCHER`.
-    - Review !!:.
-* PartialEq requirement?
-    - Should reduce the number of updates when the config is edited externally.
 * Refactor config example.
     - Test if updates of a single key does not cause the others to update.
     - This should work by default due to the `WATCHER` implementation.
-    - So `SyncConfig` needs to implement a variable cache too?
-        - A lot of extra computations for nothing in the `CONFIG` state.
-        - Just document it?
-            - Maybe offer a `SharedConfig<C>` combinator that implements a strongly typed version of the `SwapConfig`.
+* Config metadata.
+    - Similar to command metadata.
+    - Used by settings editors.
 
 # Localization
 

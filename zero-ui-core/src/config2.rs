@@ -35,7 +35,9 @@ impl CONFIG {
     /// The same variable is returned for multiple requests of the same key. If the loaded config is not read-only the
     /// returned variable can be set to update the config source.
     ///
-    /// The `default` closure is used to generate a value to insert in the config if the key is not found.
+    /// The `default` closure is used to generate a value if the key is not found in the config, the default value
+    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates. Note
+    /// that the `default` closure may be used even if the key is already in the config, depending on the config implementation.
     pub fn get<T: ConfigValue>(&self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
         CONFIG_SV.write().get(key.into(), default)
     }
@@ -47,6 +49,10 @@ impl AnyConfig for CONFIG {
 
     fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
         CONFIG_SV.write().get_json(key, default, shared)
+    }
+
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        CONFIG_SV.read().contains_key(key)
     }
 }
 impl Config for CONFIG {
@@ -102,6 +108,11 @@ pub trait ConfigMap: VarValue {
     ///
     /// This method can run in blocking contexts, work with in memory storage only.
     fn set_json(map: &mut Cow<Self>, key: ConfigKey, value: serde_json::Value) -> Result<(), Arc<dyn std::error::Error + Send + Sync>>;
+
+    /// Returns if the key in config.
+    ///
+    /// This method can run in blocking contexts, work with in memory storage only.
+    fn contains_key(&self, key: &ConfigKey) -> bool;
 
     /// Get the value if present.
     ///
@@ -161,8 +172,18 @@ pub trait AnyConfig: Send + Any {
     /// a new variable is always generated. Note that if you have two different variables for the same
     /// key they will go out-of-sync as updates from setting one variable do not propagate to the other.
     ///
-    /// See [`Config::var`] for more details.
+    /// The `default` value is used to if the key is not found in the config, the default value
+    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
     fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value>;
+
+    /// Returns if the `key` already has the key in the backing storage.
+    ///
+    /// Both [`get_json`] and [`get`] methods don't insert the key on request, the key is inserted on the
+    /// first time the returned variable updates.
+    ///
+    /// [`get_json`]: AnyConfig::get_json
+    /// [`get`]: Config::get
+    fn contains_key(&self, key: &ConfigKey) -> bool;
 }
 
 /// Represents one or more config sources.
@@ -172,8 +193,9 @@ pub trait Config: AnyConfig {
     /// The same variable is returned for multiple requests of the same key. If the loaded config is not read-only the
     /// returned variable can be set to update the config source.
     ///
-    /// The `default` closure is used to generate a value to insert in the config if the key is not found. Note that
-    /// some implementations may always call the `default` closure, but if possible it is only called if the key is not found.
+    /// The `default` closure is used to generate a value if the key is not found in the config, the default value
+    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates. Note
+    /// that the `default` closure may be used even if the key is already in the config, depending on the config implementation.
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
         let key = key.into();
         let default = default();
@@ -246,6 +268,10 @@ impl ConfigMap for HashMap<ConfigKey, serde_json::Value> {
             map.to_mut().insert(key, value);
         }
         Ok(())
+    }
+
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.contains_key(key)
     }
 
     fn get<O: ConfigValue>(&self, key: &ConfigKey) -> Result<Option<O>, Arc<dyn std::error::Error + Send + Sync>> {
@@ -330,7 +356,7 @@ impl<M: ConfigMap> SyncConfig<M> {
         key: ConfigKey,
         default: serde_json::Value,
     ) -> BoxedVar<serde_json::Value> {
-        // init var to already present value, or insert the default.
+        // init var to already present value, or default.
         let var = match sync_var.with(|m| ConfigMap::get_json(m, &key)) {
             Ok(json) => {
                 // get ok, clear any entry errors
@@ -340,25 +366,7 @@ impl<M: ConfigMap> SyncConfig<M> {
 
                 match json {
                     Some(json) => var(json),
-                    None => {
-                        // not found, send modify to try set to default.
-                        let json = default;
-                        sync_var.modify(clmv!(errors, key, json, |map| {
-                            match ConfigMap::set_json(map, key.clone(), json) {
-                                Ok(()) => {
-                                    // set ok, clear any entry errors
-                                    if errors.with(|e| e.entry(&key).next().is_some()) {
-                                        errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                    }
-                                }
-                                Err(e) => {
-                                    // set error
-                                    errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                                }
-                            }
-                        }));
-                        var(json)
-                    }
+                    None => var(default),
                 }
             }
             Err(e) => {
@@ -371,37 +379,35 @@ impl<M: ConfigMap> SyncConfig<M> {
         // bind entry var
 
         // config -> entry
-        if !var.capabilities().is_always_read_only() {
-            let wk_var = var.downgrade();
-            sync_var
-                .hook(Box::new(clmv!(errors, key, |map| {
-                    if let Some(var) = wk_var.upgrade() {
-                        match map.as_any().downcast_ref::<M>().unwrap().get_json(&key) {
-                            Ok(json) => {
-                                // get ok
-                                if errors.with(|e| e.entry(&key).next().is_some()) {
-                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                }
+        let wk_var = var.downgrade();
+        sync_var
+            .hook(Box::new(clmv!(errors, key, |map| {
+                if let Some(var) = wk_var.upgrade() {
+                    match map.as_any().downcast_ref::<M>().unwrap().get_json(&key) {
+                        Ok(json) => {
+                            // get ok
+                            if errors.with(|e| e.entry(&key).next().is_some()) {
+                                errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                            }
 
-                                if let Some(json) = json {
-                                    var.set(json);
-                                }
-                                // else backend lost entry but did not report as error.
+                            if let Some(json) = json {
+                                var.set(json);
                             }
-                            Err(e) => {
-                                // get error
-                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
-                            }
+                            // else backend lost entry but did not report as error.
                         }
-                        // retain hook
-                        true
-                    } else {
-                        // entry var dropped, drop hook
-                        false
+                        Err(e) => {
+                            // get error
+                            errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+                        }
                     }
-                })))
-                .perm();
-        }
+                    // retain hook
+                    true
+                } else {
+                    // entry var dropped, drop hook
+                    false
+                }
+            })))
+            .perm();
 
         // entry -> config
         let wk_sync_var = sync_var.downgrade();
@@ -442,7 +448,7 @@ impl<M: ConfigMap> SyncConfig<M> {
         key: impl Into<ConfigKey>,
         default: impl FnOnce() -> T,
     ) -> BoxedVar<T> {
-        // init var to already present value, or insert the default.
+        // init var to already present value, or default.
         let key = key.into();
         let var = match sync_var.with(|m| ConfigMap::get::<T>(m, &key)) {
             Ok(value) => {
@@ -451,22 +457,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                 }
                 match value {
                     Some(val) => var(val),
-                    None => {
-                        let value = default();
-                        sync_var.modify(clmv!(errors, key, value, |map| {
-                            match ConfigMap::set(map, key.clone(), value) {
-                                Ok(()) => {
-                                    if errors.with(|e| e.entry(&key).next().is_some()) {
-                                        errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                    }
-                                }
-                                Err(e) => {
-                                    errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                                }
-                            }
-                        }));
-                        var(value)
-                    }
+                    None => var(default()),
                 }
             }
             Err(e) => {
@@ -478,32 +469,30 @@ impl<M: ConfigMap> SyncConfig<M> {
         // bind entry var
 
         // config -> entry
-        if !var.capabilities().is_always_read_only() {
-            let wk_var = var.downgrade();
-            sync_var
-                .hook(Box::new(clmv!(errors, key, |map| {
-                    if let Some(var) = wk_var.upgrade() {
-                        match map.as_any().downcast_ref::<M>().unwrap().get::<T>(&key) {
-                            Ok(value) => {
-                                if errors.with(|e| e.entry(&key).next().is_some()) {
-                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                }
-
-                                if let Some(value) = value {
-                                    var.set(value);
-                                }
+        let wk_var = var.downgrade();
+        sync_var
+            .hook(Box::new(clmv!(errors, key, |map| {
+                if let Some(var) = wk_var.upgrade() {
+                    match map.as_any().downcast_ref::<M>().unwrap().get::<T>(&key) {
+                        Ok(value) => {
+                            if errors.with(|e| e.entry(&key).next().is_some()) {
+                                errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
                             }
-                            Err(e) => {
-                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+
+                            if let Some(value) = value {
+                                var.set(value);
                             }
                         }
-                        true
-                    } else {
-                        false
+                        Err(e) => {
+                            errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+                        }
                     }
-                })))
-                .perm()
-        };
+                    true
+                } else {
+                    false
+                }
+            })))
+            .perm();
 
         // entry -> config
         let wk_sync_var = sync_var.downgrade();
@@ -545,6 +534,10 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
             Self::get_new_json(&self.sync_var, &self.errors, key, default)
         }
     }
+
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.sync_var.with(|q| q.contains_key(key))
+    }
 }
 impl<M: ConfigMap> Config for SyncConfig<M> {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
@@ -574,6 +567,10 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
     fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
         self.cfg.get_json(key, default, shared).read_only()
     }
+
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.cfg.contains_key(key)
+    }
 }
 impl<C: Config> Config for ReadOnlyConfig<C> {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
@@ -585,17 +582,17 @@ impl<C: Config> Config for ReadOnlyConfig<C> {
 /// the fallback variable is used, but if that variable is modified the key is inserted in the primary config.
 pub struct FallbackConfig<S: Config, F: Config> {
     fallback: F,
-    source: S,
+    over: S,
 }
 impl<S: Config, F: Config> FallbackConfig<S, F> {
     /// New config.
-    pub fn new(fallback: F, source: S) -> Self {
-        Self { fallback, source }
+    pub fn new(fallback: F, over: S) -> Self {
+        Self { fallback, over }
     }
 }
 impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     fn errors(&self) -> BoxedVar<ConfigErrors> {
-        merge_var!(self.fallback.errors(), self.source.errors(), |a, b| {
+        merge_var!(self.fallback.errors(), self.over.errors(), |a, b| {
             if a.is_empty() {
                 return b.clone();
             }
@@ -612,12 +609,208 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     }
 
     fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
-        todo!("!!: tricky, if we call source.var it creates the entry immediatly")
+        let over = self.over.get_json(key.clone(), default.clone(), shared);
+        if self.over.contains_key(&key) {
+            return over;
+        }
+
+        let fallback = self.fallback.get_json(key, default, shared);
+        let result = var(fallback.get());
+
+        #[derive(Clone, Copy)]
+        enum State {
+            Fallback,
+            FallbackUpdated,
+            Over,
+            OverUpdated,
+        }
+        let state = Arc::new(atomic::Atomic::new(State::Fallback));
+
+        // hook fallback, signal `result` that an update is flowing from the fallback.
+        let wk_result = result.downgrade();
+        fallback
+            .hook(Box::new(clmv!(state, |value| {
+                match state.load(atomic::Ordering::Relaxed) {
+                    State::Over | State::OverUpdated => {
+                        // result -> over
+                        return false;
+                    }
+                    _ => {}
+                }
+
+                // fallback -> result
+                if let Some(result) = wk_result.upgrade() {
+                    state.store(State::FallbackUpdated, atomic::Ordering::Relaxed);
+                    result.set(value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone());
+                    true
+                } else {
+                    // weak-ref to avoid circular ref.
+                    false
+                }
+            })))
+            .perm();
+
+        // hook over, signals `result` that an update is flowing from the override.
+        let wk_result = result.downgrade();
+        over.hook(Box::new(clmv!(state, |value| {
+            match state.load(atomic::Ordering::Relaxed) {
+                State::OverUpdated => {
+                    // result -> over
+                    state.store(State::Over, atomic::Ordering::Relaxed);
+                }
+                _ => {
+                    // over -> result
+                    let value = value.as_any().downcast_ref::<serde_json::Value>().unwrap();
+                    state.store(State::OverUpdated, atomic::Ordering::Relaxed);
+                    if let Some(result) = wk_result.upgrade() {
+                        result.set(value.clone());
+                    } else {
+                        // weak-ref to avoid circular ref.
+                        return false;
+                    }
+                }
+            }
+
+            true
+        })))
+        .perm();
+
+        // hook result, on first callback not caused by `fallback` drops it and changes to `over`.
+        let fallback = Mutex::new(Some(fallback));
+        result
+            .hook(Box::new(move |value| {
+                match state.load(atomic::Ordering::Relaxed) {
+                    State::Fallback => {
+                        // result -> over(first)
+                        state.store(State::Over, atomic::Ordering::Relaxed);
+                        *fallback.lock() = None;
+                        let value = value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone();
+                        let _ = over.set_ne(value);
+                    }
+                    State::FallbackUpdated => {
+                        // fallback -> result
+                        state.store(State::Fallback, atomic::Ordering::Relaxed);
+                    }
+                    State::Over => {
+                        // result -> over
+                        let value = value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone();
+                        let _ = over.set_ne(value);
+                    }
+                    State::OverUpdated => {
+                        // over -> result
+                        state.store(State::Over, atomic::Ordering::Relaxed);
+                    }
+                }
+                true
+            }))
+            .perm();
+
+        result.boxed()
+    }
+
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.fallback.contains_key(key) || self.over.contains_key(key)
     }
 }
 impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
-        todo!()
+        let key = key.into();
+        let default = default();
+        let fallback = self.fallback.get(key.clone(), || default.clone());
+        let over = var(None::<T>); // TODO, actually provided by self.source
+        if over.with(|s| s.is_some()) {
+            return self.over.get(key, move || default);
+        }
+        let result = var(fallback.get());
+
+        #[derive(Clone, Copy)]
+        enum State {
+            Fallback,
+            FallbackUpdated,
+            Over,
+            OverUpdated,
+        }
+        let state = Arc::new(atomic::Atomic::new(State::Fallback));
+
+        // hook fallback, signal `result` that an update is flowing from the fallback.
+        let wk_result = result.downgrade();
+        fallback
+            .hook(Box::new(clmv!(state, |value| {
+                match state.load(atomic::Ordering::Relaxed) {
+                    State::Over | State::OverUpdated => {
+                        // result -> over
+                        return false;
+                    }
+                    _ => {}
+                }
+
+                // fallback -> result
+                if let Some(result) = wk_result.upgrade() {
+                    state.store(State::FallbackUpdated, atomic::Ordering::Relaxed);
+                    result.set(value.as_any().downcast_ref::<T>().unwrap().clone());
+                    true
+                } else {
+                    // weak-ref to avoid circular ref.
+                    false
+                }
+            })))
+            .perm();
+
+        // hook over, signals `result` that an update is flowing from the override.
+        let wk_result = result.downgrade();
+        over.hook(Box::new(clmv!(state, |value| {
+            match state.load(atomic::Ordering::Relaxed) {
+                State::OverUpdated => {
+                    // result -> over
+                    state.store(State::Over, atomic::Ordering::Relaxed);
+                }
+                _ => {
+                    // over -> result
+                    if let Some(value) = value.as_any().downcast_ref::<Option<T>>().unwrap() {
+                        state.store(State::OverUpdated, atomic::Ordering::Relaxed);
+                        if let Some(result) = wk_result.upgrade() {
+                            result.set(value.clone());
+                        } else {
+                            // weak-ref to avoid circular ref.
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            true
+        })))
+        .perm();
+
+        // hook result, on first callback not caused by `fallback` drops it and changes to `over`.
+        let fallback = Mutex::new(Some(fallback));
+        result
+            .hook(Box::new(move |value| {
+                match state.load(atomic::Ordering::Relaxed) {
+                    State::Fallback => {
+                        // result -> over(first)
+                        state.store(State::Over, atomic::Ordering::Relaxed);
+                        *fallback.lock() = None;
+                        over.set(Some(value.as_any().downcast_ref::<T>().unwrap().clone()));
+                    }
+                    State::FallbackUpdated => {
+                        // fallback -> result
+                        state.store(State::Fallback, atomic::Ordering::Relaxed);
+                    }
+                    State::Over => {
+                        // result -> over
+                        over.set(Some(value.as_any().downcast_ref::<T>().unwrap().clone()));
+                    }
+                    State::OverUpdated => {
+                        // over -> result
+                        state.store(State::Over, atomic::Ordering::Relaxed);
+                    }
+                }
+                true
+            }))
+            .perm();
+
+        result.boxed()
     }
 }
 
@@ -630,6 +823,9 @@ impl AnyConfig for NilConfig {
     }
     fn get_json(&mut self, _: ConfigKey, default: serde_json::Value, _: bool) -> BoxedVar<serde_json::Value> {
         LocalVar(default).boxed()
+    }
+    fn contains_key(&self, _: &ConfigKey) -> bool {
+        false
     }
 }
 impl Config for NilConfig {
@@ -659,6 +855,10 @@ impl AnyConfig for SwapConfig {
         } else {
             self.cfg.get_mut().get_json(key, default, false)
         }
+    }
+
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.cfg.lock().contains_key(key)
     }
 }
 impl Config for SwapConfig {
