@@ -4,6 +4,10 @@
 * Implement cursor position.
 * Implement selection.
 
+# WATCHER
+
+* Block on deinit to flush.
+
 # CONFIG-2
 
 * Re-implement `CONFIG` to use `WATCHER`.
