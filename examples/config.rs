@@ -20,29 +20,24 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        CONFIG.load(ConfigFile::new("target/tmp/example.config.json"));
-        // CONFIG.remove("old.key");
+        CONFIG.load(JsonConfig::sync("target/tmp/example.config.json"));
+        // CONFIG.remove("old.key"); // !!: TODO?
 
-        let checked = CONFIG.var("main.checked", || false);
-        let count = CONFIG.var("main.count", || 0);
-        let txt = CONFIG.var("main.txt", || "Save this".to_text());
-        let status = CONFIG.status();
+        let checked = CONFIG.get("main.checked", || false);
+        let count = CONFIG.get("main.count", || 0);
+        let txt = CONFIG.get("main.txt", || "Save this".to_text());
 
-        trace_status(&status);
+        let status = CONFIG.errors().map_to_text();
 
         Window! {
             title = if std::env::var("MOVE-TO").is_err() { "Config Example" } else { "Config Example - Other Process" };
             background = Text! {
-                txt = status.map_to_text();
+                txt = status;
                 margin = 10;
                 font_family = "monospace";
                 align = Align::TOP_LEFT;
-
                 font_weight = FontWeight::BOLD;
-
-                when *#{status.map(|s| s.has_errors())} {
-                    txt_color = colors::RED;
-                }
+                txt_color = colors::RED;
             };
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
@@ -113,34 +108,4 @@ fn separator() -> impl UiNode {
         margin = (0, 8);
         line_style = LineStyle::Dashed;
     }
-}
-
-fn trace_status(status: &impl Var<ConfigStatus>) {
-    let mut read_errs = 0;
-    let mut write_errs = 0;
-    let mut internal_errs = 0;
-    status
-        .trace_value(move |s: &ConfigStatus| {
-            if let Some(e) = &s.internal_error {
-                if s.internal_errors != internal_errs {
-                    internal_errs = s.internal_errors;
-                    tracing::error!("internal error: {e}");
-                }
-            }
-
-            if let Some(e) = &s.read_error {
-                if s.read_errors != read_errs {
-                    read_errs = s.read_errors;
-                    tracing::error!("read error: {e}");
-                }
-            }
-
-            if let Some(e) = &s.write_error {
-                if s.write_errors != write_errs {
-                    write_errs = s.write_errors;
-                    tracing::error!("write error: {e}");
-                }
-            }
-        })
-        .perm();
 }

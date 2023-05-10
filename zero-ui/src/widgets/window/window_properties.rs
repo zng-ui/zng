@@ -231,76 +231,93 @@ impl_from_and_into_var! {
 /// the app can open more than one window.
 #[property(CONTEXT, default(SaveState::Disabled), widget_impl(Window))]
 pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
-    enum Task {
-        None,
-        Read {
-            rsp: ResponseVar<Option<WindowStateCfg>>,
-            #[allow(dead_code)] // hold handle alive
-            loading: Option<WindowLoadingHandle>,
-        },
-    }
     let enabled = enabled.into();
-    let mut task = Task::None;
 
-    match_node(child, move |child, op| match op {
-        UiNodeOp::Init => {
-            if let Some(key) = enabled.window_key(WINDOW.id()) {
-                let vars = WINDOW_CTRL.vars();
-                WIDGET
-                    .sub_event(&WINDOW_LOAD_EVENT)
-                    .sub_var(&vars.state())
-                    .sub_var(&vars.restore_rect());
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct WindowStateCfg {
+        state: WindowState,
+        restore_rect: euclid::Rect<f32, Dip>,
+    }
+    let mut cfg = None;
 
-                let rsp = CONFIG.read(key);
-                let loading = enabled.loading_timeout().and_then(|t| WINDOW_CTRL.loading_handle(t));
-                rsp.subscribe(UpdateOp::Update, WIDGET.id()).perm();
+    struct Loading {
+        is_loaded: BoxedVar<bool>,
+        _is_loaded_sub: VarHandle,
+        _win_load_sub: EventHandle,
+        _win_block: Option<WindowLoadingHandle>,
+    }
+    let mut loading = None;
 
-                task = Task::Read { rsp, loading };
-            }
-        }
-        UiNodeOp::Event { update } => {
-            child.event(update);
-            if WINDOW_LOAD_EVENT.has(update) {
-                task = Task::None;
-            }
-        }
-        UiNodeOp::Update { .. } => {
-            if let Task::Read { rsp, .. } = &mut task {
-                if let Some(rsp) = rsp.rsp() {
-                    if let Some(s) = rsp {
-                        let window_vars = WINDOW_CTRL.vars();
-                        window_vars.state().set_ne(s.state);
-                        let restore_rect: DipRect = s.restore_rect.cast();
+    match_node(child, move |child, op| {
+        let mut apply_to_window = false;
+        match op {
+            UiNodeOp::Init => {
+                if let Some(key) = enabled.window_key(WINDOW.id()) {
+                    let vars = WINDOW_CTRL.vars();
+                    let state = vars.state();
+                    let restore_rect = vars.restore_rect();
+                    WIDGET.sub_var(&vars.state()).sub_var(&vars.restore_rect());
 
-                        let visible = MONITORS.available_monitors().iter().any(|m| m.dip_rect().intersects(&restore_rect));
-                        if visible {
-                            window_vars.position().set_ne(restore_rect.origin);
-                        }
+                    cfg = Some(CONFIG.get(key, || WindowStateCfg {
+                        state: state.get(),
+                        restore_rect: restore_rect.get().cast(),
+                    }));
 
-                        window_vars.size().set_ne(restore_rect.size);
-                    }
-                    task = Task::None;
-                }
-            } else if enabled.is_enabled() {
-                let vars = WINDOW_CTRL.vars();
-                if vars.state().is_new() || vars.restore_rect().is_new() {
-                    let cfg = WindowStateCfg {
-                        state: vars.state().get(),
-                        restore_rect: vars.restore_rect().get().cast(),
-                    };
-
-                    if let Some(key) = enabled.window_key(WINDOW.id()) {
-                        CONFIG.write(key, cfg);
+                    let is_loaded = CONFIG.is_loaded();
+                    if is_loaded.get() {
+                        apply_to_window = true;
+                    } else {
+                        // if is_loaded updates before the WINDOW_LOAD_EVENT we will still apply
+                        loading = Some(Box::new(Loading {
+                            _is_loaded_sub: is_loaded.subscribe(UpdateOp::Update, WIDGET.id()),
+                            _win_block: enabled.loading_timeout().and_then(|t| WINDOW_CTRL.loading_handle(t)),
+                            _win_load_sub: WINDOW_LOAD_EVENT.subscribe(WIDGET.id()),
+                            is_loaded,
+                        }))
                     }
                 }
             }
+            UiNodeOp::Deinit => {
+                loading = None;
+                cfg = None;
+            }
+            UiNodeOp::Event { update } => {
+                child.event(update);
+                if WINDOW_LOAD_EVENT.has(update) {
+                    loading = None;
+                }
+            }
+            UiNodeOp::Update { .. } => {
+                if let Some(l) = &loading {
+                    if l.is_loaded.get() {
+                        apply_to_window = true;
+                        loading = None
+                    }
+                }
+                if enabled.is_enabled() {
+                    let vars = WINDOW_CTRL.vars();
+                    if vars.state().is_new() || vars.restore_rect().is_new() {
+                        let _ = cfg.as_ref().unwrap().set(WindowStateCfg {
+                            state: vars.state().get(),
+                            restore_rect: vars.restore_rect().get().cast(),
+                        });
+                    }
+                }
+            }
+            _ => {}
         }
-        _ => {}
+        if apply_to_window {
+            let vars = WINDOW_CTRL.vars();
+            let cfg = cfg.as_ref().unwrap().get();
+
+            vars.state().set_ne(cfg.state);
+
+            let restore_rect: DipRect = cfg.restore_rect.cast();
+            let visible = MONITORS.available_monitors().iter().any(|m| m.dip_rect().intersects(&restore_rect));
+            if visible {
+                vars.position().set_ne(restore_rect.origin);
+            }
+            vars.size().set_ne(restore_rect.size);
+        }
     })
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct WindowStateCfg {
-    state: WindowState,
-    restore_rect: euclid::Rect<f32, Dip>,
 }

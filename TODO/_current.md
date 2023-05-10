@@ -10,7 +10,8 @@
 
 # CONFIG-2
 
-* Re-implement `CONFIG` to use `WATCHER`.
+* `window::save_state` used to await for the config to load to set the window to the config one time on init.
+    - We need a `CONFIG.is_loaded` var.
 * Refactor config example.
     - Test if updates of a single key does not cause the others to update.
     - This should work by default due to the `WATCHER` implementation.

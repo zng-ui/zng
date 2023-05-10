@@ -1,917 +1,1271 @@
-//! Config manager.
-//!
-//! The [`ConfigManager`] is an [app extension], it
-//! is included in the [default app] and manages the [`CONFIG`] service that can be used to store and retrieve
-//! state that is persisted between application runs.
-//!
-//! [app extension]: crate::app::AppExtension
-//! [default app]: crate::app::App::default
+//!: Config service and sources.
 
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
-    error::Error,
-    fmt,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    any::Any,
+    borrow::Cow,
+    collections::{hash_map, HashMap},
+    fmt, io, ops,
+    path::PathBuf,
+    sync::Arc,
 };
 
+use parking_lot::Mutex;
+
 use crate::{
-    app::{AppExtReceiver, AppExtSender, AppExtension},
-    app_local,
-    context::*,
-    crate_util::BoxedFut,
-    task::ui::UiTask,
+    app_local, clmv,
+    fs_watcher::{WatchFile, WriteFile, WATCHER},
     text::Txt,
     var::*,
 };
 
-use parking_lot::{Mutex, RwLock};
-use serde_json::value::Value as JsonValue;
-
-mod file_source;
-pub use file_source::{ConfigFile, ConfigFileBuilder};
-
-mod combinators;
-pub use combinators::*;
-
-/// Application extension that manages the app configuration access point ([`CONFIG`]).
+/// Represents the app main config.
 ///
-/// Note that this extension does not implement a [`ConfigSource`], it just manages whatever source is installed and
-/// the config variables.
-#[derive(Default)]
-pub struct ConfigManager {}
-impl ConfigManager {}
-impl AppExtension for ConfigManager {
-    fn deinit(&mut self) {
-        if let Some((mut source, _)) = CONFIG_SV.write().source.take() {
-            source.deinit();
-        }
+/// Config sources must be loaded using [`CONFIG.load`], otherwise the config only leaves for the
+/// duration of the app instance.
+pub struct CONFIG;
+impl CONFIG {
+    ///  Replace the config source.
+    ///
+    /// Variables and bindings survive source replacement, updating to the new value or setting the new source
+    /// if the key is not present in the new source.
+    pub fn load(&self, source: impl AnyConfig) {
+        CONFIG_SV.write().load(source)
     }
 
-    fn update_preview(&mut self) {
-        CONFIG_SV.write().update();
+    /// Gets a read-only variable that changes to `true` when all key variables
+    /// are set to the new source after it finishes loading in another thread.
+    pub fn is_loaded(&self) -> BoxedVar<bool> {
+        CONFIG_SV.read().is_loaded()
+    }
+
+    /// Gets a variable that is bound to the config `key`.
+    ///
+    /// The same variable is returned for multiple requests of the same key. If the loaded config is not read-only the
+    /// returned variable can be set to update the config source.
+    ///
+    /// The `default` closure is used to generate a value if the key is not found in the config, the default value
+    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates. Note
+    /// that the `default` closure may be used even if the key is already in the config, depending on the config implementation.
+    pub fn get<T: ConfigValue>(&self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        CONFIG_SV.write().get(key.into(), default)
     }
 }
+impl AnyConfig for CONFIG {
+    fn errors(&self) -> BoxedVar<ConfigErrors> {
+        CONFIG_SV.read().errors()
+    }
 
-/// Key to a persistent config in [`CONFIG`].
-pub type ConfigKey = Txt;
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+        CONFIG_SV.write().get_json(key, default, shared)
+    }
 
-/// A type that can be a [`CONFIG`] value.
-///
-/// # Trait Alias
-///
-/// This trait is used like a type alias for traits and is
-/// already implemented for all types it applies to.
-pub trait ConfigValue: VarValue + PartialEq + serde::Serialize + serde::de::DeserializeOwned {}
-impl<T: VarValue + PartialEq + serde::Serialize + serde::de::DeserializeOwned> ConfigValue for T {}
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        CONFIG_SV.read().contains_key(key)
+    }
 
-/// Return `true` to retain, `false` to drop.
-type ConfigTask = Box<dyn FnMut(&ArcVar<ConfigStatus>) -> bool + Send + Sync>;
-type OnceConfigTask = Box<dyn FnOnce(&ArcVar<ConfigStatus>) + Send + Sync>;
+    fn is_loaded(&self) -> BoxedVar<bool> {
+        CONFIG.is_loaded()
+    }
+}
+impl Config for CONFIG {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        CONFIG.get(key, default)
+    }
+}
 
 app_local! {
-    static CONFIG_SV: ConfigService = ConfigService::new();
+    static CONFIG_SV: SwapConfig = SwapConfig::new();
 }
 
-struct ConfigService {
-    source: Option<(Box<dyn ConfigSource>, AppExtReceiver<ConfigSourceUpdate>)>,
-    vars: HashMap<ConfigKey, ConfigVar>,
+/// Unique key to a config entry.
+pub type ConfigKey = Txt;
 
-    status: ArcVar<ConfigStatus>,
+/// Marker trait for types that can stored in a [`Config`].
+///
+/// This trait is already implemented for types it applies.
+pub trait ConfigValue: VarValue + serde::Serialize + serde::de::DeserializeOwned {}
+impl<T: VarValue + serde::Serialize + serde::de::DeserializeOwned> ConfigValue for T {}
 
-    once_tasks: Vec<OnceConfigTask>,
-    tasks: Vec<ConfigTask>,
+/// Represents a full config map in memory.
+///
+/// This can be used with [`SyncConfig`] to implement a full config.
+pub trait ConfigMap: VarValue {
+    /// New empty map.
+    fn empty() -> Self;
 
-    alts: Vec<std::sync::Weak<RwLock<ConfigService>>>,
-}
-impl ConfigService {
-    fn new() -> Self {
-        ConfigService {
-            source: None,
-            vars: HashMap::new(),
+    /// Read a map from the file.
+    ///
+    /// This method runs in unblocked context.
+    fn read(file: WatchFile) -> io::Result<Self>;
+    /// Write the map to a file.
+    ///
+    /// This method runs in unblocked context.
+    fn write(self, file: &mut WriteFile) -> io::Result<()>;
 
-            status: var(ConfigStatus::default()),
+    /// Gets the weak typed value.
+    ///
+    /// This method is used when `T` cannot be passed because the map is behind a dynamic reference,
+    /// if the backend is not JSON it must convert the value from the in memory representation to JSON.
+    ///
+    /// This method can run in blocking contexts, work with in memory storage only.
+    fn get_json(&self, key: &ConfigKey) -> Result<Option<serde_json::Value>, Arc<dyn std::error::Error + Send + Sync>>;
 
-            once_tasks: vec![],
-            tasks: vec![],
-            alts: vec![],
+    /// Sets the weak typed value.
+    ///
+    /// This method is used when `T` cannot be passed because the map is behind a dynamic reference,
+    /// if the backend is not JSON it must convert to the in memory representation.
+    ///
+    /// If `map` is dereferenced mutable a write task will, if possible check if the entry already has the same value
+    /// before mutating the map to avoid a potentially expensive IO write.
+    ///
+    /// This method can run in blocking contexts, work with in memory storage only.
+    fn set_json(map: &mut Cow<Self>, key: ConfigKey, value: serde_json::Value) -> Result<(), Arc<dyn std::error::Error + Send + Sync>>;
+
+    /// Returns if the key in config.
+    ///
+    /// This method can run in blocking contexts, work with in memory storage only.
+    fn contains_key(&self, key: &ConfigKey) -> bool;
+
+    /// Get the value if present.
+    ///
+    /// This method can run in blocking contexts, work with in memory storage only.
+    fn get<O: ConfigValue>(&self, key: &ConfigKey) -> Result<Option<O>, Arc<dyn std::error::Error + Send + Sync>> {
+        if let Some(value) = self.get_json(key)? {
+            match serde_json::from_value(value) {
+                Ok(s) => Ok(Some(s)),
+                Err(e) => Err(Arc::new(e)),
+            }
+        } else {
+            Ok(None)
         }
     }
 
-    fn update(&mut self) {
-        // run once tasks
-        for task in self.once_tasks.drain(..) {
-            task(&self.status);
+    /// Set the value, if you avoid calling [`Cow::to_mut`] the map is not written.
+    ///
+    /// If `map` is dereferenced mutable a write task will, if possible check if the entry already has the same value
+    /// before mutating the map to avoid a potentially expensive IO write.
+    ///
+    /// This method can run in blocking contexts, work with in memory storage only.
+    fn set<O: ConfigValue>(map: &mut Cow<Self>, key: ConfigKey, value: O) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
+        match serde_json::to_value(value) {
+            Ok(s) => Self::set_json(map, key, s),
+            Err(e) => Err(Arc::new(e)),
         }
+    }
+}
 
-        // collect source updates
-        let mut read = HashSet::new();
-        let mut read_all = false;
-        if let Some((_, source_tasks)) = &self.source {
-            while let Ok(task) = source_tasks.try_recv() {
-                match task {
-                    ConfigSourceUpdate::Refresh(key) => {
-                        if !read_all {
-                            read.insert(key);
+/// Represents one or more config sources behind a dynamic reference.
+///
+/// See [`Config`] for the full trait.
+pub trait AnyConfig: Send + Any {
+    /// Gets a read-only variable that changes to `true` when all key variables
+    /// are set to the new source after it finishes loading in another thread.
+    fn is_loaded(&self) -> BoxedVar<bool>;
+
+    /// All active errors.
+    ///
+    /// Errors are cleared when the same operation that causes then succeeds.
+    ///
+    /// The returned variable is read/write unless the config is read-only.
+    fn errors(&self) -> BoxedVar<ConfigErrors>;
+
+    /// Errors filtered to only read/write errors.
+    fn io_errors(&self) -> BoxedVar<ConfigErrors> {
+        self.errors().map(|e| ConfigErrors(e.io().cloned().collect())).boxed()
+    }
+
+    /// Errors filtered to only get/set for the `key`.
+    fn entry_errors(&self, key: ConfigKey) -> BoxedVar<ConfigErrors> {
+        self.errors().map(move |e| ConfigErrors(e.entry(&key).cloned().collect())).boxed()
+    }
+
+    /// Gets a weak typed variable to the config `key`.
+    ///
+    /// This method is used when `T` cannot be passed because the config is behind a dynamic reference,
+    /// if the backend is not JSON it must convert the value from the in memory representation to JSON.
+    ///
+    /// If `shared` is `true` and the key was already requested it the same var is returned, if `false`
+    /// a new variable is always generated. Note that if you have two different variables for the same
+    /// key they will go out-of-sync as updates from setting one variable do not propagate to the other.
+    ///
+    /// The `default` value is used to if the key is not found in the config, the default value
+    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value>;
+
+    /// Returns if the `key` already has the key in the backing storage.
+    ///
+    /// Both [`get_json`] and [`get`] methods don't insert the key on request, the key is inserted on the
+    /// first time the returned variable updates.
+    ///
+    /// [`get_json`]: AnyConfig::get_json
+    /// [`get`]: Config::get
+    fn contains_key(&self, key: &ConfigKey) -> bool;
+}
+
+/// Represents one or more config sources.
+pub trait Config: AnyConfig {
+    /// Gets a variable that is bound to the config `key`.
+    ///
+    /// The same variable is returned for multiple requests of the same key. If the loaded config is not read-only the
+    /// returned variable can be set to update the config source.
+    ///
+    /// The `default` closure is used to generate a value if the key is not found in the config, the default value
+    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates. Note
+    /// that the `default` closure may be used even if the key is already in the config, depending on the config implementation.
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        let key = key.into();
+        let default = default();
+        let json_var = self.get_json(key.clone(), serde_json::to_value(&default).unwrap_or(serde_json::Value::Null), true);
+        let wk_errors = self.errors().downgrade();
+
+        json_var
+            .filter_map_bidi(
+                // JSON -> T
+                clmv!(key, wk_errors, |json| match serde_json::from_value(json.clone()) {
+                    Ok(typed) => {
+                        if let Some(errors) = wk_errors.upgrade() {
+                            if errors.with(|e| e.entry(&key).next().is_some()) {
+                                let _ = errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                            }
                         }
+                        Some(typed)
                     }
-                    ConfigSourceUpdate::RefreshAll => read_all = true,
-                    ConfigSourceUpdate::InternalError(e) => {
-                        self.status.modify(move |s| {
-                            s.to_mut().set_internal_error(e);
-                        });
+                    Err(e) => {
+                        if let Some(errors) = wk_errors.upgrade() {
+                            let _ = errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+                        }
+                        None
                     }
-                }
-            }
-        }
-
-        // run retained tasks
-        self.tasks.retain_mut(|t| t(&self.status));
-
-        // Update config vars:
-        // - Remove dropped vars.
-        // - React to var assigns.
-        // - Apply source requests.
-        let mut var_tasks = vec![];
-        self.vars.retain(|key, var| match var.upgrade() {
-            Some((any_var, write)) => {
-                if write {
-                    // var was set by e user, start a write task.
-                    var_tasks.push(var.write(ConfigVarTaskArgs { key, var: any_var }));
-                } else if read_all || read.contains(key) {
-                    // source notified a potential change, start a read task.
-                    var_tasks.push(var.read(ConfigVarTaskArgs { key, var: any_var }));
-                }
-                true // retain var
-            }
-            None => false, // var was dropped, remove entry
-        });
-
-        for task in var_tasks {
-            task(self);
-        }
-
-        // update loaded alts.
-        self.alts.retain(|alt| match alt.upgrade() {
-            Some(alt) => {
-                alt.write().update();
-                true
-            }
-            None => false,
-        })
-    }
-
-    fn load(&mut self, mut source: impl ConfigSource) {
-        let (sender, receiver) = UPDATES.sender().ext_channel();
-        if !self.vars.is_empty() {
-            let _ = sender.send(ConfigSourceUpdate::RefreshAll);
-        }
-
-        source.init(sender);
-        self.source = Some((Box::new(source), receiver));
-    }
-
-    fn load_alt(&mut self, source: impl ConfigSource) -> ConfigAlt {
-        let e = ConfigAlt::load(source);
-        self.alts.push(Arc::downgrade(&e.0));
-        e
-    }
-
-    fn clear_errors(&mut self) {
-        self.status.modify(|s| {
-            if s.as_ref().has_errors() {
-                let s = s.to_mut();
-                s.read_error = None;
-                s.write_error = None;
-                s.internal_error = None;
-            }
-        });
-    }
-
-    fn read<T>(&mut self, key: ConfigKey) -> ResponseVar<Option<T>>
-    where
-        T: ConfigValue,
-    {
-        // channel with the caller.
-        let (responder, rsp) = response_var();
-
-        self.read_raw(key, move |r| {
-            responder.respond(r);
-        });
-
-        rsp
-    }
-    fn read_raw<T, R>(&mut self, key: ConfigKey, respond: R)
-    where
-        T: ConfigValue,
-        R: FnOnce(Option<T>) + 'static + Send + Sync,
-    {
-        if let Some((source, _)) = &mut self.source {
-            let mut task = Some(Mutex::new(UiTask::new(None, source.read(key))));
-            let mut respond = Some(respond);
-            self.tasks.push(Box::new(move |status| {
-                let finished = task.as_mut().unwrap().lock().update().is_some();
-                if finished {
-                    match task.take().unwrap().into_inner().into_result().unwrap() {
-                        Ok(r) => {
-                            let respond = respond.take().unwrap();
-                            respond(r.and_then(|v| serde_json::from_value(v).ok()));
+                }),
+                // T -> JSON
+                clmv!(key, wk_errors, |typed| {
+                    match serde_json::to_value(typed) {
+                        Ok(json) => {
+                            if let Some(errors) = wk_errors.upgrade() {
+                                if errors.with(|e| e.entry(&key).next().is_some()) {
+                                    let _ = errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                                }
+                            }
+                            Some(json)
                         }
                         Err(e) => {
-                            status.modify(move |s| {
-                                s.to_mut().set_read_error(e);
-                            });
-
-                            let respond = respond.take().unwrap();
-                            respond(None);
+                            if let Some(errors) = wk_errors.upgrade() {
+                                let _ = errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                            }
+                            None
                         }
                     }
-                }
-                !finished
-            }));
-            UPDATES.update(None);
+                }),
+                move || default.clone(),
+            )
+            .boxed()
+    }
+}
+
+impl ConfigMap for HashMap<ConfigKey, serde_json::Value> {
+    fn empty() -> Self {
+        Self::new()
+    }
+
+    fn read(mut file: WatchFile) -> io::Result<Self> {
+        file.json().map_err(Into::into)
+    }
+
+    fn write(self, file: &mut WriteFile) -> io::Result<()> {
+        file.write_json(&self, true).map_err(Into::into)
+    }
+
+    fn get_json(&self, key: &ConfigKey) -> Result<Option<serde_json::Value>, Arc<dyn std::error::Error + Send + Sync>> {
+        Ok(self.get(key).cloned())
+    }
+
+    fn set_json(map: &mut Cow<Self>, key: ConfigKey, value: serde_json::Value) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
+        if map.get(&key) != Some(&value) {
+            map.to_mut().insert(key, value);
+        }
+        Ok(())
+    }
+
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.contains_key(key)
+    }
+
+    fn get<O: ConfigValue>(&self, key: &ConfigKey) -> Result<Option<O>, Arc<dyn std::error::Error + Send + Sync>> {
+        if let Some(value) = self.get_json(key)? {
+            match serde_json::from_value(value) {
+                Ok(s) => Ok(Some(s)),
+                Err(e) => Err(Arc::new(e)),
+            }
         } else {
-            // no source, just respond with `None`.
-            self.once_tasks.push(Box::new(move |_| {
-                respond(None);
-            }));
-            UPDATES.update(None);
+            Ok(None)
         }
     }
 
-    fn write<T>(&mut self, key: ConfigKey, value: T)
-    where
-        T: ConfigValue,
-    {
-        // register variable update if the entry is observed.
-        let key = match self.vars.entry(key) {
-            Entry::Occupied(entry) => {
-                let key = entry.key().clone();
-                if let Some(var) = entry.get().downcast::<T>() {
-                    let value = value.clone();
+    fn set<O: ConfigValue>(map: &mut Cow<Self>, key: ConfigKey, value: O) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
+        match serde_json::to_value(value) {
+            Ok(s) => Self::set_json(map, key, s),
+            Err(e) => Err(Arc::new(e)),
+        }
+    }
+}
 
-                    self.once_tasks.push(Box::new(move |_| {
-                        var.modify(move |v| {
-                            if v.as_ref().value != value {
-                                let v = v.to_mut();
-                                v.value = value;
-                                v.write.store(false, Ordering::Relaxed);
-                            }
-                        });
-                    }));
-                    UPDATES.update(None);
-                } else {
-                    // not observed anymore or changed type.
-                    entry.remove();
+/// Config source that auto syncs with file.
+///
+/// The [`WATCHER.sync`] is used to synchronize with the file, this type implements the binding
+/// for each key.
+///
+/// [`WATCHER.sync`]: WATCHER::sync
+pub struct SyncConfig<M: ConfigMap> {
+    sync_var: ArcVar<M>,
+    is_loaded: ArcVar<bool>,
+    errors: ArcVar<ConfigErrors>,
+    shared: ConfigVars,
+}
+impl<M: ConfigMap> SyncConfig<M> {
+    /// Open write the `file`
+    pub fn sync(file: impl Into<PathBuf>) -> Self {
+        let is_loaded = var(false);
+        let errors = var(ConfigErrors::default());
+        let sync_var = WATCHER.sync(
+            file,
+            M::empty(),
+            clmv!(is_loaded, errors, |r| {
+                match (|| M::read(r?))() {
+                    Ok(ok) => {
+                        if errors.with(|e| e.io().next().is_some()) {
+                            errors.modify(|e| e.to_mut().clear_io());
+                        }
+                        if !is_loaded.get() {
+                            is_loaded.set(true);
+                        }
+                        Some(ok)
+                    }
+                    Err(e) => {
+                        if is_loaded.get() {
+                            is_loaded.set(false);
+                        }
+                        errors.modify(|es| es.to_mut().push(ConfigError::new_read(e)));
+                        None
+                    }
                 }
-                key
+            }),
+            clmv!(is_loaded, errors, |map, w| {
+                match (|| {
+                    let mut w = w?;
+                    map.write(&mut w)?;
+                    w.commit()
+                })() {
+                    Ok(()) => {
+                        if errors.with(|e| e.io().next().is_some()) {
+                            errors.modify(|e| e.to_mut().clear_io());
+                        }
+                        if !is_loaded.get() {
+                            is_loaded.set(true);
+                        }
+                    }
+                    Err(e) => {
+                        if is_loaded.get() {
+                            is_loaded.set(false);
+                        }
+                        errors.modify(|es| es.to_mut().push(ConfigError::new_write(e)));
+                    }
+                }
+            }),
+        );
+
+        Self {
+            sync_var,
+            errors,
+            is_loaded,
+            shared: ConfigVars::default(),
+        }
+    }
+
+    fn get_new_json(
+        sync_var: &ArcVar<M>,
+        errors: &ArcVar<ConfigErrors>,
+        key: ConfigKey,
+        default: serde_json::Value,
+    ) -> BoxedVar<serde_json::Value> {
+        // init var to already present value, or default.
+        let var = match sync_var.with(|m| ConfigMap::get_json(m, &key)) {
+            Ok(json) => {
+                // get ok, clear any entry errors
+                if errors.with(|e| e.entry(&key).next().is_some()) {
+                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                }
+
+                match json {
+                    Some(json) => var(json),
+                    None => var(default),
+                }
             }
-            Entry::Vacant(e) => e.into_key(),
+            Err(e) => {
+                // get error
+                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                var(default)
+            }
         };
 
-        // serialize and request write.
-        self.write_source(key, value);
-    }
-    fn write_source<T>(&mut self, key: ConfigKey, value: T)
-    where
-        T: ConfigValue,
-    {
-        if let Some((source, _)) = &mut self.source {
-            match serde_json::value::to_value(value) {
-                Ok(json) => {
-                    let task = UiTask::new(None, source.write(key, json));
-                    self.track_write_task(task);
-                }
-                Err(e) => {
-                    self.once_tasks.push(Box::new(move |status| {
-                        status.modify(move |s| s.to_mut().set_write_error(ConfigError::new(e)));
-                    }));
-                    UPDATES.update(None);
-                }
-            }
-        }
-    }
+        // bind entry var
 
-    fn remove(&mut self, key: ConfigKey) {
-        if let Some((source, _)) = &mut self.source {
-            let task = UiTask::new(None, source.remove(key));
-            self.track_write_task(task);
-        }
-    }
+        // config -> entry
+        let wk_var = var.downgrade();
+        sync_var
+            .hook(Box::new(clmv!(errors, key, |map| {
+                if let Some(var) = wk_var.upgrade() {
+                    match map.as_any().downcast_ref::<M>().unwrap().get_json(&key) {
+                        Ok(json) => {
+                            // get ok
+                            if errors.with(|e| e.entry(&key).next().is_some()) {
+                                errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                            }
 
-    fn track_write_task(&mut self, task: UiTask<Result<(), ConfigError>>) {
-        let mut count = 0;
-        let mut task = Some(Mutex::new(task));
-        self.tasks.push(Box::new(move |status| {
-            let finished = task.as_mut().unwrap().lock().update().is_some();
-            if finished {
-                let r = task.take().unwrap().into_inner().into_result().unwrap();
-                status.modify(move |s| {
-                    let s = s.to_mut();
-                    s.pending -= count;
-                    if let Err(e) = r {
-                        s.set_write_error(e);
+                            if let Some(json) = json {
+                                var.set(json);
+                            }
+                            // else backend lost entry but did not report as error.
+                        }
+                        Err(e) => {
+                            // get error
+                            errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+                        }
                     }
-                });
-            } else if count == 0 {
-                // first try, add pending.
-                count = 1;
-                status.modify(|s| s.to_mut().pending += 1);
-            }
-
-            !finished
-        }));
-        UPDATES.update(None);
-    }
-
-    fn var<K, T, D>(&mut self, key: K, default_value: D) -> impl Var<T>
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-        D: FnOnce() -> T,
-    {
-        self.var_with_source(key.into(), default_value).map_ref_bidi(
-            |v| &v.value,
-            |v| {
-                v.write.store(true, Ordering::Relaxed);
-                &mut v.value
-            },
-        )
-    }
-
-    fn bind<K, T, D, V>(&mut self, key: K, default_value: D, target: &V) -> VarHandles
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-        D: FnOnce() -> T,
-        V: Var<T>,
-    {
-        let source = self.var_with_source(key.into(), default_value);
-        let target = target.clone().actual_var();
-        let wk_target = target.downgrade();
-        if target.strong_count() > 0 {
-            let source_to_target = source.hook(Box::new(move |value| {
-                if let Some(target) = wk_target.upgrade() {
-                    let v = value.as_any().downcast_ref::<ValueWithSource<T>>().unwrap();
-                    target.set_ne(v.value.clone()).is_ok()
+                    // retain hook
+                    true
                 } else {
+                    // entry var dropped, drop hook
                     false
                 }
-            }));
+            })))
+            .perm();
 
-            let wk_source = source.downgrade();
-            let target_to_source = target.hook(Box::new(move |value| {
-                if let Some(source) = wk_source.upgrade() {
-                    if let Some(value) = value.as_any().downcast_ref::<T>().cloned() {
-                        source.modify(move |val| {
-                            if val.as_ref().value != value {
-                                let val = val.to_mut();
-                                val.value = value;
-                                val.write.store(true, Ordering::Relaxed);
+        // entry -> config
+        let wk_sync_var = sync_var.downgrade();
+        var.hook(Box::new(clmv!(errors, |value| {
+            if let Some(sync_var) = wk_sync_var.upgrade() {
+                let json = value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone();
+                sync_var.modify(clmv!(key, errors, |m| {
+                    // set, only if actually changed
+                    match ConfigMap::set_json(m, key.clone(), json) {
+                        Ok(()) => {
+                            // set ok
+                            if errors.with(|e| e.entry(&key).next().is_some()) {
+                                errors.modify(move |e| e.to_mut().clear_entry(&key));
                             }
-                        });
+                        }
+                        Err(e) => {
+                            // set error
+                            errors.modify(|es| es.to_mut().push(ConfigError::new_set(key, e)));
+                        }
+                    }
+                }));
+
+                // retain hook
+                true
+            } else {
+                // config dropped, drop hook
+                false
+            }
+        })))
+        .perm();
+
+        var.boxed()
+    }
+
+    fn get_new<T: ConfigValue>(
+        sync_var: &ArcVar<M>,
+        errors: &ArcVar<ConfigErrors>,
+        key: impl Into<ConfigKey>,
+        default: impl FnOnce() -> T,
+    ) -> BoxedVar<T> {
+        // init var to already present value, or default.
+        let key = key.into();
+        let var = match sync_var.with(|m| ConfigMap::get::<T>(m, &key)) {
+            Ok(value) => {
+                if errors.with(|e| e.entry(&key).next().is_some()) {
+                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                }
+                match value {
+                    Some(val) => var(val),
+                    None => var(default()),
+                }
+            }
+            Err(e) => {
+                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                var(default())
+            }
+        };
+
+        // bind entry var
+
+        // config -> entry
+        let wk_var = var.downgrade();
+        sync_var
+            .hook(Box::new(clmv!(errors, key, |map| {
+                if let Some(var) = wk_var.upgrade() {
+                    match map.as_any().downcast_ref::<M>().unwrap().get::<T>(&key) {
+                        Ok(value) => {
+                            if errors.with(|e| e.entry(&key).next().is_some()) {
+                                errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                            }
+
+                            if let Some(value) = value {
+                                var.set(value);
+                            }
+                        }
+                        Err(e) => {
+                            errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+                        }
                     }
                     true
                 } else {
                     false
                 }
-            }));
+            })))
+            .perm();
 
-            [source_to_target, target_to_source].into_iter().collect()
-        } else {
-            VarHandles::dummy()
-        }
-    }
-
-    fn var_with_source<T: ConfigValue>(&mut self, key: ConfigKey, default_value: impl FnOnce() -> T) -> ArcVar<ValueWithSource<T>> {
-        let refresh;
-
-        let r = match self.vars.entry(key) {
-            Entry::Occupied(mut entry) => {
-                if let Some(var) = entry.get().downcast::<T>() {
-                    return var; // already observed and is the same type.
-                }
-
-                // entry stale or for the wrong type:
-
-                // re-insert observer
-                let (cfg_var, var) = ConfigVar::new(default_value());
-                *entry.get_mut() = cfg_var;
-
-                // and refresh the value.
-                refresh = (entry.key().clone(), var.clone());
-
-                var
-            }
-            Entry::Vacant(entry) => {
-                let (cfg_var, var) = ConfigVar::new(default_value());
-
-                refresh = (entry.key().clone(), var.clone());
-
-                entry.insert(cfg_var);
-
-                var
-            }
-        };
-
-        let (key, var) = refresh;
-        let value = self.read::<T>(key);
-        self.tasks.push(Box::new(move |_| {
-            if let Some(rsp) = value.rsp() {
-                if let Some(value) = rsp {
-                    var.modify(move |v| {
-                        if v.as_ref().value != value {
-                            let v = v.to_mut();
-                            v.value = value;
-                            v.write.store(false, Ordering::Relaxed);
+        // entry -> config
+        let wk_sync_var = sync_var.downgrade();
+        var.hook(Box::new(clmv!(errors, |value| {
+            if let Some(sync_var) = wk_sync_var.upgrade() {
+                let value = value.as_any().downcast_ref::<T>().unwrap().clone();
+                sync_var.modify(clmv!(key, errors, |m| {
+                    match ConfigMap::set(m, key.clone(), value) {
+                        Ok(()) => {
+                            if errors.with(|e| e.entry(&key).next().is_some()) {
+                                errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                            }
                         }
-                    });
-                }
-                false // task finished
+                        Err(e) => {
+                            errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                        }
+                    }
+                }));
+                true
             } else {
-                true // retain
+                false
             }
-        }));
+        })))
+        .perm();
 
-        r
+        var.boxed()
     }
 }
-
-/// Represents the configuration of the app.
-///
-/// This type does not implement any config scheme, a [`ConfigSource`] must be set to enable persistence, without a source
-/// only the config variables work, and only for the duration of the app process.
-///
-/// # Examples
-///
-/// The example demonstrates loading a config file and binding a config to a variable that is auto saves every time it changes.
-///
-/// ```no_run
-/// # use zero_ui_core::{app::App, config::*, window::*};
-/// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
-/// App::default().run_window(async {
-///     // load a ConfigSource.
-///     CONFIG.load(ConfigFile::new("app.config.json"));
-///     
-///     // read the "main.count" config and bind it to a variable.
-///     let count = CONFIG.var("main.count", || 0);
-///
-///     Window! {
-///         title = "Persistent Counter";
-///         padding = 20;
-///         child = Button! {
-///             child = Text!(count.map(|c| formatx!("Count: {c}")));
-///             on_click = hn!(|_| {
-///                 // modifying the var updates the "main.count" config.
-///                 count.modify(|mut c| *c += 1).unwrap();
-///             });
-///         }
-///     }
-/// })
-/// ```
-pub struct CONFIG;
-impl CONFIG {
-    /// Set the config source, replaces the previous source.
-    pub fn load(&self, source: impl ConfigSource) {
-        CONFIG_SV.write().load(source);
+impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
+    fn errors(&self) -> BoxedVar<ConfigErrors> {
+        self.errors.clone().boxed()
     }
 
-    /// Open an alternative config source disconnected from the actual app source.
-    #[must_use]
-    pub fn load_alt(&self, source: impl ConfigSource) -> ConfigAlt {
-        CONFIG_SV.write().load_alt(source)
-    }
-
-    /// Gets a variable that tracks the source write tasks.
-    pub fn status(&self) -> ReadOnlyArcVar<ConfigStatus> {
-        CONFIG_SV.read().status.read_only()
-    }
-
-    /// Remove any errors set in the [`status`].
-    ///
-    /// [`status`]: Self::status
-    pub fn clear_errors(&self) {
-        CONFIG_SV.write().clear_errors()
-    }
-
-    /// Read the config value currently associated with the `key` if it is of the same type.
-    ///
-    /// Returns a [`ResponseVar`] that will update once when the value finishes reading.
-    pub fn read<K, T>(&self, key: K) -> ResponseVar<Option<T>>
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-    {
-        CONFIG_SV.write().read(key.into())
-    }
-
-    /// Write the config value associated with the `key`.
-    pub fn write<K, T>(&self, key: K, value: T)
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-    {
-        CONFIG_SV.write().write(key.into(), value)
-    }
-
-    /// Remove the `key` from the persistent storage.
-    ///
-    /// Note that if a variable is connected with the `key` it stays connected with the same value, and if the variable
-    /// is modified the `key` is reinserted. This should be called to remove obsolete configs only.
-    pub fn remove<K: Into<ConfigKey>>(&self, key: K) {
-        CONFIG_SV.write().remove(key.into())
-    }
-
-    /// Gets a variable that updates every time the config associated with `key` changes and writes the config
-    /// every time it changes. This is equivalent of a two-way binding between the config storage and the variable.
-    ///
-    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
-    /// after it is read.
-    pub fn var<K, T, D>(&self, key: K, default_value: D) -> impl Var<T>
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-        D: FnOnce() -> T,
-    {
-        CONFIG_SV.write().var(key, default_value)
-    }
-
-    /// Binds a variable that updates every time the config associated with `key` changes and writes the config
-    /// every time it changes. If the `target` is dropped the binding is dropped.
-    ///
-    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
-    /// after it is read.
-    pub fn bind<K, T, D, V>(&mut self, key: K, default_value: D, target: &V) -> VarHandles
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-        D: FnOnce() -> T,
-        V: Var<T>,
-    {
-        ConfigService::bind(&mut CONFIG_SV.write(), key.into(), default_value, target)
-    }
-}
-
-/// Represents a loaded config source that is not the main config.
-///
-/// This type allows interaction with a [`ConfigSource`] just like the [`CONFIG`] service, but without affecting the
-/// actual app config, so that the same config key can be loaded  from different sources with different values.
-///
-/// Note that some config sources can auto-reload if their backing file is modified, so modifications using this type
-/// can end-up affecting the actual [`CONFIG`] too.
-///
-/// You can use the [`CONFIG.load_alt`] method to create an instance of this type.
-pub struct ConfigAlt(Arc<RwLock<ConfigService>>);
-impl ConfigAlt {
-    fn load(source: impl ConfigSource) -> Self {
-        let mut cfg = ConfigService::new();
-        cfg.load(source);
-        ConfigAlt(Arc::new(RwLock::new(cfg)))
-    }
-
-    /// Flush writes and unload.
-    pub fn unload(self) {
-        // drop
-    }
-
-    /// Gets a variable that tracks the source write tasks.
-    pub fn status(&self) -> ReadOnlyArcVar<ConfigStatus> {
-        self.0.read().status.read_only()
-    }
-
-    /// Remove any errors set in the [`status`].
-    ///
-    /// [`status`]: Self::status
-    pub fn clear_errors(&self) {
-        self.0.write().clear_errors()
-    }
-
-    /// Read the config value currently associated with the `key` if it is of the same type.
-    ///
-    /// Returns a [`ResponseVar`] that will update once when the value finishes reading.
-    pub fn read<K, T>(&self, key: K) -> ResponseVar<Option<T>>
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-    {
-        self.0.write().read(key.into())
-    }
-
-    /// Write the config value associated with the `key`.
-    pub fn write<K, T>(&self, key: K, value: T)
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-    {
-        self.0.write().write(key.into(), value)
-    }
-
-    /// Remove the `key` from the persistent storage.
-    ///
-    /// Note that if a variable is connected with the `key` it stays connected with the same value, and if the variable
-    /// is modified the `key` is reinserted. This should be called to remove obsolete configs only.
-    pub fn remove<K: Into<ConfigKey>>(&self, key: K) {
-        self.0.write().remove(key.into())
-    }
-
-    /// Gets a variable that updates every time the config associated with `key` changes and writes the config
-    /// every time it changes. This is equivalent of a two-way binding between the config storage and the variable.
-    ///
-    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
-    /// after it is read.
-    pub fn var<K, T, D>(&self, key: K, default_value: D) -> impl Var<T>
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-        D: FnOnce() -> T,
-    {
-        self.0.write().var(key.into(), default_value)
-    }
-
-    /// Binds a variable that updates every time the config associated with `key` changes and writes the config
-    /// every time it changes. If the `target` is dropped the binding is dropped.
-    ///
-    /// If the config is not already observed the `default_value` is used to generate a variable that will update with the current value
-    /// after it is read.
-    pub fn bind<K, T, D, V>(&self, key: K, default_value: D, target: &V) -> VarHandles
-    where
-        K: Into<ConfigKey>,
-        T: ConfigValue,
-        D: FnOnce() -> T,
-        V: Var<T>,
-    {
-        ConfigService::bind(&mut self.0.write(), key.into(), default_value, target)
-    }
-}
-impl Drop for ConfigAlt {
-    fn drop(&mut self) {
-        if let Some((mut s, _)) = self.0.write().source.take() {
-            s.deinit();
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+        if shared {
+            self.shared
+                .get_or_bind(key, |key| Self::get_new_json(&self.sync_var, &self.errors, key.clone(), default))
+        } else {
+            Self::get_new_json(&self.sync_var, &self.errors, key, default)
         }
     }
-}
 
-type VarUpdateTask = Box<dyn FnOnce(&mut ConfigService)>;
-
-/// ConfigVar actual value, tracks if updates need to be send to source.
-#[derive(Debug, Clone)]
-struct ValueWithSource<T: ConfigValue> {
-    value: T,
-    write: Arc<AtomicBool>,
-}
-
-struct ConfigVar {
-    var: Box<dyn AnyWeakVar>,
-    write: Arc<AtomicBool>,
-    run_task: Box<dyn Fn(ConfigVarTask, ConfigVarTaskArgs) -> VarUpdateTask + Send + Sync>,
-}
-impl ConfigVar {
-    fn new<T: ConfigValue>(initial_value: T) -> (Self, ArcVar<ValueWithSource<T>>) {
-        let write = Arc::new(AtomicBool::new(false));
-        let var = var(ValueWithSource {
-            value: initial_value,
-            write: write.clone(),
-        });
-        let r = ConfigVar {
-            var: Box::new(var.downgrade()),
-            write,
-            run_task: Box::new(ConfigVar::run_task_impl::<T>),
-        };
-        (r, var)
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.sync_var.with(|q| q.contains_key(key))
     }
 
-    /// Returns var and if it needs to write.
-    fn upgrade(&mut self) -> Option<(Box<dyn AnyVar>, bool)> {
-        self.var.upgrade_any().map(|v| {
-            let write = self.write.load(Ordering::Relaxed) && v.last_update() == VARS.update_id();
-            (v, write)
+    fn is_loaded(&self) -> BoxedVar<bool> {
+        self.is_loaded.clone().boxed()
+    }
+}
+impl<M: ConfigMap> Config for SyncConfig<M> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        self.shared
+            .get_or_bind(key.into(), |key| Self::get_new(&self.sync_var, &self.errors, key.clone(), default))
+    }
+}
+
+/// Represents a config source that synchronizes with a JSON file.
+pub type JsonConfig = SyncConfig<HashMap<ConfigKey, serde_json::Value>>;
+
+/// Config wrapper that only updates variables from config source changes.
+pub struct ReadOnlyConfig<C: Config> {
+    cfg: C,
+}
+impl<C: Config> ReadOnlyConfig<C> {
+    /// New reading from `cfg`.
+    pub fn new(cfg: C) -> Self {
+        Self { cfg }
+    }
+}
+impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
+    fn errors(&self) -> BoxedVar<ConfigErrors> {
+        self.cfg.errors().read_only()
+    }
+
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+        self.cfg.get_json(key, default, shared).read_only()
+    }
+
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.cfg.contains_key(key)
+    }
+
+    fn is_loaded(&self) -> BoxedVar<bool> {
+        self.cfg.is_loaded()
+    }
+}
+impl<C: Config> Config for ReadOnlyConfig<C> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        self.cfg.get(key.into(), default).read_only()
+    }
+}
+
+/// Represents a config source that is read and written too, when a key is not present in the source
+/// the fallback variable is used, but if that variable is modified the key is inserted in the primary config.
+pub struct FallbackConfig<S: Config, F: Config> {
+    fallback: F,
+    over: S,
+}
+impl<S: Config, F: Config> FallbackConfig<S, F> {
+    /// New config.
+    pub fn new(fallback: F, over: S) -> Self {
+        Self { fallback, over }
+    }
+}
+impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
+    fn is_loaded(&self) -> BoxedVar<bool> {
+        self.fallback.is_loaded()
+    }
+
+    fn errors(&self) -> BoxedVar<ConfigErrors> {
+        merge_var!(self.fallback.errors(), self.over.errors(), |a, b| {
+            if a.is_empty() {
+                return b.clone();
+            }
+            if b.is_empty() {
+                return a.clone();
+            }
+            let mut r = a.clone();
+            for b in b.iter() {
+                r.push(b.clone());
+            }
+            r
+        })
+        .boxed()
+    }
+
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+        let over = self.over.get_json(key.clone(), default.clone(), shared);
+        if self.over.contains_key(&key) {
+            return over;
+        }
+
+        let fallback = self.fallback.get_json(key, default, shared);
+        let result = var(fallback.get());
+
+        #[derive(Clone, Copy)]
+        enum State {
+            Fallback,
+            FallbackUpdated,
+            Over,
+            OverUpdated,
+        }
+        let state = Arc::new(atomic::Atomic::new(State::Fallback));
+
+        // hook fallback, signal `result` that an update is flowing from the fallback.
+        let wk_result = result.downgrade();
+        fallback
+            .hook(Box::new(clmv!(state, |value| {
+                match state.load(atomic::Ordering::Relaxed) {
+                    State::Over | State::OverUpdated => {
+                        // result -> over
+                        return false;
+                    }
+                    _ => {}
+                }
+
+                // fallback -> result
+                if let Some(result) = wk_result.upgrade() {
+                    state.store(State::FallbackUpdated, atomic::Ordering::Relaxed);
+                    result.set(value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone());
+                    true
+                } else {
+                    // weak-ref to avoid circular ref.
+                    false
+                }
+            })))
+            .perm();
+
+        // hook over, signals `result` that an update is flowing from the override.
+        let wk_result = result.downgrade();
+        over.hook(Box::new(clmv!(state, |value| {
+            match state.load(atomic::Ordering::Relaxed) {
+                State::OverUpdated => {
+                    // result -> over
+                    state.store(State::Over, atomic::Ordering::Relaxed);
+                }
+                _ => {
+                    // over -> result
+                    let value = value.as_any().downcast_ref::<serde_json::Value>().unwrap();
+                    state.store(State::OverUpdated, atomic::Ordering::Relaxed);
+                    if let Some(result) = wk_result.upgrade() {
+                        result.set(value.clone());
+                    } else {
+                        // weak-ref to avoid circular ref.
+                        return false;
+                    }
+                }
+            }
+
+            true
+        })))
+        .perm();
+
+        // hook result, on first callback not caused by `fallback` drops it and changes to `over`.
+        let fallback = Mutex::new(Some(fallback));
+        result
+            .hook(Box::new(move |value| {
+                match state.load(atomic::Ordering::Relaxed) {
+                    State::Fallback => {
+                        // result -> over(first)
+                        state.store(State::Over, atomic::Ordering::Relaxed);
+                        *fallback.lock() = None;
+                        let value = value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone();
+                        let _ = over.set_ne(value);
+                    }
+                    State::FallbackUpdated => {
+                        // fallback -> result
+                        state.store(State::Fallback, atomic::Ordering::Relaxed);
+                    }
+                    State::Over => {
+                        // result -> over
+                        let value = value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone();
+                        let _ = over.set_ne(value);
+                    }
+                    State::OverUpdated => {
+                        // over -> result
+                        state.store(State::Over, atomic::Ordering::Relaxed);
+                    }
+                }
+                true
+            }))
+            .perm();
+
+        result.boxed()
+    }
+
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.fallback.contains_key(key) || self.over.contains_key(key)
+    }
+}
+impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        let key = key.into();
+        let default = default();
+        let fallback = self.fallback.get(key.clone(), || default.clone());
+        let over = var(None::<T>); // TODO, actually provided by self.source
+        if over.with(|s| s.is_some()) {
+            return self.over.get(key, move || default);
+        }
+        let result = var(fallback.get());
+
+        #[derive(Clone, Copy)]
+        enum State {
+            Fallback,
+            FallbackUpdated,
+            Over,
+            OverUpdated,
+        }
+        let state = Arc::new(atomic::Atomic::new(State::Fallback));
+
+        // hook fallback, signal `result` that an update is flowing from the fallback.
+        let wk_result = result.downgrade();
+        fallback
+            .hook(Box::new(clmv!(state, |value| {
+                match state.load(atomic::Ordering::Relaxed) {
+                    State::Over | State::OverUpdated => {
+                        // result -> over
+                        return false;
+                    }
+                    _ => {}
+                }
+
+                // fallback -> result
+                if let Some(result) = wk_result.upgrade() {
+                    state.store(State::FallbackUpdated, atomic::Ordering::Relaxed);
+                    result.set(value.as_any().downcast_ref::<T>().unwrap().clone());
+                    true
+                } else {
+                    // weak-ref to avoid circular ref.
+                    false
+                }
+            })))
+            .perm();
+
+        // hook over, signals `result` that an update is flowing from the override.
+        let wk_result = result.downgrade();
+        over.hook(Box::new(clmv!(state, |value| {
+            match state.load(atomic::Ordering::Relaxed) {
+                State::OverUpdated => {
+                    // result -> over
+                    state.store(State::Over, atomic::Ordering::Relaxed);
+                }
+                _ => {
+                    // over -> result
+                    if let Some(value) = value.as_any().downcast_ref::<Option<T>>().unwrap() {
+                        state.store(State::OverUpdated, atomic::Ordering::Relaxed);
+                        if let Some(result) = wk_result.upgrade() {
+                            result.set(value.clone());
+                        } else {
+                            // weak-ref to avoid circular ref.
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            true
+        })))
+        .perm();
+
+        // hook result, on first callback not caused by `fallback` drops it and changes to `over`.
+        let fallback = Mutex::new(Some(fallback));
+        result
+            .hook(Box::new(move |value| {
+                match state.load(atomic::Ordering::Relaxed) {
+                    State::Fallback => {
+                        // result -> over(first)
+                        state.store(State::Over, atomic::Ordering::Relaxed);
+                        *fallback.lock() = None;
+                        over.set(Some(value.as_any().downcast_ref::<T>().unwrap().clone()));
+                    }
+                    State::FallbackUpdated => {
+                        // fallback -> result
+                        state.store(State::Fallback, atomic::Ordering::Relaxed);
+                    }
+                    State::Over => {
+                        // result -> over
+                        over.set(Some(value.as_any().downcast_ref::<T>().unwrap().clone()));
+                    }
+                    State::OverUpdated => {
+                        // over -> result
+                        state.store(State::Over, atomic::Ordering::Relaxed);
+                    }
+                }
+                true
+            }))
+            .perm();
+
+        result.boxed()
+    }
+}
+
+/// Config without any backing store.
+pub struct NilConfig;
+
+impl AnyConfig for NilConfig {
+    fn errors(&self) -> BoxedVar<ConfigErrors> {
+        LocalVar(ConfigErrors::default()).boxed()
+    }
+    fn get_json(&mut self, _: ConfigKey, default: serde_json::Value, _: bool) -> BoxedVar<serde_json::Value> {
+        LocalVar(default).boxed()
+    }
+    fn contains_key(&self, _: &ConfigKey) -> bool {
+        false
+    }
+
+    fn is_loaded(&self) -> BoxedVar<bool> {
+        LocalVar(true).boxed()
+    }
+}
+impl Config for NilConfig {
+    fn get<T: ConfigValue>(&mut self, _: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        LocalVar(default()).boxed()
+    }
+}
+
+/// Represents a config source that swap its backend without disconnecting any bound keys.
+///
+/// Note that the [`CONFIG`] service already uses this type internally.
+pub struct SwapConfig {
+    cfg: Mutex<Box<dyn AnyConfig>>,
+    shared: ConfigVars,
+
+    is_loaded: ArcVar<bool>,
+    is_loaded_binding: VarHandle,
+    errors: ArcVar<ConfigErrors>,
+    errors_binding: VarHandle,
+}
+
+impl AnyConfig for SwapConfig {
+    fn errors(&self) -> BoxedVar<ConfigErrors> {
+        self.errors.clone().boxed()
+    }
+
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+        if shared {
+            self.shared
+                .get_or_bind(key, |key| self.cfg.get_mut().get_json(key.clone(), default, false))
+        } else {
+            self.cfg.get_mut().get_json(key, default, false)
+        }
+    }
+
+    fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.cfg.lock().contains_key(key)
+    }
+
+    fn is_loaded(&self) -> BoxedVar<bool> {
+        self.is_loaded.clone().boxed()
+    }
+}
+impl Config for SwapConfig {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        self.shared.get_or_bind(key.into(), |key| {
+            // not in shared, bind with source json var.
+
+            let default = default();
+            let source_var = self.cfg.get_mut().get_json(
+                key.clone(),
+                serde_json::to_value(&default).unwrap_or(serde_json::Value::Null),
+                false,
+            );
+            let var = var(serde_json::from_value(source_var.get()).unwrap_or(default));
+
+            let errors = &self.errors;
+
+            source_var
+                .bind_filter_map_bidi(
+                    &var,
+                    // JSON -> T
+                    clmv!(key, errors, |json| {
+                        match serde_json::from_value(json.clone()) {
+                            Ok(value) => {
+                                if errors.with(|e| e.entry(&key).next().is_some()) {
+                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                                }
+                                Some(value)
+                            }
+                            Err(e) => {
+                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+                                None
+                            }
+                        }
+                    }),
+                    // T -> JSON
+                    clmv!(key, errors, |value| {
+                        match serde_json::to_value(value) {
+                            Ok(json) => {
+                                if errors.with(|e| e.entry(&key).next().is_some()) {
+                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                                }
+                                Some(json)
+                            }
+                            Err(e) => {
+                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                                None
+                            }
+                        }
+                    }),
+                )
+                .perm();
+
+            var.boxed()
         })
     }
-
-    fn downcast<T: ConfigValue>(&self) -> Option<ArcVar<ValueWithSource<T>>> {
-        self.var.as_any().downcast_ref::<types::WeakArcVar<ValueWithSource<T>>>()?.upgrade()
-    }
-
-    fn read(&self, args: ConfigVarTaskArgs) -> VarUpdateTask {
-        (self.run_task)(ConfigVarTask::Read, args)
-    }
-    fn write(&self, args: ConfigVarTaskArgs) -> VarUpdateTask {
-        (self.run_task)(ConfigVarTask::Write, args)
-    }
-    fn run_task_impl<T: ConfigValue>(task: ConfigVarTask, args: ConfigVarTaskArgs) -> VarUpdateTask {
-        if let Some(var) = args.var.as_any().downcast_ref::<ArcVar<ValueWithSource<T>>>() {
-            match task {
-                ConfigVarTask::Read => {
-                    let key = args.key.clone();
-                    let var = var.clone();
-                    Box::new(move |config| {
-                        config.read_raw::<T, _>(key, move |value| {
-                            if let Some(value) = value {
-                                var.modify(move |v| {
-                                    if v.as_ref().value != value {
-                                        let v = v.to_mut();
-                                        v.value = value;
-                                        v.write.store(false, Ordering::Relaxed);
-                                    }
-                                });
-                            }
-                        });
-                    })
-                }
-                ConfigVarTask::Write => {
-                    let key = args.key.clone();
-                    let value = var.get().value;
-                    Box::new(move |config| {
-                        config.write_source(key, value);
-                    })
-                }
-            }
-        } else {
-            Box::new(|_| {})
+}
+impl SwapConfig {
+    /// New with [`NilConfig`] backend.
+    pub fn new() -> Self {
+        Self {
+            cfg: Mutex::new(Box::new(NilConfig)),
+            errors: var(ConfigErrors::default()),
+            shared: ConfigVars::default(),
+            is_loaded: var(false),
+            is_loaded_binding: VarHandle::dummy(),
+            errors_binding: VarHandle::dummy(),
         }
     }
+
+    /// Load the config.
+    pub fn load(&mut self, cfg: impl AnyConfig) {
+        self.replace_source(Box::new(cfg))
+    }
+
+    fn replace_source(&mut self, mut source: Box<dyn AnyConfig>) {
+        let source_errors = source.errors();
+        self.errors.set(source_errors.get());
+        self.errors_binding = source_errors.bind(&self.errors);
+
+        let source_is_loaded = source.is_loaded();
+        self.is_loaded.set(source_is_loaded.get());
+        self.is_loaded_binding = source_is_loaded.bind(&self.is_loaded);
+
+        self.shared.rebind(&self.errors, &mut *source);
+
+        *self.cfg.get_mut() = source;
+    }
+}
+impl Default for SwapConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+struct ConfigVar<T: ConfigValue> {
+    var: BoxedWeakVar<T>,
+    binding: VarHandles,
+}
+impl<T: ConfigValue> ConfigVar<T> {
+    fn new_any(var: BoxedWeakVar<T>) -> Box<dyn AnyConfigVar> {
+        Box::new(Self {
+            var,
+            binding: VarHandles::dummy(),
+        })
+    }
 }
 
-struct ConfigVarTaskArgs<'a> {
-    key: &'a ConfigKey,
-    var: Box<dyn AnyVar>,
-}
+/// Map of configs already bound to a variable.
+///
+/// The map does only holds a weak reference to the variables.
+#[derive(Default)]
+pub struct ConfigVars(HashMap<ConfigKey, Box<dyn AnyConfigVar>>);
+impl ConfigVars {
+    /// Gets the already bound variable or calls `bind` to generate a new binding.
+    pub fn get_or_bind<T: ConfigValue>(&mut self, key: ConfigKey, bind: impl FnOnce(&ConfigKey) -> BoxedVar<T>) -> BoxedVar<T> {
+        match self.0.entry(key) {
+            hash_map::Entry::Occupied(mut e) => {
+                if e.get().can_upgrade() {
+                    if let Some(x) = e.get().as_any().downcast_ref::<ConfigVar<T>>() {
+                        if let Some(var) = x.var.upgrade() {
+                            return var;
+                        }
+                    } else {
+                        tracing::error!(
+                            "cannot get key `{}` as `{}` because it is already requested with a different type",
+                            e.key(),
+                            std::any::type_name::<T>()
+                        );
+                        return bind(e.key());
+                    }
+                }
+                // cannot upgrade
+                let var = bind(e.key());
+                e.insert(ConfigVar::new_any(var.downgrade()));
+                var
+            }
+            hash_map::Entry::Vacant(e) => {
+                let var = bind(e.key());
+                e.insert(ConfigVar::new_any(var.downgrade()));
+                var
+            }
+        }
+    }
 
-enum ConfigVarTask {
-    Read,
-    Write,
-}
-
-/// Current [`CONFIG`] status.
-#[derive(Debug, Clone, Default)]
-pub struct ConfigStatus {
-    /// Number of pending writes.
-    pub pending: usize,
-
-    /// Last error during a read operation.
-    pub read_error: Option<ConfigError>,
-    /// Number of read errors.
-    pub read_errors: u32,
-
-    /// Last error during a write operation.
-    pub write_error: Option<ConfigError>,
-    /// Number of write errors.
-    pub write_errors: u32,
-
-    /// Last internal error.
-    pub internal_error: Option<ConfigError>,
-    /// Number of internal errors.
-    pub internal_errors: u32,
-}
-impl ConfigStatus {
-    /// Returns `true` if there are any errors currently in the status.
+    /// Bind all variables to the new `source`.
     ///
-    /// The errors can be cleared using [`CONFIG.clear_errors`].
-    pub fn has_errors(&self) -> bool {
-        self.read_error.is_some() || self.write_error.is_some() || self.internal_error.is_some()
-    }
-
-    fn set_read_error(&mut self, e: ConfigError) {
-        self.read_error = Some(e);
-        self.read_errors += 1;
-    }
-
-    fn set_write_error(&mut self, e: ConfigError) {
-        self.write_error = Some(e);
-        self.write_errors += 1;
-    }
-
-    fn set_internal_error(&mut self, e: ConfigError) {
-        self.internal_error = Some(e);
-        self.internal_errors += 1;
+    /// If the map entry is present in the `source` the variable is updated to the new value, if not the entry
+    /// is inserted in the source. The variable is then bound to the source.
+    pub fn rebind(&mut self, errors: &ArcVar<ConfigErrors>, source: &mut dyn AnyConfig) {
+        self.0.retain(|key, wk_var| wk_var.rebind(errors, key, source));
     }
 }
-impl fmt::Display for ConfigStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use std::cmp::Ordering::*;
-        match self.pending.cmp(&1) {
-            Equal => writeln!(f, "{} update pending…", self.pending)?,
-            Greater => writeln!(f, "{} updates pending…", self.pending)?,
-            Less => {}
+trait AnyConfigVar: Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+    fn can_upgrade(&self) -> bool;
+    fn rebind(&mut self, errors: &ArcVar<ConfigErrors>, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool;
+}
+impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn can_upgrade(&self) -> bool {
+        self.var.strong_count() > 0
+    }
+
+    fn rebind(&mut self, errors: &ArcVar<ConfigErrors>, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool {
+        let var = if let Some(var) = self.var.upgrade() {
+            var
+        } else {
+            return false;
+        };
+
+        let source_var = source.get_json(
+            key.clone(),
+            serde_json::to_value(var.get()).unwrap_or(serde_json::Value::Null),
+            false,
+        );
+
+        match serde_json::from_value::<T>(source_var.get()) {
+            Ok(value) => {
+                let _ = var.set(value);
+            }
+            Err(e) => {
+                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+            }
         }
 
-        if let Some(e) = &self.internal_error {
-            write!(f, "internal error: ")?;
-            fmt::Display::fmt(e, f)?;
-            writeln!(f)?;
-        }
-        if let Some(e) = &self.read_error {
-            write!(f, "read error: ")?;
-            fmt::Display::fmt(e, f)?;
-            writeln!(f)?;
-        }
-        if let Some(e) = &self.write_error {
-            write!(f, "write error: ")?;
-            fmt::Display::fmt(e, f)?;
-            writeln!(f)?;
-        }
-        Ok(())
+        self.binding = source_var.bind_filter_map_bidi(
+            &var,
+            // JSON -> T
+            clmv!(key, errors, |json| {
+                match serde_json::from_value(json.clone()) {
+                    Ok(value) => {
+                        if errors.with(|e| e.entry(&key).next().is_some()) {
+                            errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                        }
+                        Some(value)
+                    }
+                    Err(e) => {
+                        errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+                        None
+                    }
+                }
+            }),
+            // T -> JSON
+            clmv!(key, errors, |value| {
+                match serde_json::to_value(value) {
+                    Ok(json) => {
+                        if errors.with(|e| e.entry(&key).next().is_some()) {
+                            errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                        }
+                        Some(json)
+                    }
+                    Err(e) => {
+                        errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                        None
+                    }
+                }
+            }),
+        );
+
+        true
     }
 }
 
-/// Error in a [`ConfigSource`].
-#[derive(Debug, Clone)]
-pub struct ConfigError(pub Arc<dyn Error + Send + Sync>);
+/// Config error.
+#[derive(Clone, Debug)]
+pub enum ConfigError {
+    /// Error reading from the external storage to memory.
+    Read(Arc<io::Error>),
+    /// Error writing from memory to the external storage.
+    Write(Arc<io::Error>),
+
+    /// Error converting a key from memory to the final type.
+    Get {
+        /// Key.
+        key: ConfigKey,
+        /// Error.
+        err: Arc<dyn std::error::Error + Send + Sync>,
+    },
+    /// Error converting from the final type to the memory format.
+    Set {
+        /// Key.
+        key: ConfigKey,
+        /// Error.
+        err: Arc<dyn std::error::Error + Send + Sync>,
+    },
+}
+#[cfg(test)]
+fn _assert_var_value(cfg: ConfigError) -> impl VarValue {
+    cfg
+}
 impl ConfigError {
-    /// New error.
-    pub fn new(error: impl Error + Send + Sync + 'static) -> Self {
-        Self(Arc::new(error))
+    /// Reference the read or write error.
+    pub fn io(&self) -> Option<&Arc<io::Error>> {
+        match self {
+            Self::Read(e) | Self::Write(e) => Some(e),
+            _ => None,
+        }
     }
 
-    /// New error from string.
-    pub fn new_str(error: impl Into<String>) -> Self {
-        struct StringError(String);
-        impl fmt::Debug for StringError {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                fmt::Debug::fmt(&self.0, f)
-            }
-        }
-        impl fmt::Display for StringError {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                fmt::Display::fmt(&self.0, f)
-            }
-        }
-        impl Error for StringError {}
-        Self::new(StringError(error.into()))
-    }
-}
-impl Error for ConfigError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(&self.0)
+    /// New read error.
+    pub fn new_read(e: impl Into<io::Error>) -> Self {
+        Self::Read(Arc::new(e.into()))
     }
 
-    fn cause(&self) -> Option<&dyn Error> {
-        self.0.source()
+    /// New write error.
+    pub fn new_write(e: impl Into<io::Error>) -> Self {
+        Self::Write(Arc::new(e.into()))
+    }
+
+    /// New get error.
+    pub fn new_get(key: impl Into<ConfigKey>, e: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Get {
+            key: key.into(),
+            err: Arc::new(e),
+        }
+    }
+    /// New set error.
+    pub fn new_set(key: impl Into<ConfigKey>, e: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Set {
+            key: key.into(),
+            err: Arc::new(e),
+        }
     }
 }
 impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
+        match self {
+            ConfigError::Read(e) => write!(f, "config read error, {e}"),
+            ConfigError::Write(e) => write!(f, "config write error, {e}"),
+            ConfigError::Get { key, err } => write!(f, "config `{key}` get error, {err}"),
+            ConfigError::Set { key, err } => write!(f, "config `{key}` set error, {err}"),
+        }
     }
 }
-impl From<std::io::Error> for ConfigError {
-    fn from(e: std::io::Error) -> Self {
-        ConfigError::new(e)
-    }
-}
-impl From<serde_json::Error> for ConfigError {
-    fn from(e: serde_json::Error) -> Self {
-        ConfigError::new(e)
-    }
-}
-impl From<flume::RecvError> for ConfigError {
-    fn from(e: flume::RecvError) -> Self {
-        ConfigError::new(e)
-    }
-}
-
-/// Represents an implementation of [`CONFIG`].
-pub trait ConfigSource: Send + Sync + 'static {
-    /// Called once when the source is installed.
-    fn init(&mut self, observer: AppExtSender<ConfigSourceUpdate>);
-
-    /// Called once when the app is shutdown.
-    ///
-    /// Sources should block and flush all pending writes here.
-    fn deinit(&mut self);
-
-    /// Read the most recent value associated with `key` in the config source.
-    fn read(&mut self, key: ConfigKey) -> BoxedFut<Result<Option<JsonValue>, ConfigError>>;
-
-    /// Write the `value` for `key` in the config source.
-    fn write(&mut self, key: ConfigKey, value: JsonValue) -> BoxedFut<Result<(), ConfigError>>;
-
-    /// Remove the `key` in the config source.
-    fn remove(&mut self, key: ConfigKey) -> BoxedFut<Result<(), ConfigError>>;
-
-    /// Create a config source that reads from `fallback` if not found in `self`.
-    ///
-    /// If `copy_from_fallback` is enabled, values read from `fallback` are written to `self`.
-    fn with_fallback<C>(self, fallback: C, copy_from_fallback: bool) -> FallbackConfig<Self, C>
-    where
-        Self: Sized,
-        C: ConfigSource,
-    {
-        FallbackConfig::new(self, fallback, copy_from_fallback)
+impl std::error::Error for ConfigError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ConfigError::Read(e) | ConfigError::Write(e) => Some(e),
+            ConfigError::Get { err, .. } | ConfigError::Set { err, .. } => Some(err),
+        }
     }
 }
 
-/// External updates in a [`ConfigSource`].
-#[derive(Clone, Debug)]
-pub enum ConfigSourceUpdate {
-    /// Value associated with the key may have changed from an external event, **not** a write operation.
-    Refresh(ConfigKey),
-    /// All values may have changed.
-    RefreshAll,
-    /// Error not directly related to a read or write operation.
-    ///
-    /// If a full refresh is required after this a `RefreshAll` is send.
-    InternalError(ConfigError),
+/// List of active errors in a config source.
+#[derive(Debug, Clone, Default)]
+pub struct ConfigErrors(pub Vec<ConfigError>);
+impl ops::Deref for ConfigErrors {
+    type Target = Vec<ConfigError>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ops::DerefMut for ConfigErrors {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl ConfigErrors {
+    /// Iterate over read and write errors.
+    pub fn io(&self) -> impl Iterator<Item = &ConfigError> {
+        self.iter().filter(|e| matches!(e, ConfigError::Read(_) | ConfigError::Write(_)))
+    }
+
+    /// Remove read and write errors.
+    pub fn clear_io(&mut self) {
+        self.retain(|e| !matches!(e, ConfigError::Read(_) | ConfigError::Write(_)));
+    }
+
+    /// Iterate over get and set errors for the key.
+    pub fn entry<'a>(&'a self, key: &'a ConfigKey) -> impl Iterator<Item = &'a ConfigError> + 'a {
+        let entry_key = key;
+        self.iter()
+            .filter(move |e| matches!(e, ConfigError::Get { key, .. } | ConfigError::Set { key, .. } if key == entry_key))
+    }
+
+    /// Remove get and set errors for the key.
+    pub fn clear_entry(&mut self, key: &ConfigKey) {
+        let entry_key = key;
+        self.retain(move |e| !matches!(e, ConfigError::Get { key, .. } | ConfigError::Set { key, .. } if key == entry_key))
+    }
+}
+impl fmt::Display for ConfigErrors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut prefix = "";
+        for e in self.iter() {
+            write!(f, "{prefix}{e}")?;
+            prefix = "\n";
+        }
+        Ok(())
+    }
 }
