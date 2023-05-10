@@ -1,5 +1,5 @@
 use std::{
-    any::{Any, TypeId},
+    any::Any,
     borrow::Cow,
     collections::{hash_map, HashMap},
     fmt, io, ops,
@@ -30,34 +30,14 @@ impl CONFIG {
         CONFIG_SV.write().load(source)
     }
 
-    /// All active errors.
-    ///
-    /// Errors are cleared when the same operation that causes then succeeds.
-    ///
-    /// The returned variable is read/write unless the config is read-only.
-    pub fn errors(&self) -> BoxedVar<ConfigErrors> {
-        CONFIG_SV.read().errors()
-    }
-
-    /// Binds the `var` to the `key` on this config.
-    ///
-    /// When the `var` updates the `key` is set, when the stored `key` updates the variable is updated.
-    ///
-    /// If the `key` is not present in the config it is set on init, if the `key` is present the `var` is set on init.
-    pub fn bind<T: ConfigValue>(&self, key: impl Into<ConfigKey>, var: impl Var<T>) -> VarHandles {
-        Config::bind(&mut *CONFIG_SV.write(), key.into(), var)
-    }
-
     /// Gets a variable that is bound to the config `key`.
     ///
-    /// This is equivalent to using [`bind`] on a new variable, except `default` will be called only if the `key`
-    /// is not present in the config on init.
+    /// The same variable is returned for multiple requests of the same key. If the loaded config is not read-only the
+    /// returned variable can be set to update the config source.
     ///
-    /// If the config is
-    ///
-    /// [`bind`]: Self::bind
-    pub fn var<T: ConfigValue>(&self, key: impl Into<ConfigKey>, default: impl Fn() -> T + Send + Sync + 'static) -> BoxedVar<T> {
-        CONFIG_SV.write().var(key.into(), default)
+    /// The `default` closure is used to generate a value to insert in the config if the key is not found.
+    pub fn get<T: ConfigValue>(&self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        CONFIG_SV.write().get(key.into(), default)
     }
 }
 impl AnyConfig for CONFIG {
@@ -65,21 +45,13 @@ impl AnyConfig for CONFIG {
         CONFIG_SV.read().errors()
     }
 
-    fn bind_json(&mut self, key: ConfigKey, var: BoxedVar<serde_json::Value>) -> VarHandles {
-        CONFIG_SV.write().bind_json(key, var)
-    }
-
-    fn var_json(&mut self, key: ConfigKey, default: &dyn Fn() -> serde_json::Value) -> BoxedVar<serde_json::Value> {
-        CONFIG_SV.write().var_json(key, default)
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
+        CONFIG_SV.write().get_json(key, default)
     }
 }
 impl Config for CONFIG {
-    fn bind<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, var: impl Var<T>) -> VarHandles {
-        CONFIG.bind(key, var)
-    }
-
-    fn var<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl Fn() -> T + Send + Sync + 'static) -> BoxedVar<T> {
-        CONFIG.var(key, default)
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        CONFIG.get(key, default)
     }
 }
 
@@ -180,85 +152,28 @@ pub trait AnyConfig: Send + Any {
         self.errors().map(move |e| ConfigErrors(e.entry(&key).cloned().collect())).boxed()
     }
 
-    /// Binds the weak typed `var` to the `key` on this config.
-    ///
-    /// The binding is dropped if the returned handles are dropped.
-    ///
-    /// This method is used when `T` cannot be passed because the map is behind a dynamic reference,
-    /// if the backend is not JSON it must convert the value from the in memory representation to JSON.
-    fn bind_json(&mut self, key: ConfigKey, var: BoxedVar<serde_json::Value>) -> VarHandles;
-
     /// Gets a weak typed variable to the config `key`.
     ///
-    /// This method is used when `T` cannot be passed because the map is behind a dynamic reference,
+    /// This method is used when `T` cannot be passed because the config is behind a dynamic reference,
     /// if the backend is not JSON it must convert the value from the in memory representation to JSON.
-    fn var_json(&mut self, key: ConfigKey, default: &dyn Fn() -> serde_json::Value) -> BoxedVar<serde_json::Value>;
+    ///
+    /// See [`Config::var`] for more details.
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value>;
 }
 
 /// Represents one or more config sources.
 pub trait Config: AnyConfig {
-    /// Binds the `var` to the `key` on this config.
-    ///
-    /// When the `var` updates the `key` is set, when the stored `key` updates the variable is updated.
-    ///
-    /// If the `key` is not present in the config it is set on init, if the `key` is present the `var` is set on init.
-    fn bind<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, var: impl Var<T>) -> VarHandles {
-        let key = key.into();
-        let wk_errors = self.errors().downgrade();
-        let json_var = var
-            .filter_map_bidi(
-                // T -> JSON
-                clmv!(key, wk_errors, |typed| {
-                    match serde_json::to_value(typed) {
-                        Ok(json) => {
-                            if let Some(errors) = wk_errors.upgrade() {
-                                if errors.with(|e| e.entry(&key).next().is_some()) {
-                                    let _ = errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                }
-                            }
-                            Some(json)
-                        }
-                        Err(e) => {
-                            if let Some(errors) = wk_errors.upgrade() {
-                                let _ = errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
-                            }
-                            None
-                        }
-                    }
-                }),
-                // JSON -> T
-                clmv!(key, |json| match serde_json::from_value(json.clone()) {
-                    Ok(typed) => {
-                        if let Some(errors) = wk_errors.upgrade() {
-                            if errors.with(|e| e.entry(&key).next().is_some()) {
-                                let _ = errors.modify(clmv!(key, |es| es.to_mut().clear_entry(&key)));
-                            }
-                        }
-                        Some(typed)
-                    }
-                    Err(e) => {
-                        if let Some(errors) = wk_errors.upgrade() {
-                            let _ = errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                        }
-                        None
-                    }
-                }),
-                || serde_json::Value::Null,
-            )
-            .boxed();
-
-        self.bind_json(key, json_var)
-    }
-
     /// Gets a variable that is bound to the config `key`.
     ///
-    /// This is equivalent to using [`bind`] on a new variable, except `default` will be called only if the `key`
-    /// is not present in the config on init.
+    /// The same variable is returned for multiple requests of the same key. If the loaded config is not read-only the
+    /// returned variable can be set to update the config source.
     ///
-    /// [`bind`]: Self::bind
-    fn var<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl Fn() -> T + Send + Sync + 'static) -> BoxedVar<T> {
+    /// The `default` closure is used to generate a value to insert in the config if the key is not found. Note that
+    /// some implementations may always call the `default` closure, but if possible it is only called if the key is not found.
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
         let key = key.into();
-        let json_var = self.var_json(key.clone(), &|| serde_json::to_value(default()).unwrap_or(serde_json::Value::Null));
+        let default = default();
+        let json_var = self.get_json(key.clone(), serde_json::to_value(&default).unwrap_or(serde_json::Value::Null));
         let wk_errors = self.errors().downgrade();
 
         json_var
@@ -299,7 +214,7 @@ pub trait Config: AnyConfig {
                         }
                     }
                 }),
-                default,
+                move || default.clone(),
             )
             .boxed()
     }
@@ -352,6 +267,8 @@ impl ConfigMap for HashMap<ConfigKey, serde_json::Value> {
 ///
 /// The [`WATCHER.sync`] is used to synchronize with the file, this type implements the binding
 /// for each key.
+///
+/// [`WATCHER.sync`]: WATCHER::sync
 pub struct SyncConfig<M: ConfigMap> {
     sync_var: ArcVar<M>,
     errors: ArcVar<ConfigErrors>,
@@ -513,49 +430,7 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
         self.errors.clone().boxed()
     }
 
-    fn bind_json(&mut self, key: ConfigKey, var: BoxedVar<serde_json::Value>) -> VarHandles {
-        let var = var.actual_var();
-
-        match self.sync_var.with(|m| ConfigMap::get_json(m, &key)) {
-            Ok(json) => match json {
-                Some(json) => {
-                    if self.errors.with(|e| e.entry(&key).next().is_some()) {
-                        self.errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                    }
-                    let _ = var.set(json);
-                }
-                None => {
-                    let json = var.get();
-                    let errors = &self.errors;
-                    self.sync_var.modify(clmv!(errors, key, |map| {
-                        match ConfigMap::set_json(map, key.clone(), json) {
-                            Ok(()) => {
-                                if errors.with(|e| e.entry(&key).next().is_some()) {
-                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                }
-                            }
-                            Err(e) => {
-                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                            }
-                        }
-                    }))
-                }
-            },
-            Err(e) => {
-                self.errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-            }
-        }
-
-        if var.capabilities().is_always_static() {
-            return VarHandles::dummy();
-        }
-
-        let (a, b) = self.bind_non_static_json(key, &var);
-
-        VarHandles::from_iter([a, b])
-    }
-
-    fn var_json(&mut self, key: ConfigKey, default: &dyn Fn() -> serde_json::Value) -> BoxedVar<serde_json::Value> {
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
         let var = match self.sync_var.with(|m| ConfigMap::get_json(m, &key)) {
             Ok(json) => match json {
                 Some(json) => {
@@ -565,7 +440,7 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
                     var(json)
                 }
                 None => {
-                    let json = default();
+                    let json = default;
                     let errors = &self.errors;
                     self.sync_var.modify(clmv!(errors, key, json, |map| {
                         match ConfigMap::set_json(map, key.clone(), json) {
@@ -584,11 +459,11 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
             },
             Err(e) => {
                 self.errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                var(default())
+                var(default)
             }
         };
 
-        let (a, b) = self.bind_non_static(key, &var);
+        let (a, b) = self.bind_non_static_json(key, &var);
         a.perm();
         b.perm();
 
@@ -596,50 +471,7 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
     }
 }
 impl<M: ConfigMap> Config for SyncConfig<M> {
-    fn bind<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, var: impl Var<T>) -> VarHandles {
-        let var = var.actual_var();
-
-        let key = key.into();
-        match self.sync_var.with(|m| ConfigMap::get::<T>(m, &key)) {
-            Ok(value) => match value {
-                Some(val) => {
-                    if self.errors.with(|e| e.entry(&key).next().is_some()) {
-                        self.errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                    }
-                    let _ = var.set(val);
-                }
-                None => {
-                    let value = var.get();
-                    let errors = &self.errors;
-                    self.sync_var.modify(clmv!(errors, key, |map| {
-                        match ConfigMap::set(map, key.clone(), value) {
-                            Ok(()) => {
-                                if errors.with(|e| e.entry(&key).next().is_some()) {
-                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                }
-                            }
-                            Err(e) => {
-                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                            }
-                        }
-                    }))
-                }
-            },
-            Err(e) => {
-                self.errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-            }
-        }
-
-        if var.capabilities().is_always_static() {
-            return VarHandles::dummy();
-        }
-
-        let (a, b) = self.bind_non_static(key, &var);
-
-        VarHandles::from_iter([a, b])
-    }
-
-    fn var<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
         let key = key.into();
         let var = match self.sync_var.with(|m| ConfigMap::get::<T>(m, &key)) {
             Ok(value) => match value {
@@ -699,21 +531,13 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
         self.cfg.errors().read_only()
     }
 
-    fn bind_json(&mut self, key: ConfigKey, var: BoxedVar<serde_json::Value>) -> VarHandles {
-        self.cfg.bind_json(key, var.actual_var().read_only())
-    }
-
-    fn var_json(&mut self, key: ConfigKey, default: &dyn Fn() -> serde_json::Value) -> BoxedVar<serde_json::Value> {
-        self.cfg.var_json(key, default).read_only()
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
+        self.cfg.get_json(key, default).read_only()
     }
 }
 impl<C: Config> Config for ReadOnlyConfig<C> {
-    fn bind<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, var: impl Var<T>) -> VarHandles {
-        Config::bind(&mut self.cfg, key.into(), var.actual_var().read_only())
-    }
-
-    fn var<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl Fn() -> T + Send + Sync + 'static) -> BoxedVar<T> {
-        self.cfg.var(key.into(), default).read_only()
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        self.cfg.get(key.into(), default).read_only()
     }
 }
 
@@ -722,31 +546,54 @@ impl<C: Config> Config for ReadOnlyConfig<C> {
 pub struct FallbackConfig<S: Config, F: Config> {
     fallback: F,
     source: S,
-    // !!: TODO
+}
+impl<S: Config, F: Config> FallbackConfig<S, F> {
+    /// New config.
+    pub fn new(fallback: F, source: S) -> Self {
+        Self { fallback, source }
+    }
+}
+impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
+    fn errors(&self) -> BoxedVar<ConfigErrors> {
+        merge_var!(self.fallback.errors(), self.source.errors(), |a, b| {
+            if a.is_empty() {
+                return b.clone();
+            }
+            if b.is_empty() {
+                return a.clone();
+            }
+            let mut r = a.clone();
+            for b in b.iter() {
+                r.push(b.clone());
+            }
+            r
+        })
+        .boxed()
+    }
+
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
+        todo!("!!: tricky, if we call source.var it creates the entry immediatly")
+    }
+}
+impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        todo!()
+    }
 }
 
 /// Config without any backing store.
-pub struct NullConfig;
+pub struct NilConfig;
 
-impl AnyConfig for NullConfig {
+impl AnyConfig for NilConfig {
     fn errors(&self) -> BoxedVar<ConfigErrors> {
         LocalVar(ConfigErrors::default()).boxed()
     }
-
-    fn bind_json(&mut self, _: ConfigKey, _: BoxedVar<serde_json::Value>) -> VarHandles {
-        VarHandles::dummy()
-    }
-
-    fn var_json(&mut self, _: ConfigKey, default: &dyn Fn() -> serde_json::Value) -> BoxedVar<serde_json::Value> {
-        LocalVar(default()).boxed()
+    fn get_json(&mut self, _: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
+        LocalVar(default).boxed()
     }
 }
-impl Config for NullConfig {
-    fn bind<T: ConfigValue>(&mut self, _: impl Into<ConfigKey>, _: impl Var<T>) -> VarHandles {
-        VarHandles::dummy()
-    }
-
-    fn var<T: ConfigValue>(&mut self, _: impl Into<ConfigKey>, default: impl Fn() -> T + Send + Sync + 'static) -> BoxedVar<T> {
+impl Config for NilConfig {
+    fn get<T: ConfigValue>(&mut self, _: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
         LocalVar(default()).boxed()
     }
 }
@@ -757,7 +604,7 @@ impl Config for NullConfig {
 pub struct SwapConfig {
     cfg: Mutex<Box<dyn AnyConfig>>,
     errors: ArcVar<ConfigErrors>,
-    vars: HashMap<(ConfigKey, TypeId), Box<dyn AnySwapVar>>,
+    vars: HashMap<ConfigKey, Box<dyn AnySwapVar>>,
 }
 
 impl AnyConfig for SwapConfig {
@@ -765,24 +612,21 @@ impl AnyConfig for SwapConfig {
         self.errors.clone().boxed()
     }
 
-    fn bind_json(&mut self, key: ConfigKey, var: BoxedVar<serde_json::Value>) -> VarHandles {
-        let entry_var = self.var_json(key, &|| var.get());
-        let _ = var.set_ne(entry_var.get());
-        entry_var.bind_bidi(&var)
-    }
-
-    fn var_json(&mut self, key: ConfigKey, default: &dyn Fn() -> serde_json::Value) -> BoxedVar<serde_json::Value> {
-        match self.vars.entry((key, TypeId::of::<serde_json::Value>())) {
-            hash_map::Entry::Occupied(e) => e
-                .get()
-                .as_any()
-                .downcast_ref::<SwapVar<serde_json::Value>>()
-                .unwrap()
-                .var
-                .clone()
-                .boxed(),
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
+        match self.vars.entry(key) {
+            hash_map::Entry::Occupied(e) => {
+                if let Some(v) = e.get().as_any().downcast_ref::<SwapVar<serde_json::Value>>() {
+                    v.var.clone().boxed()
+                } else {
+                    tracing::error!(
+                        "cannot get key `{}` as `serde_json::Value` because it is already requested with a different type",
+                        e.key()
+                    );
+                    LocalVar(default).boxed()
+                }
+            }
             hash_map::Entry::Vacant(e) => {
-                let source_var = self.cfg.get_mut().var_json(e.key().0.clone(), default);
+                let source_var = self.cfg.get_mut().get_json(e.key().clone(), default);
                 let var = var(source_var.get());
                 source_var.bind_bidi(&var).perm();
                 e.insert(SwapVar::new_any(var.clone()));
@@ -792,23 +636,29 @@ impl AnyConfig for SwapConfig {
     }
 }
 impl Config for SwapConfig {
-    fn bind<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, var: impl Var<T>) -> VarHandles {
-        let entry_var = self.var(key, clmv!(var, || var.get()));
-        let _ = var.set(entry_var.get());
-        entry_var.bind_bidi(&var)
-    }
-
-    fn var<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl Fn() -> T + Send + Sync + 'static) -> BoxedVar<T> {
-        match self.vars.entry((key.into(), TypeId::of::<T>())) {
-            hash_map::Entry::Occupied(e) => e.get().as_any().downcast_ref::<SwapVar<T>>().unwrap().var.clone().boxed(),
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        match self.vars.entry(key.into()) {
+            hash_map::Entry::Occupied(e) => {
+                if let Some(x) = e.get().as_any().downcast_ref::<SwapVar<T>>() {
+                    x.var.clone().boxed()
+                } else {
+                    tracing::error!(
+                        "cannot get key `{}` as `{}` because it is already requested with a different type",
+                        e.key(),
+                        std::any::type_name::<T>()
+                    );
+                    LocalVar(default()).boxed()
+                }
+            }
             hash_map::Entry::Vacant(e) => {
-                let source_var = self.cfg.get_mut().var_json(e.key().0.clone(), &|| {
-                    serde_json::to_value(default()).unwrap_or(serde_json::Value::Null)
+                let default = default();
+                let source_var = self.cfg.get_mut().get_json(e.key().clone(), {
+                    serde_json::to_value(&default).unwrap_or(serde_json::Value::Null)
                 });
-                let var = var(serde_json::from_value(source_var.get()).unwrap_or_else(|_| default()));
+                let var = var(serde_json::from_value(source_var.get()).unwrap_or(default));
 
                 let errors = &self.errors;
-                let key = &e.key().0;
+                let key = e.key();
 
                 source_var
                     .bind_filter_map_bidi(
@@ -853,10 +703,10 @@ impl Config for SwapConfig {
     }
 }
 impl SwapConfig {
-    /// New with [`NullConfig`] backend.
+    /// New with [`NilConfig`] backend.
     pub fn new() -> Self {
         Self {
-            cfg: Mutex::new(Box::new(NullConfig)),
+            cfg: Mutex::new(Box::new(NilConfig)),
             errors: var(ConfigErrors::default()),
             vars: HashMap::new(),
         }
@@ -872,7 +722,7 @@ impl SwapConfig {
         self.errors.set(source_errors.get());
         source_errors.bind(&self.errors).perm();
 
-        for ((key, _), t) in &self.vars {
+        for (key, t) in &self.vars {
             t.replace_source(&self.errors, key, &mut *source);
         }
         *self.cfg.get_mut() = source;
@@ -901,9 +751,11 @@ impl<T: ConfigValue> AnySwapVar for SwapVar<T> {
     }
 
     fn replace_source(&self, errors: &ArcVar<ConfigErrors>, key: &ConfigKey, source: &mut dyn AnyConfig) {
-        let source_var = source.var_json(key.clone(), &|| {
+        let source_var = source.get_json(key.clone(), {
             serde_json::to_value(self.var.get()).unwrap_or(serde_json::Value::Null)
         });
+
+        // !!: TODO set the var
 
         source_var
             .bind_filter_map_bidi(
