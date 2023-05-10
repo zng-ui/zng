@@ -45,8 +45,8 @@ impl AnyConfig for CONFIG {
         CONFIG_SV.read().errors()
     }
 
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
-        CONFIG_SV.write().get_json(key, default)
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+        CONFIG_SV.write().get_json(key, default, shared)
     }
 }
 impl Config for CONFIG {
@@ -157,8 +157,12 @@ pub trait AnyConfig: Send + Any {
     /// This method is used when `T` cannot be passed because the config is behind a dynamic reference,
     /// if the backend is not JSON it must convert the value from the in memory representation to JSON.
     ///
+    /// If `shared` is `true` and the key was already requested it the same var is returned, if `false`
+    /// a new variable is always generated. Note that if you have two different variables for the same
+    /// key they will go out-of-sync as updates from setting one variable do not propagate to the other.
+    ///
     /// See [`Config::var`] for more details.
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value>;
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value>;
 }
 
 /// Represents one or more config sources.
@@ -173,7 +177,7 @@ pub trait Config: AnyConfig {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
         let key = key.into();
         let default = default();
-        let json_var = self.get_json(key.clone(), serde_json::to_value(&default).unwrap_or(serde_json::Value::Null));
+        let json_var = self.get_json(key.clone(), serde_json::to_value(&default).unwrap_or(serde_json::Value::Null), true);
         let wk_errors = self.errors().downgrade();
 
         json_var
@@ -272,6 +276,7 @@ impl ConfigMap for HashMap<ConfigKey, serde_json::Value> {
 pub struct SyncConfig<M: ConfigMap> {
     sync_var: ArcVar<M>,
     errors: ArcVar<ConfigErrors>,
+    shared: ConfigVars,
 }
 impl<M: ConfigMap> SyncConfig<M> {
     /// Open write the `file`
@@ -312,96 +317,197 @@ impl<M: ConfigMap> SyncConfig<M> {
             }),
         );
 
-        Self { sync_var, errors }
+        Self {
+            sync_var,
+            errors,
+            shared: ConfigVars::default(),
+        }
     }
 
-    fn bind_non_static_json(&self, key: ConfigKey, var: &impl Var<serde_json::Value>) -> (VarHandle, VarHandle) {
-        let errors = &self.errors;
-
-        let map_to_var = if var.capabilities().is_always_read_only() {
-            VarHandle::dummy()
-        } else {
-            let wk_var = var.downgrade();
-            self.sync_var.hook(Box::new(clmv!(errors, key, |map| {
-                if let Some(var) = wk_var.upgrade() {
-                    match map.as_any().downcast_ref::<M>().unwrap().get_json(&key) {
-                        Ok(json) => {
-                            if errors.with(|e| e.entry(&key).next().is_some()) {
-                                errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                            }
-
-                            if let Some(json) = json {
-                                let _ = var.set(json);
-                            }
-                        }
-                        Err(e) => {
-                            errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
-                        }
-                    }
-                    true
-                } else {
-                    false
+    fn get_new_json(
+        sync_var: &ArcVar<M>,
+        errors: &ArcVar<ConfigErrors>,
+        key: ConfigKey,
+        default: serde_json::Value,
+    ) -> BoxedVar<serde_json::Value> {
+        // init var to already present value, or insert the default.
+        let var = match sync_var.with(|m| ConfigMap::get_json(m, &key)) {
+            Ok(json) => {
+                // get ok, clear any entry errors
+                if errors.with(|e| e.entry(&key).next().is_some()) {
+                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
                 }
-            })))
+
+                match json {
+                    Some(json) => var(json),
+                    None => {
+                        // not found, send modify to try set to default.
+                        let json = default;
+                        sync_var.modify(clmv!(errors, key, json, |map| {
+                            match ConfigMap::set_json(map, key.clone(), json) {
+                                Ok(()) => {
+                                    // set ok, clear any entry errors
+                                    if errors.with(|e| e.entry(&key).next().is_some()) {
+                                        errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                                    }
+                                }
+                                Err(e) => {
+                                    // set error
+                                    errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                                }
+                            }
+                        }));
+                        var(json)
+                    }
+                }
+            }
+            Err(e) => {
+                // get error
+                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                var(default)
+            }
         };
 
-        let wk_sync_var = self.sync_var.downgrade();
-        let var_to_map = var.hook(Box::new(clmv!(errors, |value| {
+        // bind entry var
+
+        // config -> entry
+        if !var.capabilities().is_always_read_only() {
+            let wk_var = var.downgrade();
+            sync_var
+                .hook(Box::new(clmv!(errors, key, |map| {
+                    if let Some(var) = wk_var.upgrade() {
+                        match map.as_any().downcast_ref::<M>().unwrap().get_json(&key) {
+                            Ok(json) => {
+                                // get ok
+                                if errors.with(|e| e.entry(&key).next().is_some()) {
+                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                                }
+
+                                if let Some(json) = json {
+                                    var.set(json);
+                                }
+                                // else backend lost entry but did not report as error.
+                            }
+                            Err(e) => {
+                                // get error
+                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+                            }
+                        }
+                        // retain hook
+                        true
+                    } else {
+                        // entry var dropped, drop hook
+                        false
+                    }
+                })))
+                .perm();
+        }
+
+        // entry -> config
+        let wk_sync_var = sync_var.downgrade();
+        var.hook(Box::new(clmv!(errors, |value| {
             if let Some(sync_var) = wk_sync_var.upgrade() {
                 let json = value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone();
                 sync_var.modify(clmv!(key, errors, |m| {
+                    // set, only if actually changed
                     match ConfigMap::set_json(m, key.clone(), json) {
                         Ok(()) => {
+                            // set ok
                             if errors.with(|e| e.entry(&key).next().is_some()) {
                                 errors.modify(move |e| e.to_mut().clear_entry(&key));
                             }
                         }
                         Err(e) => {
+                            // set error
                             errors.modify(|es| es.to_mut().push(ConfigError::new_set(key, e)));
                         }
                     }
                 }));
+
+                // retain hook
                 true
             } else {
+                // config dropped, drop hook
                 false
             }
-        })));
+        })))
+        .perm();
 
-        (map_to_var, var_to_map)
+        var.boxed()
     }
 
-    fn bind_non_static<T: ConfigValue>(&self, key: ConfigKey, var: &impl Var<T>) -> (VarHandle, VarHandle) {
-        let errors = &self.errors;
-
-        let map_to_var = if var.capabilities().is_always_read_only() {
-            VarHandle::dummy()
-        } else {
-            let wk_var = var.downgrade();
-            self.sync_var.hook(Box::new(clmv!(errors, key, |map| {
-                if let Some(var) = wk_var.upgrade() {
-                    match map.as_any().downcast_ref::<M>().unwrap().get::<T>(&key) {
-                        Ok(value) => {
-                            if errors.with(|e| e.entry(&key).next().is_some()) {
-                                errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                            }
-
-                            if let Some(value) = value {
-                                let _ = var.set(value);
-                            }
-                        }
-                        Err(e) => {
-                            errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
-                        }
-                    }
-                    true
-                } else {
-                    false
+    fn get_new<T: ConfigValue>(
+        sync_var: &ArcVar<M>,
+        errors: &ArcVar<ConfigErrors>,
+        key: impl Into<ConfigKey>,
+        default: impl FnOnce() -> T,
+    ) -> BoxedVar<T> {
+        // init var to already present value, or insert the default.
+        let key = key.into();
+        let var = match sync_var.with(|m| ConfigMap::get::<T>(m, &key)) {
+            Ok(value) => {
+                if errors.with(|e| e.entry(&key).next().is_some()) {
+                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
                 }
-            })))
+                match value {
+                    Some(val) => var(val),
+                    None => {
+                        let value = default();
+                        sync_var.modify(clmv!(errors, key, value, |map| {
+                            match ConfigMap::set(map, key.clone(), value) {
+                                Ok(()) => {
+                                    if errors.with(|e| e.entry(&key).next().is_some()) {
+                                        errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                                    }
+                                }
+                                Err(e) => {
+                                    errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                                }
+                            }
+                        }));
+                        var(value)
+                    }
+                }
+            }
+            Err(e) => {
+                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                var(default())
+            }
         };
 
-        let wk_sync_var = self.sync_var.downgrade();
-        let var_to_map = var.hook(Box::new(clmv!(errors, |value| {
+        // bind entry var
+
+        // config -> entry
+        if !var.capabilities().is_always_read_only() {
+            let wk_var = var.downgrade();
+            sync_var
+                .hook(Box::new(clmv!(errors, key, |map| {
+                    if let Some(var) = wk_var.upgrade() {
+                        match map.as_any().downcast_ref::<M>().unwrap().get::<T>(&key) {
+                            Ok(value) => {
+                                if errors.with(|e| e.entry(&key).next().is_some()) {
+                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                                }
+
+                                if let Some(value) = value {
+                                    var.set(value);
+                                }
+                            }
+                            Err(e) => {
+                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+                            }
+                        }
+                        true
+                    } else {
+                        false
+                    }
+                })))
+                .perm()
+        };
+
+        // entry -> config
+        let wk_sync_var = sync_var.downgrade();
+        var.hook(Box::new(clmv!(errors, |value| {
             if let Some(sync_var) = wk_sync_var.upgrade() {
                 let value = value.as_any().downcast_ref::<T>().unwrap().clone();
                 sync_var.modify(clmv!(key, errors, |m| {
@@ -420,9 +526,10 @@ impl<M: ConfigMap> SyncConfig<M> {
             } else {
                 false
             }
-        })));
+        })))
+        .perm();
 
-        (map_to_var, var_to_map)
+        var.boxed()
     }
 }
 impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
@@ -430,86 +537,19 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
         self.errors.clone().boxed()
     }
 
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
-        let var = match self.sync_var.with(|m| ConfigMap::get_json(m, &key)) {
-            Ok(json) => match json {
-                Some(json) => {
-                    if self.errors.with(|e| e.entry(&key).next().is_some()) {
-                        self.errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                    }
-                    var(json)
-                }
-                None => {
-                    let json = default;
-                    let errors = &self.errors;
-                    self.sync_var.modify(clmv!(errors, key, json, |map| {
-                        match ConfigMap::set_json(map, key.clone(), json) {
-                            Ok(()) => {
-                                if errors.with(|e| e.entry(&key).next().is_some()) {
-                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                }
-                            }
-                            Err(e) => {
-                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                            }
-                        }
-                    }));
-                    var(json)
-                }
-            },
-            Err(e) => {
-                self.errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                var(default)
-            }
-        };
-
-        let (a, b) = self.bind_non_static_json(key, &var);
-        a.perm();
-        b.perm();
-
-        var.boxed()
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+        if shared {
+            self.shared
+                .get_or_bind(key, |key| Self::get_new_json(&self.sync_var, &self.errors, key.clone(), default))
+        } else {
+            Self::get_new_json(&self.sync_var, &self.errors, key, default)
+        }
     }
 }
 impl<M: ConfigMap> Config for SyncConfig<M> {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
-        let key = key.into();
-        let var = match self.sync_var.with(|m| ConfigMap::get::<T>(m, &key)) {
-            Ok(value) => match value {
-                Some(val) => {
-                    if self.errors.with(|e| e.entry(&key).next().is_some()) {
-                        self.errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                    }
-                    var(val)
-                }
-                None => {
-                    let value = default();
-                    let errors = &self.errors;
-                    self.sync_var.modify(clmv!(errors, key, value, |map| {
-                        match ConfigMap::set(map, key.clone(), value) {
-                            Ok(()) => {
-                                if errors.with(|e| e.entry(&key).next().is_some()) {
-                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                }
-                            }
-                            Err(e) => {
-                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                            }
-                        }
-                    }));
-                    var(value)
-                }
-            },
-            Err(e) => {
-                self.errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                var(default())
-            }
-        };
-
-        let (a, b) = self.bind_non_static(key, &var);
-        a.perm();
-        b.perm();
-
-        var.boxed()
+        self.shared
+            .get_or_bind(key.into(), |key| Self::get_new(&self.sync_var, &self.errors, key.clone(), default))
     }
 }
 
@@ -531,8 +571,8 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
         self.cfg.errors().read_only()
     }
 
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
-        self.cfg.get_json(key, default).read_only()
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+        self.cfg.get_json(key, default, shared).read_only()
     }
 }
 impl<C: Config> Config for ReadOnlyConfig<C> {
@@ -571,7 +611,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         .boxed()
     }
 
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
         todo!("!!: tricky, if we call source.var it creates the entry immediatly")
     }
 }
@@ -588,7 +628,7 @@ impl AnyConfig for NilConfig {
     fn errors(&self) -> BoxedVar<ConfigErrors> {
         LocalVar(ConfigErrors::default()).boxed()
     }
-    fn get_json(&mut self, _: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
+    fn get_json(&mut self, _: ConfigKey, default: serde_json::Value, _: bool) -> BoxedVar<serde_json::Value> {
         LocalVar(default).boxed()
     }
 }
@@ -603,8 +643,8 @@ impl Config for NilConfig {
 /// Note that the [`CONFIG`] service already uses this type internally.
 pub struct SwapConfig {
     cfg: Mutex<Box<dyn AnyConfig>>,
+    shared: ConfigVars,
     errors: ArcVar<ConfigErrors>,
-    vars: HashMap<ConfigKey, Box<dyn AnySwapVar>>,
 }
 
 impl AnyConfig for SwapConfig {
@@ -612,94 +652,68 @@ impl AnyConfig for SwapConfig {
         self.errors.clone().boxed()
     }
 
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value) -> BoxedVar<serde_json::Value> {
-        match self.vars.entry(key) {
-            hash_map::Entry::Occupied(e) => {
-                if let Some(v) = e.get().as_any().downcast_ref::<SwapVar<serde_json::Value>>() {
-                    v.var.clone().boxed()
-                } else {
-                    tracing::error!(
-                        "cannot get key `{}` as `serde_json::Value` because it is already requested with a different type",
-                        e.key()
-                    );
-                    LocalVar(default).boxed()
-                }
-            }
-            hash_map::Entry::Vacant(e) => {
-                let source_var = self.cfg.get_mut().get_json(e.key().clone(), default);
-                let var = var(source_var.get());
-                source_var.bind_bidi(&var).perm();
-                e.insert(SwapVar::new_any(var.clone()));
-                var.boxed()
-            }
+    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+        if shared {
+            self.shared
+                .get_or_bind(key, |key| self.cfg.get_mut().get_json(key.clone(), default, false))
+        } else {
+            self.cfg.get_mut().get_json(key, default, false)
         }
     }
 }
 impl Config for SwapConfig {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
-        match self.vars.entry(key.into()) {
-            hash_map::Entry::Occupied(e) => {
-                if let Some(x) = e.get().as_any().downcast_ref::<SwapVar<T>>() {
-                    x.var.clone().boxed()
-                } else {
-                    tracing::error!(
-                        "cannot get key `{}` as `{}` because it is already requested with a different type",
-                        e.key(),
-                        std::any::type_name::<T>()
-                    );
-                    LocalVar(default()).boxed()
-                }
-            }
-            hash_map::Entry::Vacant(e) => {
-                let default = default();
-                let source_var = self.cfg.get_mut().get_json(e.key().clone(), {
-                    serde_json::to_value(&default).unwrap_or(serde_json::Value::Null)
-                });
-                let var = var(serde_json::from_value(source_var.get()).unwrap_or(default));
+        self.shared.get_or_bind(key.into(), |key| {
+            // not in shared, bind with source json var.
 
-                let errors = &self.errors;
-                let key = e.key();
+            let default = default();
+            let source_var = self.cfg.get_mut().get_json(
+                key.clone(),
+                serde_json::to_value(&default).unwrap_or(serde_json::Value::Null),
+                false,
+            );
+            let var = var(serde_json::from_value(source_var.get()).unwrap_or(default));
 
-                source_var
-                    .bind_filter_map_bidi(
-                        &var,
-                        // JSON -> T
-                        clmv!(key, errors, |json| {
-                            match serde_json::from_value(json.clone()) {
-                                Ok(value) => {
-                                    if errors.with(|e| e.entry(&key).next().is_some()) {
-                                        errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                    }
-                                    Some(value)
+            let errors = &self.errors;
+
+            source_var
+                .bind_filter_map_bidi(
+                    &var,
+                    // JSON -> T
+                    clmv!(key, errors, |json| {
+                        match serde_json::from_value(json.clone()) {
+                            Ok(value) => {
+                                if errors.with(|e| e.entry(&key).next().is_some()) {
+                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
                                 }
-                                Err(e) => {
-                                    errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
-                                    None
-                                }
+                                Some(value)
                             }
-                        }),
-                        // T -> JSON
-                        clmv!(key, errors, |value| {
-                            match serde_json::to_value(value) {
-                                Ok(json) => {
-                                    if errors.with(|e| e.entry(&key).next().is_some()) {
-                                        errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                    }
-                                    Some(json)
-                                }
-                                Err(e) => {
-                                    errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                                    None
-                                }
+                            Err(e) => {
+                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+                                None
                             }
-                        }),
-                    )
-                    .perm();
+                        }
+                    }),
+                    // T -> JSON
+                    clmv!(key, errors, |value| {
+                        match serde_json::to_value(value) {
+                            Ok(json) => {
+                                if errors.with(|e| e.entry(&key).next().is_some()) {
+                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
+                                }
+                                Some(json)
+                            }
+                            Err(e) => {
+                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                                None
+                            }
+                        }
+                    }),
+                )
+                .perm();
 
-                e.insert(SwapVar::new_any(var.clone()));
-                var.boxed()
-            }
-        }
+            var.boxed()
+        })
     }
 }
 impl SwapConfig {
@@ -708,7 +722,7 @@ impl SwapConfig {
         Self {
             cfg: Mutex::new(Box::new(NilConfig)),
             errors: var(ConfigErrors::default()),
-            vars: HashMap::new(),
+            shared: ConfigVars::default(),
         }
     }
 
@@ -722,9 +736,8 @@ impl SwapConfig {
         self.errors.set(source_errors.get());
         source_errors.bind(&self.errors).perm();
 
-        for (key, t) in &self.vars {
-            t.replace_source(&self.errors, key, &mut *source);
-        }
+        self.shared.rebind(&self.errors, &mut *source);
+
         *self.cfg.get_mut() = source;
     }
 }
@@ -733,33 +746,99 @@ impl Default for SwapConfig {
         Self::new()
     }
 }
-struct SwapVar<T: ConfigValue> {
-    var: ArcVar<T>,
+struct ConfigVar<T: ConfigValue> {
+    var: BoxedWeakVar<T>,
 }
-impl<T: ConfigValue> SwapVar<T> {
-    fn new_any(var: ArcVar<T>) -> Box<dyn AnySwapVar> {
+impl<T: ConfigValue> ConfigVar<T> {
+    fn new_any(var: BoxedWeakVar<T>) -> Box<dyn AnyConfigVar> {
         Box::new(Self { var })
     }
 }
-trait AnySwapVar: Any + Send + Sync {
-    fn as_any(&self) -> &dyn Any;
-    fn replace_source(&self, errors: &ArcVar<ConfigErrors>, key: &ConfigKey, source: &mut dyn AnyConfig);
+
+/// Map of configs already bound to a variable.
+///
+/// The map does only holds a weak reference to the variables.
+#[derive(Default)]
+pub struct ConfigVars(HashMap<ConfigKey, Box<dyn AnyConfigVar>>);
+impl ConfigVars {
+    /// Gets the already bound variable or calls `bind` to generate a new binding.
+    pub fn get_or_bind<T: ConfigValue>(&mut self, key: ConfigKey, bind: impl FnOnce(&ConfigKey) -> BoxedVar<T>) -> BoxedVar<T> {
+        match self.0.entry(key) {
+            hash_map::Entry::Occupied(mut e) => {
+                if e.get().can_upgrade() {
+                    if let Some(x) = e.get().as_any().downcast_ref::<ConfigVar<T>>() {
+                        if let Some(var) = x.var.upgrade() {
+                            return var;
+                        }
+                    } else {
+                        tracing::error!(
+                            "cannot get key `{}` as `{}` because it is already requested with a different type",
+                            e.key(),
+                            std::any::type_name::<T>()
+                        );
+                        return bind(e.key());
+                    }
+                }
+                // cannot upgrade
+                let var = bind(e.key());
+                e.insert(ConfigVar::new_any(var.downgrade()));
+                var
+            }
+            hash_map::Entry::Vacant(e) => {
+                let var = bind(e.key());
+                e.insert(ConfigVar::new_any(var.downgrade()));
+                var
+            }
+        }
+    }
+
+    /// Bind all variables to the new `source`.
+    ///
+    /// If the map entry is present in the `source` the variable is updated to the new value, if not the entry
+    /// is inserted in the source. The variable is then bound to the source.
+    pub fn rebind(&mut self, errors: &ArcVar<ConfigErrors>, source: &mut dyn AnyConfig) {
+        self.0.retain(|key, wk_var| wk_var.rebind(errors, key, source));
+    }
 }
-impl<T: ConfigValue> AnySwapVar for SwapVar<T> {
+trait AnyConfigVar: Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+    fn can_upgrade(&self) -> bool;
+    fn rebind(&self, errors: &ArcVar<ConfigErrors>, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool;
+}
+impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    fn replace_source(&self, errors: &ArcVar<ConfigErrors>, key: &ConfigKey, source: &mut dyn AnyConfig) {
-        let source_var = source.get_json(key.clone(), {
-            serde_json::to_value(self.var.get()).unwrap_or(serde_json::Value::Null)
-        });
+    fn can_upgrade(&self) -> bool {
+        self.var.strong_count() > 0
+    }
 
-        // !!: TODO set the var
+    fn rebind(&self, errors: &ArcVar<ConfigErrors>, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool {
+        let var = if let Some(var) = self.var.upgrade() {
+            var
+        } else {
+            return false;
+        };
+
+        let source_var = source.get_json(
+            key.clone(),
+            serde_json::to_value(var.get()).unwrap_or(serde_json::Value::Null),
+            false,
+        );
+
+        match serde_json::from_value::<T>(source_var.get()) {
+            Ok(value) => {
+                let _ = var.set(value);
+            }
+            Err(e) => {
+                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+            }
+        }
 
         source_var
             .bind_filter_map_bidi(
-                &self.var,
+                &var,
                 // JSON -> T
                 clmv!(key, errors, |json| {
                     match serde_json::from_value(json.clone()) {
@@ -792,6 +871,8 @@ impl<T: ConfigValue> AnySwapVar for SwapVar<T> {
                 }),
             )
             .perm();
+
+        true
     }
 }
 
@@ -800,7 +881,7 @@ impl<T: ConfigValue> AnySwapVar for SwapVar<T> {
 pub enum ConfigError {
     /// Error reading from the external storage to memory.
     Read(Arc<io::Error>),
-    /// Error writting from memory to the external storage.
+    /// Error writing from memory to the external storage.
     Write(Arc<io::Error>),
 
     /// Error converting a key from memory to the final type.

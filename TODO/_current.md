@@ -18,7 +18,7 @@
     - Test if updates of a single key does not cause the others to update.
     - This should work by default due to the `WATCHER` implementation.
     - So `SyncConfig` needs to implement a variable cache too?
-        - Alot of extra computations for nothing in the `CONFIG` state.
+        - A lot of extra computations for nothing in the `CONFIG` state.
         - Just document it?
             - Maybe offer a `SharedConfig<C>` combinator that implements a strongly typed version of the `SwapConfig`.
 
@@ -26,7 +26,7 @@
 
 * Implement resource loader.
     - Can we use `CONFIG` as backing store?
-    - Need a "directory-db" mode, a common pattern for apps is having each locale in a diferent file in the same dir.
+    - Need a "directory-db" mode, a common pattern for apps is having each locale in a different file in the same dir.
     - Review file watcher impl, may need to use a crate that uses the system API now.
 * Implement builder.
 * Move `Lang` and lang related stuff to `l10n` module.
