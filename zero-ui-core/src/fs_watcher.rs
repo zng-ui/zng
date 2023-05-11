@@ -147,7 +147,7 @@ impl WATCHER {
     }
 
     /// Bind a file with a variable, the `file` will be `read` when it changes and be `write` when the variable changes,
-    /// writes are only applied on success and will not cause a `read` on the same sync task. The `init` value is used to 
+    /// writes are only applied on success and will not cause a `read` on the same sync task. The `init` value is used to
     /// create the variable, if the `file` exists it will be `read` once at the beginning.
     ///
     /// Dropping the variable drops the read watch. The `read` and `write` closures are non-blocking, they are called in a [`task::wait`]
@@ -815,8 +815,7 @@ impl SyncWithVar {
         let var = var(init);
 
         let pending = Arc::new(Atomic::new(SyncFlags::empty()));
-        let read = Arc::new(Mutex::new(read));
-        let write = Arc::new(Mutex::new(write));
+        let read_write = Arc::new(Mutex::new((read, write)));
         let wk_var = var.downgrade();
 
         // task "drains" pending, drops handle if the var is dropped.
@@ -829,95 +828,77 @@ impl SyncWithVar {
                 }
             };
 
-            enum Op {
-                Read,
-                Write,
-                None,
-            }
-
-            let op = match ev {
+            match ev {
                 SyncEvent::Update => {
                     if var.is_new() && !SyncFlags::pop(pending, SyncFlags::SKIP_WRITE) {
-                        Op::Write
+                        SyncFlags::atomic_insert(pending, SyncFlags::WRITE);
                     } else {
-                        Op::None
+                        return;
                     }
                 }
                 SyncEvent::Event(args) => {
                     if args.events_for_path(&path).next().is_some() && !SyncFlags::pop(pending, SyncFlags::SKIP_READ) {
-                        Op::Read
+                        SyncFlags::atomic_insert(pending, SyncFlags::READ);
                     } else {
-                        Op::None
+                        return;
                     }
                 }
                 SyncEvent::Init => {
                     if path.exists() {
-                        Op::Read
+                        SyncFlags::atomic_insert(pending, SyncFlags::READ);
                     } else {
-                        Op::Write
+                        return;
                     }
                 }
             };
             drop(var);
 
-            match op {
-                Op::Read => {
-                    SyncFlags::atomic_insert(pending, SyncFlags::READ);
-                    if read.try_lock().is_none() {
-                        // another spawn is already reading
-                        return;
-                    }
+            if read_write.try_lock().is_none() {
+                // another spawn is already applying
+                return;
+            }
+            task::spawn_wait(clmv!(read_write, wk_var, path, handle, pending, || {
+                let mut read_write = read_write.lock();
+                let (read, write) = &mut *read_write;
 
-                    task::spawn_wait(clmv!(read, wk_var, path, handle, pending, || {
-                        let mut read = read.lock();
+                loop {
+                    let w = SyncFlags::pop(&pending, SyncFlags::WRITE);
+                    let r = SyncFlags::pop(&pending, SyncFlags::READ);
 
-                        while SyncFlags::pop(&pending, SyncFlags::READ) {
-                            if wk_var.strong_count() == 0 {
-                                handle.force_drop();
-                                return;
-                            }
+                    if w {
+                        let value = if let Some(var) = wk_var.upgrade() {
+                            var.get()
+                        } else {
+                            handle.force_drop();
+                            return;
+                        };
 
-                            if let Some(update) = read(WatchFile::open(path.as_path())) {
-                                if let Some(var) = wk_var.upgrade() {
-                                    SyncFlags::atomic_insert(&pending, SyncFlags::SKIP_WRITE);
-                                    var.set(update);
-                                } else {
-                                    handle.force_drop();
-                                    return;
-                                }
-                            }
+                        write(value, WriteFile::open(path.to_path_buf()));
+
+                        if wk_var.strong_count() == 0 {
+                            handle.force_drop();
+                            return;
                         }
-                    }));
-                }
-                Op::Write => {
-                    SyncFlags::atomic_insert(pending, SyncFlags::WRITE);
-                    if write.try_lock().is_none() {
-                        // another spawn is already writing
-                        return;
-                    }
+                    } else if r {
+                        if wk_var.strong_count() == 0 {
+                            handle.force_drop();
+                            return;
+                        }
 
-                    task::spawn_wait(clmv!(write, wk_var, path, handle, pending, || {
-                        let mut write = write.lock();
-
-                        while SyncFlags::pop(&pending, SyncFlags::WRITE) {
-                            let value = if let Some(var) = wk_var.upgrade() {
-                                var.get()
+                        if let Some(update) = read(WatchFile::open(path.as_path())) {
+                            if let Some(var) = wk_var.upgrade() {
+                                SyncFlags::atomic_insert(&pending, SyncFlags::SKIP_WRITE);
+                                var.set(update);
                             } else {
                                 handle.force_drop();
                                 return;
-                            };
-
-                            write(value, WriteFile::open(path.to_path_buf()));
-
-                            if wk_var.strong_count() == 0 {
-                                handle.force_drop();
-                                return;
                             }
                         }
-                    }));
+                    } else {
+                        return;
+                    }
                 }
-                Op::None => {}
-            }
+            }));
         });
         task(&pending, &handle, SyncEvent::Init);
 

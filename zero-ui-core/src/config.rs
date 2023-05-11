@@ -232,6 +232,7 @@ pub trait Config: AnyConfig {
                         Some(typed)
                     }
                     Err(e) => {
+                        tracing::error!("get config get({key:?}) error, {e:?}");
                         if let Some(errors) = wk_errors.upgrade() {
                             let _ = errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
                         }
@@ -250,6 +251,7 @@ pub trait Config: AnyConfig {
                             Some(json)
                         }
                         Err(e) => {
+                            tracing::error!("get config set({key:?}) error, {e:?}");
                             if let Some(errors) = wk_errors.upgrade() {
                                 let _ = errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
                             }
@@ -345,6 +347,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                         if is_loaded.get() {
                             is_loaded.set(false);
                         }
+                        tracing::error!("sync config read error, {e:?}");
                         errors.modify(|es| es.to_mut().push(ConfigError::new_read(e)));
                         None
                     }
@@ -368,6 +371,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                         if is_loaded.get() {
                             is_loaded.set(false);
                         }
+                        tracing::error!("sync config write error, {e:?}");
                         errors.modify(|es| es.to_mut().push(ConfigError::new_write(e)));
                     }
                 }
@@ -403,7 +407,8 @@ impl<M: ConfigMap> SyncConfig<M> {
             }
             Err(e) => {
                 // get error
-                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                tracing::error!("sync config get({key:?}) error, {e:?}");
+                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
                 var(default)
             }
         };
@@ -435,6 +440,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                         }
                         Err(e) => {
                             // get error
+                            tracing::error!("sync config get({key:?}) error, {e:?}");
                             errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
                         }
                     }
@@ -469,6 +475,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                         }
                         Err(e) => {
                             // set error
+                            tracing::error!("sync config set({key:?}) error, {e:?}");
                             errors.modify(|es| es.to_mut().push(ConfigError::new_set(key, e)));
                         }
                     }
@@ -505,7 +512,8 @@ impl<M: ConfigMap> SyncConfig<M> {
                 }
             }
             Err(e) => {
-                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
+                tracing::error!("sync config get({key:?}) error, {e:?}");
+                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
                 var(default())
             }
         };
@@ -528,6 +536,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                             }
                         }
                         Err(e) => {
+                            tracing::error!("sync config get({key:?}) error, {e:?}");
                             errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
                         }
                     }
@@ -551,6 +560,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                             }
                         }
                         Err(e) => {
+                            tracing::error!("sync config set({key:?}) error, {e:?}");
                             errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
                         }
                     }
@@ -957,6 +967,7 @@ impl Config for SwapConfig {
                                 Some(value)
                             }
                             Err(e) => {
+                                tracing::error!("swap config get({key:?}) error, {e:?}");
                                 errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
                                 None
                             }
@@ -974,6 +985,7 @@ impl Config for SwapConfig {
                                 Some(json)
                             }
                             Err(e) => {
+                                tracing::error!("swap config set({key:?}) error, {e:?}");
                                 errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
                                 None
                             }
@@ -1113,6 +1125,7 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
                 let _ = var.set(value);
             }
             Err(e) => {
+                tracing::error!("rebind config get({key:?}) error, {e:?}");
                 errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
             }
         }
@@ -1129,6 +1142,7 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
                         Some(value)
                     }
                     Err(e) => {
+                        tracing::error!("rebind config get({key:?}) error, {e:?}");
                         errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
                         None
                     }
@@ -1145,6 +1159,7 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
                         Some(json)
                     }
                     Err(e) => {
+                        tracing::error!("rebind config set({key:?}) error, {e:?}");
                         errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
                         None
                     }
