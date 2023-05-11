@@ -15,6 +15,7 @@
     - Need a "directory-db" mode, a common pattern for apps is having each locale in a different file in the same dir.
     - Review file watcher impl, may need to use a crate that uses the system API now.
 * Implement builder.
+* Implement pseudo-localization test mode.
 * Move `Lang` and lang related stuff to `l10n` module.
 * Add variable args in example.
 * Test "// l10n-source: test.$lang.flt" comments.

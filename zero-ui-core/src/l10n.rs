@@ -34,7 +34,7 @@ impl L10N {}
 macro_rules! l10n {
     ($message_id:tt, $message:tt $(,)?) => {
         $crate::l10n::__l10n! {
-            l10n_path { $crate::l10n::L10N }
+            l10n_path { $crate::l10n }
             message_id { $message_id }
             message { $message }
         }
@@ -45,7 +45,7 @@ macro_rules! l10n {
                 let $arg = $arg_expr;
             )*
             $crate::l10n::__l10n! {
-                l10n_path { $crate::l10n::L10N }
+                l10n_path { $crate::l10n }
                 message_id { $message_id }
                 message { $message }
             }
@@ -63,7 +63,7 @@ pub use l10n;
 pub use zero_ui_proc_macros::l10n as __l10n;
 
 use crate::text::{Lang, Txt, LANG_VAR};
-use crate::var::*;
+use crate::var::{self, *};
 
 impl L10N {
     /// Gets a variable that is a localized message identified by `id` in the localization context
@@ -129,7 +129,7 @@ impl L10nMessageBuilder {
         self
     }
     #[doc(hidden)]
-    pub fn l10n_arg(self, name: &'static str, value: impl IntoVar<L10nArgument>) -> Self {
+    pub fn l10n_arg(self, name: &'static str, value: impl Var<L10nArgument>) -> Self {
         self.arg(Txt::from_static(name), value)
     }
 
@@ -157,3 +157,51 @@ pub enum L10nArgument {
     /// Number, with optional style details.
     Number(FluentNumber),
 } // !!: TODO, see https://docs.rs/fluent/0.16.0/fluent/enum.FluentValue.html
+
+impl_from_and_into_var! {
+    fn from(txt: Txt) -> L10nArgument {
+        L10nArgument::Txt(txt)
+    }
+    fn from(txt: &'static str) -> L10nArgument {
+        L10nArgument::Txt(Txt::from_static(txt))
+    }
+    fn from(txt: String) -> L10nArgument {
+        L10nArgument::Txt(Txt::from(txt))
+    }
+    fn from(t: char) -> L10nArgument {
+        L10nArgument::Txt(Txt::from_char(t))
+    }
+    fn from(number: FluentNumber) -> L10nArgument {
+        L10nArgument::Number(number)
+    }
+}
+
+#[doc(hidden)]
+pub struct L10nSpecialize<T>(pub T);
+#[doc(hidden)]
+pub trait IntoL10nVar {
+    type Var: Var<L10nArgument>;
+    fn into_l10n_var(self) -> Self::Var;
+}
+
+impl<T: Into<L10nArgument>> IntoL10nVar for L10nSpecialize<T> {
+    type Var = var::LocalVar<L10nArgument>;
+
+    fn into_l10n_var(self) -> Self::Var {
+        var::LocalVar(self.0.into())
+    }
+}
+impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &L10nSpecialize<ArcVar<T>> {
+    type Var = var::types::ContextualizedVar<L10nArgument, var::ReadOnlyArcVar<L10nArgument>>;
+
+    fn into_l10n_var(self) -> Self::Var {
+        self.0.map_into()
+    }
+}
+impl<V: Var<L10nArgument>> IntoL10nVar for &&L10nSpecialize<V> {
+    type Var = V;
+
+    fn into_l10n_var(self) -> Self::Var {
+        self.0.clone()
+    }
+}

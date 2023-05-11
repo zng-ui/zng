@@ -104,14 +104,18 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let l10n_path = &input.l10n_path;
         let message_id = &input.message_id;
         let message = &input.message;
+        let span = input.message.span();
 
-        let mut build = quote! {
-            #l10n_path.l10n_message(#message_id, #message)
+        let mut build = quote_spanned! {span=>
+            #l10n_path::L10N.l10n_message(#message_id, #message)
         };
         for var in variables {
-            let var_ident = ident!("{}", var);
-            build.extend(quote! {
-                .l10n_arg(#var, #var_ident)
+            let var_ident = ident_spanned!(span=> "{}", var);
+            build.extend(quote_spanned! {span=>
+                .l10n_arg(#var, {
+                    use #l10n_path::IntoL10nVar;
+                    (&&#l10n_path::L10nSpecialize(#var_ident)).into_l10n_var()
+                })
             });
         }
         build.extend(quote! {
