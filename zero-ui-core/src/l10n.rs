@@ -15,8 +15,9 @@ impl L10N {}
 /// The message string syntax is the [Fluent Project] syntax, interpolations in the form of `"{$var}"` are resolved to a local `$var`.
 ///
 /// ```
-/// # use zero_ui_core::l10n::*;
-/// # macro_rules! demo
+/// # use zero_ui_core::{l10n::*, var::*};
+/// let name = var("World");
+/// let msg = l10n!("msg-id", "Hello {$name}!");
 /// ```
 ///
 /// # Scrapper
@@ -71,7 +72,7 @@ impl L10N {
     /// If the message has variable arguments they must be provided using [`L10nMessageBuilder::arg`], the
     /// returned variable will also update when the arg variables update.
     ///
-    /// The `id` can be compond with an attribute `"msg-id.attribute"`, the `fallback` is used
+    /// The `id` can be compound with an attribute `"msg-id.attribute"`, the `fallback` is used
     /// when the message is not found in the localization context.
     ///
     /// Prefer using the [`l10n!`] macro instead of this method, the macro does compile time validation.
@@ -108,7 +109,7 @@ impl L10nResource {
 }
 
 context_var! {
-    /// Represents the contextual [`L10nResource`], togheter with the [`LANG_VAR`]
+    /// Represents the contextual [`L10nResource`], together with the [`LANG_VAR`]
     /// a localized message can be retrieved.
     static L10N_RESOURCE_VAR: L10nResource = L10nResource::empty();
 }

@@ -1,3 +1,5 @@
+* Config example does not save.
+
 # Text Edit
 
 * Implement `accepts_return`.
@@ -7,17 +9,6 @@
 # WATCHER
 
 * Block on deinit to flush.
-
-# CONFIG-2
-
-* `window::save_state` used to await for the config to load to set the window to the config one time on init.
-    - We need a `CONFIG.is_loaded` var.
-* Refactor config example.
-    - Test if updates of a single key does not cause the others to update.
-    - This should work by default due to the `WATCHER` implementation.
-* Config metadata.
-    - Similar to command metadata.
-    - Used by settings editors.
 
 # Localization
 

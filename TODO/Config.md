@@ -1,10 +1,7 @@
-* Implement config source combinator.
-    - OverrideSource, to support a "workspace" over "user" over "defaults" type of setup.
-    - SeparateSource, to support redirecting keys to different sources.
+# Config TODO
 
-```
-trait ConfigSource {
-    fn with_fallback(self, other: C) -> TODO { }
-    fn with_redirect(self, other: C, redirect: impl FnMut(&ConfigKey) -> bool) -> TODO { }
-}
-```
+* Key remove.
+* Duplicate source, multiple sources are written too.
+* Config metadata.
+    - Similar to command metadata.
+    - Used by settings editors.

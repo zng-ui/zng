@@ -21,7 +21,6 @@ fn main() {
 fn app_main() {
     App::default().run_window(async {
         CONFIG.load(JsonConfig::sync("target/tmp/example.config.json"));
-        // CONFIG.remove("old.key"); // !!: TODO?
 
         let checked = CONFIG.get("main.checked", || false);
         let count = CONFIG.get("main.count", || 0);
