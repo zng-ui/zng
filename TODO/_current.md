@@ -1,7 +1,3 @@
-* Watcher not ignoring own writes.
-    - Logging shows a read op for each write.
-* Implement write debounce, but also fix this can't be having errors due to slow write.
-
 # Text Edit
 
 * Implement `accepts_return`.

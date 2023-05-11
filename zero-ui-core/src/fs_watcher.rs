@@ -282,6 +282,9 @@ impl From<WatchFile> for fs::File {
     }
 }
 
+const TRANSACTION_GUID: &str = "6eIw3bYMS0uKaQMkTIQacQ";
+const TRANSACTION_LOCK_EXT: &str = ".6eIw3bYMS0uKaQMkTIQacQ-lock.tmp";
+
 /// Represents an open write file provided by [`WATCHER.sync`].
 ///
 /// This type actually writes to a temporary file and rename it over the actual file on commit only.
@@ -293,10 +296,10 @@ impl From<WatchFile> for fs::File {
 /// are locked. An empty lock file is also used to cover the moment when both files are unlocked for the rename operation
 /// and the moment the temp file is acquired.
 ///
-/// The temp file is the actual file path with file extension replaced with `{path/file-name}.6eIw3bYMS0uKaQMkTIQacQ-{n}.tmp`, the `n` is a
+/// The temp file is the actual file path with file extension replaced with `{path/file-name}.{GUID}-{n}.tmp`, the `n` is a
 /// number from 0 to 999, if a temp file exists unlocked it will be reused.
 ///
-/// The lock file is  `{path/file-name}.6eIw3bYMS0uKaQMkTIQacQ-lock.tmp`. Note that this
+/// The lock file is  `{path/file-name}.{GUID}-lock.tmp`. Note that this
 /// lock file only helps for apps that use [`WriteFile`], but even without it the risk is minimal as the slow
 /// write operations are already flushed when it is time to commit.
 ///
@@ -345,8 +348,8 @@ impl WriteFile {
         let actual_file = fs::OpenOptions::new().write(true).create(true).open(&actual_path)?;
         actual_file.lock_exclusive()?;
 
-        let mut temp_path = actual_path.with_extension(".6eIw3bYMS0uKaQMkTIQacQ-0.tmp");
-        let mut n = 1;
+        let mut n = 0;
+        let mut temp_path = actual_path.with_extension(format!(".{TRANSACTION_GUID}-{n}.tmp"));
         let temp_file = loop {
             if let Ok(f) = fs::OpenOptions::new().write(true).truncate(true).create(true).open(&temp_path) {
                 if f.try_lock_exclusive().is_ok() {
@@ -354,7 +357,8 @@ impl WriteFile {
                 }
             }
 
-            temp_path = actual_path.with_extension(format!(".6eIw3bYMS0uKaQMkTIQacQ-{n}.tmp"));
+            n += 1;
+            temp_path = actual_path.with_extension(format!(".{TRANSACTION_GUID}-{n}.tmp"));
             n += 1;
             if n > 1000 {
                 return Err(io::Error::new(io::ErrorKind::AlreadyExists, "cannot create temporary file"));
@@ -429,7 +433,7 @@ impl WriteFile {
     }
 
     fn transaction_lock(actual_path: &Path) -> io::Result<impl Drop> {
-        let transaction_path = actual_path.with_extension(".6eIw3bYMS0uKaQMkTIQacQ-lock.tmp");
+        let transaction_path = actual_path.with_extension(TRANSACTION_LOCK_EXT);
         let transaction_lock = fs::OpenOptions::new().create(true).write(true).open(&transaction_path)?;
         transaction_lock.lock_exclusive()?;
         Ok(RunOnDrop::new(move || {
@@ -889,6 +893,7 @@ impl SyncWithVar {
                         };
 
                         write(value, WriteFile::open(path.to_path_buf()));
+                        SyncFlags::atomic_insert(&pending, SyncFlags::SKIP_READ);
 
                         if wk_var.strong_count() == 0 {
                             handle.force_drop();
