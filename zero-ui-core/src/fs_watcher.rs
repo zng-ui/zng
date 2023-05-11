@@ -63,23 +63,24 @@ impl AppExtension for FsWatcherManager {
 /// This is mostly a wrapper around the [`notify`] crate, integrating it with events and variables.
 pub struct WATCHER;
 impl WATCHER {
-    /// Gets a read-write variable that interval awaited between each [`FS_CHANGES_EVENT`]. If
+    /// Gets a read-write variable that defines interval awaited between each [`FS_CHANGES_EVENT`]. If
     /// a watched path is constantly changing an event will be emitted every elapse of this interval,
     /// the event args will contain a list of all the changes observed during the interval.
     ///
-    /// Is `100.ms()` by default, this helps secure the app against being overwhelmed, and to detect
-    /// file changes when the file is temporarily removed and another file move to have its name.
+    /// Is `100.ms()` by default.
     pub fn debounce(&self) -> ArcVar<Duration> {
         WATCHER_SV.read().debounce.clone()
     }
 
-    /// Gets a read-write variable that interval awaited between each [`sync`] write.
+    /// Gets a read-write variable that defines interval awaited between each [`sync`] write.
     /// 
     /// Is `100.ms()` by default.
     pub fn sync_debounce(&self) -> ArcVar<Duration> {
         WATCHER_SV.read().debounce.clone()
     }
 
+    /// Gets a read-write variable that defines the fallback poll watcher interval.
+    ///
     /// When an efficient watcher cannot be used a poll watcher fallback is used, the poll watcher reads
     /// the directory or path every elapse of this interval. The poll watcher is also used for paths that
     /// do not exist yet, that is also affected by this interval.
@@ -463,12 +464,6 @@ impl<E: std::error::Error + 'static> std::error::Error for WatchFileParseError<E
 event_args! {
      /// [`FS_CHANGES_EVENT`] arguments.
     pub struct FsChangesArgs {
-        /// Timestamp of the first result in `changes`. This is roughly the `timestamp` minus the [`WATCHER.debounce`]
-        /// interval.
-        ///
-        /// [`WATCHER.debounce`]: WATCHER::debounce
-        pub first_change_ts: Instant,
-
         /// All notify changes since the last event.
         pub changes: Arc<Vec<notify::Result<notify::Event>>>,
 
@@ -665,7 +660,7 @@ impl WatcherService {
             }
         }
 
-        let notify = !self.debounce_buffer.is_empty() && self.debounce_oldest.elapsed() >= self.debounce.get();
+        let notify = self.debounce_oldest.elapsed() >= self.debounce.get();
 
         self.debounce_buffer.push(r);
 
@@ -690,10 +685,10 @@ impl WatcherService {
     fn notify(&mut self) {
         let changes = mem::take(&mut self.debounce_buffer);
         let now = Instant::now();
-        let first_change_ts = mem::replace(&mut self.debounce_oldest, now);
+        self.debounce_oldest = now;
         self.debounce_timer = None;
 
-        FS_CHANGES_EVENT.notify(FsChangesArgs::new(now, Default::default(), first_change_ts, changes));
+        FS_CHANGES_EVENT.notify(FsChangesArgs::new(now, Default::default(), changes));
     }
 }
 fn notify_watcher_handler() -> impl notify::EventHandler {

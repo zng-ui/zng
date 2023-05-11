@@ -1,7 +1,6 @@
 * Config example error when moving window.
     - "Cannot read", probably caused by high volume of saves.
     - Need to implement write debounce, but also fix this can't be having errors due to slow write.
-* Watcher debounce, does not need to await before the first read, should be delay between reads only.
 
 # Text Edit
 
