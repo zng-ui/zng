@@ -1,3 +1,6 @@
+* Watcher not ignoring own writes.
+* Implement write debounce, but also fix this can't be having errors due to slow write.
+
 * Config example error when moving window.
     - "Cannot read", probably caused by high volume of saves.
         - Errors are `config write error, Access is denied. (os error 5)` and

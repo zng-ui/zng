@@ -147,8 +147,8 @@ impl WATCHER {
     }
 
     /// Bind a file with a variable, the `file` will be `read` when it changes and be `write` when the variable changes,
-    /// writes are only applied on success and will not cause a `read`. The `init` value is used to create the variable, if the `file`
-    /// exists it will be `read` once at the beginning.
+    /// writes are only applied on success and will not cause a `read` on the same sync task. The `init` value is used to 
+    /// create the variable, if the `file` exists it will be `read` once at the beginning.
     ///
     /// Dropping the variable drops the read watch. The `read` and `write` closures are non-blocking, they are called in a [`task::wait`]
     /// background thread.
@@ -233,8 +233,13 @@ impl WATCHER {
 ///
 /// This type is a thin wrapper around the [`std::fs::File`] with some convenience parsing methods.
 #[derive(Debug)]
-pub struct WatchFile(pub fs::File);
+pub struct WatchFile(fs::File);
 impl WatchFile {
+    /// Open read the file.
+    pub fn open(file: impl AsRef<Path>) -> io::Result<Self> {
+        fs::File::open(file).map(Self)
+    }
+
     /// Read the file contents as a text string.
     pub fn text(&mut self) -> io::Result<Txt> {
         use std::io::Read;
@@ -269,6 +274,11 @@ impl ops::Deref for WatchFile {
 impl ops::DerefMut for WatchFile {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+impl From<WatchFile> for fs::File {
+    fn from(f: WatchFile) -> Self {
+        f.0
     }
 }
 
@@ -612,7 +622,7 @@ impl WatcherService {
     ) -> ReadOnlyArcVar<O> {
         let handle = self.watch(file.clone());
         fn open(p: &Path) -> io::Result<WatchFile> {
-            std::fs::File::open(p).map(WatchFile)
+            WatchFile::open(p)
         }
         let (read, var) = ReadToVar::new(handle, file, init, open, read);
         self.read_to_var.push(read);
@@ -867,7 +877,7 @@ impl SyncWithVar {
                                 return;
                             }
 
-                            if let Some(update) = read(fs::File::open(path.as_path()).map(WatchFile)) {
+                            if let Some(update) = read(WatchFile::open(path.as_path())) {
                                 if let Some(var) = wk_var.upgrade() {
                                     SyncFlags::atomic_insert(&pending, SyncFlags::SKIP_WRITE);
                                     var.set(update);
