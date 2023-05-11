@@ -63,13 +63,20 @@ impl AppExtension for FsWatcherManager {
 /// This is mostly a wrapper around the [`notify`] crate, integrating it with events and variables.
 pub struct WATCHER;
 impl WATCHER {
-    /// Gets a read-write variable that interval awaited before a [`FS_CHANGES_EVENT`] is emitted. If
+    /// Gets a read-write variable that interval awaited between each [`FS_CHANGES_EVENT`]. If
     /// a watched path is constantly changing an event will be emitted every elapse of this interval,
     /// the event args will contain a list of all the changes observed during the interval.
     ///
     /// Is `100.ms()` by default, this helps secure the app against being overwhelmed, and to detect
     /// file changes when the file is temporarily removed and another file move to have its name.
     pub fn debounce(&self) -> ArcVar<Duration> {
+        WATCHER_SV.read().debounce.clone()
+    }
+
+    /// Gets a read-write variable that interval awaited between each [`sync`] write.
+    /// 
+    /// Is `100.ms()` by default.
+    pub fn sync_debounce(&self) -> ArcVar<Duration> {
         WATCHER_SV.read().debounce.clone()
     }
 
@@ -543,6 +550,7 @@ app_local! {
 
 struct WatcherService {
     debounce: ArcVar<Duration>,
+    sync_debounce: ArcVar<Duration>,
     poll_interval: ArcVar<Duration>,
 
     watcher: Watchers,
@@ -558,6 +566,7 @@ impl WatcherService {
     fn new() -> Self {
         Self {
             debounce: var(100.ms()),
+            sync_debounce: var(100.ms()),
             poll_interval: var(1.secs()),
             watcher: Watchers::new(),
             debounce_oldest: Instant::now(),
