@@ -67,8 +67,8 @@ impl WATCHER {
     /// a watched path is constantly changing an event will be emitted every elapse of this interval,
     /// the event args will contain a list of all the changes observed during the interval.
     ///
-    /// Is `100.ms()` by default, this helps secure the app against being overwelmed, and to detect
-    /// file changes when the file is temporarly removed and another file move to have its name.
+    /// Is `100.ms()` by default, this helps secure the app against being overwhelmed, and to detect
+    /// file changes when the file is temporarily removed and another file move to have its name.
     pub fn debounce(&self) -> ArcVar<Duration> {
         WATCHER_SV.read().debounce.clone()
     }
@@ -108,7 +108,7 @@ impl WATCHER {
     }
 
     /// Read a file into a variable, the `init` value will start the variable and the `read` closure will be called
-    /// once imediatly and every time the file changes, if the closure returns `Some(O)` the variable updates with the new value.
+    /// once immediately and every time the file changes, if the closure returns `Some(O)` the variable updates with the new value.
     ///
     /// Dropping the variable drops the read watch. The `read` closure is non-blocking, it is called in a [`task::wait`]
     /// background thread.
@@ -122,9 +122,9 @@ impl WATCHER {
     }
 
     /// Read a directory into a variable,  the `init` value will start the variable and the `read` closure will be called
-    /// once imediatly and every time any changes happen inside the dir, if the closure returns `Some(O)` the variable updates with the new value.
+    /// once immediately and every time any changes happen inside the dir, if the closure returns `Some(O)` the variable updates with the new value.
     ///
-    /// The directory walker is pre-configured to skip the `dir` itself and to kave a max-depth of 1 if not `recursive`, these configs can.
+    /// The directory walker is pre-configured to skip the `dir` itself and to have a max-depth of 1 if not `recursive`, these configs can.
     ///
     /// Dropping the variable drops the read watch. The `read` closure is non-blocking, it is called in a [`task::wait`]
     /// background thread.
@@ -140,15 +140,15 @@ impl WATCHER {
 
     /// Bind a file with a variable, the `file` will be `read` when it changes and be `write` when the variable changes,
     /// writes are only applied on success and will not cause a `read`. The `init` value is used to create the variable, if the `file`
-    /// exists it will be `read` once at the begining.
+    /// exists it will be `read` once at the beginning.
     ///
     /// Dropping the variable drops the read watch. The `read` and `write` closures are non-blocking, they are called in a [`task::wait`]
     /// background thread.
     ///
     /// # Sync
     ///
-    /// The file synchronization ensures that the file is only actually modified when writting is finisehd by writting
-    /// to a temporary file and commiting a replace only if the write succeeded. The file is write-locked for the duration
+    /// The file synchronization ensures that the file is only actually modified when writing is finished by writing
+    /// to a temporary file and committing a replace only if the write succeeded. The file is write-locked for the duration
     /// of `write` call, but the contents are not touched until commit. See [`WriteFile`] for more details.
     ///
     /// Note that the file is written even if the variable is only touched, the value is also cloned for each write.
@@ -169,7 +169,7 @@ impl WATCHER {
     ///
     /// Note that [`WriteFile::commit`] must be called to flush the temporary file and attempt to rename
     /// it, if the file is dropped without commit it will cancel and log an error, you must call [`WriteFile::cancel`]
-    /// to correctly avoid writting.
+    /// to correctly avoid writing.
     ///
     /// If the cleanup after commit fails the error is logged and ignored.
     ///
@@ -223,7 +223,7 @@ impl WATCHER {
 
 /// Represents an open read-only file provided by [`WATCHER.read`].
 ///
-/// This type is a thin wrapper aroung the [`std::fs::File`] with some convenience parsing methods.
+/// This type is a thin wrapper around the [`std::fs::File`] with some convenience parsing methods.
 #[derive(Debug)]
 pub struct WatchFile(pub fs::File);
 impl WatchFile {
@@ -272,8 +272,8 @@ impl ops::DerefMut for WatchFile {
 /// # Transaction
 ///
 /// To minimize the risk of file corruption exclusive locks are used, both the target file and the temp file
-/// are locked. An empty lock file is also used to cover the moment when boths files are unlocked for the rename operation
-/// and the moment the temp file is aquired.
+/// are locked. An empty lock file is also used to cover the moment when both files are unlocked for the rename operation
+/// and the moment the temp file is acquired.
 ///
 /// The temp file is the actual file path with file extension replaced with `{path/file-name}.6eIw3bYMS0uKaQMkTIQacQ-{n}.tmp`, the `n` is a
 /// number from 0 to 999, if a temp file exists unlocked it will be reused.
@@ -878,7 +878,7 @@ impl SyncWithVar {
                 Op::Write => {
                     SyncFlags::atomic_insert(pending, SyncFlags::WRITE);
                     if write.try_lock().is_none() {
-                        // another spawn is already writting
+                        // another spawn is already writing
                         return;
                     }
 
