@@ -502,7 +502,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     ///
     /// Returns the `handler` as an error if the variable is not animating. Note that if you are interacting
     /// with the variable from a non-UI thread the variable can stops animating between checking [`is_animating`]
-    /// and registering the hook, in this case the `handler` will be returned as an error aswell.
+    /// and registering the hook, in this case the `handler` will be returned as an error as well.
     ///
     /// [`modify_importance`]: AnyVar::modify_importance
     /// [`is_animating`]: AnyVar::is_animating
@@ -1350,7 +1350,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Bind `self` to `other` and back without causing an infinite loop.
     ///
-    /// Only a weak reference to the `other` variable is held, if both variables are scheduled to update in the same cycle
+    /// Only a weak reference to each variable is held by the other, if both variables are scheduled to update in the same cycle
     /// both get assigned, but only one bind transfer per app cycle is allowed for each variable. Returns two handles on the
     /// the *map* hook and one for the *map-back* hook.
     ///
@@ -1387,7 +1387,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Bind `self` to `other` and back with the new values of `self` transformed by `map` and the new values of `other` transformed
     /// by `map_back`, the value is assigned in a update only if the closures returns a value.
     ///
-    /// Only a weak reference to the `other` variable is held, both variables update in the same app update cycle.
+    /// Only a weak reference to each variable is held by the other, both variables update in the same app update cycle.
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
     /// `other` and then bind to fully sync the variables.
@@ -1438,7 +1438,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Setup two hooks that assigns `other` with the new values of `self` and `self` with the new values of `other`.
     ///
-    /// Only a weak reference to the variables is held.
+    /// Only a  weak reference to each variable is held by the other.
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
     /// `other` and then bind to fully sync the variables.

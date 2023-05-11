@@ -950,7 +950,9 @@ impl Config for SwapConfig {
                         }
                     }),
                     // T -> JSON
-                    clmv!(key, errors, |value| {
+                    clmv!(key, errors, source_var, |value| {
+                        let _strong_ref = &source_var;
+
                         match serde_json::to_value(value) {
                             Ok(json) => {
                                 if errors.with(|e| e.entry(&key).next().is_some()) {
@@ -1120,7 +1122,8 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
                 }
             }),
             // T -> JSON
-            clmv!(key, errors, |value| {
+            clmv!(key, errors, source_var, |value| {
+                let _strong_ref = &source_var;
                 match serde_json::to_value(value) {
                     Ok(json) => {
                         if errors.with(|e| e.entry(&key).next().is_some()) {
