@@ -333,6 +333,7 @@ impl<M: ConfigMap> SyncConfig<M> {
             file,
             M::empty(),
             clmv!(is_loaded, errors, |r| {
+                println!("!!: READ");
                 match (|| M::read(r?))() {
                     Ok(ok) => {
                         if errors.with(|e| e.io().next().is_some()) {
@@ -354,6 +355,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                 }
             }),
             clmv!(is_loaded, errors, |map, w| {
+                println!("!!: WRITE");
                 match (|| {
                     let mut w = w?;
                     map.write(&mut w)?;

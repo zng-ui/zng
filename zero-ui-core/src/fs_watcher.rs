@@ -603,7 +603,8 @@ impl WatcherService {
             }
         }
         self.read_to_var.retain_mut(|f| f.retain());
-        self.sync_with_var.retain_mut(|f| f.retain());
+        let sync_debounce = self.sync_debounce.get();
+        self.sync_with_var.retain_mut(|f| f.retain(sync_debounce));
     }
 
     fn watch(&mut self, file: PathBuf) -> WatcherHandle {
@@ -817,6 +818,7 @@ impl SyncWithVar {
         let pending = Arc::new(Atomic::new(SyncFlags::empty()));
         let read_write = Arc::new(Mutex::new((read, write)));
         let wk_var = var.downgrade();
+        let last_write = Arc::new(Atomic::new(None::<Instant>));
 
         // task "drains" pending, drops handle if the var is dropped.
         let task = Box::new(move |pending: &Arc<Atomic<SyncFlags>>, handle: &WatcherHandle, ev: SyncEvent| {
@@ -828,9 +830,12 @@ impl SyncWithVar {
                 }
             };
 
+            let mut debounce = None;
+
             match ev {
-                SyncEvent::Update => {
+                SyncEvent::Update(sync_debounce) => {
                     if var.is_new() && !SyncFlags::pop(pending, SyncFlags::SKIP_WRITE) {
+                        debounce = Some(sync_debounce);
                         SyncFlags::atomic_insert(pending, SyncFlags::WRITE);
                     } else {
                         return;
@@ -857,7 +862,7 @@ impl SyncWithVar {
                 // another spawn is already applying
                 return;
             }
-            task::spawn_wait(clmv!(read_write, wk_var, path, handle, pending, || {
+            task::spawn_wait(clmv!(read_write, wk_var, path, handle, pending, last_write, || {
                 let mut read_write = read_write.lock();
                 let (read, write) = &mut *read_write;
 
@@ -866,6 +871,16 @@ impl SyncWithVar {
                     let r = SyncFlags::pop(&pending, SyncFlags::READ);
 
                     if w {
+                        if let Some(d) = debounce {
+                            if let Some(t) = last_write.load(Ordering::Relaxed) {
+                                let elapsed = t.elapsed();
+                                if elapsed < d {
+                                    std::thread::sleep(d - elapsed);
+                                }
+                            }
+                            last_write.store(Some(Instant::now()), Ordering::Relaxed);
+                        }
+
                         let value = if let Some(var) = wk_var.upgrade() {
                             var.get()
                         } else {
@@ -916,15 +931,15 @@ impl SyncWithVar {
     }
 
     /// Returns if the variable is still alive.
-    fn retain(&mut self) -> bool {
+    fn retain(&mut self, sync_debounce: Duration) -> bool {
         if !self.handle.is_dropped() {
-            (self.task)(&self.pending, &self.handle, SyncEvent::Update);
+            (self.task)(&self.pending, &self.handle, SyncEvent::Update(sync_debounce));
         }
         !self.handle.is_dropped()
     }
 }
 enum SyncEvent<'a> {
-    Update,
+    Update(Duration),
     Event(&'a FsChangesArgs),
     Init,
 }
