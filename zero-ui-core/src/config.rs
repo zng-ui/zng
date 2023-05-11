@@ -9,6 +9,7 @@ use std::{
     sync::Arc,
 };
 
+use atomic::{Atomic, Ordering};
 use parking_lot::Mutex;
 
 use crate::{
@@ -411,8 +412,14 @@ impl<M: ConfigMap> SyncConfig<M> {
 
         // config -> entry
         let wk_var = var.downgrade();
+        let last_update = Atomic::new(VarUpdateId::never());
         sync_var
             .hook(Box::new(clmv!(errors, key, |map| {
+                let update_id = VARS.update_id();
+                if update_id == last_update.load(Ordering::Relaxed) {
+                    return true;
+                }
+                last_update.store(update_id, Ordering::Relaxed);
                 if let Some(var) = wk_var.upgrade() {
                     match map.as_any().downcast_ref::<M>().unwrap().get_json(&key) {
                         Ok(json) => {
@@ -442,7 +449,13 @@ impl<M: ConfigMap> SyncConfig<M> {
 
         // entry -> config
         let wk_sync_var = sync_var.downgrade();
+        let last_update = Atomic::new(VarUpdateId::never());
         var.hook(Box::new(clmv!(errors, |value| {
+            let update_id = VARS.update_id();
+            if update_id == last_update.load(Ordering::Relaxed) {
+                return true;
+            }
+            last_update.store(update_id, Ordering::Relaxed);
             if let Some(sync_var) = wk_sync_var.upgrade() {
                 let json = value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone();
                 sync_var.modify(clmv!(key, errors, |m| {

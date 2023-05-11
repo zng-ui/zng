@@ -73,7 +73,7 @@ impl WATCHER {
     }
 
     /// Gets a read-write variable that defines interval awaited between each [`sync`] write.
-    /// 
+    ///
     /// Is `100.ms()` by default.
     pub fn sync_debounce(&self) -> ArcVar<Duration> {
         WATCHER_SV.read().debounce.clone()
