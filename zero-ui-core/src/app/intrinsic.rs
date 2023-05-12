@@ -20,12 +20,12 @@ impl AppIntrinsic {
             debug_assert!(with_renderer);
 
             let view_evs_sender = UPDATES.sender();
-            ViewProcess::start(view_process_exe, device_events, false, move |ev| {
+            VIEW_PROCESS.start(view_process_exe, device_events, false, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
         } else if with_renderer {
             let view_evs_sender = UPDATES.sender();
-            ViewProcess::start(view_process_exe, false, true, move |ev| {
+            VIEW_PROCESS.start(view_process_exe, false, true, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
         }

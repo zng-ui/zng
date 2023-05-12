@@ -47,6 +47,10 @@ pub struct Controller {
     last_respawn: Option<Instant>,
     fast_respawn_count: u8,
 }
+#[cfg(test)]
+fn _assert_sync(x: Controller) -> impl Send + Sync {
+    x
+}
 impl Controller {
     /// Start with a custom view process.
     ///

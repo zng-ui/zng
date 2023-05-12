@@ -1,170 +1,101 @@
-//! View process controller types.
+//! View process connection and types.
 
-use std::fmt;
-use std::path::PathBuf;
-use std::sync::{self, Arc};
-
-use parking_lot::Mutex;
-use rustc_hash::FxHashMap;
-
-use super::{app_local, DeviceId};
-use crate::event::{event, event_args};
-use crate::mouse::MultiClickConfig;
-use crate::task::SignalOnce;
-use crate::text::FontAntiAliasing;
-use crate::units::{DipPoint, DipSize, Factor, Px, PxRect, PxSize};
-use crate::window::{MonitorId, WindowId};
-use zero_ui_view_api::webrender_api::{
-    FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
+use std::{
+    fmt,
+    path::PathBuf,
+    sync::{self, Arc},
 };
+
 pub use zero_ui_view_api::{
     bytes_channel, AnimationsConfig, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest,
     FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
     IpcBytesSender, MonitorInfo, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
 };
+
+use crate::{
+    app::{app_local, DeviceId},
+    crate_util::FxHashMap,
+    event::{event, event_args},
+    mouse::MultiClickConfig,
+    task::SignalOnce,
+    text::FontAntiAliasing,
+    units::{DipPoint, DipSize, Factor, Px, PxRect, PxSize},
+    window::{MonitorId, WindowId},
+};
+use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock};
 use zero_ui_view_api::{
+    webrender_api::{
+        FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
+    },
     Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
 };
 
-type Result<T> = std::result::Result<T, ViewProcessOffline>;
+use super::{App, AppId};
 
-struct EncodeRequest {
-    image_id: ImageId,
-    format: String,
-    listeners: Vec<flume::Sender<std::result::Result<Arc<Vec<u8>>, EncodeError>>>,
-}
-
-app_local! {
-    static VIEW_APP: Option<Arc<Mutex<ViewApp>>> = const { None };
-}
-
-/// The running app View Process.
-///
-/// See [`ViewProcess`] for more details.
-pub static VIEW_PROCESS: ViewProcess = ViewProcess(None);
-
-#[cfg(feature = "multi_app")] // can hold strong ref because all services will be deinited
-type ViewProcessRef = Option<Arc<Mutex<ViewApp>>>;
-
-#[cfg(not(feature = "multi_app"))] // can only hold weak ref because we need to manually deinit the `VIEW_APP`.
-type ViewProcessRef = Option<std::sync::Weak<Mutex<ViewApp>>>;
-
-/// Reference to a running View Process.
-///
-/// This is the lowest level API, used for implementing fundamental services for headed apps or headless apps with renderer.
-/// the current app's instance is in [`VIEW_PROCESS`] and can be cloned to get a strong reference to the view process.
-///  
-/// The process shuts down when all clones of this struct drops.
-///
-/// All methods except [`ViewProcess::is_available`] panic if `is_available` returns `false`.
-pub struct ViewProcess(ViewProcessRef);
-struct ViewApp {
+/// Connection to the running view-process for the context app.
+#[allow(non_camel_case_types)]
+pub struct VIEW_PROCESS;
+struct ViewProcessService {
     process: zero_ui_view_api::Controller,
     device_ids: FxHashMap<ApiDeviceId, DeviceId>,
     monitor_ids: FxHashMap<ApiMonitorId, MonitorId>,
 
     data_generation: ViewProcessGen,
 
-    loading_images: Vec<sync::Weak<Mutex<ImageConnection>>>,
-    frame_images: Vec<sync::Weak<Mutex<ImageConnection>>>,
+    loading_images: Vec<sync::Weak<RwLock<ViewImageData>>>,
+    frame_images: Vec<sync::Weak<RwLock<ViewImageData>>>,
     encoding_images: Vec<EncodeRequest>,
 
     pending_frames: usize,
 }
-impl fmt::Debug for ViewApp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ViewApp").finish_non_exhaustive()
-    }
+app_local! {
+    static VIEW_PROCESS_SV: Option<ViewProcessService> = None;
 }
-impl ViewApp {
-    #[must_use = "if `true` all current WinId, DevId and MonId are invalid"]
-    fn check_generation(&mut self) -> bool {
-        let gen = self.process.generation();
-        let invalid = gen != self.data_generation;
-        if invalid {
-            self.data_generation = gen;
-            self.device_ids.clear();
-            self.monitor_ids.clear();
-        }
-        invalid
-    }
-}
-#[cfg(not(feature = "multi_app"))]
-impl Clone for ViewProcess {
-    fn clone(&self) -> Self {
-        Self(Some(Arc::downgrade(&self.req())))
-    }
-}
-#[cfg(feature = "multi_app")]
-impl Clone for ViewProcess {
-    fn clone(&self) -> Self {
-        Self(Some(self.req()))
-    }
-}
-impl ViewProcess {
-    /// Spawn the View Process.
-    pub(super) fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F)
-    where
-        F: FnMut(Event) + Send + 'static,
-    {
-        let _s = tracing::debug_span!("ViewProcess::start").entered();
-
-        let process = zero_ui_view_api::Controller::start(view_process_exe, device_events, headless, on_event);
-        *VIEW_APP.write() = Some(Arc::new(Mutex::new(ViewApp {
-            data_generation: process.generation(),
-            process,
-            device_ids: FxHashMap::default(),
-            monitor_ids: FxHashMap::default(),
-            loading_images: vec![],
-            encoding_images: vec![],
-            frame_images: vec![],
-            pending_frames: 0,
-        })));
-    }
-    #[cfg(not(feature = "multi_app"))]
-    pub(super) fn exit() {
-        *VIEW_APP.write() = None;
-    }
-
-    #[track_caller]
-    fn req(&self) -> Arc<Mutex<ViewApp>> {
-        if let Some(a) = &self.0 {
-            #[cfg(not(feature = "multi_app"))]
-            {
-                return a.upgrade().expect("VIEW_PROCESS exited");
-            }
-            #[cfg(feature = "multi_app")]
-            {
-                a.clone()
-            }
-        } else {
-            VIEW_APP
-                .read()
-                .as_ref()
-                .expect("VIEW_PROCESS not available in headless app")
-                .clone()
-        }
-    }
-
-    /// If the `VIEW_PROCESS` can be used, this is only `true` in headed apps and headless-with-render apps, all other
-    /// methods will panic if called when this is `false`.
+impl VIEW_PROCESS {
+    /// If the `VIEW_PROCESS` can be used, this is only true in apps with render, all other
+    /// methods will panic if called when this is not true.
     pub fn is_available(&self) -> bool {
-        VIEW_APP.read().is_some()
+        VIEW_PROCESS_SV.read().is_some()
+    }
+
+    fn read(&self) -> MappedRwLockReadGuard<ViewProcessService> {
+        VIEW_PROCESS_SV.read_map(|e| e.as_ref().expect("VIEW_PROCESS not available"))
+    }
+
+    fn write(&self) -> MappedRwLockWriteGuard<ViewProcessService> {
+        VIEW_PROCESS_SV.write_map(|e| e.as_mut().expect("VIEW_PROCESS not available"))
+    }
+
+    fn check_app(&self, id: AppId) {
+        let actual = App::current_id();
+        if Some(id) != actual {
+            panic!("cannot use view handle from app `{id:?}` in app `{actual:?}`");
+        }
+    }
+
+    fn handle_write(&self, id: AppId) -> MappedRwLockWriteGuard<ViewProcessService> {
+        self.check_app(id);
+        self.write()
     }
 
     /// View-process connected and ready.
     pub fn is_online(&self) -> bool {
-        self.req().lock().process.online()
+        self.read().process.online()
     }
 
     /// If is running in headless renderer mode.
     pub fn is_headless_with_render(&self) -> bool {
-        self.req().lock().process.headless()
+        self.read().process.headless()
     }
 
     /// If is running both view and app in the same process.
     pub fn is_same_process(&self) -> bool {
-        self.req().lock().process.same_process()
+        self.read().process.same_process()
+    }
+
+    /// Gets the current view-process generation.
+    pub fn generation(&self) -> ViewProcessGen {
+        self.read().process.generation()
     }
 
     /// Sends a request to open a window and associate it with the `window_id`.
@@ -174,27 +105,8 @@ impl ViewProcess {
     /// [`RAW_WINDOW_OPEN_EVENT`]: crate::app::raw_events::RAW_WINDOW_OPEN_EVENT
     /// [`RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT`]: crate::app::raw_events::RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT
     pub fn open_window(&self, config: WindowRequest) -> Result<()> {
-        let _s = tracing::debug_span!("ViewProcess.open_window").entered();
-        self.req().lock().process.open_window(config)
-    }
-
-    pub(crate) fn on_window_opened(&self, window_id: WindowId, data: zero_ui_view_api::WindowOpenData) -> (ViewWindow, WindowOpenData) {
-        let app = self.req();
-        let mut app = app.lock();
-        let _ = app.check_generation();
-
-        let win = ViewWindow(Arc::new(WindowConnection {
-            id: window_id.get(),
-            id_namespace: data.id_namespace,
-            pipeline_id: data.pipeline_id,
-            generation: app.data_generation,
-            app: self.clone().0,
-        }));
-        drop(app);
-
-        let data = WindowOpenData::new(data, |id| self.monitor_id(id));
-
-        (win, data)
+        let _s = tracing::debug_span!("VIEW_PROCESS.open_window").entered();
+        self.write().process.open_window(config)
     }
 
     /// Sends a request to open a headless renderer and associate it with the `window_id`.
@@ -207,64 +119,8 @@ impl ViewProcess {
     /// [`RAW_HEADLESS_OPEN_EVENT`]: crate::app::raw_events::RAW_HEADLESS_OPEN_EVENT
     /// [`RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT`]: crate::app::raw_events::RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT
     pub fn open_headless(&self, config: HeadlessRequest) -> Result<()> {
-        let _s = tracing::debug_span!("ViewProcess.open_headless").entered();
-        self.req().lock().process.open_headless(config)
-    }
-
-    pub(crate) fn on_headless_opened(&self, id: WindowId, data: zero_ui_view_api::HeadlessOpenData) -> (ViewHeadless, HeadlessOpenData) {
-        let app = self.req();
-        let mut app = app.lock();
-        let _ = app.check_generation();
-
-        let surf = ViewHeadless(Arc::new(WindowConnection {
-            id: id.get(),
-            id_namespace: data.id_namespace,
-            pipeline_id: data.pipeline_id,
-            generation: app.data_generation,
-            app: self.clone().0,
-        }));
-
-        (surf, data)
-    }
-
-    /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
-    pub(super) fn device_id(&self, id: ApiDeviceId) -> DeviceId {
-        *self.req().lock().device_ids.entry(id).or_insert_with(DeviceId::new_unique)
-    }
-
-    /// Translate `MonId` to `MonitorId`, generates a monitor id if it was unknown.
-    pub(super) fn monitor_id(&self, id: ApiMonitorId) -> MonitorId {
-        *self.req().lock().monitor_ids.entry(id).or_insert_with(MonitorId::new_unique)
-    }
-
-    /// Reopen the view-process, causing another [`Event::Inited`].
-    pub fn respawn(&self) {
-        self.req().lock().process.respawn()
-    }
-
-    /// Causes a panic in the view-process to test respawn.
-    #[cfg(debug_assertions)]
-    pub fn crash_view_process(&self) {
-        self.req().lock().process.crash().unwrap();
-    }
-
-    /// Handle an [`Event::Inited`].
-    ///
-    /// The view-process becomes online only after this call.
-    pub(super) fn handle_inited(&self, gen: ViewProcessGen) {
-        self.req().lock().process.handle_inited(gen);
-    }
-
-    /// Handle an [`Event::Disconnected`].
-    ///
-    /// The process will exit if the view-process was killed by the user.
-    pub fn handle_disconnect(&self, gen: ViewProcessGen) {
-        self.req().lock().process.handle_disconnect(gen)
-    }
-
-    /// Gets the current view-process generation.
-    pub fn generation(&self) -> ViewProcessGen {
-        self.req().lock().process.generation()
+        let _s = tracing::debug_span!("VIEW_PROCESS.open_headless").entered();
+        self.write().process.open_headless(config)
     }
 
     /// Send an image for decoding.
@@ -272,11 +128,11 @@ impl ViewProcess {
     /// This function returns immediately, the [`ViewImage`] will update when
     /// [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
     pub fn add_image(&self, request: ImageRequest<IpcBytes>) -> Result<ViewImage> {
-        let app = self.req();
-        let mut app = app.lock();
+        let mut app = self.write();
         let id = app.process.add_image(request)?;
-        let img = ViewImage(Arc::new(Mutex::new(ImageConnection {
-            id,
+        let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
+            id: Some(id),
+            app_id: App::current_id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
@@ -285,7 +141,6 @@ impl ViewProcess {
             partial_bgra8: None,
             bgra8: None,
             done_signal: SignalOnce::new(),
-            app: self.clone().0,
         })));
         app.loading_images.push(Arc::downgrade(&img.0));
         Ok(img)
@@ -297,11 +152,11 @@ impl ViewProcess {
     /// [`Event::ImageMetadataLoaded`], [`Event::ImagePartiallyLoaded`],
     /// [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
     pub fn add_image_pro(&self, request: ImageRequest<IpcBytesReceiver>) -> Result<ViewImage> {
-        let app = self.req();
-        let mut app = app.lock();
+        let mut app = self.write();
         let id = app.process.add_image_pro(request)?;
-        let img = ViewImage(Arc::new(Mutex::new(ImageConnection {
-            id,
+        let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
+            id: Some(id),
+            app_id: App::current_id(),
             generation: app.process.generation(),
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
@@ -310,7 +165,6 @@ impl ViewProcess {
             partial_bgra8: None,
             bgra8: None,
             done_signal: SignalOnce::new(),
-            app: self.clone().0,
         })));
         app.loading_images.push(Arc::downgrade(&img.0));
         Ok(img)
@@ -320,40 +174,124 @@ impl ViewProcess {
     ///
     /// Each string is the lower-case file extension.
     pub fn image_decoders(&self) -> Result<Vec<String>> {
-        self.req().lock().process.image_decoders()
+        self.write().process.image_decoders()
     }
 
     /// Returns a list of image encoders supported by the view-process backend.
     ///
     /// Each string is the lower-case file extension.
     pub fn image_encoders(&self) -> Result<Vec<String>> {
-        self.req().lock().process.image_encoders()
+        self.write().process.image_encoders()
     }
 
     /// Number of frame send that have not finished rendering.
     ///
     /// This is the sum of pending frames for all renderers.
     pub fn pending_frames(&self) -> usize {
-        self.req().lock().pending_frames
+        self.write().pending_frames
+    }
+
+    /// Reopen the view-process, causing another [`Event::Inited`].
+    pub fn respawn(&self) {
+        self.write().process.respawn()
+    }
+
+    /// Causes a panic in the view-process to test respawn.
+    #[cfg(debug_assertions)]
+    pub fn crash_view_process(&self) {
+        self.write().process.crash().unwrap();
+    }
+
+    /// Handle an [`Event::Disconnected`].
+    ///
+    /// The process will exit if the view-process was killed by the user.
+    pub fn handle_disconnect(&self, gen: ViewProcessGen) {
+        self.write().process.handle_disconnect(gen)
+    }
+
+    /// Spawn the View Process.
+    pub(super) fn start<F>(&self, view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F)
+    where
+        F: FnMut(Event) + Send + 'static,
+    {
+        let _s = tracing::debug_span!("VIEW_PROCESS.start").entered();
+
+        let process = zero_ui_view_api::Controller::start(view_process_exe, device_events, headless, on_event);
+        *VIEW_PROCESS_SV.write() = Some(ViewProcessService {
+            data_generation: process.generation(),
+            process,
+            device_ids: FxHashMap::default(),
+            monitor_ids: FxHashMap::default(),
+            loading_images: vec![],
+            encoding_images: vec![],
+            frame_images: vec![],
+            pending_frames: 0,
+        });
+    }
+
+    pub(crate) fn on_window_opened(&self, window_id: WindowId, data: zero_ui_view_api::WindowOpenData) -> (ViewWindow, WindowOpenData) {
+        let mut app = self.write();
+        let _ = app.check_generation();
+
+        let win = ViewWindow(Arc::new(ViewWindowData {
+            app_id: App::current_id().unwrap(),
+            id: window_id.get(),
+            id_namespace: data.id_namespace,
+            pipeline_id: data.pipeline_id,
+            generation: app.data_generation,
+        }));
+        drop(app);
+
+        let data = WindowOpenData::new(data, |id| self.monitor_id(id));
+
+        (win, data)
+    }
+    /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
+    pub(super) fn device_id(&self, id: ApiDeviceId) -> DeviceId {
+        *self.write().device_ids.entry(id).or_insert_with(DeviceId::new_unique)
+    }
+
+    /// Translate `MonId` to `MonitorId`, generates a monitor id if it was unknown.
+    pub(super) fn monitor_id(&self, id: ApiMonitorId) -> MonitorId {
+        *self.write().monitor_ids.entry(id).or_insert_with(MonitorId::new_unique)
+    }
+
+    /// Handle an [`Event::Inited`].
+    ///
+    /// The view-process becomes online only after this call.
+    pub(super) fn handle_inited(&self, gen: ViewProcessGen) {
+        self.write().process.handle_inited(gen);
+    }
+
+    pub(crate) fn on_headless_opened(&self, id: WindowId, data: zero_ui_view_api::HeadlessOpenData) -> (ViewHeadless, HeadlessOpenData) {
+        let mut app = self.write();
+        let _ = app.check_generation();
+
+        let surf = ViewHeadless(Arc::new(ViewWindowData {
+            app_id: App::current_id().unwrap(),
+            id: id.get(),
+            id_namespace: data.id_namespace,
+            pipeline_id: data.pipeline_id,
+            generation: app.data_generation,
+        }));
+
+        (surf, data)
     }
 
     fn loading_image_index(&self, id: ImageId) -> Option<usize> {
-        let app_ref = self.req();
-        let mut app = app_ref.lock();
+        let mut app = self.write();
 
         // cleanup
         app.loading_images.retain(|i| i.strong_count() > 0);
 
-        app.loading_images.iter().position(|i| i.upgrade().unwrap().lock().id == id)
+        app.loading_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id))
     }
 
     pub(super) fn on_image_metadata_loaded(&self, id: ImageId, size: PxSize, ppi: ImagePpi) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
-            let app_ref = self.req();
-            let app = app_ref.lock();
-            let img = app.loading_images[i].upgrade().unwrap();
+            let img = self.read().loading_images[i].upgrade().unwrap();
             {
-                let mut img = img.lock();
+                let mut img = img.write();
                 img.size = size;
                 img.ppi = ppi;
             }
@@ -372,11 +310,9 @@ impl ViewProcess {
         partial_bgra8: IpcBytes,
     ) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
-            let app_ref = self.req();
-            let app = app_ref.lock();
-            let img = app.loading_images[i].upgrade().unwrap();
+            let img = self.read().loading_images[i].upgrade().unwrap();
             {
-                let mut img = img.lock();
+                let mut img = img.write();
                 img.partial_size = partial_size;
                 img.ppi = ppi;
                 img.opaque = opaque;
@@ -390,11 +326,9 @@ impl ViewProcess {
 
     pub(super) fn on_image_loaded(&self, data: ImageLoadedData) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(data.id) {
-            let app_ref = self.req();
-            let mut app = app_ref.lock();
-            let img = app.loading_images.swap_remove(i).upgrade().unwrap();
+            let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
             {
-                let mut img = img.lock();
+                let mut img = img.write();
                 img.size = data.size;
                 img.partial_size = data.size;
                 img.ppi = data.ppi;
@@ -411,11 +345,9 @@ impl ViewProcess {
 
     pub(super) fn on_image_error(&self, id: ImageId, error: String) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
-            let app_ref = self.req();
-            let mut app = app_ref.lock();
-            let img = app.loading_images.swap_remove(i).upgrade().unwrap();
+            let img = self.write().loading_images.swap_remove(i).upgrade().unwrap();
             {
-                let mut img = img.lock();
+                let mut img = img.write();
                 img.bgra8 = Some(Err(error));
                 img.done_signal.set();
             }
@@ -426,15 +358,14 @@ impl ViewProcess {
     }
 
     pub(crate) fn on_frame_rendered(&self, _id: WindowId) {
-        let app_ref = self.req();
-        let mut vp = app_ref.lock();
+        let mut vp = self.write();
         vp.pending_frames = vp.pending_frames.saturating_sub(1);
     }
 
     pub(crate) fn on_frame_image(&self, data: ImageLoadedData) -> ViewImage {
-        ViewImage(Arc::new(Mutex::new(ImageConnection {
-            app: self.clone().0,
-            id: data.id,
+        ViewImage(Arc::new(RwLock::new(ViewImageData {
+            app_id: App::current_id(),
+            id: Some(data.id),
             generation: self.generation(),
             size: data.size,
             partial_size: data.size,
@@ -447,13 +378,12 @@ impl ViewProcess {
     }
 
     pub(super) fn on_frame_image_ready(&self, id: ImageId) -> Option<ViewImage> {
-        let app_ref = self.req();
-        let mut app = app_ref.lock();
+        let mut app = self.write();
 
         // cleanup
         app.frame_images.retain(|i| i.strong_count() > 0);
 
-        let i = app.frame_images.iter().position(|i| i.upgrade().unwrap().lock().id == id);
+        let i = app.frame_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id));
 
         i.map(|i| ViewImage(app.frame_images.swap_remove(i).upgrade().unwrap()))
     }
@@ -465,8 +395,7 @@ impl ViewProcess {
         self.on_image_encode_result(id, format, Err(EncodeError::Encode(error)));
     }
     fn on_image_encode_result(&self, id: ImageId, format: String, result: std::result::Result<Arc<Vec<u8>>, EncodeError>) {
-        let app_ref = self.req();
-        let mut app = app_ref.lock();
+        let mut app = self.write();
         app.encoding_images.retain(move |r| {
             let done = r.image_id == id && r.format == format;
             if done {
@@ -479,669 +408,24 @@ impl ViewProcess {
     }
 
     pub(super) fn on_respawed(&self, _gen: ViewProcessGen) {
-        self.req().lock().pending_frames = 0;
+        self.write().pending_frames = 0;
+    }
+
+    pub(crate) fn exit(&self) {
+        *VIEW_PROCESS_SV.write() = None;
     }
 }
-
-struct ImageConnection {
-    id: ImageId,
-    generation: ViewProcessGen,
-    app: ViewProcessRef,
-
-    size: PxSize,
-    partial_size: PxSize,
-    ppi: ImagePpi,
-    opaque: bool,
-
-    partial_bgra8: Option<IpcBytes>,
-    bgra8: Option<std::result::Result<IpcBytes, String>>,
-
-    done_signal: SignalOnce,
-}
-impl ImageConnection {
-    fn online(&self) -> bool {
-        if self.app.is_some() {
-            self.generation == ViewProcess(self.app.clone()).generation()
-        } else {
-            true
+impl ViewProcessService {
+    #[must_use = "if `true` all current WinId, DevId and MonId are invalid"]
+    fn check_generation(&mut self) -> bool {
+        let gen = self.process.generation();
+        let invalid = gen != self.data_generation;
+        if invalid {
+            self.data_generation = gen;
+            self.device_ids.clear();
+            self.monitor_ids.clear();
         }
-    }
-}
-impl Drop for ImageConnection {
-    fn drop(&mut self) {
-        if self.app.is_some() {
-            let app = ViewProcess(self.app.take()).req();
-            let mut app = app.lock();
-            if app.process.generation() == self.generation {
-                let _ = app.process.forget_image(self.id);
-            }
-        }
-    }
-}
-
-/// Connection to an image loading or loaded in the View Process.
-///
-/// This is a strong reference to the image connection. The image is removed from the View Process cache
-/// when all clones of this struct drops.
-#[derive(Clone)]
-pub struct ViewImage(Arc<Mutex<ImageConnection>>);
-impl PartialEq for ViewImage {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-impl Eq for ViewImage {}
-impl std::hash::Hash for ViewImage {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let ptr = Arc::as_ptr(&self.0) as usize;
-        ptr.hash(state)
-    }
-}
-impl fmt::Debug for ViewImage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ViewImage")
-            .field("loaded", &self.is_loaded())
-            .field("error", &self.error())
-            .field("size", &self.size())
-            .field("dpi", &self.ppi())
-            .field("opaque", &self.is_opaque())
-            .field("generation", &self.generation())
-            .field("alive", &self.online())
-            .finish_non_exhaustive()
-    }
-}
-impl ViewImage {
-    /// Image id.
-    pub fn id(&self) -> ImageId {
-        self.0.lock().id
-    }
-
-    /// If the image does not actually exists in the view-process.
-    pub fn is_dummy(&self) -> bool {
-        self.0.lock().app.is_none()
-    }
-
-    /// Returns `true` if the image has successfully decoded.
-    pub fn is_loaded(&self) -> bool {
-        self.0.lock().bgra8.as_ref().map(|r| r.is_ok()).unwrap_or(false)
-    }
-
-    /// Returns `true` if the image is progressively decoding and has partially decoded.
-    pub fn is_partially_loaded(&self) -> bool {
-        self.0.lock().partial_bgra8.is_some()
-    }
-
-    /// if [`error`] is `Some`.
-    ///
-    /// [`error`]: Self::error
-    pub fn is_error(&self) -> bool {
-        self.0.lock().bgra8.as_ref().map(|r| r.is_err()).unwrap_or(false)
-    }
-
-    /// Returns the load error if one happened.
-    pub fn error(&self) -> Option<String> {
-        self.0.lock().bgra8.as_ref().and_then(|s| s.as_ref().err().cloned())
-    }
-
-    /// Returns the pixel size, or zero if is not loaded or error.
-    pub fn size(&self) -> PxSize {
-        self.0.lock().size
-    }
-
-    /// Actual size of the current pixels.
-    ///
-    /// Can be different from [`size`] if the image is progressively decoding.
-    ///
-    /// [`size`]: Self::size
-    pub fn partial_size(&self) -> PxSize {
-        self.0.lock().partial_size
-    }
-
-    /// Returns the "pixels-per-inch" metadata associated with the image, or `None` if not loaded or error or no
-    /// metadata provided by decoder.
-    pub fn ppi(&self) -> ImagePpi {
-        self.0.lock().ppi
-    }
-
-    /// Returns if the image is fully opaque.
-    pub fn is_opaque(&self) -> bool {
-        self.0.lock().opaque
-    }
-
-    /// Copy the partially decoded pixels if the image is progressively decoding
-    /// and has not finished decoding.
-    pub fn partial_bgra8(&self) -> Option<Vec<u8>> {
-        self.0.lock().partial_bgra8.as_ref().map(|r| r[..].to_vec())
-    }
-
-    /// Reference the decoded and pre-multiplied BGRA8 bytes of the image.
-    ///
-    /// Returns `None` until the image is fully loaded. Use [`partial_bgra8`] to copy
-    /// partially decoded bytes.
-    ///
-    /// [`partial_bgra8`]: Self::partial_bgra8
-    pub fn bgra8(&self) -> Option<IpcBytes> {
-        self.0.lock().bgra8.as_ref().and_then(|r| r.as_ref().ok()).cloned()
-    }
-
-    /// Returns the view-process generation on which the image is loaded.
-    pub fn generation(&self) -> ViewProcessGen {
-        self.0.lock().generation
-    }
-
-    /// Returns `true` if this window connection is still valid.
-    ///
-    /// The connection can be permanently lost in case the "view-process" respawns, in this
-    /// case all methods will return [`ViewProcessOffline`], and you must discard this connection and
-    /// create a new one.
-    pub fn online(&self) -> bool {
-        self.0.lock().online()
-    }
-
-    /// Creates a [`WeakViewImage`].
-    pub fn downgrade(&self) -> WeakViewImage {
-        WeakViewImage(Arc::downgrade(&self.0))
-    }
-
-    /// Create a dummy image in the loaded or error state.
-    pub fn dummy(error: Option<String>) -> Self {
-        ViewImage(Arc::new(Mutex::new(ImageConnection {
-            id: 0,
-            generation: 0,
-            app: None,
-            size: PxSize::zero(),
-            partial_size: PxSize::zero(),
-            ppi: None,
-            opaque: true,
-            partial_bgra8: None,
-            bgra8: if let Some(e) = error {
-                Some(Err(e))
-            } else {
-                Some(Ok(IpcBytes::from_slice(&[])))
-            },
-            done_signal: SignalOnce::new_set(),
-        })))
-    }
-
-    /// Returns a future that awaits until this image is loaded or encountered an error.
-    pub fn awaiter(&self) -> impl std::future::Future<Output = ()> + Send + Sync + 'static {
-        self.0.lock().done_signal.clone()
-    }
-
-    /// Tries to encode the image to the format.
-    ///
-    /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
-    ///
-    /// [`image_encoders`]: View::image_encoders.
-    pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
-        self.awaiter().await;
-
-        if let Some(e) = self.error() {
-            return Err(EncodeError::Encode(e));
-        }
-
-        let receiver = {
-            let img = self.0.lock();
-            if img.app.is_some() {
-                let app = ViewProcess(img.app.clone()).req();
-                let mut app = app.lock();
-                app.process.encode_image(img.id, format.clone())?;
-
-                let (sender, receiver) = flume::bounded(1);
-                if let Some(entry) = app.encoding_images.iter_mut().find(|r| r.image_id == img.id && r.format == format) {
-                    entry.listeners.push(sender);
-                } else {
-                    app.encoding_images.push(EncodeRequest {
-                        image_id: img.id,
-                        format,
-                        listeners: vec![sender],
-                    });
-                }
-                receiver
-            } else {
-                return Err(EncodeError::Dummy);
-            }
-        };
-
-        receiver.recv_async().await?
-    }
-
-    pub(crate) fn done_signal(&self) -> SignalOnce {
-        self.0.lock().done_signal.clone()
-    }
-}
-
-/// Error returned by [`ViewImage::encode`].
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EncodeError {
-    /// Encode error.
-    Encode(String),
-    /// Attempted to encode dummy image.
-    ///
-    /// In a headless-app without renderer all images are dummy because there is no
-    /// view-process backend running.
-    Dummy,
-    /// The View-Process disconnected or has not finished initializing yet, try again after [`VIEW_PROCESS_INITED_EVENT`].
-    ViewProcessOffline,
-}
-impl From<String> for EncodeError {
-    fn from(e: String) -> Self {
-        EncodeError::Encode(e)
-    }
-}
-impl From<ViewProcessOffline> for EncodeError {
-    fn from(_: ViewProcessOffline) -> Self {
-        EncodeError::ViewProcessOffline
-    }
-}
-impl From<flume::RecvError> for EncodeError {
-    fn from(_: flume::RecvError) -> Self {
-        EncodeError::ViewProcessOffline
-    }
-}
-impl fmt::Display for EncodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            EncodeError::Encode(e) => write!(f, "{e}"),
-            EncodeError::Dummy => write!(f, "cannot encode dummy image"),
-            EncodeError::ViewProcessOffline => write!(f, "{ViewProcessOffline}"),
-        }
-    }
-}
-impl std::error::Error for EncodeError {}
-
-/// Connection to an image loading or loaded in the View Process.
-///
-/// The image is removed from the View Process cache when all clones of [`ViewImage`] drops, but
-/// if there is another image pointer holding the image, this weak pointer can be upgraded back
-/// to a strong connection to the image.
-#[derive(Clone)]
-pub struct WeakViewImage(sync::Weak<Mutex<ImageConnection>>);
-impl WeakViewImage {
-    /// Attempt to upgrade the weak pointer to the image to a full image.
-    ///
-    /// Returns `Some` if the is at least another [`ViewImage`] holding the image alive.
-    pub fn upgrade(&self) -> Option<ViewImage> {
-        self.0.upgrade().map(ViewImage)
-    }
-}
-
-#[derive(Debug)]
-struct WindowConnection {
-    id: ApiWindowId,
-    id_namespace: IdNamespace,
-    pipeline_id: PipelineId,
-    generation: ViewProcessGen,
-    app: ViewProcessRef,
-}
-impl WindowConnection {
-    fn online(&self) -> bool {
-        ViewProcess(self.app.clone()).generation() == self.generation
-    }
-
-    fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
-        let app = ViewProcess(self.app.clone()).req();
-        let mut app = app.lock();
-        if app.check_generation() {
-            Err(ViewProcessOffline)
-        } else {
-            f(self.id, &mut app.process)
-        }
-    }
-}
-impl Drop for WindowConnection {
-    fn drop(&mut self) {
-        let app = ViewProcess(self.app.clone()).req();
-        let mut app = app.lock();
-        if self.generation == app.process.generation() {
-            let _ = app.process.close_window(self.id);
-        }
-    }
-}
-
-/// Connection to a window open in the View Process.
-///
-/// This is a strong reference to the window connection. The window closes when all clones of this struct drops.
-#[derive(Clone, Debug)]
-pub struct ViewWindow(Arc<WindowConnection>);
-impl PartialEq for ViewWindow {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.id == other.0.id && self.0.generation == other.0.generation
-    }
-}
-impl Eq for ViewWindow {}
-impl ViewWindow {
-    /// Returns `true` if this window connection is still valid.
-    ///
-    /// The connection can be permanently lost in case the "view-process" respawns, in this
-    /// case all methods will return [`ViewProcessOffline`], and you must discard this connection and
-    /// create a new one.
-    pub fn online(&self) -> bool {
-        self.0.online()
-    }
-
-    /// Returns the view-process generation on which the window was open.
-    pub fn generation(&self) -> ViewProcessGen {
-        self.0.generation
-    }
-
-    /// Set the window title.
-    pub fn set_title(&self, title: String) -> Result<()> {
-        self.0.call(|id, p| p.set_title(id, title))
-    }
-
-    /// Set the window visibility.
-    pub fn set_visible(&self, visible: bool) -> Result<()> {
-        self.0.call(|id, p| p.set_visible(id, visible))
-    }
-
-    /// Set if the window is "top-most".
-    pub fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
-        self.0.call(|id, p| p.set_always_on_top(id, always_on_top))
-    }
-
-    /// Set if the user can drag-move the window.
-    pub fn set_movable(&self, movable: bool) -> Result<()> {
-        self.0.call(|id, p| p.set_movable(id, movable))
-    }
-
-    /// Set if the user can resize the window.
-    pub fn set_resizable(&self, resizable: bool) -> Result<()> {
-        self.0.call(|id, p| p.set_resizable(id, resizable))
-    }
-
-    /// Set the window icon.
-    pub fn set_icon(&self, icon: Option<&ViewImage>) -> Result<()> {
-        self.0.call(|id, p| {
-            if let Some(icon) = icon {
-                if p.generation() == icon.0.lock().generation {
-                    p.set_icon(id, Some(icon.0.lock().id))
-                } else {
-                    Err(ViewProcessOffline)
-                }
-            } else {
-                p.set_icon(id, None)
-            }
-        })
-    }
-
-    /// Set the window cursor icon and visibility.
-    pub fn set_cursor(&self, icon: Option<CursorIcon>) -> Result<()> {
-        self.0.call(|id, p| p.set_cursor(id, icon))
-    }
-
-    /// Set the window icon visibility in the taskbar.
-    pub fn set_taskbar_visible(&self, visible: bool) -> Result<()> {
-        self.0.call(|id, p| p.set_taskbar_visible(id, visible))
-    }
-
-    /// Bring the window the z top.
-    pub fn bring_to_top(&self) -> Result<()> {
-        self.0.call(|id, p| p.bring_to_top(id))
-    }
-
-    /// Set the window state.
-    pub fn set_state(&self, state: WindowStateAll) -> Result<()> {
-        self.0.call(|id, p| p.set_state(id, state))
-    }
-
-    /// Set video mode used in exclusive fullscreen.
-    pub fn set_video_mode(&self, mode: VideoMode) -> Result<()> {
-        self.0.call(|id, p| p.set_video_mode(id, mode))
-    }
-
-    /// Reference the window renderer.
-    pub fn renderer(&self) -> ViewRenderer {
-        ViewRenderer(Arc::downgrade(&self.0))
-    }
-
-    /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
-    /// a screenshot are kept in memory to be reused in the next screenshot capture.
-    pub fn set_capture_mode(&self, enabled: bool) -> Result<()> {
-        self.0.call(|id, p| p.set_capture_mode(id, enabled))
-    }
-
-    /// Brings the window to the front and sets input focus.
-    ///
-    /// This request can steal focus from other apps disrupting the user, be careful with it.
-    pub fn focus(&self) -> Result<()> {
-        self.0.call(|id, p| p.focus_window(id))
-    }
-
-    /// Sets the user attention request indicator, the indicator is cleared when the window is focused or
-    /// if canceled by setting to `None`.
-    pub fn set_focus_indicator(&self, indicator: Option<FocusIndicator>) -> Result<()> {
-        self.0.call(|id, p| p.set_focus_indicator(id, indicator))
-    }
-
-    /// Drop `self`.
-    pub fn close(self) {
-        drop(self)
-    }
-}
-
-/// Connection to a headless surface/document open in the View Process.
-///
-/// This is a strong reference to the window connection. The view is disposed when every reference drops.
-#[derive(Clone, Debug)]
-pub struct ViewHeadless(Arc<WindowConnection>);
-impl PartialEq for ViewHeadless {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.id == other.0.id && self.0.generation == other.0.generation
-    }
-}
-impl Eq for ViewHeadless {}
-impl ViewHeadless {
-    /// Resize the headless surface.
-    pub fn set_size(&self, size: DipSize, scale_factor: Factor) -> Result<()> {
-        self.0.call(|id, p| p.set_headless_size(id, size, scale_factor.0))
-    }
-
-    /// Reference the window renderer.
-    pub fn renderer(&self) -> ViewRenderer {
-        ViewRenderer(Arc::downgrade(&self.0))
-    }
-}
-
-/// Connection to a renderer in the View Process.
-///
-/// This is only a weak reference, every method returns [`ViewProcessOffline`] if the
-/// renderer has been dropped.
-#[derive(Clone, Debug)]
-pub struct ViewRenderer(sync::Weak<WindowConnection>);
-impl PartialEq for ViewRenderer {
-    fn eq(&self, other: &Self) -> bool {
-        if let (Some(s), Some(o)) = (self.0.upgrade(), other.0.upgrade()) {
-            s.id == o.id && s.generation == o.generation
-        } else {
-            false
-        }
-    }
-}
-impl ViewRenderer {
-    fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
-        if let Some(c) = self.0.upgrade() {
-            c.call(f)
-        } else {
-            Err(ViewProcessOffline)
-        }
-    }
-
-    /// Returns the view-process generation on which the renderer was created.
-    pub fn generation(&self) -> Result<ViewProcessGen> {
-        self.0.upgrade().map(|c| c.generation).ok_or(ViewProcessOffline)
-    }
-
-    /// Returns `true` if the renderer is still alive.
-    ///
-    /// The renderer is dropped when the window closes or the view-process respawns.
-    pub fn online(&self) -> bool {
-        self.0.upgrade().map(|c| c.online()).unwrap_or(false)
-    }
-
-    /// Pipeline ID.
-    ///
-    /// This value is cached locally (not an IPC call).
-    pub fn pipeline_id(&self) -> Result<PipelineId> {
-        if let Some(c) = self.0.upgrade() {
-            if c.online() {
-                return Ok(c.pipeline_id);
-            }
-        }
-        Err(ViewProcessOffline)
-    }
-
-    /// Resource namespace.
-    ///
-    /// This value is cached locally (not an IPC call).
-    pub fn namespace_id(&self) -> Result<IdNamespace> {
-        if let Some(c) = self.0.upgrade() {
-            if c.online() {
-                return Ok(c.id_namespace);
-            }
-        }
-        Err(ViewProcessOffline)
-    }
-
-    /// Use an image resource in the window renderer.
-    ///
-    /// Returns the image key.
-    pub fn use_image(&self, image: &ViewImage) -> Result<ImageKey> {
-        self.call(|id, p| {
-            if p.generation() == image.0.lock().generation {
-                p.use_image(id, image.0.lock().id)
-            } else {
-                Err(ViewProcessOffline)
-            }
-        })
-    }
-
-    /// Replace the image resource in the window renderer.
-    pub fn update_image_use(&mut self, key: ImageKey, image: &ViewImage) -> Result<()> {
-        self.call(|id, p| {
-            if p.generation() == image.0.lock().generation {
-                p.update_image_use(id, key, image.0.lock().id)
-            } else {
-                Err(ViewProcessOffline)
-            }
-        })
-    }
-
-    /// Delete the image resource in the window renderer.
-    pub fn delete_image_use(&mut self, key: ImageKey) -> Result<()> {
-        self.call(|id, p| p.delete_image_use(id, key))
-    }
-
-    /// Add a raw font resource to the window renderer.
-    ///
-    /// Returns the new font key.
-    pub fn add_font(&self, bytes: Vec<u8>, index: u32) -> Result<FontKey> {
-        self.call(|id, p| p.add_font(id, IpcBytes::from_vec(bytes), index))
-    }
-
-    /// Delete the font resource in the window renderer.
-    pub fn delete_font(&self, key: FontKey) -> Result<()> {
-        self.call(|id, p| p.delete_font(id, key))
-    }
-
-    /// Add a font instance to the window renderer.
-    ///
-    /// Returns the new instance key.
-    pub fn add_font_instance(
-        &self,
-        font_key: FontKey,
-        glyph_size: Px,
-        options: Option<FontInstanceOptions>,
-        plataform_options: Option<FontInstancePlatformOptions>,
-        variations: Vec<FontVariation>,
-    ) -> Result<FontInstanceKey> {
-        self.call(|id, p| p.add_font_instance(id, font_key, glyph_size, options, plataform_options, variations))
-    }
-
-    /// Delete the font instance.
-    pub fn delete_font_instance(&self, key: FontInstanceKey) -> Result<()> {
-        self.call(|id, p| p.delete_font_instance(id, key))
-    }
-
-    /// Create a new image resource from the current rendered frame.
-    pub fn frame_image(&self) -> Result<ViewImage> {
-        if let Some(c) = self.0.upgrade() {
-            let id = c.call(|id, p| p.frame_image(id))?;
-            Ok(Self::add_frame_image(ViewProcess(c.app.clone()), id))
-        } else {
-            Err(ViewProcessOffline)
-        }
-    }
-
-    /// Create a new image resource from a selection of the current rendered frame.
-    pub fn frame_image_rect(&self, rect: PxRect) -> Result<ViewImage> {
-        if let Some(c) = self.0.upgrade() {
-            let id = c.call(|id, p| p.frame_image_rect(id, rect))?;
-            Ok(Self::add_frame_image(ViewProcess(c.app.clone()), id))
-        } else {
-            Err(ViewProcessOffline)
-        }
-    }
-
-    fn add_frame_image(app: ViewProcess, id: ImageId) -> ViewImage {
-        if id == 0 {
-            ViewImage::dummy(None)
-        } else {
-            let app_ref = app.req();
-            let mut app_mut = app_ref.lock();
-            let img = ViewImage(Arc::new(Mutex::new(ImageConnection {
-                id,
-                generation: app_mut.process.generation(),
-                app: app.0,
-                size: PxSize::zero(),
-                partial_size: PxSize::zero(),
-                ppi: None,
-                opaque: false,
-                partial_bgra8: None,
-                bgra8: None,
-                done_signal: SignalOnce::new(),
-            })));
-
-            app_mut.loading_images.push(Arc::downgrade(&img.0));
-            app_mut.frame_images.push(Arc::downgrade(&img.0));
-
-            img
-        }
-    }
-
-    /// Set the renderer debug flags and UI.
-    pub fn set_debug(&self, dbg: crate::render::RendererDebug) -> Result<()> {
-        if let Some(w) = self.0.upgrade() {
-            w.call(|id, p| p.set_renderer_debug(id, dbg))
-        } else {
-            Err(ViewProcessOffline)
-        }
-    }
-
-    /// Render a new frame.
-    pub fn render(&self, frame: FrameRequest) -> Result<()> {
-        let _s = tracing::debug_span!("ViewRenderer.render").entered();
-
-        if let Some(w) = self.0.upgrade() {
-            w.call(|id, p| p.render(id, frame))?;
-            ViewProcess(w.app.clone()).req().lock().pending_frames += 1;
-            Ok(())
-        } else {
-            Err(ViewProcessOffline)
-        }
-    }
-
-    /// Update the current frame and re-render it.
-    pub fn render_update(&self, frame: FrameUpdateRequest) -> Result<()> {
-        let _s = tracing::debug_span!("ViewRenderer.render_update").entered();
-
-        if let Some(w) = self.0.upgrade() {
-            w.call(|id, p| p.render_update(id, frame))?;
-            ViewProcess(w.app.clone()).req().lock().pending_frames += 1;
-            Ok(())
-        } else {
-            Err(ViewProcessOffline)
-        }
+        invalid
     }
 }
 
@@ -1229,4 +513,651 @@ impl WindowOpenData {
             color_scheme: data.color_scheme,
         }
     }
+}
+
+/// Handle to a window open in the view-process.
+///
+/// The window is closed when all clones of the handle are dropped.
+#[derive(Debug, Clone)]
+#[must_use = "the window is closed when all clones of the handle are dropped"]
+pub struct ViewWindow(Arc<ViewWindowData>);
+impl PartialEq for ViewWindow {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for ViewWindow {}
+
+impl ViewWindow {
+    /// Returns the view-process generation on which the window was open.
+    pub fn generation(&self) -> ViewProcessGen {
+        self.0.generation
+    }
+
+    /// Set the window title.
+    pub fn set_title(&self, title: String) -> Result<()> {
+        self.0.call(|id, p| p.set_title(id, title))
+    }
+
+    /// Set the window visibility.
+    pub fn set_visible(&self, visible: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_visible(id, visible))
+    }
+
+    /// Set if the window is "top-most".
+    pub fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_always_on_top(id, always_on_top))
+    }
+
+    /// Set if the user can drag-move the window.
+    pub fn set_movable(&self, movable: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_movable(id, movable))
+    }
+
+    /// Set if the user can resize the window.
+    pub fn set_resizable(&self, resizable: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_resizable(id, resizable))
+    }
+
+    /// Set the window icon.
+    pub fn set_icon(&self, icon: Option<&ViewImage>) -> Result<()> {
+        self.0.call(|id, p| {
+            if let Some(icon) = icon {
+                let icon = icon.0.read();
+                if p.generation() == icon.generation {
+                    p.set_icon(id, icon.id)
+                } else {
+                    Err(ViewProcessOffline)
+                }
+            } else {
+                p.set_icon(id, None)
+            }
+        })
+    }
+
+    /// Set the window cursor icon and visibility.
+    pub fn set_cursor(&self, icon: Option<CursorIcon>) -> Result<()> {
+        self.0.call(|id, p| p.set_cursor(id, icon))
+    }
+
+    /// Set the window icon visibility in the taskbar.
+    pub fn set_taskbar_visible(&self, visible: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_taskbar_visible(id, visible))
+    }
+
+    /// Bring the window the z top.
+    pub fn bring_to_top(&self) -> Result<()> {
+        self.0.call(|id, p| p.bring_to_top(id))
+    }
+
+    /// Set the window state.
+    pub fn set_state(&self, state: WindowStateAll) -> Result<()> {
+        self.0.call(|id, p| p.set_state(id, state))
+    }
+
+    /// Set video mode used in exclusive fullscreen.
+    pub fn set_video_mode(&self, mode: VideoMode) -> Result<()> {
+        self.0.call(|id, p| p.set_video_mode(id, mode))
+    }
+
+    /// Reference the window renderer.
+    pub fn renderer(&self) -> ViewRenderer {
+        ViewRenderer(Arc::downgrade(&self.0))
+    }
+
+    /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
+    /// a screenshot are kept in memory to be reused in the next screenshot capture.
+    pub fn set_capture_mode(&self, enabled: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_capture_mode(id, enabled))
+    }
+
+    /// Brings the window to the front and sets input focus.
+    ///
+    /// This request can steal focus from other apps disrupting the user, be careful with it.
+    pub fn focus(&self) -> Result<()> {
+        self.0.call(|id, p| p.focus_window(id))
+    }
+
+    /// Sets the user attention request indicator, the indicator is cleared when the window is focused or
+    /// if canceled by setting to `None`.
+    pub fn set_focus_indicator(&self, indicator: Option<FocusIndicator>) -> Result<()> {
+        self.0.call(|id, p| p.set_focus_indicator(id, indicator))
+    }
+
+    /// Drop `self`.
+    pub fn close(self) {
+        drop(self)
+    }
+}
+
+#[derive(Debug)]
+struct ViewWindowData {
+    app_id: AppId,
+    id: ApiWindowId,
+    id_namespace: IdNamespace,
+    pipeline_id: PipelineId,
+    generation: ViewProcessGen,
+}
+impl ViewWindowData {
+    fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
+        let mut app = VIEW_PROCESS.handle_write(self.app_id);
+        if app.check_generation() {
+            Err(ViewProcessOffline)
+        } else {
+            f(self.id, &mut app.process)
+        }
+    }
+}
+impl Drop for ViewWindowData {
+    fn drop(&mut self) {
+        let mut app = VIEW_PROCESS.handle_write(self.app_id);
+        if self.generation == app.process.generation() {
+            let _ = app.process.close_window(self.id);
+        }
+    }
+}
+type Result<T> = std::result::Result<T, ViewProcessOffline>;
+
+/// Handle to a headless surface/document open in the View Process.
+///
+/// The view is disposed when all clones of the handle are dropped.
+#[derive(Clone, Debug)]
+#[must_use = "the view is disposed when all clones of the handle are dropped"]
+pub struct ViewHeadless(Arc<ViewWindowData>);
+impl PartialEq for ViewHeadless {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for ViewHeadless {}
+impl ViewHeadless {
+    /// Resize the headless surface.
+    pub fn set_size(&self, size: DipSize, scale_factor: Factor) -> Result<()> {
+        self.0.call(|id, p| p.set_headless_size(id, size, scale_factor.0))
+    }
+
+    /// Reference the window renderer.
+    pub fn renderer(&self) -> ViewRenderer {
+        ViewRenderer(Arc::downgrade(&self.0))
+    }
+}
+
+// Weak handle to a window or view.
+///
+/// This is only a weak reference, every method returns [`ViewProcessOffline`] if the
+/// window is closed or view is disposed.
+#[derive(Clone, Debug)]
+pub struct ViewRenderer(sync::Weak<ViewWindowData>);
+impl PartialEq for ViewRenderer {
+    fn eq(&self, other: &Self) -> bool {
+        if let (Some(s), Some(o)) = (self.0.upgrade(), other.0.upgrade()) {
+            Arc::ptr_eq(&s, &o)
+        } else {
+            false
+        }
+    }
+}
+impl Eq for ViewRenderer {}
+
+impl ViewRenderer {
+    fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
+        if let Some(c) = self.0.upgrade() {
+            c.call(f)
+        } else {
+            Err(ViewProcessOffline)
+        }
+    }
+
+    /// Returns the view-process generation on which the renderer was created.
+    pub fn generation(&self) -> Result<ViewProcessGen> {
+        self.0.upgrade().map(|c| c.generation).ok_or(ViewProcessOffline)
+    }
+
+    /// Pipeline ID.
+    ///
+    /// This value is cached locally (not an IPC call).
+    pub fn pipeline_id(&self) -> Result<PipelineId> {
+        if let Some(c) = self.0.upgrade() {
+            if VIEW_PROCESS.is_online() {
+                return Ok(c.pipeline_id);
+            }
+        }
+        Err(ViewProcessOffline)
+    }
+
+    /// Resource namespace.
+    ///
+    /// This value is cached locally (not an IPC call).
+    pub fn namespace_id(&self) -> Result<IdNamespace> {
+        if let Some(c) = self.0.upgrade() {
+            if VIEW_PROCESS.is_online() {
+                return Ok(c.id_namespace);
+            }
+        }
+        Err(ViewProcessOffline)
+    }
+
+    /// Use an image resource in the window renderer.
+    ///
+    /// Returns the image key.
+    pub fn use_image(&self, image: &ViewImage) -> Result<ImageKey> {
+        self.call(|id, p| {
+            let image = image.0.read();
+            if p.generation() == image.generation {
+                p.use_image(id, image.id.unwrap_or(0))
+            } else {
+                Err(ViewProcessOffline)
+            }
+        })
+    }
+
+    /// Replace the image resource in the window renderer.
+    pub fn update_image_use(&mut self, key: ImageKey, image: &ViewImage) -> Result<()> {
+        self.call(|id, p| {
+            let image = image.0.read();
+            if p.generation() == image.generation {
+                p.update_image_use(id, key, image.id.unwrap_or(0))
+            } else {
+                Err(ViewProcessOffline)
+            }
+        })
+    }
+
+    /// Delete the image resource in the window renderer.
+    pub fn delete_image_use(&mut self, key: ImageKey) -> Result<()> {
+        self.call(|id, p| p.delete_image_use(id, key))
+    }
+
+    /// Add a raw font resource to the window renderer.
+    ///
+    /// Returns the new font key.
+    pub fn add_font(&self, bytes: Vec<u8>, index: u32) -> Result<FontKey> {
+        self.call(|id, p| p.add_font(id, IpcBytes::from_vec(bytes), index))
+    }
+
+    /// Delete the font resource in the window renderer.
+    pub fn delete_font(&self, key: FontKey) -> Result<()> {
+        self.call(|id, p| p.delete_font(id, key))
+    }
+
+    /// Add a font instance to the window renderer.
+    ///
+    /// Returns the new instance key.
+    pub fn add_font_instance(
+        &self,
+        font_key: FontKey,
+        glyph_size: Px,
+        options: Option<FontInstanceOptions>,
+        plataform_options: Option<FontInstancePlatformOptions>,
+        variations: Vec<FontVariation>,
+    ) -> Result<FontInstanceKey> {
+        self.call(|id, p| p.add_font_instance(id, font_key, glyph_size, options, plataform_options, variations))
+    }
+
+    /// Delete the font instance.
+    pub fn delete_font_instance(&self, key: FontInstanceKey) -> Result<()> {
+        self.call(|id, p| p.delete_font_instance(id, key))
+    }
+
+    /// Create a new image resource from the current rendered frame.
+    pub fn frame_image(&self) -> Result<ViewImage> {
+        if let Some(c) = self.0.upgrade() {
+            let id = c.call(|id, p| p.frame_image(id))?;
+            Ok(Self::add_frame_image(c.app_id, id))
+        } else {
+            Err(ViewProcessOffline)
+        }
+    }
+
+    /// Create a new image resource from a selection of the current rendered frame.
+    pub fn frame_image_rect(&self, rect: PxRect) -> Result<ViewImage> {
+        if let Some(c) = self.0.upgrade() {
+            let id = c.call(|id, p| p.frame_image_rect(id, rect))?;
+            Ok(Self::add_frame_image(c.app_id, id))
+        } else {
+            Err(ViewProcessOffline)
+        }
+    }
+
+    fn add_frame_image(app_id: AppId, id: ImageId) -> ViewImage {
+        if id == 0 {
+            ViewImage::dummy(None)
+        } else {
+            let mut app = VIEW_PROCESS.handle_write(app_id);
+            let img = ViewImage(Arc::new(RwLock::new(ViewImageData {
+                app_id: Some(app_id),
+                id: Some(id),
+                generation: app.process.generation(),
+                size: PxSize::zero(),
+                partial_size: PxSize::zero(),
+                ppi: None,
+                opaque: false,
+                partial_bgra8: None,
+                bgra8: None,
+                done_signal: SignalOnce::new(),
+            })));
+
+            app.loading_images.push(Arc::downgrade(&img.0));
+            app.frame_images.push(Arc::downgrade(&img.0));
+
+            img
+        }
+    }
+
+    /// Set the renderer debug flags and UI.
+    pub fn set_debug(&self, dbg: crate::render::RendererDebug) -> Result<()> {
+        if let Some(w) = self.0.upgrade() {
+            w.call(|id, p| p.set_renderer_debug(id, dbg))
+        } else {
+            Err(ViewProcessOffline)
+        }
+    }
+
+    /// Render a new frame.
+    pub fn render(&self, frame: FrameRequest) -> Result<()> {
+        let _s = tracing::debug_span!("ViewRenderer.render").entered();
+
+        if let Some(w) = self.0.upgrade() {
+            w.call(|id, p| p.render(id, frame))?;
+            VIEW_PROCESS.handle_write(w.app_id).pending_frames += 1;
+            Ok(())
+        } else {
+            Err(ViewProcessOffline)
+        }
+    }
+
+    /// Update the current frame and re-render it.
+    pub fn render_update(&self, frame: FrameUpdateRequest) -> Result<()> {
+        let _s = tracing::debug_span!("ViewRenderer.render_update").entered();
+
+        if let Some(w) = self.0.upgrade() {
+            w.call(|id, p| p.render_update(id, frame))?;
+            VIEW_PROCESS.handle_write(w.app_id).pending_frames += 1;
+            Ok(())
+        } else {
+            Err(ViewProcessOffline)
+        }
+    }
+}
+
+/// Handle to an image loading or loaded in the View Process.
+///
+/// The image is disposed when all clones of the handle are dropped.
+#[must_use = "the image is disposed when all clones of the handle are dropped"]
+#[derive(Clone)]
+pub struct ViewImage(Arc<RwLock<ViewImageData>>);
+impl PartialEq for ViewImage {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for ViewImage {}
+impl std::hash::Hash for ViewImage {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let ptr = Arc::as_ptr(&self.0) as usize;
+        ptr.hash(state)
+    }
+}
+impl fmt::Debug for ViewImage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ViewImage")
+            .field("loaded", &self.is_loaded())
+            .field("error", &self.error())
+            .field("size", &self.size())
+            .field("dpi", &self.ppi())
+            .field("opaque", &self.is_opaque())
+            .field("generation", &self.generation())
+            .finish_non_exhaustive()
+    }
+}
+
+struct ViewImageData {
+    app_id: Option<AppId>,
+    id: Option<ImageId>,
+    generation: ViewProcessGen,
+
+    size: PxSize,
+    partial_size: PxSize,
+    ppi: ImagePpi,
+    opaque: bool,
+
+    partial_bgra8: Option<IpcBytes>,
+    bgra8: Option<std::result::Result<IpcBytes, String>>,
+
+    done_signal: SignalOnce,
+}
+impl Drop for ViewImageData {
+    fn drop(&mut self) {
+        if let Some(id) = self.id {
+            let app_id = self.app_id.unwrap();
+            if let Some(app) = App::current_id() {
+                if app_id != app {
+                    tracing::error!("image from app `{:?}` dropped in app `{:?}`", app_id, app);
+                }
+                return;
+            }
+
+            if VIEW_PROCESS.is_available() && VIEW_PROCESS.generation() == self.generation {
+                let _ = VIEW_PROCESS.write().process.forget_image(id);
+            }
+        }
+    }
+}
+
+impl ViewImage {
+    /// Image id.
+    pub fn id(&self) -> Option<ImageId> {
+        self.0.read().id
+    }
+
+    /// If the image does not actually exists in the view-process.
+    pub fn is_dummy(&self) -> bool {
+        self.0.read().id.is_none()
+    }
+
+    /// Returns `true` if the image has successfully decoded.
+    pub fn is_loaded(&self) -> bool {
+        self.0.read().bgra8.as_ref().map(|r| r.is_ok()).unwrap_or(false)
+    }
+
+    /// Returns `true` if the image is progressively decoding and has partially decoded.
+    pub fn is_partially_loaded(&self) -> bool {
+        self.0.read().partial_bgra8.is_some()
+    }
+
+    /// if [`error`] is `Some`.
+    ///
+    /// [`error`]: Self::error
+    pub fn is_error(&self) -> bool {
+        self.0.read().bgra8.as_ref().map(|r| r.is_err()).unwrap_or(false)
+    }
+
+    /// Returns the load error if one happened.
+    pub fn error(&self) -> Option<String> {
+        self.0.read().bgra8.as_ref().and_then(|s| s.as_ref().err().cloned())
+    }
+
+    /// Returns the pixel size, or zero if is not loaded or error.
+    pub fn size(&self) -> PxSize {
+        self.0.read().size
+    }
+
+    /// Actual size of the current pixels.
+    ///
+    /// Can be different from [`size`] if the image is progressively decoding.
+    ///
+    /// [`size`]: Self::size
+    pub fn partial_size(&self) -> PxSize {
+        self.0.read().partial_size
+    }
+
+    /// Returns the "pixels-per-inch" metadata associated with the image, or `None` if not loaded or error or no
+    /// metadata provided by decoder.
+    pub fn ppi(&self) -> ImagePpi {
+        self.0.read().ppi
+    }
+
+    /// Returns if the image is fully opaque.
+    pub fn is_opaque(&self) -> bool {
+        self.0.read().opaque
+    }
+
+    /// Copy the partially decoded pixels if the image is progressively decoding
+    /// and has not finished decoding.
+    pub fn partial_bgra8(&self) -> Option<Vec<u8>> {
+        self.0.read().partial_bgra8.as_ref().map(|r| r[..].to_vec())
+    }
+
+    /// Reference the decoded and pre-multiplied BGRA8 bytes of the image.
+    ///
+    /// Returns `None` until the image is fully loaded. Use [`partial_bgra8`] to copy
+    /// partially decoded bytes.
+    ///
+    /// [`partial_bgra8`]: Self::partial_bgra8
+    pub fn bgra8(&self) -> Option<IpcBytes> {
+        self.0.read().bgra8.as_ref().and_then(|r| r.as_ref().ok()).cloned()
+    }
+
+    /// Returns the app that owns the view-process that is handling this image.
+    pub fn app_id(&self) -> Option<AppId> {
+        self.0.read().app_id
+    }
+
+    /// Returns the view-process generation on which the image is loaded.
+    pub fn generation(&self) -> ViewProcessGen {
+        self.0.read().generation
+    }
+
+    /// Creates a [`WeakViewImage`].
+    pub fn downgrade(&self) -> WeakViewImage {
+        WeakViewImage(Arc::downgrade(&self.0))
+    }
+
+    /// Create a dummy image in the loaded or error state.
+    pub fn dummy(error: Option<String>) -> Self {
+        ViewImage(Arc::new(RwLock::new(ViewImageData {
+            app_id: None,
+            id: None,
+            generation: 0,
+            size: PxSize::zero(),
+            partial_size: PxSize::zero(),
+            ppi: None,
+            opaque: true,
+            partial_bgra8: None,
+            bgra8: if let Some(e) = error {
+                Some(Err(e))
+            } else {
+                Some(Ok(IpcBytes::from_slice(&[])))
+            },
+            done_signal: SignalOnce::new_set(),
+        })))
+    }
+
+    /// Returns a future that awaits until this image is loaded or encountered an error.
+    pub fn awaiter(&self) -> impl std::future::Future<Output = ()> + Send + Sync + 'static {
+        self.0.read().done_signal.clone()
+    }
+
+    /// Tries to encode the image to the format.
+    ///
+    /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
+    ///
+    /// [`image_encoders`]: View::image_encoders.
+    pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
+        self.awaiter().await;
+
+        if let Some(e) = self.error() {
+            return Err(EncodeError::Encode(e));
+        }
+
+        let receiver = {
+            let img = self.0.read();
+            if let Some(id) = img.id {
+                let mut app = VIEW_PROCESS.handle_write(img.app_id.unwrap());
+
+                app.process.encode_image(id, format.clone())?;
+
+                let (sender, receiver) = flume::bounded(1);
+                if let Some(entry) = app.encoding_images.iter_mut().find(|r| r.image_id == id && r.format == format) {
+                    entry.listeners.push(sender);
+                } else {
+                    app.encoding_images.push(EncodeRequest {
+                        image_id: id,
+                        format,
+                        listeners: vec![sender],
+                    });
+                }
+                receiver
+            } else {
+                return Err(EncodeError::Dummy);
+            }
+        };
+
+        receiver.recv_async().await?
+    }
+
+    pub(crate) fn done_signal(&self) -> SignalOnce {
+        self.0.read().done_signal.clone()
+    }
+}
+
+/// Error returned by [`ViewImage::encode`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EncodeError {
+    /// Encode error.
+    Encode(String),
+    /// Attempted to encode dummy image.
+    ///
+    /// In a headless-app without renderer all images are dummy because there is no
+    /// view-process backend running.
+    Dummy,
+    /// The View-Process disconnected or has not finished initializing yet, try again after [`VIEW_PROCESS_INITED_EVENT`].
+    ViewProcessOffline,
+}
+impl From<String> for EncodeError {
+    fn from(e: String) -> Self {
+        EncodeError::Encode(e)
+    }
+}
+impl From<ViewProcessOffline> for EncodeError {
+    fn from(_: ViewProcessOffline) -> Self {
+        EncodeError::ViewProcessOffline
+    }
+}
+impl From<flume::RecvError> for EncodeError {
+    fn from(_: flume::RecvError) -> Self {
+        EncodeError::ViewProcessOffline
+    }
+}
+impl fmt::Display for EncodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EncodeError::Encode(e) => write!(f, "{e}"),
+            EncodeError::Dummy => write!(f, "cannot encode dummy image"),
+            EncodeError::ViewProcessOffline => write!(f, "{ViewProcessOffline}"),
+        }
+    }
+}
+impl std::error::Error for EncodeError {}
+
+/// Connection to an image loading or loaded in the View Process.
+///
+/// The image is removed from the View Process cache when all clones of [`ViewImage`] drops, but
+/// if there is another image pointer holding the image, this weak pointer can be upgraded back
+/// to a strong connection to the image.
+#[derive(Clone)]
+pub struct WeakViewImage(sync::Weak<RwLock<ViewImageData>>);
+impl WeakViewImage {
+    /// Attempt to upgrade the weak pointer to the image to a full image.
+    ///
+    /// Returns `Some` if the is at least another [`ViewImage`] holding the image alive.
+    pub fn upgrade(&self) -> Option<ViewImage> {
+        self.0.upgrade().map(ViewImage)
+    }
+}
+
+struct EncodeRequest {
+    image_id: ImageId,
+    format: String,
+    listeners: Vec<flume::Sender<std::result::Result<Arc<Vec<u8>>, EncodeError>>>,
 }

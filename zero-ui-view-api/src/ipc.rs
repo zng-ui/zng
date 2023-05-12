@@ -8,6 +8,7 @@ use ipc_channel::ipc::{channel, IpcOneShotServer, IpcReceiver, IpcSender};
 #[cfg(not(feature = "ipc"))]
 use flume::unbounded as channel;
 
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 pub(crate) type IpcResult<T> = std::result::Result<T, Disconnected>;
@@ -217,7 +218,11 @@ impl AppInit {
         let (rsp_sender, rsp_recv) = channel()?;
         let (evt_sender, evt_recv) = channel()?;
         chan_sender.send((rsp_sender, evt_sender))?;
-        Ok((RequestSender(req_sender), ResponseReceiver(rsp_recv), EventReceiver(evt_recv)))
+        Ok((
+            RequestSender(Mutex::new(req_sender)),
+            ResponseReceiver(Mutex::new(rsp_recv)),
+            EventReceiver(Mutex::new(evt_recv)),
+        ))
     }
 }
 
@@ -238,9 +243,9 @@ pub fn connect_view_process(server_name: String) -> IpcResult<ViewChannels> {
     let (rsp_sender, evt_sender) = chan_recv.recv().map_err(handle_recv_error)?;
 
     Ok(ViewChannels {
-        request_receiver: RequestReceiver(req_recv),
-        response_sender: ResponseSender(rsp_sender),
-        event_sender: EventSender(evt_sender),
+        request_receiver: RequestReceiver(Mutex::new(req_recv)),
+        response_sender: ResponseSender(Mutex::new(rsp_sender)),
+        event_sender: EventSender(Mutex::new(evt_sender)),
     })
 }
 
@@ -353,10 +358,10 @@ pub struct ViewChannels {
     pub event_sender: EventSender,
 }
 
-pub(crate) struct RequestSender(IpcSender<Request>);
+pub(crate) struct RequestSender(Mutex<IpcSender<Request>>);
 impl RequestSender {
     pub fn send(&mut self, req: Request) -> IpcResult<()> {
-        self.0.send(req).map_err(handle_send_error)
+        self.0.get_mut().send(req).map_err(handle_send_error)
     }
 }
 
@@ -366,11 +371,11 @@ impl RequestSender {
 /// to send back the response.
 ///
 /// [`Api::respond`]: crate::Api::respond
-pub struct RequestReceiver(IpcReceiver<Request>);
+pub struct RequestReceiver(Mutex<IpcReceiver<Request>>); // Mutex for Sync
 impl RequestReceiver {
     /// Receive one [`Request`].
     pub fn recv(&mut self) -> IpcResult<Request> {
-        self.0.recv().map_err(handle_recv_error)
+        self.0.get_mut().recv().map_err(handle_recv_error)
     }
 }
 
@@ -381,7 +386,7 @@ impl RequestReceiver {
 /// Requests are received using [`RequestReceiver`] a response must be send for each request, synchronously.
 ///
 /// [`Api::respond`]: crate::Api::respond
-pub struct ResponseSender(IpcSender<Response>);
+pub struct ResponseSender(Mutex<IpcSender<Response>>); // Mutex for Sync
 impl ResponseSender {
     /// Send a response.
     ///
@@ -392,13 +397,13 @@ impl ResponseSender {
     /// [`must_be_send`]: Response::must_be_send
     pub fn send(&mut self, rsp: Response) -> IpcResult<()> {
         assert!(rsp.must_be_send());
-        self.0.send(rsp).map_err(handle_send_error)
+        self.0.get_mut().send(rsp).map_err(handle_send_error)
     }
 }
-pub(crate) struct ResponseReceiver(IpcReceiver<Response>);
+pub(crate) struct ResponseReceiver(Mutex<IpcReceiver<Response>>);
 impl ResponseReceiver {
     pub fn recv(&mut self) -> IpcResult<Response> {
-        self.0.recv().map_err(handle_recv_error)
+        self.0.get_mut().recv().map_err(handle_recv_error)
     }
 }
 
@@ -408,17 +413,17 @@ impl ResponseReceiver {
 /// can be asynchronous, not related to the [`Api::respond`] calls.
 ///
 /// [`Api::respond`]: crate::Api::respond
-pub struct EventSender(IpcSender<Event>);
+pub struct EventSender(Mutex<IpcSender<Event>>);
 impl EventSender {
     /// Send an event notification.
     pub fn send(&mut self, ev: Event) -> IpcResult<()> {
-        self.0.send(ev).map_err(handle_send_error)
+        self.0.get_mut().send(ev).map_err(handle_send_error)
     }
 }
-pub(crate) struct EventReceiver(IpcReceiver<Event>);
+pub(crate) struct EventReceiver(Mutex<IpcReceiver<Event>>);
 impl EventReceiver {
     pub fn recv(&mut self) -> IpcResult<Event> {
-        self.0.recv().map_err(handle_recv_error)
+        self.0.get_mut().recv().map_err(handle_recv_error)
     }
 }
 

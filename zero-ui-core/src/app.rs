@@ -28,7 +28,7 @@ use crate::{
     window::{WindowId, WindowManager},
 };
 
-use self::view_process::{ViewProcess, ViewProcessInitedArgs, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
+use self::view_process::{ViewProcessInitedArgs, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
 use once_cell::sync::Lazy;
 use pretty_type_name::*;
 use std::future::Future;
@@ -1661,9 +1661,7 @@ impl<E: AppExtension> Drop for RunningApp<E> {
     fn drop(&mut self) {
         let _s = tracing::debug_span!("extensions.deinit").entered();
         self.extensions.deinit();
-
-        #[cfg(not(feature = "multi_app"))]
-        ViewProcess::exit();
+        VIEW_PROCESS.exit();
     }
 }
 

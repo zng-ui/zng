@@ -17,7 +17,7 @@ use zero_ui_view_api::IpcBytes;
 use crate::{
     app::{
         raw_events::{RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
-        view_process::{ImageRequest, ViewImage, ViewProcess, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
+        view_process::{ImageRequest, ViewImage, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
         AppExtension,
     },
     app_local,
@@ -52,14 +52,6 @@ pub use render::{render_retain, IMAGE_RENDER};
 #[derive(Default)]
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
-    fn init(&mut self) {
-        IMAGES_SV.write().init(if VIEW_PROCESS.is_available() {
-            Some(VIEW_PROCESS.clone())
-        } else {
-            None
-        });
-    }
-
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(args) = RAW_IMAGE_METADATA_LOADED_EVENT.on(update) {
             let images = IMAGES_SV.read();
@@ -123,7 +115,7 @@ impl AppExtension for ImageManager {
             let images = &mut *images;
             images.cleanup_not_cached(true);
             images.download_accept.clear();
-            let vp = images.view.as_mut().unwrap();
+
             let decoding_interrupted = mem::take(&mut images.decoding);
             for (img_var, max_decoded_len, downscale) in images
                 .cache
@@ -148,7 +140,7 @@ impl AppExtension for ImageManager {
                     } else if let Some(task) = decoding_interrupted.iter().find(|e| e.image.with(|img| img.view() == Some(view))) {
                         // respawned, but image was decoding, need to restart decode.
 
-                        match vp.add_image(ImageRequest {
+                        match VIEW_PROCESS.add_image(ImageRequest {
                             format: task.format.clone(),
                             data: task.data.clone(),
                             max_decoded_len: max_decoded_len.0 as u64,
@@ -173,7 +165,7 @@ impl AppExtension for ImageManager {
                         };
 
                         let data = view.bgra8().unwrap();
-                        let img = match vp.add_image(ImageRequest {
+                        let img = match VIEW_PROCESS.add_image(ImageRequest {
                             format: img_format.clone(),
                             data: data.clone(),
                             max_decoded_len: max_decoded_len.0 as u64,
@@ -203,7 +195,6 @@ impl AppExtension for ImageManager {
 
         let mut images = IMAGES_SV.write();
         let images = &mut *images;
-        let view = &images.view;
         let decoding = &mut images.decoding;
         let mut loading = Vec::with_capacity(images.loading.len());
 
@@ -213,9 +204,9 @@ impl AppExtension for ImageManager {
                 Ok(d) => {
                     match d.r {
                         Ok(data) => {
-                            if let Some(vp) = view {
+                            if VIEW_PROCESS.is_available() {
                                 // success and we have a view-process.
-                                match vp.add_image(ImageRequest {
+                                match VIEW_PROCESS.add_image(ImageRequest {
                                     format: d.format.clone(),
                                     data: data.clone(),
                                     max_decoded_len: t.max_decoded_len.0 as u64,
@@ -319,7 +310,6 @@ struct ImagesService {
     load_in_headless: ArcVar<bool>,
     limits: ArcVar<ImageLimits>,
 
-    view: Option<ViewProcess>,
     download_accept: Txt,
     proxies: Vec<Box<dyn ImageCacheProxy>>,
 
@@ -335,7 +325,6 @@ impl ImagesService {
         Self {
             load_in_headless: var(false),
             limits: var(ImageLimits::default()),
-            view: None,
             proxies: vec![],
             loading: vec![],
             decoding: vec![],
@@ -344,10 +333,6 @@ impl ImagesService {
             not_cached: vec![],
             render: render::ImagesRender::default(),
         }
-    }
-
-    fn init(&mut self, view: Option<ViewProcess>) {
-        self.view = view;
     }
 
     fn register(&mut self, key: ImageHash, image: ViewImage, downscale: Option<ImageDownscale>) -> Option<ImageVar> {
@@ -486,7 +471,7 @@ impl ImagesService {
             ImageCacheMode::Ignore | ImageCacheMode::Reload => {}
         }
 
-        if self.view.is_none() && !self.load_in_headless.get() {
+        if !VIEW_PROCESS.is_available() && !self.load_in_headless.get() {
             tracing::warn!("loading dummy image, set `load_in_headless=true` to actually load without renderer");
 
             let dummy = var(Img::new(ViewImage::dummy(None)));
@@ -625,9 +610,9 @@ impl ImagesService {
     #[cfg(http)]
     fn download_accept(&mut self) -> Txt {
         if self.download_accept.is_empty() {
-            if let Some(view) = &self.view {
+            if VIEW_PROCESS.is_available() {
                 let mut r = String::new();
-                let mut fmts = view.image_decoders().unwrap_or_default().into_iter();
+                let mut fmts = VIEW_PROCESS.image_decoders().unwrap_or_default().into_iter();
                 if let Some(fmt) = fmts.next() {
                     r.push_str("image/");
                     r.push_str(&fmt);
@@ -719,7 +704,7 @@ impl ImagesService {
 
 /// Image loading, cache and render service.
 ///
-/// If the app is running without a [`ViewProcess`] all images are dummy, see [`load_in_headless`] for
+/// If the app is running without a [`VIEW_PROCESS`] all images are dummy, see [`load_in_headless`] for
 /// details.
 ///
 /// [`load_in_headless`]: IMAGES::load_in_headless
@@ -727,7 +712,7 @@ pub struct IMAGES;
 impl IMAGES {
     /// If should still download/read image bytes in headless/renderless mode.
     ///
-    /// When an app is in headless mode without renderer no [`ViewProcess`] is available, so
+    /// When an app is in headless mode without renderer no [`VIEW_PROCESS`] is available, so
     /// images cannot be decoded, in this case all images are the [`dummy`] image and no attempt
     /// to download/read the image files is made. You can enable loading in headless tests to detect
     /// IO errors, in this case if there is an error acquiring the image file the image will be a
