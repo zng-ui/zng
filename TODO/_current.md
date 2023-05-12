@@ -1,12 +1,14 @@
+* Image test infinite loop.
+    - Headless example also, if no run_window.
+      if `#[cfg(feature = "multi_app")]` hangs.
+    - Refactor `VIEW_APP` into a `struct VIEW_APP;` that is used everywhere that
+      we use clones of `ViewProcess`.
+
 # Text Edit
 
 * Implement `accepts_return`.
 * Implement cursor position.
 * Implement selection.
-
-# WATCHER
-
-* Block on deinit to flush.
 
 # Localization
 

@@ -1367,12 +1367,11 @@ impl HeadlessCtrl {
     }
 
     pub fn render(&mut self, render_widgets: Arc<RenderUpdates>, render_update_widgets: Arc<RenderUpdates>) {
-        
         let w_id = WINDOW.id();
         if !render_widgets.delivery_list().enter_window(w_id) && !render_update_widgets.delivery_list().enter_window(w_id) {
             return;
         }
-        
+
         // layout and render cannot happen yet
         if !WINDOWS.try_load(w_id) {
             return;

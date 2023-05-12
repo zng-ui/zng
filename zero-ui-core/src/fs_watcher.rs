@@ -56,6 +56,10 @@ impl AppExtension for FsWatcherManager {
     fn update_preview(&mut self) {
         WATCHER_SV.write().update();
     }
+
+    fn deinit(&mut self) {
+        WATCHER_SV.write().flush_shutdown();
+    }
 }
 
 /// File system watcher service.
@@ -707,6 +711,12 @@ impl WatcherService {
 
         FS_CHANGES_EVENT.notify(FsChangesArgs::new(now, Default::default(), changes));
     }
+
+    fn flush_shutdown(&mut self) {
+        for v in &mut self.sync_with_var {
+            v.flush_shutdown();
+        }
+    }
 }
 fn notify_watcher_handler() -> impl notify::EventHandler {
     let mut ctx = crate::context::LocalContext::capture();
@@ -861,6 +871,10 @@ impl SyncWithVar {
                         return;
                     }
                 }
+                SyncEvent::FlushShutdown => {
+                    let _done = read_write.lock();
+                    return;
+                }
             };
             drop(var);
 
@@ -944,11 +958,18 @@ impl SyncWithVar {
         }
         !self.handle.is_dropped()
     }
+
+    fn flush_shutdown(&mut self) {
+        if !self.handle.is_dropped() {
+            (self.task)(&self.pending, &self.handle, SyncEvent::FlushShutdown);
+        }
+    }
 }
 enum SyncEvent<'a> {
     Update(Duration),
     Event(&'a FsChangesArgs),
     Init,
+    FlushShutdown,
 }
 bitflags! {
     #[derive(Clone, Copy)]
