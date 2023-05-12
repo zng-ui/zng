@@ -1005,7 +1005,7 @@ impl SwapConfig {
             cfg: Mutex::new(Box::new(NilConfig)),
             errors: var(ConfigErrors::default()),
             shared: ConfigVars::default(),
-            is_loaded: var(false),
+            is_loaded: var(true), // nil is loaded
             is_loaded_binding: VarHandle::dummy(),
             errors_binding: VarHandle::dummy(),
         }

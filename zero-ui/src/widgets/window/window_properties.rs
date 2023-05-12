@@ -9,6 +9,7 @@ use crate::core::window::{
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
+use zero_ui_core::config::AnyConfig;
 
 use super::Window;
 
@@ -258,14 +259,9 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                     let restore_rect = vars.restore_rect();
                     WIDGET.sub_var(&vars.state()).sub_var(&vars.restore_rect());
 
-                    cfg = Some(CONFIG.get(key, || WindowStateCfg {
-                        state: state.get(),
-                        restore_rect: restore_rect.get().cast(),
-                    }));
-
                     let is_loaded = CONFIG.is_loaded();
                     if is_loaded.get() {
-                        apply_to_window = true;
+                        apply_to_window = CONFIG.contains_key(&key);
                     } else {
                         // if is_loaded updates before the WINDOW_LOAD_EVENT we will still apply
                         loading = Some(Box::new(Loading {
@@ -275,6 +271,11 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                             is_loaded,
                         }))
                     }
+
+                    cfg = Some(CONFIG.get(key, || WindowStateCfg {
+                        state: state.get(),
+                        restore_rect: restore_rect.get().cast(),
+                    }));
                 }
             }
             UiNodeOp::Deinit => {
@@ -290,7 +291,9 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             UiNodeOp::Update { .. } => {
                 if let Some(l) = &loading {
                     if l.is_loaded.get() {
-                        apply_to_window = true;
+                        if let Some(key) = enabled.window_key(WINDOW.id()) {
+                            apply_to_window = CONFIG.contains_key(&key);
+                        }
                         loading = None
                     }
                 }

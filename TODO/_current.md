@@ -1,6 +1,5 @@
 These issues where already in master before view-process refactor.
 * Opening two instances of config example causes errors.
-* Delay open second window (see focus example).
 * Scroll up with keyboard does not work after scroll down (see scroll example).
 
 # Text Edit
