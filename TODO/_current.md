@@ -1,8 +1,6 @@
-* Image test infinite loop.
-    - Headless example also, if no run_window.
-      if `#[cfg(feature = "multi_app")]` hangs.
-    - Refactor `VIEW_APP` into a `struct VIEW_APP;` that is used everywhere that
-      we use clones of `ViewProcess`.
+* Opening two instances of config example causes errors.
+* Delay open second window (see focus example).
+* Scroll up with keyboard does not work after scroll down (see scroll example).
 
 # Text Edit
 
