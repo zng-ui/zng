@@ -1923,6 +1923,7 @@ impl HeadlessApp {
             return r;
         }
 
+        let mut n = 0;
         while flow != ControlFlow::Exit {
             flow = self.update_observe(
                 || {
@@ -1930,6 +1931,13 @@ impl HeadlessApp {
                 },
                 true,
             );
+
+            if n == 10_000 {
+                tracing::error!("excessive future awaking, run_task ran 10_000 update cycles without finishing");
+            } else if n == 100_000 {
+                panic!("run_task stuck, ran 100_000 update cycles without finishing");
+            }
+            n += 1;
 
             match task.into_result() {
                 Ok(r) => return Some(r),

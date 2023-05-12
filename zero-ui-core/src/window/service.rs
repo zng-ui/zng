@@ -616,7 +616,7 @@ impl WINDOWS {
     /// Returns `true` if loaded.
     pub(super) fn try_load(&self, window_id: WindowId) -> bool {
         if let Some(info) = WINDOWS_SV.write().windows_info.get_mut(&window_id) {
-            info.is_loaded = info.loading_handle.try_load();
+            info.is_loaded = info.loading_handle.try_load(window_id);
 
             if info.is_loaded && !info.vars.0.is_loaded.get() {
                 info.vars.0.is_loaded.set_ne(true);
@@ -1228,7 +1228,7 @@ impl WindowLoading {
     }
 
     /// Returns `true` if the window can load.
-    pub fn try_load(&mut self) -> bool {
+    pub fn try_load(&mut self, window_id: WindowId) -> bool {
         let mut deadline = Deadline::timeout(1.hours());
         self.handles.retain(|h| match h.upgrade() {
             Some(h) => {
@@ -1254,7 +1254,7 @@ impl WindowLoading {
                 let t = TIMERS.on_deadline(
                     deadline,
                     app_hn_once!(|_| {
-                        UPDATES.update(None);
+                        UPDATES.update_window(window_id).layout_window(window_id).render_window(window_id);
                     }),
                 );
                 self.timer = Some(t);
