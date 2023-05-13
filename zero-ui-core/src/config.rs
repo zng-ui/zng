@@ -64,8 +64,8 @@ impl AnyConfig for CONFIG {
         CONFIG_SV.read().errors()
     }
 
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
-        CONFIG_SV.write().get_json(key, default, shared)
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
+        CONFIG_SV.write().get_raw(key, default, shared)
     }
 
     fn contains_key(&self, key: &ConfigKey) -> bool {
@@ -95,6 +95,21 @@ pub type ConfigKey = Txt;
 pub trait ConfigValue: VarValue + serde::Serialize + serde::de::DeserializeOwned {}
 impl<T: VarValue + serde::Serialize + serde::de::DeserializeOwned> ConfigValue for T {}
 
+/// Represents any entry type in a config.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct RawConfigValue(pub serde_json::Value);
+impl RawConfigValue {
+    /// Serialize to the raw config format.
+    pub fn serialize<T: serde::Serialize>(value: T) -> Result<Self, serde_json::Error> {
+        serde_json::to_value(value).map(Self)
+    }
+
+    /// Deserialize from the raw config format.
+    pub fn deserialize<T: serde::de::DeserializeOwned>(self) -> Result<T, serde_json::Error> {
+        serde_json::from_value(self.0)
+    }
+}
+
 /// Represents a full config map in memory.
 ///
 /// This can be used with [`SyncConfig`] to implement a full config.
@@ -114,21 +129,21 @@ pub trait ConfigMap: VarValue {
     /// Gets the weak typed value.
     ///
     /// This method is used when `T` cannot be passed because the map is behind a dynamic reference,
-    /// if the backend is not JSON it must convert the value from the in memory representation to JSON.
+    /// the backend must convert the value from the in memory representation to [`RawConfigValue`].
     ///
     /// This method can run in blocking contexts, work with in memory storage only.
-    fn get_json(&self, key: &ConfigKey) -> Result<Option<serde_json::Value>, Arc<dyn std::error::Error + Send + Sync>>;
+    fn get_raw(&self, key: &ConfigKey) -> Result<Option<RawConfigValue>, Arc<dyn std::error::Error + Send + Sync>>;
 
     /// Sets the weak typed value.
     ///
     /// This method is used when `T` cannot be passed because the map is behind a dynamic reference,
-    /// if the backend is not JSON it must convert to the in memory representation.
+    /// the backend must convert to the in memory representation.
     ///
     /// If `map` is dereferenced mutable a write task will, if possible check if the entry already has the same value
     /// before mutating the map to avoid a potentially expensive IO write.
     ///
     /// This method can run in blocking contexts, work with in memory storage only.
-    fn set_json(map: &mut Cow<Self>, key: ConfigKey, value: serde_json::Value) -> Result<(), Arc<dyn std::error::Error + Send + Sync>>;
+    fn set_raw(map: &mut Cow<Self>, key: ConfigKey, value: RawConfigValue) -> Result<(), Arc<dyn std::error::Error + Send + Sync>>;
 
     /// Returns if the key in config.
     ///
@@ -139,8 +154,8 @@ pub trait ConfigMap: VarValue {
     ///
     /// This method can run in blocking contexts, work with in memory storage only.
     fn get<O: ConfigValue>(&self, key: &ConfigKey) -> Result<Option<O>, Arc<dyn std::error::Error + Send + Sync>> {
-        if let Some(value) = self.get_json(key)? {
-            match serde_json::from_value(value) {
+        if let Some(value) = self.get_raw(key)? {
+            match RawConfigValue::deserialize(value) {
                 Ok(s) => Ok(Some(s)),
                 Err(e) => Err(Arc::new(e)),
             }
@@ -156,8 +171,8 @@ pub trait ConfigMap: VarValue {
     ///
     /// This method can run in blocking contexts, work with in memory storage only.
     fn set<O: ConfigValue>(map: &mut Cow<Self>, key: ConfigKey, value: O) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
-        match serde_json::to_value(value) {
-            Ok(s) => Self::set_json(map, key, s),
+        match RawConfigValue::serialize(value) {
+            Ok(s) => Self::set_raw(map, key, s),
             Err(e) => Err(Arc::new(e)),
         }
     }
@@ -191,7 +206,7 @@ pub trait AnyConfig: Send + Any {
     /// Gets a weak typed variable to the config `key`.
     ///
     /// This method is used when `T` cannot be passed because the config is behind a dynamic reference,
-    /// if the backend is not JSON it must convert the value from the in memory representation to JSON.
+    /// the backend must convert the value from the in memory representation to [`RawConfigValue`].
     ///
     /// If `shared` is `true` and the key was already requested it the same var is returned, if `false`
     /// a new variable is always generated. Note that if you have two different variables for the same
@@ -199,14 +214,14 @@ pub trait AnyConfig: Send + Any {
     ///
     /// The `default` value is used to if the key is not found in the config, the default value
     /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value>;
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue>;
 
     /// Returns if the `key` already has the key in the backing storage.
     ///
-    /// Both [`get_json`] and [`get`] methods don't insert the key on request, the key is inserted on the
+    /// Both [`get_raw`] and [`get`] methods don't insert the key on request, the key is inserted on the
     /// first time the returned variable updates.
     ///
-    /// [`get_json`]: AnyConfig::get_json
+    /// [`get_raw`]: AnyConfig::get_raw
     /// [`get`]: Config::get
     fn contains_key(&self, key: &ConfigKey) -> bool;
 }
@@ -224,13 +239,13 @@ pub trait Config: AnyConfig {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
         let key = key.into();
         let default = default();
-        let json_var = self.get_json(key.clone(), serde_json::to_value(&default).unwrap_or(serde_json::Value::Null), true);
+        let raw_var = self.get_raw(key.clone(), RawConfigValue::serialize(&default).unwrap(), true);
         let wk_errors = self.errors().downgrade();
 
-        json_var
+        raw_var
             .filter_map_bidi(
-                // JSON -> T
-                clmv!(key, wk_errors, |json| match serde_json::from_value(json.clone()) {
+                // Raw -> T
+                clmv!(key, wk_errors, |raw| match RawConfigValue::deserialize(raw.clone()) {
                     Ok(typed) => {
                         if let Some(errors) = wk_errors.upgrade() {
                             if errors.with(|e| e.entry(&key).next().is_some()) {
@@ -247,16 +262,16 @@ pub trait Config: AnyConfig {
                         None
                     }
                 }),
-                // T -> JSON
+                // T -> Raw
                 clmv!(key, wk_errors, |typed| {
-                    match serde_json::to_value(typed) {
-                        Ok(json) => {
+                    match RawConfigValue::serialize(typed) {
+                        Ok(raw) => {
                             if let Some(errors) = wk_errors.upgrade() {
                                 if errors.with(|e| e.entry(&key).next().is_some()) {
                                     let _ = errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
                                 }
                             }
-                            Some(json)
+                            Some(raw)
                         }
                         Err(e) => {
                             tracing::error!("get config set({key:?}) error, {e:?}");
@@ -288,8 +303,8 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
         self.cfg.errors().read_only()
     }
 
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
-        self.cfg.get_json(key, default, shared).read_only()
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
+        self.cfg.get_raw(key, default, shared).read_only()
     }
 
     fn contains_key(&self, key: &ConfigKey) -> bool {
@@ -313,7 +328,7 @@ impl AnyConfig for NilConfig {
     fn errors(&self) -> BoxedVar<ConfigErrors> {
         LocalVar(ConfigErrors::default()).boxed()
     }
-    fn get_json(&mut self, _: ConfigKey, default: serde_json::Value, _: bool) -> BoxedVar<serde_json::Value> {
+    fn get_raw(&mut self, _: ConfigKey, default: RawConfigValue, _: bool) -> BoxedVar<RawConfigValue> {
         LocalVar(default).boxed()
     }
     fn contains_key(&self, _: &ConfigKey) -> bool {
@@ -409,13 +424,9 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
             return false;
         };
 
-        let source_var = source.get_json(
-            key.clone(),
-            serde_json::to_value(var.get()).unwrap_or(serde_json::Value::Null),
-            false,
-        );
+        let source_var = source.get_raw(key.clone(), RawConfigValue::serialize(var.get()).unwrap(), false);
 
-        match serde_json::from_value::<T>(source_var.get()) {
+        match RawConfigValue::deserialize::<T>(source_var.get()) {
             Ok(value) => {
                 let _ = var.set(value);
             }
@@ -427,9 +438,9 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
 
         self.binding = source_var.bind_filter_map_bidi(
             &var,
-            // JSON -> T
-            clmv!(key, errors, |json| {
-                match serde_json::from_value(json.clone()) {
+            // Raw -> T
+            clmv!(key, errors, |raw| {
+                match RawConfigValue::deserialize(raw.clone()) {
                     Ok(value) => {
                         if errors.with(|e| e.entry(&key).next().is_some()) {
                             errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
@@ -443,15 +454,15 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
                     }
                 }
             }),
-            // T -> JSON
+            // T -> Raw
             clmv!(key, errors, source_var, |value| {
                 let _strong_ref = &source_var;
-                match serde_json::to_value(value) {
-                    Ok(json) => {
+                match RawConfigValue::serialize(value) {
+                    Ok(raw) => {
                         if errors.with(|e| e.entry(&key).next().is_some()) {
                             errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
                         }
-                        Some(json)
+                        Some(raw)
                     }
                     Err(e) => {
                         tracing::error!("rebind config set({key:?}) error, {e:?}");

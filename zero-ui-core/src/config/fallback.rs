@@ -38,13 +38,13 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         .boxed()
     }
 
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
-        let over = self.over.get_json(key.clone(), default.clone(), shared);
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
+        let over = self.over.get_raw(key.clone(), default.clone(), shared);
         if self.over.contains_key(&key) {
             return over;
         }
 
-        let fallback = self.fallback.get_json(key, default, shared);
+        let fallback = self.fallback.get_raw(key, default, shared);
         let result = var(fallback.get());
 
         #[derive(Clone, Copy)]
@@ -71,7 +71,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                 // fallback -> result
                 if let Some(result) = wk_result.upgrade() {
                     state.store(State::FallbackUpdated, atomic::Ordering::Relaxed);
-                    result.set(value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone());
+                    result.set(value.as_any().downcast_ref::<RawConfigValue>().unwrap().clone());
                     true
                 } else {
                     // weak-ref to avoid circular ref.
@@ -90,7 +90,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                 }
                 _ => {
                     // over -> result
-                    let value = value.as_any().downcast_ref::<serde_json::Value>().unwrap();
+                    let value = value.as_any().downcast_ref::<RawConfigValue>().unwrap();
                     state.store(State::OverUpdated, atomic::Ordering::Relaxed);
                     if let Some(result) = wk_result.upgrade() {
                         result.set(value.clone());
@@ -114,7 +114,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                         // result -> over(first)
                         state.store(State::Over, atomic::Ordering::Relaxed);
                         *fallback.lock() = None;
-                        let value = value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone();
+                        let value = value.as_any().downcast_ref::<RawConfigValue>().unwrap().clone();
                         let _ = over.set_ne(value);
                     }
                     State::FallbackUpdated => {
@@ -123,7 +123,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                     }
                     State::Over => {
                         // result -> over
-                        let value = value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone();
+                        let value = value.as_any().downcast_ref::<RawConfigValue>().unwrap().clone();
                         let _ = over.set_ne(value);
                     }
                     State::OverUpdated => {

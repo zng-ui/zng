@@ -22,12 +22,12 @@ impl AnyConfig for SwapConfig {
         self.errors.clone().boxed()
     }
 
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
         if shared {
             self.shared
-                .get_or_bind(key, |key| self.cfg.get_mut().get_json(key.clone(), default, false))
+                .get_or_bind(key, |key| self.cfg.get_mut().get_raw(key.clone(), default, false))
         } else {
-            self.cfg.get_mut().get_json(key, default, false)
+            self.cfg.get_mut().get_raw(key, default, false)
         }
     }
 
@@ -45,21 +45,20 @@ impl Config for SwapConfig {
             // not in shared, bind with source json var.
 
             let default = default();
-            let source_var = self.cfg.get_mut().get_json(
-                key.clone(),
-                serde_json::to_value(&default).unwrap_or(serde_json::Value::Null),
-                false,
-            );
-            let var = var(serde_json::from_value(source_var.get()).unwrap_or(default));
+            let source_var = self
+                .cfg
+                .get_mut()
+                .get_raw(key.clone(), RawConfigValue::serialize(&default).unwrap(), false);
+            let var = var(RawConfigValue::deserialize(source_var.get()).unwrap_or(default));
 
             let errors = &self.errors;
 
             source_var
                 .bind_filter_map_bidi(
                     &var,
-                    // JSON -> T
-                    clmv!(key, errors, |json| {
-                        match serde_json::from_value(json.clone()) {
+                    // Raw -> T
+                    clmv!(key, errors, |raw| {
+                        match RawConfigValue::deserialize(raw.clone()) {
                             Ok(value) => {
                                 if errors.with(|e| e.entry(&key).next().is_some()) {
                                     errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
@@ -73,16 +72,16 @@ impl Config for SwapConfig {
                             }
                         }
                     }),
-                    // T -> JSON
+                    // T -> Raw
                     clmv!(key, errors, source_var, |value| {
                         let _strong_ref = &source_var;
 
-                        match serde_json::to_value(value) {
-                            Ok(json) => {
+                        match RawConfigValue::serialize(value) {
+                            Ok(raw) => {
                                 if errors.with(|e| e.entry(&key).next().is_some()) {
                                     errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
                                 }
-                                Some(json)
+                                Some(raw)
                             }
                             Err(e) => {
                                 tracing::error!("swap config set({key:?}) error, {e:?}");

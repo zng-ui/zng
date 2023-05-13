@@ -80,22 +80,22 @@ impl<M: ConfigMap> SyncConfig<M> {
         }
     }
 
-    fn get_new_json(
+    fn get_new_raw(
         sync_var: &ArcVar<M>,
         errors: &ArcVar<ConfigErrors>,
         key: ConfigKey,
-        default: serde_json::Value,
-    ) -> BoxedVar<serde_json::Value> {
+        default: RawConfigValue,
+    ) -> BoxedVar<RawConfigValue> {
         // init var to already present value, or default.
-        let var = match sync_var.with(|m| ConfigMap::get_json(m, &key)) {
-            Ok(json) => {
+        let var = match sync_var.with(|m| ConfigMap::get_raw(m, &key)) {
+            Ok(raw) => {
                 // get ok, clear any entry errors
                 if errors.with(|e| e.entry(&key).next().is_some()) {
                     errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
                 }
 
-                match json {
-                    Some(json) => var(json),
+                match raw {
+                    Some(raw) => var(raw),
                     None => var(default),
                 }
             }
@@ -120,15 +120,15 @@ impl<M: ConfigMap> SyncConfig<M> {
                 }
                 last_update.store(update_id, Ordering::Relaxed);
                 if let Some(var) = wk_var.upgrade() {
-                    match map.as_any().downcast_ref::<M>().unwrap().get_json(&key) {
-                        Ok(json) => {
+                    match map.as_any().downcast_ref::<M>().unwrap().get_raw(&key) {
+                        Ok(raw) => {
                             // get ok
                             if errors.with(|e| e.entry(&key).next().is_some()) {
                                 errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
                             }
 
-                            if let Some(json) = json {
-                                var.set(json);
+                            if let Some(raw) = raw {
+                                var.set(raw);
                             }
                             // else backend lost entry but did not report as error.
                         }
@@ -157,10 +157,10 @@ impl<M: ConfigMap> SyncConfig<M> {
             }
             last_update.store(update_id, Ordering::Relaxed);
             if let Some(sync_var) = wk_sync_var.upgrade() {
-                let json = value.as_any().downcast_ref::<serde_json::Value>().unwrap().clone();
+                let raw = value.as_any().downcast_ref::<RawConfigValue>().unwrap().clone();
                 sync_var.modify(clmv!(key, errors, |m| {
                     // set, only if actually changed
-                    match ConfigMap::set_json(m, key.clone(), json) {
+                    match ConfigMap::set_raw(m, key.clone(), raw) {
                         Ok(()) => {
                             // set ok
                             if errors.with(|e| e.entry(&key).next().is_some()) {
@@ -274,12 +274,12 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
         self.errors.clone().boxed()
     }
 
-    fn get_json(&mut self, key: ConfigKey, default: serde_json::Value, shared: bool) -> BoxedVar<serde_json::Value> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
         if shared {
             self.shared
-                .get_or_bind(key, |key| Self::get_new_json(&self.sync_var, &self.errors, key.clone(), default))
+                .get_or_bind(key, |key| Self::get_new_raw(&self.sync_var, &self.errors, key.clone(), default))
         } else {
-            Self::get_new_json(&self.sync_var, &self.errors, key, default)
+            Self::get_new_raw(&self.sync_var, &self.errors, key, default)
         }
     }
 
