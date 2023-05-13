@@ -183,7 +183,7 @@ impl SegmentedText {
         let bidi = BidiInfo::new(text_str, Some(base_direction.into()));
 
         for (offset, hard_break) in LineBreakIterator::new(text_str) {
-            // a hard-break is a '\n', "\r\n".
+            // a hard-break is a '\n', '\r', "\r\n".
             if hard_break {
                 // start of this segment.
                 let start = segs.last().map(|s| s.end).unwrap_or(0);
@@ -195,8 +195,11 @@ impl SegmentedText {
                     // the break was a "\r\n"
                     offset - 2
                 } else {
-                    debug_assert!(seg.ends_with('\n') || seg.ends_with('\r'), "seg: {seg:#?}");
-                    // the break was a '\n' or just '\r'
+                    debug_assert!(
+                        seg.ends_with('\n') || seg.ends_with('\r') || seg.ends_with('\u{85}'),
+                        "seg: {seg:#?}"
+                    );
+                    // the break was a '\n', '\r' or NEL
                     offset - 1
                 };
 
