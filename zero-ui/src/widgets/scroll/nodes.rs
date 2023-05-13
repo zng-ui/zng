@@ -270,11 +270,6 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Update { updates } => {
             child.update(updates);
 
-            up.set_enabled(SCROLL.can_scroll_up());
-            down.set_enabled(SCROLL.can_scroll_down());
-            left.set_enabled(SCROLL.can_scroll_left());
-            right.set_enabled(SCROLL.can_scroll_right());
-
             if VERTICAL_LINE_UNIT_VAR.is_new() || HORIZONTAL_LINE_UNIT_VAR.is_new() {
                 WIDGET.layout();
             }
@@ -325,6 +320,11 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = child.layout(wl);
 
+            up.set_enabled(SCROLL.can_scroll_up());
+            down.set_enabled(SCROLL.can_scroll_down());
+            left.set_enabled(SCROLL.can_scroll_left());
+            right.set_enabled(SCROLL.can_scroll_right());
+
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
             LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport), || {
                 layout_line = PxVector::new(
@@ -367,14 +367,6 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             down = CommandHandle::dummy();
             left = CommandHandle::dummy();
             right = CommandHandle::dummy();
-        }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-
-            up.set_enabled(SCROLL.can_scroll_up());
-            down.set_enabled(SCROLL.can_scroll_down());
-            left.set_enabled(SCROLL.can_scroll_left());
-            right.set_enabled(SCROLL.can_scroll_right());
         }
         UiNodeOp::Event { update } => {
             child.event(update);
@@ -422,6 +414,11 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = child.layout(wl);
 
+            up.set_enabled(SCROLL.can_scroll_up());
+            down.set_enabled(SCROLL.can_scroll_down());
+            left.set_enabled(SCROLL.can_scroll_left());
+            right.set_enabled(SCROLL.can_scroll_right());
+
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
             LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport), || {
                 layout_page = PxVector::new(
@@ -459,9 +456,7 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             leftmost = CommandHandle::dummy();
             rightmost = CommandHandle::dummy();
         }
-        UiNodeOp::Update { updates } => {
-            child.update(updates);
-
+        UiNodeOp::Layout { .. } => {
             top.set_enabled(SCROLL.can_scroll_up());
             bottom.set_enabled(SCROLL.can_scroll_down());
             leftmost.set_enabled(SCROLL.can_scroll_left());
