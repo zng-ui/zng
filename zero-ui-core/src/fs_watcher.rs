@@ -17,7 +17,7 @@ use path_absolutize::Absolutize;
 use crate::{
     app::AppExtension,
     context::app_local,
-    crate_util::{unlock_ok, Handle, HandleOwner, RunOnDrop},
+    crate_util::{unlock_ok, Handle, HandleOwner},
     event::{event, event_args, EventHandle},
     handler::{app_hn_once, AppHandler, FilterAppHandler},
     task,
@@ -313,11 +313,13 @@ const TRANSACTION_LOCK_EXT: &str = ".6eIw3bYMS0uKaQMkTIQacQ-lock.tmp";
 ///
 /// [`WATCHER.sync`]: WATCHER::sync
 pub struct WriteFile {
-    actual_file: Option<fs::File>,
     temp_file: Option<fs::File>,
+    actual_file: Option<fs::File>,
+    transaction_lock: Option<fs::File>,
 
     actual_path: PathBuf,
     temp_path: PathBuf,
+    transaction_path: PathBuf,
 
     cleaned: bool,
 }
@@ -351,7 +353,9 @@ impl WriteFile {
             }
         }
 
-        let _transaction = Self::transaction_lock(&actual_path)?;
+        let transaction_path = actual_path.with_extension(TRANSACTION_LOCK_EXT);
+        let transaction_lock = fs::OpenOptions::new().create(true).write(true).open(&transaction_path)?;
+        transaction_lock.lock_exclusive()?;
 
         let actual_file = fs::OpenOptions::new().write(true).create(true).open(&actual_path)?;
         actual_file.lock_exclusive()?;
@@ -376,8 +380,10 @@ impl WriteFile {
         Ok(Self {
             actual_file: Some(actual_file),
             temp_file: Some(temp_file),
+            transaction_lock: Some(transaction_lock),
             actual_path,
             temp_path,
+            transaction_path,
             cleaned: false,
         })
     }
@@ -418,8 +424,6 @@ impl WriteFile {
         temp_file.flush()?;
         temp_file.sync_data()?;
 
-        let _transaction = Self::transaction_lock(&self.actual_path)?;
-
         unlock_ok(&temp_file)?;
         drop(temp_file);
 
@@ -449,21 +453,20 @@ impl WriteFile {
     fn clean(&mut self) {
         self.cleaned = true;
 
+        if let Some(tmp) = self.temp_file.take() {
+            let _ = tmp.unlock();
+        }
         if let Err(e) = fs::remove_file(&self.temp_path) {
             tracing::debug!("failed to cleanup temp file, {e}")
         }
-    }
 
-    fn transaction_lock(actual_path: &Path) -> io::Result<impl Drop> {
-        let transaction_path = actual_path.with_extension(TRANSACTION_LOCK_EXT);
-        let transaction_lock = fs::OpenOptions::new().create(true).write(true).open(&transaction_path)?;
-        transaction_lock.lock_exclusive()?;
-        Ok(RunOnDrop::new(move || {
-            let _ = transaction_lock.unlock();
-            if let Err(e) = fs::remove_file(transaction_path) {
-                tracing::debug!("failed to cleanup temp file, {e}")
-            }
-        }))
+        if let Some(file) = self.actual_file.take() {
+            let _ = file.unlock();
+        }
+
+        let transaction = self.transaction_lock.take().unwrap();
+        let _ = transaction.unlock();
+        let _ = fs::remove_file(&self.transaction_path);
     }
 }
 

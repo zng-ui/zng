@@ -1,6 +1,15 @@
-* Observed config deadlock.
-    - Config example did not sync between processes.
-    - Processes did not exit.
+# Config
+
+* Implement TOML and YAML support (behind a feature).
+    - https://docs.rs/toml
+    - https://docs.rs/serde_yaml/0.9.21/serde_yaml/
+    - Make JSON optional too?
+    - Need to rename `*_json` to `*_raw` and declare our own `enum Value`.
+    - `RawConfigValue` can just be a copy the JSON enum.
+* Implement directory config.
+    - Something to allow implementing localization dir.
+
+* Implement serde for all property values (units, text, color, the multiple enums).
 
 # Text Edit
 
