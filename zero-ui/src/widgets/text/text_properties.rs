@@ -819,8 +819,11 @@ context_var! {
     /// Text is editable.
     pub static TEXT_EDITABLE_VAR: bool = false;
 
-    /// Accepts `tab` input when editable.
+    /// Accepts `'\t'` input when editable.
     pub static ACCEPTS_TAB_VAR: bool = true;
+
+    /// Accepts `'\n'` input when editable.
+    pub static ACCEPTS_ENTER_VAR: bool = true;
 
     /// Caret color, inherits from [`TEXT_COLOR_VAR`].
     pub static CARET_COLOR_VAR: Rgba = TEXT_COLOR_VAR;
@@ -845,6 +848,14 @@ pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
 #[property(CONTEXT, default(ACCEPTS_TAB_VAR), widget_impl(TextEditMix<P>))]
 pub fn accepts_tab(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, ACCEPTS_TAB_VAR, enabled)
+}
+
+/// If the `'\n'` character is inserted when enter is pressed and the text is editable.
+///
+/// Sets the [`ACCEPTS_ENTER_VAR`].
+#[property(CONTEXT, default(ACCEPTS_ENTER_VAR), widget_impl(TextEditMix<P>))]
+pub fn accepts_enter(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, ACCEPTS_ENTER_VAR, enabled)
 }
 
 /// Sets the [`CARET_COLOR_VAR`].

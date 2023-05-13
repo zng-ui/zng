@@ -4,6 +4,8 @@ use zero_ui::widgets::scroll::commands::ScrollToMode;
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
+use rand::SeedableRng;
+
 fn main() {
     examples_util::print_info();
     zero_ui_view::init();
@@ -144,9 +146,10 @@ fn separator() -> impl UiNode {
 
 fn ipsum() -> Txt {
     let mut s = String::new();
+    let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
     for _ in 0..10 {
         for _ in 0..10 {
-            s.push_str(&lipsum::lipsum_words(25));
+            s.push_str(&lipsum::lipsum_words_with_rng(&mut rng, 25));
             s.push('\n');
         }
         s.push('\n');

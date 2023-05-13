@@ -254,7 +254,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             if let Some(args) = CHAR_INPUT_EVENT.on(update) {
                 if !args.propagation().is_stopped() && text.capabilities().contains(VarCapabilities::MODIFY) && args.is_enabled(WIDGET.id())
                 {
-                    if args.character == '\t' && !ACCEPTS_TAB_VAR.get() {
+                    if (args.character == '\t' && !ACCEPTS_TAB_VAR.get()) || ("\r\n".contains(args.character) && !ACCEPTS_ENTER_VAR.get()) {
                         return;
                     }
                     args.propagation().stop();
@@ -283,7 +283,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     }
                 }
             } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
-                if args.key == Some(Key::Tab) && ACCEPTS_TAB_VAR.get() {
+                if (args.key == Some(Key::Tab) && ACCEPTS_TAB_VAR.get()) || (args.key == Some(Key::Enter) && ACCEPTS_ENTER_VAR.get()) {
                     args.propagation().stop();
                 }
             } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {

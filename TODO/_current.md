@@ -1,6 +1,6 @@
 # Text Edit
 
-* Implement `accepts_return`.
+* Enter inserts `\r` and not `\r\n`.
 * Implement cursor position.
 * Implement selection.
 
