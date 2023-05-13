@@ -1,3 +1,7 @@
+* Observed config deadlock.
+    - Config example did not sync between processes.
+    - Processes did not exit.
+
 # Text Edit
 
 * Enter inserts `\r` and not `\r\n`.
