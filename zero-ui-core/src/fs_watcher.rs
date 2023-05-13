@@ -243,7 +243,9 @@ pub struct WatchFile(fs::File);
 impl WatchFile {
     /// Open read the file.
     pub fn open(file: impl AsRef<Path>) -> io::Result<Self> {
-        fs::File::open(file).map(Self)
+        let file = fs::File::open(file)?;
+        file.lock_shared()?;
+        Ok(Self(file))
     }
 
     /// Read the file contents as a text string.
@@ -282,9 +284,9 @@ impl ops::DerefMut for WatchFile {
         &mut self.0
     }
 }
-impl From<WatchFile> for fs::File {
-    fn from(f: WatchFile) -> Self {
-        f.0
+impl Drop for WatchFile {
+    fn drop(&mut self) {
+        let _ = self.0.unlock();
     }
 }
 

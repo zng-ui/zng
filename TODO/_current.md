@@ -1,4 +1,6 @@
 * Opening two instances of config example causes errors.
+    - Fixed read error (partial lock) by shared-locking the file for read.
+    - Now observed write error `PermissionDenied`, access denied.
 
 # Text Edit
 
