@@ -427,7 +427,21 @@ impl WriteFile {
         unlock_ok(&actual_file)?;
         drop(actual_file);
 
-        fs::rename(&self.temp_path, &self.actual_path)?;
+        let mut retries = 0;
+        loop {
+            match fs::rename(&self.temp_path, &self.actual_path) {
+                Ok(()) => break,
+                Err(e) if retries == 2 => return Err(e),
+                Err(e) => match e.kind() {
+                    io::ErrorKind::PermissionDenied => {
+                        // happens rarely in Windows.
+                        retries += 1;
+                        std::thread::yield_now();
+                    }
+                    _ => return Err(e),
+                },
+            }
+        }
 
         Ok(())
     }
