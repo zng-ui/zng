@@ -1,9 +1,5 @@
 # Config
 
-* Implement TOML, YAML and RON support (behind a feature).
-    - https://docs.rs/toml
-    - https://docs.rs/serde_yaml
-    - https://docs.rs/ron
 * Implement directory config.
     - Something to allow implementing localization dir.
 

@@ -80,6 +80,9 @@ deadlock_detection = ["zero-ui-core/deadlock_detection"]
 # Not enabled by default.
 hyphenation_embed_all = ["zero-ui-core/hyphenation_embed_all"]
 
+# Enable TOML configs.
+toml = ["zero-ui-core/toml"]
+
 [dependencies]
 # local
 zero-ui-core = { path = "../zero-ui-core", default-features = false }

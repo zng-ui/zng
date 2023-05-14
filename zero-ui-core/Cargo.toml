@@ -6,7 +6,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-default = ["ipc", "http", "debug_default"]
+default = ["ipc", "http", "debug_default", "toml"]
 
 # Enables pre-build views and connecting to views running in another process.
 # 
@@ -142,6 +142,7 @@ indexmap = { version = "1", features = ["serde"] }
 # serde
 serde = "1"
 serde_json = { version = "1", features = ["preserve_order"] }
+toml = { version = "0.7", optional = true, features = ["preserve_order"] }
 
 fluent = "0.16"
 

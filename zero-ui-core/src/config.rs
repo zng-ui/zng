@@ -27,6 +27,11 @@ pub use swap::*;
 mod sync;
 pub use sync::*;
 
+#[cfg(feature = "toml")]
+mod toml;
+#[cfg(feature = "toml")]
+pub use self::toml::*;
+
 /// Represents the app main config.
 ///
 /// Config sources must be loaded using [`CONFIG.load`], otherwise the config only leaves for the

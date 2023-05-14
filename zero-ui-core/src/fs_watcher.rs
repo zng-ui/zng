@@ -264,6 +264,21 @@ impl WatchFile {
         serde_json::from_reader(io::BufReader::new(&mut self.0))
     }
 
+    /// Deserialize the file contents as TOML.
+    #[cfg(feature = "toml")]
+    pub fn toml<O>(&mut self) -> io::Result<O>
+    where
+        O: serde::de::DeserializeOwned,
+    {
+        use std::io::Read;
+        let mut buf = io::BufReader::new(&mut self.0);
+
+        let mut toml_str = String::new();
+        buf.read_to_string(&mut toml_str)?;
+
+        toml::de::from_str(&toml_str).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    }
+
     /// Read file and parse it.
     pub fn parse<O: std::str::FromStr>(&mut self) -> Result<O, WatchFileParseError<O::Err>> {
         use std::io::Read;
@@ -404,6 +419,23 @@ impl WriteFile {
         } else {
             serde_json::to_writer(buf, value)
         }
+    }
+
+    /// Serialize and write.
+    ///
+    /// If `pretty` is `true` the TOML is formatted for human reading.
+    #[cfg(feature = "toml")]
+    pub fn write_toml<O: serde::Serialize>(&mut self, value: &O, pretty: bool) -> io::Result<()> {
+        let toml = if pretty {
+            toml::ser::to_string_pretty(value)
+        } else {
+            toml::ser::to_string(value)
+        }
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+        use io::Write;
+        let mut buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
+        buf.write_all(toml.as_bytes())
     }
 
     /// Commit write, flush and replace the actual file with the new one.
