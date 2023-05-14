@@ -5,7 +5,7 @@ use crate::{impl_from_and_into_var, var::animation::Transitionable};
 use super::{impl_length_comp_conversions, DipPoint, Factor2d, Layout1d, LayoutMask, Length, PxPoint, Size, Vector};
 
 /// 2D point in [`Length`] units.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Point {
     /// *x* offset in length units.
     pub x: Length,

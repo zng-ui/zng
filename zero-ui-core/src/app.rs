@@ -90,6 +90,28 @@ impl fmt::Debug for AppId {
         }
     }
 }
+impl serde::Serialize for AppId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let name = self.name();
+        if name.is_empty() {
+            use serde::ser::Error;
+            return Err(S::Error::custom("cannot serialize unammed `AppId`"));
+        }
+        name.serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for AppId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let name = Txt::deserialize(deserializer)?;
+        Ok(AppId::name_map().get_id_or_insert(name, AppId::new_unique))
+    }
+}
 
 /// Error when the app connected to a sender/receiver channel has disconnected.
 ///

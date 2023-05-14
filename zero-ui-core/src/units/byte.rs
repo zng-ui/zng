@@ -90,7 +90,24 @@ impl ByteUnits for usize {
 ///
 /// The value is stored in bytes, you can use associated functions to convert from other units or
 /// you can use the [`ByteUnits`] extension methods to initialize from an integer literal.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::FromStr)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
+    dm::Add,
+    dm::AddAssign,
+    dm::Sub,
+    dm::SubAssign,
+    dm::FromStr,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(transparent)]
 pub struct ByteLength(pub usize);
 impl_from_and_into_var! {
     fn from(bytes: usize) -> ByteLength {

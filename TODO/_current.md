@@ -1,6 +1,10 @@
 # Config
 
-* Implement serde for all property values (units, text, color, the multiple enums).
+* Implement serde for core.
+    - `units::Transform`.
+    - Colors.
+    - Border.
+    - Any type that can be used in a property.
 * Some `euclid` types leak the `_unit: PhantomData<U>` in the serialized.
     - `euclid::SideOffsets`
     - `euclid::Transform3D`

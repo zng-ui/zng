@@ -3,7 +3,8 @@ use std::fmt;
 use crate::impl_from_and_into_var;
 
 /// Pixels-per-inch resolution.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct Ppi(pub f32);
 impl Ppi {
     /// Returns the minimum of the two resolutions.
@@ -24,7 +25,8 @@ impl Default for Ppi {
 }
 
 /// Pixels-per-meter resolution.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct Ppm(pub f32);
 impl Ppm {
     /// Returns the minimum of the two resolutions.

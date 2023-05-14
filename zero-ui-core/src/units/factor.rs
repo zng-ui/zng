@@ -14,7 +14,8 @@ use std::{fmt, ops, time::Duration};
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct FactorPercent(pub f32);
 impl FactorPercent {
     /// Clamp factor to [0.0..=100.0] range.
@@ -94,7 +95,8 @@ impl fmt::Display for FactorPercent {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct Factor(pub f32);
 impl Factor {
     /// Clamp factor to `[0.0..=1.0]` range.

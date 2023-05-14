@@ -45,10 +45,11 @@ impl Config for SwapConfig {
             // not in shared, bind with source json var.
 
             let default = default();
-            let source_var = self
-                .cfg
-                .get_mut()
-                .get_raw(key.clone(), RawConfigValue::serialize(&default).unwrap(), false);
+            let source_var = self.cfg.get_mut().get_raw(
+                key.clone(),
+                RawConfigValue::serialize(&default).unwrap_or_else(|e| panic!("invalid default value, {e}")),
+                false,
+            );
             let var = var(RawConfigValue::deserialize(source_var.get()).unwrap_or(default));
 
             let errors = &self.errors;

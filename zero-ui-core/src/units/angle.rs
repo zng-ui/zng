@@ -15,7 +15,22 @@ use std::{
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg)]
+#[derive(
+    Copy,
+    Clone,
+    dm::Add,
+    dm::AddAssign,
+    dm::Sub,
+    dm::SubAssign,
+    dm::Mul,
+    dm::MulAssign,
+    dm::Div,
+    dm::DivAssign,
+    dm::Neg,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(transparent)]
 pub struct AngleRadian(pub f32);
 impl AngleRadian {
     /// Radians in `[0.0 ..= TAU]`.
@@ -69,7 +84,22 @@ impl fmt::Display for AngleRadian {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg)]
+#[derive(
+    Copy,
+    Clone,
+    dm::Add,
+    dm::AddAssign,
+    dm::Sub,
+    dm::SubAssign,
+    dm::Mul,
+    dm::MulAssign,
+    dm::Div,
+    dm::DivAssign,
+    dm::Neg,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(transparent)]
 pub struct AngleGradian(pub f32);
 impl AngleGradian {
     /// Gradians in `[0.0 ..= 400.0]`.
@@ -117,7 +147,22 @@ impl fmt::Display for AngleGradian {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg)]
+#[derive(
+    Copy,
+    Clone,
+    dm::Add,
+    dm::AddAssign,
+    dm::Sub,
+    dm::SubAssign,
+    dm::Mul,
+    dm::MulAssign,
+    dm::Div,
+    dm::DivAssign,
+    dm::Neg,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(transparent)]
 pub struct AngleDegree(pub f32);
 impl AngleDegree {
     /// Degrees in `[0.0 ..= 360.0]`.
@@ -165,7 +210,22 @@ impl fmt::Display for AngleDegree {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, dm::Mul, dm::MulAssign, dm::Div, dm::DivAssign, dm::Neg)]
+#[derive(
+    Copy,
+    Clone,
+    dm::Add,
+    dm::AddAssign,
+    dm::Sub,
+    dm::SubAssign,
+    dm::Mul,
+    dm::MulAssign,
+    dm::Div,
+    dm::DivAssign,
+    dm::Neg,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(transparent)]
 pub struct AngleTurn(pub f32);
 impl AngleTurn {
     /// Turns in `[0.0 ..= 1.0]`.

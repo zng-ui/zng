@@ -7,7 +7,7 @@ use super::{impl_length_comp_conversions, Factor, FactorPercent, FactorSideOffse
 /// 2D size offsets in [`Length`] units.
 ///
 /// This unit defines spacing around all four sides of a box, a widget margin can be defined using a value of this type.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SideOffsets {
     /// Spacing above, in length units.
     pub top: Length,

@@ -11,8 +11,9 @@ pub use euclid::BoolVector2D;
 /// These constraints can express lower and upper bounds, unbounded upper and preference of *fill* length.
 ///
 /// See also the [`PxConstraints2d`].
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct PxConstraints {
+    #[serde(with = "serde_constrains_max")]
     max: Px,
     min: Px,
 
@@ -292,12 +293,32 @@ impl Default for PxConstraints {
         Self::new_unbounded()
     }
 }
+mod serde_constrains_max {
+    use super::Px;
+    use serde::*;
+    pub fn serialize<S: Serializer>(max: &Px, serializer: S) -> Result<S::Ok, S::Error> {
+        if serializer.is_human_readable() {
+            let px = if *max == Px::MAX { None } else { Some(*max) };
+            px.serialize(serializer)
+        } else {
+            max.serialize(serializer)
+        }
+    }
+
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Px, D::Error> {
+        if deserializer.is_human_readable() {
+            Ok(Option::<Px>::deserialize(deserializer)?.unwrap_or(Px::MAX))
+        } else {
+            Px::deserialize(deserializer)
+        }
+    }
+}
 
 /// Pixel *size* constraints.
 ///
 /// These constraints can express lower and upper bounds, unbounded upper and preference of *fill* length for
 /// both the ***x*** and ***y*** axis.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct PxConstraints2d {
     /// Constraints of lengths in the *x* or *width* dimension.
     pub x: PxConstraints,

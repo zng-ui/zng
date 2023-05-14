@@ -5,7 +5,7 @@ use crate::{impl_from_and_into_var, var::animation::Transitionable};
 use super::{impl_length_comp_conversions, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
 
 /// 2D rect in [`Length`] units.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Rect {
     /// Top-left origin of the rectangle in length units.
     pub origin: Point,

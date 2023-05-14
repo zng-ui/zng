@@ -5,7 +5,7 @@ use crate::{impl_from_and_into_var, var::animation::Transitionable};
 use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, Px, PxVector};
 
 /// Spacing in-between grid cells in [`Length`] units.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct GridSpacing {
     /// Spacing in-between columns, in length units.
     pub column: Length,

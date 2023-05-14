@@ -14,7 +14,7 @@ use crate::{context::LAYOUT, impl_from_and_into_var, var::animation::Transitiona
 /// * `Dip` and `px` lengths uses [`Dip`] and [`Px`] equality.
 /// * `Relative`, `Em`, `RootEm` lengths use the [`Factor`] equality.
 /// * Viewport lengths uses [`about_eq`] with `0.00001` epsilon.
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum Length {
     /// The default (initial) value.
     ///
@@ -692,7 +692,7 @@ impl Default for LayoutMask {
 }
 
 /// Represents an unresolved [`Length`] expression.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LengthExpr {
     /// Sums the both layout length.
     Add(Length, Length),

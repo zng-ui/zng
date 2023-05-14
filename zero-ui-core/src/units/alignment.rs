@@ -228,6 +228,18 @@ macro_rules! named_aligns {
                 None
             }
         }
+
+        /// Returns the named alignment.
+        pub fn from_name(name: &str) -> Option<Self> {
+            $(
+                if name == stringify!($NAME) {
+                    Some(Self::$NAME)
+                }
+            )else+
+            else {
+                None
+            }
+        }
     };
 }
 impl fmt::Debug for Align {
@@ -445,6 +457,48 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for Align {
             self.y = f32::NEG_INFINITY.fct();
         } else {
             self.y /= rhs.y;
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+enum AlignSerde<'s> {
+    Named(&'s str),
+    Unamed { x: Factor, x_rtl_aware: bool, y: Factor },
+}
+impl serde::Serialize for Align {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if serializer.is_human_readable() {
+            if let Some(name) = self.name() {
+                return name.serialize(serializer);
+            }
+        }
+
+        AlignSerde::Unamed {
+            x: self.x,
+            x_rtl_aware: self.x_rtl_aware,
+            y: self.y,
+        }
+        .serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for Align {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        match AlignSerde::deserialize(deserializer)? {
+            AlignSerde::Named(n) => match Align::from_name(n) {
+                Some(a) => Ok(a),
+                None => Err(D::Error::custom("unknown align name")),
+            },
+            AlignSerde::Unamed { x, x_rtl_aware, y } => Ok(Align { x, x_rtl_aware, y }),
         }
     }
 }

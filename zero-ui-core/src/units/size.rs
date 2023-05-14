@@ -5,7 +5,7 @@ use crate::{impl_from_and_into_var, var::animation::Transitionable};
 use super::{impl_length_comp_conversions, DipSize, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, PxSize, Rect, Vector};
 
 /// 2D size in [`Length`] units.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Size {
     /// *width* in length units.
     pub width: Length,
