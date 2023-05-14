@@ -38,7 +38,7 @@ pub use self::toml::*;
 /// duration of the app instance.
 pub struct CONFIG;
 impl CONFIG {
-    ///  Replace the config source.
+    /// Replace the config source.
     ///
     /// Variables and bindings survive source replacement, updating to the new value or setting the new source
     /// if the key is not present in the new source.
@@ -47,9 +47,19 @@ impl CONFIG {
     }
 
     /// Gets a read-only variable that changes to `true` when all key variables
-    /// are set to the new source after it finishes loading in another thread.
+    /// are set to the new source after it finishes loading in another thread, either successfully or as an error.
     pub fn is_loaded(&self) -> BoxedVar<bool> {
         CONFIG_SV.read().is_loaded()
+    }
+
+    /// Wait until [`is_loaded`] is `true`.
+    ///
+    /// [`is_loaded`]: Self::is_loaded
+    pub async fn wait_loaded(&self) {
+        let is_loaded = self.is_loaded();
+        while !is_loaded.get() {
+            is_loaded.wait_is_new().await;
+        }
     }
 
     /// Gets a variable that is bound to the config `key`.
@@ -188,7 +198,7 @@ pub trait ConfigMap: VarValue {
 /// See [`Config`] for the full trait.
 pub trait AnyConfig: Send + Any {
     /// Gets a read-only variable that changes to `true` when all key variables
-    /// are set to the new source after it finishes loading in another thread.
+    /// are set to the new source after it finishes loading in another thread, either successfully or as an error.
     fn is_loaded(&self) -> BoxedVar<bool>;
 
     /// All active errors.

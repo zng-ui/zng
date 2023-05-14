@@ -38,8 +38,8 @@ impl<M: ConfigMap> SyncConfig<M> {
                         Some(ok)
                     }
                     Err(e) => {
-                        if is_loaded.get() {
-                            is_loaded.set(false);
+                        if !is_loaded.get() {
+                            is_loaded.set(true);
                         }
                         tracing::error!("sync config read error, {e:?}");
                         errors.modify(|es| es.to_mut().push(ConfigError::new_read(e)));
@@ -62,8 +62,8 @@ impl<M: ConfigMap> SyncConfig<M> {
                         }
                     }
                     Err(e) => {
-                        if is_loaded.get() {
-                            is_loaded.set(false);
+                        if !is_loaded.get() {
+                            is_loaded.set(true);
                         }
                         tracing::error!("sync config write error, {e:?}");
                         errors.modify(|es| es.to_mut().push(ConfigError::new_write(e)));

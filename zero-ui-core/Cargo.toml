@@ -111,7 +111,7 @@ http-cache-semantics = { version = "1", optional = true }
 http-serde = { version = "1", optional = true }
 
 # util
-bitflags = "2"
+bitflags = { version = "2", features = ["serde"] }
 paste = "1"
 rustc-hash = "1"
 colored = "2"

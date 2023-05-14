@@ -1,6 +1,9 @@
 # Config
 
 * Implement serde for all property values (units, text, color, the multiple enums).
+* Some `euclid` types leak the `_unit: PhantomData<U>` in the serialized.
+    - `euclid::SideOffsets`
+    - `euclid::Transform3D`
 
 # Text Edit
 

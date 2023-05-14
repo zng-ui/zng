@@ -90,7 +90,7 @@ zero-ui-core = { path = "../zero-ui-core", default-features = false }
 # util
 paste = "1"
 tracing = "0.1"
-bitflags = "2"
+bitflags = { version = "2", features = ["serde"] }
 serde = "1"
 pretty-type-name = "1"
 pulldown-cmark = "0.9"

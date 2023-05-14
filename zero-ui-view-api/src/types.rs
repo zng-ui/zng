@@ -605,7 +605,7 @@ impl WindowState {
 }
 
 /// [`Event::FrameRendered`] payload.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventFrameRendered {
     /// Window that was rendered.
     pub window: WindowId,
@@ -619,7 +619,7 @@ pub struct EventFrameRendered {
 pub type FrameWaitId = u32;
 
 /// [`Event::WindowChanged`] payload.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowChanged {
     /// Window that has changed state.
     pub window: WindowId,
@@ -712,7 +712,7 @@ impl WindowChanged {
 }
 
 /// System/User events sent from the View Process.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Event {
     /// View process is online.
     ///
@@ -1326,6 +1326,7 @@ pub(crate) type VpResult<T> = std::result::Result<T, ViewProcessOffline>;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RendererDebug {
     /// Debug flags.
+    #[serde(with = "serde_debug_flags")]
     pub flags: DebugFlags,
     /// Profiler UI rendered when [`DebugFlags::PROFILER_DBG`] is set.
     ///
@@ -2013,7 +2014,7 @@ fn ppi_key(ppi: ImagePpi) -> Option<(u16, u16)> {
 /// Represents a successfully decoded image.
 ///
 /// See [`Event::ImageLoaded`].
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ImageLoadedData {
     /// Image ID.
     pub id: ImageId,
@@ -2104,4 +2105,63 @@ pub enum FocusIndicator {
     Critical,
     /// Activate informational focus request.
     Info,
+}
+
+/// Named DebugFlags in JSON serialization.
+mod serde_debug_flags {
+    use super::*;
+
+    bitflags::bitflags! {
+        #[repr(C)]
+        #[derive(Default, Deserialize, Serialize)]
+        #[serde(transparent)]
+        struct DebugFlagsRef: u32 {
+            const PROFILER_DBG = DebugFlags::PROFILER_DBG.bits();
+            const RENDER_TARGET_DBG = DebugFlags::RENDER_TARGET_DBG.bits();
+            const TEXTURE_CACHE_DBG = DebugFlags::TEXTURE_CACHE_DBG.bits();
+            const GPU_TIME_QUERIES = DebugFlags::GPU_TIME_QUERIES.bits();
+            const GPU_SAMPLE_QUERIES = DebugFlags::GPU_SAMPLE_QUERIES.bits();
+            const DISABLE_BATCHING = DebugFlags::DISABLE_BATCHING.bits();
+            const EPOCHS = DebugFlags::EPOCHS.bits();
+            const ECHO_DRIVER_MESSAGES = DebugFlags::ECHO_DRIVER_MESSAGES.bits();
+            const SHOW_OVERDRAW = DebugFlags::SHOW_OVERDRAW.bits();
+            const GPU_CACHE_DBG = DebugFlags::GPU_CACHE_DBG.bits();
+            const TEXTURE_CACHE_DBG_CLEAR_EVICTED = DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED.bits();
+            const PICTURE_CACHING_DBG = DebugFlags::PICTURE_CACHING_DBG.bits();
+            const PRIMITIVE_DBG = DebugFlags::PRIMITIVE_DBG.bits();
+            const ZOOM_DBG = DebugFlags::ZOOM_DBG.bits();
+            const SMALL_SCREEN = DebugFlags::SMALL_SCREEN.bits();
+            const DISABLE_OPAQUE_PASS = DebugFlags::DISABLE_OPAQUE_PASS.bits();
+            const DISABLE_ALPHA_PASS = DebugFlags::DISABLE_ALPHA_PASS.bits();
+            const DISABLE_CLIP_MASKS = DebugFlags::DISABLE_CLIP_MASKS.bits();
+            const DISABLE_TEXT_PRIMS = DebugFlags::DISABLE_TEXT_PRIMS.bits();
+            const DISABLE_GRADIENT_PRIMS = DebugFlags::DISABLE_GRADIENT_PRIMS.bits();
+            const OBSCURE_IMAGES = DebugFlags::OBSCURE_IMAGES.bits();
+            const GLYPH_FLASHING = DebugFlags::GLYPH_FLASHING.bits();
+            const SMART_PROFILER = DebugFlags::SMART_PROFILER.bits();
+            const INVALIDATION_DBG = DebugFlags::INVALIDATION_DBG.bits();
+            const PROFILER_CAPTURE = DebugFlags::PROFILER_CAPTURE.bits();
+            const FORCE_PICTURE_INVALIDATION = DebugFlags::FORCE_PICTURE_INVALIDATION.bits();
+            const WINDOW_VISIBILITY_DBG = DebugFlags::WINDOW_VISIBILITY_DBG.bits();
+            const RESTRICT_BLOB_SIZE = DebugFlags::RESTRICT_BLOB_SIZE.bits();
+        }
+    }
+    impl From<DebugFlagsRef> for DebugFlags {
+        fn from(value: DebugFlagsRef) -> Self {
+            DebugFlags::from_bits(value.bits()).unwrap()
+        }
+    }
+    impl From<DebugFlags> for DebugFlagsRef {
+        fn from(value: DebugFlags) -> Self {
+            DebugFlagsRef::from_bits(value.bits()).unwrap()
+        }
+    }
+
+    pub fn serialize<S: serde::Serializer>(flags: &DebugFlags, serializer: S) -> Result<S::Ok, S::Error> {
+        DebugFlagsRef::from(*flags).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<DebugFlags, D::Error> {
+        DebugFlagsRef::deserialize(deserializer).map(Into::into)
+    }
 }

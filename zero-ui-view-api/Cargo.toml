@@ -24,6 +24,8 @@ flume = { version = "0.10", default-features  = false }
 num-traits = "0.2"
 rustc-hash = "1"
 
+bitflags = { version = "2", features = ["serde"] }
+
 ipc-channel = { version = "0.16", optional = true }
 parking_lot = "0.12"
 # winapi features ipc-channel uses but does not import correctly

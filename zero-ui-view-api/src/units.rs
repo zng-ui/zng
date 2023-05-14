@@ -27,6 +27,7 @@ const DIP_TO_PX: i32 = 60;
 ///
 /// Represents an actual device pixel, not scaled/descaled by the pixel scale factor.
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Px(pub i32);
 impl Px {
     /// See [`DipToPx`].
@@ -270,6 +271,8 @@ impl std::iter::Sum for Px {
 ///
 /// Internally this is an `i32` that represents 1/60th of a pixel.
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(from = "f32")]
+#[serde(into = "f32")]
 pub struct Dip(i32);
 impl Dip {
     /// New from round integer value.
@@ -336,6 +339,11 @@ impl From<i32> for Dip {
 impl From<f32> for Dip {
     fn from(dip: f32) -> Self {
         Dip::new_f32(dip)
+    }
+}
+impl From<Dip> for f32 {
+    fn from(value: Dip) -> Self {
+        value.to_f32()
     }
 }
 impl ops::Add for Dip {
