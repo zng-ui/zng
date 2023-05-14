@@ -1,8 +1,5 @@
 # Config
 
-* Implement directory config.
-    - Something to allow implementing localization dir.
-
 * Implement serde for all property values (units, text, color, the multiple enums).
 
 # Text Edit
@@ -17,9 +14,8 @@
 # Localization
 
 * Implement resource loader.
-    - Can we use `CONFIG` as backing store?
-    - Need a "directory-db" mode, a common pattern for apps is having each locale in a different file in the same dir.
-    - Review file watcher impl, may need to use a crate that uses the system API now.
+    - Use `WATCHER.watch_dir` to maintain a list of `locale.flt` files in a dir.
+    - Use `SwapConfig{SyncConfig}` with the selected locale file to maintain variables for each entry.
 * Implement builder.
 * Implement pseudo-localization test mode.
 * Move `Lang` and lang related stuff to `l10n` module.
