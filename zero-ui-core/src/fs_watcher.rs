@@ -764,6 +764,7 @@ impl WatcherService {
     }
 
     fn flush_shutdown(&mut self) {
+        self.watcher.deinit();
         for v in &mut self.sync_with_var {
             v.flush_shutdown();
         }
@@ -1201,6 +1202,10 @@ impl Watchers {
                 w.is_in_error_watcher = true;
             }
         }
+    }
+
+    fn deinit(&mut self) {
+        *self.watcher.get_mut() = Box::new(notify::NullWatcher);
     }
 
     /// Returns Ok, or Err `PathNotFound` or `MaxFilesWatch` that can be handled using the fallback watcher.
