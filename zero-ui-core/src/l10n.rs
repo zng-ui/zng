@@ -55,6 +55,8 @@ macro_rules! l10n {
         std::compile_error!(r#"expected ("id", "message") or ("id", "msg {$arg}", arg=expr)"#)
     }
 }
+use std::mem;
+
 use fluent::types::FluentNumber;
 #[doc(inline)]
 pub use l10n;
@@ -62,8 +64,10 @@ pub use l10n;
 #[doc(hidden)]
 pub use zero_ui_proc_macros::l10n as __l10n;
 
-use crate::text::{Lang, Txt, LANG_VAR};
-use crate::var::{self, *};
+use crate::{
+    text::Txt,
+    var::{self, *},
+};
 
 impl L10N {
     /// Gets a variable that is a localized message identified by `id` in the localization context
@@ -205,3 +209,204 @@ impl<V: Var<L10nArgument>> IntoL10nVar for &&L10nSpecialize<V> {
         self.0.clone()
     }
 }
+
+context_var! {
+    /// Language of text in a widget context.
+    pub static LANG_VAR: Lang = Lang::default();
+}
+
+/// Identifies the language, region and script of text.
+///
+/// Use the [`lang!`] macro to construct one, it does compile-time validation.
+///
+/// Use the [`unic_langid`] crate for more advanced operations such as runtime parsing and editing identifiers, this
+/// type is just an alias for the core struct of that crate.
+///
+/// [`unic_langid`]: https://docs.rs/unic-langid
+pub type Lang = unic_langid::LanguageIdentifier;
+
+/// Represents a map of [`Lang`] keys that can be partially matched.
+#[derive(Debug, Clone)]
+pub struct LangMap<V> {
+    inner: Vec<(Lang, V)>,
+}
+impl<V> Default for LangMap<V> {
+    fn default() -> Self {
+        Self { inner: Default::default() }
+    }
+}
+impl<V> LangMap<V> {
+    /// New empty default.
+    pub fn new() -> Self {
+        LangMap::default()
+    }
+
+    /// New empty with pre-allocated capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        LangMap {
+            inner: Vec::with_capacity(capacity),
+        }
+    }
+
+    fn exact_i(&self, lang: &Lang) -> Option<usize> {
+        for (i, (key, _)) in self.inner.iter().enumerate() {
+            if key == lang {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    fn best_i(&self, lang: &Lang) -> Option<usize> {
+        let mut best = None;
+        let mut best_weight = 0;
+
+        for (i, (key, _)) in self.inner.iter().enumerate() {
+            if lang.matches(key, true, true) {
+                let mut weight = 1;
+                let mut eq = 0;
+
+                if key.language == lang.language {
+                    weight += 128;
+                    eq += 1;
+                }
+                if key.region == lang.region {
+                    weight += 40;
+                    eq += 1;
+                }
+                if key.script == lang.script {
+                    weight += 20;
+                    eq += 1;
+                }
+
+                if eq == 3 && lang.variants().zip(key.variants()).all(|(a, b)| a == b) {
+                    return Some(i);
+                }
+
+                if best_weight < weight {
+                    best_weight = weight;
+                    best = Some(i);
+                }
+            }
+        }
+
+        best
+    }
+
+    /// Returns the best match to `lang` currently in the map.
+    pub fn best_match(&self, lang: &Lang) -> Option<&Lang> {
+        if let Some(i) = self.best_i(lang) {
+            Some(&self.inner[i].0)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the best match for `lang`.
+    pub fn get(&self, lang: &Lang) -> Option<&V> {
+        if let Some(i) = self.best_i(lang) {
+            Some(&self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the exact match for `lang`.
+    pub fn get_exact(&self, lang: &Lang) -> Option<&V> {
+        if let Some(i) = self.exact_i(lang) {
+            Some(&self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the best match for `lang`.
+    pub fn get_mut(&mut self, lang: &Lang) -> Option<&V> {
+        if let Some(i) = self.best_i(lang) {
+            Some(&self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the exact match for `lang`.
+    pub fn get_exact_mut(&mut self, lang: &Lang) -> Option<&V> {
+        if let Some(i) = self.exact_i(lang) {
+            Some(&self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Insert the value with the exact match of `lang`.
+    ///
+    /// Returns the previous exact match.
+    pub fn insert(&mut self, lang: Lang, value: V) -> Option<V> {
+        if let Some(i) = self.exact_i(&lang) {
+            Some(mem::replace(&mut self.inner[i].1, value))
+        } else {
+            self.inner.push((lang, value));
+            None
+        }
+    }
+
+    /// Remove the exact match of `lang`.
+    pub fn remove(&mut self, lang: &Lang) -> Option<V> {
+        if let Some(i) = self.exact_i(lang) {
+            Some(self.inner.swap_remove(i).1)
+        } else {
+            None
+        }
+    }
+
+    /// Remove all exact and partial matches of `lang`.
+    ///
+    /// Returns a count of items removed.
+    pub fn remove_all(&mut self, lang: &Lang) -> usize {
+        let mut count = 0;
+        self.inner.retain(|(key, _)| {
+            let rmv = lang.matches(key, true, false);
+            if rmv {
+                count += 1
+            }
+            !rmv
+        });
+        count
+    }
+}
+
+/// <span data-del-macro-root></span> Compile-time validated [`Lang`] value.
+///
+/// The language is parsed during compile and any errors are emitted as compile time errors.
+///
+/// # Syntax
+///
+/// The input can be a single a single string literal with `-` separators, or a single ident with `_` as the separators.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::text::lang;
+/// let en_us = lang!(en_US);
+/// let en = lang!(en);
+///
+/// assert!(en.matches(&en_us, true, false));
+/// assert_eq!(en_us, lang!("en-US"));
+/// ```
+#[macro_export]
+macro_rules! lang {
+    ($($tt:tt)+) => {
+        {
+            let lang: $crate::l10n::unic_langid::LanguageIdentifier = $crate::l10n::__lang!($($tt)+);
+            lang
+        }
+    }
+}
+#[doc(inline)]
+pub use crate::lang;
+
+#[doc(hidden)]
+pub use zero_ui_proc_macros::lang as __lang;
+
+#[doc(hidden)]
+pub use unic_langid;

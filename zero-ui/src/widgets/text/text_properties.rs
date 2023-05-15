@@ -1,4 +1,7 @@
-use crate::core::text::{font_features::*, *};
+use crate::core::{
+    l10n::*,
+    text::{font_features::*, *},
+};
 use crate::prelude::{new_property::*, new_widget::widget_mixin};
 
 /// Basic text font properties.

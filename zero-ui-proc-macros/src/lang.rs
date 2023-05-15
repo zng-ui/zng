@@ -14,7 +14,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let (lang, script, region, variants) = lang.into_parts();
 
             let crate_ = crate::util::crate_core();
-            let unic_langid = quote!(#crate_::text::unic_langid);
+            let unic_langid = quote!(#crate_::l10n::unic_langid);
 
             let lang: Option<u64> = lang.into();
             let lang = if let Some(lang) = lang {

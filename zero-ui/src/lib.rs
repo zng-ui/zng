@@ -127,7 +127,7 @@ pub mod prelude {
         handler::*,
         image::ImageSource,
         keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
-        l10n::l10n,
+        l10n::{l10n, lang},
         mouse::{ButtonState, ClickMode, MouseButton, MouseMoveArgs},
         render::RenderMode,
         task::{self, rayon::prelude::*},
@@ -136,7 +136,7 @@ pub mod prelude {
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
                 NumVariant,
             },
-            formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Hyphens, Justify, LineBreak,
+            formatx, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Hyphens, Justify, LineBreak,
             TextTransformFn, ToText, Txt, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak, FONTS,
         },
         timer::TIMERS,
@@ -309,6 +309,8 @@ pub mod prelude {
         pub use crate::core::task::{self, rayon::prelude::*, ui::UiTask};
         #[doc(no_inline)]
         pub use crate::core::text::*;
+        #[doc(no_inline)]
+        pub use crate::core::l10n::*;
         #[doc(no_inline)]
         pub use crate::core::units::*;
         #[doc(no_inline)]

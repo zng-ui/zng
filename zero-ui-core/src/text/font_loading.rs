@@ -12,7 +12,7 @@ use parking_lot::{Mutex, RwLock};
 
 use super::{
     font_features::RFontVariations, font_kit_cache::FontKitCache, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle,
-    FontSynthesis, FontWeight, Lang, LangMap, ShapedSegmentData, WordCacheKey,
+    FontSynthesis, FontWeight, Lang, ShapedSegmentData, WordCacheKey,
 };
 use crate::{
     app::{
@@ -26,7 +26,7 @@ use crate::{
     event::{event, event_args, EventUpdate},
     task,
     units::*,
-    var::{response_done_var, var, AnyVar, ArcVar, ResponseVar, Var},
+    var::{response_done_var, var, AnyVar, ArcVar, ResponseVar, Var}, l10n::LangMap,
 };
 
 event! {

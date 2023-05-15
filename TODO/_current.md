@@ -14,7 +14,6 @@
     - Use `SwapConfig{SyncConfig}` with the selected locale file to maintain variables for each entry.
 * Implement builder.
 * Implement pseudo-localization test mode.
-* Move `Lang` and lang related stuff to `l10n` module.
 * Add variable args in example.
 * Test "// l10n-source: test.$lang.flt" comments.
 

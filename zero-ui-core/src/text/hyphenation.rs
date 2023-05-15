@@ -164,6 +164,7 @@ impl HyphenationDataSource for HyphenationDataEmbedded {
 
 mod util {
     use super::*;
+    use crate::l10n::lang;
     use hyphenation::Language::*;
     use regex::Regex;
 
