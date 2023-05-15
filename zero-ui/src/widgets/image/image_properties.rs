@@ -15,7 +15,7 @@ use nodes::CONTEXT_IMAGE_VAR;
 ///
 /// [`img_fit`]: fn@img_fit
 /// [`image_presenter`]: crate::widgets::image::nodes::image_presenter
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ImageFit {
     /// The image original size is preserved, the image is clipped if larger then the final size.
     None,

@@ -46,7 +46,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
 }
 
 /// Identifies an icon glyph in the font set.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum GlyphSource {
     /// Code "char" that is mapped to the glyph.
     Code(char),
@@ -91,7 +91,7 @@ impl fmt::Display for GlyphSource {
 }
 
 /// Represents an icon glyph and font.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct GlyphIcon {
     /// Icon set font name.
     pub font: FontName,

@@ -609,7 +609,8 @@ pub fn is_layer_removing(child: impl UiNode, state: impl IntoVar<bool>) -> impl 
 /// Represents a layer in a window.
 ///
 /// See [`LAYERS`] for more information.
-#[derive(Default, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)] // !!: add names like TabIndex
 pub struct LayerIndex(pub u32);
 impl LayerIndex {
     /// The top-most layer.
@@ -709,7 +710,7 @@ impl ops::DivAssign<Factor> for LayerIndex {
 ///
 /// The `place` point is layout in the anchor widget bounds, the `origin` point is layout in the layer widget bounds,
 /// the layer widget is offset so that the `origin` point aligns with the `place` point.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AnchorOffset {
     /// Point in the anchor widget.
     pub place: Point,
@@ -917,7 +918,7 @@ impl animation::Transitionable for AnchorOffset {
 }
 
 /// Options for [`AnchorMode::transform`].
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum AnchorTransform {
     /// Widget does not copy any position from the anchor widget.
     None,
@@ -962,7 +963,7 @@ impl_from_and_into_var! {
 }
 
 /// Options for [`AnchorMode::size`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AnchorSize {
     /// Widget does not copy any size from the anchor widget, the available size is infinite, the
     /// final size is the desired size.
@@ -982,7 +983,7 @@ pub enum AnchorSize {
 }
 
 /// Defines what properties the layered widget takes from the anchor widget.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AnchorMode {
     /// What transforms are copied from the anchor widget and applied as a *parent* transform of the widget.
     pub transform: AnchorTransform,

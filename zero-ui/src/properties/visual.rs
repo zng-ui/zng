@@ -482,7 +482,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
 /// See the [`inline`] property for more details.
 ///
 /// [`inline`]: fn@inline
-#[derive(Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum InlineMode {
     /// Widget does inline if requested by the parent widget layout and is composed only of properties that support inline.
     ///

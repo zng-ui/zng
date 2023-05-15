@@ -18,7 +18,8 @@ bitflags! {
     ///
     /// If a dimension is scrollable the content can be any size in that dimension, if the size
     /// is more then available scrolling is enabled for that dimension.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
     pub struct ScrollMode: u8 {
         /// Content is not scrollable.
         const NONE = 0;

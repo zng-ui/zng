@@ -63,7 +63,7 @@ mod ansi_parse {
     /// Represents the ANSI style of a text run.
     ///
     /// See [`AnsiText`](struct@super::AnsiText) for more details.
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct AnsiStyle {
         /// Background color.
         pub background_color: AnsiColor,
@@ -104,7 +104,7 @@ mod ansi_parse {
     ///
     /// See [`AnsiStyle`] for more details.
     #[allow(missing_docs)]
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
     pub enum AnsiColor {
         Black,
         Red,
@@ -159,7 +159,7 @@ mod ansi_parse {
     /// Font weight defined by ANSI escape codes.
     ///
     /// See [`AnsiStyle`] for more details.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
     pub enum AnsiWeight {
         /// Normal.
         Normal,

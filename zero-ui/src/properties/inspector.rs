@@ -11,7 +11,7 @@ use crate::core::{
 use crate::prelude::new_property::*;
 
 /// Target of inspection properties.
-#[derive(Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum InspectMode {
     /// Just the widget where the inspector property is set.
     Widget,

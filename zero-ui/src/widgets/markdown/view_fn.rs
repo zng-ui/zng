@@ -6,7 +6,7 @@ use crate::widgets::text::{PARAGRAPH_SPACING_VAR, TEXT_COLOR_VAR};
 use super::*;
 
 /// Markdown text run style.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct MarkdownStyle {
     /// Bold.
     pub strong: bool,

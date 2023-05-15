@@ -914,7 +914,7 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
 /// Placement of a node inserted by the [`child_insert`] property.
 ///
 /// [`child_insert`]: fn@child_insert
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ChildInsertPlace {
     /// Insert node above the child.
     Above,
@@ -1270,7 +1270,7 @@ pub fn child_insert_end(child: impl UiNode, insert: impl UiNode, spacing: impl I
 /// [`size`]: fn@size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub enum WidgetLength {
     /// Evaluates to [`PxConstraints2d::fill_size`] when measured, can serve as a request for *size-to-fit*.
     ///
