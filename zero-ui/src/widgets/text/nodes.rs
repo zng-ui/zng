@@ -198,7 +198,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             let style = FONT_STYLE_VAR.get();
             let weight = FONT_WEIGHT_VAR.get();
 
-            let f = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
+            let f =
+                FONT_FAMILY_VAR.with(|family| LANG_VAR.with(|lang| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), lang.best())));
 
             let f = if f.is_done() {
                 f.into_rsp().unwrap()
@@ -303,7 +304,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 let style = FONT_STYLE_VAR.get();
                 let weight = FONT_WEIGHT_VAR.get();
 
-                let faces = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
+                let faces = FONT_FAMILY_VAR
+                    .with(|family| LANG_VAR.with(|lang| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), lang.best())));
 
                 if faces.is_done() {
                     let faces = faces.rsp().unwrap();
@@ -350,7 +352,8 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 let style = FONT_STYLE_VAR.get();
                 let weight = FONT_WEIGHT_VAR.get();
 
-                let faces = FONT_FAMILY_VAR.with(|family| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), &LANG_VAR.get()));
+                let faces = FONT_FAMILY_VAR
+                    .with(|family| LANG_VAR.with(|lang| FONTS.list(family, style, weight, FONT_STRETCH_VAR.get(), lang.best())));
 
                 if faces.is_done() {
                     let faces = faces.rsp().unwrap();
@@ -750,7 +753,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             WIDGET.sub_var(&FONT_FEATURES_VAR);
             // LANG_VAR already subscribed by `resolve_text`.
 
-            txt.shaping_args.lang = LANG_VAR.get();
+            txt.shaping_args.lang = LANG_VAR.with(|l| l.best().clone());
             txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into();
             txt.shaping_args.line_break = LINE_BREAK_VAR.get();
             txt.shaping_args.word_break = WORD_BREAK_VAR.get();
@@ -774,7 +777,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 || TAB_LENGTH_VAR.is_new()
                 || LANG_VAR.is_new()
             {
-                txt.shaping_args.lang = LANG_VAR.get();
+                txt.shaping_args.lang = LANG_VAR.with(|l| l.best().clone());
                 txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into(); // will be set in layout too.
                 txt.pending.insert(Layout::RESHAPE);
                 WIDGET.layout();

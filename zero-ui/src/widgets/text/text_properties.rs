@@ -585,9 +585,9 @@ pub struct LangMix<P>(P);
 ///
 /// Sets the [`LANG_VAR`] and [`DIRECTION_VAR`] context vars and the [`LayoutMetrics::direction`].
 #[property(CONTEXT, default(LANG_VAR), widget_impl(LangMix<P>))]
-pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
+pub fn lang(child: impl UiNode, lang: impl IntoVar<Langs>) -> impl UiNode {
     let lang = lang.into_var();
-    let child = direction(child, lang.map(|l| l.character_direction().into()));
+    let child = direction(child, lang.map(|l| l.best().character_direction().into()));
     with_context_var(child, LANG_VAR, lang)
 }
 

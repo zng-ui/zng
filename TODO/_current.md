@@ -10,8 +10,11 @@
 # Localization
 
 * Implement resource loader.
-    - Use `WATCHER.watch_dir` to maintain a list of `locale.flt` files in a dir.
-    - Use `SwapConfig{SyncConfig}` with the selected locale file to maintain variables for each entry.
+    - Resources need to automatically reload when file changes.
+    - File name cannot be matched from the lang alone, request needs to map to a `PathBuf` and then 
+      use this path to select a variable with loaded resources for the best lang match.
+    - The file match needs to be shared between all variables that requested it.
+    - The shared file match needs to be a var too, to leverage `SyncConfig`.
 * Implement builder.
 * Implement pseudo-localization test mode.
 * Add variable args in example.

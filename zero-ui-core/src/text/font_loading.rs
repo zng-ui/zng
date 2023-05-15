@@ -24,9 +24,10 @@ use crate::{
     context::UPDATES,
     crate_util::FxHashMap,
     event::{event, event_args, EventUpdate},
+    l10n::LangMap,
     task,
     units::*,
-    var::{response_done_var, var, AnyVar, ArcVar, ResponseVar, Var}, l10n::LangMap,
+    var::{response_done_var, var, AnyVar, ArcVar, ResponseVar, Var},
 };
 
 event! {

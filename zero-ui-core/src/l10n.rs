@@ -1,9 +1,12 @@
 //! Localization service [`L10N`] and helpers.
 //!
 
+use fluent::types::FluentNumber;
+use once_cell::sync::Lazy;
+use std::{mem, ops, path::PathBuf, str::FromStr, sync::Arc};
+
 /// Localization service.
 pub struct L10N;
-impl L10N {}
 
 ///<span data-del-macro-root></span> Gets a variable that localizes and formats the text in a widget context.
 ///
@@ -55,9 +58,6 @@ macro_rules! l10n {
         std::compile_error!(r#"expected ("id", "message") or ("id", "msg {$arg}", arg=expr)"#)
     }
 }
-use std::mem;
-
-use fluent::types::FluentNumber;
 #[doc(inline)]
 pub use l10n;
 
@@ -65,11 +65,36 @@ pub use l10n;
 pub use zero_ui_proc_macros::l10n as __l10n;
 
 use crate::{
+    app_local,
+    fs_watcher::WATCHER,
     text::Txt,
     var::{self, *},
 };
 
 impl L10N {
+    /// Start watching the `dir` for `"dir/{locale}.ftl"` files.
+    ///
+    /// The [`available_locales`] variable maintains an up-to-date list of locale files found, the files
+    /// are only loaded when needed, and also are watched to update automatically.
+    pub fn load_dir(&self, dir: impl Into<PathBuf>) {
+        L10N_SV.write().load_dir(dir.into());
+    }
+
+    /// Available localization files.
+    pub fn available_langs(&self) -> ReadOnlyArcVar<Arc<LangMap<PathBuf>>> {
+        L10N_SV.read().available_langs.read_only()
+    }
+
+    /// Gets a read-write variable that sets the preferred languages for the app scope.
+    /// Lang not available are ignored until they become available, the first language in the
+    /// vec is the most preferred.
+    ///
+    /// Note that in the [`LANG_VAR`] is used in message requests, the default value of that
+    /// context variable is this one.
+    pub fn app_lang(&self) -> ArcVar<Langs> {
+        L10N_SV.read().app_lang.clone()
+    }
+
     /// Gets a variable that is a localized message identified by `id` in the localization context
     /// where the variable is first used. The variable will update when the contextual language changes.
     ///
@@ -80,12 +105,8 @@ impl L10N {
     /// when the message is not found in the localization context.
     ///
     /// Prefer using the [`l10n!`] macro instead of this method, the macro does compile time validation.
-    pub fn message(&self, id: Txt, fallback: Txt) -> L10nMessageBuilder {
-        L10nMessageBuilder {
-            id,
-            fallback,
-            args: vec![],
-        }
+    pub fn message(&self, id: impl Into<Txt>, fallback: impl Into<Txt>) -> L10nMessageBuilder {
+        L10N_SV.write().message(id.into(), fallback.into())
     }
 
     /// Function called by `l10n!`.
@@ -143,7 +164,7 @@ impl L10nMessageBuilder {
         merge_var!(L10N_RESOURCE_VAR, LANG_VAR, move |res, lang| {
             // !!: TODO
             let _ = args;
-            match res.raw_message(lang, &id) {
+            match lang.first().and_then(|l| res.raw_message(l, &id)) {
                 Some(f) => f,
                 None => fallback.clone(),
             }
@@ -212,7 +233,11 @@ impl<V: Var<L10nArgument>> IntoL10nVar for &&L10nSpecialize<V> {
 
 context_var! {
     /// Language of text in a widget context.
-    pub static LANG_VAR: Lang = Lang::default();
+    ///
+    /// Is [`L10N.app_lang`] by default.
+    ///
+    /// [`L10N.app_lang`]: L10N::app_lang
+    pub static LANG_VAR: Langs = L10N.app_lang();
 }
 
 /// Identifies the language, region and script of text.
@@ -224,6 +249,35 @@ context_var! {
 ///
 /// [`unic_langid`]: https://docs.rs/unic-langid
 pub type Lang = unic_langid::LanguageIdentifier;
+
+/// List of languages, in priority order.
+///
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Langs(pub Vec<Lang>);
+impl Langs {
+    /// The first lang on the list or `und` if the list is empty.
+    pub fn best(&self) -> &Lang {
+        static NONE: Lazy<Lang> = Lazy::new(|| lang!(und));
+        self.first().unwrap_or(&NONE)
+    }
+}
+impl ops::Deref for Langs {
+    type Target = Vec<Lang>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ops::DerefMut for Langs {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl_from_and_into_var! {
+    fn from(lang: Lang) -> Langs {
+        Langs(vec![lang])
+    }
+}
 
 /// Represents a map of [`Lang`] keys that can be partially matched.
 #[derive(Debug, Clone)]
@@ -373,6 +427,60 @@ impl<V> LangMap<V> {
         });
         count
     }
+
+    /// Returns if the map is empty.
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    /// Returns the number of languages in the map.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Remove all entries.
+    pub fn clear(&mut self) {
+        self.inner.clear()
+    }
+
+    /// Iterator over lang keys.
+    pub fn keys(&self) -> impl std::iter::ExactSizeIterator<Item = &Lang> {
+        self.inner.iter().map(|(k, _)| k)
+    }
+
+    /// Iterator over values.
+    pub fn values(&self) -> impl std::iter::ExactSizeIterator<Item = &V> {
+        self.inner.iter().map(|(_, v)| v)
+    }
+
+    /// Iterator over values.
+    pub fn values_mut(&mut self) -> impl std::iter::ExactSizeIterator<Item = &mut V> {
+        self.inner.iter_mut().map(|(_, v)| v)
+    }
+
+    /// Into iterator of values.
+    pub fn into_values(self) -> impl std::iter::ExactSizeIterator<Item = V> {
+        self.inner.into_iter().map(|(_, v)| v)
+    }
+
+    /// Iterate over key-value pairs.
+    pub fn iter(&self) -> impl std::iter::ExactSizeIterator<Item = (&Lang, &V)> {
+        self.inner.iter().map(|(k, v)| (k, v))
+    }
+
+    /// Iterate over key-value pairs with mutable values.
+    pub fn iter_mut(&mut self) -> impl std::iter::ExactSizeIterator<Item = (&Lang, &mut V)> {
+        self.inner.iter_mut().map(|(k, v)| (&*k, v))
+    }
+}
+impl<V> IntoIterator for LangMap<V> {
+    type Item = (Lang, V);
+
+    type IntoIter = std::vec::IntoIter<(Lang, V)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_iter()
+    }
 }
 
 /// <span data-del-macro-root></span> Compile-time validated [`Lang`] value.
@@ -410,3 +518,78 @@ pub use zero_ui_proc_macros::lang as __lang;
 
 #[doc(hidden)]
 pub use unic_langid;
+
+struct L10nService {
+    available_langs: ArcVar<Arc<LangMap<PathBuf>>>,
+    app_lang: ArcVar<Langs>,
+    watcher: Option<ReadOnlyArcVar<Arc<LangMap<PathBuf>>>>,
+}
+impl L10nService {
+    fn new() -> Self {
+        Self {
+            available_langs: var(Arc::new(LangMap::new())),
+            app_lang: var(Langs::default()),
+            watcher: None,
+        }
+    }
+
+    fn load_dir(&mut self, dir: PathBuf) {
+        let dir_watch = WATCHER.read_dir(dir, true, Arc::default(), |d| {
+            let mut set = LangMap::new();
+            let mut dir = None;
+            for entry in d.min_depth(0).max_depth(1) {
+                match entry {
+                    Ok(f) => {
+                        let ty = f.file_type();
+                        if dir.is_none() {
+                            // get the watched dir
+                            if !ty.is_dir() {
+                                tracing::error!("L10N path not a directory");
+                                return None;
+                            }
+                            dir = Some(f.path().to_owned());
+                        }
+                        // search $.flt files in the dir
+                        if ty.is_file() {
+                            if let Some(name_and_ext) = f.file_name().to_str() {
+                                if let Some((name, ext)) = name_and_ext.rsplit_once('.') {
+                                    const EXT: unicase::Ascii<&'static str> = unicase::Ascii::new("flt");
+                                    if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
+                                        // found .flt file.
+                                        match Lang::from_str(name) {
+                                            Ok(lang) => {
+                                                // and it is named correctly.
+                                                set.insert(lang, dir.as_ref().unwrap().with_file_name(name_and_ext));
+                                            }
+                                            Err(e) => {
+                                                if name != "template" {
+                                                    tracing::debug!("`{name}.{ext}` is not a valid lang or 'template', {e}")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => tracing::error!("L10N dir watcher error, {e}"),
+                }
+            }
+            Some(Arc::new(set))
+        });
+        self.available_langs.set(dir_watch.get());
+        dir_watch.bind(&self.available_langs).perm();
+        self.watcher = Some(dir_watch);
+    }
+
+    fn message(&mut self, id: Txt, fallback: Txt) -> L10nMessageBuilder {
+        L10nMessageBuilder {
+            id,
+            fallback,
+            args: vec![],
+        }
+    }
+}
+app_local! {
+    static L10N_SV: L10nService = L10nService::new();
+}

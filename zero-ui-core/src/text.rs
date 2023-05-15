@@ -1,10 +1,10 @@
 //! Font resolving and text shaping.
 
-use crate::l10n::{Lang, lang};
+use crate::l10n::{lang, Lang};
 pub use crate::render::webrender_api::{GlyphIndex, GlyphInstance};
+use crate::units::*;
 use crate::var::animation::Transitionable;
 use crate::var::impl_from_and_into_var;
-use crate::{units::*};
 use derive_more as dm;
 use std::hash::Hash;
 use std::{
@@ -13,7 +13,6 @@ use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
-
 
 pub mod font_features;
 mod font_kit_cache;
