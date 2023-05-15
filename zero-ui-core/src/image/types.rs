@@ -794,7 +794,7 @@ impl_from_and_into_var! {
 /// Cache mode of [`IMAGES`].
 ///
 /// [`IMAGES`]: super::IMAGES
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ImageCacheMode {
     /// Don't hit the cache, just loads the image.
     Ignore,

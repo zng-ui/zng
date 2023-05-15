@@ -108,11 +108,54 @@ impl_from_and_into_var! {
         TabIndex::not_skip(index)
     }
 }
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+enum TabIndexSerde<'s> {
+    Named(&'s str),
+    Unamed(u32),
+}
+impl serde::Serialize for TabIndex {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if serializer.is_human_readable() {
+            let name = if self.is_auto() {
+                Some("AUTO")
+            } else if self.is_skip() {
+                Some("SKIP")
+            } else {
+                None
+            };
+            if let Some(name) = name {
+                return TabIndexSerde::Named(name).serialize(serializer);
+            }
+        }
+        TabIndexSerde::Unamed(self.0).serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for TabIndex {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        match TabIndexSerde::deserialize(deserializer)? {
+            TabIndexSerde::Named(name) => match name {
+                "AUTO" => Ok(TabIndex::AUTO),
+                "SKIP" => Ok(TabIndex::SKIP),
+                unknown => Err(D::Error::unknown_variant(unknown, &["AUTO", "SKIP"])),
+            },
+            TabIndexSerde::Unamed(i) => Ok(TabIndex(i)),
+        }
+    }
+}
 
 /// Tab navigation configuration of a focus scope.
 ///
 /// See the [module level](crate::focus#tab-navigation) for an overview of tab navigation.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TabNav {
     /// Tab can move into the scope, but does not move the focus inside the scope.
     None,
@@ -143,7 +186,7 @@ impl fmt::Debug for TabNav {
 /// Directional navigation configuration of a focus scope.
 ///
 /// See the [module level](crate::focus#directional-navigation) for an overview of directional navigation.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum DirectionalNav {
     /// Arrows can move into the scope, but does not move the focus inside the scope.
     None,
@@ -168,12 +211,12 @@ impl fmt::Debug for DirectionalNav {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Focus change request.
 ///
 /// See [`FOCUS`] for details.
 ///
 /// [`FOCUS`]: crate::focus::FOCUS::focus
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct FocusRequest {
     /// Where to move the focus.
     pub target: FocusTarget,
@@ -276,7 +319,7 @@ impl FocusRequest {
 }
 
 /// Focus request target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FocusTarget {
     /// Move focus to widget.
     Direct(WidgetId),
@@ -1412,7 +1455,7 @@ impl WidgetFocusInfo {
 }
 
 /// Focus metadata associated with a widget info tree.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum FocusInfo {
     /// The widget is not focusable.
     NotFocusable,
@@ -1441,7 +1484,7 @@ pub enum FocusInfo {
 }
 
 /// Behavior of a focus scope when it receives direct focus.
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum FocusScopeOnFocus {
     /// Just focus the scope widget.
     Widget,

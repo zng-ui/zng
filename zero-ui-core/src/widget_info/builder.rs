@@ -306,7 +306,7 @@ impl WidgetInfoBuilder {
 /// This info is used by inlining parent to sort the joiner row in a way that preserves bidirectional text flow.
 ///
 /// See [`WidgetInlineMeasure::first_segs`] for more details.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct InlineSegment {
     /// Width of the segment, in pixels.
     pub width: f32,
@@ -331,7 +331,7 @@ impl Hash for InlineSegment {
 /// See [`InlineConstraintsLayout::first_segs`] for more details.
 ///
 /// [`InlineConstraintsLayout::first_segs`]: crate::context::InlineConstraintsLayout::first_segs
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct InlineSegmentPos {
     /// Seg offset to the right from the row origin, in pixels.
     pub x: f32,

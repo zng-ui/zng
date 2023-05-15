@@ -78,7 +78,7 @@ impl<'a> fmt::Debug for UiNodeOp<'a> {
 }
 
 /// Identifies an [`UiNodeOp`] method without the associated data.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub enum UiNodeOpMethod {
     /// The [`UiNodeOp::Init`].

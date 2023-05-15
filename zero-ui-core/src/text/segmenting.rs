@@ -7,7 +7,7 @@ use unicode_bidi::BidiInfo;
 use xi_unicode::LineBreakIterator;
 
 /// The type of a text segment.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TextSegmentKind {
     /// Any strong left-to-right character.
     LeftToRight,

@@ -140,6 +140,28 @@ impl fmt::Debug for StaticWindowId {
         fmt::Debug::fmt(&self.get(), f)
     }
 }
+impl serde::Serialize for WindowId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let name = self.name();
+        if name.is_empty() {
+            use serde::ser::Error;
+            return Err(S::Error::custom("cannot serialize unammed `WindowId`"));
+        }
+        name.serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for WindowId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let name = Txt::deserialize(deserializer)?;
+        Ok(WindowId::named(name))
+    }
+}
 impl crate::var::IntoValue<WindowId> for &'static StaticWindowId {}
 
 /// Window root widget and configuration.
@@ -242,7 +264,8 @@ impl WindowRoot {
 
 bitflags! {
     /// Window auto-size config.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
     pub struct AutoSize: u8 {
         /// Does not automatically adjust size.
         const DISABLED = 0;
@@ -270,7 +293,7 @@ impl_from_and_into_var! {
 ///
 /// The startup position affects the window once, at the moment the window
 /// is open just after the first [`UiNode::render`] call.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum StartPosition {
     /// Resolves the `position` property.
     Default,
@@ -304,7 +327,7 @@ impl fmt::Debug for StartPosition {
 }
 
 /// Mode of an open window.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum WindowMode {
     /// Normal mode, shows a system window with content rendered.
     Headed,
@@ -355,7 +378,7 @@ impl WindowMode {
 }
 
 /// Window chrome, the non-client area of the window.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum WindowChrome {
     /// System chrome.
     Default,
@@ -409,7 +432,8 @@ impl_from_and_into_var! {
 
 bitflags! {
     /// Mask of allowed [`WindowState`] states of a window.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
     pub struct WindowStateAllowed: u8 {
         /// Enable minimize.
         const MINIMIZE = 0b0001;
@@ -568,7 +592,7 @@ impl_from_and_into_var! {
 /// You can set the capture mode using [`WindowVars::frame_capture_mode`].
 ///
 /// [`WindowVars::frame_capture_mode`]: crate::window::WindowVars::frame_capture_mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FrameCaptureMode {
     /// Frames are not automatically captured, but you can
     /// use [`WINDOWS.frame_image`] to capture frames.

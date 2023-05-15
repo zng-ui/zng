@@ -37,7 +37,7 @@ pub use crate::source_location;
 /// A location in source-code.
 ///
 /// Use [`source_location!`] to construct.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct SourceLocation {
     /// [`std::file!`]
     pub file: &'static str,
@@ -241,7 +241,7 @@ impl PropertyArgsGetter {
 /// Represents the sort index of a property or intrinsic node in a widget instance.
 ///
 /// Each node "wraps" the next one, so the sort defines `(context#0 (context#1 (event (size (border..)))))`.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct NestPosition {
     /// The major position.
     pub group: NestGroup,
@@ -438,27 +438,31 @@ impl fmt::Display for NestGroup {
         write!(f, "{}", self.name())
     }
 }
-impl ops::Add<u16> for NestGroup {
+impl ops::Add<i16> for NestGroup {
     type Output = Self;
 
-    fn add(self, rhs: u16) -> Self::Output {
-        Self(self.0.saturating_add(rhs))
+    fn add(self, rhs: i16) -> Self::Output {
+        let r = (self.0 as i32) + rhs as i32;
+
+        Self(r.clamp(0, u16::MAX as i32) as u16)
     }
 }
-impl ops::Sub<u16> for NestGroup {
+impl ops::Sub<i16> for NestGroup {
     type Output = Self;
 
-    fn sub(self, rhs: u16) -> Self::Output {
-        Self(self.0.saturating_sub(rhs))
+    fn sub(self, rhs: i16) -> Self::Output {
+        let r = (self.0 as i32) - rhs as i32;
+
+        Self(r.clamp(0, u16::MAX as i32) as u16)
     }
 }
-impl ops::AddAssign<u16> for NestGroup {
-    fn add_assign(&mut self, rhs: u16) {
+impl ops::AddAssign<i16> for NestGroup {
+    fn add_assign(&mut self, rhs: i16) {
         *self = *self + rhs;
     }
 }
-impl ops::SubAssign<u16> for NestGroup {
-    fn sub_assign(&mut self, rhs: u16) {
+impl ops::SubAssign<i16> for NestGroup {
+    fn sub_assign(&mut self, rhs: i16) {
         *self = *self - rhs;
     }
 }
@@ -471,9 +475,73 @@ fn nest_group_spacing() {
     }
     assert_eq!(expected, (u16::MAX / 9) * 9); // 65529
 }
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum NestGroupSerde<'s> {
+    Named(&'s str),
+    Unamed(u16),
+}
+impl serde::Serialize for NestGroup {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if serializer.is_human_readable() {
+            self.name().serialize(serializer)
+        } else {
+            self.0.serialize(serializer)
+        }
+    }
+}
+impl<'de> serde::Deserialize<'de> for NestGroup {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        match NestGroupSerde::deserialize(deserializer)? {
+            NestGroupSerde::Named(n) => match n.parse() {
+                Ok(g) => Ok(g),
+                Err(e) => Err(D::Error::custom(e)),
+            },
+            NestGroupSerde::Unamed(i) => Ok(NestGroup(i)),
+        }
+    }
+}
+impl std::str::FromStr for NestGroup {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut name = s;
+        let mut add = 0i16;
+
+        if let Some((n, a)) = s.split_once('+') {
+            add = a.parse().map_err(|e| format!("{e}"))?;
+            name = n;
+        } else if let Some((n, s)) = s.split_once('-') {
+            add = -s.parse().map_err(|e| format!("{e}"))?;
+            name = n;
+        }
+
+        match name {
+            "WIDGET" => Ok(NestGroup::WIDGET + add),
+            "CONTEXT" => Ok(NestGroup::CONTEXT + add),
+            "EVENT" => Ok(NestGroup::EVENT + add),
+            "LAYOUT" => Ok(NestGroup::LAYOUT + add),
+            "SIZE" => Ok(NestGroup::SIZE + add),
+            "BORDER" => Ok(NestGroup::BORDER + add),
+            "FILL" => Ok(NestGroup::FILL + add),
+            "CHILD_CONTEXT" => Ok(NestGroup::CHILD_CONTEXT + add),
+            "CHILD_LAYOUT" => Ok(NestGroup::CHILD_LAYOUT + add),
+            "CHILD" => Ok(NestGroup::CHILD + add),
+            ukn => Err(format!("unknown nest group {ukn:?}")),
+        }
+    }
+}
 
 /// Kind of property input.
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum InputKind {
     /// Input is `impl IntoVar<T>`, build value is `BoxedVar<T>`.
     Var,

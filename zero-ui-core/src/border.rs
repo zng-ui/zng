@@ -15,7 +15,7 @@ use crate::{
 };
 
 /// Orientation of a straight line.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LineOrientation {
     /// Top-bottom line.
     Vertical,
@@ -47,7 +47,7 @@ impl From<LineOrientation> for w_api::LineOrientation {
 }
 
 /// Represents a line style.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LineStyle {
     /// A solid line.
     Solid,
@@ -93,7 +93,7 @@ impl fmt::Debug for LineStyle {
 
 /// The line style for the sides of a widget's border.
 #[repr(u32)]
-#[derive(Clone, Copy, PartialEq, Hash, Eq)]
+#[derive(Clone, Copy, PartialEq, Hash, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BorderStyle {
     /// A single straight solid line.
     Solid = 1,
@@ -164,7 +164,7 @@ impl animation::Transitionable for BorderStyle {
 
 /// The line style and color for the sides of a widget's border.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BorderSide {
     /// Line color.
     pub color: Rgba,
@@ -262,7 +262,7 @@ impl animation::Transitionable for BorderSide {
 }
 
 /// Radius of each corner of a border defined from [`Size`] values.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CornerRadius {
     /// Top-left corner.
     pub top_left: Size,
@@ -388,7 +388,7 @@ impl_from_and_into_var! {
 }
 
 /// The line style and color for each side of a widget's border.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BorderSides {
     /// Color and style of the left border.
     pub left: BorderSide,
@@ -607,7 +607,7 @@ impl_from_and_into_var! {
 ///
 /// [`corner_radius`]: fn@corner_radius
 /// [`corner_radius_fit`]: fn@corner_radius_fit
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
 pub enum CornerRadiusFit {
     /// Corner radius is computed for each usage.
     None,

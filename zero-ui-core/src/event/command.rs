@@ -421,7 +421,7 @@ impl Eq for Command {}
 /// Represents the scope of a [`Command`].
 ///
 /// The command scope defines the targets of its event and the context of its metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum CommandScope {
     /// Default scope, this is the scope of command types declared using [`command!`].
     App,

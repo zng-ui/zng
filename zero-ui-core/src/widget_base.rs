@@ -1062,7 +1062,7 @@ pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
 /// Defines if and how a widget is hit-tested.
 ///
 /// See [`hit_test_mode`](fn@hit_test_mode) for more details.
-#[derive(Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Copy, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum HitTestMode {
     /// Widget is never hit.
     ///
@@ -1238,7 +1238,8 @@ bitflags! {
     /// See [`parallel`] for more details.
     ///
     /// [`parallel`]: fn@parallel
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
     pub struct Parallel: u8 {
         /// Descendants [`UiNode::init`] can run in parallel.
         const INIT =   0b0000_0001;

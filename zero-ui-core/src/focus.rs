@@ -317,7 +317,7 @@ impl ReturnFocusChangedArgs {
 }
 
 /// The cause of a [`FOCUS_CHANGED_EVENT`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FocusChangedCause {
     /// The focus changed trying to fulfill the request.
     Request(FocusRequest),

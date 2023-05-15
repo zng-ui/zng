@@ -89,7 +89,7 @@ zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 
 # text
 font-kit = "0.11"
-unic-langid = "0.9"
+unic-langid = { version = "0.9", features = ["serde"] }
 unicase = "2"
 harfbuzz_rs = "2"
 xi-unicode = "0.3"

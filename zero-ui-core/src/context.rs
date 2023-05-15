@@ -2512,7 +2512,7 @@ impl std::ops::BitOr for ContextUpdates {
 /// Constraints for inline measure.
 ///
 /// See [`InlineConstraints`] for more details.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
 pub struct InlineConstraintsMeasure {
     /// Available space on the first row.
     pub first_max: Px,
@@ -2526,7 +2526,7 @@ pub struct InlineConstraintsMeasure {
 /// Constraints for inline layout.
 ///
 /// See [`InlineConstraints`] for more details.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
 pub struct InlineConstraintsLayout {
     /// First row rect, defined by the parent.
     pub first: PxRect,
@@ -2542,7 +2542,7 @@ pub struct InlineConstraintsLayout {
 }
 
 /// Constraints for inline measure or layout.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum InlineConstraints {
     /// Constraints for the measure pass.
     Measure(InlineConstraintsMeasure),
@@ -2574,7 +2574,7 @@ impl InlineConstraints {
 ///
 /// A snapshot can be taken using the [`LayoutMetrics::snapshot`], you can also
 /// get the metrics used during the last layout of a widget using the [`WidgetBoundsInfo::metrics`] method.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct LayoutMetricsSnapshot {
     /// The [`constraints`].
     ///
@@ -2851,7 +2851,7 @@ context_var! {
 /// layout direction.
 ///
 /// Note that this does not affect the layout origin, all points are offsets from the top-left corner independent of this value.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LayoutDirection {
     /// left-to-right.
     LTR,

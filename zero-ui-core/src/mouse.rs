@@ -1512,7 +1512,7 @@ enum ClickState {
 }
 
 /// Defines how click events are generated for a widget.
-#[derive(Default, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ClickMode {
     /// First click happens after button press and release, subsequent clicks happen on button press within
     /// the "double-click" window.
@@ -1590,7 +1590,7 @@ impl WidgetInfoBuilderMouseExt for WidgetInfoBuilder {
 static CLICK_MODE_ID: StaticStateId<Option<ClickMode>> = StaticStateId::new_unique();
 
 /// Settings that define the mouse button pressed repeat.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ButtonRepeatConfig {
     /// Delay before repeat starts.
     pub start_delay: Duration,
@@ -1730,7 +1730,7 @@ struct MouseService {
 }
 
 /// Mouse capture mode.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CaptureMode {
     /// Mouse captured by the window only.
     ///

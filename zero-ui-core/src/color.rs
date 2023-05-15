@@ -65,7 +65,7 @@ const EPSILON_100: f32 = 0.001;
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Rgba {
     /// Red channel value, in the `[0.0..=1.0]` range.
     pub red: f32,
@@ -350,7 +350,7 @@ impl ops::DivAssign<Factor> for Rgba {
 /// Pre-multiplied RGB + alpha.
 ///
 /// Use [`Rgba::pre_mul`] to create.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PreMulRgba {
     /// [`Rgba::red`] multiplied by `alpha`.
     pub red: f32,
@@ -405,7 +405,7 @@ impl From<PreMulRgba> for Rgba {
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon for [`hue`](Hsla::hue)
 /// and `0.00001` epsilon for the others.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Hsla {
     /// Hue color angle in the `[0.0..=360.0]` range.
     pub hue: f32,
@@ -598,7 +598,7 @@ impl fmt::Display for Hsla {
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon for [`hue`](Hsva::hue)
 /// and `0.00001` epsilon for the others.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Hsva {
     /// Hue color angle in the `[0.0..=360.0]` range.
     pub hue: f32,
@@ -1206,7 +1206,7 @@ pub fn color_scheme_highlight(pair: impl IntoVar<ColorPair>, highlight: impl Int
 }
 
 /// Represents a dark and light *color*.
-#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ColorPair {
     /// Color used when [`ColorScheme::Dark`].
     pub dark: Rgba,

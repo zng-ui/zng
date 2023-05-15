@@ -247,7 +247,7 @@ impl Transitionable for FontStretch {
 }
 
 /// Configuration of text wrapping for Chinese, Japanese, or Korean text.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum LineBreak {
     /// The same rule used by other languages.
     Auto,
@@ -282,7 +282,7 @@ impl fmt::Debug for LineBreak {
 }
 
 /// Hyphenation mode.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Hyphens {
     /// Hyphens are never inserted in word breaks.
     None,
@@ -318,7 +318,7 @@ impl fmt::Debug for Hyphens {
 /// This value is only considered if it is impossible to fit a full word to a line.
 ///
 /// Hyphens can be inserted in word breaks using the [`Hyphens`] configuration.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum WordBreak {
     /// Line breaks can be inserted in between letters of Chinese/Japanese/Korean text only.
     Normal,
@@ -347,7 +347,7 @@ impl fmt::Debug for WordBreak {
 }
 
 /// Text alignment justification mode.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Justify {
     /// Selects the justification mode based on the language.
     ///
@@ -388,7 +388,7 @@ impl fmt::Debug for Justify {
 /// See the [`FreeType Glyph Metrics`] documentation for an explanation of the various metrics.
 ///
 /// [`FreeType Glyph Metrics`]: https://freetype.org/freetype2/docs/glyphs/glyphs-3.html
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct FontFaceMetrics {
     /// The number of font units per em.
     ///
@@ -455,7 +455,7 @@ impl FontFaceMetrics {
 /// Various metrics about a [`Font`].
 ///
 /// You can compute these metrics from a [`FontFaceMetrics`]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct FontMetrics {
     /// Multiply this to a font EM value to get the size in pixels.
     pub size_scale: f32,
@@ -542,7 +542,7 @@ impl fmt::Debug for TextTransformFn {
 }
 
 /// Text white space transform.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum WhiteSpace {
     /// Text is not changed, all white spaces and line breaks are preserved.
     Preserve,
@@ -742,6 +742,22 @@ impl AsRef<str> for FontName {
         self.text.as_ref()
     }
 }
+impl serde::Serialize for FontName {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.text.serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for FontName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Txt::deserialize(deserializer).map(FontName::new)
+    }
+}
 
 /// A list of [font names](FontName) in priority order.
 ///
@@ -771,7 +787,8 @@ impl AsRef<str> for FontName {
 /// # Default
 ///
 /// The default value is the [`system_ui`](FontNames::system_ui) for the undefined language (`und`).
-#[derive(Eq, PartialEq, Hash, Clone)]
+#[derive(Eq, PartialEq, Hash, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct FontNames(pub Vec<FontName>);
 impl FontNames {
     /// Empty list.
@@ -1446,7 +1463,7 @@ impl<T: ToString> ToText for T {
 pub use crate::render::FontSynthesis;
 
 /// An offset in a text.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TextPoint {
     /// Line index, 0 based.
     pub line: usize,
@@ -1474,7 +1491,7 @@ impl TextPoint {
 /// *Ln 1, Col 1* display info of a [`TextPoint`].
 ///
 /// You can compute this value from [`TextPoint::display`].
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TextPointDisplay {
     /// Line number, 1 based.
     pub line: usize,
@@ -1497,7 +1514,8 @@ impl fmt::Display for TextPointDisplay {
 
 bitflags! {
     /// Represents what parts of a text the underline must skip over.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
     pub struct UnderlineSkip: u8 {
         /// Underline spans the entire text length.
         const NONE = 0;
@@ -1519,7 +1537,7 @@ impl Default for UnderlineSkip {
 }
 
 /// Defines what line gets traced by the text underline decoration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum UnderlinePosition {
     /// Underline is positioned using the offset defined in the font file.
     #[default]

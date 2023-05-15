@@ -170,6 +170,28 @@ impl fmt::Debug for StaticWidgetId {
     }
 }
 impl crate::var::IntoValue<WidgetId> for &'static StaticWidgetId {}
+impl serde::Serialize for WidgetId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let name = self.name();
+        if name.is_empty() {
+            use serde::ser::Error;
+            return Err(S::Error::custom("cannot serialize unammed `WidgetId`"));
+        }
+        name.serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for WidgetId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let name = Txt::deserialize(deserializer)?;
+        Ok(WidgetId::named(name))
+    }
+}
 
 /// An Ui tree node.
 pub trait UiNode: Any + Send {

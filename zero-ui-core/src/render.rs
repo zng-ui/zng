@@ -94,7 +94,7 @@ pub trait Img {
 ///
 /// [`Img`]: crate::image::Img
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ImageRendering {
     /// Let the renderer select the algorithm, currently this is the same as [`CrispEdges`].
     ///
@@ -2452,7 +2452,8 @@ assert_non_null!(FrameValueKey<RenderColor>);
 
 bitflags! {
     /// Configure if a synthetic font is generated for fonts that do not implement **bold** or *oblique* variants.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
     pub struct FontSynthesis: u8 {
         /// No synthetic font generated, if font resolution does not find a variant the matches the requested style and weight
         /// the request is ignored and the normal font is returned.

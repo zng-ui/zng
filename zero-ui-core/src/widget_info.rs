@@ -40,7 +40,7 @@ use self::iter::TreeIterator;
 /// Stats over the lifetime of a widget info tree.
 ///
 /// The stats for a tree are available in [`WidgetInfoTree::stats`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WidgetInfoTreeStats {
     /// Number of times info was rebuild for the window.
     pub generation: u32,
@@ -1816,7 +1816,8 @@ type InteractivityFilters = Vec<Arc<dyn Fn(&InteractivityFilterArgs) -> Interact
 
 bitflags! {
     /// Represents the level of interaction allowed for a widget.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
     pub struct Interactivity: u8 {
         /// Normal interactions allowed.
         ///
@@ -1893,7 +1894,7 @@ impl_from_and_into_var! {
 ///
 /// [`WidgetInfo::visibility`]: crate::widget_info::WidgetInfo::visibility
 /// [`visibility`]: fn@crate::widget_base::visibility
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Visibility {
     /// The widget is visible, this is default.
     Visible,

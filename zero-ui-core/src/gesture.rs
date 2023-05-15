@@ -228,7 +228,7 @@ impl ClickArgs {
 }
 
 /// A keyboard combination.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct KeyGesture {
     /// The key modifiers.
     ///
@@ -298,7 +298,7 @@ impl Display for KeyGesture {
 }
 
 /// A modifier key press and release without any other key press in between.
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ModifierGesture {
     /// Any of the Windows/Apple keys.
     Logo,
@@ -359,7 +359,7 @@ impl ModifierGesture {
 }
 
 /// A sequence of two keyboard combinations.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct KeyChord {
     /// The first key gesture.
     pub starter: KeyGesture,
@@ -386,7 +386,7 @@ impl Display for KeyChord {
 }
 
 /// Keyboard gesture or chord associated with a command.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Shortcut {
     /// Key-press plus modifiers.
     Gesture(KeyGesture),
@@ -481,7 +481,7 @@ impl<const N: usize> crate::var::IntoVar<Shortcuts> for [Shortcut; N] {
 }
 
 /// Multiple shortcuts.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Shortcuts(pub Vec<Shortcut>);
 impl Shortcuts {
     /// New default (empty).
@@ -1493,7 +1493,7 @@ macro_rules! gesture_key_name {
 macro_rules! gesture_keys {
     ($($(#[$docs:meta])* $key:ident $(= $name:expr)?),+ $(,)?) => {
         /// The set of keys that can be used in a [`KeyGesture`].
-        #[derive(Clone, Copy, PartialEq, Eq, Hash, num_enum::TryFromPrimitive)]
+        #[derive(Clone, Copy, PartialEq, Eq, Hash, num_enum::TryFromPrimitive, serde::Serialize, serde::Deserialize)]
         #[repr(u32)]
         #[allow(missing_docs)] // they are mostly self-explanatory.
         pub enum GestureKey {

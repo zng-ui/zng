@@ -9,7 +9,7 @@ use crate::units::*;
 use crate::var::*;
 
 /// Specifies how to draw the gradient outside the first and last stop.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ExtendMode {
     /// Default value. The color values at the ends of the gradient vector fill the remaining space.
     Clamp,
@@ -54,7 +54,7 @@ pub type RenderExtendMode = crate::render::webrender_api::ExtendMode;
 /// the center point to an edge or corner.
 ///
 /// Note that the color stops are layout in the longest dimension and then *squished* in the shortest dimension.
-#[derive(Clone, PartialEq, Default)]
+#[derive(Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub enum GradientRadiusBase {
     /// Length to the closest edge from the center point.
     ClosestSide,
@@ -83,7 +83,7 @@ impl fmt::Debug for GradientRadiusBase {
 }
 
 /// The radial gradient radius length in both dimensions.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct GradientRadius {
     /// How the base length is calculated. The base length is the `100.pct()` length.
     pub base: GradientRadiusBase,
@@ -277,7 +277,7 @@ impl_from_and_into_var! {
 /// let angle_gradient = linear_gradient(90.deg(), [colors::BLACK, colors::WHITE]);
 /// let line_gradient = linear_gradient((0, 0).to(50, 30), [colors::BLACK, colors::WHITE]);
 /// ```
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum LinearGradientAxis {
     /// Line defined by an angle. 0º is a line from bottom-to-top, 90º is a line from left-to-right.
     ///
@@ -386,7 +386,7 @@ impl Transitionable for LinearGradientAxis {
 }
 
 /// A color stop in a gradient.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ColorStop {
     /// The color.
     pub color: Rgba,
@@ -516,7 +516,7 @@ impl Transitionable for ColorStop {
 pub type RenderGradientStop = wr::GradientStop;
 
 /// A stop in a gradient.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum GradientStop {
     /// Color stop.
     Color(ColorStop),
@@ -590,7 +590,7 @@ impl fmt::Debug for GradientStop {
 /// Stops in a gradient.
 ///
 /// Use [`stops!`] to create a new instance, you can convert from arrays for simpler gradients.
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct GradientStops {
     /// First color stop.
     pub start: ColorStop,

@@ -182,7 +182,8 @@ bitflags! {
     /// Defines what parts of windows can be updated in parallel.
     ///
     /// See [`WINDOWS.parallel`] for more details.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
     pub struct ParallelWin: u8 {
         /// Windows can init, deinit, update and rebuild info in parallel.
         const UPDATE = 0b0001;
