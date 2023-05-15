@@ -1,6 +1,8 @@
 # Config
 
-* Implement serde for value types in the main crate.
+* Stop watcher on exit (callback calling after app not in scope).
+    - Caused by final write.
+    - Check if dropping the notify watcher un-watches everything.
 
 # Text Edit
 

@@ -919,7 +919,7 @@ impl SyncWithVar {
                     if path.exists() {
                         SyncFlags::atomic_insert(pending, SyncFlags::READ);
                     } else {
-                        return;
+                        SyncFlags::atomic_insert(pending, SyncFlags::WRITE);
                     }
                 }
                 SyncEvent::FlushShutdown => {
