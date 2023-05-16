@@ -143,7 +143,7 @@ impl CharInputArgs {
     }
 
     /// Replaces all [`is_tab`] with `\t` and all [`is_line_break`] with `\n`.
-    /// 
+    ///
     /// [`is_tab`]: Self::is_tab
     /// [`is_line_break`]: Self::is_line_break
     pub fn normalized_char(&self) -> char {

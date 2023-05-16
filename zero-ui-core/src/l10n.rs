@@ -87,7 +87,7 @@ impl L10N {
     ///
     /// The [`available_langs`] variable maintains an up-to-date list of locale files found, the files
     /// are only loaded when needed, and also are watched to update automatically.
-    /// 
+    ///
     /// [`available_langs`]: Self::available_langs
     pub fn load_dir(&self, dir: impl Into<PathBuf>) {
         L10N_SV.write().load_dir(dir.into());

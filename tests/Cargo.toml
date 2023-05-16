@@ -9,8 +9,9 @@ default = ["ipc"]
 ipc = ["zero-ui/ipc"]
 
 [dev-dependencies]
-zero-ui = { path = "../zero-ui", features = ["test_util"] }
+zero-ui = { path = "../zero-ui", features = ["test_util", "toml"] }
 zero-ui-view = { path = "../zero-ui-view" }
+pretty_assertions = "1"
 
 [[test]]
 name = "command"
@@ -24,3 +25,7 @@ path = "focus.rs"
 name = "image"
 path = "image.rs"
 harness = false
+
+[[test]]
+name = "config"
+path = "config.rs"

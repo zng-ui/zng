@@ -6,7 +6,6 @@ pub mod raw_events;
 pub mod view_process;
 
 pub use intrinsic::*;
-use parking_lot::Mutex;
 
 use crate::config::ConfigManager;
 use crate::crate_util::{IdNameError, NameIdMap, PanicPayload, ReceiverExt};
@@ -53,15 +52,50 @@ unique_id_32! {
     /// [`App::current_id`]: crate::app::App::current_id
     pub struct AppId;
 }
+static APP_ID_NAMES: parking_lot::RwLock<NameIdMap<AppId>> = parking_lot::const_rwlock(NameIdMap::new());
 impl AppId {
-    fn name_map() -> parking_lot::MappedMutexGuard<'static, NameIdMap<Self>> {
-        static NAME_MAP: Mutex<Option<NameIdMap<AppId>>> = parking_lot::const_mutex(None);
-        parking_lot::MutexGuard::map(NAME_MAP.lock(), |m| m.get_or_insert_with(NameIdMap::new))
+    /// Get or generate an id with associated name.
+    ///
+    /// If the `name` is already associated with an id, returns it.
+    /// If the `name` is new, generates a new id and associated it with the name.
+    /// If `name` is an empty string just returns a new id.
+    pub fn named(name: impl Into<Txt>) -> Self {
+        APP_ID_NAMES.write().get_id_or_insert(name.into(), Self::new_unique)
+    }
+
+    /// Calls [`named`] in a debug build and [`new_unique`] in a release build.
+    ///
+    /// The [`named`] function causes a hash-map lookup, but if you are only naming a widget to find
+    /// it in the Inspector you don't need that lookup in a release build, so you can set the [`id`]
+    /// to this function call instead.
+    ///
+    /// [`named`]: WidgetId::named
+    /// [`new_unique`]: WidgetId::new_unique
+    /// [`id`]: fn@crate::widget_base::id
+    pub fn debug_named(name: impl Into<Txt>) -> Self {
+        #[cfg(debug_assertions)]
+        return Self::named(name);
+
+        #[cfg(not(debug_assertions))]
+        {
+            let _ = name;
+            Self::new_unique()
+        }
+    }
+
+    /// Generate a new id with associated name.
+    ///
+    /// If the `name` is already associated with an id, returns the [`NameUsed`] error.
+    /// If the `name` is an empty string just returns a new id.
+    ///
+    /// [`NameUsed`]: IdNameError::NameUsed
+    pub fn named_new(name: impl Into<Txt>) -> Result<Self, IdNameError<Self>> {
+        APP_ID_NAMES.write().new_named(name.into(), Self::new_unique)
     }
 
     /// Returns the name associated with the id or `""`.
     pub fn name(self) -> Txt {
-        Self::name_map().get_name(self)
+        APP_ID_NAMES.read().get_name(self)
     }
 
     /// Associate a `name` with the id, if it is not named.
@@ -73,7 +107,7 @@ impl AppId {
     /// [`NameUsed`]: IdNameError::NameUsed
     /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
     pub fn set_name(self, name: impl Into<Txt>) -> Result<(), IdNameError<Self>> {
-        Self::name_map().set(name.into(), self)
+        APP_ID_NAMES.write().set(name.into(), self)
     }
 }
 impl fmt::Debug for AppId {
@@ -111,7 +145,7 @@ impl<'de> serde::Deserialize<'de> for AppId {
         D: serde::Deserializer<'de>,
     {
         let name = Txt::deserialize(deserializer)?;
-        Ok(AppId::name_map().get_id_or_insert(name, AppId::new_unique))
+        Ok(AppId::named(name))
     }
 }
 
