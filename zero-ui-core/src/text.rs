@@ -1268,6 +1268,7 @@ pub struct TextPoint {
     /// Line index, 0 based.
     pub line: usize,
     /// Byte index in the line text. The byte is in a [char boundary](str::is_char_boundary) and is 0 based.
+    /// The index can be the byte length for the line, meaning a cursor after the last character.
     pub index: usize,
 }
 impl TextPoint {

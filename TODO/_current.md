@@ -1,6 +1,16 @@
 # Text Edit
 
 * Implement cursor position.
+    - Index is of insert offset, can be str.len for cursor after the last char.
+    - Review using `TextPoint` for this?
+    - Need to navigate with arrow keys.
+        - Support `\r\n` in one key press.
+    - Need to find closest insert point from mouse cursor point.
+        - Support ligatures (click in middle works).
+    - Review https://searchfox.org/mozilla-central/source/layout/generic/nsTextFrame.cpp#7534
+        - Surrogate pairs: https://learn.microsoft.com/en-us/globalization/encoding/surrogate-pairs
+        - ligated emoji sequence
+* Support replace (Insert mode in command line).
 * Implement selection.
 * Implement custom node access to text.
 
