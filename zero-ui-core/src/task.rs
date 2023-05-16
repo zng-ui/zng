@@ -60,7 +60,7 @@
 //! # Async IO
 //!
 //! You can use [`wait`], [`io`] and [`fs`] to do async IO, and Zero-UI uses this API for internal async IO, they are just a selection
-//! of external async crates re-exported for convenience.
+//! of external async crates re-exported for convenience and compatibility.
 //!
 //! The [`io`] module just re-exports the [`futures-lite::io`] traits and types, adding only progress tracking. The
 //! [`fs`] module is the [`async-fs`] crate. Most of the IO async operations are implemented using extensions traits
@@ -190,7 +190,7 @@ pub use rayon_ctx::*;
 /// You can use parallel iterators, `join` or any of rayon's utilities inside `task` to make it multi-threaded,
 /// otherwise it will run in a single thread at a time, still not blocking the UI.
 ///
-/// The [`rayon`] crate is re-exported in `task::rayon` for convenience.
+/// The [`rayon`] crate is re-exported in `task::rayon` for convenience and compatibility.
 ///
 /// # Async
 ///
@@ -455,7 +455,7 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 /// You can use parallel iterators, `join` or any of rayon's utilities inside `task` to make it multi-threaded,
 /// otherwise it will run in a single thread at a time, still not blocking the UI.
 ///
-/// The [`rayon`] crate is re-exported in `task::rayon` for convenience.
+/// The [`rayon`] crate is re-exported in `task::rayon` for convenience and compatibility.
 ///
 /// # Async
 ///
