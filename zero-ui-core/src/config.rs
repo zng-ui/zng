@@ -9,6 +9,7 @@ use std::{
 };
 
 use crate::{
+    app::AppExtension,
     app_local, clmv,
     fs_watcher::{WatchFile, WriteFile},
     text::Txt,
@@ -31,6 +32,18 @@ pub use sync::*;
 mod toml;
 #[cfg(feature = "toml")]
 pub use self::toml::*;
+
+/// Application extension that provides mouse events and service.
+///
+/// # Services
+///
+/// Services this extension provides.
+///
+/// * [`CONFIG`]
+#[derive(Default)]
+pub struct ConfigManager {}
+
+impl AppExtension for ConfigManager {}
 
 /// Represents the app main config.
 ///

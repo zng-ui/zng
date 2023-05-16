@@ -8,10 +8,12 @@ pub mod view_process;
 pub use intrinsic::*;
 use parking_lot::Mutex;
 
+use crate::config::ConfigManager;
 use crate::crate_util::{IdNameError, NameIdMap, PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, EVENTS};
 use crate::fs_watcher::FsWatcherManager;
 use crate::image::ImageManager;
+use crate::l10n::L10nManager;
 use crate::task::ui::UiTask;
 use crate::text::Txt;
 use crate::timer::TimersService;
@@ -775,7 +777,8 @@ impl App {
     /// Extensions included.
     ///
     /// * [`FsWatcherManager`]
-    /// * [`MouseManager`]
+    /// * [`ConfigManager`]
+    /// * [`L10nManager`]
     /// * [`KeyboardManager`]
     /// * [`GestureManager`]
     /// * [`WindowManager`]
@@ -786,6 +789,8 @@ impl App {
     pub fn default() -> AppExtended<impl AppExtension> {
         App::minimal()
             .extend(FsWatcherManager::default())
+            .extend(ConfigManager::default())
+            .extend(L10nManager::default())
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
             .extend(GestureManager::default())
@@ -820,6 +825,8 @@ impl App {
     /// Extensions included.
     ///
     /// * [`FsWatcherManager`]
+    /// * [`ConfigManager`]
+    /// * [`L10nManager`]
     /// * [`MouseManager`]
     /// * [`KeyboardManager`]
     /// * [`GestureManager`]
@@ -831,6 +838,8 @@ impl App {
     pub fn default() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         App::minimal()
             .extend(FsWatcherManager::default())
+            .extend(ConfigManager::default())
+            .extend(L10nManager::default())
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
             .extend(GestureManager::default())

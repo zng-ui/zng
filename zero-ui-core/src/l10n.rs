@@ -1,12 +1,30 @@
 //! Localization service [`L10N`] and helpers.
 //!
 
+use crate::{
+    app::AppExtension,
+    app_local,
+    fs_watcher::WATCHER,
+    text::Txt,
+    var::{self, *},
+};
 use fluent::types::FluentNumber;
 use once_cell::sync::Lazy;
 use std::{mem, ops, path::PathBuf, str::FromStr, sync::Arc};
 
 /// Localization service.
 pub struct L10N;
+
+/// Application extension that provides localization.
+///
+/// # Services
+///
+/// Services this extension provides.
+///
+/// * [`L10N`]
+#[derive(Default)]
+pub struct L10nManager {}
+impl AppExtension for L10nManager {}
 
 ///<span data-del-macro-root></span> Gets a variable that localizes and formats the text in a widget context.
 ///
@@ -64,18 +82,13 @@ pub use l10n;
 #[doc(hidden)]
 pub use zero_ui_proc_macros::l10n as __l10n;
 
-use crate::{
-    app_local,
-    fs_watcher::WATCHER,
-    text::Txt,
-    var::{self, *},
-};
-
 impl L10N {
     /// Start watching the `dir` for `"dir/{locale}.ftl"` files.
     ///
-    /// The [`available_locales`] variable maintains an up-to-date list of locale files found, the files
+    /// The [`available_langs`] variable maintains an up-to-date list of locale files found, the files
     /// are only loaded when needed, and also are watched to update automatically.
+    /// 
+    /// [`available_langs`]: Self::available_langs
     pub fn load_dir(&self, dir: impl Into<PathBuf>) {
         L10N_SV.write().load_dir(dir.into());
     }
