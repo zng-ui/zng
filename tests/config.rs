@@ -14,6 +14,11 @@ fn toml() {
     test_config("test.config.toml", |p| TomlConfig::sync(p));
 }
 
+#[test]
+fn ron() {
+    test_config("test.config.ron", |p| RonConfig::sync(p));
+}
+
 fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
     let file = PathBuf::from("../target/tmp").join(file);
 

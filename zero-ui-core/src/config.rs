@@ -33,6 +33,11 @@ mod toml;
 #[cfg(feature = "toml")]
 pub use self::toml::*;
 
+#[cfg(feature = "ron")]
+mod ron;
+#[cfg(feature = "ron")]
+pub use self::ron::*;
+
 /// Application extension that provides mouse events and service.
 ///
 /// # Services
