@@ -131,6 +131,30 @@ impl CharInputArgs {
     pub fn is_delete(&self) -> bool {
         self.character == '\u{7F}'
     }
+
+    /// Returns `true` if the character is the tab space.
+    pub fn is_tab(&self) -> bool {
+        "\t\u{B}\u{1F}".contains(self.character)
+    }
+
+    /// Returns `true` if the character is a line-break.
+    pub fn is_line_break(&self) -> bool {
+        "\r\n\u{85}".contains(self.character)
+    }
+
+    /// Replaces all [`is_tab`] with `\t` and all [`is_line_break`] with `\n`.
+    /// 
+    /// [`is_tab`]: Self::is_tab
+    /// [`is_line_break`]: Self::is_line_break
+    pub fn normalized_char(&self) -> char {
+        if self.is_tab() {
+            '\t'
+        } else if self.is_line_break() {
+            '\n'
+        } else {
+            self.character
+        }
+    }
 }
 
 event! {

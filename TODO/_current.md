@@ -1,11 +1,8 @@
 # Text Edit
 
-* Enter inserts `\r` and not `\r\n`.
-    - Detect hard-break chars with same algorithm we use during segmentation: https://unicode.org/reports/tr14/#NL
-    - Have a substation property set to `\n`, Rust `println!` always uses `\n`.
-    - Can have substitution closure property for any char?
 * Implement cursor position.
 * Implement selection.
+* Implement custom node access to text.
 
 # Localization
 

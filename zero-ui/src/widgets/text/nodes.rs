@@ -255,7 +255,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             if let Some(args) = CHAR_INPUT_EVENT.on(update) {
                 if !args.propagation().is_stopped() && text.capabilities().contains(VarCapabilities::MODIFY) && args.is_enabled(WIDGET.id())
                 {
-                    if (args.character == '\t' && !ACCEPTS_TAB_VAR.get()) || ("\r\n".contains(args.character) && !ACCEPTS_ENTER_VAR.get()) {
+                    if (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get()) {
                         return;
                     }
                     args.propagation().stop();
@@ -267,17 +267,25 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     if args.is_backspace() {
                         let _ = text.modify(move |t| {
                             if !t.as_ref().is_empty() {
-                                t.to_mut().to_mut().pop();
+                                let t = t.to_mut().to_mut();
+                                if let Some('\n') = t.pop() {
+                                    if t.ends_with('\r') {
+                                        t.pop();
+                                    }
+                                }
                             }
                         });
                     } else if args.is_delete() {
                         let _ = text.modify(move |t| {
                             if !t.as_ref().is_empty() {
-                                t.to_mut().to_mut().remove(0);
+                                let t = t.to_mut().to_mut();
+                                if t.remove(0) == '\r' && t.starts_with('\n') {
+                                    t.remove(0);
+                                }
                             }
                         });
                     } else {
-                        let c = args.character;
+                        let c = args.normalized_char();
                         let _ = text.modify(move |t| {
                             t.to_mut().to_mut().push(c);
                         });
