@@ -122,14 +122,24 @@ impl TryFrom<RawConfigValue> for serde_toml::Value {
             serde_json::Value::Array(a) => serde_toml::Value::Array({
                 let mut r = Vec::with_capacity(a.len());
                 for v in a {
-                    r.push(RawConfigValue(v).try_into()?);
+                    match RawConfigValue(v).try_into() {
+                        Ok(v) => r.push(v),
+                        Err(TomlValueRawError::Null) => continue,
+                        e => return e,
+                    }
                 }
                 r
             }),
             serde_json::Value::Object(m) => serde_toml::Value::Table({
                 let mut r = serde_toml::Table::with_capacity(m.len());
                 for (k, v) in m {
-                    r.insert(k, RawConfigValue(v).try_into()?);
+                    match RawConfigValue(v).try_into() {
+                        Ok(v) => {
+                            r.insert(k, v);
+                        }
+                        Err(TomlValueRawError::Null) => continue,
+                        e => return e,
+                    }
                 }
                 r
             }),

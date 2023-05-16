@@ -12,7 +12,7 @@
 //! to [`Px`] units to compute layout and render. Working like this should make the window content have the same apparent
 //! dimensions in all monitor devices. For rendering the [`Px`] unit can be converted to `webrender` units using [`PxToWr`].
 
-use std::{cmp, fmt, ops};
+use std::{cmp, fmt, marker::PhantomData, ops};
 
 use webrender_api::units as wr;
 
@@ -563,9 +563,317 @@ pub type DipRect = euclid::Rect<Dip, Dip>;
 pub type DipBox = euclid::Box2D<Dip, Dip>;
 
 /// Side-offsets in device pixels.
-pub type PxSideOffsets = euclid::SideOffsets2D<Px, Px>;
+pub type PxSideOffsets = SideOffsets2D<Px, Px>;
 /// Side-offsets in device independent pixels.
-pub type DipSideOffsets = euclid::SideOffsets2D<Dip, Dip>;
+pub type DipSideOffsets = SideOffsets2D<Dip, Dip>;
+
+/// A group of 2D side offsets, which correspond to top/right/bottom/left for borders, padding,
+/// and margins in CSS, optionally tagged with a unit.
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
+pub struct SideOffsets2D<T, U> {
+    /// Top offset.
+    pub top: T,
+    /// Right offset.
+    pub right: T,
+    /// Bottom offset.
+    pub bottom: T,
+    /// Left offset.
+    pub left: T,
+    #[doc(hidden)]
+    #[serde(skip)] // euclid does not skip this field
+    pub _unit: PhantomData<U>,
+}
+impl<T, U> From<euclid::SideOffsets2D<T, U>> for SideOffsets2D<T, U> {
+    fn from(value: euclid::SideOffsets2D<T, U>) -> Self {
+        Self {
+            top: value.top,
+            right: value.right,
+            bottom: value.bottom,
+            left: value.left,
+            _unit: PhantomData,
+        }
+    }
+}
+impl<T, U> From<SideOffsets2D<T, U>> for euclid::SideOffsets2D<T, U> {
+    fn from(value: SideOffsets2D<T, U>) -> Self {
+        Self {
+            top: value.top,
+            right: value.right,
+            bottom: value.bottom,
+            left: value.left,
+            _unit: PhantomData,
+        }
+    }
+}
+impl<T: Copy, U> Copy for SideOffsets2D<T, U> {}
+impl<T: Clone, U> Clone for SideOffsets2D<T, U> {
+    fn clone(&self) -> Self {
+        SideOffsets2D {
+            top: self.top.clone(),
+            right: self.right.clone(),
+            bottom: self.bottom.clone(),
+            left: self.left.clone(),
+            _unit: PhantomData,
+        }
+    }
+}
+impl<T, U> Eq for SideOffsets2D<T, U> where T: Eq {}
+impl<T, U> PartialEq for SideOffsets2D<T, U>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.top == other.top && self.right == other.right && self.bottom == other.bottom && self.left == other.left
+    }
+}
+impl<T, U> std::hash::Hash for SideOffsets2D<T, U>
+where
+    T: std::hash::Hash,
+{
+    fn hash<H: std::hash::Hasher>(&self, h: &mut H) {
+        self.top.hash(h);
+        self.right.hash(h);
+        self.bottom.hash(h);
+        self.left.hash(h);
+    }
+}
+impl<T: fmt::Debug, U> fmt::Debug for SideOffsets2D<T, U> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({:?},{:?},{:?},{:?})", self.top, self.right, self.bottom, self.left)
+    }
+}
+impl<T: Default, U> Default for SideOffsets2D<T, U> {
+    fn default() -> Self {
+        SideOffsets2D {
+            top: Default::default(),
+            right: Default::default(),
+            bottom: Default::default(),
+            left: Default::default(),
+            _unit: PhantomData,
+        }
+    }
+}
+impl<T, U> SideOffsets2D<T, U> {
+    /// Constructor taking a scalar for each side.
+    ///
+    /// Sides are specified in top-right-bottom-left order following
+    /// CSS's convention.
+    pub const fn new(top: T, right: T, bottom: T, left: T) -> Self {
+        SideOffsets2D {
+            top,
+            right,
+            bottom,
+            left,
+            _unit: PhantomData,
+        }
+    }
+
+    /// Construct side offsets from min and a max vector offsets.
+    ///
+    /// The outer rect of the resulting side offsets is equivalent to translating
+    /// a rectangle's upper-left corner with the min vector and translating the
+    /// bottom-right corner with the max vector.
+    pub fn from_vectors_outer(min: euclid::Vector2D<T, U>, max: euclid::Vector2D<T, U>) -> Self
+    where
+        T: ops::Neg<Output = T>,
+    {
+        SideOffsets2D {
+            left: -min.x,
+            top: -min.y,
+            right: max.x,
+            bottom: max.y,
+            _unit: PhantomData,
+        }
+    }
+
+    /// Construct side offsets from min and a max vector offsets.
+    ///
+    /// The inner rect of the resulting side offsets is equivalent to translating
+    /// a rectangle's upper-left corner with the min vector and translating the
+    /// bottom-right corner with the max vector.
+    pub fn from_vectors_inner(min: euclid::Vector2D<T, U>, max: euclid::Vector2D<T, U>) -> Self
+    where
+        T: ops::Neg<Output = T>,
+    {
+        SideOffsets2D {
+            left: min.x,
+            top: min.y,
+            right: -max.x,
+            bottom: -max.y,
+            _unit: PhantomData,
+        }
+    }
+
+    /// Constructor, setting all sides to zero.
+    pub fn zero() -> Self
+    where
+        T: euclid::num::Zero,
+    {
+        use euclid::num::Zero;
+        SideOffsets2D::new(Zero::zero(), Zero::zero(), Zero::zero(), Zero::zero())
+    }
+
+    /// Returns `true` if all side offsets are zero.
+    pub fn is_zero(&self) -> bool
+    where
+        T: euclid::num::Zero + PartialEq,
+    {
+        let zero = T::zero();
+        self.top == zero && self.right == zero && self.bottom == zero && self.left == zero
+    }
+
+    /// Constructor setting the same value to all sides, taking a scalar value directly.
+    pub fn new_all_same(all: T) -> Self
+    where
+        T: Copy,
+    {
+        SideOffsets2D::new(all, all, all, all)
+    }
+
+    /// Left + right.
+    pub fn horizontal(&self) -> T
+    where
+        T: Copy + ops::Add<T, Output = T>,
+    {
+        self.left + self.right
+    }
+
+    /// Top + bottom.
+    pub fn vertical(&self) -> T
+    where
+        T: Copy + ops::Add<T, Output = T>,
+    {
+        self.top + self.bottom
+    }
+}
+impl<T, U> ops::Add for SideOffsets2D<T, U>
+where
+    T: ops::Add<T, Output = T>,
+{
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        SideOffsets2D::new(
+            self.top + other.top,
+            self.right + other.right,
+            self.bottom + other.bottom,
+            self.left + other.left,
+        )
+    }
+}
+impl<T, U> ops::AddAssign<Self> for SideOffsets2D<T, U>
+where
+    T: ops::AddAssign<T>,
+{
+    fn add_assign(&mut self, other: Self) {
+        self.top += other.top;
+        self.right += other.right;
+        self.bottom += other.bottom;
+        self.left += other.left;
+    }
+}
+impl<T, U> ops::Sub for SideOffsets2D<T, U>
+where
+    T: ops::Sub<T, Output = T>,
+{
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        SideOffsets2D::new(
+            self.top - other.top,
+            self.right - other.right,
+            self.bottom - other.bottom,
+            self.left - other.left,
+        )
+    }
+}
+impl<T, U> ops::SubAssign<Self> for SideOffsets2D<T, U>
+where
+    T: ops::SubAssign<T>,
+{
+    fn sub_assign(&mut self, other: Self) {
+        self.top -= other.top;
+        self.right -= other.right;
+        self.bottom -= other.bottom;
+        self.left -= other.left;
+    }
+}
+
+impl<T, U> ops::Neg for SideOffsets2D<T, U>
+where
+    T: ops::Neg<Output = T>,
+{
+    type Output = Self;
+    fn neg(self) -> Self {
+        SideOffsets2D {
+            top: -self.top,
+            right: -self.right,
+            bottom: -self.bottom,
+            left: -self.left,
+            _unit: PhantomData,
+        }
+    }
+}
+impl<T: Copy + ops::Mul, U> ops::Mul<T> for SideOffsets2D<T, U> {
+    type Output = SideOffsets2D<T::Output, U>;
+
+    #[inline]
+    fn mul(self, scale: T) -> Self::Output {
+        SideOffsets2D::new(self.top * scale, self.right * scale, self.bottom * scale, self.left * scale)
+    }
+}
+impl<T: Copy + ops::MulAssign, U> ops::MulAssign<T> for SideOffsets2D<T, U> {
+    #[inline]
+    fn mul_assign(&mut self, other: T) {
+        self.top *= other;
+        self.right *= other;
+        self.bottom *= other;
+        self.left *= other;
+    }
+}
+impl<T: Copy + ops::Mul, U1, U2> ops::Mul<euclid::Scale<T, U1, U2>> for SideOffsets2D<T, U1> {
+    type Output = SideOffsets2D<T::Output, U2>;
+
+    #[inline]
+    fn mul(self, scale: euclid::Scale<T, U1, U2>) -> Self::Output {
+        SideOffsets2D::new(self.top * scale.0, self.right * scale.0, self.bottom * scale.0, self.left * scale.0)
+    }
+}
+impl<T: Copy + ops::MulAssign, U> ops::MulAssign<euclid::Scale<T, U, U>> for SideOffsets2D<T, U> {
+    #[inline]
+    fn mul_assign(&mut self, other: euclid::Scale<T, U, U>) {
+        *self *= other.0;
+    }
+}
+impl<T: Copy + ops::Div, U> ops::Div<T> for SideOffsets2D<T, U> {
+    type Output = SideOffsets2D<T::Output, U>;
+
+    #[inline]
+    fn div(self, scale: T) -> Self::Output {
+        SideOffsets2D::new(self.top / scale, self.right / scale, self.bottom / scale, self.left / scale)
+    }
+}
+impl<T: Copy + ops::DivAssign, U> ops::DivAssign<T> for SideOffsets2D<T, U> {
+    #[inline]
+    fn div_assign(&mut self, other: T) {
+        self.top /= other;
+        self.right /= other;
+        self.bottom /= other;
+        self.left /= other;
+    }
+}
+impl<T: Copy + ops::Div, U1, U2> ops::Div<euclid::Scale<T, U1, U2>> for SideOffsets2D<T, U2> {
+    type Output = SideOffsets2D<T::Output, U1>;
+
+    #[inline]
+    fn div(self, scale: euclid::Scale<T, U1, U2>) -> Self::Output {
+        SideOffsets2D::new(self.top / scale.0, self.right / scale.0, self.bottom / scale.0, self.left / scale.0)
+    }
+}
+impl<T: Copy + ops::DivAssign, U> ops::DivAssign<euclid::Scale<T, U, U>> for SideOffsets2D<T, U> {
+    fn div_assign(&mut self, other: euclid::Scale<T, U, U>) {
+        *self /= other.0;
+    }
+}
 
 /// Ellipses that define the radius of the four corners of a 2D box.
 #[derive(Serialize, Deserialize)]
@@ -628,7 +936,7 @@ impl<T: Copy + num_traits::Zero, U> CornerRadius2D<T, U> {
     }
 
     /// Calculate the corner radius of an outer border around `self` to perfectly fit.
-    pub fn inflate(self, offsets: euclid::SideOffsets2D<T, U>) -> Self
+    pub fn inflate(self, offsets: SideOffsets2D<T, U>) -> Self
     where
         T: ops::AddAssign,
     {
@@ -650,7 +958,7 @@ impl<T: Copy + num_traits::Zero, U> CornerRadius2D<T, U> {
     }
 
     /// Calculate the corner radius of an inner border inside `self` to perfectly fit.
-    pub fn deflate(self, offsets: euclid::SideOffsets2D<T, U>) -> Self
+    pub fn deflate(self, offsets: SideOffsets2D<T, U>) -> Self
     where
         T: ops::SubAssign + cmp::PartialOrd,
     {
@@ -1112,6 +1420,7 @@ pub enum PxTransform {
     /// Simple offset.
     Offset(euclid::Vector2D<f32, Px>),
     /// Full transform.
+    #[serde(with = "serde_px_transform3d")]
     Transform(euclid::Transform3D<f32, Px, Px>),
 }
 impl Default for PxTransform {
@@ -1312,6 +1621,76 @@ impl From<euclid::Transform3D<f32, Px, Px>> for PxTransform {
 impl From<PxTransform> for wr::LayoutTransform {
     fn from(t: PxTransform) -> Self {
         t.to_wr()
+    }
+}
+/// euclid does skip the _unit
+mod serde_px_transform3d {
+    use super::*;
+    use serde::*;
+
+    #[derive(Serialize, Deserialize)]
+    struct SerdeTransform3D {
+        pub m11: f32,
+        pub m12: f32,
+        pub m13: f32,
+        pub m14: f32,
+        pub m21: f32,
+        pub m22: f32,
+        pub m23: f32,
+        pub m24: f32,
+        pub m31: f32,
+        pub m32: f32,
+        pub m33: f32,
+        pub m34: f32,
+        pub m41: f32,
+        pub m42: f32,
+        pub m43: f32,
+        pub m44: f32,
+    }
+
+    pub fn serialize<S: Serializer>(t: &euclid::Transform3D<f32, Px, Px>, serializer: S) -> Result<S::Ok, S::Error> {
+        SerdeTransform3D {
+            m11: t.m11,
+            m12: t.m12,
+            m13: t.m13,
+            m14: t.m14,
+            m21: t.m21,
+            m22: t.m22,
+            m23: t.m23,
+            m24: t.m24,
+            m31: t.m31,
+            m32: t.m32,
+            m33: t.m33,
+            m34: t.m34,
+            m41: t.m41,
+            m42: t.m42,
+            m43: t.m43,
+            m44: t.m44,
+        }
+        .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<euclid::Transform3D<f32, Px, Px>, D::Error> {
+        let t = SerdeTransform3D::deserialize(deserializer)?;
+        Ok(euclid::Transform3D {
+            m11: t.m11,
+            m12: t.m12,
+            m13: t.m13,
+            m14: t.m14,
+            m21: t.m21,
+            m22: t.m22,
+            m23: t.m23,
+            m24: t.m24,
+            m31: t.m31,
+            m32: t.m32,
+            m33: t.m33,
+            m34: t.m34,
+            m41: t.m41,
+            m42: t.m42,
+            m43: t.m43,
+            m44: t.m44,
+            _unit: PhantomData,
+        })
     }
 }
 
