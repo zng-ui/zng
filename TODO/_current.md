@@ -8,8 +8,9 @@
     - Need to find closest insert point from mouse cursor point.
         - Support ligatures (click in middle works).
     - Review https://searchfox.org/mozilla-central/source/layout/generic/nsTextFrame.cpp#7534
-        - Surrogate pairs: https://learn.microsoft.com/en-us/globalization/encoding/surrogate-pairs
         - ligated emoji sequence
+        - all solved by grapheme clusters? https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries
+    - Grapheme Clusters crate: https://docs.rs/unicode-segmentation/latest/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes
 * Support replace (Insert mode in command line).
 * Implement selection.
 * Implement custom node access to text.
