@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use atomic::{Atomic, Ordering};
 
-use crate::{fs_watcher::WATCHER, var::*};
+use crate::{crate_util::RunOnDrop, fs_watcher::WATCHER, var::*};
 
 use super::*;
 
@@ -14,40 +14,38 @@ use super::*;
 /// [`WATCHER.sync`]: WATCHER::sync
 pub struct SyncConfig<M: ConfigMap> {
     sync_var: ArcVar<M>,
-    is_loaded: ArcVar<bool>,
+    status: ArcVar<ConfigStatus>,
     errors: ArcVar<ConfigErrors>,
     shared: ConfigVars,
 }
 impl<M: ConfigMap> SyncConfig<M> {
     /// Open write the `file`
     pub fn sync(file: impl Into<PathBuf>) -> Self {
-        let is_loaded = var(false);
+        let status = var(ConfigStatus::IDLE);
         let errors = var(ConfigErrors::default());
         let sync_var = WATCHER.sync(
             file,
             M::empty(),
-            clmv!(is_loaded, errors, |r| {
+            clmv!(status, errors, |r| {
+                status.modify(|s| s.to_mut().insert(ConfigStatus::READ));
+                let _end = RunOnDrop::new(|| status.modify(|s| s.to_mut().remove(ConfigStatus::READ)));
                 match (|| M::read(r?))() {
                     Ok(ok) => {
                         if errors.with(|e| e.io().next().is_some()) {
                             errors.modify(|e| e.to_mut().clear_io());
                         }
-                        if !is_loaded.get() {
-                            is_loaded.set(true);
-                        }
                         Some(ok)
                     }
                     Err(e) => {
-                        if !is_loaded.get() {
-                            is_loaded.set(true);
-                        }
                         tracing::error!("sync config read error, {e:?}");
                         errors.modify(|es| es.to_mut().push(ConfigError::new_read(e)));
                         None
                     }
                 }
             }),
-            clmv!(is_loaded, errors, |map, w| {
+            clmv!(status, errors, |map, w| {
+                status.modify(|s| s.to_mut().insert(ConfigStatus::WRITE));
+                let _end = RunOnDrop::new(|| status.modify(|s| s.to_mut().remove(ConfigStatus::WRITE)));
                 match (|| {
                     let mut w = w?;
                     map.write(&mut w)?;
@@ -57,14 +55,8 @@ impl<M: ConfigMap> SyncConfig<M> {
                         if errors.with(|e| e.io().next().is_some()) {
                             errors.modify(|e| e.to_mut().clear_io());
                         }
-                        if !is_loaded.get() {
-                            is_loaded.set(true);
-                        }
                     }
                     Err(e) => {
-                        if !is_loaded.get() {
-                            is_loaded.set(true);
-                        }
                         tracing::error!("sync config write error, {e:?}");
                         errors.modify(|es| es.to_mut().push(ConfigError::new_write(e)));
                     }
@@ -75,7 +67,7 @@ impl<M: ConfigMap> SyncConfig<M> {
         Self {
             sync_var,
             errors,
-            is_loaded,
+            status,
             shared: ConfigVars::default(),
         }
     }
@@ -287,8 +279,8 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
         self.sync_var.with(|q| q.contains_key(key))
     }
 
-    fn is_loaded(&self) -> BoxedVar<bool> {
-        self.is_loaded.clone().boxed()
+    fn status(&self) -> BoxedVar<ConfigStatus> {
+        self.status.clone().boxed()
     }
 }
 impl<M: ConfigMap> Config for SyncConfig<M> {

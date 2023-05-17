@@ -64,19 +64,30 @@ impl CONFIG {
         CONFIG_SV.write().load(source)
     }
 
-    /// Gets a read-only variable that changes to `true` when all key variables
-    /// are set to the new source after it finishes loading in another thread, either successfully or as an error.
-    pub fn is_loaded(&self) -> BoxedVar<bool> {
-        CONFIG_SV.read().is_loaded()
+    /// Gets a read-only variable that represents the IO status of the config.
+    pub fn status(&self) -> BoxedVar<ConfigStatus> {
+        CONFIG_SV.read().status()
     }
 
-    /// Wait until [`is_loaded`] is `true`.
+    /// Wait until [`status`] does not contain [`READ`].
     ///
-    /// [`is_loaded`]: Self::is_loaded
+    /// [`status`]: Self::status
+    /// [`READ`]: ConfigStatus::READ
     pub async fn wait_loaded(&self) {
-        let is_loaded = self.is_loaded();
-        while !is_loaded.get() {
-            is_loaded.wait_is_new().await;
+        let status = self.status();
+        while status.get().contains(ConfigStatus::READ) {
+            status.wait_is_new().await;
+        }
+    }
+
+    /// Wait until [`status`] does not contain [`IDLE`].
+    ///
+    /// [`status`]: Self::status
+    /// [`IDLE`]: ConfigStatus::IDLE
+    pub async fn wait_idle(&self) {
+        let status = self.status();
+        while !status.get().is_empty() {
+            status.wait_is_new().await;
         }
     }
 
@@ -105,8 +116,8 @@ impl AnyConfig for CONFIG {
         CONFIG_SV.read().contains_key(key)
     }
 
-    fn is_loaded(&self) -> BoxedVar<bool> {
-        CONFIG.is_loaded()
+    fn status(&self) -> BoxedVar<ConfigStatus> {
+        CONFIG.status()
     }
 }
 impl Config for CONFIG {
@@ -215,9 +226,8 @@ pub trait ConfigMap: VarValue {
 ///
 /// See [`Config`] for the full trait.
 pub trait AnyConfig: Send + Any {
-    /// Gets a read-only variable that changes to `true` when all key variables
-    /// are set to the new source after it finishes loading in another thread, either successfully or as an error.
-    fn is_loaded(&self) -> BoxedVar<bool>;
+    /// Gets a read-only variable that represents the IO status of the config.
+    fn status(&self) -> BoxedVar<ConfigStatus>;
 
     /// All active errors.
     ///
@@ -344,8 +354,8 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
         self.cfg.contains_key(key)
     }
 
-    fn is_loaded(&self) -> BoxedVar<bool> {
-        self.cfg.is_loaded()
+    fn status(&self) -> BoxedVar<ConfigStatus> {
+        self.cfg.status()
     }
 }
 impl<C: Config> Config for ReadOnlyConfig<C> {
@@ -368,8 +378,8 @@ impl AnyConfig for NilConfig {
         false
     }
 
-    fn is_loaded(&self) -> BoxedVar<bool> {
-        LocalVar(true).boxed()
+    fn status(&self) -> BoxedVar<ConfigStatus> {
+        LocalVar(ConfigStatus::IDLE).boxed()
     }
 }
 impl Config for NilConfig {
@@ -637,5 +647,30 @@ impl fmt::Display for ConfigErrors {
             prefix = "\n";
         }
         Ok(())
+    }
+}
+
+bitflags! {
+    /// Represents the current running operations of a config source.
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
+    pub struct ConfigStatus: u8 {
+        /// No IO happening, config is loaded or in error state.
+        const IDLE = 0;
+        /// Config is loading.
+        const READ = 0b0001;
+        /// Config is saving.
+        const WRITE = 0b0010;
+    }
+}
+impl fmt::Display for ConfigStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.contains(Self::WRITE) {
+            write!(f, "saving…")
+        } else if self.contains(Self::READ) {
+            write!(f, "loading…")
+        } else {
+            write!(f, "")
+        }
     }
 }

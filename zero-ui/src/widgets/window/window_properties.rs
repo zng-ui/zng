@@ -9,7 +9,7 @@ use crate::core::window::{
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};
-use zero_ui_core::config::AnyConfig;
+use zero_ui_core::config::{AnyConfig, ConfigStatus};
 
 use super::Window;
 
@@ -242,8 +242,8 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
     let mut cfg = None;
 
     struct Loading {
-        is_loaded: BoxedVar<bool>,
-        _is_loaded_sub: VarHandle,
+        cfg_status: BoxedVar<ConfigStatus>,
+        _cfg_status_sub: VarHandle,
         _win_load_sub: EventHandle,
         _win_block: Option<WindowLoadingHandle>,
     }
@@ -259,17 +259,17 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                     let restore_rect = vars.restore_rect();
                     WIDGET.sub_var(&vars.state()).sub_var(&vars.restore_rect());
 
-                    let is_loaded = CONFIG.is_loaded();
-                    if is_loaded.get() {
-                        apply_to_window = CONFIG.contains_key(&key);
-                    } else {
-                        // if is_loaded updates before the WINDOW_LOAD_EVENT we will still apply
+                    let cfg_status = CONFIG.status();
+                    if cfg_status.get().contains(ConfigStatus::READ) {
+                        // if status updates before the WINDOW_LOAD_EVENT we will still apply
                         loading = Some(Box::new(Loading {
-                            _is_loaded_sub: is_loaded.subscribe(UpdateOp::Update, WIDGET.id()),
+                            _cfg_status_sub: cfg_status.subscribe(UpdateOp::Update, WIDGET.id()),
                             _win_block: enabled.loading_timeout().and_then(|t| WINDOW_CTRL.loading_handle(t)),
                             _win_load_sub: WINDOW_LOAD_EVENT.subscribe(WIDGET.id()),
-                            is_loaded,
+                            cfg_status,
                         }))
+                    } else {
+                        apply_to_window = CONFIG.contains_key(&key);
                     }
 
                     cfg = Some(CONFIG.get(key, || WindowStateCfg {
@@ -290,7 +290,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             }
             UiNodeOp::Update { .. } => {
                 if let Some(l) = &loading {
-                    if l.is_loaded.get() {
+                    if !l.cfg_status.get().contains(ConfigStatus::READ) {
                         if let Some(key) = enabled.window_key(WINDOW.id()) {
                             apply_to_window = CONFIG.contains_key(&key);
                         }

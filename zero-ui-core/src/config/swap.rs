@@ -11,8 +11,8 @@ pub struct SwapConfig {
     cfg: Mutex<Box<dyn AnyConfig>>,
     shared: ConfigVars,
 
-    is_loaded: ArcVar<bool>,
-    is_loaded_binding: VarHandle,
+    status: ArcVar<ConfigStatus>,
+    status_binding: VarHandle,
     errors: ArcVar<ConfigErrors>,
     errors_binding: VarHandle,
 }
@@ -35,8 +35,8 @@ impl AnyConfig for SwapConfig {
         self.cfg.lock().contains_key(key)
     }
 
-    fn is_loaded(&self) -> BoxedVar<bool> {
-        self.is_loaded.clone().boxed()
+    fn status(&self) -> BoxedVar<ConfigStatus> {
+        self.status.read_only().boxed()
     }
 }
 impl Config for SwapConfig {
@@ -105,8 +105,8 @@ impl SwapConfig {
             cfg: Mutex::new(Box::new(NilConfig)),
             errors: var(ConfigErrors::default()),
             shared: ConfigVars::default(),
-            is_loaded: var(true), // nil is loaded
-            is_loaded_binding: VarHandle::dummy(),
+            status: var(ConfigStatus::IDLE),
+            status_binding: VarHandle::dummy(),
             errors_binding: VarHandle::dummy(),
         }
     }
@@ -121,9 +121,9 @@ impl SwapConfig {
         self.errors.set(source_errors.get());
         self.errors_binding = source_errors.bind(&self.errors);
 
-        let source_is_loaded = source.is_loaded();
-        self.is_loaded.set(source_is_loaded.get());
-        self.is_loaded_binding = source_is_loaded.bind(&self.is_loaded);
+        let source_status = source.status();
+        self.status.set(source_status.get());
+        self.status_binding = source_status.bind(&self.status);
 
         self.shared.rebind(&self.errors, &mut *source);
 

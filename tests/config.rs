@@ -36,8 +36,11 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
 
         TEST_READ.set(test_read);
         test_all();
-
         let _ = app.update(false);
+        app.run_task(async {
+            CONFIG.wait_idle().await;
+        });
+
         app.exit();
     }
 

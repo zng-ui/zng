@@ -17,8 +17,8 @@ impl<S: Config, F: Config> FallbackConfig<S, F> {
     }
 }
 impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
-    fn is_loaded(&self) -> BoxedVar<bool> {
-        self.fallback.is_loaded()
+    fn status(&self) -> BoxedVar<ConfigStatus> {
+        merge_var!(self.fallback.status(), self.over.status(), |&a, &b| a | b).boxed()
     }
 
     fn errors(&self) -> BoxedVar<ConfigErrors> {
