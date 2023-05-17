@@ -1,3 +1,11 @@
+# Config
+
+- RON backend does not create config file.
+- Implement status to replace `is_loading` and allow impl `wait_idle`.
+    - Loading.
+    - Saving.
+    - Idle.
+
 # Text Edit
 
 * Implement cursor position.

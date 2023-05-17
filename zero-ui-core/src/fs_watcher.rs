@@ -279,6 +279,15 @@ impl WatchFile {
         toml::de::from_str(&toml_str).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
+    /// Deserialize the file content as RON.
+    #[cfg(feature = "ron")]
+    pub fn ron<O>(&mut self) -> Result<O, ron::de::SpannedError>
+    where
+        O: serde::de::DeserializeOwned,
+    {
+        ron::de::from_reader(io::BufReader::new(&mut self.0))
+    }
+
     /// Read file and parse it.
     pub fn parse<O: std::str::FromStr>(&mut self) -> Result<O, WatchFileParseError<O::Err>> {
         use std::io::Read;
@@ -436,6 +445,19 @@ impl WriteFile {
         use io::Write;
         let mut buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
         buf.write_all(toml.as_bytes())
+    }
+
+    /// Serialize and write.
+    ///
+    /// If `pretty` is `true` the RON if formatted for human reading using the default pretty config.
+    #[cfg(feature = "ron")]
+    pub fn write_ron<O: serde::Serialize>(&mut self, value: &O, pretty: bool) -> Result<(), ron::Error> {
+        let buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
+        if pretty {
+            ron::ser::to_writer_pretty(buf, value, Default::default())
+        } else {
+            ron::ser::to_writer(buf, value)
+        }
     }
 
     /// Commit write, flush and replace the actual file with the new one.

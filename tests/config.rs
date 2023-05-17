@@ -29,6 +29,10 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
         app.run_task(async {
             CONFIG.wait_loaded().await;
         });
+        let errors = CONFIG.errors().get();
+        if !errors.is_empty() {
+            panic!("{errors}");
+        }
 
         TEST_READ.set(test_read);
         test_all();

@@ -10,11 +10,12 @@ impl ConfigMap for indexmap::IndexMap<ConfigKey, serde_ron::Value> {
     }
 
     fn read(mut file: WatchFile) -> io::Result<Self> {
-        file.toml().map_err(Into::into)
+        file.ron().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
     fn write(self, file: &mut WriteFile) -> io::Result<()> {
-        file.write_toml(&self, true).map_err(Into::into)
+        file.write_ron(&self, true)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
     fn get_raw(&self, key: &ConfigKey) -> Result<Option<RawConfigValue>, Arc<dyn std::error::Error + Send + Sync>> {
