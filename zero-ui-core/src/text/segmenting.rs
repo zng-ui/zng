@@ -383,6 +383,56 @@ impl SegmentedText {
         );
         r
     }
+
+    /// Find the nearest next char boundary from the byte index `i`.
+    /// 
+    /// If `i` is larger than the text length, returns the text length, if `i` is
+    /// already a char boundary, returns `i`.
+    pub fn snap_char_boundary(&self, i: usize) -> usize {
+        if i >= self.text.len() {
+            self.text.len()
+        } else {
+            let mut next = i;
+            while !self.text.is_char_boundary(next) {
+                next += 1;
+            }
+            next
+        }
+    }
+
+    /// Find the nearest grapheme cluster boundary from the byte index `i`.
+    /// 
+    /// If `i` is larger than the text length, returns the text length, if `i` is
+    /// already a grapheme boundary, returns `i`.
+    pub fn snap_grapheme_boundary(&self, i: usize) -> usize {
+        let from = self.snap_char_boundary(i);
+        if from == self.text.len() {
+            from
+        } else {
+            let s = &self.text.as_str()[from..];
+            let mut iter = unicode_segmentation::UnicodeSegmentation::grapheme_indices(s, true).map(|(i, _)| i + from);
+            iter.next().unwrap_or(self.text.len())
+        }
+        
+    }
+
+    /// Find the next grapheme cluster, after `from`.
+    ///
+    /// The `from` must be in a grapheme boundary or `0` or `len`. This operation is saturating.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `from` is larger than the text length, or is not at a grapheme boundary.
+    pub fn next_insert_index(&self, from: usize) -> usize {
+        if from == self.text.len() {
+            from
+        } else {
+            let s = &self.text.as_str()[from..];
+            let mut iter = unicode_segmentation::UnicodeSegmentation::grapheme_indices(s, true).map(|(i, _)| i + from);
+            assert_eq!(iter.next(), Some(from), "`from` was not a grapheme boundary");
+            iter.next().unwrap_or(self.text.len())
+        }
+    }
 }
 
 /// Compute initial bidirectional levels of each segment of a `line`.

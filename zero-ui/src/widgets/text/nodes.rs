@@ -9,7 +9,7 @@ use zero_ui_core::keyboard::Key;
 use super::text_properties::*;
 use crate::core::{
     focus::{FocusInfoBuilder, FOCUS, FOCUS_CHANGED_EVENT},
-    keyboard::{CHAR_INPUT_EVENT, KEYBOARD, KEY_INPUT_EVENT},
+    keyboard::{KeyState, CHAR_INPUT_EVENT, KEYBOARD, KEY_INPUT_EVENT},
     text::*,
     window::{WindowLoadingHandle, WINDOW_CTRL},
 };
@@ -34,6 +34,11 @@ pub struct ResolvedText {
     /// [`UpdateOp::RenderUpdate`] automatically.
     pub caret_opacity: ReadOnlyArcVar<Factor>,
 
+    /// Caret byte offset in the text string.
+    ///
+    /// This is the insertion offset on the text, it can be the text length.
+    pub caret_index: Option<usize>,
+
     /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
     baseline: Atomic<Px>,
 }
@@ -45,6 +50,7 @@ impl Clone for ResolvedText {
             synthesis: self.synthesis,
             reshape: self.reshape,
             caret_opacity: self.caret_opacity.clone(),
+            caret_index: None,
             baseline: Atomic::new(self.baseline.load(Ordering::Relaxed)),
         }
     }
@@ -124,6 +130,9 @@ pub struct LayoutText {
     pub underlines: Vec<(PxPoint, Px)>,
     /// Computed [`UNDERLINE_THICKNESS_VAR`].
     pub underline_thickness: Px,
+
+    /// Top-left offset of the caret in the shaped text.
+    pub caret_offset: Option<PxPoint>,
 }
 impl LayoutText {
     fn no_context() -> Self {
@@ -228,6 +237,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 reshape: false,
                 baseline: Atomic::new(Px(0)),
                 caret_opacity,
+                caret_index: None,
             });
 
             if editable {
@@ -255,14 +265,19 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             if let Some(args) = CHAR_INPUT_EVENT.on(update) {
                 if !args.propagation().is_stopped() && text.capabilities().contains(VarCapabilities::MODIFY) && args.is_enabled(WIDGET.id())
                 {
-                    if (args.is_tab() && !ACCEPTS_TAB_VAR.get()) || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get()) {
+                    let t = resolved.as_mut().unwrap();
+
+                    if (args.is_tab() && !ACCEPTS_TAB_VAR.get())
+                        || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get())
+                        || t.caret_index.is_none()
+                    {
                         return;
                     }
                     args.propagation().stop();
 
                     let new_animation = KEYBOARD.caret_animation();
                     _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::Update, WIDGET.id()));
-                    resolved.as_mut().unwrap().caret_opacity = new_animation;
+                    t.caret_opacity = new_animation;
 
                     if args.is_backspace() {
                         let _ = text.modify(move |t| {
@@ -285,22 +300,64 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             }
                         });
                     } else {
+                        // insert
+                        let i = t.caret_index.unwrap();
+                        // !!: advance i (but only if the grapheme finished).
+
                         let c = args.normalized_char();
                         let _ = text.modify(move |t| {
-                            t.to_mut().to_mut().push(c);
+                            t.to_mut().to_mut().insert(i, c);
                         });
                     }
                 }
             } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
-                if (args.key == Some(Key::Tab) && ACCEPTS_TAB_VAR.get()) || (args.key == Some(Key::Enter) && ACCEPTS_ENTER_VAR.get()) {
-                    args.propagation().stop();
+                if let Some(key) = args.key {
+                    match key {
+                        Key::Tab => {
+                            if ACCEPTS_TAB_VAR.get() {
+                                args.propagation().stop();
+                            }
+                        }
+                        Key::Enter => {
+                            if ACCEPTS_ENTER_VAR.get() {
+                                args.propagation().stop();
+                            }
+                        }
+                        Key::Right => {
+                            args.propagation().stop();
+
+                            if args.state == KeyState::Pressed {
+                                let t = resolved.as_mut().unwrap();
+                                if let Some(i) = &mut t.caret_index {
+                                    let next = t.text.next_insert_index(*i);
+                                    if *i != next {
+                                        *i = dbg!(next);
+                                        WIDGET.layout(); // update offset
+                                    }
+                                }
+                            }
+                        }
+                        Key::Left => {
+                            args.propagation().stop();
+
+                            if args.state == KeyState::Pressed {
+                                // !!: TODO
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if TEXT_EDITABLE_VAR.get() {
                     if args.is_focused(WIDGET.id()) {
                         let new_animation = KEYBOARD.caret_animation();
                         _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::RenderUpdate, WIDGET.id()));
-                        resolved.as_mut().unwrap().caret_opacity = new_animation;
+                        let t = resolved.as_mut().unwrap();
+                        t.caret_opacity = new_animation;
+                        if t.caret_index.is_none() {
+                            // !!: get click position? we don't have LAYOUT_TEXT here, just RESOLVE_TEXT
+                            t.caret_index = Some(0);
+                        }
                     } else {
                         _caret_opacity_handle = None;
                         resolved.as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
@@ -344,6 +401,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 let direction = DIRECTION_VAR.get();
                 if r.text.text() != text || r.text.base_direction() != direction {
                     r.text = SegmentedText::new(text, direction);
+                    if let Some(i) = &mut r.caret_index {
+                        *i = r.text.snap_grapheme_boundary(*i);
+                    }
+
 
                     r.reshape = true;
                     WIDGET.layout();
@@ -486,6 +547,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     strikethrough_thickness: Px(0),
                     underlines: vec![],
                     underline_thickness: Px(0),
+                    caret_offset: None,
                 });
                 self.pending.insert(Layout::RESHAPE);
             }

@@ -11,6 +11,8 @@
         - ligated emoji sequence
         - all solved by grapheme clusters? https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries
     - Grapheme Clusters crate: https://docs.rs/unicode-segmentation/latest/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes
+    - "On a given system the backspace key might delete by code point, while the delete key may delete an entire clusters"
+        - Observed this in Chrome, Firefox, VS and Word, use "ö̲" to test.
 * Support replace (Insert mode in command line).
 * Implement selection.
 * Implement custom node access to text.

@@ -97,6 +97,7 @@ pathfinder_geometry = "0.5"
 hyphenation = { version = "0.8", default-features = false }
 regex = "1"
 unicode-bidi = "0.3"
+unicode-segmentation = "1"
 
 # task
 flume = { version = "0.10", default-features  = false, features = ["async"] }
