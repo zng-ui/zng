@@ -204,7 +204,11 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 
             if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
                 if let TooltipState::Open(tooltip_id, _) = &state {
-                    if !WINDOW.widget_tree().contains(tooltip_id.load(Relaxed).unwrap()) {
+                    if tooltip_id
+                        .load(Relaxed)
+                        .map(|id| !WINDOW.widget_tree().contains(id))
+                        .unwrap_or(true)
+                    {
                         // already closed (from the layer probably)
                         state = TooltipState::Closed;
                     }
@@ -231,7 +235,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                     }
                     TooltipState::Closed => {
                         if args.is_mouse_enter() && args.is_enabled(WIDGET.id()) != disabled_only {
-                            let delay = if TOOLTIP_LAST_CLOSED
+                            let mut delay = if TOOLTIP_LAST_CLOSED
                                 .get()
                                 .map(|t| t.elapsed() > TOOLTIP_INTERVAL_VAR.get())
                                 .unwrap_or(true)
@@ -240,6 +244,19 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                             } else {
                                 Duration::ZERO
                             };
+
+                            if let Some(open) = OPEN_TOOLTIP.write().take() {
+                                // close already open
+                                open.cancellable.set(false);
+                                LAYERS.remove(open.id);
+
+                                // yield an update for the close deinit
+                                // the `tooltip` property is a singleton
+                                // that takes the widget on init, this op
+                                // only takes the widget immediately if it
+                                // is already deinited
+                                delay = 1.ms();
+                            }
 
                             state = if delay == Duration::ZERO {
                                 TooltipState::Open(open_tooltip(tip.get(), disabled_only), duration_timer())
@@ -259,7 +276,8 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
             match &mut state {
                 TooltipState::Open(tooltip_id, timer) => {
                     let id = tooltip_id.load(Relaxed);
-                    if OPEN_TOOLTIP.read().as_ref().map(|o| o.id) != id {
+                    #[allow(clippy::unnecessary_unwrap)]
+                    if id.is_none() || OPEN_TOOLTIP.read().as_ref().map(|o| o.id) != id {
                         // closed by other tooltip
                         state = TooltipState::Closed;
                         TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
@@ -330,32 +348,24 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
                 inited = true;
             }
 
-            let cancellable = var(true);
-
             if !c.is_widget() {
-                // not full widget, re-init node inside a new anonymous widget.
+                // we can't create an anonymous widget here
+                tracing::error!("tooltip must be a full widget after init");
                 c.deinit();
-
-                let node = widget_base::nodes::widget_inner(std::mem::replace(c.child(), NilUiNode.boxed()));
-                // set hit test mode so that it's only hit-testable if the child is hit-testable
-                let node = hit_test_mode(node, HitTestMode::Visual);
-                // set cancellable, used to close the tooltip immediately when another is already opening.
-                let node = layers::layer_remove_cancellable(node, cancellable.clone()).boxed();
-
-                *c.child() = widget_base::nodes::widget(node, WidgetId::new_unique()).boxed();
-
-                c.init();
-            } else {
-                // need to be the same widget to be findable in LAYERS
-                if inited {
-                    c.deinit();
-                }
-
-                let widget = mem::replace(c.child(), NilUiNode.boxed());
-                *c.child() = extend_widget(widget, |w| layers::layer_remove_cancellable(w, cancellable.clone()).boxed()).boxed();
-
-                c.init();
+                *c.child() = NilUiNode.boxed();
+                return;
             }
+
+            // inject the `layer_remove_cancellable` used to quick close
+            // we can't just wrap the widget node because it needs to be
+            // an widget in LAYERS (and the same widget so we can find it).
+            let cancellable = var(true);
+            if inited {
+                c.deinit();
+            }
+            let widget = mem::replace(c.child(), NilUiNode.boxed());
+            *c.child() = extend_widget(widget, |w| layers::layer_remove_cancellable(w, cancellable.clone()).boxed()).boxed();
+            c.init();
 
             c.with_context(|| {
                 // if the tooltip is hit-testable and the mouse hovers it, the anchor widget

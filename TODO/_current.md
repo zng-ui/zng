@@ -1,11 +1,6 @@
 # Tooltip
 
-* Re-opening tooltip does not work.
-    - Continues to fade and even after does not behave correctly.
-    - Issue is that the `take_on_init` node only works instantly if the widget is not already inited in another context, so
-      the second time the tooltip is still open, so the tooltip init figures the node is not a full widget and creates a new
-      anonymous widget for it, this causes the tooltip to think it is different from the current already open tooltip and closes
-      it.
+* TOOLTIP_INTERVAL_VAR ignored after quick reopen.
 
 # Text Edit
 
