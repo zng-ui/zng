@@ -385,7 +385,7 @@ impl SegmentedText {
     }
 
     /// Find the nearest next char boundary from the byte index `i`.
-    /// 
+    ///
     /// If `i` is larger than the text length, returns the text length, if `i` is
     /// already a char boundary, returns `i`.
     pub fn snap_char_boundary(&self, i: usize) -> usize {
@@ -401,7 +401,7 @@ impl SegmentedText {
     }
 
     /// Find the nearest grapheme cluster boundary from the byte index `i`.
-    /// 
+    ///
     /// If `i` is larger than the text length, returns the text length, if `i` is
     /// already a grapheme boundary, returns `i`.
     pub fn snap_grapheme_boundary(&self, i: usize) -> usize {
@@ -413,7 +413,6 @@ impl SegmentedText {
             let mut iter = unicode_segmentation::UnicodeSegmentation::grapheme_indices(s, true).map(|(i, _)| i + from);
             iter.next().unwrap_or(self.text.len())
         }
-        
     }
 
     /// Find the next grapheme cluster, after `from`.

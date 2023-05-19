@@ -34,7 +34,8 @@
     - `l10n_txt!("id", "fmt")`, is scrapped and expands to `l10n!("id", "fmt").get()`.
     - `l10n_str!("id", "fmt")`, is scrapped and expands to `l10n!("id", "fmt").get().to_string()` or equivalent.
 
-# Other
+# Tooltip
 
 * Implement something to only show one tooltip at a time.
-* Fix `layer_remove_delay` not receiving `LAYER_REMOVE_REQUESTED_EVENT` after reinit.
+    - Have an app_local that tracks the current tooltip ID and `layer_remove_cancellable`.
+    - When another tooltip opens disable cancel and close the tooltip in the app_local.

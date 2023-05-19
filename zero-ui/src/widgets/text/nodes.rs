@@ -405,7 +405,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         *i = r.text.snap_grapheme_boundary(*i);
                     }
 
-
                     r.reshape = true;
                     WIDGET.layout();
                 }

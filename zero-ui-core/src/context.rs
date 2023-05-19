@@ -158,13 +158,14 @@ impl WidgetCtx {
         ctx
     }
 
-    /// Drops all var and event handles.
+    /// Drops all var and event handles, clears all state.
     pub fn deinit(&mut self) {
         let ctx = self.0.as_mut().unwrap();
         ctx.var_handles.lock().clear();
         ctx.event_handles.lock().clear();
         ctx.flags.store(UpdateFlags::empty(), Relaxed);
         *ctx.render_reuse.lock() = None;
+        ctx.state.write().clear();
     }
 
     /// Returns `true` if reinit was requested for the widget.

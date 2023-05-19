@@ -1016,7 +1016,7 @@ impl Default for EditableUiNodeList {
     fn default() -> Self {
         Self {
             vec: vec![],
-            ctrl: EditableUiNodeListRef::new(),
+            ctrl: EditableUiNodeListRef::new(true),
         }
     }
 }
@@ -1328,7 +1328,7 @@ impl fmt::Debug for EditRequests {
     }
 }
 impl EditableUiNodeListRef {
-    fn new() -> Self {
+    fn new(alive: bool) -> Self {
         Self(Arc::new(Mutex::new(EditRequests {
             target: None,
             insert: vec![],
@@ -1337,8 +1337,15 @@ impl EditableUiNodeListRef {
             move_index: vec![],
             move_id: vec![],
             clear: false,
-            alive: true,
+            alive,
         })))
+    }
+
+    /// New reference to no list.
+    ///
+    /// [`alive`] is always false for the returned list.
+    pub fn dummy() -> Self {
+        Self::new(false)
     }
 
     /// Returns `true` if the [`EditableUiNodeList`] still exists.
@@ -1355,6 +1362,9 @@ impl EditableUiNodeListRef {
     /// [`remove`]: Self::remove
     pub fn insert(&self, index: usize, widget: impl UiNode) {
         let mut s = self.0.lock();
+        if !s.alive {
+            return;
+        }
         s.insert.push((index, widget.boxed()));
         UPDATES.update(s.target);
     }
@@ -1368,6 +1378,9 @@ impl EditableUiNodeListRef {
     /// [`insert`]: Self::insert
     pub fn push(&self, widget: impl UiNode) {
         let mut s = self.0.lock();
+        if !s.alive {
+            return;
+        }
         s.push.push(widget.boxed());
         UPDATES.update(s.target);
     }
@@ -1390,6 +1403,9 @@ impl EditableUiNodeListRef {
     /// Note that the `predicate` may be called on the same node multiple times or called in any order.
     pub fn retain(&self, predicate: impl FnMut(&mut BoxedUiNode) -> bool + Send + 'static) {
         let mut s = self.0.lock();
+        if !s.alive {
+            return;
+        }
         s.retain.push(Box::new(predicate));
         UPDATES.update(s.target);
     }
@@ -1403,6 +1419,9 @@ impl EditableUiNodeListRef {
     pub fn move_index(&self, remove_index: usize, insert_index: usize) {
         if remove_index != insert_index {
             let mut s = self.0.lock();
+            if !s.alive {
+                return;
+            }
             s.move_index.push((remove_index, insert_index));
             UPDATES.update(s.target);
         }
@@ -1449,6 +1468,9 @@ impl EditableUiNodeListRef {
     /// ```
     pub fn move_id(&self, id: impl Into<WidgetId>, get_move_to: NodeMoveToFn) {
         let mut s = self.0.lock();
+        if !s.alive {
+            return;
+        }
         s.move_id.push((id.into(), get_move_to));
         UPDATES.update(s.target);
     }

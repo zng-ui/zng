@@ -520,15 +520,34 @@ event! {
 }
 context_var! {
     static IS_LAYER_REMOVING_VAR: bool = false;
+    static LAYER_REMOVE_CANCELLABLE_VAR: bool = true;
+}
+
+/// If layer remove can be cancelled by this widget.
+///
+/// Layer remove is cancellable by  default, if this is set to `false` handlers of [`on_layer_remove_requested`]
+/// cannot cancel the layer remove by stopping propagation and the [`layer_remove_delay`] is not applied.
+///
+/// Widget implementers can set this property as a node of high-priority to override control of the layer remove cancel
+/// feature.
+///
+/// [`layer_remove_delay`]: fn@layer_remove_delay
+/// [`on_layer_remove_requested`]: fn@on_layer_remove_requested
+#[property(CONTEXT, default(LAYER_REMOVE_CANCELLABLE_VAR))]
+pub fn layer_remove_cancellable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, LAYER_REMOVE_CANCELLABLE_VAR, enabled)
 }
 
 /// Event that a layered widget receives when it is about to be removed.
 ///
 /// You can stop the [`LayerRemoveRequestedArgs::propagation`] to cancel the remove. Note that after cancel
-/// you can request remove again.
+/// you can request remove again. Also note that remove cancellation can be disabled by the widget by
+/// setting [`layer_remove_cancellable`] to false.
 ///
 /// This event property must be set on the outer-most widget inserted in [`LAYERS`], the event does not propagate
 /// to descendants of the layered widget.
+///
+/// [`layer_remove_cancellable`]: fn@layer_remove_cancellable
 #[property(EVENT)]
 pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler<LayerRemoveRequestedArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();
@@ -538,7 +557,15 @@ pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = LAYER_REMOVE_REQUESTED_EVENT.on(update) {
-                handler.event(args);
+                if LAYER_REMOVE_CANCELLABLE_VAR.get() {
+                    handler.event(args);
+                } else {
+                    handler.event(&LayerRemoveRequestedArgs::new(
+                        args.timestamp,
+                        EventPropagationHandle::new(),
+                        EditableUiNodeListRef::dummy(),
+                    ));
+                }
             }
         }
         UiNodeOp::Update { .. } => {
@@ -549,6 +576,12 @@ pub fn on_layer_remove_requested(child: impl UiNode, handler: impl WidgetHandler
 }
 
 /// Awaits `delay` before actually removing the layered widget after remove is requested.
+///
+/// Note that layered widgets will still be removed instantly if [`layer_remove_cancellable`] is false,
+/// some widgets may disable it when they need to be removed immediately, as an example, tooltip widgets
+/// will ignore the delay when another tooltip is already opening.
+///
+/// [`layer_remove_cancellable`]: fn@layer_remove_cancellable
 #[property(EVENT, default(Duration::ZERO))]
 pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl UiNode {
     let delay = delay.into_var();
@@ -564,6 +597,11 @@ pub fn layer_remove_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> 
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = LAYER_REMOVE_REQUESTED_EVENT.on(update) {
+                if !LAYER_REMOVE_CANCELLABLE_VAR.get() {
+                    // allow
+                    return;
+                }
+
                 if let Some(timer) = &timer {
                     if timer.has_executed() {
                         // allow
