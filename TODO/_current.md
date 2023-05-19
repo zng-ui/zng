@@ -7,10 +7,6 @@
       anonymous widget for it, this causes the tooltip to think it is different from the current already open tooltip and closes
       it.
 
-# Serialization
-
-* Review !!:
-
 # Text Edit
 
 * Implement cursor position.

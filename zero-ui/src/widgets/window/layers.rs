@@ -9,7 +9,7 @@ use crate::core::{
 };
 use crate::prelude::new_property::*;
 
-use std::{mem, ops};
+use std::{fmt, mem, ops};
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
@@ -647,8 +647,7 @@ pub fn is_layer_removing(child: impl UiNode, state: impl IntoVar<bool>) -> impl 
 /// Represents a layer in a window.
 ///
 /// See [`LAYERS`] for more information.
-#[derive(Default, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
-#[serde(transparent)] // !!: add names like TabIndex
+#[derive(Default, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct LayerIndex(pub u32);
 impl LayerIndex {
     /// The top-most layer.
@@ -684,6 +683,43 @@ impl LayerIndex {
     /// [`DEFAULT`]: Self::DEFAULT
     pub fn saturating_sub(self, other: impl Into<LayerIndex>) -> Self {
         Self(self.0.saturating_sub(other.into().0))
+    }
+
+    /// Gets the const name of this value.
+    pub fn name(self) -> Option<&'static str> {
+        if self == Self::DEFAULT {
+            Some("DEFAULT")
+        } else if self == Self::TOP_MOST {
+            Some("TOP_MOST")
+        } else if self == Self::ADORNER {
+            Some("ADORNER")
+        } else {
+            None
+        }
+    }
+}
+impl fmt::Debug for LayerIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(name) = self.name() {
+            if f.alternate() {
+                write!(f, "LayerIndex::")?;
+            }
+            write!(f, "{}", name)
+        } else {
+            write!(f, "LayerIndex({})", self.0)
+        }
+    }
+}
+impl std::str::FromStr for LayerIndex {
+    type Err = <u32 as std::str::FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "DEFAULT" => Ok(Self::DEFAULT),
+            "TOP_MOST" => Ok(Self::TOP_MOST),
+            "ADORNER" => Ok(Self::ADORNER),
+            n => Ok(Self(n.parse()?)),
+        }
     }
 }
 impl_from_and_into_var! {
@@ -741,6 +777,43 @@ impl ops::Div<Factor> for LayerIndex {
 impl ops::DivAssign<Factor> for LayerIndex {
     fn div_assign(&mut self, rhs: Factor) {
         self.0 /= rhs;
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+enum LayerIndexSerde<'s> {
+    Named(&'s str),
+    Unamed(u32),
+}
+impl serde::Serialize for LayerIndex {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if serializer.is_human_readable() {
+            if let Some(name) = self.name() {
+                return LayerIndexSerde::Named(name).serialize(serializer);
+            }
+        }
+        LayerIndexSerde::Unamed(self.0).serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for LayerIndex {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        match LayerIndexSerde::deserialize(deserializer)? {
+            LayerIndexSerde::Named(name) => match name {
+                "DEFAULT" => Ok(Self::DEFAULT),
+                "TOP_MOST" => Ok(Self::TOP_MOST),
+                "ADORNER" => Ok(Self::ADORNER),
+                unknown => Err(D::Error::unknown_variant(unknown, &["DEFAULT", "TOP_MOST", "ADORNER"])),
+            },
+            LayerIndexSerde::Unamed(i) => Ok(Self(i)),
+        }
     }
 }
 
