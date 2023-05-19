@@ -1570,7 +1570,7 @@ impl ContentCtrl {
         });
 
         self.vars.0.is_open.set(false);
-        self.root_ctx.deinit();
+        self.root_ctx.deinit(false);
     }
 
     /// Run an `action` in the context of a monitor screen that is parent of this content.

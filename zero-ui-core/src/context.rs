@@ -159,13 +159,18 @@ impl WidgetCtx {
     }
 
     /// Drops all var and event handles, clears all state.
-    pub fn deinit(&mut self) {
+    ///
+    /// If `retain_state` is enabled the state will not be cleared and can still read.
+    pub fn deinit(&mut self, retain_state: bool) {
         let ctx = self.0.as_mut().unwrap();
         ctx.var_handles.lock().clear();
         ctx.event_handles.lock().clear();
         ctx.flags.store(UpdateFlags::empty(), Relaxed);
         *ctx.render_reuse.lock() = None;
-        ctx.state.write().clear();
+
+        if !retain_state {
+            ctx.state.write().clear();
+        }
     }
 
     /// Returns `true` if reinit was requested for the widget.

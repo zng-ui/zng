@@ -462,6 +462,9 @@ pub mod nodes {
     ///
     /// This node must wrap the outer-most context node in the build, it is the [`WidgetBase`] widget type.
     ///
+    /// The node retains the widget state if build with `cfg(any(test, feature = "test_util")))`, otherwise
+    /// the state is cleared.
+    ///
     /// [`WidgetBase`]: struct@WidgetBase
     pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
         struct WidgetNode<C> {
@@ -509,7 +512,7 @@ pub mod nodes {
                         self.info_built = false;
                     }
                 });
-                self.ctx.deinit();
+                self.ctx.deinit(cfg!(any(test, feature = "test_util")));
             }
 
             fn info(&mut self, info: &mut WidgetInfoBuilder) {

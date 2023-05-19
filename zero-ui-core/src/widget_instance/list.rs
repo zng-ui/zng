@@ -1344,6 +1344,8 @@ impl EditableUiNodeListRef {
     /// New reference to no list.
     ///
     /// [`alive`] is always false for the returned list.
+    ///
+    /// [`alive`]: Self::alive
     pub fn dummy() -> Self {
         Self::new(false)
     }
