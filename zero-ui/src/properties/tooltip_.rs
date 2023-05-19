@@ -323,8 +323,12 @@ fn duration_timer() -> Option<DeadlineVar> {
 fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>, anchor_id: WidgetId) -> impl UiNode {
     match_widget(child, move |c, op| match op {
         UiNodeOp::Init => {
-            // try init, some nodes become a full widget only after init.
-            c.init();
+            let mut inited = false;
+            if !c.is_widget() {
+                // try init, some nodes become a full widget only after init.
+                c.init();
+                inited = true;
+            }
 
             let cancellable = var(true);
 
@@ -343,8 +347,9 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
                 c.init();
             } else {
                 // need to be the same widget to be findable in LAYERS
-
-                c.deinit();
+                if inited {
+                    c.deinit();
+                }
 
                 let widget = mem::replace(c.child(), NilUiNode.boxed());
                 *c.child() = extend_widget(widget, |w| layers::layer_remove_cancellable(w, cancellable.clone()).boxed()).boxed();
