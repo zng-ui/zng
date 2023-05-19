@@ -258,16 +258,21 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 
             match &mut state {
                 TooltipState::Open(tooltip_id, timer) => {
-                    if let Some(t) = &timer {
+                    let id = tooltip_id.load(Relaxed);
+                    if OPEN_TOOLTIP.read().as_ref().map(|o| o.id) != id {
+                        // closed by other tooltip
+                        state = TooltipState::Closed;
+                        TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
+                    } else if let Some(t) = &timer {
                         if let Some(t) = t.get_new() {
                             if t.has_elapsed() {
-                                LAYERS.remove(tooltip_id.load(Relaxed).unwrap());
+                                LAYERS.remove(id.unwrap());
                                 TOOLTIP_LAST_CLOSED.set(Some(Instant::now()));
                                 state = TooltipState::Closed;
                             }
                         }
                     } else if let Some(func) = tip.get_new() {
-                        LAYERS.remove(tooltip_id.load(Relaxed).unwrap());
+                        LAYERS.remove(id.unwrap());
                         *tooltip_id = open_tooltip(func, disabled_only);
                     }
                 }
@@ -359,14 +364,24 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
                 // force close the other tooltip already open.
                 if let Some(prev) = OPEN_TOOLTIP.write().replace(OpenTooltip {
                     id,
+                    anchor_id,
                     cancellable: cancellable.clone(),
                 }) {
                     if prev.id != id {
                         prev.cancellable.set(false);
                         LAYERS.remove(prev.id);
+                        UPDATES.update(prev.anchor_id);
                     }
                 }
             });
+        }
+        UiNodeOp::Deinit => {
+            let mut open = OPEN_TOOLTIP.write();
+            if let Some(o) = &*open {
+                if o.id == WIDGET.id() {
+                    *open = None;
+                }
+            }
         }
         UiNodeOp::Event { update } => {
             c.event(update);
@@ -400,5 +415,6 @@ app_local! {
 }
 struct OpenTooltip {
     id: WidgetId,
+    anchor_id: WidgetId,
     cancellable: ArcVar<bool>,
 }

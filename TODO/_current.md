@@ -1,6 +1,7 @@
 # Tooltip
 
-* Force closed tooltips sometimes don't open again.
+* Re-opening tooltip does not work.
+    - Continues to fade and even after does not behave correctly.
 
 # Text Edit
 
