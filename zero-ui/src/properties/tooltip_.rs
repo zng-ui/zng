@@ -7,6 +7,7 @@ use atomic::Ordering::Relaxed;
 
 use crate::core::{mouse::MOUSE_HOVERED_EVENT, timer::DeadlineVar};
 
+use crate::core::widget_instance::extend_widget;
 use crate::prelude::{
     layers::{AnchorOffset, AnchorSize, AnchorTransform},
     new_property::*,
@@ -320,6 +321,8 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
             // try init, some nodes become a full widget only after init.
             c.init();
 
+            let cancellable = var(true);
+
             if !c.is_widget() {
                 // not full widget, re-init node inside a new anonymous widget.
                 c.deinit();
@@ -327,8 +330,19 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
                 let node = widget_base::nodes::widget_inner(std::mem::replace(c.child(), NilUiNode.boxed()));
                 // set hit test mode so that it's only hit-testable if the child is hit-testable
                 let node = hit_test_mode(node, HitTestMode::Visual);
+                // set cancellable, used to close the tooltip immediately when another is already opening.
+                let node = layers::layer_remove_cancellable(node, cancellable.clone()).boxed();
 
                 *c.child() = widget_base::nodes::widget(node, WidgetId::new_unique()).boxed();
+
+                c.init();
+            } else {
+                // need to be the same widget to be findable in LAYERS
+
+                c.deinit();
+
+                let widget = mem::replace(c.child(), NilUiNode.boxed());
+                *c.child() = extend_widget(widget, |w| layers::layer_remove_cancellable(w, cancellable.clone()).boxed()).boxed();
 
                 c.init();
             }
@@ -339,7 +353,19 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
                 // so we need to duplicate cleanup logic here.
                 WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
 
-                child_id.store(Some(WIDGET.id()), Relaxed);
+                let id = WIDGET.id();
+                child_id.store(Some(id), Relaxed);
+
+                // force close the other tooltip already open.
+                if let Some(prev) = OPEN_TOOLTIP.write().replace(OpenTooltip {
+                    id,
+                    cancellable: cancellable.clone(),
+                }) {
+                    if prev.id != id {
+                        prev.cancellable.set(false);
+                        LAYERS.remove(prev.id);
+                    }
+                }
             });
         }
         UiNodeOp::Event { update } => {
@@ -367,4 +393,12 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
         }
         _ => {}
     })
+}
+
+app_local! {
+    static OPEN_TOOLTIP: Option<OpenTooltip> = None;
+}
+struct OpenTooltip {
+    id: WidgetId,
+    cancellable: ArcVar<bool>,
 }

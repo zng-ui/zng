@@ -28,6 +28,9 @@ pub use adopt::*;
 mod arc;
 pub use arc::*;
 
+mod extend;
+pub use extend::*;
+
 mod match_node;
 pub use match_node::*;
 
