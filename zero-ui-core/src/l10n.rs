@@ -37,6 +37,7 @@ impl AppExtension for L10nManager {}
 ///
 /// ```
 /// # use zero_ui_core::{l10n::*, var::*};
+/// let _scope = zero_ui_core::app::App::minimal();
 /// let name = var("World");
 /// let msg = l10n!("msg-id", "Hello {$name}!");
 /// ```
@@ -507,7 +508,7 @@ impl<V> IntoIterator for LangMap<V> {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::text::lang;
+/// # use zero_ui_core::l10n::lang;
 /// let en_us = lang!(en_US);
 /// let en = lang!(en);
 ///
