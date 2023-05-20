@@ -250,10 +250,15 @@ impl WatchFile {
 
     /// Read the file contents as a text string.
     pub fn text(&mut self) -> io::Result<Txt> {
+        self.string().map(Txt::from)
+    }
+
+    /// Read the file contents as a string.
+    pub fn string(&mut self) -> io::Result<String> {
         use std::io::Read;
         let mut s = String::new();
         self.0.read_to_string(&mut s)?;
-        Ok(Txt::from(s))
+        Ok(s)
     }
 
     /// Deserialize the file contents as JSON.

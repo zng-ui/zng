@@ -8,9 +8,9 @@ use crate::{
     text::Txt,
     var::{self, *},
 };
-use fluent::types::FluentNumber;
+use fluent::{types::FluentNumber, FluentResource};
 use once_cell::sync::Lazy;
-use std::{fmt, mem, ops, path::PathBuf, str::FromStr, sync::Arc};
+use std::{collections::HashMap, fmt, io, mem, ops, path::PathBuf, str::FromStr, sync::Arc};
 
 /// Localization service.
 pub struct L10N;
@@ -24,7 +24,11 @@ pub struct L10N;
 /// * [`L10N`]
 #[derive(Default)]
 pub struct L10nManager {}
-impl AppExtension for L10nManager {}
+impl AppExtension for L10nManager {
+    fn update(&mut self) {
+        L10N_SV.write().update();
+    }
+}
 
 ///<span data-del-macro-root></span> Gets a variable that localizes and formats the text in a widget context.
 ///
@@ -142,7 +146,7 @@ impl L10N {
         id: impl Into<Txt>,
         fallback: impl Into<Txt>,
         args: impl Into<Vec<(Txt, BoxedVar<L10nArgument>)>>,
-    ) -> BoxedVar<Txt> {
+    ) -> ReadOnlyArcVar<Txt> {
         L10N_SV.write().message_text(lang.into(), id.into(), fallback.into(), args.into())
     }
 
@@ -165,7 +169,7 @@ impl L10N {
 ///
 /// [`L10N.lang_resource`]: L10N::lang_resource
 #[derive(Clone)]
-pub struct LangResourceHandle(crate::crate_util::Handle<ReadOnlyArcVar<LangResourceStatus>>);
+pub struct LangResourceHandle(crate::crate_util::Handle<ArcVar<LangResourceStatus>>);
 impl fmt::Debug for LangResourceHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "LangResourceHandle({:?})", self.status().get())
@@ -179,7 +183,7 @@ impl LangResourceHandle {
     ///  
     /// [`L10N.load_dir`]: L10N::load_dir
     pub fn status(&self) -> ReadOnlyArcVar<LangResourceStatus> {
-        self.0.data().clone()
+        self.0.data().read_only()
     }
 
     /// Wait for the resource to load, if it is available.
@@ -350,7 +354,7 @@ pub type Lang = unic_langid::LanguageIdentifier;
 
 /// List of languages, in priority order.
 ///
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
 pub struct Langs(pub Vec<Lang>);
 impl Langs {
     /// The first lang on the list or `und` if the list is empty.
@@ -620,14 +624,19 @@ pub use unic_langid;
 struct L10nService {
     available_langs: ArcVar<Arc<LangMap<PathBuf>>>,
     app_lang: ArcVar<Langs>,
-    watcher: Option<ReadOnlyArcVar<Arc<LangMap<PathBuf>>>>,
+
+    dir_watcher: Option<ReadOnlyArcVar<Arc<LangMap<PathBuf>>>>,
+    file_watchers: HashMap<Lang, LangResourceWatcher>,
+    messages: HashMap<(Langs, Txt), MessageRequest>,
 }
 impl L10nService {
     fn new() -> Self {
         Self {
             available_langs: var(Arc::new(LangMap::new())),
             app_lang: var(Langs::default()),
-            watcher: None,
+            dir_watcher: None,
+            file_watchers: HashMap::new(),
+            messages: HashMap::new(),
         }
     }
 
@@ -677,7 +686,7 @@ impl L10nService {
         });
         self.available_langs.set(dir_watch.get());
         dir_watch.bind(&self.available_langs).perm();
-        self.watcher = Some(dir_watch);
+        self.dir_watcher = Some(dir_watch);
     }
 
     fn message(&mut self, id: Txt, fallback: Txt) -> L10nMessageBuilder {
@@ -688,15 +697,294 @@ impl L10nService {
         }
     }
 
-    fn message_text(&mut self, _lang: Langs, _id: Txt, fallback: Txt, _args: Vec<(Txt, BoxedVar<L10nArgument>)>) -> BoxedVar<Txt> {
-        // TODO, register variable in service
-        crate::var::LocalVar(fallback).boxed()
+    fn message_text(&mut self, lang: Langs, id: Txt, fallback: Txt, args: Vec<(Txt, BoxedVar<L10nArgument>)>) -> ReadOnlyArcVar<Txt> {
+        match self.messages.entry((lang, id)) {
+            std::collections::hash_map::Entry::Occupied(mut e) => {
+                if let Some(txt) = e.get().text.upgrade() {
+                    // already requested
+                    txt.read_only()
+                } else {
+                    // already requested and dropped, reload.
+                    let handles = e
+                        .key()
+                        .0
+                        .iter()
+                        .map(|l| Self::lang_resource_impl(&mut self.file_watchers, &self.available_langs, l.clone()))
+                        .collect();
+                    let (r, txt) = MessageRequest::new(fallback, args, handles, &e.key().0, &e.key().1, &self.file_watchers);
+                    *e.get_mut() = r;
+                    txt
+                }
+            }
+            std::collections::hash_map::Entry::Vacant(e) => {
+                // not request, load.
+                let handles = e
+                    .key()
+                    .0
+                    .iter()
+                    .map(|l| Self::lang_resource_impl(&mut self.file_watchers, &self.available_langs, l.clone()))
+                    .collect();
+                let (r, txt) = MessageRequest::new(fallback, args, handles, &e.key().0, &e.key().1, &self.file_watchers);
+                e.insert(r);
+                txt
+            }
+        }
     }
 
-    fn lang_resource(&mut self, _lang: Lang) -> LangResourceHandle {
-        todo!()
+    fn lang_resource(&mut self, lang: Lang) -> LangResourceHandle {
+        Self::lang_resource_impl(&mut self.file_watchers, &self.available_langs, lang)
+    }
+    fn lang_resource_impl(
+        file_watchers: &mut HashMap<Lang, LangResourceWatcher>,
+        available_langs: &ArcVar<Arc<LangMap<PathBuf>>>,
+        lang: Lang,
+    ) -> LangResourceHandle {
+        file_watchers
+            .entry(lang)
+            .or_insert_with_key(|lang| {
+                let lang = lang.clone();
+                if let Some(file) = available_langs.get().get_exact(&lang) {
+                    LangResourceWatcher::new(lang, file.clone())
+                } else {
+                    LangResourceWatcher::new_not_available(lang)
+                }
+            })
+            .handle()
+    }
+
+    fn update(&mut self) {
+        if let Some(watcher) = &self.dir_watcher {
+            if let Some(available_langs) = watcher.get_new() {
+                // renew watchers, keeps the same handlers
+                for (lang, watcher) in self.file_watchers.iter_mut() {
+                    let handle = watcher.handle.take().unwrap();
+                    *watcher = if let Some(file) = available_langs.get_exact(lang) {
+                        LangResourceWatcher::new_with_handle(lang.clone(), file.clone(), handle)
+                    } else {
+                        LangResourceWatcher::new_not_available_with_handle(lang.clone(), handle)
+                    };
+                }
+            }
+        } else {
+            // no dir loaded
+            return;
+        }
+
+        self.messages.retain(|k, request| request.update(&k.0, &k.1, &self.file_watchers));
+
+        self.file_watchers.retain(|_, watcher| watcher.retain());
     }
 }
 app_local! {
     static L10N_SV: L10nService = L10nService::new();
+}
+
+struct LangResourceWatcher {
+    handle: Option<crate::crate_util::HandleOwner<ArcVar<LangResourceStatus>>>,
+    bundle: ReadOnlyArcVar<ArcFluentBundle>,
+}
+impl LangResourceWatcher {
+    fn new(lang: Lang, file: PathBuf) -> Self {
+        let status = var(LangResourceStatus::Loading);
+        Self::new_with_handle(lang, file, crate::crate_util::Handle::new(status).0)
+    }
+
+    fn new_not_available(lang: Lang) -> Self {
+        let status = var(LangResourceStatus::NotAvailable);
+        Self::new_not_available_with_handle(lang, crate::crate_util::Handle::new(status).0)
+    }
+
+    fn new_with_handle(lang: Lang, file: PathBuf, handle: crate::crate_util::HandleOwner<ArcVar<LangResourceStatus>>) -> Self {
+        let init = ConcurrentFluentBundle::new_concurrent(vec![lang.clone()]);
+        let status = handle.data();
+        let bundle = WATCHER.read(
+            file,
+            ArcFluentBundle::new(init),
+            clmv!(status, |file| {
+                status.set(LangResourceStatus::Loading);
+
+                match file.and_then(|mut f| f.string()) {
+                    Ok(flt) => match FluentResource::try_new(flt) {
+                        Ok(flt) => {
+                            let mut bundle = ConcurrentFluentBundle::new_concurrent(vec![lang.clone()]);
+                            bundle.add_resource_overriding(flt);
+                            status.set(LangResourceStatus::Loaded);
+                            // ok
+                            return Some(ArcFluentBundle::new(bundle));
+                        }
+                        Err(e) => {
+                            let e = FluentParserErrors(e.1);
+                            tracing::error!("error parsing fluent resource, {e}");
+                            status.set(LangResourceStatus::Error(Arc::new(e)));
+                        }
+                    },
+                    Err(e) => {
+                        if matches!(e.kind(), io::ErrorKind::NotFound) {
+                            status.set(LangResourceStatus::NotAvailable);
+                        } else {
+                            tracing::error!("error loading fluent resource, {e}");
+                            status.set(LangResourceStatus::Error(Arc::new(e)));
+                        }
+                    }
+                }
+                // not ok
+                None
+            }),
+        );
+        Self {
+            handle: Some(handle),
+            bundle,
+        }
+    }
+
+    fn new_not_available_with_handle(lang: Lang, handle: crate::crate_util::HandleOwner<ArcVar<LangResourceStatus>>) -> Self {
+        handle.data().set(LangResourceStatus::NotAvailable);
+        Self {
+            handle: Some(handle),
+            bundle: var({
+                let init = ConcurrentFluentBundle::new_concurrent(vec![lang]);
+                ArcFluentBundle::new(init)
+            })
+            .read_only(),
+        }
+    }
+
+    fn handle(&self) -> LangResourceHandle {
+        LangResourceHandle(self.handle.as_ref().unwrap().reanimate())
+    }
+
+    fn retain(&self) -> bool {
+        !self.handle.as_ref().unwrap().is_dropped()
+    }
+}
+
+type ConcurrentFluentBundle = fluent::bundle::FluentBundle<FluentResource, intl_memoizer::concurrent::IntlLangMemoizer>;
+
+#[derive(Clone)]
+struct ArcFluentBundle(Arc<ConcurrentFluentBundle>);
+impl fmt::Debug for ArcFluentBundle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ArcFluentBundle")
+    }
+}
+impl ops::Deref for ArcFluentBundle {
+    type Target = ConcurrentFluentBundle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ArcFluentBundle {
+    pub fn new(bundle: ConcurrentFluentBundle) -> Self {
+        Self(Arc::new(bundle))
+    }
+}
+
+/// Errors found parsing a fluent resource file.
+#[derive(Clone, Debug)]
+pub struct FluentParserErrors(pub Vec<fluent_syntax::parser::ParserError>);
+impl fmt::Display for FluentParserErrors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut sep = "";
+        for e in &self.0 {
+            write!(f, "{sep}{e}")?;
+            sep = "\n";
+        }
+        Ok(())
+    }
+}
+impl std::error::Error for FluentParserErrors {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if self.0.len() == 1 {
+            Some(&self.0[0])
+        } else {
+            None
+        }
+    }
+}
+
+struct MessageRequest {
+    text: crate::var::types::WeakArcVar<Txt>,
+    fallback: Txt,
+    args: Vec<(Txt, BoxedVar<L10nArgument>)>,
+
+    resource_handles: Box<[LangResourceHandle]>,
+    current_resource: usize,
+}
+impl MessageRequest {
+    fn new(
+        fallback: Txt,
+        args: Vec<(Txt, BoxedVar<L10nArgument>)>,
+        resource_handles: Box<[LangResourceHandle]>,
+
+        langs: &Langs,
+        key: &Txt,
+        resources: &HashMap<Lang, LangResourceWatcher>,
+    ) -> (Self, ReadOnlyArcVar<Txt>) {
+        let mut text = None;
+        let mut current_resource = resource_handles.len();
+
+        for (i, h) in resource_handles.iter().enumerate() {
+            if matches!(h.status().get(), LangResourceStatus::Loaded) {
+                let bundle = &resources.get(&langs[i]).unwrap().bundle;
+                if bundle.with(|b| b.has_message(key)) {
+                    // found something already loaded
+
+                    // TODO, format resource to init the var, return.
+                    text = Some(var(Txt::empty()));
+                    current_resource = i;
+                    break;
+                }
+            }
+        }
+
+        let text = text.unwrap_or_else(|| {
+            // not available resource yet
+
+            // TODO, format fallback to init var.
+            var(Txt::empty())
+        });
+
+        let r = Self {
+            text: text.downgrade(),
+            fallback,
+            args,
+            resource_handles,
+            current_resource,
+        };
+
+        (r, text.read_only())
+    }
+
+    fn update(&mut self, langs: &Langs, key: &Txt, resources: &HashMap<Lang, LangResourceWatcher>) -> bool {
+        if let Some(txt) = self.text.upgrade() {
+            for (i, h) in self.resource_handles.iter().enumerate() {
+                if matches!(h.status().get(), LangResourceStatus::Loaded) {
+                    let bundle = &resources.get(&langs[i]).unwrap().bundle;
+                    if bundle.with(|b| b.has_message(key)) {
+                        //  found best
+                        if self.current_resource != i || bundle.is_new() || self.args.iter().any(|a| a.1.is_new()) {
+                            self.current_resource = i;
+
+                            // TODO, format resource
+                            let _ = txt;
+                        }
+                        return true;
+                    }
+                }
+            }
+
+            // fallback
+            if self.current_resource != self.resource_handles.len() || self.args.iter().any(|a| a.1.is_new()) {
+                self.current_resource = self.resource_handles.len();
+
+                // TODO, format fallback
+                let _ = (txt, &self.fallback);
+            }
+
+            true
+        } else {
+            false
+        }
+    }
 }

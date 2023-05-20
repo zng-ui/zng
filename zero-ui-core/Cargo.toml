@@ -134,7 +134,7 @@ take_mut = "0.2"
 smallvec = { version = "1", features = ["const_new"] }
 const-random = "0.1.15"
 atomic = "0.5"
-notify = "5"
+notify = "6"
 glob = "0.3"
 path-absolutize = "3"
 walkdir = "2"
@@ -146,7 +146,10 @@ serde_json = { version = "1", features = ["preserve_order"] }
 toml = { version = "0.7", optional = true, features = ["preserve_order"] }
 ron = { version = "0.8", optional = true, features = ["indexmap"] }
 
+# fluent
 fluent = "0.16"
+fluent-syntax = "0.11"
+intl-memoizer = "0.5"
 
 [dev-dependencies]
 pretty_assertions = "1"

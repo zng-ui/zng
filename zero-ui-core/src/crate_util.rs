@@ -826,6 +826,7 @@ impl<D: Send + Sync> HandleOwner<D> {
             data,
         })))
     }
+    */
 
     /// Gets a new handle and resets the state if it was *force-drop*.
     ///
@@ -834,7 +835,6 @@ impl<D: Send + Sync> HandleOwner<D> {
         self.0 .0.state.store(NONE, Ordering::Relaxed);
         self.0.clone()
     }
-    */
 
     /// Gets an weak handle that may-not be able to upgrade.
     pub fn weak_handle(&self) -> WeakHandle<D> {
