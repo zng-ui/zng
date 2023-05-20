@@ -10,7 +10,7 @@ use crate::{
 };
 use fluent::types::FluentNumber;
 use once_cell::sync::Lazy;
-use std::{mem, ops, path::PathBuf, str::FromStr, sync::Arc};
+use std::{fmt, mem, ops, path::PathBuf, str::FromStr, sync::Arc};
 
 /// Localization service.
 pub struct L10N;
@@ -136,7 +136,7 @@ impl L10N {
     /// The `lang` resource is lazy loaded and stays in memory only when there are variables alive linked to it, each lang
     /// in the list is matched to available resources if no match is available the `fallback` message is used. The variable
     /// may temporary contain the `fallback` as lang resources are loaded asynchrony.
-    pub fn message_text(
+    pub fn localized_messsage(
         &self,
         lang: impl Into<Langs>,
         id: impl Into<Txt>,
@@ -144,6 +144,89 @@ impl L10N {
         args: impl Into<Vec<(Txt, BoxedVar<L10nArgument>)>>,
     ) -> BoxedVar<Txt> {
         L10N_SV.write().message_text(lang.into(), id.into(), fallback.into(), args.into())
+    }
+
+    /// Gets a handle to the `lang` resource.
+    ///
+    /// The resource will be loaded and stay in memory until all clones of the handle are dropped, this
+    /// can be used to pre-load resources so that localized messages find it immediately avoiding flashing
+    /// the fallback text in the UI.
+    ///
+    /// If the resource directory or file changes it is auto-reloaded, just like when a message variable
+    /// held on the resource does.
+    pub fn lang_resource(&self, lang: impl Into<Lang>) -> LangResourceHandle {
+        L10N_SV.write().lang_resource(lang.into())
+    }
+}
+
+/// Handle to localization resources for a language.
+///
+/// See [`L10N.lang_resource`] for more details.
+///
+/// [`L10N.lang_resource`]: L10N::lang_resource
+#[derive(Clone)]
+pub struct LangResourceHandle(crate::crate_util::Handle<ReadOnlyArcVar<LangResourceStatus>>);
+impl fmt::Debug for LangResourceHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LangResourceHandle({:?})", self.status().get())
+    }
+}
+impl LangResourceHandle {
+    /// Localization resource status.
+    ///
+    /// This can change after load if [`L10N.load_dir`] is called to set a different dir, or the resource
+    /// file is created in the dir.
+    ///  
+    /// [`L10N.load_dir`]: L10N::load_dir
+    pub fn status(&self) -> ReadOnlyArcVar<LangResourceStatus> {
+        self.0.data().clone()
+    }
+
+    /// Wait for the resource to load, if it is available.
+    pub async fn wait(&self) {
+        let status = self.status();
+        while matches!(status.get(), LangResourceStatus::Loading) {
+            status.wait_is_new().await;
+        }
+    }
+
+    /// Drop the handle without dropping the resource.
+    ///
+    /// The localization resource will stay in memory for duration of the current process, if the
+    /// resource file changes it will automatically reload.
+    ///
+    /// [`L10N.load_dir`]: L10N::load_dir
+    pub fn perm(self) {
+        self.0.perm()
+    }
+}
+
+/// Status of a localization resource.
+#[derive(Clone, Debug)]
+pub enum LangResourceStatus {
+    /// Resource not available.
+    ///
+    /// This can change if the localization directory changes, or the file is created.
+    NotAvailable,
+    /// Resource is loading.
+    Loading,
+    /// Resource loaded ok.
+    Loaded,
+    /// Resource failed to load.
+    ///
+    /// This can be any IO or parse errors. If the resource if *not found* the status is set to
+    /// `NotAvailable`, not an error. Localization messages fallback on error just like they do
+    /// for not available.
+    Error(Arc<dyn std::error::Error + Send + Sync>),
+}
+impl fmt::Display for LangResourceStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LangResourceStatus::NotAvailable => write!(f, "not available"),
+            LangResourceStatus::Loading => write!(f, "loading…"),
+            LangResourceStatus::Loaded => write!(f, "loaded"),
+            LangResourceStatus::Error(e) => write!(f, "error: {e}"),
+        }
     }
 }
 
@@ -169,7 +252,7 @@ impl L10nMessageBuilder {
     /// Build the variable.
     pub fn build(self) -> impl Var<Txt> {
         let Self { id, fallback, args } = self;
-        LANG_VAR.flat_map(move |l| L10N.message_text(l.clone(), id.clone(), fallback.clone(), args.clone()))
+        LANG_VAR.flat_map(move |l| L10N.localized_messsage(l.clone(), id.clone(), fallback.clone(), args.clone()))
     }
 }
 
@@ -608,6 +691,10 @@ impl L10nService {
     fn message_text(&mut self, _lang: Langs, _id: Txt, fallback: Txt, _args: Vec<(Txt, BoxedVar<L10nArgument>)>) -> BoxedVar<Txt> {
         // TODO, register variable in service
         crate::var::LocalVar(fallback).boxed()
+    }
+
+    fn lang_resource(&mut self, _lang: Lang) -> LangResourceHandle {
+        todo!()
     }
 }
 app_local! {
