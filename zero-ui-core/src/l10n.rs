@@ -128,6 +128,23 @@ impl L10N {
     pub fn l10n_message(&self, id: &'static str, fallback: &'static str) -> L10nMessageBuilder {
         self.message(Txt::from_static(id), Txt::from_static(fallback))
     }
+
+    /// Gets a formatted message var localized to a given `lang`.
+    ///
+    /// The returned variable is read-only and will update when the backing resource changes and when the `args` variables change.
+    ///
+    /// The `lang` resource is lazy loaded and stays in memory only when there are variables alive linked to it, each lang
+    /// in the list is matched to available resources if no match is available the `fallback` message is used. The variable
+    /// may temporary contain the `fallback` as lang resources are loaded asynchrony.
+    pub fn message_text(
+        &self,
+        lang: impl Into<Langs>,
+        id: impl Into<Txt>,
+        fallback: impl Into<Txt>,
+        args: impl Into<Vec<(Txt, BoxedVar<L10nArgument>)>>,
+    ) -> BoxedVar<Txt> {
+        L10N_SV.write().message_text(lang.into(), id.into(), fallback.into(), args.into())
+    }
 }
 
 /// Localized message variable builder.
@@ -152,14 +169,7 @@ impl L10nMessageBuilder {
     /// Build the variable.
     pub fn build(self) -> impl Var<Txt> {
         let Self { id, fallback, args } = self;
-        merge_var!(LANG_VAR, move |res, lang| {
-            // 
-            let _ = args;
-            match lang.first().and_then(|l| res.raw_message(l, &id)) {
-                Some(f) => f,
-                None => fallback.clone(),
-            }
-        })
+        LANG_VAR.flat_map(move |l| L10N.message_text(l.clone(), id.clone(), fallback.clone(), args.clone()))
     }
 }
 
@@ -593,6 +603,11 @@ impl L10nService {
             fallback,
             args: vec![],
         }
+    }
+
+    fn message_text(&mut self, _lang: Langs, _id: Txt, fallback: Txt, _args: Vec<(Txt, BoxedVar<L10nArgument>)>) -> BoxedVar<Txt> {
+        // TODO, register variable in service
+        crate::var::LocalVar(fallback).boxed()
     }
 }
 app_local! {
