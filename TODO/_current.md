@@ -1,7 +1,3 @@
-# Tooltip
-
-* TOOLTIP_INTERVAL_VAR ignored after quick reopen.
-
 # Text Edit
 
 * Implement cursor position.

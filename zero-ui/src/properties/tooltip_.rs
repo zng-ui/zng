@@ -393,7 +393,7 @@ fn tooltip_layer_wgt(child: BoxedUiNode, child_id: Arc<Atomic<Option<WidgetId>>>
         UiNodeOp::Deinit => {
             let mut open = OPEN_TOOLTIP.write();
             if let Some(o) = &*open {
-                if o.id == WIDGET.id() {
+                if Some(o.id) == c.with_context(|| WIDGET.id()) {
                     *open = None;
                 }
             }
