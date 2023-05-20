@@ -29,6 +29,8 @@
 * Implement pseudo-localization test mode.
 * Add variable args in example.
 * Test "// l10n-source: test.$lang.flt" comments.
+* Try optimize format.
+    - `format_fallback` does multiple allocations just to get inputs for the formatter.
 
 * Other macros:
     - `l10n_txt!("id", "fmt")`, is scrapped and expands to `l10n!("id", "fmt").get()`.

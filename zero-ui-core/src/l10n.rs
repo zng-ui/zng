@@ -5,12 +5,12 @@ use crate::{
     app::AppExtension,
     app_local,
     fs_watcher::WATCHER,
-    text::Txt,
+    text::{ToText, Txt},
     var::{self, *},
 };
 use fluent::{types::FluentNumber, FluentResource};
 use once_cell::sync::Lazy;
-use std::{collections::HashMap, fmt, io, mem, ops, path::PathBuf, str::FromStr, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, fmt, io, mem, ops, path::PathBuf, str::FromStr, sync::Arc};
 
 /// Localization service.
 pub struct L10N;
@@ -301,6 +301,15 @@ macro_rules! impl_from_and_into_var_number {
 }
 impl_from_and_into_var_number! {
     u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize, f32, f64
+}
+impl L10nArgument {
+    /// Borrow argument as a fluent value.
+    pub fn fluent_value(&self) -> fluent::FluentValue {
+        match self {
+            L10nArgument::Txt(t) => fluent::FluentValue::String(Cow::Borrowed(t.as_str())),
+            L10nArgument::Number(n) => fluent::FluentValue::Number(n.clone()),
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -939,10 +948,8 @@ impl MessageRequest {
         }
 
         let text = text.unwrap_or_else(|| {
-            // not available resource yet
-
-            // TODO, format fallback to init var.
-            var(Txt::empty())
+            // no available resource yet
+            var(format_fallback(key, &fallback, &args))
         });
 
         let r = Self {
@@ -978,8 +985,7 @@ impl MessageRequest {
             if self.current_resource != self.resource_handles.len() || self.args.iter().any(|a| a.1.is_new()) {
                 self.current_resource = self.resource_handles.len();
 
-                // TODO, format fallback
-                let _ = (txt, &self.fallback);
+                txt.set_ne(format_fallback(key, &self.fallback, &self.args));
             }
 
             true
@@ -987,4 +993,45 @@ impl MessageRequest {
             false
         }
     }
+}
+
+fn format_fallback(key: &str, fallback: &Txt, args: &[(Txt, BoxedVar<L10nArgument>)]) -> Txt {
+    let mut fallback_pattern = None;
+
+    let entry = format!("k={fallback}");
+    match fluent_syntax::parser::parse_runtime(entry.as_str()) {
+        Ok(mut f) => {
+            if let Some(fluent_syntax::ast::Entry::Message(m)) = f.body.pop() {
+                if let Some(p) = m.value {
+                    fallback_pattern = Some(p)
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("invalid fallback for `{key}`\n{}", FluentParserErrors(e.1));
+        }
+    }
+    let fallback = match fallback_pattern {
+        Some(f) => f,
+        None => fluent_syntax::ast::Pattern {
+            elements: vec![fluent_syntax::ast::PatternElement::TextElement { value: fallback.as_str() }],
+        },
+    };
+
+    let values: Vec<_> = args.iter().map(|(_, v)| v.get()).collect();
+    let args = if args.is_empty() {
+        None
+    } else {
+        let mut r = fluent::FluentArgs::with_capacity(args.len());
+        for ((key, _), value) in args.iter().zip(&values) {
+            r.set(Cow::Borrowed(key.as_str()), value.fluent_value())
+        }
+        Some(r)
+    };
+
+    let mut errors = vec![];
+    let blank = fluent::FluentBundle::<fluent::FluentResource>::new(vec![]);
+    let txt = blank.format_pattern(&fallback, args.as_ref(), &mut errors);
+
+    txt.to_text()
 }
