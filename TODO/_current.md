@@ -26,6 +26,11 @@
     - The file match needs to be shared between all variables that requested it.
     - The shared file match needs to be a var too, to leverage `SyncConfig`.
 * Implement builder.
+    - Builder takes args for the message, build a variable.
+    - The variable must depend on the `LANG_VAR`.
+        - Issue, the lang resources may not be loaded yet or can change at any time
+        - So the `LANG_VAR` is a var, and the lang resources is another var.
+        - We need a flat map?
 * Implement pseudo-localization test mode.
 * Add variable args in example.
 * Test "// l10n-source: test.$lang.flt" comments.

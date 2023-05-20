@@ -103,7 +103,7 @@ impl L10N {
     /// Lang not available are ignored until they become available, the first language in the
     /// vec is the most preferred.
     ///
-    /// Note that in the [`LANG_VAR`] is used in message requests, the default value of that
+    /// Note that the [`LANG_VAR`] is used in message requests, the default value of that
     /// context variable is this one.
     pub fn app_lang(&self) -> ArcVar<Langs> {
         L10N_SV.read().app_lang.clone()
@@ -130,29 +130,6 @@ impl L10N {
     }
 }
 
-/// Represents lazy loaded localization data retrieved from an specific data source.
-#[derive(Clone, Debug)]
-pub struct L10nResource {}
-impl L10nResource {
-    /// Empty resource, never finds any message.
-    pub fn empty() -> Self {
-        Self {}
-    }
-
-    /// Search for the message in the resources.
-    pub fn raw_message(&self, lang: &Lang, id: &str) -> Option<Txt> {
-        // !!: TODO
-        let _ = (lang, id);
-        None
-    }
-}
-
-context_var! {
-    /// Represents the contextual [`L10nResource`], together with the [`LANG_VAR`]
-    /// a localized message can be retrieved.
-    static L10N_RESOURCE_VAR: L10nResource = L10nResource::empty();
-}
-
 /// Localized message variable builder.
 ///
 /// See [`L10N.message`] for more details.
@@ -175,8 +152,8 @@ impl L10nMessageBuilder {
     /// Build the variable.
     pub fn build(self) -> impl Var<Txt> {
         let Self { id, fallback, args } = self;
-        merge_var!(L10N_RESOURCE_VAR, LANG_VAR, move |res, lang| {
-            // !!: TODO
+        merge_var!(LANG_VAR, move |res, lang| {
+            // 
             let _ = args;
             match lang.first().and_then(|l| res.raw_message(l, &id)) {
                 Some(f) => f,
@@ -195,8 +172,7 @@ pub enum L10nArgument {
     Txt(Txt),
     /// Number, with optional style details.
     Number(FluentNumber),
-} // !!: TODO, see https://docs.rs/fluent/0.16.0/fluent/enum.FluentValue.html
-
+}
 impl_from_and_into_var! {
     fn from(txt: Txt) -> L10nArgument {
         L10nArgument::Txt(txt)
@@ -213,6 +189,21 @@ impl_from_and_into_var! {
     fn from(number: FluentNumber) -> L10nArgument {
         L10nArgument::Number(number)
     }
+
+}
+macro_rules! impl_from_and_into_var_number {
+    ($($literal:tt),+) => {
+        impl_from_and_into_var! {
+            $(
+                fn from(number: $literal) -> L10nArgument {
+                    FluentNumber::from(number).into()
+                }
+            )+
+        }
+    }
+}
+impl_from_and_into_var_number! {
+    u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize, f32, f64
 }
 
 #[doc(hidden)]
