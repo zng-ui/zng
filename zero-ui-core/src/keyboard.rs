@@ -142,17 +142,22 @@ impl CharInputArgs {
         "\r\n\u{85}".contains(self.character)
     }
 
+    /// Gets the character to insert in a text string.
+    ///
     /// Replaces all [`is_tab`] with `\t` and all [`is_line_break`] with `\n`.
+    /// Returns `None` if the character must not be inserted.
     ///
     /// [`is_tab`]: Self::is_tab
     /// [`is_line_break`]: Self::is_line_break
-    pub fn normalized_char(&self) -> char {
+    pub fn insert_char(&self) -> Option<char> {
         if self.is_tab() {
-            '\t'
+            Some('\t')
         } else if self.is_line_break() {
-            '\n'
+            Some('\n')
+        } else if self.character.is_ascii_control() {
+            None
         } else {
-            self.character
+            Some(self.character)
         }
     }
 }

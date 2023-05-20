@@ -299,12 +299,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 }
                             }
                         });
-                    } else {
+                    } else if let Some(c) = args.insert_char() {
                         // insert
                         let i = t.caret_index.unwrap();
-                        // !!: advance i (but only if the grapheme finished).
+                        t.caret_index = Some(i + 1);
 
-                        let c = args.normalized_char();
                         let _ = text.modify(move |t| {
                             t.to_mut().to_mut().insert(i, c);
                         });
