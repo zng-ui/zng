@@ -682,7 +682,7 @@ impl L10nService {
                                         match Lang::from_str(name) {
                                             Ok(lang) => {
                                                 // and it is named correctly.
-                                                set.insert(lang, dir.as_ref().unwrap().with_file_name(name_and_ext));
+                                                set.insert(lang, dir.as_ref().unwrap().join(name_and_ext));
                                             }
                                             Err(e) => {
                                                 tracing::debug!("`{name}.{ext}` is not a valid lang or 'template', {e}");

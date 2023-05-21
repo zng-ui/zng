@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use zero_ui::prelude::*;
 
-use zero_ui::core::l10n::{LangMap, L10N};
+use zero_ui::core::l10n::{Langs, LangMap, L10N};
 
 /*
 To collect template:
@@ -41,7 +41,6 @@ fn app_main() {
         // hold "en-US" in memory, even if not requested yet.
         en_us.perm();
 
-
         Window! {
             // l10n: Main window title
             title = l10n!("window.title", "Localize Example (template)");
@@ -68,9 +67,11 @@ fn locale_menu() -> impl UiNode {
                 direction = StackDirection::left_to_right();
                 spacing = 5;
                 margin = 10;
+                toggle::selector = toggle::Selector::single(L10N.app_lang());
                 children = langs.keys().map(|l| {
                     Toggle! {
                         child = Text!("{l}");
+                        value::<Langs> = l.clone();
                     }
                 }).collect::<UiNodeVec>()
             }
