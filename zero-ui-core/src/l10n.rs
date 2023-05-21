@@ -933,14 +933,16 @@ impl MessageRequest {
         let mut text = None;
         let mut current_resource = resource_handles.len();
 
+        let (id, attribute) = if let Some(r) = key.split_once('.') { r } else { (key.as_str(), "") };
+
         for (i, h) in resource_handles.iter().enumerate() {
             if matches!(h.status().get(), LangResourceStatus::Loaded) {
                 let bundle = &resources.get(&langs[i]).unwrap().bundle;
-                if bundle.with(|b| b.has_message(key)) {
+                if bundle.with(|b| has_message(b, id, attribute)) {
                     // found something already loaded
 
-                    // TODO, format resource to init the var, return.
-                    text = Some(var(Txt::empty()));
+                    let t = bundle.with(|b| format_message(b, id, attribute, &args));
+                    text = Some(var(t));
                     current_resource = i;
                     break;
                 }
@@ -965,16 +967,18 @@ impl MessageRequest {
 
     fn update(&mut self, langs: &Langs, key: &Txt, resources: &HashMap<Lang, LangResourceWatcher>) -> bool {
         if let Some(txt) = self.text.upgrade() {
+            let (id, attribute) = if let Some(r) = key.split_once('.') { r } else { (key.as_str(), "") };
+
             for (i, h) in self.resource_handles.iter().enumerate() {
                 if matches!(h.status().get(), LangResourceStatus::Loaded) {
                     let bundle = &resources.get(&langs[i]).unwrap().bundle;
-                    if bundle.with(|b| b.has_message(key)) {
+                    if bundle.with(|b| has_message(b, id, attribute)) {
                         //  found best
                         if self.current_resource != i || bundle.is_new() || self.args.iter().any(|a| a.1.is_new()) {
                             self.current_resource = i;
 
-                            // TODO, format resource
-                            let _ = txt;
+                            let t = bundle.with(|b| format_message(b, id, attribute, &self.args));
+                            txt.set_ne(t)
                         }
                         return true;
                     }
@@ -1033,5 +1037,81 @@ fn format_fallback(key: &str, fallback: &Txt, args: &[(Txt, BoxedVar<L10nArgumen
     let blank = fluent::FluentBundle::<fluent::FluentResource>::new(vec![]);
     let txt = blank.format_pattern(&fallback, args.as_ref(), &mut errors);
 
+    if !errors.is_empty() {
+        tracing::error!("error formatting fallback `{key}`\n{}", FluentErrors(errors));
+    }
+
     txt.to_text()
+}
+
+fn format_message(bundle: &ArcFluentBundle, id: &str, attribute: &str, args: &[(Txt, BoxedVar<L10nArgument>)]) -> Txt {
+    let msg = bundle.get_message(id).unwrap();
+
+    let values: Vec<_> = args.iter().map(|(_, v)| v.get()).collect();
+    let args = if args.is_empty() {
+        None
+    } else {
+        let mut r = fluent::FluentArgs::with_capacity(args.len());
+        for ((key, _), value) in args.iter().zip(&values) {
+            r.set(Cow::Borrowed(key.as_str()), value.fluent_value())
+        }
+        Some(r)
+    };
+
+    if attribute.is_empty() {
+        if let Some(pattern) = msg.value() {
+            let mut errors = vec![];
+            let txt = bundle.format_pattern(pattern, args.as_ref(), &mut errors);
+
+            if !errors.is_empty() {
+                tracing::error!("error formatting `{:?}/{}`\n{}", &bundle.locales[0], id, FluentErrors(errors));
+            }
+
+            txt.to_text()
+        } else {
+            tracing::error!("found `{:?}/{id}`, but not value", &bundle.locales[0]);
+            Txt::empty()
+        }
+    } else {
+        match msg.get_attribute(attribute) {
+            Some(attr) => {
+                let mut errors = vec![];
+
+                let txt = bundle.format_pattern(attr.value(), args.as_ref(), &mut errors);
+
+                if !errors.is_empty() {
+                    tracing::error!("error formatting `{:?}/{}`\n{}", &bundle.locales[0], id, FluentErrors(errors));
+                }
+
+                txt.to_text()
+            }
+            None => {
+                tracing::error!("found `{:?}/{id}`, but not attribute `{attribute}`", &bundle.locales[0]);
+                Txt::empty()
+            }
+        }
+    }
+}
+
+struct FluentErrors(Vec<fluent::FluentError>);
+
+impl fmt::Display for FluentErrors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut sep = "";
+        for e in &self.0 {
+            write!(f, "{sep}{e}")?;
+            sep = "\n";
+        }
+        Ok(())
+    }
+}
+
+fn has_message(bundle: &ArcFluentBundle, id: &str, attribute: &str) -> bool {
+    if attribute.is_empty() {
+        bundle.has_message(id)
+    } else if let Some(msg) = bundle.get_message(id) {
+        msg.get_attribute(attribute).is_some()
+    } else {
+        false
+    }
 }

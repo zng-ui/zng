@@ -19,19 +19,23 @@
 
 # Localization
 
-* Implement resource loader.
-    - Resources need to automatically reload when file changes.
-    - File name cannot be matched from the lang alone, request needs to map to a `PathBuf` and then 
-      use this path to select a variable with loaded resources for the best lang match.
-    - The file match needs to be shared between all variables that requested it.
-    - The shared file match needs to be a var too, to leverage `SyncConfig`.
-* Implement a way to preload/await a lang resource.
-* Implement pseudo-localization test mode.
+* Add localization examples.
 * Add variable args in example.
-* Test "// l10n-source: test.$lang.flt" comments.
-* Try optimize format.
-    - `format_fallback` does multiple allocations just to get inputs for the formatter.
 
-* Other macros:
-    - `l10n_txt!("id", "fmt")`, is scrapped and expands to `l10n!("id", "fmt").get()`.
-    - `l10n_str!("id", "fmt")`, is scrapped and expands to `l10n!("id", "fmt").get().to_string()` or equivalent.
+* Implement pseudo-localization test mode.
+    - Extendable source, instead of `load_dir`.
+    - A trait that provides the available locales and locales on demand.
+        - Implement in-memory source.
+
+* Test "// l10n-source: test.$lang.flt" comments.
+
+* Review default fluent functions.
+    - Some are missing?
+* Review fallback in bundle.
+    - Bundles support multiple resource overrides, resources can be shared with `Arc` too.
+    - If a resource message references another that is missing, does setting-up these aggregate bundles causes
+      it to resolve the missing reference on a fallback?
+ 
+* Optimize.
+    - `format_fallback` does multiple allocations just to get inputs for the formatter.
+    - It is possible to implement something that only allocates the result string?
