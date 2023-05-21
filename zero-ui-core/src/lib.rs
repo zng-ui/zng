@@ -35,6 +35,7 @@ pub mod handler;
 
 pub mod app;
 pub mod border;
+pub mod clipboard;
 pub mod color;
 pub mod config;
 pub mod context;

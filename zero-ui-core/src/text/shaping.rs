@@ -1815,7 +1815,7 @@ impl<'a> ShapedSegment<'a> {
     }
 
     fn x_width(&self) -> (Px, Px) {
-        let IndexRange(mut start, mut end) = self.glyph_range();
+        let IndexRange(start, end) = self.glyph_range();
 
         // !!: TODO, check align
         let is_line_break = start == end && matches!(self.kind(), TextSegmentKind::LineBreak);

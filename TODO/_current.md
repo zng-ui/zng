@@ -1,4 +1,4 @@
-# Text Edit
+# TextInput
 
 * Implement cursor position.
     - Caret stops blinking while moving with cursor, not resetting timer?
@@ -16,6 +16,11 @@
 * Support replace (Insert mode in command line).
 * Implement selection.
 * Implement custom node access to text.
+
+# Clipboard
+
+* Implement clipboard commands.
+    - Already declared in the main crate (move to core).
 
 # Localization
 

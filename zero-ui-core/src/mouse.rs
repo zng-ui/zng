@@ -717,6 +717,13 @@ impl PressedInfo {
 /// Services this extension provides.
 ///
 /// * [`MOUSE`]
+///
+/// # Default
+///
+/// This extension is included in the [default app], events provided by it
+/// are required by multiple other extensions.
+///
+/// [default app]: crate::app::App::default
 pub struct MouseManager {
     // last cursor move position (scaled).
     pos: DipPoint,

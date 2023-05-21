@@ -52,6 +52,12 @@ use crate::{
 ///
 /// * [`WINDOWS`]
 /// * [`MONITORS`]
+/// ///
+/// # Default
+///
+/// This extension is included in the [default app].
+///
+/// [default app]: crate::app::App::default
 #[derive(Default)]
 pub struct WindowManager {}
 impl AppExtension for WindowManager {

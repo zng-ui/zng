@@ -45,8 +45,7 @@ pub use render::{render_retain, IMAGE_RENDER};
 ///
 /// # Default
 ///
-/// This extension is included in the [default app], events provided by it
-/// are required by multiple other extensions.
+/// This extension is included in the [default app].
 ///
 /// [default app]: crate::app::App::default
 #[derive(Default)]

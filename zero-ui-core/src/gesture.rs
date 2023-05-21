@@ -737,6 +737,12 @@ event! {
 /// Services this extension provides.
 ///
 /// * [`GESTURES`]
+///
+/// # Default
+///
+/// This extension is included in the [default app].
+///
+/// [default app]: crate::app::App::default
 #[derive(Default)]
 pub struct GestureManager {}
 impl AppExtension for GestureManager {

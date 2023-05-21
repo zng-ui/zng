@@ -40,6 +40,13 @@ use crate::{
 /// Services this extension provides.
 ///
 /// * [`WATCHER`]
+///
+/// # Default
+///
+/// This extension is included in the [default app], events provided by it
+/// are required by multiple other extensions.
+///
+/// [default app]: crate::app::App::default
 #[derive(Default)]
 pub struct FsWatcherManager {}
 impl AppExtension for FsWatcherManager {

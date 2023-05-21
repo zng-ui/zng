@@ -94,6 +94,12 @@ pub enum FontChange {
 /// Events this extension provides:
 ///
 /// * [FONT_CHANGED_EVENT] - Font config or system fonts changed.
+///
+/// # Default
+///
+/// This extension is included in the [default app].
+///
+/// [default app]: crate::app::App::default
 #[derive(Default)]
 pub struct FontManager {}
 impl AppExtension for FontManager {

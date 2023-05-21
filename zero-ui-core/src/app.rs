@@ -7,6 +7,7 @@ pub mod view_process;
 
 pub use intrinsic::*;
 
+use crate::clipboard::ClipboardManager;
 use crate::config::ConfigManager;
 use crate::crate_util::{IdNameError, NameIdMap, PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, EventUpdate, EVENTS};
@@ -832,6 +833,7 @@ impl App {
             .extend(FontManager::default())
             .extend(FocusManager::default())
             .extend(ImageManager::default())
+            .extend(ClipboardManager::default())
     }
 }
 
@@ -868,6 +870,7 @@ impl App {
     /// * [`FontManager`]
     /// * [`FocusManager`]
     /// * [`ImageManager`]
+    /// * [`ClipboardManager`]
     #[allow(clippy::should_implement_trait)]
     pub fn default() -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         App::minimal()
@@ -881,6 +884,7 @@ impl App {
             .extend(FontManager::default())
             .extend(FocusManager::default())
             .extend(ImageManager::default())
+            .extend(ClipboardManager::default())
     }
 }
 

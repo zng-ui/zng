@@ -45,6 +45,13 @@ pub use self::ron::*;
 /// Services this extension provides.
 ///
 /// * [`CONFIG`]
+///
+///
+/// # Default
+///
+/// This extension is included in the [default app].
+///
+/// [default app]: crate::app::App::default
 #[derive(Default)]
 pub struct ConfigManager {}
 
