@@ -132,7 +132,7 @@ pub struct LayoutText {
     pub underline_thickness: Px,
 
     /// Top-left offset of the caret in the shaped text.
-    pub caret_offset: Option<PxPoint>,
+    pub caret_origin: Option<PxPoint>,
 }
 impl LayoutText {
     fn no_context() -> Self {
@@ -330,7 +330,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                 if let Some(i) = &mut t.caret_index {
                                     let next = t.text.next_insert_index(*i);
                                     if *i != next {
-                                        *i = dbg!(next);
+                                        *i = next;
                                         WIDGET.layout(); // update offset
                                     }
                                 }
@@ -545,7 +545,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     strikethrough_thickness: Px(0),
                     underlines: vec![],
                     underline_thickness: Px(0),
-                    caret_offset: None,
+                    caret_origin: None,
                 });
                 self.pending.insert(Layout::RESHAPE);
             }
@@ -711,6 +711,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     );
                     r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
                     t.baseline.store(r.shaped_text.baseline(), Ordering::Relaxed);
+                    r.caret_origin = None;
                 }
                 if self.pending.contains(Layout::OVERLINE) {
                     if r.overline_thickness > Px(0) {
@@ -760,6 +761,13 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                         }
                     } else {
                         r.underlines = vec![];
+                    }
+                }
+
+                if r.caret_origin.is_none() {
+                    if let Some(index) = ResolvedText::get().caret_index {
+                        let p = r.shaped_text.caret_origin(index);
+                        r.caret_origin = Some(p);
                     }
                 }
 
@@ -1121,14 +1129,19 @@ pub fn render_caret(child: impl UiNode) -> impl UiNode {
             if TEXT_EDITABLE_VAR.get() {
                 let t = LayoutText::get();
 
-                let mut c = CARET_COLOR_VAR.get();
-                c.alpha = ResolvedText::get().caret_opacity.get().0;
+                if let Some(origin) = t.caret_origin {
+                    let mut c = CARET_COLOR_VAR.get();
+                    c.alpha = ResolvedText::get().caret_opacity.get().0;
 
-                let mut clip_rect = PxRect::from_size(t.shaped_text.align_size());
-                clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
-                clip_rect.size.height = t.shaped_text.line_height();
+                    let mut clip_rect = PxRect::from_size(t.shaped_text.align_size());
 
-                frame.push_color(clip_rect, color_key.bind(c.into(), true));
+                    clip_rect.origin = origin;
+
+                    clip_rect.size.width = Dip::new(1).to_px(frame.scale_factor().0);
+                    clip_rect.size.height = t.shaped_text.line_height();
+
+                    frame.push_color(clip_rect, color_key.bind(c.into(), true));
+                }
             }
         }
         UiNodeOp::RenderUpdate { update } => {

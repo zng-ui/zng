@@ -1,10 +1,10 @@
 # Text Edit
 
 * Implement cursor position.
+    - Caret stops blinking while moving with cursor, not resetting timer?
     - Index is of insert offset, can be str.len for cursor after the last char.
     - Review using `TextPoint` for this?
     - Need to navigate with arrow keys.
-        - Support `\r\n` in one key press.
     - Need to find closest insert point from mouse cursor point.
         - Support ligatures (click in middle works).
     - Review https://searchfox.org/mozilla-central/source/layout/generic/nsTextFrame.cpp#7534

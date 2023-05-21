@@ -1296,6 +1296,11 @@ impl IndexRange {
     pub fn len(self) -> usize {
         self.end() - self.start()
     }
+
+    /// Gets if `i` is in range.
+    pub fn contains(self, i: usize) -> bool {
+        i >= self.0 && i < self.1
+    }
 }
 impl std::ops::RangeBounds<usize> for IndexRange {
     fn start_bound(&self) -> std::ops::Bound<&usize> {

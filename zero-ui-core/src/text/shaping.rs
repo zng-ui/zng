@@ -883,6 +883,28 @@ impl ShapedText {
             trace_assert!(self.fonts.0.last().map(|f| f.end == self.glyphs.len()).unwrap_or(true));
         }
     }
+
+    /// Gets the top-left origin for a caret visual that marks the `index` insertion point.
+    pub fn caret_origin(&self, index: usize) -> PxPoint {
+        for line in self.lines() {
+            for seg in line.segs() {
+                let txt_range = seg.text_range();
+                if txt_range.contains(index) {
+                    let mut p = seg.rect().origin;
+                    // !!: TODO, get glyph offset
+                    return p;
+                }
+            }
+        }
+
+        if let Some(line) = self.last_line() {
+            // top-right of last line
+            let rect = line.rect();
+            PxPoint::new(rect.max_x(), rect.min_y())
+        } else {
+            PxPoint::zero()
+        }
+    }
 }
 
 trait FontListRef {
@@ -1793,15 +1815,31 @@ impl<'a> ShapedSegment<'a> {
     }
 
     fn x_width(&self) -> (Px, Px) {
-        let IndexRange(start, end) = self.glyph_range();
+        let IndexRange(mut start, mut end) = self.glyph_range();
+
+        // !!: TODO, check align
+        let is_line_break = start == end && matches!(self.kind(), TextSegmentKind::LineBreak);
 
         let start_x = match self.direction() {
-            LayoutDirection::LTR => self.text.glyphs[start].point.x,
-            LayoutDirection::RTL => self.text.glyphs[start..end]
-                .iter()
-                .map(|g| g.point.x)
-                .min_by(f32::total_cmp)
-                .unwrap_or(0.0),
+            LayoutDirection::LTR => {
+                if is_line_break {
+                    let s = self.text.lines.width(self.line_index);
+                    return (Px(s as i32), Px(0));
+                }
+
+                self.text.glyphs[start].point.x
+            }
+            LayoutDirection::RTL => {
+                if is_line_break {
+                    return (Px(0), Px(0));
+                }
+
+                self.text.glyphs[start..end]
+                    .iter()
+                    .map(|g| g.point.x)
+                    .min_by(f32::total_cmp)
+                    .unwrap_or(0.0)
+            }
         };
 
         (Px(start_x.floor() as i32), Px(self.advance().ceil() as i32))
