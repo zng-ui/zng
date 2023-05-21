@@ -1,7 +1,7 @@
 # About button
-button = Button
+button = Botão
 
 # title:
 #    Main window title
 window = 
-    .title = Localize Example (template)
+    .title = Exemplo Localizar (pt-BR)

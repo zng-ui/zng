@@ -4,4 +4,4 @@ button = Button
 # title:
 #    Main window title
 window = 
-    .title = Localize Example (template)
+    .title = Localize Example (en-US)

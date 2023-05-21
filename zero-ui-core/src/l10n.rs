@@ -676,7 +676,7 @@ impl L10nService {
                         if ty.is_file() {
                             if let Some(name_and_ext) = f.file_name().to_str() {
                                 if let Some((name, ext)) = name_and_ext.rsplit_once('.') {
-                                    const EXT: unicase::Ascii<&'static str> = unicase::Ascii::new("flt");
+                                    const EXT: unicase::Ascii<&'static str> = unicase::Ascii::new("ftl");
                                     if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
                                         // found .flt file.
                                         match Lang::from_str(name) {
@@ -685,9 +685,7 @@ impl L10nService {
                                                 set.insert(lang, dir.as_ref().unwrap().with_file_name(name_and_ext));
                                             }
                                             Err(e) => {
-                                                if name != "template" {
-                                                    tracing::debug!("`{name}.{ext}` is not a valid lang or 'template', {e}")
-                                                }
+                                                tracing::debug!("`{name}.{ext}` is not a valid lang or 'template', {e}");
                                             }
                                         }
                                     }

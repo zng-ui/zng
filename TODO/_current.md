@@ -24,13 +24,17 @@
 
 # Localization
 
-* Add localization examples.
+* Implement way to await for the dir to load.
+
 * Add variable args in example.
 
 * Implement pseudo-localization test mode.
     - Extendable source, instead of `load_dir`.
-    - A trait that provides the available locales and locales on demand.
-        - Implement in-memory source.
+* A trait that provides the available locales and locales on demand.
+    - Implement in-memory source.
+* Locale filter.
+    - `lang!("template") is valid, we maybe want to filter these?
+    - Or at least document this.
 
 * Test "// l10n-source: test.$lang.flt" comments.
 
