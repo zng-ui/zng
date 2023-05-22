@@ -771,8 +771,13 @@ impl L10nService {
             if let Some(available_langs) = watcher.get_new() {
                 // renew watchers, keeps the same handlers
                 for (lang, watcher) in self.file_watchers.iter_mut() {
+                    let file = available_langs.get_exact(lang);
+                    if watcher.file.as_ref() == file {
+                        continue;
+                    }
+
                     let handle = watcher.handle.take().unwrap();
-                    *watcher = if let Some(file) = available_langs.get_exact(lang) {
+                    *watcher = if let Some(file) = file {
                         LangResourceWatcher::new_with_handle(lang.clone(), file.clone(), handle)
                     } else {
                         LangResourceWatcher::new_not_available_with_handle(lang.clone(), handle)
@@ -796,6 +801,7 @@ app_local! {
 struct LangResourceWatcher {
     handle: Option<crate::crate_util::HandleOwner<ArcVar<LangResourceStatus>>>,
     bundle: ReadOnlyArcVar<ArcFluentBundle>,
+    file: Option<PathBuf>,
 }
 impl LangResourceWatcher {
     fn new(lang: Lang, file: PathBuf) -> Self {
@@ -812,7 +818,7 @@ impl LangResourceWatcher {
         let init = ConcurrentFluentBundle::new_concurrent(vec![lang.clone()]);
         let status = handle.data();
         let bundle = WATCHER.read(
-            file,
+            file.clone(),
             ArcFluentBundle::new(init),
             clmv!(status, |file| {
                 status.set(LangResourceStatus::Loading);
@@ -848,6 +854,7 @@ impl LangResourceWatcher {
         Self {
             handle: Some(handle),
             bundle,
+            file: Some(file),
         }
     }
 
@@ -860,6 +867,7 @@ impl LangResourceWatcher {
                 ArcFluentBundle::new(init)
             })
             .read_only(),
+            file: None,
         }
     }
 

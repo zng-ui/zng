@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use zero_ui::prelude::*;
 
-use zero_ui::core::l10n::{Langs, LangMap, L10N};
+use zero_ui::core::l10n::{LangMap, Langs, L10N};
 
 /*
 To collect template:

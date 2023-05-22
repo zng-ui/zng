@@ -24,6 +24,12 @@
 
 # Localization
 
+* Rapidly changing language can get a lang stuck on `Loading`.
+    - The status `Loaded` is set but the var never updates.
+    - This looks like a bug in variables, the status updates are set from a different thread.
+
+* "en-US" reloads when lang is changed to another and back, the example has a perm handle on it so why?
+
 * Implement way to await for the dir to load.
 
 * Add variable args in example.
@@ -48,3 +54,4 @@
 * Optimize.
     - `format_fallback` does multiple allocations just to get inputs for the formatter.
     - It is possible to implement something that only allocates the result string?
+    - Every message refreshes every update.
