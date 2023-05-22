@@ -239,8 +239,9 @@ impl VARS {
     }
 
     pub(super) fn schedule_update(&self, update: VarUpdateFn) {
-        let curr_modify = self.current_modify();
-        VARS_SV.read().updates.lock().push((curr_modify, update));
+        let vars = VARS_SV.read();
+        let curr_modify = vars.ans.current_modify.clone();
+        vars.updates.lock().push((curr_modify, update));
         UPDATES.send_awake();
     }
 
