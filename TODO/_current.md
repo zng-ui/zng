@@ -1,3 +1,11 @@
+* Fix var modify importance.
+    - When an animation is started inside a var hook the pos-var-update cleanup restores the modify 
+      count to before the animation increment.
+    - VARS is unlocked to update variables, so in this small window another thread can set a variable and
+      capture a temporary modify count.
+    - Both issues can be resolved by making the modify count contextual.
+        - Animations increment in the app_local scope, but VARS.current_modify is contextual.
+
 # TextInput
 
 * Implement cursor position.
@@ -25,9 +33,7 @@
 # Localization
 
 * Rapidly changing language can get a lang stuck on `Loading`.
-    - The status `Loaded` is set but the var never updates.
-    - This looks like a bug in variables, the status updates are set from a different thread.
-
+    - This is causes by the var-modify importance in animation in var-hook issue (see above).
 * "en-US" reloads when lang is changed to another and back, the example has a perm handle on it so why?
 
 * Implement way to await for the dir to load.

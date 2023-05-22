@@ -1493,10 +1493,10 @@ macro_rules! __async_clmv {
     };
 
     // match block
-    ([$($done:tt)*][][] { $($block:tt)+ }) => {
+    ([$($done:tt)*][][] { $($block:tt)* }) => {
         {
             $($done)*
-            async move { $($block)+ }
+            async move { $($block)* }
         }
     };
 }

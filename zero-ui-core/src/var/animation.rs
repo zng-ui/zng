@@ -599,6 +599,9 @@ impl Animations {
 
         let anim = Animation::new(vars.ans.animations_enabled.get(), start_time, vars.ans.animation_time_scale.get());
 
+        #[cfg(debug_assertions)]
+        let min_prev_importance = vars.ans.current_modify.importance;
+
         drop(vars);
 
         controller.on_start(&anim);
@@ -619,13 +622,23 @@ impl Animations {
                     importance: anim_imp,
                 },
             );
-            drop(vars);
+            #[cfg(debug_assertions)]
+            let prev_importance = prev_mod.importance();
+
             // will restore context after animation and controller updates
             let _cleanup = crate_util::RunOnDrop::new(|| {
                 let mut vars = VARS_SV.write();
                 vars.ans.animation_controller = prev_ctrl;
                 vars.ans.current_modify = prev_mod;
             });
+            drop(vars);
+
+            debug_assert!(
+                prev_importance >= min_prev_importance,
+                "current modify importance less than it was when animation was created ({} >= {})",
+                prev_importance,
+                min_prev_importance
+            );
 
             if weak_handle.upgrade().is_some() {
                 if anim.stop_requested() {
@@ -1057,6 +1070,14 @@ impl ModifyInfo {
             }
         }
         Err(handler)
+    }
+}
+impl fmt::Debug for ModifyInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ModifyInfo")
+            .field("is_animating()", &self.is_animating())
+            .field("importance()", &self.importance)
+            .finish()
     }
 }
 

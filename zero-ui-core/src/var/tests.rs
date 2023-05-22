@@ -800,3 +800,112 @@ mod flat_map {
         );
     }
 }
+
+mod modify_importance {
+    use crate::{app::App, text::Txt, var::*};
+
+    #[test]
+    pub fn set_same_importance() {
+        let mut app = App::minimal().run_headless(false);
+
+        let test = var(Txt::from_static("v0"));
+        test.set("v1");
+        app.update(false).assert_wait();
+        assert_eq!("v1", test.get());
+        let importance = test.modify_importance();
+
+        test.set("v2");
+        app.update(false).assert_wait();
+        assert_eq!("v2", test.get());
+        assert_eq!(importance, test.modify_importance());
+    }
+
+    #[test]
+    pub fn set_same_importance_in_vars() {
+        let mut app = App::minimal().run_headless(false);
+
+        let test = var(Txt::from_static("v0"));
+        test.set("v1");
+        app.update(false).assert_wait();
+        assert_eq!("v1", test.get());
+        let importance = VARS.current_modify().importance();
+
+        test.set("v2");
+        app.update(false).assert_wait();
+        assert_eq!("v2", test.get());
+        assert_eq!(importance, VARS.current_modify().importance());
+    }
+
+    #[test]
+    pub fn animate_set_diff_importance() {
+        let mut app = App::minimal().run_headless(false);
+
+        let test = var(Txt::from_static("v0"));
+        test.set("v1");
+        app.update(false).assert_wait();
+        assert_eq!("v1", test.get());
+        let importance = test.modify_importance();
+
+        test.step("v2", 0.ms()).perm();
+        app.run_task(async_clmv!(test, {
+            test.wait_animation().await;
+        }));
+        assert_eq!("v2", test.get());
+        assert!(importance <= test.modify_importance());
+        let importance = test.modify_importance();
+
+        test.set("v3");
+        app.update(false).assert_wait();
+        assert_eq!("v3", test.get());
+        assert!(importance <= test.modify_importance());
+    }
+
+    #[test]
+    pub fn animate_set_diff_importance_in_vars() {
+        let mut app = App::minimal().run_headless(false);
+
+        let test = var(Txt::from_static("v0"));
+        test.set("v1");
+        app.update(false).assert_wait();
+        assert_eq!("v1", test.get());
+        let importance = VARS.current_modify().importance();
+
+        test.step("v2", 0.ms()).perm();
+        app.run_task(async_clmv!(test, {
+            test.wait_animation().await;
+        }));
+        assert_eq!("v2", test.get());
+        assert!(importance <= VARS.current_modify().importance());
+        let importance = VARS.current_modify().importance();
+
+        test.set("v3");
+        app.update(false).assert_wait();
+        assert_eq!("v3", test.get());
+        assert!(importance <= VARS.current_modify().importance());
+    }
+
+    #[test]
+    pub fn animate_in_hook() {
+        let mut app = App::minimal().run_headless(false);
+
+        let test = var(Txt::from_static("v0"));
+        let ease = var(0i32);
+        test.hook(Box::new(clmv!(ease, |_| {
+            ease.ease(100, 10.ms(), easing::linear).perm();
+            false // once
+        })))
+        .perm();
+        let importance = VARS.current_modify().importance();
+
+        test.set("v1");
+        app.update(false).assert_wait();
+        assert_eq!("v1", test.get());
+
+        app.run_task(async_clmv!(ease, {
+            ease.wait_animation().await;
+        }));
+        assert_eq!(100, ease.get());
+
+        assert!(importance < VARS.current_modify().importance());
+    }
+}
