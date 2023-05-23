@@ -13,6 +13,8 @@ enum UiTaskState<R> {
     Pending {
         future: Pin<Box<dyn Future<Output = R> + Send>>,
         event_loop_waker: Waker,
+        #[cfg(debug_assertions)]
+        last_update: Option<crate::var::VarUpdateId>,
     },
     Ready(R),
 }
@@ -50,17 +52,42 @@ impl<R> UiTask<R> {
         UiTask(UiTaskState::Pending {
             future: Box::pin(task),
             event_loop_waker: UPDATES.waker(target),
+            #[cfg(debug_assertions)]
+            last_update: None,
         })
     }
 
     /// Polls the future if needed, returns a reference to the result if the task is done.
     ///
     /// This does not poll the future if the task is done.
+    ///
+    /// # App Update
+    ///
+    /// This method must be called only once per app update, if it is called more than once it will cause **execution bugs**,
+    /// futures like [`task::yield_now`] will not work correctly, variables will have old values when a new one
+    /// is expected and any other number of hard to debug issues will crop-up.
+    ///
+    /// In debug builds this is validated and an error message is logged if incorrect updates are detected.
+    ///
+    /// [`task::yield_now`]: crate::task::yield_now
     pub fn update(&mut self) -> Option<&R> {
         if let UiTaskState::Pending {
-            future, event_loop_waker, ..
+            future,
+            event_loop_waker,
+            #[cfg(debug_assertions)]
+            last_update,
+            ..
         } = &mut self.0
         {
+            #[cfg(debug_assertions)]
+            {
+                let update = Some(crate::var::VARS.update_id());
+                if *last_update == update {
+                    tracing::error!("UiTask::update called twice in the same update");
+                }
+                *last_update = update;
+            }
+
             if let Poll::Ready(r) = future.as_mut().poll(&mut std::task::Context::from_waker(event_loop_waker)) {
                 self.0 = UiTaskState::Ready(r);
             }

@@ -1802,11 +1802,18 @@ impl UPDATES {
         u.render_widgets.enter_window(window_id) || u.render_update_widgets.enter_window(window_id)
     }
 
+    /// Schedule the `future` to run in the app context, each future awake work runs as a *preview* update.
+    ///
+    /// Returns a handle that can be dropped to cancel execution.
+    pub fn run<F: std::future::Future<Output = ()> + Send + 'static>(&self, future: F) -> OnUpdateHandle {
+        self.run_hn_once(async_app_hn_once!(|_| future.await))
+    }
+
     /// Schedule an *once* handler to run when these updates are applied.
     ///
     /// The callback is any of the *once* [`AppHandler`], including async handlers. If the handler is async and does not finish in
     /// one call it is scheduled to update in *preview* updates.
-    pub fn run<H: AppHandler<UpdateArgs>>(&self, handler: H) -> OnUpdateHandle {
+    pub fn run_hn_once<H: AppHandler<UpdateArgs>>(&self, handler: H) -> OnUpdateHandle {
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::UPDATE);
         u.send_awake();

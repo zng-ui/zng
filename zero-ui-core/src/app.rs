@@ -995,17 +995,7 @@ impl<E: AppExtension> AppExtended<E> {
     pub fn run(mut self, start: impl Future<Output = ()> + Send + 'static) {
         let app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
 
-        let mut start = UiTask::new(None, start);
-        if start.update().is_none() {
-            // is actually async
-            UPDATES
-                .on_pre_update(app_hn!(|_, handle| {
-                    if start.update().is_some() {
-                        handle.unsubscribe();
-                    }
-                }))
-                .perm();
-        }
+        UPDATES.run(start).perm();
 
         app.run_headed();
     }

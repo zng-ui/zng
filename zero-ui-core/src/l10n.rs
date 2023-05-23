@@ -5,6 +5,7 @@ use crate::{
     app::AppExtension,
     app_local,
     fs_watcher::WATCHER,
+    task,
     text::{ToText, Txt},
     var::{self, *},
 };
@@ -32,7 +33,7 @@ pub struct L10N;
 #[derive(Default)]
 pub struct L10nManager {}
 impl AppExtension for L10nManager {
-    fn update(&mut self) {
+    fn update_preview(&mut self) {
         L10N_SV.write().update();
     }
 }
@@ -128,6 +129,9 @@ impl L10N {
     ///
     /// [`available_langs_status`]: Self::available_langs_status
     pub async fn wait_available_langs(&self) {
+        // wait potential `load_dir` start.
+        task::yield_now().await;
+
         let status = self.available_langs_status();
         while matches!(status.get(), LangResourceStatus::Loading) {
             status.wait_is_new().await;
@@ -219,8 +223,17 @@ impl LangResourceHandle {
 
     /// Wait for the resource to load, if it is available.
     pub async fn wait(&self) {
+        let dir_status = L10N.available_langs_status().last_update();
         L10N.wait_available_langs().await;
-        let status = self.status();
+
+        if dir_status != L10N.available_langs_status().last_update() {
+            // let service start (re)loading if available_langs just changed.
+            task::yield_now().await;
+            // if started loading, wait status update to `Loading`.
+            task::yield_now().await;
+        }
+
+        let status = self.0.data();
         while matches!(status.get(), LangResourceStatus::Loading) {
             status.wait_is_new().await;
         }
@@ -265,6 +278,15 @@ impl fmt::Display for LangResourceStatus {
         }
     }
 }
+impl PartialEq for LangResourceStatus {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Error(l0), Self::Error(r0)) => Arc::ptr_eq(l0, r0),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+impl Eq for LangResourceStatus {}
 
 /// Localized message variable builder.
 ///
@@ -685,8 +707,10 @@ impl L10nService {
 
     fn load_dir(&mut self, dir: PathBuf) {
         let status = self.available_langs_status.clone();
+        status.set_ne(LangResourceStatus::Loading);
+
         let dir_watch = WATCHER.read_dir(dir, true, Arc::default(), move |d| {
-            status.set(LangResourceStatus::Loading);
+            status.set_ne(LangResourceStatus::Loading);
 
             let mut set = LangMap::new();
             let mut dir = None;
@@ -698,6 +722,7 @@ impl L10nService {
                             // get the watched dir
                             if !ty.is_dir() {
                                 tracing::error!("L10N path not a directory");
+                                status.set_ne(LangResourceStatus::NotAvailable);
                                 return None;
                             }
                             dir = Some(f.path().to_owned());
@@ -723,7 +748,7 @@ impl L10nService {
                             }
                         }
 
-                        status.set(LangResourceStatus::Loaded);
+                        status.set_ne(LangResourceStatus::Loaded);
                     }
                     Err(e) => {
                         tracing::error!("L10N dir watcher error, {e}");
@@ -858,18 +883,19 @@ impl LangResourceWatcher {
     fn new_with_handle(lang: Lang, file: PathBuf, handle: crate::crate_util::HandleOwner<ArcVar<LangResourceStatus>>) -> Self {
         let init = ConcurrentFluentBundle::new_concurrent(vec![lang.clone()]);
         let status = handle.data();
+        status.set_ne(LangResourceStatus::Loading);
         let bundle = WATCHER.read(
             file.clone(),
             ArcFluentBundle::new(init),
             clmv!(status, |file| {
-                status.set(LangResourceStatus::Loading);
+                status.set_ne(LangResourceStatus::Loading);
 
                 match file.and_then(|mut f| f.string()) {
                     Ok(flt) => match FluentResource::try_new(flt) {
                         Ok(flt) => {
                             let mut bundle = ConcurrentFluentBundle::new_concurrent(vec![lang.clone()]);
                             bundle.add_resource_overriding(flt);
-                            status.set(LangResourceStatus::Loaded);
+                            status.set_ne(LangResourceStatus::Loaded);
                             // ok
                             return Some(ArcFluentBundle::new(bundle));
                         }
@@ -881,7 +907,7 @@ impl LangResourceWatcher {
                     },
                     Err(e) => {
                         if matches!(e.kind(), io::ErrorKind::NotFound) {
-                            status.set(LangResourceStatus::NotAvailable);
+                            status.set_ne(LangResourceStatus::NotAvailable);
                         } else {
                             tracing::error!("error loading fluent resource, {e}");
                             status.set(LangResourceStatus::Error(Arc::new(e)));
@@ -900,7 +926,7 @@ impl LangResourceWatcher {
     }
 
     fn new_not_available_with_handle(lang: Lang, handle: crate::crate_util::HandleOwner<ArcVar<LangResourceStatus>>) -> Self {
-        handle.data().set(LangResourceStatus::NotAvailable);
+        handle.data().set_ne(LangResourceStatus::NotAvailable);
         Self {
             handle: Some(handle),
             bundle: var({

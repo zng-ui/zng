@@ -789,8 +789,6 @@ impl WINDOWS {
     }
 
     pub(super) fn on_ui_update(update_widgets: &mut WidgetUpdates) {
-        Self::fullfill_requests();
-
         if update_widgets.delivery_list_mut().has_pending_search() {
             update_widgets
                 .delivery_list_mut()
