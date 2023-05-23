@@ -753,17 +753,19 @@ impl L10nService {
         available_langs: &ArcVar<Arc<LangMap<PathBuf>>>,
         lang: Lang,
     ) -> LangResourceHandle {
-        file_watchers
-            .entry(lang)
-            .or_insert_with_key(|lang| {
-                let lang = lang.clone();
-                if let Some(file) = available_langs.get().get_exact(&lang) {
+        match file_watchers.entry(lang) {
+            std::collections::hash_map::Entry::Occupied(e) => e.get().handle(),
+            std::collections::hash_map::Entry::Vacant(e) => {
+                let lang = e.key().clone();
+                let (w, h) = if let Some(file) = available_langs.get().get_exact(&lang) {
                     LangResourceWatcher::new(lang, file.clone())
                 } else {
                     LangResourceWatcher::new_not_available(lang)
-                }
-            })
-            .handle()
+                };
+                e.insert(w);
+                h
+            }
+        }
     }
 
     fn update(&mut self) {
@@ -791,7 +793,7 @@ impl L10nService {
 
         self.messages.retain(|k, request| request.update(&k.0, &k.1, &self.file_watchers));
 
-        self.file_watchers.retain(|_, watcher| watcher.retain());
+        self.file_watchers.retain(|_lang, watcher| watcher.retain());
     }
 }
 app_local! {
@@ -804,14 +806,18 @@ struct LangResourceWatcher {
     file: Option<PathBuf>,
 }
 impl LangResourceWatcher {
-    fn new(lang: Lang, file: PathBuf) -> Self {
+    fn new(lang: Lang, file: PathBuf) -> (Self, LangResourceHandle) {
         let status = var(LangResourceStatus::Loading);
-        Self::new_with_handle(lang, file, crate::crate_util::Handle::new(status).0)
+        let (owner, handle) = crate::crate_util::Handle::new(status);
+        let me = Self::new_with_handle(lang, file, owner);
+        (me, LangResourceHandle(handle))
     }
 
-    fn new_not_available(lang: Lang) -> Self {
+    fn new_not_available(lang: Lang) -> (Self, LangResourceHandle) {
         let status = var(LangResourceStatus::NotAvailable);
-        Self::new_not_available_with_handle(lang, crate::crate_util::Handle::new(status).0)
+        let (owner, handle) = crate::crate_util::Handle::new(status);
+        let me = Self::new_not_available_with_handle(lang, owner);
+        (me, LangResourceHandle(handle))
     }
 
     fn new_with_handle(lang: Lang, file: PathBuf, handle: crate::crate_util::HandleOwner<ArcVar<LangResourceStatus>>) -> Self {
@@ -872,7 +878,8 @@ impl LangResourceWatcher {
     }
 
     fn handle(&self) -> LangResourceHandle {
-        LangResourceHandle(self.handle.as_ref().unwrap().reanimate())
+        let handle = self.handle.as_ref().unwrap().reanimate();
+        LangResourceHandle(handle)
     }
 
     fn retain(&self) -> bool {

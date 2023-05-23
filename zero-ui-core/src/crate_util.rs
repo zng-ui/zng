@@ -832,7 +832,9 @@ impl<D: Send + Sync> HandleOwner<D> {
     ///
     /// Note that handles are permanently dropped when the last handle is dropped.
     pub fn reanimate(&self) -> Handle<D> {
-        self.0 .0.state.store(NONE, Ordering::Relaxed);
+        if self.is_dropped() {
+            self.0 .0.state.store(NONE, Ordering::Relaxed);
+        }
         self.0.clone()
     }
 

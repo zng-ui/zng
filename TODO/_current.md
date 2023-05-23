@@ -24,8 +24,6 @@
 
 # Localization
 
-* "en-US" reloads when lang is changed to another and back, the example has a perm handle on it so why?
-
 * Implement way to await for the dir to load.
 
 * Add variable args in example.
