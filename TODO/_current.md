@@ -1,6 +1,3 @@
-* Test all.
-* Merge.
-
 # TextInput
 
 * Implement cursor position.
