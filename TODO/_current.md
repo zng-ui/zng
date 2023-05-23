@@ -24,8 +24,6 @@
 
 # Localization
 
-* Rapidly changing language can get a lang stuck on `Loading`.
-    - This is causes by the var-modify importance in animation in var-hook issue (see above).
 * "en-US" reloads when lang is changed to another and back, the example has a perm handle on it so why?
 
 * Implement way to await for the dir to load.
