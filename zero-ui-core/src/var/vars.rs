@@ -2,7 +2,7 @@ use std::{mem, time::Duration};
 
 use zero_ui_view_api::AnimationsConfig;
 
-use crate::{app::LoopTimer, context::app_local, crate_util, units::Factor};
+use crate::{app::LoopTimer, context::app_local, context_local, units::Factor};
 
 use super::{
     animation::{Animations, ModifyInfo},
@@ -48,6 +48,10 @@ pub(super) type VarUpdateFn = Box<dyn FnOnce() + Send>;
 
 app_local! {
     pub(crate) static VARS_SV: VarsService = VarsService::new();
+}
+
+context_local! {
+    pub(crate) static VARS_MODIFY_CTX: Option<ModifyInfo> = None;
 }
 
 pub(crate) struct VarsService {
@@ -114,7 +118,10 @@ impl VARS {
     /// [`modify_importance`]: AnyVar::modify_importance
     /// [`AnimationController`]: animation::AnimationController
     pub fn current_modify(&self) -> ModifyInfo {
-        VARS_SV.read().ans.current_modify.clone()
+        match VARS_MODIFY_CTX.get_clone() {
+            Some(current) => current, // override set by modify and animation closures.
+            None => VARS_SV.read().ans.current_modify.clone(),
+        }
     }
 
     /// Adds an animation handler that is called every frame to update captured variables.
@@ -235,12 +242,15 @@ impl VARS {
     /// [`Animation`]: animation::Animation
     /// [`NilAnimationObserver`]: animation::NilAnimationObserver
     pub fn with_animation_controller<R>(&self, controller: impl animation::AnimationController, animate: impl FnOnce() -> R) -> R {
-        Animations::with_animation_controller(controller, animate)
+        animation::VARS_ANIMATION_CTRL_CTX.with_context_value(Box::new(controller), animate)
     }
 
     pub(super) fn schedule_update(&self, update: VarUpdateFn) {
         let vars = VARS_SV.read();
-        let curr_modify = vars.ans.current_modify.clone();
+        let curr_modify = match VARS_MODIFY_CTX.get_clone() {
+            Some(current) => current, // override set by modify and animation closures.
+            None => vars.ans.current_modify.clone(),
+        };
         vars.updates.lock().push((curr_modify, update));
         UPDATES.send_awake();
     }
@@ -282,12 +292,8 @@ impl VARS {
             drop(vars);
 
             for (animation_info, update) in var_updates.drain(..) {
-                // load animation priority that was current when the update was requested.
-                let prev_info = mem::replace(&mut VARS_SV.write().ans.current_modify, animation_info);
-                let _cleanup = crate_util::RunOnDrop::new(|| VARS_SV.write().ans.current_modify = prev_info);
-
-                // apply.
-                update();
+                // load animation priority that was current when the update was requested & apply update.
+                VARS_MODIFY_CTX.with_context_value(Some(animation_info), update);
             }
             spare = Some(var_updates);
 

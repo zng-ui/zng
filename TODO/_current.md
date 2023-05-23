@@ -1,10 +1,5 @@
-* Fix var modify importance.
-    - When an animation is started inside a var hook the pos-var-update cleanup restores the modify 
-      count to before the animation increment.
-    - VARS is unlocked to update variables, so in this small window another thread can set a variable and
-      capture a temporary modify count.
-    - Both issues can be resolved by making the modify count contextual.
-        - Animations increment in the app_local scope, but VARS.current_modify is contextual.
+* Test all.
+* Merge.
 
 # TextInput
 

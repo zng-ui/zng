@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{app::LoopTimer, clmv, crate_util};
+use crate::{app::LoopTimer, clmv, context_local, crate_util};
 
 use super::*;
 
@@ -446,7 +446,6 @@ where
 
 pub(super) struct Animations {
     animations: Mutex<Vec<AnimationFn>>,
-    animation_controller: Arc<dyn AnimationController>,
     animation_imp: usize,
     pub(super) current_modify: ModifyInfo,
     pub(super) animation_start_time: Option<Instant>,
@@ -459,7 +458,6 @@ impl Animations {
     pub(crate) fn new() -> Self {
         Self {
             animations: Mutex::default(),
-            animation_controller: Arc::new(NilAnimationObserver),
             animation_imp: 1,
             current_modify: ModifyInfo {
                 handle: None,
@@ -525,12 +523,6 @@ impl Animations {
         }
     }
 
-    pub(crate) fn with_animation_controller<R>(observer: impl AnimationController, action: impl FnOnce() -> R) -> R {
-        let prev_handler = mem::replace(&mut VARS_SV.write().ans.animation_controller, Arc::new(observer));
-        let _restore = crate_util::RunOnDrop::new(move || VARS_SV.write().ans.animation_controller = prev_handler);
-        action()
-    }
-
     pub(crate) fn animate<A>(mut animation: A) -> AnimationHandle
     where
         A: FnMut(&Animation) + Send + 'static,
@@ -571,79 +563,59 @@ impl Animations {
             t
         };
 
-        let anim_imp;
-        {
-            if vars.ans.current_modify.is_animating() {
-                anim_imp = vars.ans.current_modify.importance;
-            } else {
+        let mut anim_imp = None;
+        if let Some(c) = VARS_MODIFY_CTX.get_clone() {
+            if c.is_animating() {
+                // nested animation uses parent importance.
+                anim_imp = Some(c.importance);
+            }
+        }
+        let anim_imp = match anim_imp {
+            Some(i) => i,
+            None => {
+                // not nested, advance base imp
                 let mut imp = vars.ans.animation_imp.wrapping_add(1);
                 if imp == 0 {
                     imp = 1;
                 }
-                anim_imp = imp;
 
-                let mut next_imp = anim_imp.wrapping_add(1);
+                let mut next_imp = imp.wrapping_add(1);
                 if next_imp == 0 {
                     next_imp = 1;
                 }
 
                 vars.ans.animation_imp = next_imp;
                 vars.ans.current_modify.importance = next_imp;
+
+                imp
             }
-        }
+        };
 
         let (handle_owner, handle) = AnimationHandle::new();
         let weak_handle = handle.downgrade();
 
-        let controller = vars.ans.animation_controller.clone();
+        let controller = VARS_ANIMATION_CTRL_CTX.get();
 
         let anim = Animation::new(vars.ans.animations_enabled.get(), start_time, vars.ans.animation_time_scale.get());
-
-        #[cfg(debug_assertions)]
-        let min_prev_importance = vars.ans.current_modify.importance;
 
         drop(vars);
 
         controller.on_start(&anim);
+        let mut controller = Some(controller);
+        let mut anim_modify_info = Some(Arc::new(Some(ModifyInfo {
+            handle: Some(weak_handle.clone()),
+            importance: anim_imp,
+        })));
 
         let mut vars = VARS_SV.write();
 
         vars.ans.animations.get_mut().push(Box::new(move |info| {
             let _handle_owner = &handle_owner; // capture and own the handle owner.
 
-            let mut vars = VARS_SV.write();
-
-            // load animation context
-            let prev_ctrl = mem::replace(&mut vars.ans.animation_controller, controller.clone());
-            let prev_mod = mem::replace(
-                &mut vars.ans.current_modify,
-                ModifyInfo {
-                    handle: Some(weak_handle.clone()),
-                    importance: anim_imp,
-                },
-            );
-            #[cfg(debug_assertions)]
-            let prev_importance = prev_mod.importance();
-
-            // will restore context after animation and controller updates
-            let _cleanup = crate_util::RunOnDrop::new(|| {
-                let mut vars = VARS_SV.write();
-                vars.ans.animation_controller = prev_ctrl;
-                vars.ans.current_modify = prev_mod;
-            });
-            drop(vars);
-
-            debug_assert!(
-                prev_importance >= min_prev_importance,
-                "current modify importance less than it was when animation was created ({} >= {})",
-                prev_importance,
-                min_prev_importance
-            );
-
             if weak_handle.upgrade().is_some() {
                 if anim.stop_requested() {
                     // drop
-                    controller.on_stop(&anim);
+                    controller.as_ref().unwrap().on_stop(&anim);
                     return None;
                 }
 
@@ -660,7 +632,9 @@ impl Animations {
 
                 anim.reset_state(info.animations_enabled, info.now, info.time_scale);
 
-                animation(&anim);
+                VARS_ANIMATION_CTRL_CTX.with_context(&mut controller, || {
+                    VARS_MODIFY_CTX.with_context(&mut anim_modify_info, || animation(&anim))
+                });
 
                 // retain until next frame
                 //
@@ -669,7 +643,7 @@ impl Animations {
                 Some(info.next_frame)
             } else {
                 // drop
-                controller.on_stop(&anim);
+                controller.as_ref().unwrap().on_stop(&anim);
                 None
             }
         }));
@@ -1110,4 +1084,11 @@ where
     fn on_stop(&self, _: &Animation) {
         (self.0)()
     }
+}
+
+context_local! {
+    pub(crate) static VARS_ANIMATION_CTRL_CTX: Box<dyn AnimationController> = {
+        let r: Box<dyn AnimationController> = Box::new(NilAnimationObserver);
+        r
+    };
 }
