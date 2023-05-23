@@ -110,6 +110,30 @@ impl L10N {
         L10N_SV.read().available_langs.read_only()
     }
 
+    /// Status of the [`available_langs`] list.
+    ///
+    /// This will be `NotAvailable` before the first call to [`load_dir`], then it changes to `Loading`, then
+    /// `Loaded` or `Error`.
+    ///
+    /// Note that this is the status of the resource list, not of each individual resource, you
+    /// can use [`LangResourceHandle::status`] for that.
+    ///
+    /// [`available_langs`]: Self::available_langs
+    /// [`load_dir`]: Self::load_dir
+    pub fn available_langs_status(&self) -> ReadOnlyArcVar<LangResourceStatus> {
+        L10N_SV.read().available_langs_status.read_only()
+    }
+
+    /// Waits until [`available_langs_status`] is not `Loading`.
+    ///
+    /// [`available_langs_status`]: Self::available_langs_status
+    pub async fn wait_available_langs(&self) {
+        let status = self.available_langs_status();
+        while matches!(status.get(), LangResourceStatus::Loading) {
+            status.wait_is_new().await;
+        }
+    }
+
     /// Gets a read-write variable that sets the preferred languages for the app scope.
     /// Lang not available are ignored until they become available, the first language in the
     /// vec is the most preferred.
@@ -195,6 +219,7 @@ impl LangResourceHandle {
 
     /// Wait for the resource to load, if it is available.
     pub async fn wait(&self) {
+        L10N.wait_available_langs().await;
         let status = self.status();
         while matches!(status.get(), LangResourceStatus::Loading) {
             status.wait_is_new().await;
@@ -639,6 +664,7 @@ pub use unic_langid;
 
 struct L10nService {
     available_langs: ArcVar<Arc<LangMap<PathBuf>>>,
+    available_langs_status: ArcVar<LangResourceStatus>,
     app_lang: ArcVar<Langs>,
 
     dir_watcher: Option<ReadOnlyArcVar<Arc<LangMap<PathBuf>>>>,
@@ -649,6 +675,7 @@ impl L10nService {
     fn new() -> Self {
         Self {
             available_langs: var(Arc::new(LangMap::new())),
+            available_langs_status: var(LangResourceStatus::NotAvailable),
             app_lang: var(Langs::default()),
             dir_watcher: None,
             file_watchers: HashMap::new(),
@@ -657,7 +684,10 @@ impl L10nService {
     }
 
     fn load_dir(&mut self, dir: PathBuf) {
-        let dir_watch = WATCHER.read_dir(dir, true, Arc::default(), |d| {
+        let status = self.available_langs_status.clone();
+        let dir_watch = WATCHER.read_dir(dir, true, Arc::default(), move |d| {
+            status.set(LangResourceStatus::Loading);
+
             let mut set = LangMap::new();
             let mut dir = None;
             for entry in d.min_depth(0).max_depth(1) {
@@ -692,8 +722,13 @@ impl L10nService {
                                 }
                             }
                         }
+
+                        status.set(LangResourceStatus::Loaded);
                     }
-                    Err(e) => tracing::error!("L10N dir watcher error, {e}"),
+                    Err(e) => {
+                        tracing::error!("L10N dir watcher error, {e}");
+                        status.set(LangResourceStatus::Error(Arc::new(e)))
+                    }
                 }
             }
             Some(Arc::new(set))
