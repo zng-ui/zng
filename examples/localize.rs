@@ -44,17 +44,55 @@ fn app_main() {
         Window! {
             // l10n: Main window title
             title = l10n!("window.title", "Localize Example (template)");
+            icon = WindowIcon::render(window_icon);
             child = Stack! {
                 children = ui_vec![
                     locale_menu(),
-                    Button! {
-                        align = Align::CENTER;
-                        child = Text!(l10n!("button", "Button")); // l10n: About button
-                    }
+                    examples(),
                 ]
             }
         }
     })
+}
+
+fn examples() -> impl UiNode {
+    let click_count = var(0u32);
+    let click_msg = l10n!("click-count", "Clicked {$n} times", n = click_count.clone());
+    Stack! {
+        align = Align::CENTER;
+        direction = StackDirection::top_to_bottom();
+        spacing = 5;
+        children = ui_vec![
+            Button! {
+                child = Text!(l10n!("button", "Button")); // l10n: button sets "click-count"
+                on_any_click = hn!(|a: &ClickArgs| {
+                    if a.is_primary() {
+                        click_count.set(click_count.get() + 1);
+                    } else if a.is_context() {
+                        click_count.set(0u32);
+                    }
+                });
+            },
+            Text! {
+                txt = click_msg;
+            }
+        ]
+    }
+}
+
+fn window_icon() -> impl UiNode {
+    Text! {
+        size = (36, 36);
+        font_size = 28;
+        font_weight = FontWeight::BOLD;
+        txt_align = Align::CENTER;
+        txt = l10n!("window.icon", "Lo"); // l10n: first syllable of "Localize"
+        drop_shadow = {
+            offset: (2, 2),
+            blur_radius: 5,
+            color: colors::BLACK,
+        };
+    }
 }
 
 fn locale_menu() -> impl UiNode {

@@ -242,6 +242,7 @@ fn icon() -> impl UiNode {
                     size = (36, 36);
                     font_size = 28;
                     font_weight = FontWeight::BOLD;
+                    txt_align = Align::CENTER;
                     txt = "W";
                     drop_shadow = {
                         offset: (2, 2),

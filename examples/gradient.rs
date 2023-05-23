@@ -188,13 +188,13 @@ fn sample_line(children: impl UiNodeList) -> impl UiNode {
 }
 
 fn icon() -> impl UiNode {
-    Container! {
+    Text! {
         size = (36, 36);
         background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
         corner_radius = 6;
         font_size = 28;
         font_weight = FontWeight::BOLD;
-        child_align = Align::CENTER;
-        child = Text!("G");
+        txt_align = Align::CENTER;
+        txt = "G";
     }
 }
