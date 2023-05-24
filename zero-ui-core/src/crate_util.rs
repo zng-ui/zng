@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHasher;
 use std::{
     fmt,
-    hash::{BuildHasher, Hasher},
+    hash::{BuildHasher, Hash, Hasher},
     num::{NonZeroU32, NonZeroU64},
     ops,
     path::{Path, PathBuf},
@@ -487,12 +487,12 @@ impl<'a, K: Sync, V: Send> IntoParallelIterator for &'a mut IdMap<K, V> {
         self.0.par_iter_mut()
     }
 }
-impl<K: Eq + std::hash::Hash, V> FromIterator<(K, V)> for IdMap<K, V> {
+impl<K: Eq + Hash, V> FromIterator<(K, V)> for IdMap<K, V> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         Self(FromIterator::from_iter(iter))
     }
 }
-impl<K: Eq + std::hash::Hash + Send, V: Send> FromParallelIterator<(K, V)> for IdMap<K, V> {
+impl<K: Eq + Hash + Send, V: Send> FromParallelIterator<(K, V)> for IdMap<K, V> {
     fn from_par_iter<I>(par_iter: I) -> Self
     where
         I: IntoParallelIterator<Item = (K, V)>,
@@ -563,12 +563,12 @@ impl<'a, K: Sync> IntoParallelIterator for &'a IdSet<K> {
         self.0.par_iter()
     }
 }
-impl<K: Eq + std::hash::Hash> FromIterator<K> for IdSet<K> {
+impl<K: Eq + Hash> FromIterator<K> for IdSet<K> {
     fn from_iter<T: IntoIterator<Item = K>>(iter: T) -> Self {
         Self(FromIterator::from_iter(iter))
     }
 }
-impl<K: Eq + std::hash::Hash + Send> FromParallelIterator<K> for IdSet<K> {
+impl<K: Eq + Hash + Send> FromParallelIterator<K> for IdSet<K> {
     fn from_par_iter<I>(par_iter: I) -> Self
     where
         I: IntoParallelIterator<Item = K>,
@@ -720,7 +720,7 @@ impl<D: Send + Sync> PartialEq for Handle<D> {
     }
 }
 impl<D: Send + Sync> Eq for Handle<D> {}
-impl<D: Send + Sync> std::hash::Hash for Handle<D> {
+impl<D: Send + Sync> Hash for Handle<D> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let ptr = Arc::as_ptr(&self.0) as usize;
         ptr.hash(state);
@@ -786,7 +786,7 @@ impl<D: Send + Sync> PartialEq for WeakHandle<D> {
     }
 }
 impl<D: Send + Sync> Eq for WeakHandle<D> {}
-impl<D: Send + Sync> std::hash::Hash for WeakHandle<D> {
+impl<D: Send + Sync> Hash for WeakHandle<D> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let ptr = self.0.as_ptr() as usize;
         ptr.hash(state);
@@ -940,7 +940,7 @@ pub struct NameIdMap<I> {
 }
 impl<I> NameIdMap<I>
 where
-    I: Copy + PartialEq + Eq + std::hash::Hash + fmt::Debug,
+    I: Copy + PartialEq + Eq + Hash + fmt::Debug,
 {
     pub const fn new() -> Self {
         NameIdMap {
@@ -1580,5 +1580,55 @@ impl ParallelSegmentOffsets {
         if split.used {
             self.segments.push((split.id, offset));
         }
+    }
+}
+
+/// Borrow tuple keys for maps.
+///
+/// Usage:
+/// ```
+/// map.get(&(a, b) as &dyn KeyPair<A, B>)
+/// ```
+///
+/// Thanks: https://stackoverflow.com/questions/45786717/how-to-implement-hashmap-with-two-keys/45795699#45795699
+pub trait KeyPair<A, B> {
+    fn a(&self) -> &A;
+    fn b(&self) -> &B;
+}
+impl<'a, A, B> std::borrow::Borrow<dyn KeyPair<A, B> + 'a> for (A, B)
+where
+    A: Eq + Hash + 'a,
+    B: Eq + Hash + 'a,
+{
+    fn borrow(&self) -> &(dyn KeyPair<A, B> + 'a) {
+        self
+    }
+}
+impl<A: Hash, B: Hash> Hash for dyn KeyPair<A, B> + '_ {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.a().hash(state);
+        self.b().hash(state);
+    }
+}
+impl<A: Eq, B: Eq> PartialEq for dyn KeyPair<A, B> + '_ {
+    fn eq(&self, other: &Self) -> bool {
+        self.a() == other.a() && self.b() == other.b()
+    }
+}
+impl<A: Eq, B: Eq> Eq for dyn KeyPair<A, B> + '_ {}
+impl<A, B> KeyPair<A, B> for (A, B) {
+    fn a(&self) -> &A {
+        &self.0
+    }
+    fn b(&self) -> &B {
+        &self.1
+    }
+}
+impl<A, B> KeyPair<A, B> for (&A, &B) {
+    fn a(&self) -> &A {
+        self.0
+    }
+    fn b(&self) -> &B {
+        self.1
     }
 }

@@ -27,10 +27,10 @@
 
 * Implement pseudo-localization test mode.
 
-* Review "// l10n-source: test.$lang.flt" comments.
-    - Can remove the comment and add the source to the key, `l10n!("test/key.attribute", "template")`.
-    - Dir watcher searches for key in `{dir}/{lang}/test.flt`.
-        - And still matches `{dir}/{lang}.flt` too, for when the key does not split `'/'`.
+* Refactor scrapper
+    - Remove "// l10n-source: test.$lang.flt".
+    - Impl "file/id.attr" keys.
+   
 * Implement "// l10n-##: Some Title"
     - Included as `##` section comment, see https://projectfluent.org/fluent/guide/comments.html
     - Group keys by the section too.

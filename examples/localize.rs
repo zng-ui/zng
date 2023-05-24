@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -35,7 +36,7 @@ fn app_main() {
         L10N.app_lang().set(lang!("en-US"));
 
         // pre-load "en-US" resources
-        let en_us = L10N.lang_resource(lang!("en-US"));
+        let en_us = L10N.lang_resource(lang!("en-US"), "");
         en_us.wait().await;
         tracing::info!("starting with 'en-US' {}", en_us.status().get());
         // hold "en-US" in memory, even if not requested yet.
@@ -98,7 +99,7 @@ fn window_icon() -> impl UiNode {
 fn locale_menu() -> impl UiNode {
     presenter(
         L10N.available_langs(),
-        wgt_fn!(|langs: Arc<LangMap<PathBuf>>| {
+        wgt_fn!(|langs: Arc<LangMap<HashMap<Txt, PathBuf>>>| {
             tracing::info!("{} langs available", langs.len());
             Stack! {
                 align = Align::TOP_LEFT;

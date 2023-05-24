@@ -7,33 +7,11 @@ use crate::util::Errors;
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as Input);
-    let message_id = input.message_id.value();
     let message = input.message.value();
 
     let mut errors = Errors::default();
 
-    let span = input.message_id.span();
-    if message_id.is_empty() {
-        errors.push("message_id cannot be empty", span);
-    } else if message_id.chars().any(|c| c.is_whitespace()) {
-        errors.push("message_id cannot be contain spaces", span);
-    } else if message_id.starts_with('-') {
-        errors.push("message id cannot start with `-`", span);
-    } else if message_id.starts_with('#') {
-        errors.push("message id cannot start with `#`", span);
-    } else if message_id.starts_with('.') {
-        errors.push("message id cannot start with `.`", span);
-    } else if let Some((id, attribute)) = message_id.split_once('.') {
-        if let Err((_, e)) = fluent_syntax::parser::parse_runtime(format!("{id} = \n .{attribute} = m")) {
-            for e in e {
-                errors.push(e, span);
-            }
-        }
-    } else if let Err((_, e)) = fluent_syntax::parser::parse_runtime(format!("{message_id} = m")) {
-        for e in e {
-            errors.push(e, span);
-        }
-    }
+    let message_params = parse_validate_id(input.message_id, &mut errors);
 
     let fluent_msg = format!("id = {message}");
     let mut variables = HashSet::new();
@@ -102,12 +80,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     if errors.is_empty() {
         let l10n_path = &input.l10n_path;
-        let message_id = &input.message_id;
         let message = &input.message;
         let span = input.message.span();
 
         let mut build = quote_spanned! {span=>
-            #l10n_path::L10N.l10n_message(#message_id, #message)
+            #l10n_path::L10N.l10n_message(#message_params, #message)
         };
         for var in variables {
             let var_ident = ident_spanned!(span=> "{}", var);
@@ -181,4 +158,89 @@ impl parse::Parse for Input {
             message: non_user_braced!(input, "message").parse()?,
         })
     }
+}
+
+// Returns "file", "id", "attribute"
+fn parse_validate_id(message_id: LitStr, errors: &mut Errors) -> TokenStream {
+    let s = message_id.value();
+    let span = message_id.span();
+
+    let mut id = s.as_str();
+    let mut file = "";
+    let mut attribute = "";
+    if let Some((f, rest)) = s.rsplit_once('/') {
+        file = f;
+        id = rest;
+    }
+    if let Some((i, a)) = s.rsplit_once('.') {
+        id = i;
+        attribute = a;
+    }
+
+    // file
+    if !file.is_empty() {
+        let mut first = true;
+        let mut valid = true;
+        let path: &std::path::Path = file.as_ref();
+        for c in path.components() {
+            if !first || !matches!(c, std::path::Component::Normal(_)) {
+                valid = false;
+                break;
+            }
+            first = false;
+        }
+        if !valid {
+            errors.push(format!("invalid file {file:?}, must be a single file name"), span);
+            file = "";
+        }
+    }
+
+    // https://github.com/projectfluent/fluent/blob/master/spec/fluent.ebnf
+    // Identifier ::= [a-zA-Z] [a-zA-Z0-9_-]*
+    fn validate(value: &str) -> bool {
+        let mut first = true;
+        if !value.is_empty() {
+            for c in value.chars() {
+                if !first && (c == '_' || c == '-' || c.is_ascii_digit()) {
+                    continue;
+                }
+                if !c.is_ascii_lowercase() && !c.is_ascii_uppercase() {
+                    return false;
+                }
+
+                first = false;
+            }
+        } else {
+            return false;
+        }
+        true
+    }
+    if !validate(id) {
+        errors.push(
+            format!("invalid id {id:?}, must start with letter, followed by any letters, digits, `_` or `-`"),
+            span,
+        );
+        id = "invalid__";
+    }
+    if !attribute.is_empty() && !validate(attribute) {
+        errors.push(
+            format!("invalid attribute {attribute:?}, must start with letter, followed by any letters, digits, `_` or `-`"),
+            span,
+        );
+        attribute = "";
+    }
+
+    if !attribute.is_empty() {
+        if let Err((_, e)) = fluent_syntax::parser::parse_runtime(format!("{id} = \n .{attribute} = m")) {
+            for e in e {
+                errors.push(e, span);
+            }
+        }
+    } else if let Err((_, e)) = fluent_syntax::parser::parse_runtime(format!("{id} = m")) {
+        for e in e {
+            errors.push(e, span);
+        }
+    }
+
+    quote_spanned!(span=> #file, #id, #attribute)
 }

@@ -4,6 +4,7 @@
 use crate::{
     app::AppExtension,
     app_local,
+    crate_util::KeyPair,
     fs_watcher::WATCHER,
     task,
     text::{ToText, Txt},
@@ -107,7 +108,9 @@ impl L10N {
     }
 
     /// Available localization files.
-    pub fn available_langs(&self) -> ReadOnlyArcVar<Arc<LangMap<PathBuf>>> {
+    ///
+    /// The value maps lang to one or more files, the files can be `{dir}/{lang}.flt` or `{dir}/{lang}/file.flt`.
+    pub fn available_langs(&self) -> ReadOnlyArcVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
         L10N_SV.read().available_langs.read_only()
     }
 
@@ -148,44 +151,80 @@ impl L10N {
         L10N_SV.read().app_lang.clone()
     }
 
-    /// Gets a variable that is a localized message identified by `id` in the localization context
+    /// Gets a variable that is a localized message in the localization context
     /// where the variable is first used. The variable will update when the contextual language changes.
     ///
     /// If the message has variable arguments they must be provided using [`L10nMessageBuilder::arg`], the
     /// returned variable will also update when the arg variables update.
     ///
-    /// The `id` can be compound with an attribute `"msg-id.attribute"`, the `fallback` is used
-    /// when the message is not found in the localization context.
-    ///
     /// Prefer using the [`l10n!`] macro instead of this method, the macro does compile time validation.
-    pub fn message(&self, id: impl Into<Txt>, fallback: impl Into<Txt>) -> L10nMessageBuilder {
-        L10N_SV.write().message(id.into(), fallback.into())
+    ///
+    /// # Params
+    ///
+    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `{dir}/{lang}/{file}.flt`, if
+    ///           empty the file is searched at `{dir}/{lang}.flt`. Only a single file name is valid, no other path components allowed.
+    /// * `id`: Message identifier inside the resource file.
+    /// * `attribute`: Attribute of the identifier, leave empty to not use an attribute.
+    ///
+    /// The `id` and `attribute` is only valid if it starts with letter `[a-zA-Z]`, followed by any letters, digits, _ or - `[a-zA-Z0-9_-]*`.
+    ///
+    /// Panics if any parameter is invalid.
+    pub fn message(
+        &self,
+        file: impl Into<Txt>,
+        id: impl Into<Txt>,
+        attribute: impl Into<Txt>,
+        fallback: impl Into<Txt>,
+    ) -> L10nMessageBuilder {
+        L10nService::message(file.into(), id.into(), attribute.into(), true, fallback.into())
     }
 
     /// Function called by `l10n!`.
     #[doc(hidden)]
-    pub fn l10n_message(&self, id: &'static str, fallback: &'static str) -> L10nMessageBuilder {
-        self.message(Txt::from_static(id), Txt::from_static(fallback))
+    pub fn l10n_message(
+        &self,
+        file: &'static str,
+        id: &'static str,
+        attribute: &'static str,
+        fallback: &'static str,
+    ) -> L10nMessageBuilder {
+        L10nService::message(
+            Txt::from_static(file),
+            Txt::from_static(id),
+            Txt::from_static(attribute),
+            false,
+            Txt::from_static(fallback),
+        )
     }
 
     /// Gets a formatted message var localized to a given `lang`.
     ///
     /// The returned variable is read-only and will update when the backing resource changes and when the `args` variables change.
     ///
-    /// The `lang` resource is lazy loaded and stays in memory only when there are variables alive linked to it, each lang
+    /// The lang file resource is lazy loaded and stays in memory only when there are variables alive linked to it, each lang
     /// in the list is matched to available resources if no match is available the `fallback` message is used. The variable
     /// may temporary contain the `fallback` as lang resources are loaded asynchrony.
     pub fn localized_messsage(
         &self,
         lang: impl Into<Langs>,
+        file: impl Into<Txt>,
         id: impl Into<Txt>,
+        attribute: impl Into<Txt>,
         fallback: impl Into<Txt>,
         args: impl Into<Vec<(Txt, BoxedVar<L10nArgument>)>>,
     ) -> ReadOnlyArcVar<Txt> {
-        L10N_SV.write().message_text(lang.into(), id.into(), fallback.into(), args.into())
+        L10N_SV.write().message_text(
+            lang.into(),
+            file.into(),
+            id.into(),
+            attribute.into(),
+            true,
+            fallback.into(),
+            args.into(),
+        )
     }
 
-    /// Gets a handle to the `lang` resource.
+    /// Gets a handle to the lang file resource.
     ///
     /// The resource will be loaded and stay in memory until all clones of the handle are dropped, this
     /// can be used to pre-load resources so that localized messages find it immediately avoiding flashing
@@ -193,8 +232,16 @@ impl L10N {
     ///
     /// If the resource directory or file changes it is auto-reloaded, just like when a message variable
     /// held on the resource does.
-    pub fn lang_resource(&self, lang: impl Into<Lang>) -> LangResourceHandle {
-        L10N_SV.write().lang_resource(lang.into())
+    ///
+    /// # Params
+    ///
+    /// * `lang`: Language identifier.
+    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `{dir}/{lang}/{file}.flt`, if
+    ///           empty the file is searched at `{dir}/{lang}.flt`. Only a single file name is valid, no other path components allowed.
+    ///
+    /// Panics if the file is invalid.
+    pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<Txt>) -> LangResourceHandle {
+        L10N_SV.write().lang_resource(lang.into(), file.into(), true)
     }
 }
 
@@ -292,7 +339,9 @@ impl Eq for LangResourceStatus {}
 ///
 /// See [`L10N.message`] for more details.
 pub struct L10nMessageBuilder {
+    file: Txt,
     id: Txt,
+    attribute: Txt,
     fallback: Txt,
     args: Vec<(Txt, BoxedVar<L10nArgument>)>,
 }
@@ -309,8 +358,24 @@ impl L10nMessageBuilder {
 
     /// Build the variable.
     pub fn build(self) -> impl Var<Txt> {
-        let Self { id, fallback, args } = self;
-        LANG_VAR.flat_map(move |l| L10N.localized_messsage(l.clone(), id.clone(), fallback.clone(), args.clone()))
+        let Self {
+            file,
+            id,
+            attribute,
+            fallback,
+            args,
+        } = self;
+        LANG_VAR.flat_map(move |l| {
+            L10N_SV.write().message_text(
+                l.clone(),
+                file.clone(),
+                id.clone(),
+                attribute.clone(),
+                false,
+                fallback.clone(),
+                args.clone(),
+            )
+        })
     }
 }
 
@@ -540,21 +605,31 @@ impl<V> LangMap<V> {
     }
 
     /// Returns the best match for `lang`.
-    pub fn get_mut(&mut self, lang: &Lang) -> Option<&V> {
+    pub fn get_mut(&mut self, lang: &Lang) -> Option<&mut V> {
         if let Some(i) = self.best_i(lang) {
-            Some(&self.inner[i].1)
+            Some(&mut self.inner[i].1)
         } else {
             None
         }
     }
 
     /// Returns the exact match for `lang`.
-    pub fn get_exact_mut(&mut self, lang: &Lang) -> Option<&V> {
+    pub fn get_exact_mut(&mut self, lang: &Lang) -> Option<&mut V> {
         if let Some(i) = self.exact_i(lang) {
-            Some(&self.inner[i].1)
+            Some(&mut self.inner[i].1)
         } else {
             None
         }
+    }
+
+    /// Returns the current value or insert `new` and return a reference to it.
+    pub fn get_exact_or_insert(&mut self, lang: Lang, new: impl FnOnce() -> V) -> &mut V {
+        if let Some(i) = self.exact_i(&lang) {
+            return &mut self.inner[i].1;
+        }
+        let i = self.inner.len();
+        self.inner.push((lang, new()));
+        &mut self.inner[i].1
     }
 
     /// Insert the value with the exact match of `lang`.
@@ -591,6 +666,11 @@ impl<V> LangMap<V> {
             !rmv
         });
         count
+    }
+
+    /// Remove the last inserted lang.
+    pub fn pop(&mut self) -> Option<(Lang, V)> {
+        self.inner.pop()
     }
 
     /// Returns if the map is empty.
@@ -685,13 +765,13 @@ pub use zero_ui_proc_macros::lang as __lang;
 pub use unic_langid;
 
 struct L10nService {
-    available_langs: ArcVar<Arc<LangMap<PathBuf>>>,
+    available_langs: ArcVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>,
     available_langs_status: ArcVar<LangResourceStatus>,
     app_lang: ArcVar<Langs>,
 
-    dir_watcher: Option<ReadOnlyArcVar<Arc<LangMap<PathBuf>>>>,
-    file_watchers: HashMap<Lang, LangResourceWatcher>,
-    messages: HashMap<(Langs, Txt), MessageRequest>,
+    dir_watcher: Option<ReadOnlyArcVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>>,
+    file_watchers: HashMap<(Lang, Txt), LangResourceWatcher>,
+    messages: HashMap<(Langs, Txt, Txt, Txt), MessageRequest>,
 }
 impl L10nService {
     fn new() -> Self {
@@ -712,7 +792,7 @@ impl L10nService {
         let dir_watch = WATCHER.read_dir(dir, true, Arc::default(), move |d| {
             status.set_ne(LangResourceStatus::Loading);
 
-            let mut set = LangMap::new();
+            let mut set: LangMap<HashMap<Txt, PathBuf>> = LangMap::new();
             let mut dir = None;
             for entry in d.min_depth(0).max_depth(1) {
                 match entry {
@@ -727,22 +807,59 @@ impl L10nService {
                             }
                             dir = Some(f.path().to_owned());
                         }
-                        // search $.flt files in the dir
+
+                        const EXT: unicase::Ascii<&'static str> = unicase::Ascii::new("ftl");
+
                         if ty.is_file() {
+                            // match dir/lang.flt files
                             if let Some(name_and_ext) = f.file_name().to_str() {
                                 if let Some((name, ext)) = name_and_ext.rsplit_once('.') {
-                                    const EXT: unicase::Ascii<&'static str> = unicase::Ascii::new("ftl");
                                     if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
                                         // found .flt file.
                                         match Lang::from_str(name) {
                                             Ok(lang) => {
                                                 // and it is named correctly.
-                                                set.insert(lang, dir.as_ref().unwrap().join(name_and_ext));
+                                                set.get_exact_or_insert(lang, Default::default)
+                                                    .insert(Txt::empty(), dir.as_ref().unwrap().join(name_and_ext));
                                             }
                                             Err(e) => {
-                                                tracing::debug!("`{name}.{ext}` is not a valid lang or 'template', {e}");
+                                                tracing::debug!("`{name}.{ext}` is not a valid lang or 'template' file, {e}");
                                             }
                                         }
+                                    }
+                                }
+                            }
+                        } else if f.depth() == 1 && ty.is_dir() {
+                            // match dir/lang/file.flt files
+                            if let Some(name) = f.file_name().to_str() {
+                                match Lang::from_str(name) {
+                                    Ok(lang) => {
+                                        let inner = set.get_exact_or_insert(lang, Default::default);
+                                        for entry in std::fs::read_dir(f.path()).into_iter().flatten() {
+                                            match entry {
+                                                Ok(f) => {
+                                                    if let Ok(name_and_ext) = f.file_name().into_string() {
+                                                        if let Some((name, ext)) = name_and_ext.rsplit_once('.') {
+                                                            if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
+                                                                // found .flt file.
+                                                                inner.insert(name.to_text(), f.path());
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    tracing::error!("L10N dir watcher error, {e}");
+                                                    // !!: TODO, review this
+                                                    status.set(LangResourceStatus::Error(Arc::new(e)))
+                                                }
+                                            }
+                                        }
+                                        if inner.is_empty() {
+                                            set.pop();
+                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::debug!("`{name}` is not a valid lang dir, {e}");
                                     }
                                 }
                             }
@@ -752,6 +869,7 @@ impl L10nService {
                     }
                     Err(e) => {
                         tracing::error!("L10N dir watcher error, {e}");
+                        // !!: TODO, review this
                         status.set(LangResourceStatus::Error(Arc::new(e)))
                     }
                 }
@@ -763,64 +881,141 @@ impl L10nService {
         self.dir_watcher = Some(dir_watch);
     }
 
-    fn message(&mut self, id: Txt, fallback: Txt) -> L10nMessageBuilder {
+    fn message(file: Txt, id: Txt, attribute: Txt, validate: bool, fallback: Txt) -> L10nMessageBuilder {
+        if validate {
+            Self::validate_key(&file, &id, &attribute);
+        }
+
         L10nMessageBuilder {
+            file,
             id,
+            attribute,
             fallback,
             args: vec![],
         }
     }
 
-    fn message_text(&mut self, lang: Langs, id: Txt, fallback: Txt, args: Vec<(Txt, BoxedVar<L10nArgument>)>) -> ReadOnlyArcVar<Txt> {
-        match self.messages.entry((lang, id)) {
+    fn validate_key(file: &str, id: &str, attribute: &str) {
+        // file
+        if !file.is_empty() {
+            let mut first = true;
+            let mut valid = true;
+            let file: &std::path::Path = file.as_ref();
+            for c in file.components() {
+                if !first || !matches!(c, std::path::Component::Normal(_)) {
+                    valid = false;
+                    break;
+                }
+                first = false;
+            }
+            if !valid {
+                panic!("invalid resource file name, must be a single file name");
+            }
+        }
+
+        // https://github.com/projectfluent/fluent/blob/master/spec/fluent.ebnf
+        // Identifier ::= [a-zA-Z] [a-zA-Z0-9_-]*
+        fn validate(name: &str, value: &str) {
+            let mut valid = true;
+            let mut first = true;
+            if !value.is_empty() {
+                for c in value.chars() {
+                    if !first && (c == '_' || c == '-' || c.is_ascii_digit()) {
+                        continue;
+                    }
+                    if !c.is_ascii_lowercase() && !c.is_ascii_uppercase() {
+                        valid = false;
+                        break;
+                    }
+
+                    first = false;
+                }
+            } else {
+                valid = false;
+            }
+            if !valid {
+                panic!("invalid resource {name}, must start with letter, followed by any letters, digits, `_` or `-`");
+            }
+        }
+        validate("id", id);
+        if !attribute.is_empty() {
+            validate("attribute", attribute)
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn message_text(
+        &mut self,
+        lang: Langs,
+        file: Txt,
+        id: Txt,
+        attribute: Txt,
+        validate: bool,
+        fallback: Txt,
+        args: Vec<(Txt, BoxedVar<L10nArgument>)>,
+    ) -> ReadOnlyArcVar<Txt> {
+        if validate {
+            Self::validate_key(&file, &id, &attribute);
+        }
+
+        match self.messages.entry((lang, file, id, attribute)) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
                 if let Some(txt) = e.get().text.upgrade() {
                     // already requested
                     txt.read_only()
                 } else {
                     // already requested and dropped, reload.
-                    let handles = e
-                        .key()
+                    let (langs, file, id, attr) = e.key();
+                    let handles = langs
                         .0
                         .iter()
-                        .map(|l| Self::lang_resource_impl(&mut self.file_watchers, &self.available_langs, l.clone()))
+                        .map(|l| Self::lang_resource_impl(&mut self.file_watchers, &self.available_langs, l.clone(), file.clone()))
                         .collect();
-                    let (r, txt) = MessageRequest::new(fallback, args, handles, &e.key().0, &e.key().1, &self.file_watchers);
+
+                    let (r, txt) = MessageRequest::new(fallback, args, handles, langs, file, id, attr, &self.file_watchers);
                     *e.get_mut() = r;
                     txt
                 }
             }
             std::collections::hash_map::Entry::Vacant(e) => {
                 // not request, load.
-                let handles = e
-                    .key()
+                let (langs, file, id, attr) = e.key();
+                let handles = langs
                     .0
                     .iter()
-                    .map(|l| Self::lang_resource_impl(&mut self.file_watchers, &self.available_langs, l.clone()))
+                    .map(|l| Self::lang_resource_impl(&mut self.file_watchers, &self.available_langs, l.clone(), file.clone()))
                     .collect();
-                let (r, txt) = MessageRequest::new(fallback, args, handles, &e.key().0, &e.key().1, &self.file_watchers);
+                let (r, txt) = MessageRequest::new(fallback, args, handles, langs, file, id, attr, &self.file_watchers);
                 e.insert(r);
                 txt
             }
         }
     }
 
-    fn lang_resource(&mut self, lang: Lang) -> LangResourceHandle {
-        Self::lang_resource_impl(&mut self.file_watchers, &self.available_langs, lang)
+    fn lang_resource(&mut self, lang: Lang, file: Txt, validate: bool) -> LangResourceHandle {
+        if validate {
+            Self::validate_key(&file, "i", "")
+        }
+        Self::lang_resource_impl(&mut self.file_watchers, &self.available_langs, lang, file)
     }
     fn lang_resource_impl(
-        file_watchers: &mut HashMap<Lang, LangResourceWatcher>,
-        available_langs: &ArcVar<Arc<LangMap<PathBuf>>>,
+        file_watchers: &mut HashMap<(Lang, Txt), LangResourceWatcher>,
+        available_langs: &ArcVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>,
         lang: Lang,
+        file: Txt,
     ) -> LangResourceHandle {
-        match file_watchers.entry(lang) {
+        match file_watchers.entry((lang, file)) {
             std::collections::hash_map::Entry::Occupied(e) => e.get().handle(),
             std::collections::hash_map::Entry::Vacant(e) => {
-                let lang = e.key().clone();
-                let (w, h) = if let Some(file) = available_langs.get().get_exact(&lang) {
-                    LangResourceWatcher::new(lang, file.clone())
+                let (lang, file) = e.key();
+                let (w, h) = if let Some(files) = available_langs.get().get_exact(lang) {
+                    if let Some(file) = files.get(file) {
+                        LangResourceWatcher::new(lang.clone(), file.clone())
+                    } else {
+                        LangResourceWatcher::new_not_available(lang.clone())
+                    }
                 } else {
-                    LangResourceWatcher::new_not_available(lang)
+                    LangResourceWatcher::new_not_available(lang.clone())
                 };
                 e.insert(w);
                 h
@@ -832,8 +1027,8 @@ impl L10nService {
         if let Some(watcher) = &self.dir_watcher {
             if let Some(available_langs) = watcher.get_new() {
                 // renew watchers, keeps the same handlers
-                for (lang, watcher) in self.file_watchers.iter_mut() {
-                    let file = available_langs.get_exact(lang);
+                for ((lang, file), watcher) in self.file_watchers.iter_mut() {
+                    let file = available_langs.get_exact(lang).and_then(|f| f.get(file));
                     if watcher.file.as_ref() == file {
                         continue;
                     }
@@ -851,7 +1046,8 @@ impl L10nService {
             return;
         }
 
-        self.messages.retain(|k, request| request.update(&k.0, &k.1, &self.file_watchers));
+        self.messages
+            .retain(|(langs, file, id, attr), request| request.update(langs, file, id, attr, &self.file_watchers));
 
         self.file_watchers.retain(|_lang, watcher| watcher.retain());
     }
@@ -1002,23 +1198,24 @@ struct MessageRequest {
     current_resource: usize,
 }
 impl MessageRequest {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         fallback: Txt,
         args: Vec<(Txt, BoxedVar<L10nArgument>)>,
         resource_handles: Box<[LangResourceHandle]>,
 
         langs: &Langs,
-        key: &Txt,
-        resources: &HashMap<Lang, LangResourceWatcher>,
+        file: &Txt,
+        id: &Txt,
+        attribute: &Txt,
+        resources: &HashMap<(Lang, Txt), LangResourceWatcher>,
     ) -> (Self, ReadOnlyArcVar<Txt>) {
         let mut text = None;
         let mut current_resource = resource_handles.len();
 
-        let (id, attribute) = if let Some(r) = key.split_once('.') { r } else { (key.as_str(), "") };
-
         for (i, h) in resource_handles.iter().enumerate() {
             if matches!(h.status().get(), LangResourceStatus::Loaded) {
-                let bundle = &resources.get(&langs[i]).unwrap().bundle;
+                let bundle = &resources.get(&(&langs[i], file) as &dyn KeyPair<_, _>).unwrap().bundle;
                 if bundle.with(|b| has_message(b, id, attribute)) {
                     // found something already loaded
 
@@ -1032,7 +1229,7 @@ impl MessageRequest {
 
         let text = text.unwrap_or_else(|| {
             // no available resource yet
-            var(format_fallback(key, &fallback, &args))
+            var(format_fallback(file, id, attribute, &fallback, &args))
         });
 
         let r = Self {
@@ -1046,13 +1243,18 @@ impl MessageRequest {
         (r, text.read_only())
     }
 
-    fn update(&mut self, langs: &Langs, key: &Txt, resources: &HashMap<Lang, LangResourceWatcher>) -> bool {
+    fn update(
+        &mut self,
+        langs: &Langs,
+        file: &Txt,
+        id: &Txt,
+        attribute: &Txt,
+        resources: &HashMap<(Lang, Txt), LangResourceWatcher>,
+    ) -> bool {
         if let Some(txt) = self.text.upgrade() {
-            let (id, attribute) = if let Some(r) = key.split_once('.') { r } else { (key.as_str(), "") };
-
             for (i, h) in self.resource_handles.iter().enumerate() {
                 if matches!(h.status().get(), LangResourceStatus::Loaded) {
-                    let bundle = &resources.get(&langs[i]).unwrap().bundle;
+                    let bundle = &resources.get(&(&langs[i], file) as &dyn KeyPair<_, _>).unwrap().bundle;
                     if bundle.with(|b| has_message(b, id, attribute)) {
                         //  found best
                         if self.current_resource != i || bundle.is_new() || self.args.iter().any(|a| a.1.is_new()) {
@@ -1070,7 +1272,7 @@ impl MessageRequest {
             if self.current_resource != self.resource_handles.len() || self.args.iter().any(|a| a.1.is_new()) {
                 self.current_resource = self.resource_handles.len();
 
-                txt.set_ne(format_fallback(key, &self.fallback, &self.args));
+                txt.set_ne(format_fallback(file, id, attribute, &self.fallback, &self.args));
             }
 
             true
@@ -1080,7 +1282,7 @@ impl MessageRequest {
     }
 }
 
-fn format_fallback(key: &str, fallback: &Txt, args: &[(Txt, BoxedVar<L10nArgument>)]) -> Txt {
+fn format_fallback(file: &str, id: &str, attribute: &str, fallback: &Txt, args: &[(Txt, BoxedVar<L10nArgument>)]) -> Txt {
     let mut fallback_pattern = None;
 
     let entry = format!("k={fallback}");
@@ -1093,6 +1295,7 @@ fn format_fallback(key: &str, fallback: &Txt, args: &[(Txt, BoxedVar<L10nArgumen
             }
         }
         Err(e) => {
+            let key = DisplayKey { file, id, attribute };
             tracing::error!("invalid fallback for `{key}`\n{}", FluentParserErrors(e.1));
         }
     }
@@ -1119,6 +1322,7 @@ fn format_fallback(key: &str, fallback: &Txt, args: &[(Txt, BoxedVar<L10nArgumen
     let txt = blank.format_pattern(&fallback, args.as_ref(), &mut errors);
 
     if !errors.is_empty() {
+        let key = DisplayKey { file, id, attribute };
         tracing::error!("error formatting fallback `{key}`\n{}", FluentErrors(errors));
     }
 
@@ -1194,5 +1398,23 @@ fn has_message(bundle: &ArcFluentBundle, id: &str, attribute: &str) -> bool {
         msg.get_attribute(attribute).is_some()
     } else {
         false
+    }
+}
+
+struct DisplayKey<'a> {
+    file: &'a str,
+    id: &'a str,
+    attribute: &'a str,
+}
+impl<'a> fmt::Display for DisplayKey<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if !self.file.is_empty() {
+            write!(f, "{}/", self.file)?
+        }
+        write!(f, "{}", self.id)?;
+        if !self.attribute.is_empty() {
+            write!(f, ".{}", self.attribute)?;
+        }
+        Ok(())
     }
 }
