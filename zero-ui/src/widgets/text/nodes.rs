@@ -340,7 +340,14 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             args.propagation().stop();
 
                             if args.state == KeyState::Pressed {
-                                // !!: TODO
+                                let t = resolved.as_mut().unwrap();
+                                if let Some(i) = &mut t.caret_index {
+                                    let prev = t.text.prev_insert_index(*i);
+                                    if *i != prev {
+                                        *i = prev;
+                                        WIDGET.layout(); // update offset
+                                    }
+                                }
                             }
                         }
                         _ => {}

@@ -890,8 +890,14 @@ impl ShapedText {
             for seg in line.segs() {
                 let txt_range = seg.text_range();
                 if txt_range.contains(index) {
-                    let p = seg.rect().origin;
-                    // !!: TODO, get glyph offset
+                    let mut p = seg.rect().origin;
+                    let mut x = p.x.0 as f32;
+                    for (glyph, advance) in seg.glyphs_with_x_advance().flat_map(|(_, i)| i) {
+                        x += advance;
+                        // !!: TODO, get glyph offset
+                    }
+                    p.x.0 = x as i32;
+
                     return p;
                 }
             }
