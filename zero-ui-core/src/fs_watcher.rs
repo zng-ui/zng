@@ -250,7 +250,18 @@ pub struct WatchFile(fs::File);
 impl WatchFile {
     /// Open read the file.
     pub fn open(file: impl AsRef<Path>) -> io::Result<Self> {
-        let file = fs::File::open(file)?;
+        Self::try_open_non_empty(file.as_ref(), true)
+    }
+    fn try_open_non_empty(path: &Path, retry: bool) -> io::Result<Self> {
+        let file = fs::File::open(path)?;
+
+        if retry && file.metadata()?.len() == 0 {
+            // some apps create an empty file unlocked, then write.
+            let _ = file;
+            std::thread::sleep(5.ms());
+            return Self::try_open_non_empty(path, false);
+        }
+
         file.lock_shared()?;
         Ok(Self(file))
     }
@@ -589,6 +600,18 @@ impl FsChangesArgs {
     /// Iterate over all file watcher errors.
     pub fn errors(&self) -> impl Iterator<Item = &notify::Error> + '_ {
         self.changes.iter().filter_map(|r| r.as_ref().err())
+    }
+
+    /// Returns `true` is some events where lost.
+    ///
+    /// This indicates either a lapse in the events or a change in the filesystem such that events
+    /// received so far can no longer be relied on to represent the state of the filesystem now.
+    ///
+    /// An application that simply reacts to file changes may not care about this. An application
+    /// that keeps an in-memory representation of the filesystem will need to care, and will need
+    /// to refresh that representation directly from the filesystem.
+    pub fn rescan(&self) -> bool {
+        self.events().any(|e| e.need_rescan())
     }
 
     /// Iterate over all change events that affects paths selected by the `glob` pattern.

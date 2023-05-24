@@ -30,6 +30,7 @@ fn app_main() {
 
         Window! {
             title = if std::env::var("MOVE-TO").is_err() { "Config Example" } else { "Config Example - Other Process" };
+            always_on_top = true;
             background = Text! {
                 txt = status;
                 margin = 10;

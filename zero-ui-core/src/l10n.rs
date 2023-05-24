@@ -281,7 +281,7 @@ impl fmt::Display for LangResourceStatus {
 impl PartialEq for LangResourceStatus {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Error(l0), Self::Error(r0)) => Arc::ptr_eq(l0, r0),
+            (Self::Error(_), Self::Error(_)) => false,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
