@@ -21,18 +21,31 @@
 
 * Implement clipboard commands.
     - Already declared in the main crate (move to core).
+* Implement image copy&paste in image example.
 
 # Localization
 
 * Implement pseudo-localization test mode.
-    - Extendable source, instead of `load_dir`.
-* A trait that provides the available locales and locales on demand.
-    - Implement in-memory source.
-* Locale filter.
-    - `lang!("template") is valid, we maybe want to filter these?
-    - Or at least document this.
 
-* Test "// l10n-source: test.$lang.flt" comments.
+* Review "// l10n-source: test.$lang.flt" comments.
+    - Can remove the comment and add the source to the key, `l10n!("test/key.attribute", "template")`.
+    - Dir watcher searches for key in `{dir}/{lang}/test.flt`.
+        - And still matches `{dir}/{lang}.flt` too, for when the key does not split `'/'`.
+* Implement "// l10n-##: Some Title"
+    - Included as `##` section comment, see https://projectfluent.org/fluent/guide/comments.html
+    - Group keys by the section too.
+    - And for file "// la10n-{file}-##: Some Title".
+    - Same support for `###` comments, these are placed at the top of the file.
+
+
+* A trait that provides the available locales and locales on demand.
+    - Replace `L10N.load_dir` with this trait.
+    - Implement in-memory source.
+    - Need to surface the resource file type too.
+        - Needs to be some kind of variable.
+    - Maybe have the trait replace the entire service.
+        - API is directly `get(&mut self, file: &str, key: &str, attribute: &str) -> Txt`
+
 
 * Review default fluent functions.
     - Some are missing?
