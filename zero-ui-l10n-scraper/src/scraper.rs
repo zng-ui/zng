@@ -1,6 +1,6 @@
 //! Localization text scraping.
 
-use std::{borrow::Cow, io, mem, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, fmt::Debug, io, mem, path::PathBuf, sync::Arc};
 
 use rayon::prelude::*;
 
@@ -344,28 +344,6 @@ pub struct FluentEntry {
     /// The resource template/fallback.
     pub message: String,
 }
-impl std::cmp::PartialOrd for FluentEntry {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl std::cmp::Ord for FluentEntry {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match self.file.cmp(&other.file) {
-            core::cmp::Ordering::Equal => {}
-            ord => return ord,
-        }
-        match self.section.cmp(&other.section) {
-            core::cmp::Ordering::Equal => {}
-            ord => return ord,
-        }
-        match self.id.cmp(&other.id) {
-            core::cmp::Ordering::Equal => {}
-            ord => return ord,
-        }
-        self.attribute.cmp(&other.attribute)
-    }
-}
 
 /// Represents all calls to `l10n!` or similar macro scraped from selected Rust code files.
 ///
@@ -392,20 +370,67 @@ impl FluentTemplate {
         self.entries.extend(other.entries);
     }
 
+    /// Sort by file, section, id and attribute. Attributes on different sections are moved to the id
+    /// or first attribute section.
+    pub fn sort(&mut self) {
+        if self.entries.is_empty() {
+            return;
+        }
+
+        // sort to correct attributes in different sections of the same file
+        self.entries.sort_unstable_by(|a, b| {
+            match a.file.cmp(&b.file) {
+                core::cmp::Ordering::Equal => {}
+                ord => return ord,
+            }
+            match a.id.cmp(&b.id) {
+                core::cmp::Ordering::Equal => {}
+                ord => return ord,
+            }
+            a.attribute.cmp(&b.attribute)
+        });
+
+        let mut file = None;
+        let mut id = None;
+        let mut id_section = None;
+
+        for entry in &mut self.entries {
+            let f = Some(&entry.file);
+            let i = Some(&entry.id);
+
+            if (&file, &id) != (&f, &i) {
+                file = f;
+                id = i;
+                id_section = Some(&entry.section);
+            } else {
+                entry.section = Arc::clone(id_section.as_ref().unwrap());
+            }
+        }
+
+        // final sort
+        self.entries.sort_by(|a, b| {
+            match a.file.cmp(&b.file) {
+                core::cmp::Ordering::Equal => {}
+                ord => return ord,
+            }
+            a.section.cmp(&b.section)
+        });
+    }
+
     /// Write all entries to new FLT files.
     ///
-    /// Entries are separated by file and grouped by section, the notes are copied at the beginning of each file, the section, id and
-    /// attribute lists are sorted.
+    /// Template must be sorted before this call.
+    ///
+    /// Entries are separated by file and grouped by section, the notes are
+    /// copied at the beginning of each file, the section, id and attribute lists are sorted.
     ///
     /// The `select_l10n_file` closure is called once for each different file, it must return
     /// a writer that will be the output file.
     pub fn write(
-        &mut self,
+        &self,
         transform_msg: fn(&str) -> Cow<str>,
         select_l10n_file: impl Fn(&str) -> io::Result<Box<dyn io::Write + Send>> + Send + Sync,
     ) -> io::Result<()> {
-        self.entries.sort();
-
         let mut file = None;
         let mut output = None;
         let mut section = "";
@@ -431,7 +456,7 @@ impl FluentTemplate {
 
             let output = output.as_mut().unwrap();
 
-            if !id.is_empty() {
+            if id != entry.id && !id.is_empty() {
                 output.write_all("\n".as_bytes())?;
             }
 

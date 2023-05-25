@@ -45,16 +45,31 @@ fn app_main() {
             child = Stack! {
                 children = ui_vec![
                     locale_menu(),
-                    examples(),
+                    window_content(),
                 ]
             }
         }
     })
 }
 
+fn window_icon() -> impl UiNode {
+    Text! {
+        size = (36, 36);
+        font_size = 28;
+        font_weight = FontWeight::BOLD;
+        txt_align = Align::CENTER;
+        txt = l10n!("window.icon", "Lo"); // l10n-# first syllable of "Localize"
+        drop_shadow = {
+            offset: (2, 2),
+            blur_radius: 5,
+            color: colors::BLACK,
+        };
+    }
+}
+
 // l10n-## Example Section
 
-fn examples() -> impl UiNode {
+fn window_content() -> impl UiNode {
     let click_count = var(0u32);
     let click_msg = l10n!("msg/click-count", "Clicked {$n} times", n = click_count.clone());
     Stack! {
@@ -76,21 +91,6 @@ fn examples() -> impl UiNode {
                 txt = click_msg;
             }
         ]
-    }
-}
-
-fn window_icon() -> impl UiNode {
-    Text! {
-        size = (36, 36);
-        font_size = 28;
-        font_weight = FontWeight::BOLD;
-        txt_align = Align::CENTER;
-        txt = l10n!("window.icon", "Lo"); // l10n-# first syllable of "Localize"
-        drop_shadow = {
-            offset: (2, 2),
-            blur_radius: 5,
-            color: colors::BLACK,
-        };
     }
 }
 

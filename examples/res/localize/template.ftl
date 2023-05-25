@@ -3,17 +3,15 @@
 ### 
 ### Another standalone comment, also added to the top of all template files.
 
+# icon:
+#     first syllable of "Localize"
 # title:
 #     Main window title
 window =
+    .icon = Lo
     .title = Localize Example (template)
 
 ## Example Section
 
 # button sets "click-count"
 button = Button
-
-# icon:
-#     first syllable of "Localize"
-window =
-    .icon = Lo

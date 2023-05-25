@@ -82,6 +82,8 @@ fn main() {
                 })
             }
 
+            template.sort();
+
             for task in tasks {
                 let r = template.write(task.transform, |file| {
                     fn box_dyn(file: std::fs::File) -> Box<dyn Write + Send> {

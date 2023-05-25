@@ -25,8 +25,7 @@
 
 # Localization
 
-* Implement pseudo-localization.
-    - Title and icon does not change for pseudo.
+* Icon does not update.
 
 * Implement system lang.
     - Var in `L10N`.
