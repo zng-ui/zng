@@ -25,8 +25,6 @@
 
 # Localization
 
-* Icon does not update.
-
 * Implement system lang.
     - Var in `L10N`.
     - Defined by view-process.

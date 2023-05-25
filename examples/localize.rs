@@ -54,10 +54,12 @@ fn app_main() {
 
 fn window_icon() -> impl UiNode {
     Text! {
+        zero_ui::core::image::render_retain = true;
         size = (36, 36);
         font_size = 28;
         font_weight = FontWeight::BOLD;
         txt_align = Align::CENTER;
+        txt_wrap = false;
         txt = l10n!("window.icon", "Lo"); // l10n-# first syllable of "Localize"
         drop_shadow = {
             offset: (2, 2),

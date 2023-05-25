@@ -476,13 +476,16 @@ impl Default for WindowIcon {
     }
 }
 impl WindowIcon {
-    /// New window icon from a function that generates a new icon [`UiNode`] for the window.
+    /// New window icon from a closure that generates a new icon [`UiNode`] for the window.
     ///
-    /// The function is called once on init and every time the window icon property changes,
-    /// the input is a headless window context, the result is a node that is rendered to create an icon.
+    /// The closure is called once on init and every time the window icon property changes,
+    /// the closure runs in a headless window context, it must return a node to be rendered as an icon.
     ///
-    /// The icon node is updated like any other node and it can request a new render. Note that just
-    /// because you can update the icon does not mean that animating it is a good idea.
+    /// The icon node is deinited and dropped after the first render, you can enable [`image::render_retain`] on it
+    /// to cause the icon to re-render when the node it-self updates. Note that just because you can update the icon
+    /// does not mean that animating it is a good idea.
+    /// 
+    /// [`image::render_retain`]: fn@crate::image::render_retain
     ///
     /// # Examples
     ///
@@ -492,6 +495,7 @@ impl WindowIcon {
     /// # let _ =
     /// WindowIcon::render(
     ///     || Container! {
+    ///         // image::render_retain = true;
     ///         size = (36, 36);
     ///         background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
     ///         corner_radius = 6;
