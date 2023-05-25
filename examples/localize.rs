@@ -98,15 +98,43 @@ fn locale_menu() -> impl UiNode {
     presenter(
         L10N.available_langs(),
         wgt_fn!(|langs: Arc<LangMap<HashMap<Txt, PathBuf>>>| {
-            tracing::info!("{} langs available", langs.len());
+            let mut actual = vec![];
+            let mut pseudo = vec![];
+            let mut template = vec![];
+
+            for key in langs.keys() {
+                if key.language.as_str() == "template" {
+                    template.push(key);
+                } else if key.language.as_str() == "pseudo" {
+                    pseudo.push(key);
+                } else {
+                    actual.push(key);
+                }
+            }
+
+            tracing::info!(
+                "{} langs, {} pseudo and {} template available",
+                actual.len(),
+                pseudo.len(),
+                template.len()
+            );
+
+            actual.sort();
+            pseudo.sort();
+            template.sort();
+
+            let others = pseudo.into_iter().chain(template).map(|l| (l, false));
+            let options = actual.into_iter().map(|l| (l, true)).chain(others);
+
             Stack! {
                 align = Align::TOP_LEFT;
                 direction = StackDirection::left_to_right();
                 spacing = 5;
                 margin = 10;
                 toggle::selector = toggle::Selector::single(L10N.app_lang());
-                children = langs.keys().map(|l| {
+                children = options.map(|(l, actual)| {
                     Toggle! {
+                        text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
                         child = Text!("{l}");
                         value::<Langs> = l.clone();
                     }

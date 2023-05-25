@@ -175,6 +175,9 @@ impl L10N {
     /// Available localization files.
     ///
     /// The value maps lang to one or more files, the files can be `{dir}/{lang}.flt` or `{dir}/{lang}/file.flt`.
+    ///
+    /// Note that this map will include any file in the source dir that has a name that is a valid [`lang!`],
+    /// that includes the `template.flt` file and test pseudo-locales such as `qps-ploc.flt`.
     pub fn available_langs(&self) -> ReadOnlyArcVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
         L10N_SV.read().available_langs.read_only()
     }
@@ -1464,7 +1467,7 @@ fn format_message(bundle: &ArcFluentBundle, id: &str, attribute: &str, args: &[(
             let txt = bundle.format_pattern(pattern, args.as_ref(), &mut errors);
 
             if !errors.is_empty() {
-                tracing::error!("error formatting `{:?}/{}`\n{}", &bundle.locales[0], id, FluentErrors(errors));
+                tracing::error!("error formatting `{}/{}`\n{}", &bundle.locales[0], id, FluentErrors(errors));
             }
 
             txt.to_text()
@@ -1480,7 +1483,7 @@ fn format_message(bundle: &ArcFluentBundle, id: &str, attribute: &str, args: &[(
                 let txt = bundle.format_pattern(attr.value(), args.as_ref(), &mut errors);
 
                 if !errors.is_empty() {
-                    tracing::error!("error formatting `{:?}/{}`\n{}", &bundle.locales[0], id, FluentErrors(errors));
+                    tracing::error!("error formatting `{}/{}`\n{}", &bundle.locales[0], id, FluentErrors(errors));
                 }
 
                 txt.to_text()

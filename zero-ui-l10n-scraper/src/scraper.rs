@@ -1,6 +1,6 @@
 //! Localization text scraping.
 
-use std::{io, mem, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, io, mem, path::PathBuf, sync::Arc};
 
 use rayon::prelude::*;
 
@@ -399,7 +399,11 @@ impl FluentTemplate {
     ///
     /// The `select_l10n_file` closure is called once for each different file, it must return
     /// a writer that will be the output file.
-    pub fn write(mut self, select_l10n_file: impl Fn(&str) -> io::Result<Box<dyn io::Write + Send>> + Send + Sync) -> io::Result<()> {
+    pub fn write(
+        &mut self,
+        transform_msg: fn(&str) -> Cow<str>,
+        select_l10n_file: impl Fn(&str) -> io::Result<Box<dyn io::Write + Send>> + Send + Sync,
+    ) -> io::Result<()> {
         self.entries.sort();
 
         let mut file = None;
@@ -477,7 +481,8 @@ impl FluentTemplate {
                 output.write_fmt(format_args!("{id} ="))?;
                 if entry.attribute.is_empty() {
                     let mut prefix = " ";
-                    for line in entry.message.lines() {
+
+                    for line in transform_msg(&entry.message).lines() {
                         output.write_fmt(format_args!("{prefix}{line}\n"))?;
                         prefix = "    ";
                     }
@@ -488,7 +493,7 @@ impl FluentTemplate {
             if !entry.attribute.is_empty() {
                 output.write_fmt(format_args!("    .{} = ", entry.attribute))?;
                 let mut prefix = "";
-                for line in entry.message.lines() {
+                for line in transform_msg(&entry.message).lines() {
                     output.write_fmt(format_args!("{prefix}{line}\n"))?;
                     prefix = "        ";
                 }

@@ -25,7 +25,8 @@
 
 # Localization
 
-* Implement pseudo-localization test mode. 
+* Implement pseudo-localization.
+    - Title and icon does not change for pseudo.
 
 * Implement system lang.
     - Var in `L10N`.
