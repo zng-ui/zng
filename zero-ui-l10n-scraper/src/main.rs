@@ -28,6 +28,11 @@ fn main() {
 
     let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
 
+    if let Err(e) = std::fs::create_dir_all(&args.output) {
+        println!("error: {e}");
+        return;
+    }
+
     match scraper::scrape_fluent_text(&args.input, &custom_macro_names) {
         Ok(t) => {
             match t.entries.len() {
@@ -47,7 +52,9 @@ fn main() {
                 if file.is_empty() {
                     output.push("template.ftl");
                 } else {
-                    output.push(format!("template/{file}.ftl"));
+                    output.push("template");
+                    std::fs::create_dir_all(&output)?;
+                    output.push(format!("{file}.ftl"));
                 }
                 std::fs::File::create(output).map(box_dyn)
             });

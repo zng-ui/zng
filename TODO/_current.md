@@ -25,9 +25,6 @@
 
 # Localization
 
-* Add example of:
-    - // `l10n!("file/id")`
-
 * Implement pseudo-localization test mode. 
 
 * Implement system lang.

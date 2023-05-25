@@ -308,6 +308,56 @@ impl L10N {
     pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<Txt>) -> LangResourceHandle {
         L10N_SV.write().lang_resource(lang.into(), file.into(), true)
     }
+
+    /// Gets a handle to all resource files for the `lang` after they load.
+    ///
+    /// This awaits for the available langs to load, then collect an awaits for all lang files.
+    pub async fn wait_lang(&self, lang: impl Into<Lang>) -> LangResourceHandles {
+        let lang = lang.into();
+        let base = self.lang_resource(lang.clone(), "");
+        base.wait().await;
+
+        let mut r = vec![base];
+        for (name, _) in self.available_langs().get().get(&lang).into_iter().flatten() {
+            r.push(self.lang_resource(lang.clone(), name.clone()));
+        }
+        for h in &r[1..] {
+            h.wait().await;
+        }
+        LangResourceHandles(r)
+    }
+}
+
+/// Handle to multiple localization resources.
+#[derive(Clone, Debug)]
+pub struct LangResourceHandles(pub Vec<LangResourceHandle>);
+
+impl ops::Deref for LangResourceHandles {
+    type Target = Vec<LangResourceHandle>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ops::DerefMut for LangResourceHandles {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl LangResourceHandles {
+    /// Wait for all the resources to load.
+    pub async fn wait(&self) {
+        for res in &self.0 {
+            res.wait().await;
+        }
+    }
+
+    /// Drop all handles without dropping the resource.
+    pub fn perm(self) {
+        for res in self.0 {
+            res.perm()
+        }
+    }
 }
 
 /// Handle to localization resources for a language.

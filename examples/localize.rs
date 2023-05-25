@@ -36,11 +36,7 @@ fn app_main() {
         L10N.app_lang().set(lang!("en-US"));
 
         // pre-load "en-US" resources
-        let en_us = L10N.lang_resource(lang!("en-US"), "");
-        en_us.wait().await;
-        tracing::info!("starting with 'en-US' {}", en_us.status().get());
-        // hold "en-US" in memory, even if not requested yet.
-        en_us.perm();
+        L10N.wait_lang(lang!("en-US")).await.perm();
 
         Window! {
             // l10n-# Main window title
@@ -60,7 +56,7 @@ fn app_main() {
 
 fn examples() -> impl UiNode {
     let click_count = var(0u32);
-    let click_msg = l10n!("click-count", "Clicked {$n} times", n = click_count.clone());
+    let click_msg = l10n!("msg/click-count", "Clicked {$n} times", n = click_count.clone());
     Stack! {
         align = Align::CENTER;
         direction = StackDirection::top_to_bottom();
