@@ -371,7 +371,7 @@ impl FluentTemplate {
     }
 
     /// Sort by file, section, id and attribute. Attributes on different sections are moved to the id
-    /// or first attribute section.
+    /// or first attribute section, repeated id and entries are merged.
     pub fn sort(&mut self) {
         if self.entries.is_empty() {
             return;
@@ -389,11 +389,10 @@ impl FluentTemplate {
             }
             a.attribute.cmp(&b.attribute)
         });
-
+        // move attributes to the id section
         let mut file = None;
         let mut id = None;
         let mut id_section = None;
-
         for entry in &mut self.entries {
             let f = Some(&entry.file);
             let i = Some(&entry.id);
@@ -407,13 +406,61 @@ impl FluentTemplate {
             }
         }
 
+        // merge repeats
+        let mut rmv_marker = None;
+        let mut id_start = 0;
+        for i in 1..self.entries.len() {
+            let prev = &self.entries[i - 1];
+            let e = &self.entries[i];
+
+            if e.id == prev.id && e.file == prev.file {
+                if let Some(already_i) = self.entries[id_start..i].iter().position(|s| s.attribute == e.attribute) {
+                    let already_i = already_i + id_start;
+                    // found repeat
+
+                    // mark for remove
+                    self.entries[i].section = rmv_marker.get_or_insert_with(|| Arc::new(String::new())).clone();
+
+                    // merge comments
+                    let comment = mem::take(&mut self.entries[i].comments);
+                    let c = &mut self.entries[already_i].comments;
+                    if c.is_empty() {
+                        *c = comment;
+                    } else if !comment.is_empty() && !c.contains(&comment) {
+                        c.push_str("\n\n");
+                        c.push_str(&comment);
+                    }
+                }
+            } else {
+                id_start = i;
+            }
+        }
+        if let Some(marker) = rmv_marker.take() {
+            // remove repeated
+            let mut i = 0;
+            while i < self.entries.len() {
+                while Arc::ptr_eq(&marker, &self.entries[i].section) {
+                    self.entries.swap_remove(i);
+                }
+                i += 1;
+            }
+        }
+
         // final sort
-        self.entries.sort_by(|a, b| {
+        self.entries.sort_unstable_by(|a, b| {
             match a.file.cmp(&b.file) {
                 core::cmp::Ordering::Equal => {}
                 ord => return ord,
             }
-            a.section.cmp(&b.section)
+            match a.section.cmp(&b.section) {
+                core::cmp::Ordering::Equal => {}
+                ord => return ord,
+            }
+            match a.id.cmp(&b.id) {
+                core::cmp::Ordering::Equal => {}
+                ord => return ord,
+            }
+            a.attribute.cmp(&b.attribute)
         });
     }
 

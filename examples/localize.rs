@@ -89,7 +89,7 @@ fn window_content() -> impl UiNode {
             },
             Text! {
                 txt = click_msg;
-            }
+            },
         ]
     }
 }
