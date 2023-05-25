@@ -266,7 +266,7 @@ impl FontRangeVec {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShapedText {
     glyphs: Vec<GlyphInstance>,
-    clusters: Vec<u32>, // char index of each glyph in the segment that covers it.
+    clusters: Vec<u32>, // char byte index of each glyph in the segment that covers it.
     // segments of `glyphs` and `clusters`.
     segments: GlyphSegmentVec,
     lines: LineRangeVec,
@@ -892,7 +892,11 @@ impl ShapedText {
                 if txt_range.contains(index) {
                     let mut p = seg.rect().origin;
                     let mut x = p.x.0 as f32;
-                    for (glyph, advance) in seg.glyphs_with_x_advance().flat_map(|(_, i)| i) {
+
+                    let len = index - seg.text_range().start();
+                    println!("!!: {len}");
+
+                    for (g, advance) in seg.glyphs_with_x_advance().flat_map(|(_, i)| i) {
                         x += advance;
                         // !!: TODO, get glyph offset
                     }
@@ -2028,6 +2032,22 @@ impl<'a> ShapedSegment<'a> {
         }
     }
 
+    /// Get the glyph range in this segment from the `text_range` in string bytes.
+    pub fn glyph_text_range(&self, text_range: impl ops::RangeBounds<usize>) -> IndexRange {
+        let included_start = match text_range.start_bound() {
+            ops::Bound::Included(i) => Some(*i),
+            ops::Bound::Excluded(i) => Some(*i + 1),
+            ops::Bound::Unbounded => None,
+        };
+        let excluded_end = match text_range.end_bound() {
+            ops::Bound::Included(i) => Some(*i - 1),
+            ops::Bound::Excluded(i) => Some(*i),
+            ops::Bound::Unbounded => None,
+        };
+
+        todo!()
+    }
+
     /// Select the string represented by this segment.
     ///
     /// The `full_text` must be equal to the original text that was used to generate the parent [`ShapedText`].
@@ -2129,7 +2149,7 @@ impl Font {
     fn buffer_segment(&self, segment: &str, key: &WordContextKey) -> harfbuzz_rs::UnicodeBuffer {
         let mut buffer = harfbuzz_rs::UnicodeBuffer::new()
             .set_direction(key.harfbuzz_direction())
-            .set_cluster_level(harfbuzz_rs::ClusterLevel::Characters);
+            .set_cluster_level(harfbuzz_rs::ClusterLevel::MonotoneCharacters);
 
         if let Some(lang) = key.harfbuzz_lang() {
             buffer = buffer.set_language(lang);
@@ -2646,5 +2666,16 @@ mod tests {
             5.secs(),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn cluster_is_byte() {
+        let font = test_font();
+
+        let data = font.shape_segment_no_cache("£a", &WordContextKey::new(&lang!("en-US"), LayoutDirection::LTR, &vec![]), &[]);
+
+        for ((i, _), g) in "£a".char_indices().zip(&data.glyphs) {
+            assert_eq!(i as u32, g.cluster);
+        }
     }
 }
