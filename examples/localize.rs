@@ -7,11 +7,11 @@ use zero_ui::prelude::*;
 
 use zero_ui::core::l10n::{LangMap, Langs, L10N};
 
-/*
-To collect template:
+// l10n-### Localize Example
+// l10n-### This standalone comment is added to all scraped template files.
 
-cargo run -p zero-ui-l10n-scraper -- -i"examples/localize*" -o"examples/res/localize/template.ftl"
- */
+// Run this command to scrap template:
+// cargo run -p zero-ui-l10n-scraper -- -i"examples/localize*" -o"examples/res/localize"
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -43,7 +43,7 @@ fn app_main() {
         en_us.perm();
 
         Window! {
-            // l10n: Main window title
+            // l10n-# Main window title
             title = l10n!("window.title", "Localize Example (template)");
             icon = WindowIcon::render(window_icon);
             child = Stack! {
@@ -56,6 +56,8 @@ fn app_main() {
     })
 }
 
+// l10n-## Example Section
+
 fn examples() -> impl UiNode {
     let click_count = var(0u32);
     let click_msg = l10n!("click-count", "Clicked {$n} times", n = click_count.clone());
@@ -65,7 +67,7 @@ fn examples() -> impl UiNode {
         spacing = 5;
         children = ui_vec![
             Button! {
-                child = Text!(l10n!("button", "Button")); // l10n: button sets "click-count"
+                child = Text!(l10n!("button", "Button")); // l10n-# button sets "click-count"
                 on_any_click = hn!(|a: &ClickArgs| {
                     if a.is_primary() {
                         click_count.set(click_count.get() + 1);
@@ -87,7 +89,7 @@ fn window_icon() -> impl UiNode {
         font_size = 28;
         font_weight = FontWeight::BOLD;
         txt_align = Align::CENTER;
-        txt = l10n!("window.icon", "Lo"); // l10n: first syllable of "Localize"
+        txt = l10n!("window.icon", "Lo"); // l10n-# first syllable of "Localize"
         drop_shadow = {
             offset: (2, 2),
             blur_radius: 5,
@@ -117,3 +119,5 @@ fn locale_menu() -> impl UiNode {
         }),
     )
 }
+
+// l10n-### Another standalone comment, also added to the top of all template files.

@@ -25,18 +25,14 @@
 
 # Localization
 
-* Implement pseudo-localization test mode.
+* Add example of:
+    - // `l10n!("file/id")`
 
-* Refactor scrapper
-    - Remove "// l10n-source: test.$lang.flt".
-    - Impl "file/id.attr" keys.
-   
-* Implement "// l10n-##: Some Title"
-    - Included as `##` section comment, see https://projectfluent.org/fluent/guide/comments.html
-    - Group keys by the section too.
-    - And for file "// la10n-{file}-##: Some Title".
-    - Same support for `###` comments, these are placed at the top of the file.
+* Implement pseudo-localization test mode. 
 
+* Implement system lang.
+    - Var in `L10N`.
+    - Defined by view-process.
 
 * A trait that provides the available locales and locales on demand.
     - Replace `L10N.load_dir` with this trait.

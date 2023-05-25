@@ -1,6 +1,6 @@
 pub mod scraper;
 
-use std::io::Write;
+use std::{io::Write, path::PathBuf};
 
 use clap::Parser;
 
@@ -12,9 +12,9 @@ struct Args {
     #[arg(short, long)]
     input: String,
 
-    /// Default template file
+    /// Lang dir
     #[arg(short, long)]
-    output: String,
+    output: PathBuf,
 
     /// Custom macro names, comma separated
     #[arg(short, long, default_value = "")]
@@ -42,11 +42,14 @@ fn main() {
                 fn box_dyn(file: std::fs::File) -> Box<dyn Write + Send> {
                     Box::new(file)
                 }
+
+                let mut output = args.output.clone();
                 if file.is_empty() {
-                    std::fs::File::create(&args.output).map(box_dyn)
+                    output.push("template.ftl");
                 } else {
-                    std::fs::File::create(file).map(box_dyn)
+                    output.push(format!("template/{file}.ftl"));
                 }
+                std::fs::File::create(output).map(box_dyn)
             });
 
             match r {

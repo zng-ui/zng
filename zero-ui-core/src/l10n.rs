@@ -43,26 +43,91 @@ impl AppExtension for L10nManager {
 ///
 /// # Syntax
 ///
-/// Macro expects a message ID string literal a *message template* string literal that is also used
+/// Macro expects a message key string literal a *message template* string literal that is also used
 /// as fallback, followed by optional named format arguments `arg = <arg>,..`.
 ///
 /// The message string syntax is the [Fluent Project] syntax, interpolations in the form of `"{$var}"` are resolved to a local `$var`.
 ///
 /// ```
 /// # use zero_ui_core::{l10n::*, var::*};
-/// let _scope = zero_ui_core::app::App::minimal();
+/// # let _scope = zero_ui_core::app::App::minimal();
 /// let name = var("World");
-/// let msg = l10n!("msg-id", "Hello {$name}!");
+/// let msg = l10n!("file/id.attribute", "Hello {$name}!");
 /// ```
 ///
-/// # Scrapper
+/// ## Key
 ///
-/// The `zero-ui-l10n-scrapper` tool can be used to collect all localizable text of Rust code files, it is a text based search that
+/// This message key can be just a Fluent identifier, `"id"`, a Fluent attribute identifier can be added `"id.attr"`, and finally
+/// a file name can be added `"file/id"`. The key syntax is validated at compile time.
+///
+/// ### Id
+///
+/// The only required part of a key is the ID, it must contain at least one character, it must start with an ASCII letter
+/// and can be followed by any ASCII alphanumeric, _ and -, `[a-zA-Z][a-zA-Z0-9_-]*`.
+///
+/// ### Attribute
+///
+/// An attribute identifier can be suffixed on the id, separated by a `.` followed by an identifier of the same pattern as the
+/// id, `.[a-zA-Z][a-zA-Z0-9_-]*`.
+///
+/// ### File
+///
+/// An optional file name can be prefixed on the id, separated by a `/`, it can be a single file name, no extension.
+///
+/// Using the default directory resolver the key `"file/id.attr"` will search the id and attribute in the file `{dir}/{lang}/file.ftl`:
+///
+/// ```ftl
+/// id =
+///     .attr = message
+/// ```
+///
+/// And a key `"id.attr"` will be search the file `{dir}/{lang}.ftl`.
+///
+///
+/// # Scrap Template
+///
+/// The `zero-ui-l10n-scraper` tool can be used to collect all localizable text of Rust code files, it is a text based search that
 /// matches this macro name and the two first input literals, avoid renaming this macro to support scrapping, otherwise you will
-/// have to declare the message file manually.
+/// have to declare the template file manually.
 ///
 /// The scrapper also has some support for comments, if the previous code line from a [`l10n!`] call is a comment starting with
-/// prefix `l10n: #comment` the `#comment` is collected, same for a suffix comment in the same line of the [`l10n!`] call.
+/// prefix `l10n-# ` the text the follows is collected, same for a comment in the same line of the [`l10n!`] call. Sections
+/// can be declared using `l10n-##` and standalone notes can be added to the top of the template file from anywhere using `l10n-###`.
+///
+/// ```
+/// use zero_ui_core::{l10n::*, var::*};
+/// # let _scope = zero_ui_core::app::App::minimal();
+///
+/// // l10n-### Standalone Note
+///
+/// // l10n-# Comment for `id`.
+/// let msg = l10n!("id", "id message");
+///
+/// // l10n-# Comment for `id.attr`.
+/// let msg = l10n!("id.attr", "attr message");
+///
+/// // l10n-## Section
+///
+/// let msg = l10n("other", "other message"); // l10n-# Comment for `other`.
+/// ```
+///
+/// The example above is scrapped to a `template.ftl` file:
+///
+/// ```ftl
+/// ### Standalone Note
+///
+/// # Comment for `id`.
+/// #
+/// # attr:
+/// #     Comment for `id.attr`.
+/// id = id message
+///     .attr = attr message
+///
+/// ## Section
+///
+/// # Commend for `other`.
+/// other = other message
+/// ```
 ///
 /// [Fluent Project]: https://projectfluent.org/fluent/guide/
 #[macro_export]
