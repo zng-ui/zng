@@ -364,12 +364,21 @@ pub(crate) fn locale_config() -> LocaleConfig {
 
 #[cfg(windows)]
 pub(crate) fn locale_config() -> LocaleConfig {
-    // sys_locale returns only one lang, this code adapted from `whoami` crate.
+    // sys_locale returns only one lang, this code adapted from `whoami` crate and Firefox.
 
+    use windows::System::UserProfile::GlobalizationPreferences;
     use windows_sys::Win32::{
         Foundation::FALSE,
         Globalization::{GetUserPreferredUILanguages, MUI_LANGUAGE_NAME},
     };
+
+    // Try newer WinRT COM API (Windows8+)
+    if let Ok(r) = GlobalizationPreferences::Languages() {
+        let r: Vec<String> = r.into_iter().map(|l| l.to_string_lossy()).collect();
+        if !r.is_empty() {
+            return LocaleConfig { langs: r };
+        }
+    }
 
     let mut num_languages = 0;
     let mut buffer_size = 0;

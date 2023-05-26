@@ -91,6 +91,12 @@ features = [
     "Win32_Graphics_OpenGL",
     "Win32_UI_Accessibility",
 ]
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.48.0"
+features = [
+    "Foundation_Collections",
+    "System_UserProfile"
+]
 
 [target.'cfg(not(windows))'.dependencies]
 sys-locale = "0.3"

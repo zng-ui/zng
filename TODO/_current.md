@@ -26,11 +26,8 @@
 # Localization
 
 * Test system lang change.
-    - Windows forces a log-out to change lang, how to test the event?
-
-* Windows lang preferences still wrong, MS added a COM api that overrides what we are using.
-    - See https://searchfox.org/mozilla-central/source/intl/locale/windows/OSPreferences_win.cpp#87
-    - This is a WRT COM thing, not sure if can be called with "windows-sys" only.
+    - Does not update after first system change?
+    - Event is received, sys_lang is set.
 
 * A trait that provides the available locales and locales on demand.
     - Replace `L10N.load_dir` with this trait.
