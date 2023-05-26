@@ -25,7 +25,11 @@
 
 # Localization
 
-* Changing lang from sys-lang keeps both toggle buttons selected.
+* Changing from sys-lang to another keeps both toggle buttons selected.
+    - Second selection normalizes.
+    - Selector sets the value, but variable never updates.
+    - Issue in `ArcCowVar`?
+    - Also test selector with read-only var, must not show two options selected.
 * Test system lang change.
 
 * A trait that provides the available locales and locales on demand.

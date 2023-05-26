@@ -32,6 +32,8 @@ fn app_main() {
         // load `available_langs`
         L10N.load_dir("examples/res/localize");
 
+        L10N.app_lang().trace_value(|l| println!("!!: {l}")).perm();
+
         // pre-load resources
         let sys_lang = L10N.app_lang().get();
         if let Some(lang) = sys_lang.first() {

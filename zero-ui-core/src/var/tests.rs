@@ -909,3 +909,65 @@ mod modify_importance {
         assert!(importance < VARS.current_modify().importance());
     }
 }
+
+mod cow {
+    use crate::app::App;
+
+    use super::*;
+
+    #[test]
+    pub fn cow_base_update() {
+        let mut app = App::minimal().run_headless(false);
+
+        let base = var(false);
+        let cow = base.cow();
+
+        base.set(true);
+        app.update(false).assert_wait();
+
+        assert!(base.get());
+        assert!(cow.get());
+    }
+
+    #[test]
+    pub fn cow_update() {
+        let mut app = App::minimal().run_headless(false);
+
+        let base = var(false);
+        let cow = base.cow();
+
+        cow.set(true);
+        app.update(false).assert_wait();
+
+        assert!(!base.get());
+        assert!(cow.get());
+    }
+
+    #[test]
+    pub fn cow_update_full() {
+        let mut app = App::minimal().run_headless(false);
+        
+        let base = var(false);
+        let cow = base.cow();
+        
+        let base_values = Arc::new(Mutex::new(vec![]));
+        let cow_values = Arc::new(Mutex::new(vec![]));
+        cow.trace_value(clmv!(base_values, |v| base_values.lock().push(*v))).perm();
+        cow.trace_value(clmv!(cow_values, |v| cow_values.lock().push(*v))).perm();
+
+        base.set(true);
+        app.update(false).assert_wait();
+
+        assert!(base.get());
+        assert!(cow.get());
+
+        cow.set(false);
+        app.update(false).assert_wait();
+
+        assert!(base.get());
+        assert!(!cow.get());
+
+        assert_eq!(&base_values.lock()[..], &[false, true]);
+        assert_eq!(&cow_values.lock()[..], &[false, true, false]);
+    }
+}
