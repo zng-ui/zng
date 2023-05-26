@@ -1328,6 +1328,10 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawKeyRepeatConfigChangedArgs::now(cfg);
                 self.notify_event(RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
+            Event::LocaleChanged(cfg) => {
+                let args = RawLocaleChangedArgs::now(cfg);
+                self.notify_event(RAW_LOCALE_CONFIG_CHANGED_EVENT.new_update(args), observer);
+            }
 
             // `device_events`
             Event::DeviceAdded(d_id) => {
@@ -1433,6 +1437,7 @@ impl<E: AppExtension> RunningApp<E> {
                     key_repeat_config,
                     font_aa,
                     animations_config,
+                    locale_config,
                     color_scheme,
                 } => {
                     // notify immediately.
@@ -1457,6 +1462,7 @@ impl<E: AppExtension> RunningApp<E> {
                         key_repeat_config,
                         font_aa,
                         animations_config,
+                        locale_config,
                         color_scheme,
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);

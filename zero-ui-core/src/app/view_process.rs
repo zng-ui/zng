@@ -9,7 +9,8 @@ use std::{
 pub use zero_ui_view_api::{
     self, bytes_channel, AnimationsConfig, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest,
     FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
-    IpcBytesSender, MonitorInfo, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
+    IpcBytesSender, LocaleConfig, MonitorInfo, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState,
+    WindowStateAll,
 };
 
 use crate::{
@@ -453,6 +454,9 @@ event_args! {
 
         /// System animations config.
         pub animations_config: AnimationsConfig,
+
+        /// System locale config.
+        pub locale_config: LocaleConfig,
 
         /// System preferred color scheme.
         ///

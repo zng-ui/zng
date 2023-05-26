@@ -1317,6 +1317,7 @@ impl Api for App {
             key_repeat_config: config::key_repeat_config(),
             font_aa: config::font_aa(),
             animations_config: config::animations_config(),
+            locale_config: config::locale_config(),
         });
     }
 

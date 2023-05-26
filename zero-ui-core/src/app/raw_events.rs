@@ -21,7 +21,7 @@ use zero_ui_view_api::FrameWaitId;
 
 use super::{
     raw_device_events::AxisId,
-    view_process::{AnimationsConfig, MonitorInfo, ViewImage, WindowStateAll},
+    view_process::{AnimationsConfig, LocaleConfig, MonitorInfo, ViewImage, WindowStateAll},
     DeviceId,
 };
 use crate::{
@@ -585,6 +585,19 @@ event_args! {
             list.search_all()
         }
     }
+
+    /// Arguments for the [`RAW_LOCALE_CONFIG_CHANGED_EVENT`].
+    pub struct RawLocaleChangedArgs {
+        /// New config.
+        pub config: LocaleConfig,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
 }
 
 event! {
@@ -694,6 +707,9 @@ event! {
 
     /// Change in system key repeat interval config.
     pub static RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT: RawKeyRepeatConfigChangedArgs;
+
+    /// Change in system locale config.
+    pub static RAW_LOCALE_CONFIG_CHANGED_EVENT: RawLocaleChangedArgs;
 
     /// Image metadata loaded without errors.
     pub static RAW_IMAGE_METADATA_LOADED_EVENT: RawImageArgs;

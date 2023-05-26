@@ -1,6 +1,6 @@
 use zero_ui_view_api::ColorScheme;
 
-use crate::{AnimationsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig};
+use crate::{AnimationsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig};
 
 /// Create a hidden window that listens to Windows config change events.
 #[cfg(windows)]
@@ -69,7 +69,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
         r
     };
 
-    let r = util::set_raw_windows_event_handler(window, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
+    let r = util::set_raw_windows_event_handler(window, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, lparam| {
         let notify = |ev| {
             let _ = event_loop.send(AppEvent::Notify(ev));
             Some(0)
@@ -83,6 +83,17 @@ fn config_listener(event_loop: crate::AppEventSender) {
                 }
                 SPI_SETCLIENTAREAANIMATION => notify(Event::AnimationsConfigChanged(animations_config())),
                 SPI_SETKEYBOARDDELAY | SPI_SETKEYBOARDSPEED => notify(Event::KeyRepeatConfigChanged(key_repeat_config())),
+                0 if lparam != 0 => {
+                    let p_str = lparam as windows_sys::core::PSTR;
+                    let b_str = unsafe {
+                        let len = windows_sys::Win32::Globalization::lstrlenA(p_str);
+                        std::slice::from_raw_parts(p_str, len as _)
+                    };
+                    match b_str {
+                        b"intl" => notify(Event::LocaleChanged(locale_config())),
+                        _ => None,
+                    }
+                }
                 _ => None,
             },
             WM_DISPLAYCHANGE => {
@@ -342,4 +353,10 @@ pub(crate) fn color_scheme_config() -> ColorScheme {
 #[cfg(not(windows))]
 pub(crate) fn color_scheme_config() -> ColorScheme {
     ColorScheme::default()
+}
+
+pub(crate) fn locale_config() -> LocaleConfig {
+    LocaleConfig {
+        lang: sys_locale::get_locale(),
+    }
 }

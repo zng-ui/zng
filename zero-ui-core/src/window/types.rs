@@ -484,7 +484,7 @@ impl WindowIcon {
     /// The icon node is deinited and dropped after the first render, you can enable [`image::render_retain`] on it
     /// to cause the icon to re-render when the node it-self updates. Note that just because you can update the icon
     /// does not mean that animating it is a good idea.
-    /// 
+    ///
     /// [`image::render_retain`]: fn@crate::image::render_retain
     ///
     /// # Examples

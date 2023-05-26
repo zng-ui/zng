@@ -32,11 +32,12 @@ fn app_main() {
         // load `available_langs`
         L10N.load_dir("examples/res/localize");
 
-        // set default lang
-        L10N.app_lang().set(lang!("en-US"));
-
-        // pre-load "en-US" resources
-        L10N.wait_lang(lang!("en-US")).await.perm();
+        // pre-load resources
+        let sys_lang = L10N.app_lang().get();
+        if let Some(lang) = sys_lang.first() {
+            tracing::info!("preload `{lang}`");
+            L10N.wait_lang(lang.clone()).await.perm();
+        }
 
         Window! {
             // l10n-# Main window title

@@ -25,9 +25,8 @@
 
 # Localization
 
-* Implement system lang.
-    - Var in `L10N`.
-    - Defined by view-process.
+* Changing lang from sys-lang keeps both toggle buttons selected.
+* Test system lang change.
 
 * A trait that provides the available locales and locales on demand.
     - Replace `L10N.load_dir` with this trait.

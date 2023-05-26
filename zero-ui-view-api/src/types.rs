@@ -736,6 +736,8 @@ pub enum Event {
         font_aa: FontAntiAliasing,
         /// System animations config.
         animations_config: AnimationsConfig,
+        /// System locale config.
+        locale_config: LocaleConfig,
         /// System preferred color scheme.
         color_scheme: ColorScheme,
     },
@@ -992,6 +994,8 @@ pub enum Event {
     AnimationsConfigChanged(AnimationsConfig),
     /// System definition of pressed key repeat event changed.
     KeyRepeatConfigChanged(KeyRepeatConfig),
+    /// System locale changed.
+    LocaleChanged(LocaleConfig),
 
     // Raw device events
     /// Device added or installed.
@@ -1212,6 +1216,10 @@ impl Event {
             }
             // key repeat delay and speed.
             (KeyRepeatConfigChanged(config), KeyRepeatConfigChanged(n_config)) => {
+                *config = n_config;
+            }
+            // locale
+            (LocaleChanged(config), LocaleChanged(n_config)) => {
                 *config = n_config;
             }
             (_, e) => return Err(e),
@@ -1886,6 +1894,13 @@ impl Default for AnimationsConfig {
             caret_blink_timeout: Duration::from_secs(5),
         }
     }
+}
+
+/// System settings that define the locale.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Deserialize, Default)]
+pub struct LocaleConfig {
+    /// BCP-47 language tag, if the locale can be obtained.
+    pub lang: Option<String>,
 }
 
 /// Represent a image load/decode request.

@@ -2,13 +2,14 @@
 //!
 
 use crate::{
-    app::AppExtension,
+    app::{raw_events::RAW_LOCALE_CONFIG_CHANGED_EVENT, view_process::VIEW_PROCESS_INITED_EVENT, AppExtension},
     app_local,
     crate_util::KeyPair,
+    event::EventUpdate,
     fs_watcher::WATCHER,
     task,
     text::{ToText, Txt},
-    var::{self, *},
+    var::{self, types::ArcCowVar, *},
 };
 use fluent::{types::FluentNumber, FluentResource};
 use once_cell::sync::Lazy;
@@ -34,6 +35,27 @@ pub struct L10N;
 #[derive(Default)]
 pub struct L10nManager {}
 impl AppExtension for L10nManager {
+    fn event_preview(&mut self, update: &mut EventUpdate) {
+        if let Some(u) = RAW_LOCALE_CONFIG_CHANGED_EVENT
+            .on(update)
+            .map(|args| &args.config.lang)
+            .or_else(|| VIEW_PROCESS_INITED_EVENT.on(update).map(|args| &args.locale_config.lang))
+        {
+            let lang = if let Some(s) = u {
+                match Lang::from_str(s) {
+                    Ok(l) => Some(l),
+                    Err(e) => {
+                        tracing::error!("received invalid lang from view-process, `{s}`, {e}");
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+            L10N_SV.read().sys_lang.set_ne(lang);
+        }
+    }
+
     fn update_preview(&mut self) {
         L10N_SV.write().update();
     }
@@ -213,10 +235,22 @@ impl L10N {
     /// Lang not available are ignored until they become available, the first language in the
     /// vec is the most preferred.
     ///
+    /// The value is the same as [`sys_lang`], the variable disconnects from system lang if it is assigned directly.
+    ///
     /// Note that the [`LANG_VAR`] is used in message requests, the default value of that
     /// context variable is this one.
-    pub fn app_lang(&self) -> ArcVar<Langs> {
+    ///
+    /// [`sys_lang`]: Self::sys_lang
+    pub fn app_lang(&self) -> ArcCowVar<Langs, ArcVar<Langs>> {
         L10N_SV.read().app_lang.clone()
+    }
+
+    /// Gets a read-only variable that is the current system language.
+    ///
+    /// The variable will update when the view-process notifies that the config has changed. Is
+    /// empty if the system locale cannot be retrieved.
+    pub fn sys_lang(&self) -> ReadOnlyArcVar<Langs> {
+        L10N_SV.read().sys_lang.read_only()
     }
 
     /// Gets a variable that is a localized message in the localization context
@@ -625,6 +659,19 @@ impl_from_and_into_var! {
     fn from(lang: Lang) -> Langs {
         Langs(vec![lang])
     }
+    fn from(lang: Option<Lang>) -> Langs {
+        Langs(lang.into_iter().collect())
+    }
+}
+impl fmt::Display for Langs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut sep = "";
+        for l in self.iter() {
+            write!(f, "{sep}{l}")?;
+            sep = ", ";
+        }
+        Ok(())
+    }
 }
 
 /// Represents a map of [`Lang`] keys that can be partially matched.
@@ -885,7 +932,8 @@ pub use unic_langid;
 struct L10nService {
     available_langs: ArcVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>,
     available_langs_status: ArcVar<LangResourceStatus>,
-    app_lang: ArcVar<Langs>,
+    sys_lang: ArcVar<Langs>,
+    app_lang: ArcCowVar<Langs, ArcVar<Langs>>,
 
     dir_watcher: Option<ReadOnlyArcVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>>,
     file_watchers: HashMap<(Lang, Txt), LangResourceWatcher>,
@@ -893,10 +941,12 @@ struct L10nService {
 }
 impl L10nService {
     fn new() -> Self {
+        let sys_lang = var(Langs::default());
         Self {
             available_langs: var(Arc::new(LangMap::new())),
             available_langs_status: var(LangResourceStatus::NotAvailable),
-            app_lang: var(Langs::default()),
+            app_lang: sys_lang.cow(),
+            sys_lang,
             dir_watcher: None,
             file_watchers: HashMap::new(),
             messages: HashMap::new(),
