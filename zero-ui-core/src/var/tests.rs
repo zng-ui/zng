@@ -952,7 +952,7 @@ mod cow {
         
         let base_values = Arc::new(Mutex::new(vec![]));
         let cow_values = Arc::new(Mutex::new(vec![]));
-        cow.trace_value(clmv!(base_values, |v| base_values.lock().push(*v))).perm();
+        base.trace_value(clmv!(base_values, |v| base_values.lock().push(*v))).perm();
         cow.trace_value(clmv!(cow_values, |v| cow_values.lock().push(*v))).perm();
 
         base.set(true);
