@@ -25,9 +25,6 @@
 
 # Localization
 
-* No lang selected on init.
-    - Also test selector with read-only var, must not show two options selected.
-
 * Test system lang change.
     - Windows forces a log-out to change lang, how to test the event?
 

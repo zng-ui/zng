@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use zero_ui::prelude::*;
 
-use zero_ui::core::l10n::{LangMap, Langs, L10N};
+use zero_ui::core::l10n::{Lang, LangMap, L10N};
 
 // l10n-### Localize Example
 // l10n-### This standalone comment is added to all scraped template files.
@@ -130,17 +130,18 @@ fn locale_menu() -> impl UiNode {
             let others = pseudo.into_iter().chain(template).map(|l| (l, false));
             let options = actual.into_iter().map(|l| (l, true)).chain(others);
 
+            let selected = L10N.app_lang().map_bidi(|l| l.first().cloned(), |l| l.clone().into());
             Stack! {
                 align = Align::TOP_LEFT;
                 direction = StackDirection::left_to_right();
                 spacing = 5;
                 margin = 10;
-                toggle::selector = toggle::Selector::single(L10N.app_lang());
+                toggle::selector = toggle::Selector::single_opt(selected);
                 children = options.map(|(l, actual)| {
                     Toggle! {
                         text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
                         child = Text!("{l}");
-                        value::<Langs> = l.clone();
+                        value::<Lang> = l.clone();
                     }
                 }).collect::<UiNodeVec>()
             }
