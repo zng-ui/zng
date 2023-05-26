@@ -1586,7 +1586,7 @@ impl ParallelSegmentOffsets {
 /// Borrow tuple keys for maps.
 ///
 /// Usage:
-/// ```
+/// ```txt
 /// map.get(&(a, b) as &dyn KeyPair<A, B>)
 /// ```
 ///

@@ -130,7 +130,7 @@ impl AppExtension for L10nManager {
 ///
 /// // l10n-## Section
 ///
-/// let msg = l10n("other", "other message"); // l10n-# Comment for `other`.
+/// let msg = l10n!("other", "other message"); // l10n-# Comment for `other`.
 /// ```
 ///
 /// The example above is scrapped to a `template.ftl` file:

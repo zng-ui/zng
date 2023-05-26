@@ -168,11 +168,11 @@ fn parse_validate_id(message_id: LitStr, errors: &mut Errors) -> TokenStream {
     let mut id = s.as_str();
     let mut file = "";
     let mut attribute = "";
-    if let Some((f, rest)) = s.rsplit_once('/') {
+    if let Some((f, rest)) = id.rsplit_once('/') {
         file = f;
         id = rest;
     }
-    if let Some((i, a)) = s.rsplit_once('.') {
+    if let Some((i, a)) = id.rsplit_once('.') {
         id = i;
         attribute = a;
     }

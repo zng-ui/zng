@@ -581,11 +581,11 @@ fn parse_validate_id(s: &str) -> io::Result<(String, String, String)> {
     let mut id = s;
     let mut file = "";
     let mut attribute = "";
-    if let Some((f, rest)) = s.rsplit_once('/') {
+    if let Some((f, rest)) = id.rsplit_once('/') {
         file = f;
         id = rest;
     }
-    if let Some((i, a)) = s.rsplit_once('.') {
+    if let Some((i, a)) = id.rsplit_once('.') {
         id = i;
         attribute = a;
     }
