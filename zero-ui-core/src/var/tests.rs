@@ -969,5 +969,12 @@ mod cow {
 
         assert_eq!(&base_values.lock()[..], &[false, true]);
         assert_eq!(&cow_values.lock()[..], &[false, true, false]);
+
+        base.set(true);
+        app.update(false).assert_wait();
+        base.set(false);
+        app.update(false).assert_wait();
+        assert_eq!(&base_values.lock()[..], &[false, true, true, false]);
+        assert_eq!(&cow_values.lock()[..], &[false, true, false]);
     }
 }

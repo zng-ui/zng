@@ -75,12 +75,14 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                         }
                     });
                     if let Some(value) = modified {
+                        hooks.retain(|h| h.call(&value));
                         *data = Data::Owned {
                             value,
                             last_update: VARS.update_id(),
                             hooks: mem::take(hooks),
                             animation: VARS.current_modify(),
                         };
+                        UPDATES.update(None);
                     }
                 }
                 Data::Owned {
