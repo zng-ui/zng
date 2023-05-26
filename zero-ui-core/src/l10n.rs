@@ -26,7 +26,6 @@ pub struct L10N;
 ///
 /// * [`L10N`]
 ///
-///
 /// # Default
 ///
 /// This extension is included in the [default app].

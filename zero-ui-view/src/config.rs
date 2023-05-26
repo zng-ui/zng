@@ -90,7 +90,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
                         std::slice::from_raw_parts(p_str, len as _)
                     };
                     match b_str {
-                        b"intl" => notify(Event::LocaleChanged(locale_config())),
+                        b"i" | b"intl" => notify(Event::LocaleChanged(locale_config())),
                         _ => None,
                     }
                 }

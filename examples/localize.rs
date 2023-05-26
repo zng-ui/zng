@@ -13,16 +13,16 @@ use zero_ui::core::l10n::{Lang, LangMap, L10N};
 // Run this command to scrap template:
 // cargo run -p zero-ui-l10n-scraper -- -i"examples/localize*" -o"examples/res/localize"
 
-use zero_ui_view_prebuilt as zero_ui_view;
+// use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();
-    zero_ui_view::init();
+    // zero_ui_view::init();
 
     // let rec = examples_util::record_profile("localize");
 
-    // zero_ui_view::run_same_process(app_main);
-    app_main();
+    zero_ui_view::run_same_process(app_main);
+    // app_main();
 
     // rec.finish();
 }
