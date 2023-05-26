@@ -946,10 +946,10 @@ mod cow {
     #[test]
     pub fn cow_update_full() {
         let mut app = App::minimal().run_headless(false);
-        
+
         let base = var(false);
         let cow = base.cow();
-        
+
         let base_values = Arc::new(Mutex::new(vec![]));
         let cow_values = Arc::new(Mutex::new(vec![]));
         base.trace_value(clmv!(base_values, |v| base_values.lock().push(*v))).perm();

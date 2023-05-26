@@ -38,21 +38,21 @@ impl AppExtension for L10nManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(u) = RAW_LOCALE_CONFIG_CHANGED_EVENT
             .on(update)
-            .map(|args| &args.config.lang)
-            .or_else(|| VIEW_PROCESS_INITED_EVENT.on(update).map(|args| &args.locale_config.lang))
+            .map(|args| &args.config.langs)
+            .or_else(|| VIEW_PROCESS_INITED_EVENT.on(update).map(|args| &args.locale_config.langs))
         {
-            let lang = if let Some(s) = u {
-                match Lang::from_str(s) {
+            let lang = u
+                .into_iter()
+                .filter_map(|s| match Lang::from_str(s) {
                     Ok(l) => Some(l),
                     Err(e) => {
                         tracing::error!("received invalid lang from view-process, `{s}`, {e}");
                         None
                     }
-                }
-            } else {
-                None
-            };
-            L10N_SV.read().sys_lang.set_ne(lang);
+                })
+                .collect();
+
+            L10N_SV.read().sys_lang.set_ne(Langs(lang));
         }
     }
 

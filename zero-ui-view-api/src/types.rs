@@ -1899,8 +1899,8 @@ impl Default for AnimationsConfig {
 /// System settings that define the locale.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Deserialize, Default)]
 pub struct LocaleConfig {
-    /// BCP-47 language tag, if the locale can be obtained.
-    pub lang: Option<String>,
+    /// BCP-47 language tags, if the locale can be obtained.
+    pub langs: Vec<String>,
 }
 
 /// Represent a image load/decode request.

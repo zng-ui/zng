@@ -52,3 +52,5 @@
     - `format_fallback` does multiple allocations just to get inputs for the formatter.
     - It is possible to implement something that only allocates the result string?
     - Every message refreshes every update.
+
+* See whoami's implementation of locale (preferred language(s)): https://crates.io/crates/whoami

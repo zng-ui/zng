@@ -357,6 +357,48 @@ pub(crate) fn color_scheme_config() -> ColorScheme {
 
 pub(crate) fn locale_config() -> LocaleConfig {
     LocaleConfig {
-        lang: sys_locale::get_locale(),
+        //lang: sys_locale::get_locale(),
+        langs: langs(),
     }
+}
+
+#[cfg(windows)]
+pub(crate) fn langs() -> Vec<String> {
+    use windows_sys::Win32::Globalization::GetUserPreferredUILanguages;
+
+    let mut num_languages = 0;
+    let mut buffer_size = 0;
+    let mut buffer;
+
+    unsafe {
+        assert_ne!(
+            GetUserPreferredUILanguages(
+                0x08, /* MUI_LANGUAGE_NAME */
+                &mut num_languages,
+                std::ptr::null_mut(), // List of languages.
+                &mut buffer_size,
+            ),
+            0
+        );
+
+        buffer = Vec::with_capacity(buffer_size as usize);
+
+        assert_ne!(
+            GetUserPreferredUILanguages(
+                0x08, /* MUI_LANGUAGE_NAME */
+                &mut num_languages,
+                buffer.as_mut_ptr(), // List of languages.
+                &mut buffer_size,
+            ),
+            0
+        );
+
+        buffer.set_len(buffer_size as usize);
+    }
+
+    // We know it ends in two null characters.
+    buffer.pop();
+    buffer.pop();
+
+    String::from_utf16_lossy(&buffer).split('\0').map(|x| x.to_string()).collect()
 }
