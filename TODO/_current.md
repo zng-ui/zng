@@ -30,7 +30,9 @@
     - Selector sets the value, but variable never updates.
     - Issue in `ArcCowVar`?
     - Also test selector with read-only var, must not show two options selected.
+
 * Test system lang change.
+    - Windows forces a log-out to change lang, how to test the event?
 
 * A trait that provides the available locales and locales on demand.
     - Replace `L10N.load_dir` with this trait.
@@ -52,5 +54,3 @@
     - `format_fallback` does multiple allocations just to get inputs for the formatter.
     - It is possible to implement something that only allocates the result string?
     - Every message refreshes every update.
-
-* See whoami's implementation of locale (preferred language(s)): https://crates.io/crates/whoami

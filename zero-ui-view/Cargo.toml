@@ -78,7 +78,6 @@ byteorder = "1"
 rustc-hash = "1"
 rayon = "1"
 backtrace = "0.3"
-sys-locale = "0.3"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.45.0" # matches winit
@@ -91,7 +90,10 @@ features = [
     "Win32_Graphics_Gdi",
     "Win32_Graphics_OpenGL",
     "Win32_UI_Accessibility",
-] 
+]
+
+[target.'cfg(not(windows))'.dependencies]
+sys-locale = "0.3"
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
 wayland-client = { version = "0.29.5", default_features = false } # matches winit

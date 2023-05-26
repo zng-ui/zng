@@ -355,43 +355,36 @@ pub(crate) fn color_scheme_config() -> ColorScheme {
     ColorScheme::default()
 }
 
+#[cfg(not(windows))]
 pub(crate) fn locale_config() -> LocaleConfig {
     LocaleConfig {
-        //lang: sys_locale::get_locale(),
-        langs: langs(),
+        langs: sys_locale::get_locale().into_iter().collect(),
     }
 }
 
 #[cfg(windows)]
-pub(crate) fn langs() -> Vec<String> {
-    use windows_sys::Win32::Globalization::GetUserPreferredUILanguages;
+pub(crate) fn locale_config() -> LocaleConfig {
+    // sys_locale returns only one lang, this code adapted from `whoami` crate.
+
+    use windows_sys::Win32::{
+        Foundation::FALSE,
+        Globalization::{GetUserPreferredUILanguages, MUI_LANGUAGE_NAME},
+    };
 
     let mut num_languages = 0;
     let mut buffer_size = 0;
     let mut buffer;
 
     unsafe {
-        assert_ne!(
-            GetUserPreferredUILanguages(
-                0x08, /* MUI_LANGUAGE_NAME */
-                &mut num_languages,
-                std::ptr::null_mut(), // List of languages.
-                &mut buffer_size,
-            ),
-            0
-        );
+        if GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &mut num_languages, std::ptr::null_mut(), &mut buffer_size) == FALSE {
+            return LocaleConfig::default();
+        }
 
         buffer = Vec::with_capacity(buffer_size as usize);
 
-        assert_ne!(
-            GetUserPreferredUILanguages(
-                0x08, /* MUI_LANGUAGE_NAME */
-                &mut num_languages,
-                buffer.as_mut_ptr(), // List of languages.
-                &mut buffer_size,
-            ),
-            0
-        );
+        if GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &mut num_languages, buffer.as_mut_ptr(), &mut buffer_size) == FALSE {
+            return LocaleConfig::default();
+        }
 
         buffer.set_len(buffer_size as usize);
     }
@@ -400,5 +393,7 @@ pub(crate) fn langs() -> Vec<String> {
     buffer.pop();
     buffer.pop();
 
-    String::from_utf16_lossy(&buffer).split('\0').map(|x| x.to_string()).collect()
+    LocaleConfig {
+        langs: String::from_utf16_lossy(&buffer).split('\0').map(|x| x.to_string()).collect(),
+    }
 }

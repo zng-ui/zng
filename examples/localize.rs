@@ -32,14 +32,13 @@ fn app_main() {
         // load `available_langs`
         L10N.load_dir("examples/res/localize");
 
-        L10N.app_lang().trace_value(|l| println!("!!: {l}")).perm();
-
-        // pre-load resources
-        let sys_lang = L10N.app_lang().get();
-        if let Some(lang) = sys_lang.first() {
-            tracing::info!("preload `{lang}`");
-            L10N.wait_lang(lang.clone()).await.perm();
+        // pre-load resources for the first available lang in sys-langs.
+        let (lang, handle) = L10N.wait_first(L10N.app_lang().get()).await;
+        match lang {
+            Some(lang) => tracing::info!("preload {lang}"),
+            None => tracing::warn!("no available sys-lang resource, sys-langs: {}", L10N.app_lang().get()),
         }
+        handle.perm();
 
         Window! {
             // l10n-# Main window title

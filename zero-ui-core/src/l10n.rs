@@ -42,7 +42,7 @@ impl AppExtension for L10nManager {
             .or_else(|| VIEW_PROCESS_INITED_EVENT.on(update).map(|args| &args.locale_config.langs))
         {
             let lang = u
-                .into_iter()
+                .iter()
                 .filter_map(|s| match Lang::from_str(s) {
                     Ok(l) => Some(l),
                     Err(e) => {
@@ -363,6 +363,31 @@ impl L10N {
         }
         LangResourceHandles(r)
     }
+
+    /// Gets a handle to all resource files of the first lang in `langs` that is available and loaded.
+    ///
+    /// This awaits for the available langs to load, then collect an awaits for all lang files.
+    pub async fn wait_first(&self, langs: impl Into<Langs>) -> (Option<Lang>, LangResourceHandles) {
+        let langs = langs.into();
+
+        L10N.wait_available_langs().await;
+
+        let available = L10N.available_langs().get();
+        for lang in langs.0 {
+            if let Some(files) = available.get_exact(&lang) {
+                let mut r = Vec::with_capacity(files.len());
+                for name in files.keys() {
+                    r.push(self.lang_resource(lang.clone(), name.clone()));
+                }
+                let handle = LangResourceHandles(r);
+                handle.wait().await;
+
+                return (Some(lang), handle);
+            }
+        }
+
+        (None, LangResourceHandles(vec![]))
+    }
 }
 
 /// Handle to multiple localization resources.
@@ -465,7 +490,7 @@ pub enum LangResourceStatus {
     /// This can be any IO or parse errors. If the resource if *not found* the status is set to
     /// `NotAvailable`, not an error. Localization messages fallback on error just like they do
     /// for not available.
-    Error(Arc<dyn std::error::Error + Send + Sync>),
+    Errors(Vec<Arc<dyn std::error::Error + Send + Sync>>),
 }
 impl fmt::Display for LangResourceStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -473,14 +498,20 @@ impl fmt::Display for LangResourceStatus {
             LangResourceStatus::NotAvailable => write!(f, "not available"),
             LangResourceStatus::Loading => write!(f, "loading…"),
             LangResourceStatus::Loaded => write!(f, "loaded"),
-            LangResourceStatus::Error(e) => write!(f, "error: {e}"),
+            LangResourceStatus::Errors(e) => {
+                writeln!(f, "errors:")?;
+                for e in e {
+                    writeln!(f, "   {e}")?;
+                }
+                Ok(())
+            }
         }
     }
 }
 impl PartialEq for LangResourceStatus {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Error(_), Self::Error(_)) => false,
+            (Self::Errors(a), Self::Errors(b)) => a.is_empty() && b.is_empty(),
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
@@ -961,6 +992,7 @@ impl L10nService {
             status.set_ne(LangResourceStatus::Loading);
 
             let mut set: LangMap<HashMap<Txt, PathBuf>> = LangMap::new();
+            let mut errors: Vec<Arc<dyn std::error::Error + Send + Sync>> = vec![];
             let mut dir = None;
             for entry in d.min_depth(0).max_depth(1) {
                 match entry {
@@ -991,7 +1023,7 @@ impl L10nService {
                                                     .insert(Txt::empty(), dir.as_ref().unwrap().join(name_and_ext));
                                             }
                                             Err(e) => {
-                                                tracing::debug!("`{name}.{ext}` is not a valid lang or 'template' file, {e}");
+                                                errors.push(Arc::new(e));
                                             }
                                         }
                                     }
@@ -1015,33 +1047,30 @@ impl L10nService {
                                                         }
                                                     }
                                                 }
-                                                Err(e) => {
-                                                    tracing::error!("L10N dir watcher error, {e}");
-                                                    // !!: TODO, review this
-                                                    status.set(LangResourceStatus::Error(Arc::new(e)))
-                                                }
+                                                Err(e) => errors.push(Arc::new(e)),
                                             }
                                         }
                                         if inner.is_empty() {
                                             set.pop();
                                         }
                                     }
-                                    Err(e) => {
-                                        tracing::debug!("`{name}` is not a valid lang dir, {e}");
-                                    }
+                                    Err(e) => errors.push(Arc::new(e)),
                                 }
                             }
                         }
-
-                        status.set_ne(LangResourceStatus::Loaded);
                     }
-                    Err(e) => {
-                        tracing::error!("L10N dir watcher error, {e}");
-                        // !!: TODO, review this
-                        status.set(LangResourceStatus::Error(Arc::new(e)))
-                    }
+                    Err(e) => errors.push(Arc::new(e)),
                 }
             }
+
+            if errors.is_empty() {
+                status.set_ne(LangResourceStatus::Loaded)
+            } else {
+                let s = LangResourceStatus::Errors(errors);
+                tracing::error!("loading available {s}");
+                status.set(s)
+            }
+
             Some(Arc::new(set))
         });
         self.available_langs.set(dir_watch.get());
@@ -1266,7 +1295,7 @@ impl LangResourceWatcher {
                         Err(e) => {
                             let e = FluentParserErrors(e.1);
                             tracing::error!("error parsing fluent resource, {e}");
-                            status.set(LangResourceStatus::Error(Arc::new(e)));
+                            status.set(LangResourceStatus::Errors(vec![Arc::new(e)]));
                         }
                     },
                     Err(e) => {
@@ -1274,7 +1303,7 @@ impl LangResourceWatcher {
                             status.set_ne(LangResourceStatus::NotAvailable);
                         } else {
                             tracing::error!("error loading fluent resource, {e}");
-                            status.set(LangResourceStatus::Error(Arc::new(e)));
+                            status.set(LangResourceStatus::Errors(vec![Arc::new(e)]));
                         }
                     }
                 }
