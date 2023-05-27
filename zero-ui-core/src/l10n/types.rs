@@ -1,0 +1,566 @@
+use crate::{
+    task,
+    text::Txt,
+    var::{self, *},
+};
+use fluent::types::FluentNumber;
+use once_cell::sync::Lazy;
+use std::{borrow::Cow, fmt, mem, ops, sync::Arc};
+
+use super::{lang, L10N, L10N_SV};
+
+/// Handle to multiple localization resources.
+#[derive(Clone, Debug)]
+pub struct LangResourceHandles(pub Vec<LangResourceHandle>);
+impl ops::Deref for LangResourceHandles {
+    type Target = Vec<LangResourceHandle>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ops::DerefMut for LangResourceHandles {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl LangResourceHandles {
+    /// Wait for all the resources to load.
+    pub async fn wait(&self) {
+        for res in &self.0 {
+            res.wait().await;
+        }
+    }
+
+    /// Drop all handles without dropping the resource.
+    pub fn perm(self) {
+        for res in self.0 {
+            res.perm()
+        }
+    }
+}
+
+/// Handle to localization resources for a language.
+///
+/// See [`L10N.lang_resource`] for more details.
+///
+/// [`L10N.lang_resource`]: L10N::lang_resource
+#[derive(Clone)]
+pub struct LangResourceHandle(pub(super) crate::crate_util::Handle<ArcVar<LangResourceStatus>>);
+impl fmt::Debug for LangResourceHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "LangResourceHandle({:?})", self.status().get())
+    }
+}
+impl LangResourceHandle {
+    /// Localization resource status.
+    ///
+    /// This can change after load if [`L10N.load_dir`] is called to set a different dir, or the resource
+    /// file is created in the dir.
+    ///  
+    /// [`L10N.load_dir`]: L10N::load_dir
+    pub fn status(&self) -> ReadOnlyArcVar<LangResourceStatus> {
+        self.0.data().read_only()
+    }
+
+    /// Wait for the resource to load, if it is available.
+    pub async fn wait(&self) {
+        let dir_status = L10N.available_langs_status().last_update();
+        L10N.wait_available_langs().await;
+
+        if dir_status != L10N.available_langs_status().last_update() {
+            // let service start (re)loading if available_langs just changed.
+            task::yield_now().await;
+            // if started loading, wait status update to `Loading`.
+            task::yield_now().await;
+        }
+
+        let status = self.0.data();
+        while matches!(status.get(), LangResourceStatus::Loading) {
+            status.wait_is_new().await;
+        }
+    }
+
+    /// Drop the handle without dropping the resource.
+    ///
+    /// The localization resource will stay in memory for duration of the current process, if the
+    /// resource file changes it will automatically reload.
+    ///
+    /// [`L10N.load_dir`]: L10N::load_dir
+    pub fn perm(self) {
+        self.0.perm()
+    }
+}
+
+/// Status of a localization resource.
+#[derive(Clone, Debug)]
+pub enum LangResourceStatus {
+    /// Resource not available.
+    ///
+    /// This can change if the localization directory changes, or the file is created.
+    NotAvailable,
+    /// Resource is loading.
+    Loading,
+    /// Resource loaded ok.
+    Loaded,
+    /// Resource failed to load.
+    ///
+    /// This can be any IO or parse errors. If the resource if *not found* the status is set to
+    /// `NotAvailable`, not an error. Localization messages fallback on error just like they do
+    /// for not available.
+    Errors(Vec<Arc<dyn std::error::Error + Send + Sync>>),
+}
+impl fmt::Display for LangResourceStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LangResourceStatus::NotAvailable => write!(f, "not available"),
+            LangResourceStatus::Loading => write!(f, "loading…"),
+            LangResourceStatus::Loaded => write!(f, "loaded"),
+            LangResourceStatus::Errors(e) => {
+                writeln!(f, "errors:")?;
+                for e in e {
+                    writeln!(f, "   {e}")?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+impl PartialEq for LangResourceStatus {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Errors(a), Self::Errors(b)) => a.is_empty() && b.is_empty(),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+impl Eq for LangResourceStatus {}
+
+/// Localized message variable builder.
+///
+/// See [`L10N.message`] for more details.
+pub struct L10nMessageBuilder {
+    pub(super) file: Txt,
+    pub(super) id: Txt,
+    pub(super) attribute: Txt,
+    pub(super) fallback: Txt,
+    pub(super) args: Vec<(Txt, BoxedVar<L10nArgument>)>,
+}
+impl L10nMessageBuilder {
+    /// Add a format arg variable.
+    pub fn arg(mut self, name: Txt, value: impl IntoVar<L10nArgument>) -> Self {
+        self.args.push((name, value.into_var().boxed()));
+        self
+    }
+    #[doc(hidden)]
+    pub fn l10n_arg(self, name: &'static str, value: impl Var<L10nArgument>) -> Self {
+        self.arg(Txt::from_static(name), value)
+    }
+
+    /// Build the variable.
+    pub fn build(self) -> impl Var<Txt> {
+        let Self {
+            file,
+            id,
+            attribute,
+            fallback,
+            args,
+        } = self;
+        LANG_VAR.flat_map(move |l| {
+            L10N_SV.write().message_text(
+                l.clone(),
+                file.clone(),
+                id.clone(),
+                attribute.clone(),
+                false,
+                fallback.clone(),
+                args.clone(),
+            )
+        })
+    }
+}
+
+/// Represents an argument value for a localization message.
+///
+/// See [`L10nMessageBuilder::arg`] for more details.
+#[derive(Clone, Debug)]
+pub enum L10nArgument {
+    /// String.
+    Txt(Txt),
+    /// Number, with optional style details.
+    Number(FluentNumber),
+}
+impl_from_and_into_var! {
+    fn from(txt: Txt) -> L10nArgument {
+        L10nArgument::Txt(txt)
+    }
+    fn from(txt: &'static str) -> L10nArgument {
+        L10nArgument::Txt(Txt::from_static(txt))
+    }
+    fn from(txt: String) -> L10nArgument {
+        L10nArgument::Txt(Txt::from(txt))
+    }
+    fn from(t: char) -> L10nArgument {
+        L10nArgument::Txt(Txt::from_char(t))
+    }
+    fn from(number: FluentNumber) -> L10nArgument {
+        L10nArgument::Number(number)
+    }
+
+}
+macro_rules! impl_from_and_into_var_number {
+    ($($literal:tt),+) => {
+        impl_from_and_into_var! {
+            $(
+                fn from(number: $literal) -> L10nArgument {
+                    FluentNumber::from(number).into()
+                }
+            )+
+        }
+    }
+}
+impl_from_and_into_var_number! {
+    u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, usize, isize, f32, f64
+}
+impl L10nArgument {
+    /// Borrow argument as a fluent value.
+    pub fn fluent_value(&self) -> fluent::FluentValue {
+        match self {
+            L10nArgument::Txt(t) => fluent::FluentValue::String(Cow::Borrowed(t.as_str())),
+            L10nArgument::Number(n) => fluent::FluentValue::Number(n.clone()),
+        }
+    }
+}
+
+#[doc(hidden)]
+pub struct L10nSpecialize<T>(pub T);
+#[doc(hidden)]
+pub trait IntoL10nVar {
+    type Var: Var<L10nArgument>;
+    fn into_l10n_var(self) -> Self::Var;
+}
+
+impl<T: Into<L10nArgument>> IntoL10nVar for L10nSpecialize<T> {
+    type Var = var::LocalVar<L10nArgument>;
+
+    fn into_l10n_var(self) -> Self::Var {
+        var::LocalVar(self.0.into())
+    }
+}
+impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &L10nSpecialize<ArcVar<T>> {
+    type Var = var::types::ContextualizedVar<L10nArgument, var::ReadOnlyArcVar<L10nArgument>>;
+
+    fn into_l10n_var(self) -> Self::Var {
+        self.0.map_into()
+    }
+}
+impl<V: Var<L10nArgument>> IntoL10nVar for &&L10nSpecialize<V> {
+    type Var = V;
+
+    fn into_l10n_var(self) -> Self::Var {
+        self.0.clone()
+    }
+}
+
+context_var! {
+    /// Language of text in a widget context.
+    ///
+    /// Is [`L10N.app_lang`] by default.
+    ///
+    /// [`L10N.app_lang`]: L10N::app_lang
+    pub static LANG_VAR: Langs = L10N.app_lang();
+}
+
+/// Identifies the language, region and script of text.
+///
+/// Use the [`lang!`] macro to construct one, it does compile-time validation.
+///
+/// Use the [`unic_langid`] crate for more advanced operations such as runtime parsing and editing identifiers, this
+/// type is just an alias for the core struct of that crate.
+///
+/// [`unic_langid`]: https://docs.rs/unic-langid
+pub type Lang = unic_langid::LanguageIdentifier;
+
+/// List of languages, in priority order.
+///
+#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
+pub struct Langs(pub Vec<Lang>);
+impl Langs {
+    /// The first lang on the list or `und` if the list is empty.
+    pub fn best(&self) -> &Lang {
+        static NONE: Lazy<Lang> = Lazy::new(|| lang!(und));
+        self.first().unwrap_or(&NONE)
+    }
+}
+impl ops::Deref for Langs {
+    type Target = Vec<Lang>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ops::DerefMut for Langs {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl_from_and_into_var! {
+    fn from(lang: Lang) -> Langs {
+        Langs(vec![lang])
+    }
+    fn from(lang: Option<Lang>) -> Langs {
+        Langs(lang.into_iter().collect())
+    }
+}
+impl fmt::Display for Langs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut sep = "";
+        for l in self.iter() {
+            write!(f, "{sep}{l}")?;
+            sep = ", ";
+        }
+        Ok(())
+    }
+}
+
+/// Represents a map of [`Lang`] keys that can be partially matched.
+#[derive(Debug, Clone)]
+pub struct LangMap<V> {
+    inner: Vec<(Lang, V)>,
+}
+impl<V> Default for LangMap<V> {
+    fn default() -> Self {
+        Self { inner: Default::default() }
+    }
+}
+impl<V> LangMap<V> {
+    /// New empty default.
+    pub fn new() -> Self {
+        LangMap::default()
+    }
+
+    /// New empty with pre-allocated capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        LangMap {
+            inner: Vec::with_capacity(capacity),
+        }
+    }
+
+    fn exact_i(&self, lang: &Lang) -> Option<usize> {
+        for (i, (key, _)) in self.inner.iter().enumerate() {
+            if key == lang {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    fn best_i(&self, lang: &Lang) -> Option<usize> {
+        let mut best = None;
+        let mut best_weight = 0;
+
+        for (i, (key, _)) in self.inner.iter().enumerate() {
+            if lang.matches(key, true, true) {
+                let mut weight = 1;
+                let mut eq = 0;
+
+                if key.language == lang.language {
+                    weight += 128;
+                    eq += 1;
+                }
+                if key.region == lang.region {
+                    weight += 40;
+                    eq += 1;
+                }
+                if key.script == lang.script {
+                    weight += 20;
+                    eq += 1;
+                }
+
+                if eq == 3 && lang.variants().zip(key.variants()).all(|(a, b)| a == b) {
+                    return Some(i);
+                }
+
+                if best_weight < weight {
+                    best_weight = weight;
+                    best = Some(i);
+                }
+            }
+        }
+
+        best
+    }
+
+    /// Returns the best match to `lang` currently in the map.
+    pub fn best_match(&self, lang: &Lang) -> Option<&Lang> {
+        if let Some(i) = self.best_i(lang) {
+            Some(&self.inner[i].0)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the best match for `lang`.
+    pub fn get(&self, lang: &Lang) -> Option<&V> {
+        if let Some(i) = self.best_i(lang) {
+            Some(&self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the exact match for `lang`.
+    pub fn get_exact(&self, lang: &Lang) -> Option<&V> {
+        if let Some(i) = self.exact_i(lang) {
+            Some(&self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the best match for `lang`.
+    pub fn get_mut(&mut self, lang: &Lang) -> Option<&mut V> {
+        if let Some(i) = self.best_i(lang) {
+            Some(&mut self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the exact match for `lang`.
+    pub fn get_exact_mut(&mut self, lang: &Lang) -> Option<&mut V> {
+        if let Some(i) = self.exact_i(lang) {
+            Some(&mut self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the current value or insert `new` and return a reference to it.
+    pub fn get_exact_or_insert(&mut self, lang: Lang, new: impl FnOnce() -> V) -> &mut V {
+        if let Some(i) = self.exact_i(&lang) {
+            return &mut self.inner[i].1;
+        }
+        let i = self.inner.len();
+        self.inner.push((lang, new()));
+        &mut self.inner[i].1
+    }
+
+    /// Insert the value with the exact match of `lang`.
+    ///
+    /// Returns the previous exact match.
+    pub fn insert(&mut self, lang: Lang, value: V) -> Option<V> {
+        if let Some(i) = self.exact_i(&lang) {
+            Some(mem::replace(&mut self.inner[i].1, value))
+        } else {
+            self.inner.push((lang, value));
+            None
+        }
+    }
+
+    /// Remove the exact match of `lang`.
+    pub fn remove(&mut self, lang: &Lang) -> Option<V> {
+        if let Some(i) = self.exact_i(lang) {
+            Some(self.inner.swap_remove(i).1)
+        } else {
+            None
+        }
+    }
+
+    /// Remove all exact and partial matches of `lang`.
+    ///
+    /// Returns a count of items removed.
+    pub fn remove_all(&mut self, lang: &Lang) -> usize {
+        let mut count = 0;
+        self.inner.retain(|(key, _)| {
+            let rmv = lang.matches(key, true, false);
+            if rmv {
+                count += 1
+            }
+            !rmv
+        });
+        count
+    }
+
+    /// Remove the last inserted lang.
+    pub fn pop(&mut self) -> Option<(Lang, V)> {
+        self.inner.pop()
+    }
+
+    /// Returns if the map is empty.
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    /// Returns the number of languages in the map.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Remove all entries.
+    pub fn clear(&mut self) {
+        self.inner.clear()
+    }
+
+    /// Iterator over lang keys.
+    pub fn keys(&self) -> impl std::iter::ExactSizeIterator<Item = &Lang> {
+        self.inner.iter().map(|(k, _)| k)
+    }
+
+    /// Iterator over values.
+    pub fn values(&self) -> impl std::iter::ExactSizeIterator<Item = &V> {
+        self.inner.iter().map(|(_, v)| v)
+    }
+
+    /// Iterator over values.
+    pub fn values_mut(&mut self) -> impl std::iter::ExactSizeIterator<Item = &mut V> {
+        self.inner.iter_mut().map(|(_, v)| v)
+    }
+
+    /// Into iterator of values.
+    pub fn into_values(self) -> impl std::iter::ExactSizeIterator<Item = V> {
+        self.inner.into_iter().map(|(_, v)| v)
+    }
+
+    /// Iterate over key-value pairs.
+    pub fn iter(&self) -> impl std::iter::ExactSizeIterator<Item = (&Lang, &V)> {
+        self.inner.iter().map(|(k, v)| (k, v))
+    }
+
+    /// Iterate over key-value pairs with mutable values.
+    pub fn iter_mut(&mut self) -> impl std::iter::ExactSizeIterator<Item = (&Lang, &mut V)> {
+        self.inner.iter_mut().map(|(k, v)| (&*k, v))
+    }
+}
+impl<V> IntoIterator for LangMap<V> {
+    type Item = (Lang, V);
+
+    type IntoIter = std::vec::IntoIter<(Lang, V)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_iter()
+    }
+}
+
+/// Errors found parsing a fluent resource file.
+#[derive(Clone, Debug)]
+pub struct FluentParserErrors(pub Vec<fluent_syntax::parser::ParserError>);
+impl fmt::Display for FluentParserErrors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut sep = "";
+        for e in &self.0 {
+            write!(f, "{sep}{e}")?;
+            sep = "\n";
+        }
+        Ok(())
+    }
+}
+impl std::error::Error for FluentParserErrors {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if self.0.len() == 1 {
+            Some(&self.0[0])
+        } else {
+            None
+        }
+    }
+}
