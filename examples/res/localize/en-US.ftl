@@ -1,4 +1,6 @@
+-lang = en-US
+
 button = Button
 
 window = 
-    .title = Localize Example (en-US)
+    .title = Localize Example ({-lang})

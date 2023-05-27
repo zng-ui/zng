@@ -98,6 +98,11 @@ fn window_content() -> impl UiNode {
     }
 }
 
+/// shows current lang and allows selecting one lang.
+///
+/// Note that in a real UI settings page you want to allows selection of
+/// multiple languages on a list that the user can sort, this way missing messages
+/// of the top preference can have a better fallback.
 fn locale_menu() -> impl UiNode {
     presenter(
         L10N.available_langs(),

@@ -25,23 +25,9 @@
 
 # Localization
 
-* A trait that provides the available locales and locales on demand.
-    - Replace `L10N.load_dir` with this trait.
-    - Implement in-memory source.
-    - Need to surface the resource file type too.
-        - Needs to be some kind of variable.
-    - Maybe have the trait replace the entire service.
-        - API is directly `get(&mut self, file: &str, key: &str, attribute: &str) -> Txt`
-
-
-* Review default fluent functions.
-    - Some are missing?
-* Review fallback in bundle.
-    - Bundles support multiple resource overrides, resources can be shared with `Arc` too.
-    - If a resource message references another that is missing, does setting-up these aggregate bundles causes
-      it to resolve the missing reference on a fallback?
- 
-* Optimize.
-    - `format_fallback` does multiple allocations just to get inputs for the formatter.
-    - It is possible to implement something that only allocates the result string?
+* Optimize
     - Every message refreshes every update.
+    - Review optimize in `Localization.md`
+
+* Implement a backend trait for `L10N`.
+    - Allows current dir impl and an embedded impl.
