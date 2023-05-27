@@ -25,10 +25,6 @@
 
 # Localization
 
-* Test system lang change.
-    - Does not update after first system change?
-    - Event is received, sys_lang is set.
-
 * A trait that provides the available locales and locales on demand.
     - Replace `L10N.load_dir` with this trait.
     - Implement in-memory source.

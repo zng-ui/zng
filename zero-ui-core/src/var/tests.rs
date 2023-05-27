@@ -978,3 +978,40 @@ mod cow {
         assert_eq!(&cow_values.lock()[..], &[false, true, false]);
     }
 }
+
+mod multi {
+    use crate::app::App;
+
+    use super::*;
+
+    #[test]
+    fn multi_bidi() {
+        let mut app = App::minimal().run_headless(false);
+
+        let a = var(false);
+        let b = a.map_bidi(
+            |&a| if a { 1i32 } else { 0 },
+            |&b| match b {
+                0 => false,
+                1 => true,
+                n => panic!("invalid test {n}"),
+            },
+        );
+
+        let a_values = Arc::new(Mutex::new(vec![]));
+        let b_values = Arc::new(Mutex::new(vec![]));
+        a.trace_value(clmv!(a_values, |v| a_values.lock().push(*v))).perm();
+        b.trace_value(clmv!(b_values, |v| b_values.lock().push(*v))).perm();
+
+        assert!(!a.get());
+        assert_eq!(b.get(), 0);
+
+        a.set(true);
+        app.update(false).assert_wait();
+        assert!(a.get());
+        assert_eq!(b.get(), 1);
+
+        assert_eq!(&a_values.lock()[..], &[false, true]);
+        assert_eq!(&b_values.lock()[..], &[0, 1]);
+    }
+}

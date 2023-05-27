@@ -6,7 +6,7 @@ use std::{
     fmt,
     marker::PhantomData,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
     },
     time::Duration,
@@ -41,6 +41,7 @@ mod when;
 mod util;
 mod property_build_action;
 
+use atomic::Atomic;
 use parking_lot::Mutex;
 #[doc(inline)]
 pub use util::impl_from_and_into_var;
@@ -271,7 +272,7 @@ impl VarHook {
 
     /// If the handle is still held or is permanent.
     pub fn is_alive(&self) -> bool {
-        Arc::strong_count(&self.0) > 1 || self.0.perm.load(Ordering::Relaxed)
+        Arc::strong_count(&self.0) > 1 || self.0.perm.load(Relaxed)
     }
 }
 
@@ -309,7 +310,7 @@ impl VarHandle {
     /// Note that the behavior can still be stopped by dropping the involved variables.
     pub fn perm(self) {
         if let Some(s) = &self.0 {
-            s.perm.store(true, Ordering::Relaxed);
+            s.perm.store(true, Relaxed);
         }
     }
 
@@ -1143,7 +1144,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Create a ref-counted var that maps from this variable on read and to it on write.
     ///
     /// The `map` closure is called once on initialization, and then once every time
-    /// the source variable updates, the `map_back` closure is called every time the output value is modified.
+    /// the source variable updates, the `map_back` closure is called every time the output value is modified directly.
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
     ///
@@ -1252,7 +1253,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// to generate a fallback value, after, the `map` closure is called once every time
     /// the mapping variable reads and is out of sync with the source variable, if it returns `Some(_)` the mapping variable value changes,
     /// otherwise the previous value is retained, either way the mapping variable is *new*. The `map_back` closure
-    /// is called every time the output value is modified, if it returns `Some(_)` the source variable is set, otherwise the source
+    /// is called every time the output value is modified directly, if it returns `Some(_)` the source variable is set, otherwise the source
     /// value is not touched.
     ///
     /// The mapping var is [contextualized], see [`Var::map`] for more details.
@@ -1363,20 +1364,23 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         M: FnMut(&T) -> T2 + Send + 'static,
         B: FnMut(&T2) -> T + Send + 'static,
     {
-        let mut last_update = VarUpdateId::never();
-        let self_to_other = var_bind(self, other, move |value, other| {
-            let update_id = VARS.update_id();
-            if update_id != last_update {
-                last_update = update_id;
-                let _ = other.set(map(value));
-            }
-        });
+        let last_update = Arc::new(Atomic::new(VarUpdateId::never()));
+        let self_to_other = var_bind(
+            self,
+            other,
+            clmv!(last_update, |value, other| {
+                let update_id = VARS.update_id();
+                if update_id != last_update.load(Relaxed) {
+                    last_update.store(update_id, Relaxed);
+                    let _ = other.set(map(value));
+                }
+            }),
+        );
 
-        let mut last_update = VarUpdateId::never();
         let other_to_self = var_bind(other, self, move |value, self_| {
             let update_id = VARS.update_id();
-            if update_id != last_update {
-                last_update = update_id;
+            if update_id != last_update.load(Relaxed) {
+                last_update.store(update_id, Relaxed);
                 let _ = self_.set(map_back(value));
             }
         });
@@ -1398,22 +1402,25 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         M: FnMut(&T) -> Option<T2> + Send + 'static,
         B: FnMut(&T2) -> Option<T> + Send + 'static,
     {
-        let mut last_update = VarUpdateId::never();
-        let self_to_other = var_bind(self, other, move |value, other| {
-            let update_id = VARS.update_id();
-            if update_id != last_update {
-                last_update = update_id;
-                if let Some(value) = map(value) {
-                    let _ = other.set(value);
+        let last_update = Arc::new(Atomic::new(VarUpdateId::never()));
+        let self_to_other = var_bind(
+            self,
+            other,
+            clmv!(last_update, |value, other| {
+                let update_id = VARS.update_id();
+                if update_id != last_update.load(Relaxed) {
+                    last_update.store(update_id, Relaxed);
+                    if let Some(value) = map(value) {
+                        let _ = other.set(value);
+                    }
                 }
-            }
-        });
+            }),
+        );
 
-        let mut last_update = VarUpdateId::never();
         let other_to_self = var_bind(other, self, move |value, self_| {
             let update_id = VARS.update_id();
-            if update_id != last_update {
-                last_update = update_id;
+            if update_id != last_update.load(Relaxed) {
+                last_update.store(update_id, Relaxed);
                 if let Some(value) = map_back(value) {
                     let _ = self_.set(value);
                 }
