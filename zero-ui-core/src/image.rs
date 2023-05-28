@@ -327,7 +327,7 @@ impl ImagesService {
             proxies: vec![],
             loading: vec![],
             decoding: vec![],
-            download_accept: Txt::empty(),
+            download_accept: Txt::from_static(""),
             cache: IdMap::new(),
             not_cached: vec![],
             render: render::ImagesRender::default(),

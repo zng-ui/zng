@@ -265,7 +265,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         }
                         blocks.push(code_block_view(CodeBlockFnArgs {
                             lang: match kind {
-                                CodeBlockKind::Indented => Txt::empty(),
+                                CodeBlockKind::Indented => Txt::from_str(""),
                                 CodeBlockKind::Fenced(l) => l.to_text(),
                             },
                             txt: txt.into(),

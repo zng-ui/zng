@@ -28,7 +28,7 @@ pub(super) fn inspect_node(
 
     let mut inspector_state = WriteTreeState::new();
     let inspector = WindowId::new_unique();
-    let inspector_text = var(Txt::empty());
+    let inspector_text = var(Txt::from_str(""));
 
     let can_inspect = can_inspect.into_var();
 

@@ -345,7 +345,7 @@ pub struct ImgErrorArgs {
 #[property(EVENT, widget_impl(Image))]
 pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();
-    let mut error = Txt::empty();
+    let mut error = Txt::from_str("");
 
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {

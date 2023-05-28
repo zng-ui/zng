@@ -269,7 +269,7 @@ fn defaults() -> impl UiNode {
             )
             .map(|f| match f.done() {
                 Some(f) => f.best().family_name().to_text(),
-                None => Txt::empty(),
+                None => Txt::from_str(""),
             });
 
         Stack! {

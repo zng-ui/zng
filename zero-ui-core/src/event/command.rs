@@ -959,7 +959,7 @@ pub trait CommandInfoExt {
 static COMMAND_INFO_ID: StaticCommandMetaVarId<Txt> = StaticCommandMetaVarId::new_unique();
 impl CommandInfoExt for Command {
     fn info(self) -> CommandMetaVar<Txt> {
-        self.with_meta(|m| m.get_var_or_insert(&COMMAND_INFO_ID, Txt::empty))
+        self.with_meta(|m| m.get_var_or_insert(&COMMAND_INFO_ID, Txt::default))
     }
 
     fn init_info(self, info: impl Into<Txt>) -> Self {

@@ -299,7 +299,7 @@ mod print_fmt {
             Fmt {
                 depth: 0,
                 output,
-                property_group: Txt::empty(),
+                property_group: Txt::from_str(""),
             }
         }
 
@@ -442,7 +442,7 @@ mod print_fmt {
 
         pub fn close_widget(&mut self, name: &str) {
             self.depth -= 1;
-            self.property_group = Txt::empty();
+            self.property_group = Txt::from_str("");
             self.write_tabs();
             self.write("} ".bold());
             self.write_comment_after(format_args!("{name}!"));

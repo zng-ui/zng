@@ -316,8 +316,8 @@ impl TextTransformFn {
     pub fn transform(&self, text: Txt) -> Txt {
         match self {
             TextTransformFn::None => text,
-            TextTransformFn::Uppercase => Txt::owned(text.to_uppercase()),
-            TextTransformFn::Lowercase => Txt::owned(text.to_lowercase()),
+            TextTransformFn::Uppercase => Txt::from_string(text.to_uppercase()),
+            TextTransformFn::Lowercase => Txt::from_string(text.to_lowercase()),
             TextTransformFn::Custom(fn_) => fn_(text),
         }
     }
@@ -862,7 +862,8 @@ fn str_to_inline(s: &str) -> [u8; INLINE_MAX] {
 enum TxtData {
     Static(&'static str),
     Inline([u8; INLINE_MAX]),
-    Owned(String),
+    String(String),
+    Arc(Arc<str>),
 }
 impl fmt::Debug for TxtData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -870,7 +871,8 @@ impl fmt::Debug for TxtData {
             match self {
                 Self::Static(s) => write!(f, "Static({s:?})"),
                 Self::Inline(d) => write!(f, "Inline({:?})", inline_to_str(d)),
-                Self::Owned(s) => write!(f, "Owned({s:?})"),
+                Self::String(s) => write!(f, "String({s:?})"),
+                Self::Arc(s) => write!(f, "Arc({s:?})"),
             }
         } else {
             write!(f, "{:?}", self.deref())
@@ -900,30 +902,99 @@ impl Deref for TxtData {
         match self {
             TxtData::Static(s) => s,
             TxtData::Inline(d) => inline_to_str(d),
-            TxtData::Owned(s) => s,
+            TxtData::String(s) => s,
+            TxtData::Arc(s) => s,
         }
     }
 }
 
-/// Text string type, can be owned, static or inlined.
+/// Identifies how a [`Txt`] is currently storing the string data.
 ///
-/// Note that this type dereferences to [`str`] so you can use all methods
-/// of that type also. For mutation you can call [`to_mut`]
-/// to access all mutating methods of [`String`]. The mutations that can be
-/// implemented using only a borrowed `str` are provided as methods in this type.
+/// Use [`Txt::repr`] to retrieve.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TxtRepr {
+    /// Text data is stored as a `&'static str`.
+    Static,
+    /// Text data is a small string stored as a null terminated `[u8; {size_of::<usize>() * 3}]`.
+    Inline,
+    /// Text data is stored as a `String`.
+    String,
+    /// Text data is stored as an `Arc<str>`.
+    Arc,
+}
+
+/// Text string type, can be one of multiple internal representations, mostly optimized for sharing and one for editing.
 ///
-/// [`to_mut`]: Txt::to_mut
-#[derive(Clone, dm::Display, PartialEq, Eq, Hash)]
+/// This type dereferences to [`str`] so you can use all methods of that type.
+///
+/// For editing some mutable methods are provided, you can also call [`Txt::to_mut`]
+/// to access all mutating methods of [`String`]. After editing you can call [`Txt::end_mut`] to convert
+/// back to an inner representation optimized for sharing.
+///
+/// See [`Txt::repr`] for more details about the inner representations.
+#[derive(dm::Display, PartialEq, Eq, Hash)]
 pub struct Txt(TxtData);
+/// Clones the text.
+///
+/// If the inner representation is [`TxtRepr::String`] the returned value is in a representation optimized
+/// for sharing, either a static empty, an inlined short or an `Arc<str>` long string.
+impl Clone for Txt {
+    fn clone(&self) -> Self {
+        Self(match &self.0 {
+            TxtData::Static(s) => TxtData::Static(s),
+            TxtData::Inline(d) => TxtData::Inline(*d),
+            TxtData::String(s) => return Self::from_str(s),
+            TxtData::Arc(s) => TxtData::Arc(Arc::clone(s)),
+        })
+    }
+}
 impl Txt {
     /// New text that is a `&'static str`.
     pub const fn from_static(s: &'static str) -> Txt {
         Txt(TxtData::Static(s))
     }
 
-    /// New text that is an owned [`String`].
-    pub const fn owned(s: String) -> Txt {
-        Txt(TxtData::Owned(s))
+    /// New text from a [`String`] optimized for editing.
+    ///
+    /// If you don't plan to edit the text after this call consider using [`from_str`] instead.
+    ///
+    /// [`from_string`]: Self::from_string
+    pub const fn from_string(s: String) -> Txt {
+        Txt(TxtData::String(s))
+    }
+
+    /// New cloned from `s`.
+    ///
+    /// The text will be internally optimized for sharing, if you plan to edit the text after this call
+    /// consider using [`from_string`] instead.
+    ///
+    /// [`from_string`]: Self::from_string
+    #[allow(clippy::should_implement_trait)] // have implemented trait, this one is infallible.
+    pub fn from_str(s: &str) -> Txt {
+        if s.is_empty() {
+            Self::from_static("")
+        } else if s.len() <= INLINE_MAX && !s.contains('\0') {
+            Self(TxtData::Inline(str_to_inline(s)))
+        } else {
+            Self(TxtData::Arc(Arc::from(s)))
+        }
+    }
+
+    /// New from a shared arc str.
+    ///
+    /// Note that the text can outlive the `Arc`, by cloning the string data when modified or
+    /// to use a more optimal representation, you cannot use the reference count of `s` to track
+    /// the lifetime of the text.
+    ///
+    /// [`from_string`]: Self::from_string
+    pub fn from_arc(s: Arc<str>) -> Txt {
+        if s.is_empty() {
+            Self::from_static("")
+        } else if s.len() <= INLINE_MAX && !s.contains('\0') {
+            Self(TxtData::Inline(str_to_inline(&s)))
+        } else {
+            Self(TxtData::Arc(s))
+        }
     }
 
     /// New text that is an inlined `char`.
@@ -934,32 +1005,63 @@ impl Txt {
         let mut buf = [0u8; 4];
         let s = c.encode_utf8(&mut buf);
 
+        if s.contains('\0') {
+            return Txt(TxtData::Arc(Arc::from(&*s)));
+        }
+
         Txt(TxtData::Inline(str_to_inline(s)))
     }
-    /// New empty text.
-    pub const fn empty() -> Txt {
-        Self::from_static("")
+
+    /// New text from [`format_args!`], avoids allocation if the text is static (no args) or can fit the inlined representation.
+    pub fn from_fmt(args: std::fmt::Arguments) -> Txt {
+        if let Some(s) = args.as_str() {
+            Txt::from_static(s)
+        } else {
+            let mut r = Txt(TxtData::Inline([b'\0'; INLINE_MAX]));
+            std::fmt::write(&mut r, args).unwrap();
+            r
+        }
     }
 
-    /// If the text is an owned [`String`].
-    pub const fn is_owned(&self) -> bool {
-        matches!(&self.0, TxtData::Owned(_))
+    /// Identifies how the text is currently stored.
+    pub const fn repr(&self) -> TxtRepr {
+        match &self.0 {
+            TxtData::Static(_) => TxtRepr::Static,
+            TxtData::Inline(_) => TxtRepr::Inline,
+            TxtData::String(_) => TxtRepr::String,
+            TxtData::Arc(_) => TxtRepr::Arc,
+        }
     }
 
     /// Acquires a mutable reference to a [`String`] buffer.
     ///
-    /// Turns the text to owned if it was borrowed.
+    /// Converts the text to an internal representation optimized for editing, you can call [`end_mut`] after
+    /// editing to re-optimize the text for sharing.
+    ///
+    /// [`end_mut`]: Self::end_mut
     pub fn to_mut(&mut self) -> &mut String {
         self.0 = match mem::replace(&mut self.0, TxtData::Static("")) {
-            TxtData::Owned(s) => TxtData::Owned(s),
-            TxtData::Static(s) => TxtData::Owned(s.to_owned()),
-            TxtData::Inline(d) => TxtData::Owned(inline_to_str(&d).to_owned()),
+            TxtData::String(s) => TxtData::String(s),
+            TxtData::Static(s) => TxtData::String(s.to_owned()),
+            TxtData::Inline(d) => TxtData::String(inline_to_str(&d).to_owned()),
+            TxtData::Arc(s) => TxtData::String((*s).to_owned()),
         };
 
-        if let TxtData::Owned(s) = &mut self.0 {
+        if let TxtData::String(s) = &mut self.0 {
             s
         } else {
             unreachable!()
+        }
+    }
+
+    /// Convert the inner representation of the string to not be [`String`]. After
+    /// this call the text can be cheaply cloned.
+    pub fn end_mut(&mut self) {
+        match mem::replace(&mut self.0, TxtData::Static("")) {
+            TxtData::String(s) => {
+                *self = Self::from_str(&s);
+            }
+            already => self.0 = already,
         }
     }
 
@@ -968,9 +1070,10 @@ impl Txt {
     /// Turns the text to owned if it was borrowed.
     pub fn into_owned(self) -> String {
         match self.0 {
-            TxtData::Owned(s) => s,
+            TxtData::String(s) => s,
             TxtData::Static(s) => s.to_owned(),
             TxtData::Inline(d) => inline_to_str(&d).to_owned(),
+            TxtData::Arc(s) => (*s).to_owned(),
         }
     }
 
@@ -978,7 +1081,7 @@ impl Txt {
     /// replaces `self` with an empty str (`""`).
     pub fn clear(&mut self) {
         match &mut self.0 {
-            TxtData::Owned(s) => s.clear(),
+            TxtData::String(s) => s.clear(),
             d => *d = TxtData::Static(""),
         }
     }
@@ -987,11 +1090,11 @@ impl Txt {
     ///
     /// Returns None if this `Txt` is empty.
     ///
-    /// This method calls [`String::pop`] if the text is owned, otherwise
-    /// reborrows a slice of the `str` without the last character.
+    /// This method only converts to [`TxtRepr::String`] if the
+    /// internal representation is [`TxtRepr::Arc`], other representations are reborrowed.
     pub fn pop(&mut self) -> Option<char> {
         match &mut self.0 {
-            TxtData::Owned(s) => s.pop(),
+            TxtData::String(s) => s.pop(),
             TxtData::Static(s) => {
                 if let Some((i, c)) = s.char_indices().last() {
                     *s = &s[..i];
@@ -1013,6 +1116,7 @@ impl Txt {
                     None
                 }
             }
+            TxtData::Arc(_) => self.to_mut().pop(),
         }
     }
 
@@ -1021,11 +1125,11 @@ impl Txt {
     /// If `new_len` is greater than the text's current length, this has no
     /// effect.
     ///
-    /// This method calls [`String::truncate`] if the text is owned, otherwise
-    /// reborrows a slice of the text.
+    /// This method only converts to [`TxtRepr::String`] if the
+    /// internal representation is [`TxtRepr::Arc`], other representations are reborrowed.
     pub fn truncate(&mut self, new_len: usize) {
         match &mut self.0 {
-            TxtData::Owned(s) => s.truncate(new_len),
+            TxtData::String(s) => s.truncate(new_len),
             TxtData::Static(s) => {
                 if new_len <= s.len() {
                     assert!(s.is_char_boundary(new_len));
@@ -1043,6 +1147,7 @@ impl Txt {
                     }
                 }
             }
+            TxtData::Arc(_) => self.to_mut().truncate(new_len),
         }
     }
 
@@ -1052,11 +1157,11 @@ impl Txt {
     /// the returned `Txt` contains bytes `[at, len)`. `at` must be on the
     /// boundary of a UTF-8 code point.
     ///
-    /// This method calls [`String::split_off`] if the text is owned, otherwise
-    /// reborrows slices of the text.
+    /// This method only converts to [`TxtRepr::String`] if the
+    /// internal representation is [`TxtRepr::Arc`], other representations are reborrowed.
     pub fn split_off(&mut self, at: usize) -> Txt {
         match &mut self.0 {
-            TxtData::Owned(s) => Txt::owned(s.split_off(at)),
+            TxtData::String(s) => Txt::from_string(s.split_off(at)),
             TxtData::Static(s) => {
                 assert!(s.is_char_boundary(at));
                 let other = &s[at..];
@@ -1083,6 +1188,75 @@ impl Txt {
 
                 r
             }
+            TxtData::Arc(_) => Txt::from_string(self.to_mut().split_off(at)),
+        }
+    }
+
+    /// Push the character to the end of the text.
+    ///
+    /// This method avoids converting to [`TxtRepr::String`] when the current text
+    /// plus char can fit inlined.
+    pub fn push(&mut self, c: char) {
+        match &mut self.0 {
+            TxtData::String(s) => s.push(c),
+            TxtData::Inline(inlined) => {
+                if let Some(len) = inlined.iter().position(|&c| c != b'\0') {
+                    if len + 4 <= INLINE_MAX && c != '\0' {
+                        let mut buf = [0u8; 4];
+                        let s = c.encode_utf8(&mut buf);
+                        inlined[len..len + 4].copy_from_slice(s.as_bytes());
+                        return;
+                    }
+                }
+                self.to_mut().push(c)
+            }
+            _ => {
+                let len = self.len();
+                if len + 4 <= INLINE_MAX && c != '\0' {
+                    let mut inlined = str_to_inline(self.as_str());
+                    let mut buf = [0u8; 4];
+                    let s = c.encode_utf8(&mut buf);
+                    inlined[len..len + 4].copy_from_slice(s.as_bytes());
+
+                    self.0 = TxtData::Inline(inlined);
+                } else {
+                    self.to_mut().push(c)
+                }
+            }
+        }
+    }
+
+    /// Push the string to the end of the text.
+    ///
+    /// This method avoids converting to [`TxtRepr::String`] when the current text
+    /// plus char can fit inlined.
+    pub fn push_str(&mut self, s: &str) {
+        if s.is_empty() {
+            return;
+        }
+
+        match &mut self.0 {
+            TxtData::String(str) => str.push_str(s),
+            TxtData::Inline(inlined) => {
+                if let Some(len) = inlined.iter().position(|&c| c != b'\0') {
+                    if len + s.len() <= INLINE_MAX && !s.contains('\0') {
+                        inlined[len..len + s.len()].copy_from_slice(s.as_bytes());
+                        return;
+                    }
+                }
+                self.to_mut().push_str(s)
+            }
+            _ => {
+                let len = self.len();
+                if len + s.len() <= INLINE_MAX && !s.contains('\0') {
+                    let mut inlined = str_to_inline(self.as_str());
+                    inlined[len..len + s.len()].copy_from_slice(s.as_bytes());
+
+                    self.0 = TxtData::Inline(inlined);
+                } else {
+                    self.to_mut().push_str(s)
+                }
+            }
         }
     }
 
@@ -1107,7 +1281,14 @@ impl fmt::Debug for Txt {
 impl Default for Txt {
     /// Empty.
     fn default() -> Self {
-        Self::empty()
+        Self::from_static("")
+    }
+}
+impl std::str::FromStr for Txt {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Txt::from_str(s))
     }
 }
 impl_from_and_into_var! {
@@ -1115,12 +1296,12 @@ impl_from_and_into_var! {
         Txt(TxtData::Static(s))
     }
     fn from(s: String) -> Txt {
-        Txt(TxtData::Owned(s))
+        Txt(TxtData::String(s))
     }
     fn from(s: Cow<'static, str>) -> Txt {
         match s {
             Cow::Borrowed(s) => Txt(TxtData::Static(s)),
-            Cow::Owned(s) => Txt(TxtData::Owned(s))
+            Cow::Owned(s) => Txt(TxtData::String(s))
         }
     }
     fn from(c: char) -> Txt {
@@ -1132,8 +1313,9 @@ impl_from_and_into_var! {
     fn from(t: Txt) -> Cow<'static, str> {
         match t.0 {
             TxtData::Static(s) => Cow::Borrowed(s),
-            TxtData::Owned(s) => Cow::Owned(s),
+            TxtData::String(s) => Cow::Owned(s),
             TxtData::Inline(d) => Cow::Owned(inline_to_str(&d).to_owned()),
+            TxtData::Arc(s) => Cow::Owned((*s).to_owned())
         }
     }
     fn from(t: Txt) -> std::path::PathBuf {
@@ -1177,7 +1359,7 @@ impl<'a> std::ops::Add<&'a str> for Txt {
 }
 impl std::ops::AddAssign<&str> for Txt {
     fn add_assign(&mut self, rhs: &str) {
-        self.to_mut().push_str(rhs);
+        self.push_str(rhs);
     }
 }
 impl PartialEq<&str> for Txt {
@@ -1229,6 +1411,12 @@ impl<'de> serde::Deserialize<'de> for Txt {
 impl AsRef<[u8]> for Txt {
     fn as_ref(&self) -> &[u8] {
         self.as_str().as_ref()
+    }
+}
+impl std::fmt::Write for Txt {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.push_str(s);
+        Ok(())
     }
 }
 
@@ -1347,8 +1535,10 @@ pub enum UnderlinePosition {
     Descent,
 }
 
-///<span data-del-macro-root></span> Creates a [`Txt`](crate::text::Txt) by calling the `format!` macro and
-/// wrapping the result in a `Cow::Owned`.
+///<span data-del-macro-root></span> Creates a [`Txt`] by formatting using the [`format_args!`] syntax.
+///
+/// Note that this behaves like a [`format!`] for [`Txt`], but it can be more performant because the
+/// text type can represent `&'static str` and can i
 ///
 /// # Examples
 ///
@@ -1356,10 +1546,12 @@ pub enum UnderlinePosition {
 /// # use zero_ui_core::text::formatx;
 /// let text = formatx!("Hello {}", "World!");
 /// ```
+///
+/// [`Txt`]: crate::text::Txt
 #[macro_export]
 macro_rules! formatx {
     ($($tt:tt)*) => {
-        $crate::text::Txt::owned(format!($($tt)*))
+        $crate::text::Txt::from_fmt(format_args!($($tt)*))
     };
 }
 #[doc(inline)]

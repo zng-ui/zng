@@ -71,7 +71,7 @@ impl L10nService {
                                             Ok(lang) => {
                                                 // and it is named correctly.
                                                 set.get_exact_or_insert(lang, Default::default)
-                                                    .insert(Txt::empty(), dir.as_ref().unwrap().join(name_and_ext));
+                                                    .insert(Txt::from_str(""), dir.as_ref().unwrap().join(name_and_ext));
                                             }
                                             Err(e) => {
                                                 errors.push(Arc::new(e));
@@ -580,7 +580,7 @@ fn format_message(bundle: &ArcFluentBundle, id: &str, attribute: &str, args: &[(
             txt.to_text()
         } else {
             tracing::error!("found `{:?}/{id}`, but not value", &bundle.locales[0]);
-            Txt::empty()
+            Txt::from_str("")
         }
     } else {
         match msg.get_attribute(attribute) {
@@ -597,7 +597,7 @@ fn format_message(bundle: &ArcFluentBundle, id: &str, attribute: &str, args: &[(
             }
             None => {
                 tracing::error!("found `{:?}/{id}`, but not attribute `{attribute}`", &bundle.locales[0]);
-                Txt::empty()
+                Txt::from_str("")
             }
         }
     }
