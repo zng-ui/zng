@@ -1,5 +1,4 @@
 use crate::{
-    task,
     text::Txt,
     var::{self, *},
 };
@@ -11,20 +10,20 @@ use super::{lang, L10N, L10N_SV};
 
 /// Handle to multiple localization resources.
 #[derive(Clone, Debug)]
-pub struct LangResourceHandles(pub Vec<LangResourceHandle>);
-impl ops::Deref for LangResourceHandles {
-    type Target = Vec<LangResourceHandle>;
+pub struct LangResources(pub Vec<LangResource>);
+impl ops::Deref for LangResources {
+    type Target = Vec<LangResource>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-impl ops::DerefMut for LangResourceHandles {
+impl ops::DerefMut for LangResources {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
-impl LangResourceHandles {
+impl LangResources {
     /// Wait for all the resources to load.
     pub async fn wait(&self) {
         for res in &self.0 {
@@ -40,55 +39,42 @@ impl LangResourceHandles {
     }
 }
 
-/// Handle to localization resources for a language.
-///
-/// See [`L10N.lang_resource`] for more details.
-///
-/// [`L10N.lang_resource`]: L10N::lang_resource
+/// Handle to a localization resource.
 #[derive(Clone)]
-pub struct LangResourceHandle(pub(super) crate::crate_util::Handle<ArcVar<LangResourceStatus>>);
-impl fmt::Debug for LangResourceHandle {
+#[must_use = "resource can unload if dropped"]
+pub struct LangResource {
+    pub(super) res: BoxedVar<Option<Arc<fluent::FluentResource>>>,
+    pub(super) status: BoxedVar<LangResourceStatus>,
+}
+
+impl fmt::Debug for LangResource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "LangResourceHandle({:?})", self.status().get())
+        f.debug_struct("LangResource")
+            .field("status", &self.status.get())
+            .finish_non_exhaustive()
     }
 }
-impl LangResourceHandle {
-    /// Localization resource status.
-    ///
-    /// This can change after load if [`L10N.load_dir`] is called to set a different dir, or the resource
-    /// file is created in the dir.
-    ///  
-    /// [`L10N.load_dir`]: L10N::load_dir
-    pub fn status(&self) -> ReadOnlyArcVar<LangResourceStatus> {
-        self.0.data().read_only()
+impl LangResource {
+    /// Read-only variable with the resource.
+    pub fn resource(&self) -> &BoxedVar<Option<Arc<fluent::FluentResource>>> {
+        &self.res
     }
 
-    /// Wait for the resource to load, if it is available.
-    pub async fn wait(&self) {
-        let dir_status = L10N.available_langs_status().last_update();
-        L10N.wait_available_langs().await;
-
-        if dir_status != L10N.available_langs_status().last_update() {
-            // let service start (re)loading if available_langs just changed.
-            task::yield_now().await;
-            // if started loading, wait status update to `Loading`.
-            task::yield_now().await;
-        }
-
-        let status = self.0.data();
-        while matches!(status.get(), LangResourceStatus::Loading) {
-            status.wait_is_new().await;
-        }
+    /// Read-only variable with the resource status.
+    pub fn status(&self) -> &BoxedVar<LangResourceStatus> {
+        &self.status
     }
 
-    /// Drop the handle without dropping the resource.
-    ///
-    /// The localization resource will stay in memory for duration of the current process, if the
-    /// resource file changes it will automatically reload.
-    ///
-    /// [`L10N.load_dir`]: L10N::load_dir
+    /// Drop the handle without unloading the resource.
     pub fn perm(self) {
-        self.0.perm()
+        L10N_SV.write().push_perm_resource(self);
+    }
+
+    /// Await resource status to not be loading.
+    pub async fn wait(&self) {
+        while matches!(self.status.get(), LangResourceStatus::Loading) {
+            self.status.wait_is_new().await;
+        }
     }
 }
 
@@ -167,12 +153,11 @@ impl L10nMessageBuilder {
             args,
         } = self;
         LANG_VAR.flat_map(move |l| {
-            L10N_SV.write().message_text(
+            L10N_SV.write().localized_messsage(
                 l.clone(),
                 file.clone(),
                 id.clone(),
                 attribute.clone(),
-                false,
                 fallback.clone(),
                 args.clone(),
             )
@@ -227,6 +212,13 @@ impl L10nArgument {
     pub fn fluent_value(&self) -> fluent::FluentValue {
         match self {
             L10nArgument::Txt(t) => fluent::FluentValue::String(Cow::Borrowed(t.as_str())),
+            L10nArgument::Number(n) => fluent::FluentValue::Number(n.clone()),
+        }
+    }
+    /// Clone argument as a fluent value.
+    pub fn to_fluent_value(&self) -> fluent::FluentValue<'static> {
+        match self {
+            L10nArgument::Txt(t) => fluent::FluentValue::String(Cow::Owned(t.to_string())),
             L10nArgument::Number(n) => fluent::FluentValue::Number(n.clone()),
         }
     }

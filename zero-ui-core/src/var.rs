@@ -59,7 +59,7 @@ pub use context::{context_var, with_context_var, with_context_var_init, ContextI
 pub use expr::expr_var;
 pub use local::LocalVar;
 #[doc(inline)]
-pub use merge::merge_var;
+pub use merge::{merge_var, MergeVarBuilder};
 pub use read_only::ReadOnlyArcVar;
 pub use response::{response_done_var, response_var, ResponderVar, ResponseVar};
 pub use state::*;
@@ -80,7 +80,7 @@ pub mod types {
     pub use super::flat_map::{ArcFlatMapVar, WeakFlatMapVar};
     pub use super::future::{WaitIsNewFut, WaitIsNotAnimatingFut, WaitNewFut};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
-    pub use super::merge::{ArcMergeVar, ArcMergeVarInput, ContextualizedArcMergeVar, WeakMergeVar, __merge_var};
+    pub use super::merge::{ArcMergeVar, ArcMergeVarInput, ContextualizedArcMergeVar, MergeVarInputs, WeakMergeVar, __merge_var};
     pub use super::property_build_action::easing_property;
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;

@@ -1,5 +1,6 @@
 use std::{
     marker::PhantomData,
+    ops,
     sync::{Arc, Weak},
 };
 
@@ -345,5 +346,68 @@ impl<T: VarValue> WeakVar<T> for WeakMergeVar<T> {
 
     fn upgrade(&self) -> Option<ArcMergeVar<T>> {
         self.0.upgrade().map(|rc| ArcMergeVar(rc))
+    }
+}
+
+/// Build a merge-var from any number of input vars of the same type `I`.
+pub struct MergeVarBuilder<I: VarValue> {
+    inputs: Vec<Box<dyn AnyVar>>,
+    _type: PhantomData<fn() -> I>,
+}
+impl<I: VarValue> MergeVarBuilder<I> {
+    /// New empty.
+    pub fn new() -> Self {
+        Self {
+            inputs: vec![],
+            _type: PhantomData,
+        }
+    }
+
+    /// Push an input.
+    pub fn push(&mut self, input: impl Var<I>) {
+        self.inputs.push(input.boxed_any())
+    }
+
+    /// Build the merge var.
+    pub fn build<O: VarValue>(
+        self,
+        mut merge: impl FnMut(MergeVarInputs<I>) -> O + Send + 'static,
+    ) -> types::ContextualizedVar<O, ArcMergeVar<O>> {
+        ArcMergeVar::new(self.inputs.into_boxed_slice(), move |inputs| {
+            merge(MergeVarInputs {
+                inputs,
+                _type: PhantomData,
+            })
+        })
+    }
+}
+impl<I: VarValue> Default for MergeVarBuilder<I> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Input arguments for the merge closure of [`MergeVarBuilder`] merge vars.
+pub struct MergeVarInputs<'a, I: VarValue> {
+    inputs: &'a [Box<dyn AnyVarValue>],
+    _type: PhantomData<&'a I>,
+}
+impl<'a, I: VarValue> MergeVarInputs<'a, I> {
+    /// Number of inputs.
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.inputs.len()
+    }
+
+    /// Iterate over the values.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &I> + '_ {
+        (0..self.len()).map(move |i| &self[i])
+    }
+}
+impl<'a, I: VarValue> ops::Index<usize> for MergeVarInputs<'a, I> {
+    type Output = I;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.inputs[index].as_any().downcast_ref().unwrap()
     }
 }
