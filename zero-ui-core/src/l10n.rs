@@ -9,13 +9,13 @@ use crate::{
     var::{types::ArcCowVar, *},
 };
 
-use std::{collections::HashMap, path::PathBuf, str::FromStr, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 mod types;
 pub use types::*;
 
 mod service;
-use service::*;
+use service::L10N_SV;
 
 mod sources;
 pub use sources::*;
@@ -42,26 +42,11 @@ impl AppExtension for L10nManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(u) = RAW_LOCALE_CONFIG_CHANGED_EVENT
             .on(update)
-            .map(|args| &args.config.langs)
-            .or_else(|| VIEW_PROCESS_INITED_EVENT.on(update).map(|args| &args.locale_config.langs))
+            .map(|args| &args.config)
+            .or_else(|| VIEW_PROCESS_INITED_EVENT.on(update).map(|args| &args.locale_config))
         {
-            let lang = u
-                .iter()
-                .filter_map(|s| match Lang::from_str(s) {
-                    Ok(l) => Some(l),
-                    Err(e) => {
-                        tracing::error!("received invalid lang from view-process, `{s}`, {e}");
-                        None
-                    }
-                })
-                .collect();
-
-            L10N_SV.read().sys_lang.set_ne(Langs(lang));
+            L10N_SV.read().set_sys_langs(u);
         }
-    }
-
-    fn update_preview(&mut self) {
-        L10N_SV.write().update();
     }
 }
 
@@ -191,8 +176,8 @@ impl L10N {
     /// Change the localization resources to `source`.
     ///
     /// All active variables and handles will be updated to use the new source.
-    pub fn load(source: impl L10nSource) {
-        todo!("!!:") // service2, remove load_dir?
+    pub fn load(&self, source: impl L10nSource) {
+        L10N_SV.write().load(source);
     }
 
     /// Start watching the `dir` for `"dir/{locale}.ftl"` files.
@@ -202,7 +187,7 @@ impl L10N {
     ///
     /// [`available_langs`]: Self::available_langs
     pub fn load_dir(&self, dir: impl Into<PathBuf>) {
-        L10N_SV.write().load_dir(dir.into());
+        self.load(L10nDir::open(dir))
     }
 
     /// Available localization files.
@@ -211,8 +196,8 @@ impl L10N {
     ///
     /// Note that this map will include any file in the source dir that has a name that is a valid [`lang!`],
     /// that includes the `template.flt` file and test pseudo-locales such as `qps-ploc.flt`.
-    pub fn available_langs(&self) -> ReadOnlyArcVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
-        L10N_SV.read().available_langs.read_only()
+    pub fn available_langs(&self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
+        L10N_SV.write().available_langs()
     }
 
     /// Status of the [`available_langs`] list.
@@ -225,8 +210,8 @@ impl L10N {
     ///
     /// [`available_langs`]: Self::available_langs
     /// [`load_dir`]: Self::load_dir
-    pub fn available_langs_status(&self) -> ReadOnlyArcVar<LangResourceStatus> {
-        L10N_SV.read().available_langs_status.read_only()
+    pub fn available_langs_status(&self) -> BoxedVar<LangResourceStatus> {
+        L10N_SV.write().available_langs_status()
     }
 
     /// Waits until [`available_langs_status`] is not `Loading`.
@@ -253,7 +238,7 @@ impl L10N {
     ///
     /// [`sys_lang`]: Self::sys_lang
     pub fn app_lang(&self) -> ArcCowVar<Langs, ArcVar<Langs>> {
-        L10N_SV.read().app_lang.clone()
+        L10N_SV.read().app_lang()
     }
 
     /// Gets a read-only variable that is the current system language.
@@ -261,7 +246,7 @@ impl L10N {
     /// The variable will update when the view-process notifies that the config has changed. Is
     /// empty if the system locale cannot be retrieved.
     pub fn sys_lang(&self) -> ReadOnlyArcVar<Langs> {
-        L10N_SV.read().sys_lang.read_only()
+        L10N_SV.read().sys_lang()
     }
 
     /// Gets a variable that is a localized message in the localization context
@@ -289,7 +274,13 @@ impl L10N {
         attribute: impl Into<Txt>,
         fallback: impl Into<Txt>,
     ) -> L10nMessageBuilder {
-        L10nService::message(file.into(), id.into(), attribute.into(), true, fallback.into())
+        L10nMessageBuilder {
+            file: file.into(),
+            id: id.into(),
+            attribute: attribute.into(),
+            fallback: fallback.into(),
+            args: vec![],
+        }
     }
 
     /// Function called by `l10n!`.
@@ -301,11 +292,10 @@ impl L10N {
         attribute: &'static str,
         fallback: &'static str,
     ) -> L10nMessageBuilder {
-        L10nService::message(
+        self.message(
             Txt::from_static(file),
             Txt::from_static(id),
             Txt::from_static(attribute),
-            false,
             Txt::from_static(fallback),
         )
     }
@@ -325,16 +315,10 @@ impl L10N {
         attribute: impl Into<Txt>,
         fallback: impl Into<Txt>,
         args: impl Into<Vec<(Txt, BoxedVar<L10nArgument>)>>,
-    ) -> ReadOnlyArcVar<Txt> {
-        L10N_SV.write().message_text(
-            lang.into(),
-            file.into(),
-            id.into(),
-            attribute.into(),
-            true,
-            fallback.into(),
-            args.into(),
-        )
+    ) -> BoxedVar<Txt> {
+        L10N_SV
+            .write()
+            .localized_messsage(lang.into(), file.into(), id.into(), attribute.into(), fallback.into(), args.into())
     }
 
     /// Gets a handle to the lang file resource.
@@ -353,14 +337,14 @@ impl L10N {
     ///           empty the file is searched at `{dir}/{lang}.flt`. Only a single file name is valid, no other path components allowed.
     ///
     /// Panics if the file is invalid.
-    pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<Txt>) -> LangResourceHandle {
-        L10N_SV.write().lang_resource(lang.into(), file.into(), true)
+    pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<Txt>) -> LangResource {
+        L10N_SV.write().lang_resource(lang.into(), file.into())
     }
 
     /// Gets a handle to all resource files for the `lang` after they load.
     ///
     /// This awaits for the available langs to load, then collect an awaits for all lang files.
-    pub async fn wait_lang(&self, lang: impl Into<Lang>) -> LangResourceHandles {
+    pub async fn wait_lang(&self, lang: impl Into<Lang>) -> LangResources {
         let lang = lang.into();
         let base = self.lang_resource(lang.clone(), "");
         base.wait().await;
@@ -372,13 +356,13 @@ impl L10N {
         for h in &r[1..] {
             h.wait().await;
         }
-        LangResourceHandles(r)
+        LangResources(r)
     }
 
     /// Gets a handle to all resource files of the first lang in `langs` that is available and loaded.
     ///
     /// This awaits for the available langs to load, then collect an awaits for all lang files.
-    pub async fn wait_first(&self, langs: impl Into<Langs>) -> (Option<Lang>, LangResourceHandles) {
+    pub async fn wait_first(&self, langs: impl Into<Langs>) -> (Option<Lang>, LangResources) {
         let langs = langs.into();
 
         L10N.wait_available_langs().await;
@@ -390,14 +374,14 @@ impl L10N {
                 for name in files.keys() {
                     r.push(self.lang_resource(lang.clone(), name.clone()));
                 }
-                let handle = LangResourceHandles(r);
+                let handle = LangResources(r);
                 handle.wait().await;
 
                 return (Some(lang), handle);
             }
         }
 
-        (None, LangResourceHandles(vec![]))
+        (None, LangResources(vec![]))
     }
 }
 

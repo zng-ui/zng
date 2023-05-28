@@ -187,9 +187,9 @@ fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: 
     status.set_ne(LangResourceStatus::Loading);
 
     let path = if file.is_empty() {
-        lang.to_string()
+        format!("{lang}.ftl")
     } else {
-        format!("{lang}/{file}")
+        format!("{lang}/{file}.ftl")
     };
 
     WATCHER
@@ -343,6 +343,8 @@ impl L10nSource for SwapL10nSource {
 
                 f.status.set_ne(actual_s.get());
                 f.actual_weak_status = actual_s.bind(&f.status);
+
+                e.insert(f);
 
                 res
             }
