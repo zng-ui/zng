@@ -30,4 +30,6 @@
     - Review optimize in `Localization.md`
 
 * Implement a backend trait for `L10N`.
-    - Allows current dir impl and an embedded impl.
+    - Reimplement service to use new backend.
+    - Implement embedded backend.
+        - Proc-macro that embeds from resource dir? 

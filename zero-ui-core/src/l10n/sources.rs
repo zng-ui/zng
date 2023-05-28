@@ -236,7 +236,7 @@ pub struct SwapL10nSource {
     available_langs: ArcVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>,
     available_langs_status: ArcVar<LangResourceStatus>,
 
-    res: HashMap<(Lang, Txt), L10nFile>,
+    res: HashMap<(Lang, Txt), SwapFile>,
 }
 impl SwapL10nSource {
     /// New with [`NilL10nSource`].
@@ -264,14 +264,19 @@ impl SwapL10nSource {
         self.available_langs_status.set_ne(actual_status.get());
         actual_status.bind(&self.available_langs_status).perm();
 
-        for ((lang, file), f) in &self.res {
+        for ((lang, file), f) in &mut self.res {
             if let Some(res) = f.res.upgrade() {
                 let actual_f = self.actual.lang_resource(lang.clone(), file.clone());
-                // todo!("actual_f -> f.res, needs to drop when f.res drops");
+                f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
+                f.res_strong_actual = res.hook(Box::new(move |_| {
+                    // strong ref to `actual_f` is held by `res`.
+                    let _hold = &actual_f;
+                    true
+                }));
 
                 let actual_s = self.actual.lang_resource_status(lang.clone(), file.clone());
                 f.status.set_ne(actual_s.get());
-                actual_s.bind(&f.status).perm();
+                f.actual_weak_status = actual_s.bind(&f.status);
             } else {
                 f.status.set_ne(LangResourceStatus::NotAvailable);
             }
@@ -295,22 +300,51 @@ impl L10nSource for SwapL10nSource {
     fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<Arc<fluent::FluentResource>>> {
         match self.res.entry((lang, file)) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
-                if let Some(out) = e.get().res.upgrade() {
-                    out
+                if let Some(res) = e.get().res.upgrade() {
+                    res
                 } else {
                     let (lang, file) = e.key();
-                    let out = self.actual.lang_resource(lang.clone(), file.clone());
-                    e.get_mut().res = out.downgrade(); // !!: TODO, bind something here.
-                    out
+                    let actual_f = self.actual.lang_resource(lang.clone(), file.clone());
+                    let actual_s = self.actual.lang_resource_status(lang.clone(), file.clone());
+
+                    let f = e.get_mut();
+
+                    let res = var(actual_f.get());
+                    f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
+                    f.res_strong_actual = res.hook(Box::new(move |_| {
+                        // strong ref to `actual_f` is held by `res`.
+                        let _hold = &actual_f;
+                        true
+                    }));
+                    let res = res.boxed();
+                    f.res = res.downgrade();
+
+                    f.status.set_ne(actual_s.get());
+                    f.actual_weak_status = actual_s.bind(&f.status);
+
+                    res
                 }
             }
             std::collections::hash_map::Entry::Vacant(e) => {
-                let mut f = L10nFile::new();
+                let mut f = SwapFile::new();
                 let (lang, file) = e.key();
-                let out = self.actual.lang_resource(lang.clone(), file.clone());
-                f.res = out.downgrade(); // !!: TODO, bind something here.
-                e.insert(f);
-                out
+                let actual_f = self.actual.lang_resource(lang.clone(), file.clone());
+                let actual_s = self.actual.lang_resource_status(lang.clone(), file.clone());
+
+                let res = var(actual_f.get());
+                f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
+                f.res_strong_actual = res.hook(Box::new(move |_| {
+                    // strong ref to `actual_f` is held by `res`.
+                    let _hold = &actual_f;
+                    true
+                }));
+                let res = res.boxed();
+                f.res = res.downgrade();
+
+                f.status.set_ne(actual_s.get());
+                f.actual_weak_status = actual_s.bind(&f.status);
+
+                res
             }
         }
     }
@@ -318,10 +352,28 @@ impl L10nSource for SwapL10nSource {
     fn lang_resource_status(&mut self, lang: Lang, file: Txt) -> BoxedVar<LangResourceStatus> {
         self.res
             .entry((lang, file))
-            .or_insert_with(L10nFile::new)
+            .or_insert_with(SwapFile::new)
             .status
             .read_only()
             .boxed()
+    }
+}
+struct SwapFile {
+    res: BoxedWeakVar<Option<Arc<fluent::FluentResource>>>,
+    status: ArcVar<LangResourceStatus>,
+    actual_weak_res: VarHandle,
+    res_strong_actual: VarHandle,
+    actual_weak_status: VarHandle,
+}
+impl SwapFile {
+    fn new() -> Self {
+        Self {
+            res: WeakArcVar::default().boxed(),
+            status: var(LangResourceStatus::Loading),
+            actual_weak_res: VarHandle::dummy(),
+            res_strong_actual: VarHandle::dummy(),
+            actual_weak_status: VarHandle::dummy(),
+        }
     }
 }
 
