@@ -17,6 +17,9 @@ pub use types::*;
 mod service;
 use service::*;
 
+mod sources;
+pub use sources::*;
+
 /// Localization service.
 pub struct L10N;
 
@@ -185,6 +188,13 @@ pub use l10n;
 pub use zero_ui_proc_macros::l10n as __l10n;
 
 impl L10N {
+    /// Change the localization resources to `source`.
+    ///
+    /// All active variables and handles will be updated to use the new source.
+    pub fn load(source: impl L10nSource) {
+        todo!("!!:") // service2, remove load_dir?
+    }
+
     /// Start watching the `dir` for `"dir/{locale}.ftl"` files.
     ///
     /// The [`available_langs`] variable maintains an up-to-date list of locale files found, the files
@@ -426,3 +436,24 @@ pub use zero_ui_proc_macros::lang as __lang;
 
 #[doc(hidden)]
 pub use unic_langid;
+
+/// Represents a localization data source.
+///
+/// See [`L10N.load`] for more details.
+///
+/// [`L10N.load`]: L10N::load
+pub trait L10nSource: Send + 'static {
+    /// Gets a read-only variable with all lang files that the source can provide.
+    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>;
+    /// Gets a read-only variable that is the status of the [`available_langs`] value.
+    ///
+    /// [`available_langs`]: Self::available_langs
+    fn available_langs_status(&mut self) -> BoxedVar<LangResourceStatus>;
+
+    /// Gets a read-only variable that provides the fluent resource for the `lang` and `file` if available.
+    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<Arc<fluent::FluentResource>>>;
+    /// Gets a read-only variable that is the status of the [`lang_resource`] value.
+    ///
+    /// [`lang_resource`]: Self::lang_resource
+    fn lang_resource_status(&mut self, lang: Lang, file: Txt) -> BoxedVar<LangResourceStatus>;
+}
