@@ -30,8 +30,4 @@
 
 # Config
 
-* Test keeps failing at panicked at 'did not find Px', tests\config.rs:90:5.
-    - Test does not fail every time.
-    - We have some race condition.
-    - `Px` is the first entry checked.
-    - Sometimes only the last file "json" fails.
+* Config test sometimes does not write any data to file.

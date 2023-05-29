@@ -87,7 +87,7 @@ impl CONFIG {
         }
     }
 
-    /// Wait until [`status`] does not contain [`IDLE`].
+    /// Wait until [`status`] is [`IDLE`].
     ///
     /// [`status`]: Self::status
     /// [`IDLE`]: ConfigStatus::IDLE

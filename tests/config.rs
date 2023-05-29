@@ -46,6 +46,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
 
     let _ = std::fs::remove_file(&file);
     run(|| source(&file), false);
+    assert_ne!(std::fs::metadata(&file).unwrap().len(), 0);
     assert!(file.exists());
     run(|| source(&file), true);
 }

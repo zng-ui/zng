@@ -499,7 +499,7 @@ impl WriteFile {
         use io::Write;
         let mut temp_file = self.temp_file.take().unwrap();
         temp_file.flush()?;
-        temp_file.sync_data()?;
+        temp_file.sync_all()?;
 
         unlock_ok(&temp_file)?;
         drop(temp_file);
