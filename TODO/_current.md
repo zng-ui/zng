@@ -25,6 +25,5 @@
 
 # Localization
 
-* Merge.
 * Review wait, how do handles work when request is not found yet?
 * Test live update of localization file.
