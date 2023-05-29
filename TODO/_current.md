@@ -27,3 +27,11 @@
 
 * Review wait, how do handles work when request is not found yet?
 * Test live update of localization file.
+
+# Config
+
+* Test keeps failing at panicked at 'did not find Px', tests\config.rs:90:5.
+    - Test does not fail every time.
+    - We have some race condition.
+    - `Px` is the first entry checked.
+    - Sometimes only the last file "json" fails.
