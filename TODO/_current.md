@@ -25,11 +25,6 @@
 
 # Localization
 
-* Optimize
-    - Every message refreshes every update.
-    - Review optimize in `Localization.md`
-
-* Implement a backend trait for `L10N`.
-    - Reimplement service to use new backend.
-    - Implement embedded backend.
-        - Proc-macro that embeds from resource dir? 
+* Merge.
+* Review wait, how do handles work when request is not found yet?
+* Test live update of localization file.
