@@ -31,3 +31,12 @@
 # Config
 
 * Config test sometimes does not write any data to file.
+    - Data never written.
+    - Encountered a deadlock once.
+    - Encountered invalid syntax in TOML once.
+    - Size assert failed before rename, issue is `wait_idle` and `flush_shutdown` not working?
+    - No error (or much less) when test is already build?
+        - First build after change almost always gets an error.
+        - Issue caused by slower disk?
+    - No error observed with a `sleep(1.secs())` before rename.
+    - Observed deadlock again (in json again, first test?).

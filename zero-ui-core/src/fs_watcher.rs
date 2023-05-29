@@ -1,7 +1,9 @@
 //! File system events and service.
 
 use std::{
-    fmt, fs, io, mem, ops,
+    fmt, fs,
+    io::{self, Write as _},
+    mem, ops,
     path::{Path, PathBuf},
     sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
@@ -437,20 +439,20 @@ impl WriteFile {
 
     /// Write the text string.
     pub fn write_text(&mut self, txt: &str) -> io::Result<()> {
-        use io::Write;
         self.write_all(txt.as_bytes())
     }
 
     /// Serialize and write.
     ///
     /// If `pretty` is `true` the JSON is formatted for human reading.
-    pub fn write_json<O: serde::Serialize>(&mut self, value: &O, pretty: bool) -> serde_json::Result<()> {
-        let buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
+    pub fn write_json<O: serde::Serialize>(&mut self, value: &O, pretty: bool) -> io::Result<()> {
+        let mut buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
         if pretty {
-            serde_json::to_writer_pretty(buf, value)
+            serde_json::to_writer_pretty(&mut buf, value)?;
         } else {
-            serde_json::to_writer(buf, value)
+            serde_json::to_writer(&mut buf, value)?;
         }
+        buf.flush()
     }
 
     /// Serialize and write.
@@ -465,22 +467,21 @@ impl WriteFile {
         }
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-        use io::Write;
-        let mut buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
-        buf.write_all(toml.as_bytes())
+        self.write_all(toml.as_bytes())
     }
 
     /// Serialize and write.
     ///
     /// If `pretty` is `true` the RON if formatted for human reading using the default pretty config.
     #[cfg(feature = "ron")]
-    pub fn write_ron<O: serde::Serialize>(&mut self, value: &O, pretty: bool) -> Result<(), ron::Error> {
-        let buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
+    pub fn write_ron<O: serde::Serialize>(&mut self, value: &O, pretty: bool) -> io::Result<()> {
+        let mut buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
         if pretty {
-            ron::ser::to_writer_pretty(buf, value, Default::default())
+            ron::ser::to_writer_pretty(&mut buf, value, Default::default()).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         } else {
-            ron::ser::to_writer(buf, value)
+            ron::ser::to_writer(&mut buf, value).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         }
+        buf.flush()
     }
 
     /// Commit write, flush and replace the actual file with the new one.
@@ -496,7 +497,6 @@ impl WriteFile {
     }
 
     fn replace_actual(&mut self) -> io::Result<()> {
-        use io::Write;
         let mut temp_file = self.temp_file.take().unwrap();
         temp_file.flush()?;
         temp_file.sync_all()?;
@@ -511,10 +511,17 @@ impl WriteFile {
         let mut retries = 0;
         loop {
             match fs::rename(&self.temp_path, &self.actual_path) {
-                Ok(()) => break,
+                Ok(()) => {
+                    break;
+                }
                 Err(e) if retries == 2 => return Err(e),
                 Err(e) => match e.kind() {
                     io::ErrorKind::PermissionDenied => {
+                        #[cfg(debug_assertions)]
+                        {
+                            tracing::warn!("WriteFile::commit retry");
+                        }
+
                         // happens rarely in Windows.
                         retries += 1;
                         std::thread::yield_now();
