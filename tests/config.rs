@@ -27,16 +27,15 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
 
         CONFIG.load(source());
         app.run_task(async {
-            CONFIG.wait_loaded().await;
+            CONFIG.wait_idle().await;
         });
-        let errors = CONFIG.errors().get();
-        if !errors.is_empty() {
-            panic!("{errors}");
+        let status = CONFIG.status().get();
+        if status.is_err() {
+            panic!("{status}");
         }
 
         TEST_READ.set(test_read);
         test_all();
-        let _ = app.update(false);
         app.run_task(async {
             CONFIG.wait_idle().await;
         });
@@ -46,9 +45,12 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
 
     let _ = std::fs::remove_file(&file);
     run(|| source(&file), false);
-    assert_ne!(std::fs::metadata(&file).unwrap().len(), 0);
     assert!(file.exists());
+    assert_ne!(std::fs::metadata(&file).unwrap().len(), 0);
+
     run(|| source(&file), true);
+    assert!(file.exists());
+    assert_ne!(std::fs::metadata(&file).unwrap().len(), 0);
 }
 
 app_local! {

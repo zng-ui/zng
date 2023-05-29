@@ -206,7 +206,7 @@ impl L10N {
     /// `Loaded` or `Error`.
     ///
     /// Note that this is the status of the resource list, not of each individual resource, you
-    /// can use [`LangResourceHandle::status`] for that.
+    /// can use [`LangResource::status`] for that.
     ///
     /// [`available_langs`]: Self::available_langs
     /// [`load_dir`]: Self::load_dir

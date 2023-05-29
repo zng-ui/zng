@@ -13,15 +13,9 @@ pub struct SwapConfig {
 
     status: ArcVar<ConfigStatus>,
     status_binding: VarHandle,
-    errors: ArcVar<ConfigErrors>,
-    errors_binding: VarHandle,
 }
 
 impl AnyConfig for SwapConfig {
-    fn errors(&self) -> BoxedVar<ConfigErrors> {
-        self.errors.clone().boxed()
-    }
-
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
         if shared {
             self.shared
@@ -52,41 +46,27 @@ impl Config for SwapConfig {
             );
             let var = var(RawConfigValue::deserialize(source_var.get()).unwrap_or(default));
 
-            let errors = &self.errors;
-
             source_var
                 .bind_filter_map_bidi(
                     &var,
                     // Raw -> T
-                    clmv!(key, errors, |raw| {
+                    clmv!(key, |raw| {
                         match RawConfigValue::deserialize(raw.clone()) {
-                            Ok(value) => {
-                                if errors.with(|e| e.entry(&key).next().is_some()) {
-                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                }
-                                Some(value)
-                            }
+                            Ok(value) => Some(value),
                             Err(e) => {
                                 tracing::error!("swap config get({key:?}) error, {e:?}");
-                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
                                 None
                             }
                         }
                     }),
                     // T -> Raw
-                    clmv!(key, errors, source_var, |value| {
+                    clmv!(key, source_var, |value| {
                         let _strong_ref = &source_var;
 
                         match RawConfigValue::serialize(value) {
-                            Ok(raw) => {
-                                if errors.with(|e| e.entry(&key).next().is_some()) {
-                                    errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                }
-                                Some(raw)
-                            }
+                            Ok(raw) => Some(raw),
                             Err(e) => {
                                 tracing::error!("swap config set({key:?}) error, {e:?}");
-                                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
                                 None
                             }
                         }
@@ -103,31 +83,28 @@ impl SwapConfig {
     pub fn new() -> Self {
         Self {
             cfg: Mutex::new(Box::new(NilConfig)),
-            errors: var(ConfigErrors::default()),
             shared: ConfigVars::default(),
-            status: var(ConfigStatus::IDLE),
+            status: var(ConfigStatus::Loaded),
             status_binding: VarHandle::dummy(),
-            errors_binding: VarHandle::dummy(),
         }
     }
 
     /// Load the config.
+    ///
+    /// The previous source will be dropped. Note that some variables produced from the previous source
+    /// can be reused, do not set `cfg` to a source that will still be alive after `cfg` is dropped.
     pub fn load(&mut self, cfg: impl AnyConfig) {
         self.replace_source(Box::new(cfg))
     }
 
-    fn replace_source(&mut self, mut source: Box<dyn AnyConfig>) {
-        let source_errors = source.errors();
-        self.errors.set(source_errors.get());
-        self.errors_binding = source_errors.bind(&self.errors);
-
+    fn replace_source(&mut self, source: Box<dyn AnyConfig>) {
         let source_status = source.status();
         self.status.set(source_status.get());
         self.status_binding = source_status.bind(&self.status);
 
-        self.shared.rebind(&self.errors, &mut *source);
+        *self.cfg.get_mut() = source; // drop previous source first
 
-        *self.cfg.get_mut() = source;
+        self.shared.rebind(&mut **self.cfg.get_mut());
     }
 }
 impl Default for SwapConfig {

@@ -958,7 +958,7 @@ impl Txt {
     ///
     /// If you don't plan to edit the text after this call consider using [`from_str`] instead.
     ///
-    /// [`from_string`]: Self::from_string
+    /// [`from_str`]: Self::from_str
     pub const fn from_string(s: String) -> Txt {
         Txt(TxtData::String(s))
     }

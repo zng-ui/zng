@@ -18,24 +18,7 @@ impl<S: Config, F: Config> FallbackConfig<S, F> {
 }
 impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     fn status(&self) -> BoxedVar<ConfigStatus> {
-        merge_var!(self.fallback.status(), self.over.status(), |&a, &b| a | b).boxed()
-    }
-
-    fn errors(&self) -> BoxedVar<ConfigErrors> {
-        merge_var!(self.fallback.errors(), self.over.errors(), |a, b| {
-            if a.is_empty() {
-                return b.clone();
-            }
-            if b.is_empty() {
-                return a.clone();
-            }
-            let mut r = a.clone();
-            for b in b.iter() {
-                r.push(b.clone());
-            }
-            r
-        })
-        .boxed()
+        self.over.status()
     }
 
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {

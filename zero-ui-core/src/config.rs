@@ -1,10 +1,10 @@
-//!: Config service and sources.
+//! Config service and sources.
 
 use std::{
     any::Any,
     borrow::Cow,
     collections::{hash_map, HashMap},
-    fmt, io, ops,
+    fmt, io,
     sync::Arc,
 };
 
@@ -12,6 +12,7 @@ use crate::{
     app::AppExtension,
     app_local, clmv,
     fs_watcher::{WatchFile, WriteFile},
+    task,
     text::Txt,
     var::*,
 };
@@ -76,24 +77,14 @@ impl CONFIG {
         CONFIG_SV.read().status()
     }
 
-    /// Wait until [`status`] does not contain [`READ`].
+    /// Wait until [`status`] is idle (not loading nor saving).
     ///
     /// [`status`]: Self::status
-    /// [`READ`]: ConfigStatus::READ
-    pub async fn wait_loaded(&self) {
-        let status = self.status();
-        while status.get().contains(ConfigStatus::READ) {
-            status.wait_is_new().await;
-        }
-    }
-
-    /// Wait until [`status`] is [`IDLE`].
-    ///
-    /// [`status`]: Self::status
-    /// [`IDLE`]: ConfigStatus::IDLE
     pub async fn wait_idle(&self) {
+        task::yield_now().await; // in case a `load` request was just made
+
         let status = self.status();
-        while !status.get().is_empty() {
+        while !status.get().is_idle() {
             status.wait_is_new().await;
         }
     }
@@ -111,10 +102,6 @@ impl CONFIG {
     }
 }
 impl AnyConfig for CONFIG {
-    fn errors(&self) -> BoxedVar<ConfigErrors> {
-        CONFIG_SV.read().errors()
-    }
-
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
         CONFIG_SV.write().get_raw(key, default, shared)
     }
@@ -236,23 +223,6 @@ pub trait AnyConfig: Send + Any {
     /// Gets a read-only variable that represents the IO status of the config.
     fn status(&self) -> BoxedVar<ConfigStatus>;
 
-    /// All active errors.
-    ///
-    /// Errors are cleared when the same operation that causes then succeeds.
-    ///
-    /// The returned variable is read/write unless the config is read-only.
-    fn errors(&self) -> BoxedVar<ConfigErrors>;
-
-    /// Errors filtered to only read/write errors.
-    fn io_errors(&self) -> BoxedVar<ConfigErrors> {
-        self.errors().map(|e| ConfigErrors(e.io().cloned().collect())).boxed()
-    }
-
-    /// Errors filtered to only get/set for the `key`.
-    fn entry_errors(&self, key: ConfigKey) -> BoxedVar<ConfigErrors> {
-        self.errors().map(move |e| ConfigErrors(e.entry(&key).cloned().collect())).boxed()
-    }
-
     /// Gets a weak typed variable to the config `key`.
     ///
     /// This method is used when `T` cannot be passed because the config is behind a dynamic reference,
@@ -286,56 +256,7 @@ pub trait Config: AnyConfig {
     /// The `default` closure is used to generate a value if the key is not found in the config, the default value
     /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates. Note
     /// that the `default` closure may be used even if the key is already in the config, depending on the config implementation.
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
-        let key = key.into();
-        let default = default();
-        let raw_var = self.get_raw(key.clone(), RawConfigValue::serialize(&default).unwrap(), true);
-        let wk_errors = self.errors().downgrade();
-
-        raw_var
-            .filter_map_bidi(
-                // Raw -> T
-                clmv!(key, wk_errors, |raw| match RawConfigValue::deserialize(raw.clone()) {
-                    Ok(typed) => {
-                        if let Some(errors) = wk_errors.upgrade() {
-                            if errors.with(|e| e.entry(&key).next().is_some()) {
-                                let _ = errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                            }
-                        }
-                        Some(typed)
-                    }
-                    Err(e) => {
-                        tracing::error!("get config get({key:?}) error, {e:?}");
-                        if let Some(errors) = wk_errors.upgrade() {
-                            let _ = errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
-                        }
-                        None
-                    }
-                }),
-                // T -> Raw
-                clmv!(key, wk_errors, |typed| {
-                    match RawConfigValue::serialize(typed) {
-                        Ok(raw) => {
-                            if let Some(errors) = wk_errors.upgrade() {
-                                if errors.with(|e| e.entry(&key).next().is_some()) {
-                                    let _ = errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                                }
-                            }
-                            Some(raw)
-                        }
-                        Err(e) => {
-                            tracing::error!("get config set({key:?}) error, {e:?}");
-                            if let Some(errors) = wk_errors.upgrade() {
-                                let _ = errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
-                            }
-                            None
-                        }
-                    }
-                }),
-                move || default.clone(),
-            )
-            .boxed()
-    }
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T>;
 }
 
 /// Config wrapper that only updates variables from config source changes.
@@ -349,10 +270,6 @@ impl<C: Config> ReadOnlyConfig<C> {
     }
 }
 impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
-    fn errors(&self) -> BoxedVar<ConfigErrors> {
-        self.cfg.errors().read_only()
-    }
-
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
         self.cfg.get_raw(key, default, shared).read_only()
     }
@@ -375,9 +292,6 @@ impl<C: Config> Config for ReadOnlyConfig<C> {
 pub struct NilConfig;
 
 impl AnyConfig for NilConfig {
-    fn errors(&self) -> BoxedVar<ConfigErrors> {
-        LocalVar(ConfigErrors::default()).boxed()
-    }
     fn get_raw(&mut self, _: ConfigKey, default: RawConfigValue, _: bool) -> BoxedVar<RawConfigValue> {
         LocalVar(default).boxed()
     }
@@ -386,7 +300,7 @@ impl AnyConfig for NilConfig {
     }
 
     fn status(&self) -> BoxedVar<ConfigStatus> {
-        LocalVar(ConfigStatus::IDLE).boxed()
+        LocalVar(ConfigStatus::Loaded).boxed()
     }
 }
 impl Config for NilConfig {
@@ -449,14 +363,19 @@ impl ConfigVars {
     ///
     /// If the map entry is present in the `source` the variable is updated to the new value, if not the entry
     /// is inserted in the source. The variable is then bound to the source.
-    pub fn rebind(&mut self, errors: &ArcVar<ConfigErrors>, source: &mut dyn AnyConfig) {
-        self.0.retain(|key, wk_var| wk_var.rebind(errors, key, source));
+    ///
+    /// Note that this means the variables bound from the previous source in [`get_or_bind`] **will be reused**,
+    /// the previous source must be dropped before calling this method.
+    ///
+    /// [`get_or_bind`]: Self::get_or_bind
+    pub fn rebind(&mut self, source: &mut dyn AnyConfig) {
+        self.0.retain(|key, wk_var| wk_var.rebind(key, source));
     }
 }
 trait AnyConfigVar: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn can_upgrade(&self) -> bool;
-    fn rebind(&mut self, errors: &ArcVar<ConfigErrors>, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool;
+    fn rebind(&mut self, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool;
 }
 impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
     fn as_any(&self) -> &dyn Any {
@@ -467,13 +386,15 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
         self.var.strong_count() > 0
     }
 
-    fn rebind(&mut self, errors: &ArcVar<ConfigErrors>, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool {
+    fn rebind(&mut self, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool {
         let var = if let Some(var) = self.var.upgrade() {
             var
         } else {
+            // no need to retain, will bind directly to new source if requested later.
             return false;
         };
 
+        // get or insert the source var
         let source_var = source.get_raw(key.clone(), RawConfigValue::serialize(var.get()).unwrap(), false);
 
         match RawConfigValue::deserialize::<T>(source_var.get()) {
@@ -481,42 +402,33 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
                 let _ = var.set(value);
             }
             Err(e) => {
+                // invalid data error
                 tracing::error!("rebind config get({key:?}) error, {e:?}");
-                errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
+
+                // try to override
+                let _ = source_var.set(RawConfigValue::serialize(var.get()).unwrap());
             }
         }
 
         self.binding = source_var.bind_filter_map_bidi(
             &var,
             // Raw -> T
-            clmv!(key, errors, |raw| {
+            clmv!(key, |raw| {
                 match RawConfigValue::deserialize(raw.clone()) {
-                    Ok(value) => {
-                        if errors.with(|e| e.entry(&key).next().is_some()) {
-                            errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                        }
-                        Some(value)
-                    }
+                    Ok(value) => Some(value),
                     Err(e) => {
                         tracing::error!("rebind config get({key:?}) error, {e:?}");
-                        errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_get(key, e))));
                         None
                     }
                 }
             }),
             // T -> Raw
-            clmv!(key, errors, source_var, |value| {
+            clmv!(key, source_var, |value| {
                 let _strong_ref = &source_var;
                 match RawConfigValue::serialize(value) {
-                    Ok(raw) => {
-                        if errors.with(|e| e.entry(&key).next().is_some()) {
-                            errors.modify(clmv!(key, |e| e.to_mut().clear_entry(&key)));
-                        }
-                        Some(raw)
-                    }
+                    Ok(raw) => Some(raw),
                     Err(e) => {
                         tracing::error!("rebind config set({key:?}) error, {e:?}");
-                        errors.modify(clmv!(key, |es| es.to_mut().push(ConfigError::new_set(key, e))));
                         None
                     }
                 }
@@ -527,157 +439,74 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
     }
 }
 
-/// Config error.
-#[derive(Clone, Debug)]
-pub enum ConfigError {
-    /// Error reading from the external storage to memory.
-    Read(Arc<io::Error>),
-    /// Error writing from memory to the external storage.
-    Write(Arc<io::Error>),
+/// Represents the current IO status of the config.
+#[derive(Debug, Clone)]
+pub enum ConfigStatus {
+    /// Config is loaded.
+    Loaded,
+    /// Config is loading.
+    Loading,
+    /// Config is saving.
+    Saving,
+    /// Config last load failed.
+    LoadErrors(Vec<Arc<dyn std::error::Error + Send + Sync>>),
+    /// Config last save failed.
+    SaveErrors(Vec<Arc<dyn std::error::Error + Send + Sync>>),
+}
+impl ConfigStatus {
+    /// If status is not loading nor saving.
+    pub fn is_idle(&self) -> bool {
+        !matches!(self, Self::Loading | Self::Saving)
+    }
 
-    /// Error converting a key from memory to the final type.
-    Get {
-        /// Key.
-        key: ConfigKey,
-        /// Error.
-        err: Arc<dyn std::error::Error + Send + Sync>,
-    },
-    /// Error converting from the final type to the memory format.
-    Set {
-        /// Key.
-        key: ConfigKey,
-        /// Error.
-        err: Arc<dyn std::error::Error + Send + Sync>,
-    },
-}
-#[cfg(test)]
-fn _assert_var_value(cfg: ConfigError) -> impl VarValue {
-    cfg
-}
-impl ConfigError {
-    /// Reference the read or write error.
-    pub fn io(&self) -> Option<&Arc<io::Error>> {
+    /// If status is load or save errors.
+    pub fn is_err(&self) -> bool {
+        matches!(self, ConfigStatus::LoadErrors(_) | ConfigStatus::SaveErrors(_))
+    }
+
+    /// Errors list.
+    ///
+    /// Note that [`is_err`] may be true even when this is empty.
+    ///
+    /// [`is_err`]: Self::is_err
+    pub fn errors(&self) -> &[Arc<dyn std::error::Error + Send + Sync>] {
         match self {
-            Self::Read(e) | Self::Write(e) => Some(e),
-            _ => None,
+            ConfigStatus::LoadErrors(e) => e,
+            ConfigStatus::SaveErrors(e) => e,
+            _ => &[],
         }
-    }
-
-    /// New read error.
-    pub fn new_read(e: impl Into<io::Error>) -> Self {
-        Self::Read(Arc::new(e.into()))
-    }
-
-    /// New write error.
-    pub fn new_write(e: impl Into<io::Error>) -> Self {
-        Self::Write(Arc::new(e.into()))
-    }
-
-    /// New get error.
-    pub fn new_get(key: impl Into<ConfigKey>, e: impl std::error::Error + Send + Sync + 'static) -> Self {
-        Self::Get {
-            key: key.into(),
-            err: Arc::new(e),
-        }
-    }
-    /// New set error.
-    pub fn new_set(key: impl Into<ConfigKey>, e: impl std::error::Error + Send + Sync + 'static) -> Self {
-        Self::Set {
-            key: key.into(),
-            err: Arc::new(e),
-        }
-    }
-}
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ConfigError::Read(e) => write!(f, "config read error, {e}"),
-            ConfigError::Write(e) => write!(f, "config write error, {e}"),
-            ConfigError::Get { key, err } => write!(f, "config `{key}` get error, {err}"),
-            ConfigError::Set { key, err } => write!(f, "config `{key}` set error, {err}"),
-        }
-    }
-}
-impl std::error::Error for ConfigError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            ConfigError::Read(e) | ConfigError::Write(e) => Some(e),
-            ConfigError::Get { err, .. } | ConfigError::Set { err, .. } => Some(err),
-        }
-    }
-}
-
-/// List of active errors in a config source.
-#[derive(Debug, Clone, Default)]
-pub struct ConfigErrors(pub Vec<ConfigError>);
-impl ops::Deref for ConfigErrors {
-    type Target = Vec<ConfigError>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl ops::DerefMut for ConfigErrors {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-impl ConfigErrors {
-    /// Iterate over read and write errors.
-    pub fn io(&self) -> impl Iterator<Item = &ConfigError> {
-        self.iter().filter(|e| matches!(e, ConfigError::Read(_) | ConfigError::Write(_)))
-    }
-
-    /// Remove read and write errors.
-    pub fn clear_io(&mut self) {
-        self.retain(|e| !matches!(e, ConfigError::Read(_) | ConfigError::Write(_)));
-    }
-
-    /// Iterate over get and set errors for the key.
-    pub fn entry<'a>(&'a self, key: &'a ConfigKey) -> impl Iterator<Item = &'a ConfigError> + 'a {
-        let entry_key = key;
-        self.iter()
-            .filter(move |e| matches!(e, ConfigError::Get { key, .. } | ConfigError::Set { key, .. } if key == entry_key))
-    }
-
-    /// Remove get and set errors for the key.
-    pub fn clear_entry(&mut self, key: &ConfigKey) {
-        let entry_key = key;
-        self.retain(move |e| !matches!(e, ConfigError::Get { key, .. } | ConfigError::Set { key, .. } if key == entry_key))
-    }
-}
-impl fmt::Display for ConfigErrors {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut prefix = "";
-        for e in self.iter() {
-            write!(f, "{prefix}{e}")?;
-            prefix = "\n";
-        }
-        Ok(())
-    }
-}
-
-bitflags! {
-    /// Represents the current running operations of a config source.
-    #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
-    #[serde(transparent)]
-    pub struct ConfigStatus: u8 {
-        /// No IO happening, config is loaded or in error state.
-        const IDLE = 0;
-        /// Config is loading.
-        const READ = 0b0001;
-        /// Config is saving.
-        const WRITE = 0b0010;
     }
 }
 impl fmt::Display for ConfigStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.contains(Self::WRITE) {
-            write!(f, "saving…")
-        } else if self.contains(Self::READ) {
-            write!(f, "loading…")
-        } else {
-            write!(f, "")
+        match self {
+            Self::Loaded => Ok(()),
+            Self::Loading => write!(f, "loading…"),
+            Self::Saving => write!(f, "saving…"),
+            Self::LoadErrors(e) => {
+                writeln!(f, "read errors:")?;
+                for e in e {
+                    writeln!(f, "   {e}")?;
+                }
+                Ok(())
+            }
+            Self::SaveErrors(e) => {
+                writeln!(f, "write errors:")?;
+                for e in e {
+                    writeln!(f, "   {e}")?;
+                }
+                Ok(())
+            }
         }
     }
 }
+impl PartialEq for ConfigStatus {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::LoadErrors(a), Self::LoadErrors(b)) => a.is_empty() && b.is_empty(),
+            (Self::SaveErrors(a), Self::SaveErrors(b)) => a.is_empty() && b.is_empty(),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+impl Eq for ConfigStatus {}

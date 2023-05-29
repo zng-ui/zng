@@ -30,6 +30,7 @@
 
 # Config
 
+* Review save debounce.
 * Config test sometimes does not write any data to file.
     - Data never written.
     - Encountered a deadlock once.
@@ -40,3 +41,10 @@
         - Issue caused by slower disk?
     - No error observed with a `sleep(1.secs())` before rename.
     - Observed deadlock again (in json again, first test?).
+    - Running tests 1000 times always causes the error.
+        - Only observed the error "entry not found".
+        - But assert on file sized passed and the file looks ok after the failure.
+    - Error happens on READ BEFORE LOAD, HOW?
+    - Read is always ok, when it happens (correct entry count).
+    - Read-only test (already generated file) shows the same error.
+        - THE BUG IS IN THE STATUS VAR NOT SYNCHRONIZING CORRECTLY

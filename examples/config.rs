@@ -26,17 +26,18 @@ fn app_main() {
         let count = CONFIG.get("main.count", || 0);
         let txt = CONFIG.get("main.txt", || "Save this".to_text());
 
-        let status = CONFIG.errors().map_to_text();
-
         Window! {
             title = if std::env::var("MOVE-TO").is_err() { "Config Example" } else { "Config Example - Other Process" };
             background = Text! {
-                txt = status;
+                txt = CONFIG.status().map_to_text();
                 margin = 10;
                 font_family = "monospace";
                 align = Align::TOP_LEFT;
                 font_weight = FontWeight::BOLD;
-                txt_color = colors::RED;
+
+                when *#{CONFIG.status().map(|s| s.is_err())} {
+                    txt_color = colors::RED;
+                }
             };
             child = Stack! {
                 direction = StackDirection::top_to_bottom();

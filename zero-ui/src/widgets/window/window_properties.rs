@@ -260,7 +260,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                     WIDGET.sub_var(&vars.state()).sub_var(&vars.restore_rect());
 
                     let cfg_status = CONFIG.status();
-                    if cfg_status.get().contains(ConfigStatus::READ) {
+                    if !cfg_status.get().is_idle() {
                         // if status updates before the WINDOW_LOAD_EVENT we will still apply
                         loading = Some(Box::new(Loading {
                             _cfg_status_sub: cfg_status.subscribe(UpdateOp::Update, WIDGET.id()),
@@ -290,7 +290,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
             }
             UiNodeOp::Update { .. } => {
                 if let Some(l) = &loading {
-                    if !l.cfg_status.get().contains(ConfigStatus::READ) {
+                    if l.cfg_status.get().is_idle() {
                         if let Some(key) = enabled.window_key(WINDOW.id()) {
                             apply_to_window = CONFIG.contains_key(&key);
                         }

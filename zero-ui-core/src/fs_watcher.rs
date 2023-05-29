@@ -340,7 +340,7 @@ impl Drop for WatchFile {
 }
 
 const TRANSACTION_GUID: &str = "6eIw3bYMS0uKaQMkTIQacQ";
-const TRANSACTION_LOCK_EXT: &str = ".6eIw3bYMS0uKaQMkTIQacQ-lock.tmp";
+const TRANSACTION_LOCK_EXT: &str = "6eIw3bYMS0uKaQMkTIQacQ-lock.tmp";
 
 /// Represents an open write file provided by [`WATCHER.sync`].
 ///
@@ -353,10 +353,10 @@ const TRANSACTION_LOCK_EXT: &str = ".6eIw3bYMS0uKaQMkTIQacQ-lock.tmp";
 /// are locked. An empty lock file is also used to cover the moment when both files are unlocked for the rename operation
 /// and the moment the temp file is acquired.
 ///
-/// The temp file is the actual file path with file extension replaced with `{path/file-name}.{GUID}-{n}.tmp`, the `n` is a
+/// The temp file is the actual file path with file extension replaced with `{path/.file-name.ext}.{GUID}-{n}.tmp`, the `n` is a
 /// number from 0 to 999, if a temp file exists unlocked it will be reused.
 ///
-/// The lock file is  `{path/file-name}.{GUID}-lock.tmp`. Note that this
+/// The lock file is  `{path/.file-name.ext}.{GUID}-lock.tmp`. Note that this
 /// lock file only helps for apps that use [`WriteFile`], but even without it the risk is minimal as the slow
 /// write operations are already flushed when it is time to commit.
 ///
@@ -402,7 +402,12 @@ impl WriteFile {
             }
         }
 
-        let transaction_path = actual_path.with_extension(TRANSACTION_LOCK_EXT);
+        let hidden_name = match actual_path.file_name() {
+            Some(n) => format!(".{}", n.to_string_lossy()),
+            None => return Err(io::Error::new(io::ErrorKind::InvalidInput, "expected file name")),
+        };
+
+        let transaction_path = actual_path.with_file_name(format!("{hidden_name}.{TRANSACTION_LOCK_EXT}"));
         let transaction_lock = fs::OpenOptions::new().create(true).write(true).open(&transaction_path)?;
         transaction_lock.lock_exclusive()?;
 
@@ -410,7 +415,7 @@ impl WriteFile {
         actual_file.lock_exclusive()?;
 
         let mut n = 0;
-        let mut temp_path = actual_path.with_extension(format!(".{TRANSACTION_GUID}-{n}.tmp"));
+        let mut temp_path = actual_path.with_file_name(format!("{hidden_name}.{TRANSACTION_GUID}-{n}.tmp"));
         let temp_file = loop {
             if let Ok(f) = fs::OpenOptions::new().write(true).truncate(true).create(true).open(&temp_path) {
                 if f.try_lock_exclusive().is_ok() {
@@ -419,7 +424,7 @@ impl WriteFile {
             }
 
             n += 1;
-            temp_path = actual_path.with_extension(format!(".{TRANSACTION_GUID}-{n}.tmp"));
+            temp_path = actual_path.with_file_name(format!("{hidden_name}.{TRANSACTION_GUID}-{n}.tmp"));
             n += 1;
             if n > 1000 {
                 return Err(io::Error::new(io::ErrorKind::AlreadyExists, "cannot create temporary file"));
