@@ -261,7 +261,7 @@ mod file_cache {
     };
 
     use crate::{
-        crate_util::unlock_ok,
+        crate_util::{lock_exclusive, lock_shared, unlock_ok},
         task::{
             self,
             io::{McBufErrorExt, McBufReader},
@@ -440,7 +440,13 @@ mod file_cache {
                 }
             };
 
-            let lock_r = if write { lock.lock_exclusive() } else { lock.lock_shared() };
+            const TIMEOUT: Duration = Duration::from_secs(5);
+
+            let lock_r = if write {
+                lock_exclusive(&lock, TIMEOUT)
+            } else {
+                lock_shared(&lock, TIMEOUT)
+            };
             if let Err(e) = lock_r {
                 tracing::error!("cache lock error, {e:?}");
                 Self::try_delete_dir(&dir);

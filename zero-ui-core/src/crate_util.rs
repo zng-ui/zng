@@ -1247,6 +1247,38 @@ pub fn unlock_ok(file: &impl fs4::FileExt) -> std::io::Result<()> {
     }
 }
 
+/// Calls [`fs4::FileExt::lock_exclusive`] with a timeout.
+pub fn lock_exclusive(file: &impl fs4::FileExt, timeout: Duration) -> std::io::Result<()> {
+    lock_timeout(file, |f| f.try_lock_exclusive(), timeout)
+}
+
+/// Calls [`fs4::FileExt::lock_shared`] with a timeout.
+pub fn lock_shared(file: &impl fs4::FileExt, timeout: Duration) -> std::io::Result<()> {
+    lock_timeout(file, |f| f.try_lock_shared(), timeout)
+}
+
+fn lock_timeout<F: fs4::FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Result<()>, mut timeout: Duration) -> std::io::Result<()> {
+    let mut locked_error = None;
+    loop {
+        match try_lock(file) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                if e.raw_os_error() != locked_error.get_or_insert_with(fs4::lock_contended_error).raw_os_error() {
+                    return Err(e);
+                }
+
+                const INTERVAL: Duration = Duration::from_millis(10);
+                timeout = timeout.saturating_sub(INTERVAL);
+                if timeout.is_zero() {
+                    return Err(e);
+                } else {
+                    thread::sleep(INTERVAL.min(timeout));
+                }
+            }
+        }
+    }
+}
+
 /// Like [`std::ops::Range<usize>`], but implements [`Copy`].
 #[derive(Clone, Copy)]
 pub struct IndexRange(pub usize, pub usize);

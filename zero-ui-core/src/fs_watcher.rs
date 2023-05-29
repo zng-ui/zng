@@ -19,7 +19,7 @@ use path_absolutize::Absolutize;
 use crate::{
     app::AppExtension,
     context::app_local,
-    crate_util::{unlock_ok, Handle, HandleOwner},
+    crate_util::{lock_exclusive, lock_shared, unlock_ok, Handle, HandleOwner},
     event::{event, event_args, EventHandle},
     handler::{app_hn_once, AppHandler, FilterAppHandler},
     task,
@@ -264,7 +264,7 @@ impl WatchFile {
             return Self::try_open_non_empty(path, false);
         }
 
-        file.lock_shared()?;
+        lock_shared(&file, Duration::from_secs(5))?;
         Ok(Self(file))
     }
 
@@ -409,10 +409,13 @@ impl WriteFile {
 
         let transaction_path = actual_path.with_file_name(format!("{hidden_name}.{TRANSACTION_LOCK_EXT}"));
         let transaction_lock = fs::OpenOptions::new().create(true).write(true).open(&transaction_path)?;
-        transaction_lock.lock_exclusive()?;
+
+        const TIMEOUT: Duration = Duration::from_secs(5);
+
+        lock_exclusive(&transaction_lock, TIMEOUT)?;
 
         let actual_file = fs::OpenOptions::new().write(true).create(true).open(&actual_path)?;
-        actual_file.lock_exclusive()?;
+        lock_exclusive(&actual_file, TIMEOUT)?;
 
         let mut n = 0;
         let mut temp_path = actual_path.with_file_name(format!("{hidden_name}.{TRANSACTION_GUID}-{n}.tmp"));
