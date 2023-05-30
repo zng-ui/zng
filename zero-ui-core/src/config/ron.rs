@@ -15,7 +15,6 @@ impl ConfigMap for indexmap::IndexMap<ConfigKey, serde_ron::Value> {
 
     fn write(self, file: &mut WriteFile) -> io::Result<()> {
         file.write_ron(&self, true)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
     fn get_raw(&self, key: &ConfigKey) -> Result<Option<RawConfigValue>, Arc<dyn std::error::Error + Send + Sync>> {

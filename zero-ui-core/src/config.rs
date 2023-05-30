@@ -39,6 +39,11 @@ mod ron;
 #[cfg(feature = "ron")]
 pub use self::ron::*;
 
+#[cfg(feature = "yaml")]
+mod yaml;
+#[cfg(feature = "yaml")]
+pub use self::yaml::*;
+
 /// Application extension that provides mouse events and service.
 ///
 /// # Services

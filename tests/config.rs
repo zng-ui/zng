@@ -19,6 +19,11 @@ fn ron() {
     test_config("test.config.ron", |p| RonConfig::sync(p));
 }
 
+#[test]
+fn yaml() {
+    test_config("test.config.yml", |p| YamlConfig::sync(p));
+}
+
 fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
     let file = PathBuf::from("../target/tmp").join(file);
 

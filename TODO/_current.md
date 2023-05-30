@@ -28,8 +28,3 @@
 * Implement clipboard commands.
     - Already declared in the main crate (move to core).
 * Implement image copy&paste in image example.
-
-# Localization
-
-* Review wait, how do handles work when request is not found yet?
-* Test live update of localization file.

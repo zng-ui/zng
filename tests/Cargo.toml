@@ -9,7 +9,7 @@ default = ["ipc"]
 ipc = ["zero-ui/ipc"]
 
 [dev-dependencies]
-zero-ui = { path = "../zero-ui", features = ["test_util", "toml", "ron"] }
+zero-ui = { path = "../zero-ui", features = ["test_util", "toml", "ron", "yaml"] }
 zero-ui-view = { path = "../zero-ui-view" }
 pretty_assertions = "1"
 

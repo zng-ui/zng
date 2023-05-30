@@ -82,6 +82,9 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 # Not enabled by default.
 hyphenation_embed_all = ["hyphenation/embed_all"]
 
+# YAML config support.
+yaml = ["serde_yaml"]
+
 [dependencies]
 # local
 zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
@@ -146,6 +149,7 @@ serde = "1"
 serde_json = { version = "1", features = ["preserve_order"] }
 toml = { version = "0.7", optional = true, features = ["preserve_order"] }
 ron = { version = "0.8", optional = true, features = ["indexmap"] }
+serde_yaml = { version = "0.9", optional = true }
 
 # fluent
 fluent = "0.16"

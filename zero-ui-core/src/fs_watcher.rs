@@ -313,6 +313,15 @@ impl WatchFile {
         ron::de::from_reader(io::BufReader::new(&mut self.0))
     }
 
+    /// Deserialize the file content as YAML.
+    #[cfg(feature = "yaml")]
+    pub fn yaml<O>(&mut self) -> serde_yaml::Result<O>
+    where
+        O: serde::de::DeserializeOwned,
+    {
+        serde_yaml::from_reader(io::BufReader::new(&mut self.0))
+    }
+
     /// Read file and parse it.
     pub fn parse<O: std::str::FromStr>(&mut self) -> Result<O, WatchFileParseError<O::Err>> {
         use std::io::Read;
@@ -489,6 +498,14 @@ impl WriteFile {
         } else {
             ron::ser::to_writer(&mut buf, value).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         }
+        buf.flush()
+    }
+
+    /// Serialize and write.
+    #[cfg(feature = "yaml")]
+    pub fn write_yaml<O: serde::Serialize>(&mut self, value: &O) -> io::Result<()> {
+        let mut buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
+        serde_yaml::to_writer(&mut buf, value).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         buf.flush()
     }
 

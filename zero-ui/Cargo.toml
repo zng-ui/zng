@@ -84,6 +84,8 @@ hyphenation_embed_all = ["zero-ui-core/hyphenation_embed_all"]
 toml = ["zero-ui-core/toml"]
 # Enable RON configs.
 ron = ["zero-ui-core/ron"]
+# Enable YAML configs.
+yaml = ["zero-ui-core/yaml"]
 
 [dependencies]
 # local
