@@ -8,11 +8,17 @@ impl ConfigMap for indexmap::IndexMap<ConfigKey, serde_toml::Value> {
     }
 
     fn read(mut file: WatchFile) -> io::Result<Self> {
-        file.toml().map_err(Into::into)
+        file.toml()
     }
 
     fn write(self, file: &mut WriteFile) -> io::Result<()> {
-        file.write_toml(&self, true).map_err(Into::into)
+        if self.is_empty() {
+            // helps diagnosticate issues with empty config, JSON and RON empty are `{}`, TOML is
+            // zero-sized if we don't add this.
+            file.write_text("#")
+        } else {
+            file.write_toml(&self, true)
+        }
     }
 
     fn get_raw(&self, key: &ConfigKey) -> Result<Option<RawConfigValue>, Arc<dyn std::error::Error + Send + Sync>> {

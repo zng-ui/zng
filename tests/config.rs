@@ -27,7 +27,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
 
         CONFIG.load(source());
         app.run_task(async {
-            CONFIG.wait_idle().await;
+            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
         });
         let status = CONFIG.status().get();
         if status.is_err() {
@@ -37,7 +37,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
         TEST_READ.set(test_read);
         test_all();
         app.run_task(async {
-            CONFIG.wait_idle().await;
+            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
         });
 
         app.exit();

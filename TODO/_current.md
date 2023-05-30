@@ -33,7 +33,10 @@
 
 # Config
 
+* Config test sometimes reads empty.
+    - Empty is written on init, then quickly filled with defaults for the write test.
+    - Maybe the empty write is happening after the filled somehow?
+
 * Review save debounce.
-* Config test sometimes does not write any data to file.
-    - Running all 3 tests on repeat 1000 times always causes a bug.
-    - Either "did not find entry" or worst, it hangs.
+* Test concurrent access to same config.
+    - Use multiple app threads.
