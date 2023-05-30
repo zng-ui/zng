@@ -1,13 +1,18 @@
 # TextInput
 
 * Implement cursor position.
+    - Caret vertical position incorrect when not aligned to the top.
+        - `ShapedSegment::rect` return wrong value.
+        - `ShapedLine::rect` return wrong value for mid lines?
     - Caret stops blinking while moving with cursor, not resetting timer?
     - Caret animation does not start visible (on focus).
-    - Index is of insert offset, can be str.len for cursor after the last char.
+
     - Review using `TextPoint` for this?
-    - Need to navigate with arrow keys.
+        - Remove `TextPoint`?
+
     - Need to find closest insert point from mouse cursor point.
         - Support ligatures (click in middle works).
+    
     - Review https://searchfox.org/mozilla-central/source/layout/generic/nsTextFrame.cpp#7534
         - ligated emoji sequence
         - all solved by grapheme clusters? https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries

@@ -4,7 +4,7 @@ use std::{fmt, sync::Arc};
 
 use atomic::{Atomic, Ordering};
 use font_features::FontVariations;
-use zero_ui_core::keyboard::Key;
+use zero_ui_core::{gesture::CLICK_EVENT, keyboard::Key};
 
 use super::text_properties::*;
 use crate::core::{
@@ -244,6 +244,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 event_handles.push(CHAR_INPUT_EVENT.subscribe(WIDGET.id()));
                 event_handles.push(KEY_INPUT_EVENT.subscribe(WIDGET.id()));
                 event_handles.push(FOCUS_CHANGED_EVENT.subscribe(WIDGET.id()));
+                event_handles.push(CLICK_EVENT.subscribe(WIDGET.id()));
             }
 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.init());
@@ -361,12 +362,23 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         let t = resolved.as_mut().unwrap();
                         t.caret_opacity = new_animation;
                         if t.caret_index.is_none() {
-                            // !!: get click position? we don't have LAYOUT_TEXT here, just RESOLVE_TEXT
                             t.caret_index = Some(0);
+                            WIDGET.layout(); // update offset
                         }
                     } else {
                         _caret_opacity_handle = None;
                         resolved.as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
+                    }
+                }
+            } else if let Some(args) = CLICK_EVENT.on(update) {
+                if let Some(pos) = args.position() {
+                    if args.is_primary() {
+                        let t = resolved.as_mut().unwrap();
+                        tracing::info!("TODO, set caret position, clicked {pos:?}");
+                        if t.caret_index.is_none() {
+                            t.caret_index = Some(0);
+                            WIDGET.layout(); // update offset
+                        }
                     }
                 }
             } else if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
@@ -460,6 +472,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     event_handles.push(CHAR_INPUT_EVENT.subscribe(id));
                     event_handles.push(KEY_INPUT_EVENT.subscribe(id));
                     event_handles.push(FOCUS_CHANGED_EVENT.subscribe(id));
+                    event_handles.push(CLICK_EVENT.subscribe(id));
 
                     if FOCUS.focused().get().map(|p| p.widget_id()) == Some(id) {
                         let new_animation = KEYBOARD.caret_animation();
