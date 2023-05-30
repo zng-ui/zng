@@ -29,7 +29,7 @@ impl<M: ConfigMap> SyncConfig<M> {
 
                 match (|| M::read(r?))() {
                     Ok(ok) => {
-                        status.set_ne(ConfigStatus::Loaded);
+                        // Loaded set by `sync_var` to avoid race condition in wait.
                         Some(ok)
                     }
                     Err(e) => {
@@ -57,6 +57,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                 }
             }),
         );
+        sync_var.bind_map(&status, |_| ConfigStatus::Loaded).perm();
 
         Self {
             sync_var,

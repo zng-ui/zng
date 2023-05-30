@@ -25,6 +25,9 @@
 
 # Localization
 
+* Changing lang can sometimes show the template fallback title.
+    - Change to pseudo as soon as the window open to see.
+    - After changing back and forth the actual pseudo-title is set.
 * Review wait, how do handles work when request is not found yet?
 * Test live update of localization file.
 

@@ -993,13 +993,10 @@ where
 
 /// Error when [`with_deadline`] reach a time limit before a task finishes.
 #[derive(Debug, Clone, Copy)]
-pub struct DeadlineError {
-    /// The deadline that was reached.
-    pub deadline: Deadline,
-}
+pub struct DeadlineError {}
 impl fmt::Display for DeadlineError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "reached deadline, {:?}", self.deadline)
+        write!(f, "reached deadline")
     }
 }
 impl std::error::Error for DeadlineError {}
@@ -1011,7 +1008,7 @@ pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: impl Into
     let deadline = deadline.into();
     any!(async { Ok(fut.await) }, async {
         self::deadline(deadline).await;
-        Err(DeadlineError { deadline })
+        Err(DeadlineError {})
     })
     .await
 }

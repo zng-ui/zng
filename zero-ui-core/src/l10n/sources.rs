@@ -112,7 +112,7 @@ impl L10nDir {
                 }
 
                 if errors.is_empty() {
-                    status.set_ne(LangResourceStatus::Loaded)
+                    // Loaded set by `dir_watch` to avoid race condition in wait.
                 } else {
                     let s = LangResourceStatus::Errors(errors);
                     tracing::error!("loading available {s}");
@@ -122,6 +122,7 @@ impl L10nDir {
                 Some(Arc::new(set))
             }),
         );
+        dir_watch.bind_map(&status, |_| LangResourceStatus::Loaded).perm();
 
         Self {
             dir,
@@ -192,15 +193,17 @@ fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: 
         format!("{lang}/{file}.ftl")
     };
 
-    WATCHER
-        .read(dir.join(path), None, move |file| {
+    let r = WATCHER.read(
+        dir.join(path),
+        None,
+        clmv!(status, |file| {
             status.set_ne(LangResourceStatus::Loading);
 
             match file.and_then(|mut f| f.string()) {
                 Ok(flt) => match fluent::FluentResource::try_new(flt) {
                     Ok(flt) => {
-                        status.set_ne(LangResourceStatus::Loaded);
                         // ok
+                        // Loaded set by `r` to avoid race condition in waiter.
                         return Some(Some(Arc::new(flt)));
                     }
                     Err(e) => {
@@ -220,8 +223,10 @@ fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: 
             }
             // not ok
             Some(None)
-        })
-        .boxed()
+        }),
+    );
+    r.bind_map(&status, |_| LangResourceStatus::Loaded).perm();
+    r.boxed()
 }
 
 /// Represents localization source that can swap the actual source without disconnected variables
