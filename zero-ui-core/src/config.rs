@@ -62,6 +62,8 @@ impl AppExtension for ConfigManager {}
 ///
 /// Config sources must be loaded using [`CONFIG.load`], otherwise the config only leaves for the
 /// duration of the app instance.
+///
+/// [`CONFIG.load`]: CONFIG::load
 pub struct CONFIG;
 impl CONFIG {
     /// Replace the config source.
