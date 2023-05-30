@@ -34,12 +34,6 @@
 
 # Config
 
-* Config test sometimes reads empty.
-    - Empty is written on init, then quickly filled with defaults for the write test.
-    - Maybe the empty write is happening after the filled somehow?
-        - Nope, tracing shows a full write request and commit.
-        - But the file is empty on error.. (empty as in `#` for TOML, not zero-sized) 
-
 * Review save debounce.
 * Test concurrent access to same config.
     - Use multiple app threads.

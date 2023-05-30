@@ -187,6 +187,11 @@ impl LineRangeVec {
         self.0[index].width
     }
 
+    /// Line x offset.
+    fn x_offset(&self, index: usize) -> f32 {
+        self.0[index].x_offset
+    }
+
     /// Iter segment ranges.
     fn iter_segs(&self) -> impl Iterator<Item = (f32, IndexRange)> + '_ {
         self.iter_segs_skip(0)
@@ -901,7 +906,7 @@ impl ShapedText {
 
                     let text_start = seg.text_range().start();
 
-                    for ((g, advance), cluster) in seg.glyphs_with_x_advance().flat_map(|(_, gx)| gx).zip(seg.clusters()) {
+                    for ((_, advance), cluster) in seg.glyphs_with_x_advance().flat_map(|(_, gx)| gx).zip(seg.clusters()) {
                         if text_start + *cluster as usize == index {
                             break;
                         }
@@ -1839,16 +1844,15 @@ impl<'a> ShapedSegment<'a> {
     fn x_width(&self) -> (Px, Px) {
         let IndexRange(start, end) = self.glyphs_range();
 
-        // !!: TODO, check align
         let is_line_break = start == end && matches!(self.kind(), TextSegmentKind::LineBreak);
 
         let start_x = match self.direction() {
             LayoutDirection::LTR => {
                 if is_line_break {
-                    let s = self.text.lines.width(self.line_index);
-                    return (Px(s as i32), Px(0));
+                    let x = self.text.lines.x_offset(self.line_index);
+                    let w = self.text.lines.width(self.line_index);
+                    return (Px((x + w) as i32), Px(0));
                 }
-
                 self.text.glyphs[start].point.x
             }
             LayoutDirection::RTL => {
