@@ -1364,14 +1364,19 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         M: FnMut(&T) -> T2 + Send + 'static,
         B: FnMut(&T2) -> T + Send + 'static,
     {
-        let last_update = Arc::new(Atomic::new(VarUpdateId::never()));
+        // (self_to_other_id, other_to_self_id)
+        // used to stop an extra "map_back" caused by "map" itself
+        // using two ids allows us to support double updates flowing in the same direction.
+        let last_update = Arc::new(Atomic::new((VarUpdateId::never(), VarUpdateId::never())));
         let self_to_other = var_bind(
             self,
             other,
             clmv!(last_update, |value, other| {
                 let update_id = VARS.update_id();
-                if update_id != last_update.load(Relaxed) {
-                    last_update.store(update_id, Relaxed);
+                let (_, ots_id) = last_update.load(Relaxed);
+                if update_id != ots_id {
+                    // other_to_self did not cause this assign, propagate.
+                    last_update.store((update_id, ots_id), Relaxed);
                     let _ = other.set(map(value));
                 }
             }),
@@ -1379,8 +1384,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
         let other_to_self = var_bind(other, self, move |value, self_| {
             let update_id = VARS.update_id();
-            if update_id != last_update.load(Relaxed) {
-                last_update.store(update_id, Relaxed);
+            let (sto_id, _) = last_update.load(Relaxed);
+            if update_id != sto_id {
+                // self_to_other did not cause this assign.
+                last_update.store((sto_id, update_id), Relaxed);
                 let _ = self_.set(map_back(value));
             }
         });
@@ -1402,14 +1409,15 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         M: FnMut(&T) -> Option<T2> + Send + 'static,
         B: FnMut(&T2) -> Option<T> + Send + 'static,
     {
-        let last_update = Arc::new(Atomic::new(VarUpdateId::never()));
+        let last_update = Arc::new(Atomic::new((VarUpdateId::never(), VarUpdateId::never())));
         let self_to_other = var_bind(
             self,
             other,
             clmv!(last_update, |value, other| {
                 let update_id = VARS.update_id();
-                if update_id != last_update.load(Relaxed) {
-                    last_update.store(update_id, Relaxed);
+                let (_, ots_id) = last_update.load(Relaxed);
+                if update_id != ots_id {
+                    // other_to_self did not cause this assign, propagate.
                     if let Some(value) = map(value) {
                         let _ = other.set(value);
                     }
@@ -1419,8 +1427,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
         let other_to_self = var_bind(other, self, move |value, self_| {
             let update_id = VARS.update_id();
-            if update_id != last_update.load(Relaxed) {
-                last_update.store(update_id, Relaxed);
+            let (sto_id, _) = last_update.load(Relaxed);
+            if update_id != sto_id {
+                // self_to_other did not cause this assign.
+                last_update.store((sto_id, update_id), Relaxed);
                 if let Some(value) = map_back(value) {
                     let _ = self_.set(value);
                 }
