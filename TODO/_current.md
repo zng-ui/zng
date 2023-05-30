@@ -33,9 +33,3 @@
 
 * Review wait, how do handles work when request is not found yet?
 * Test live update of localization file.
-
-# Config
-
-* Review save debounce.
-* Test concurrent access to same config.
-    - Use multiple app threads.

@@ -205,3 +205,49 @@ fn test_core_border() {
     test_config!(BorderStyle::Dotted);
     test_config!(BorderSides::new_all(colors::RED));
 }
+
+#[test]
+fn concurrent_read_write() {
+    let file = PathBuf::from("../target/tmp/test.concurrent.json");
+
+    {
+        // setup
+        let _ = std::fs::remove_file(&file);
+        let mut app = App::default().run_headless(false);
+        CONFIG.load(JsonConfig::sync(&file));
+        CONFIG.get("key", || Txt::from_static("default")).set("custom").unwrap();
+
+        app.run_task(async {
+            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        });
+        let status = CONFIG.status().get();
+        if status.is_err() {
+            panic!("{status}");
+        }
+    }
+
+    // tests
+    let threads: Vec<_> = (0..32)
+        .map(|_| {
+            std::thread::spawn(clmv!(file, || {
+                let mut app = App::default().run_headless(false);
+                CONFIG.load(JsonConfig::sync(file));
+
+                app.run_task(async {
+                    task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+                });
+
+                let var = CONFIG.get("key", || Txt::from_static("default"));
+                for _ in 0..8 {
+                    assert_eq!("custom", var.get());
+                    var.set("custom").unwrap();
+                    app.update(false).assert_wait();
+                }
+            }))
+        })
+        .collect();
+
+    for t in threads {
+        t.join().unwrap();
+    }
+}
