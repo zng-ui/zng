@@ -302,7 +302,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     } else if let Some(c) = args.insert_char() {
                         // insert
                         let i = t.caret_index.unwrap();
-                        t.caret_index = Some(i + 1);
+                        t.caret_index = Some(i + c.len_utf8());
 
                         let _ = text.modify(move |t| {
                             t.to_mut().to_mut().insert(i, c);

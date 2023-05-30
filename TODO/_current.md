@@ -2,6 +2,7 @@
 
 * Implement cursor position.
     - Caret stops blinking while moving with cursor, not resetting timer?
+    - Caret animation does not start visible (on focus).
     - Index is of insert offset, can be str.len for cursor after the last char.
     - Review using `TextPoint` for this?
     - Need to navigate with arrow keys.

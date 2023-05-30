@@ -317,6 +317,12 @@ impl ShapedText {
         self.fonts.iter_glyphs_clip(range).map(|(f, r)| (f, &self.glyphs[r.iter()]))
     }
 
+    /// Index of each char byte in the segment range.
+    /// The first char in the segment is 0.
+    fn clusters_range(&self, range: IndexRange) -> &[u32] {
+        &self.clusters[range.iter()]
+    }
+
     /// Glyphs by font in the range, each glyph instance is paired with the *x-advance* to the next glyph or line end.
     fn glyphs_with_x_advance_range(
         &self,
@@ -893,12 +899,13 @@ impl ShapedText {
                     let mut p = seg.rect().origin;
                     let mut x = p.x.0 as f32;
 
-                    let len = index - seg.text_range().start();
-                    println!("!!: {len}");
+                    let text_start = seg.text_range().start();
 
-                    for (g, advance) in seg.glyphs_with_x_advance().flat_map(|(_, i)| i) {
+                    for ((g, advance), cluster) in seg.glyphs_with_x_advance().flat_map(|(_, gx)| gx).zip(seg.clusters()) {
+                        if text_start + *cluster as usize == index {
+                            break;
+                        }
                         x += advance;
-                        // !!: TODO, get glyph offset
                     }
                     p.x.0 = x as i32;
 
@@ -1808,24 +1815,29 @@ impl<'a> ShapedSegment<'a> {
         seg_glyphs.end() == line_glyphs.end()
     }
 
-    fn glyph_range(&self) -> IndexRange {
+    fn glyphs_range(&self) -> IndexRange {
         self.text.segments.glyphs(self.index)
     }
 
     /// Glyphs in the word or space.
     pub fn glyphs(&self) -> impl Iterator<Item = (&'a Font, &'a [GlyphInstance])> {
-        let r = self.glyph_range();
+        let r = self.glyphs_range();
         self.text.glyphs_range(r)
+    }
+
+    fn clusters(&self) -> &[u32] {
+        let r = self.glyphs_range();
+        self.text.clusters_range(r)
     }
 
     /// Glyphs in the word or space, paired with the *x-advance* to then next glyph or line end.
     pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a Font, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
-        let r = self.glyph_range();
+        let r = self.glyphs_range();
         self.text.glyphs_with_x_advance_range(self.line_index, r)
     }
 
     fn x_width(&self) -> (Px, Px) {
-        let IndexRange(start, end) = self.glyph_range();
+        let IndexRange(start, end) = self.glyphs_range();
 
         // !!: TODO, check align
         let is_line_break = start == end && matches!(self.kind(), TextSegmentKind::LineBreak);
@@ -2021,7 +2033,7 @@ impl<'a> ShapedSegment<'a> {
             ops::Bound::Unbounded => None,
         };
 
-        let glyph_range_start = self.glyph_range().start();
+        let glyph_range_start = self.glyphs_range().start();
         let glyph_to_char = |g| self.text.clusters[glyph_range_start + g] as usize;
 
         match (included_start, excluded_end) {
@@ -2030,22 +2042,6 @@ impl<'a> ShapedSegment<'a> {
             (Some(start), None) => IndexRange(glyph_to_char(start), self.text_range().len()),
             (Some(start), Some(end)) => IndexRange(glyph_to_char(start), glyph_to_char(end)),
         }
-    }
-
-    /// Get the glyph range in this segment from the `text_range` in string bytes.
-    pub fn glyph_text_range(&self, text_range: impl ops::RangeBounds<usize>) -> IndexRange {
-        let included_start = match text_range.start_bound() {
-            ops::Bound::Included(i) => Some(*i),
-            ops::Bound::Excluded(i) => Some(*i + 1),
-            ops::Bound::Unbounded => None,
-        };
-        let excluded_end = match text_range.end_bound() {
-            ops::Bound::Included(i) => Some(*i - 1),
-            ops::Bound::Excluded(i) => Some(*i),
-            ops::Bound::Unbounded => None,
-        };
-
-        todo!()
     }
 
     /// Select the string represented by this segment.
