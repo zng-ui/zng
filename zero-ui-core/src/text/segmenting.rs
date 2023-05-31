@@ -451,12 +451,7 @@ impl SegmentedText {
             let s = self.text.as_str();
 
             // from + 1_char, so that the `from` is the first yield in reverse if it is a valid grapheme boundary
-            let inclusive_from = s[from..]
-                .char_indices()
-                .skip(1)
-                .next()
-                .map(|(b, _)| from + b)
-                .unwrap_or_else(|| s.len());
+            let inclusive_from = s[from..].char_indices().nth(1).map(|(b, _)| from + b).unwrap_or_else(|| s.len());
 
             let s = &self.text.as_str()[..inclusive_from];
             let mut iter = unicode_segmentation::UnicodeSegmentation::grapheme_indices(s, true)

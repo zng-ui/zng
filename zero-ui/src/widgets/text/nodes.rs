@@ -24,9 +24,11 @@ pub struct ResolvedText {
     /// Font synthesis allowed by the text context and required to render the best font match.
     pub synthesis: FontSynthesis,
 
-    /// If the `text` or `faces` has updated, this value is `true` in the update the value changed and stays `true`
-    /// until after layout.
-    pub reshape: bool,
+    /// Layout that needs to be recomputed as identified by the text resolver node.
+    ///
+    /// This is added to the layout invalidation by the layout node itself. When set a layout must
+    /// be requested for the widget.
+    pub pending_layout: PendingLayout,
 
     /// Caret opacity.
     ///
@@ -48,7 +50,7 @@ impl Clone for ResolvedText {
             text: self.text.clone(),
             faces: self.faces.clone(),
             synthesis: self.synthesis,
-            reshape: self.reshape,
+            pending_layout: self.pending_layout,
             caret_opacity: self.caret_opacity.clone(),
             caret_index: None,
             baseline: Atomic::new(self.baseline.load(Ordering::Relaxed)),
@@ -80,7 +82,7 @@ impl fmt::Debug for ResolvedText {
             .field("text", &self.text)
             .field("faces", &self.faces)
             .field("synthesis", &self.synthesis)
-            .field("reshape", &self.reshape)
+            .field("pending_layout", &self.pending_layout)
             .field("caret_opacity", &self.caret_opacity.debug())
             .field("baseline", &self.baseline)
             .finish()
@@ -234,7 +236,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 synthesis: FONT_SYNTHESIS_VAR.get() & f.best().synthesis_for(style, weight),
                 faces: f,
                 text: SegmentedText::new(txt, DIRECTION_VAR.get()),
-                reshape: false,
+                pending_layout: PendingLayout::empty(),
                 baseline: Atomic::new(Px(0)),
                 caret_opacity,
                 caret_index: None,
@@ -304,6 +306,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         // insert
                         let i = t.caret_index.unwrap();
                         t.caret_index = Some(i + c.len_utf8());
+                        t.pending_layout |= PendingLayout::CARET;
 
                         let _ = text.modify(move |t| {
                             t.to_mut().to_mut().insert(i, c);
@@ -332,6 +335,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     let next = t.text.next_insert_index(*i);
                                     if *i != next {
                                         *i = next;
+                                        t.pending_layout |= PendingLayout::CARET;
                                         WIDGET.layout(); // update offset
                                     }
                                 }
@@ -346,6 +350,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     let prev = t.text.prev_insert_index(*i);
                                     if *i != prev {
                                         *i = prev;
+                                        t.pending_layout |= PendingLayout::CARET;
                                         WIDGET.layout(); // update offset
                                     }
                                 }
@@ -363,6 +368,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         t.caret_opacity = new_animation;
                         if t.caret_index.is_none() {
                             t.caret_index = Some(0);
+                            t.pending_layout |= PendingLayout::CARET;
                             WIDGET.layout(); // update offset
                         }
                     } else {
@@ -377,6 +383,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         tracing::info!("TODO, set caret position, clicked {pos:?}");
                         if t.caret_index.is_none() {
                             t.caret_index = Some(0);
+                            t.pending_layout |= PendingLayout::CARET;
                             WIDGET.layout(); // update offset
                         }
                     }
@@ -399,7 +406,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight);
                         r.faces = faces;
 
-                        r.reshape = true;
+                        r.pending_layout = PendingLayout::RESHAPE;
                         WIDGET.layout();
                     }
                 } else {
@@ -423,7 +430,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         *i = r.text.snap_grapheme_boundary(*i);
                     }
 
-                    r.reshape = true;
+                    r.pending_layout = PendingLayout::RESHAPE;
                     WIDGET.layout();
                 }
             }
@@ -448,7 +455,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(style, weight);
                         r.faces = faces;
 
-                        r.reshape = true;
+                        r.pending_layout = PendingLayout::RESHAPE;
                         WIDGET.layout();
                     }
                 } else {
@@ -493,7 +500,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         r.synthesis = FONT_SYNTHESIS_VAR.get() & faces.best().synthesis_for(FONT_STYLE_VAR.get(), FONT_WEIGHT_VAR.get());
                         r.faces = faces;
 
-                        r.reshape = true;
+                        r.pending_layout = PendingLayout::RESHAPE;
                         WIDGET.layout();
                     }
                 } else {
@@ -505,12 +512,31 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = RESOLVED_TEXT.with_context_opt(&mut resolved, || child.layout(wl));
-            resolved.as_mut().unwrap().reshape = false;
+            resolved.as_mut().unwrap().pending_layout = PendingLayout::empty();
         }
         op => {
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.op(op));
         }
     })
+}
+
+bitflags::bitflags! {
+    /// Text layout parts that need rebuild.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct PendingLayout: u8 {
+        /// Underline size and position.
+        const UNDERLINE     = 0b0000_0001;
+        /// Strikethrough size and position.
+        const STRIKETHROUGH = 0b0000_0010;
+        /// Overline size and position.
+        const OVERLINE      = 0b0000_0100;
+        /// Caret origin.
+        const CARET         = 0b0000_1000;
+        /// Text lines position, retains line glyphs but reposition for new align and outer box.
+        const RESHAPE_LINES = 0b0011_1111;
+        /// Full reshape, re-compute all glyphs.
+        const RESHAPE       = 0b0111_1111;
+    }
 }
 
 /// An UI node that layouts the parent [`ResolvedText`] defined by the text context vars.
@@ -519,20 +545,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
 /// node in the `NestGroup::CHILD_LAYOUT + 100` nest group, so all properties in [`NestGroup::CHILD_LAYOUT`] can affect the layout normally and
 /// custom properties can be created to be inside this group and have access to the [`LayoutText::get`] function.
 pub fn layout_text(child: impl UiNode) -> impl UiNode {
-    bitflags::bitflags! {
-        #[derive(Clone, Copy, PartialEq, Eq)]
-        struct Layout: u8 {
-            const UNDERLINE     = 0b0000_0001;
-            const STRIKETHROUGH = 0b0000_0010;
-            const OVERLINE      = 0b0000_0100;
-            const RESHAPE_LINES = 0b0001_1111;
-            const RESHAPE       = 0b0011_1111;
-        }
-    }
     struct FinalText {
         txt: Option<LayoutText>,
         shaping_args: TextShapingArgs,
-        pending: Layout,
+        pending: PendingLayout,
 
         txt_is_measured: bool,
         last_layout: (LayoutMetrics, Option<InlineConstraintsMeasure>),
@@ -547,9 +563,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
 
         fn layout(&mut self, metrics: &LayoutMetrics, t: &ResolvedText, is_measure: bool) -> PxSize {
-            if t.reshape {
-                self.pending.insert(Layout::RESHAPE);
-            }
+            self.pending |= t.pending_layout;
 
             let font_size = metrics.font_size();
 
@@ -567,14 +581,14 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     underline_thickness: Px(0),
                     caret_origin: None,
                 });
-                self.pending.insert(Layout::RESHAPE);
+                self.pending.insert(PendingLayout::RESHAPE);
             }
 
             let r = self.txt.as_mut().unwrap();
 
             if font_size != r.fonts.requested_size() || !r.fonts.is_sized_from(&t.faces) {
                 r.fonts = t.faces.sized(font_size, FONT_VARIATIONS_VAR.with(FontVariations::finalize));
-                self.pending.insert(Layout::RESHAPE);
+                self.pending.insert(PendingLayout::RESHAPE);
             }
 
             if TEXT_WRAP_VAR.get() && !metrics.constraints().x.is_unbounded() {
@@ -582,15 +596,19 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 if self.shaping_args.max_width != max_width {
                     self.shaping_args.max_width = max_width;
 
-                    if !self.pending.contains(Layout::RESHAPE) && r.shaped_text.can_rewrap(max_width) {
-                        self.pending.insert(Layout::RESHAPE);
+                    if !self.pending.contains(PendingLayout::RESHAPE) && r.shaped_text.can_rewrap(max_width) {
+                        self.pending.insert(PendingLayout::RESHAPE);
                     }
                 }
             } else if self.shaping_args.max_width != Px::MAX {
                 self.shaping_args.max_width = Px::MAX;
-                if !self.pending.contains(Layout::RESHAPE) && r.shaped_text.can_rewrap(Px::MAX) {
-                    self.pending.insert(Layout::RESHAPE);
+                if !self.pending.contains(PendingLayout::RESHAPE) && r.shaped_text.can_rewrap(Px::MAX) {
+                    self.pending.insert(PendingLayout::RESHAPE);
                 }
+            }
+
+            if r.caret_origin.is_none() {
+                self.pending.insert(PendingLayout::CARET);
             }
 
             if let Some(inline) = metrics.inline_constraints() {
@@ -598,35 +616,35 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     InlineConstraints::Measure(m) => {
                         if self.shaping_args.inline_constraints != Some(m) {
                             self.shaping_args.inline_constraints = Some(m);
-                            self.pending.insert(Layout::RESHAPE);
+                            self.pending.insert(PendingLayout::RESHAPE);
                         }
                     }
                     InlineConstraints::Layout(l) => {
-                        if !self.pending.contains(Layout::RESHAPE)
+                        if !self.pending.contains(PendingLayout::RESHAPE)
                             && (Some(l.first_segs.len()) != r.shaped_text.first_line().map(|l| l.segs_len())
                                 || Some(l.last_segs.len()) != r.shaped_text.last_line().map(|l| l.segs_len()))
                         {
-                            self.pending.insert(Layout::RESHAPE);
+                            self.pending.insert(PendingLayout::RESHAPE);
                         }
 
-                        if !self.pending.contains(Layout::RESHAPE_LINES)
+                        if !self.pending.contains(PendingLayout::RESHAPE_LINES)
                             && (r.shaped_text.mid_clear() != l.mid_clear
                                 || r.shaped_text.first_line().map(|l| l.rect()) != Some(l.first)
                                 || r.shaped_text.last_line().map(|l| l.rect()) != Some(l.last))
                         {
-                            self.pending.insert(Layout::RESHAPE_LINES);
+                            self.pending.insert(PendingLayout::RESHAPE_LINES);
                         }
                     }
                 }
             } else if self.shaping_args.inline_constraints.is_some() {
                 self.shaping_args.inline_constraints = None;
-                self.pending.insert(Layout::RESHAPE);
+                self.pending.insert(PendingLayout::RESHAPE);
             }
 
-            if !self.pending.contains(Layout::RESHAPE_LINES) {
+            if !self.pending.contains(PendingLayout::RESHAPE_LINES) {
                 let size = r.shaped_text.size();
                 if metrics.constraints().fill_size_or(size) != r.shaped_text.align_size() {
-                    self.pending.insert(Layout::RESHAPE_LINES);
+                    self.pending.insert(PendingLayout::RESHAPE_LINES);
                 }
             }
 
@@ -654,17 +672,17 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let line_spacing =
                 { LAYOUT.with_constraints(PxConstraints2d::new_exact(line_height, line_height), || LINE_SPACING_VAR.layout_y()) };
 
-            if !self.pending.contains(Layout::RESHAPE)
+            if !self.pending.contains(PendingLayout::RESHAPE)
                 && (letter_spacing != self.shaping_args.letter_spacing
                     || word_spacing != self.shaping_args.word_spacing
                     || tab_length != self.shaping_args.tab_x_advance)
             {
-                self.pending.insert(Layout::RESHAPE);
+                self.pending.insert(PendingLayout::RESHAPE);
             }
-            if !self.pending.contains(Layout::RESHAPE_LINES)
+            if !self.pending.contains(PendingLayout::RESHAPE_LINES)
                 && (line_spacing != self.shaping_args.line_spacing || line_height != self.shaping_args.line_height)
             {
-                self.pending.insert(Layout::RESHAPE_LINES);
+                self.pending.insert(PendingLayout::RESHAPE_LINES);
             }
 
             self.shaping_args.letter_spacing = letter_spacing;
@@ -684,22 +702,22 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 })
             };
 
-            if !self.pending.contains(Layout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
-                self.pending.insert(Layout::OVERLINE);
+            if !self.pending.contains(PendingLayout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
+                self.pending.insert(PendingLayout::OVERLINE);
             }
-            if !self.pending.contains(Layout::STRIKETHROUGH) && (r.strikethrough_thickness == Px(0) && strikethrough > Px(0)) {
-                self.pending.insert(Layout::STRIKETHROUGH);
+            if !self.pending.contains(PendingLayout::STRIKETHROUGH) && (r.strikethrough_thickness == Px(0) && strikethrough > Px(0)) {
+                self.pending.insert(PendingLayout::STRIKETHROUGH);
             }
-            if !self.pending.contains(Layout::UNDERLINE) && (r.underline_thickness == Px(0) && underline > Px(0)) {
-                self.pending.insert(Layout::UNDERLINE);
+            if !self.pending.contains(PendingLayout::UNDERLINE) && (r.underline_thickness == Px(0) && underline > Px(0)) {
+                self.pending.insert(PendingLayout::UNDERLINE);
             }
             r.overline_thickness = overline;
             r.strikethrough_thickness = strikethrough;
             r.underline_thickness = underline;
 
             let align = TEXT_ALIGN_VAR.get();
-            if !self.pending.contains(Layout::RESHAPE_LINES) && align != r.shaped_text.align() {
-                self.pending.insert(Layout::RESHAPE_LINES);
+            if !self.pending.contains(PendingLayout::RESHAPE_LINES) && align != r.shaped_text.align() {
+                self.pending.insert(PendingLayout::RESHAPE_LINES);
             }
 
             /*
@@ -707,20 +725,21 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             */
             let prev_final_size = r.shaped_text.size();
 
-            if self.pending.contains(Layout::RESHAPE) {
+            if self.pending.contains(PendingLayout::RESHAPE) {
                 r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
-                self.pending = self.pending.intersection(Layout::RESHAPE_LINES);
+                self.pending = self.pending.intersection(PendingLayout::RESHAPE_LINES);
             }
 
-            if !self.pending.contains(Layout::RESHAPE_LINES) && prev_final_size != metrics.constraints().fill_size_or(r.shaped_text.size())
+            if !self.pending.contains(PendingLayout::RESHAPE_LINES)
+                && prev_final_size != metrics.constraints().fill_size_or(r.shaped_text.size())
             {
-                self.pending.insert(Layout::RESHAPE_LINES);
+                self.pending.insert(PendingLayout::RESHAPE_LINES);
             }
 
             if !is_measure {
                 self.last_layout = (metrics.clone(), self.shaping_args.inline_constraints);
 
-                if self.pending.contains(Layout::RESHAPE_LINES) {
+                if self.pending.contains(PendingLayout::RESHAPE_LINES) {
                     r.shaped_text.reshape_lines(
                         metrics.constraints(),
                         metrics.inline_constraints().map(|c| c.layout()),
@@ -733,21 +752,21 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     t.baseline.store(r.shaped_text.baseline(), Ordering::Relaxed);
                     r.caret_origin = None;
                 }
-                if self.pending.contains(Layout::OVERLINE) {
+                if self.pending.contains(PendingLayout::OVERLINE) {
                     if r.overline_thickness > Px(0) {
                         r.overlines = r.shaped_text.lines().map(|l| l.overline()).collect();
                     } else {
                         r.overlines = vec![];
                     }
                 }
-                if self.pending.contains(Layout::STRIKETHROUGH) {
+                if self.pending.contains(PendingLayout::STRIKETHROUGH) {
                     if r.strikethrough_thickness > Px(0) {
                         r.strikethroughs = r.shaped_text.lines().map(|l| l.strikethrough()).collect();
                     } else {
                         r.strikethroughs = vec![];
                     }
                 }
-                if self.pending.contains(Layout::UNDERLINE) {
+                if self.pending.contains(PendingLayout::UNDERLINE) {
                     if r.underline_thickness > Px(0) {
                         let skip = UNDERLINE_SKIP_VAR.get();
                         match UNDERLINE_POSITION_VAR.get() {
@@ -784,7 +803,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                     }
                 }
 
-                if r.caret_origin.is_none() {
+                if self.pending.contains(PendingLayout::CARET) {
                     if let Some(index) = ResolvedText::get().caret_index {
                         let p = r.shaped_text.caret_origin(index);
                         r.caret_origin = Some(p);
@@ -818,7 +837,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
     let mut txt = FinalText {
         txt: None,
         shaping_args: TextShapingArgs::default(),
-        pending: Layout::empty(),
+        pending: PendingLayout::empty(),
         txt_is_measured: false,
         last_layout: (LayoutMetrics::new(1.fct(), PxSize::zero(), Px(0)), None),
     };
@@ -862,7 +881,7 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Update { .. } => {
             if FONT_SIZE_VAR.is_new() || FONT_VARIATIONS_VAR.is_new() {
-                txt.pending.insert(Layout::RESHAPE);
+                txt.pending.insert(PendingLayout::RESHAPE);
                 WIDGET.layout();
             }
 
@@ -875,51 +894,51 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             {
                 txt.shaping_args.lang = LANG_VAR.with(|l| l.best().clone());
                 txt.shaping_args.direction = txt.shaping_args.lang.character_direction().into(); // will be set in layout too.
-                txt.pending.insert(Layout::RESHAPE);
+                txt.pending.insert(PendingLayout::RESHAPE);
                 WIDGET.layout();
             }
 
             if UNDERLINE_POSITION_VAR.is_new() || UNDERLINE_SKIP_VAR.is_new() {
-                txt.pending.insert(Layout::UNDERLINE);
+                txt.pending.insert(PendingLayout::UNDERLINE);
                 WIDGET.layout();
             }
 
             if let Some(lb) = LINE_BREAK_VAR.get_new() {
                 if txt.shaping_args.line_break != lb {
                     txt.shaping_args.line_break = lb;
-                    txt.pending.insert(Layout::RESHAPE);
+                    txt.pending.insert(PendingLayout::RESHAPE);
                     WIDGET.layout();
                 }
             }
             if let Some(wb) = WORD_BREAK_VAR.get_new() {
                 if txt.shaping_args.word_break != wb {
                     txt.shaping_args.word_break = wb;
-                    txt.pending.insert(Layout::RESHAPE);
+                    txt.pending.insert(PendingLayout::RESHAPE);
                     WIDGET.layout();
                 }
             }
             if let Some(h) = HYPHENS_VAR.get_new() {
                 if txt.shaping_args.hyphens != h {
                     txt.shaping_args.hyphens = h;
-                    txt.pending.insert(Layout::RESHAPE);
+                    txt.pending.insert(PendingLayout::RESHAPE);
                     WIDGET.layout();
                 }
             }
             if let Some(c) = HYPHEN_CHAR_VAR.get_new() {
                 txt.shaping_args.hyphen_char = c;
                 if Hyphens::None != txt.shaping_args.hyphens {
-                    txt.pending.insert(Layout::RESHAPE);
+                    txt.pending.insert(PendingLayout::RESHAPE);
                     WIDGET.layout();
                 }
             }
             if TEXT_WRAP_VAR.is_new() {
-                txt.pending.insert(Layout::RESHAPE);
+                txt.pending.insert(PendingLayout::RESHAPE);
                 WIDGET.layout();
             }
 
             FONT_FEATURES_VAR.with_new(|f| {
                 txt.shaping_args.font_features = f.finalize();
-                txt.pending.insert(Layout::RESHAPE);
+                txt.pending.insert(PendingLayout::RESHAPE);
                 WIDGET.layout();
             });
         }
@@ -980,9 +999,9 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
             let resolved_txt = RESOLVED_TEXT.get();
             *final_size = txt.layout(&metrics, &resolved_txt, false);
 
-            if txt.pending != Layout::empty() {
+            if txt.pending != PendingLayout::empty() {
                 WIDGET.render();
-                txt.pending = Layout::empty();
+                txt.pending = PendingLayout::empty();
             }
 
             if let (Some(inline), Some(l)) = (wl.inline(), txt.txt.as_ref()) {
