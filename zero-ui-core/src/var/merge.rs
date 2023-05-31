@@ -363,6 +363,14 @@ impl<I: VarValue> MergeVarBuilder<I> {
         }
     }
 
+    /// New with pre-allocated inputs.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            inputs: Vec::with_capacity(capacity),
+            _type: PhantomData,
+        }
+    }
+
     /// Push an input.
     pub fn push(&mut self, input: impl Var<I>) {
         self.inputs.push(input.boxed_any())

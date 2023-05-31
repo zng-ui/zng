@@ -26,6 +26,9 @@ pub use json::*;
 mod swap;
 pub use swap::*;
 
+mod switch;
+pub use switch::*;
+
 mod sync;
 pub use sync::*;
 
@@ -481,6 +484,47 @@ impl ConfigStatus {
             ConfigStatus::LoadErrors(e) => e,
             ConfigStatus::SaveErrors(e) => e,
             _ => &[],
+        }
+    }
+
+    /// merge all `status`.
+    pub fn merge_status(status: impl Iterator<Item = ConfigStatus>) -> ConfigStatus {
+        let mut load_errors = vec![];
+        let mut save_errors = vec![];
+        let mut loading = false;
+        let mut saving = false;
+        for s in status {
+            match s {
+                ConfigStatus::Loaded => {}
+                ConfigStatus::Loading => loading = true,
+                ConfigStatus::Saving => saving = true,
+                ConfigStatus::LoadErrors(e) => {
+                    if load_errors.is_empty() {
+                        load_errors = e.clone();
+                    } else {
+                        load_errors.extend(e);
+                    }
+                }
+                ConfigStatus::SaveErrors(e) => {
+                    if save_errors.is_empty() {
+                        save_errors = e.clone();
+                    } else {
+                        save_errors.extend(e);
+                    }
+                }
+            }
+        }
+
+        if loading {
+            ConfigStatus::Loading
+        } else if saving {
+            ConfigStatus::Saving
+        } else if !load_errors.is_empty() {
+            ConfigStatus::LoadErrors(load_errors)
+        } else if !save_errors.is_empty() {
+            ConfigStatus::SaveErrors(save_errors)
+        } else {
+            ConfigStatus::Loaded
         }
     }
 }

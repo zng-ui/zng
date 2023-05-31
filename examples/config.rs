@@ -20,7 +20,13 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
-        CONFIG.load(JsonConfig::sync("target/tmp/example.config.json"));
+        CONFIG.load(
+            SwitchConfig::new()
+                // config with keys "main.$key"
+                .with_prefix("main.", JsonConfig::sync("target/tmp/example.config.json"))
+                // any other configs (Window::save_state for example)
+                .with_prefix("", JsonConfig::sync("target/tmp/example.config.other.json")),
+        );
 
         let checked = CONFIG.get("main.checked", || false);
         let count = CONFIG.get("main.count", || 0);

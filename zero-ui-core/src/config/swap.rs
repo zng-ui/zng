@@ -11,6 +11,7 @@ pub struct SwapConfig {
     cfg: Mutex<Box<dyn AnyConfig>>,
     shared: ConfigVars,
 
+    source_status: BoxedVar<ConfigStatus>,
     status: ArcVar<ConfigStatus>,
     status_binding: VarHandle,
 }
@@ -84,6 +85,7 @@ impl SwapConfig {
         Self {
             cfg: Mutex::new(Box::new(NilConfig)),
             shared: ConfigVars::default(),
+            source_status: NilConfig.status(),
             status: var(ConfigStatus::Loaded),
             status_binding: VarHandle::dummy(),
         }
@@ -98,9 +100,9 @@ impl SwapConfig {
     }
 
     fn replace_source(&mut self, source: Box<dyn AnyConfig>) {
-        let source_status = source.status();
-        self.status.set(source_status.get());
-        self.status_binding = source_status.bind(&self.status);
+        self.source_status = source.status();
+        self.status.set(self.source_status.get());
+        self.status_binding = self.source_status.bind(&self.status);
 
         *self.cfg.get_mut() = source; // drop previous source first
 
