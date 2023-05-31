@@ -1555,7 +1555,7 @@ impl<'a> ShapedLine<'a> {
         let size = PxSize::new(self.width, self.text.line_height);
         let origin = PxPoint::new(
             Px(self.text.lines.0[self.index].x_offset as i32),
-            self.text.line_height * Px(self.index as i32) + self.text.mid_clear,
+            self.text.line_height * Px(self.index as i32) + self.text.first_line.max_y() + self.text.mid_clear,
         );
         PxRect::new(origin, size)
     }
@@ -1880,8 +1880,15 @@ impl<'a> ShapedSegment<'a> {
     pub fn rect(&self) -> PxRect {
         let (x, width) = self.x_width();
         let size = PxSize::new(width, self.text.line_height);
-        let origin = PxPoint::new(x, self.text.line_height * Px(self.line_index as i32));
-        PxRect::new(origin, size)
+
+        let y = if self.line_index == 0 {
+            self.text.first_line.origin.y
+        } else if self.line_index == self.text.lines.0.len() - 1 {
+            self.text.last_line.origin.y
+        } else {
+            self.text.line_height * Px(self.line_index as i32) + self.text.first_line.max_y() + self.text.mid_clear
+        };
+        PxRect::new(PxPoint::new(x, y), size)
     }
 
     /// Segment info for widget inline segments.

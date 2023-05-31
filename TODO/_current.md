@@ -1,9 +1,6 @@
 # TextInput
 
 * Implement cursor position.
-    - Caret vertical position incorrect when not aligned to the top.
-        - `ShapedSegment::rect` return wrong value.
-        - `ShapedLine::rect` return wrong value for mid lines?
     - Caret stops blinking while moving with cursor, not resetting timer?
     - Caret animation does not start visible (on focus).
 
