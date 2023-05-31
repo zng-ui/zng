@@ -1,8 +1,3 @@
-* Test emoji, looks like webrender supports then.
-    - We need more than one "fallback" font?
-    - Right now we use "Segoe UI Symbol" in Windows.
-    - We need to fallback to "Segoe UI Emoji" instead, or have both?
-
 # TextInput
 
 * Implement cursor position.
@@ -29,17 +24,26 @@
     - Input replaces selection.
         - Char input, paste, IME
     - Impl cut & copy.
+
 * Implement custom node access to text.
+    - Clone text var in `ResolvedText`?
+    - Getter property `get_transformed_text`, to get the text after whitespace transforms?
+
+* Implement IME.
+    - See https://github.com/rust-windowing/winit/issues/1497
 
 # Clipboard
 
 * Implement image copy&paste in image example.
 
-# Config
+# Emoji Rendering
 
-* `FallbackConfig` always inserts a copy on the write config, should stay bound to fallback.
-    - We want the "config/fallback" to be used like the "workspace/user" settings of VSCode.
-    - When the fallback changes and it is not overridden the config var should update.
-    - When it is set, the config file only should update.
-        - Like a `CowVar`.
-        - But we still have the embedded ultimate fallback.
+* Tech is called CPAL/COLR.
+    - Layered glyphs of different colors.
+* Looks like webrender expects the glyphs to be pre-processed?
+* Newer versions of harfbuzz have function to get the colors.
+
+* We need more than one "fallback" font?
+    - Right now we use "Segoe UI Symbol" in Windows.
+    - We need to fallback to "Segoe UI Emoji" instead, or have both?
+    - See what browsers do, maybe we need a "front" font, that is added on top of other fonts?
