@@ -1,3 +1,8 @@
+* Test emoji, looks like webrender supports then.
+    - We need more than one "fallback" font?
+    - Right now we use "Segoe UI Symbol" in Windows.
+    - We need to fallback to "Segoe UI Emoji" instead, or have both?
+
 # TextInput
 
 * Implement cursor position.
@@ -6,6 +11,9 @@
 
     - Review using `TextPoint` for this?
         - Remove `TextPoint`?
+        - Refactor `TextPointDisplay` into `CaretPosition` in the main crate.
+            - Implement `get_caret_position` getter property.
+            - Use case is display in a status bar.
 
     - Need to find closest insert point from mouse cursor point.
         - Support ligatures (click in middle works).
@@ -18,12 +26,13 @@
         - Observed this in Chrome, Firefox, VS and Word, use "ö̲" to test.
 * Support replace (Insert mode in command line).
 * Implement selection.
+    - Input replaces selection.
+        - Char input, paste, IME
+    - Impl cut & copy.
 * Implement custom node access to text.
 
 # Clipboard
 
-* Implement clipboard commands.
-    - Already declared in the main crate (move to core).
 * Implement image copy&paste in image example.
 
 # Config

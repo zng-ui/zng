@@ -3,8 +3,9 @@
 use std::{fmt, sync::Arc};
 
 use atomic::{Atomic, Ordering};
+use commands::{COPY_CMD, CUT_CMD, PASTE_CMD};
 use font_features::FontVariations;
-use zero_ui_core::{gesture::CLICK_EVENT, keyboard::Key};
+use zero_ui_core::{clipboard::CLIPBOARD, gesture::CLICK_EVENT, keyboard::Key};
 
 use super::text_properties::*;
 use crate::core::{
@@ -181,11 +182,27 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
         }
     }
 
+    /// Data allocated only when `editable`.
+    #[derive(Default)]
+    struct EditData {
+        events: [EventHandle; 4],
+        caret_animation: VarHandle,
+        cut: CommandHandle,
+        copy: CommandHandle,
+        paste: CommandHandle,
+    }
+    impl EditData {
+        fn get(edit_data: &mut Option<Box<Self>>) -> &mut Self {
+            &mut *edit_data.get_or_insert_with(Default::default)
+        }
+    }
+
     let text = text.into_var();
     let mut loading_faces = None;
     let mut resolved = None;
-    let mut event_handles = EventHandles::default();
-    let mut _caret_opacity_handle = None;
+
+    // Use `EditData::get` to access.
+    let mut edit_data = None;
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -226,7 +243,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             let editable = TEXT_EDITABLE_VAR.get();
             let caret_opacity = if editable && FOCUS.focused().get().map(|p| p.widget_id()) == Some(WIDGET.id()) {
                 let v = KEYBOARD.caret_animation();
-                _caret_opacity_handle = Some(v.subscribe(UpdateOp::Update, WIDGET.id()));
+                EditData::get(&mut edit_data).caret_animation = v.subscribe(UpdateOp::Update, WIDGET.id());
                 v
             } else {
                 var(0.fct()).read_only()
@@ -243,18 +260,24 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             });
 
             if editable {
-                event_handles.push(CHAR_INPUT_EVENT.subscribe(WIDGET.id()));
-                event_handles.push(KEY_INPUT_EVENT.subscribe(WIDGET.id()));
-                event_handles.push(FOCUS_CHANGED_EVENT.subscribe(WIDGET.id()));
-                event_handles.push(CLICK_EVENT.subscribe(WIDGET.id()));
+                let id = WIDGET.id();
+
+                let d = EditData::get(&mut edit_data);
+                d.events[0] = CHAR_INPUT_EVENT.subscribe(id);
+                d.events[1] = KEY_INPUT_EVENT.subscribe(id);
+                d.events[2] = FOCUS_CHANGED_EVENT.subscribe(id);
+                d.events[3] = CLICK_EVENT.subscribe(id);
+
+                d.cut = CUT_CMD.scoped(id).subscribe(true);
+                d.copy = COPY_CMD.scoped(id).subscribe(true);
+                d.paste = PASTE_CMD.scoped(id).subscribe(true);
             }
 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.init());
         }
         UiNodeOp::Deinit => {
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.deinit());
-            event_handles.clear();
-            _caret_opacity_handle = None;
+            edit_data = None;
             loading_faces = None;
             resolved = None;
         }
@@ -279,7 +302,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     args.propagation().stop();
 
                     let new_animation = KEYBOARD.caret_animation();
-                    _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::Update, WIDGET.id()));
+                    EditData::get(&mut edit_data).caret_animation = new_animation.subscribe(UpdateOp::Update, WIDGET.id());
                     t.caret_opacity = new_animation;
 
                     if args.is_backspace() {
@@ -363,7 +386,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 if TEXT_EDITABLE_VAR.get() {
                     if args.is_focused(WIDGET.id()) {
                         let new_animation = KEYBOARD.caret_animation();
-                        _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::RenderUpdate, WIDGET.id()));
+                        EditData::get(&mut edit_data).caret_animation = new_animation.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
                         let t = resolved.as_mut().unwrap();
                         t.caret_opacity = new_animation;
                         if t.caret_index.is_none() {
@@ -372,7 +395,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                             WIDGET.layout(); // update offset
                         }
                     } else {
-                        _caret_opacity_handle = None;
+                        EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
                         resolved.as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
                     }
                 }
@@ -411,6 +434,31 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                     }
                 } else {
                     loading_faces = Some(LoadingFontFaceList::new(faces));
+                }
+            } else if let Some(args) = CUT_CMD.scoped(WIDGET.id()).on(update) {
+                args.propagation().stop();
+                tracing::error!("TODO cut");
+            } else if let Some(args) = COPY_CMD.scoped(WIDGET.id()).on(update) {
+                args.propagation().stop();
+                tracing::error!("TODO copy");
+            } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on(update) {
+                args.propagation().stop();
+
+                match CLIPBOARD.text() {
+                    Ok(paste) => {
+                        // insert
+                        let t = resolved.as_mut().unwrap();
+                        let i = t.caret_index.unwrap();
+                        t.caret_index = Some(i + paste.len());
+                        t.pending_layout |= PendingLayout::CARET;
+
+                        let _ = text.modify(move |t| {
+                            t.to_mut().to_mut().insert_str(i, paste.as_str());
+                        });
+                    }
+                    Err(e) => {
+                        tracing::error!("error pasting, {e}");
+                    }
                 }
             }
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.event(update));
@@ -472,23 +520,28 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             }
 
             if let Some(enabled) = TEXT_EDITABLE_VAR.get_new() {
-                if enabled && event_handles.0.is_empty() {
+                if enabled && edit_data.is_none() {
                     // actually enabled.
 
+                    let d = EditData::get(&mut edit_data);
+
                     let id = WIDGET.id();
-                    event_handles.push(CHAR_INPUT_EVENT.subscribe(id));
-                    event_handles.push(KEY_INPUT_EVENT.subscribe(id));
-                    event_handles.push(FOCUS_CHANGED_EVENT.subscribe(id));
-                    event_handles.push(CLICK_EVENT.subscribe(id));
+                    d.events[0] = CHAR_INPUT_EVENT.subscribe(id);
+                    d.events[1] = KEY_INPUT_EVENT.subscribe(id);
+                    d.events[2] = FOCUS_CHANGED_EVENT.subscribe(id);
+                    d.events[3] = CLICK_EVENT.subscribe(id);
+
+                    d.cut = CUT_CMD.scoped(id).subscribe(true);
+                    d.copy = COPY_CMD.scoped(id).subscribe(true);
+                    d.paste = PASTE_CMD.scoped(id).subscribe(true);
 
                     if FOCUS.focused().get().map(|p| p.widget_id()) == Some(id) {
                         let new_animation = KEYBOARD.caret_animation();
-                        _caret_opacity_handle = Some(new_animation.subscribe(UpdateOp::RenderUpdate, id));
+                        d.caret_animation = new_animation.subscribe(UpdateOp::RenderUpdate, id);
                         r.caret_opacity = new_animation;
                     }
                 } else {
-                    event_handles.clear();
-                    _caret_opacity_handle = None;
+                    edit_data = None;
                     r.caret_opacity = var(0.fct()).read_only();
                 }
             }

@@ -347,6 +347,11 @@ impl fmt::Debug for VarHandle {
         f.debug_tuple("VarHandle").field(&i).finish()
     }
 }
+impl Default for VarHandle {
+    fn default() -> Self {
+        Self::dummy()
+    }
+}
 
 /// Represents a collection of var handles.
 #[derive(Clone, Default)]

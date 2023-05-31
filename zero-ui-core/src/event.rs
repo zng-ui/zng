@@ -684,6 +684,12 @@ impl fmt::Debug for EventHandle {
         f.debug_tuple("EventHandle").field(&i).finish()
     }
 }
+/// Dummy
+impl Default for EventHandle {
+    fn default() -> Self {
+        Self::dummy()
+    }
+}
 impl EventHandle {
     fn new(hook: Box<dyn Fn(&mut EventUpdate) -> bool + Send + Sync>) -> (Self, EventHook) {
         let rc = Arc::new(EventHandleData {

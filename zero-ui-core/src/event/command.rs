@@ -628,6 +628,11 @@ impl Drop for CommandHandle {
         }
     }
 }
+impl Default for CommandHandle {
+    fn default() -> Self {
+        Self::dummy()
+    }
+}
 
 /// Represents a reference counted `dyn Any` object.
 #[derive(Clone)]
