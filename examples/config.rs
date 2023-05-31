@@ -20,17 +20,23 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(async {
+        // config file for the app, keys with prefix "main." are saved here.
+        let main_cfg = JsonConfig::sync("target/tmp/example.config.json");
+        // entries not found in `main_cfg` bind to this file first before going to embedded fallback.
+        let main_defaults_cfg = ReadOnlyConfig::new(JsonConfig::sync("examples/res/config/defaults.json"));
+
+        // any other configs (Window::save_state for example)
+        let other_cfg = JsonConfig::sync("target/tmp/example.config.other.json");
+
         CONFIG.load(
             SwitchConfig::new()
-                // config with keys "main.$key"
-                .with_prefix("main.", JsonConfig::sync("target/tmp/example.config.json"))
-                // any other configs (Window::save_state for example)
-                .with_prefix("", JsonConfig::sync("target/tmp/example.config.other.json")),
+                .with_prefix("main.", FallbackConfig::new(main_cfg, main_defaults_cfg))
+                .with_prefix("", other_cfg),
         );
 
         let checked = CONFIG.get("main.checked", || false);
         let count = CONFIG.get("main.count", || 0);
-        let txt = CONFIG.get("main.txt", || "Save this".to_text());
+        let txt = CONFIG.get("main.txt", || Txt::from_static("not used default"));
 
         Window! {
             title = if std::env::var("MOVE-TO").is_err() { "Config Example" } else { "Config Example - Other Process" };

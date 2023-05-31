@@ -8,25 +8,25 @@ use super::*;
 /// the fallback variable is used, but if that variable is modified the key is inserted in the primary config.
 pub struct FallbackConfig<S: Config, F: Config> {
     fallback: F,
-    over: S,
+    config: S,
 }
 impl<S: Config, F: Config> FallbackConfig<S, F> {
     /// New config.
-    pub fn new(fallback: F, over: S) -> Self {
-        Self { fallback, over }
+    pub fn new(config: S, fallback: F) -> Self {
+        Self { fallback, config }
     }
 }
 impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     fn status(&self) -> BoxedVar<ConfigStatus> {
-        merge_var!(self.fallback.status(), self.over.status(), |fallback, over| {
+        merge_var!(self.fallback.status(), self.config.status(), |fallback, over| {
             ConfigStatus::merge_status([fallback.clone(), over.clone()].into_iter())
         })
         .boxed()
     }
 
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
-        let over = self.over.get_raw(key.clone(), default.clone(), shared);
-        if self.over.contains_key(&key) {
+        let over = self.config.get_raw(key.clone(), default.clone(), shared);
+        if self.config.contains_key(&key) {
             return over;
         }
 
@@ -125,7 +125,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     }
 
     fn contains_key(&self, key: &ConfigKey) -> bool {
-        self.fallback.contains_key(key) || self.over.contains_key(key)
+        self.fallback.contains_key(key) || self.config.contains_key(key)
     }
 }
 impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
@@ -135,7 +135,7 @@ impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
         let fallback = self.fallback.get(key.clone(), || default.clone());
         let over = var(None::<T>); // TODO, actually provided by self.source
         if over.with(|s| s.is_some()) {
-            return self.over.get(key, move || default);
+            return self.config.get(key, move || default);
         }
         let result = var(fallback.get());
 

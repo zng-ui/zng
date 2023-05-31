@@ -28,3 +28,12 @@
 * Implement clipboard commands.
     - Already declared in the main crate (move to core).
 * Implement image copy&paste in image example.
+
+# Config
+
+* `FallbackConfig` always inserts a copy on the write config, should stay bound to fallback.
+    - We want the "config/fallback" to be used like the "workspace/user" settings of VSCode.
+    - When the fallback changes and it is not overridden the config var should update.
+    - When it is set, the config file only should update.
+        - Like a `CowVar`.
+        - But we still have the embedded ultimate fallback.
