@@ -18,21 +18,25 @@ fn main() {
     // rec.finish();
 }
 
+fn load_config() {
+    // config file for the app, keys with prefix "main." are saved here.
+    let main_cfg = JsonConfig::sync("target/tmp/example.config.json");
+    // entries not found in `main_cfg` bind to this file first before going to embedded fallback.
+    let main_defaults_cfg = ReadOnlyConfig::new(JsonConfig::sync("examples/res/config/defaults.json"));
+
+    // any other configs (Window::save_state for example)
+    let other_cfg = JsonConfig::sync("target/tmp/example.config.other.json");
+
+    CONFIG.load(
+        SwitchConfig::new()
+            .with_prefix("main.", FallbackConfig::new(main_cfg, main_defaults_cfg))
+            .with_prefix("", other_cfg),
+    );
+}
+
 fn app_main() {
     App::default().run_window(async {
-        // config file for the app, keys with prefix "main." are saved here.
-        let main_cfg = JsonConfig::sync("target/tmp/example.config.json");
-        // entries not found in `main_cfg` bind to this file first before going to embedded fallback.
-        let main_defaults_cfg = ReadOnlyConfig::new(JsonConfig::sync("examples/res/config/defaults.json"));
-
-        // any other configs (Window::save_state for example)
-        let other_cfg = JsonConfig::sync("target/tmp/example.config.other.json");
-
-        CONFIG.load(
-            SwitchConfig::new()
-                .with_prefix("main.", FallbackConfig::new(main_cfg, main_defaults_cfg))
-                .with_prefix("", other_cfg),
-        );
+        load_config();
 
         let checked = CONFIG.get("main.checked", || false);
         let count = CONFIG.get("main.count", || 0);
@@ -68,16 +72,14 @@ fn app_main() {
                     },
                     separator(),
                     TextInput! {
-                        txt = txt.clone();
+                        txt;
                         min_width = 100;
                     },
                     separator(),
                     Button! {
                         child = Text!("Reset");
                         on_click = hn!(|_| {
-                            checked.set_ne(false).unwrap();
-                            count.set_ne(0).unwrap();
-                            txt.set_ne("Save this").unwrap();
+                            reset_config();
                         })
                     },
                     Button! {
@@ -119,5 +121,26 @@ fn separator() -> impl UiNode {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
         line_style = LineStyle::Dashed;
+    }
+}
+
+fn reset_config() {
+    let mut retry = false;
+    while retry {
+        match std::fs::remove_file("target/tmp/example.config.json") {
+            Ok(_) => load_config(),
+            Err(e) if matches!(e.kind(), std::io::ErrorKind::NotFound) => {
+                load_config();
+            }
+            Err(e) => {
+                if retry {
+                    tracing::error!("failed to reset config, {e}");
+                    break;
+                } else {
+                    retry = true;
+                    std::thread::sleep(50.ms());
+                }
+            }
+        }
     }
 }

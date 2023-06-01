@@ -29,4 +29,7 @@
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
 
-* `config.rs` example's fallback is broken.
+# Config
+
+* Test two processes.
+* Test reset.
