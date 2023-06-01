@@ -5,6 +5,7 @@ the main loop.
 
 - Use `pathfinder_canvas`, it should work well with `webrender` as it is a servo project.
     - Check if we can use `swgl` with `pathfinder` or any software renderer.
+- Or use `zeno`, looks lightweight.
 
 - Canvas output needs to integrate with the normal image API.
 

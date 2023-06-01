@@ -20,9 +20,20 @@
 * Copy Chromium font fallback selection https://github.com/chromium/chromium/blob/0e41e52f5a91bb812f1f35a94a379ee3655129b0/third_party/blink/renderer/platform/fonts/win/font_fallback_win.cc#L104
 
 * Text Rendering, enable per-font config, https://docs.rs/webrender_api/0.61.0/x86_64-pc-windows-msvc/webrender_api/struct.FontInstanceOptions.html, integrate this with Renderer level config.
-* Emoticon rendering, multi-colored fonts.
 
 * Hyphenation, use https://sourceforge.net/projects/hunspell/files/Hyphen/2.8/?
+
+# Emoji Rendering
+
+* Can be embedded bitmaps, SVGs or layered glyphs of different colors.
+* Looks like webrender expects the glyphs to be pre-processed?
+    - Yep, does not support any emoticon directly.
+* Newer versions of harfbuzz have function to get the colors.
+
+* We need more than one "fallback" font?
+    - Right now we use "Segoe UI Symbol" in Windows.
+    - We need to fallback to "Segoe UI Emoji" instead, or have both?
+    - See what browsers do, maybe we need a "front" font, that is added on top of other fonts?
 
 # Underline Skip Glyphs
 

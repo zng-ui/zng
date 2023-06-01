@@ -36,14 +36,3 @@
 
 * Implement image copy&paste in image example.
 
-# Emoji Rendering
-
-* Tech is called CPAL/COLR.
-    - Layered glyphs of different colors.
-* Looks like webrender expects the glyphs to be pre-processed?
-* Newer versions of harfbuzz have function to get the colors.
-
-* We need more than one "fallback" font?
-    - Right now we use "Segoe UI Symbol" in Windows.
-    - We need to fallback to "Segoe UI Emoji" instead, or have both?
-    - See what browsers do, maybe we need a "front" font, that is added on top of other fonts?
