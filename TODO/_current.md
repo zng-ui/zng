@@ -31,5 +31,6 @@
 
 # Config
 
-* Test two processes.
 * Test reset.
+* Implement ability to reset single config.
+    - VSCode settings page can do this.

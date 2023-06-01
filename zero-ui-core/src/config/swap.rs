@@ -93,8 +93,7 @@ impl SwapConfig {
 
     /// Load the config.
     ///
-    /// The previous source will be dropped. Note that some variables produced from the previous source
-    /// can be reused, do not set `cfg` to a source that will still be alive after `cfg` is dropped.
+    /// The previous source will be dropped and all active config variables are set and rebound to the new config.
     pub fn load(&mut self, cfg: impl AnyConfig) {
         self.replace_source(Box::new(cfg))
     }

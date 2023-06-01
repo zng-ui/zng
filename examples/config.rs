@@ -76,11 +76,17 @@ fn app_main() {
                         min_width = 100;
                     },
                     separator(),
-                    Button! {
-                        child = Text!("Reset");
-                        on_click = hn!(|_| {
-                            reset_config();
-                        })
+                    {
+                        let enabled = var(true);
+                        Button! {
+                            child = Text!("Reset");
+                            on_click = async_hn!(enabled, |_| {
+                                enabled.set(false);
+                                reset_config().await;
+                                enabled.set(true);
+                            });
+                            enabled;
+                        }
                     },
                     Button! {
                         child = Text!("Open Another Process");
@@ -124,12 +130,17 @@ fn separator() -> impl UiNode {
     }
 }
 
-fn reset_config() {
+async fn reset_config() {
     let mut retry = false;
-    while retry {
+    CONFIG.load(NilConfig); // clear file watchers
+    loop {
         match std::fs::remove_file("target/tmp/example.config.json") {
-            Ok(_) => load_config(),
+            Ok(_) => {
+                task::yield_now().await;
+                load_config();
+            }
             Err(e) if matches!(e.kind(), std::io::ErrorKind::NotFound) => {
+                task::yield_now().await;
                 load_config();
             }
             Err(e) => {
@@ -138,9 +149,13 @@ fn reset_config() {
                     break;
                 } else {
                     retry = true;
-                    std::thread::sleep(50.ms());
+                    task::deadline(50.ms()).await;
                 }
             }
+        }
+
+        if !retry {
+            break;
         }
     }
 }

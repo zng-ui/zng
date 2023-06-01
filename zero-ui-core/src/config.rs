@@ -14,7 +14,7 @@ use crate::{
     fs_watcher::{WatchFile, WriteFile},
     task,
     text::Txt,
-    var::*,
+    var::{types::WeakArcVar, *},
 };
 
 mod fallback;
@@ -320,15 +320,12 @@ impl Config for NilConfig {
 }
 
 struct ConfigVar<T: ConfigValue> {
-    var: BoxedWeakVar<T>,
+    var: WeakArcVar<T>,
     binding: VarHandles,
 }
 impl<T: ConfigValue> ConfigVar<T> {
-    fn new_any(var: BoxedWeakVar<T>) -> Box<dyn AnyConfigVar> {
-        Box::new(Self {
-            var,
-            binding: VarHandles::dummy(),
-        })
+    fn new_any(var: WeakArcVar<T>, binding: VarHandles) -> Box<dyn AnyConfigVar> {
+        Box::new(Self { var, binding })
     }
 }
 
@@ -345,7 +342,7 @@ impl ConfigVars {
                 if e.get().can_upgrade() {
                     if let Some(x) = e.get().as_any().downcast_ref::<ConfigVar<T>>() {
                         if let Some(var) = x.var.upgrade() {
-                            return var;
+                            return var.boxed();
                         }
                     } else {
                         tracing::error!(
@@ -357,14 +354,35 @@ impl ConfigVars {
                     }
                 }
                 // cannot upgrade
-                let var = bind(e.key());
-                e.insert(ConfigVar::new_any(var.downgrade()));
-                var
+                let cfg = bind(e.key());
+
+                let res = var(cfg.get());
+                let binding = res.bind_map_bidi(
+                    &cfg,
+                    clmv!(cfg, |v| {
+                        let _strong_ref = &cfg;
+                        v.clone()
+                    }),
+                    Clone::clone,
+                );
+
+                e.insert(ConfigVar::new_any(res.downgrade(), binding));
+                res.boxed()
             }
             hash_map::Entry::Vacant(e) => {
-                let var = bind(e.key());
-                e.insert(ConfigVar::new_any(var.downgrade()));
-                var
+                let cfg = bind(e.key());
+                let res = var(cfg.get());
+                let binding = res.bind_map_bidi(
+                    &cfg,
+                    clmv!(cfg, |v| {
+                        let _strong_ref = &cfg;
+                        v.clone()
+                    }),
+                    Clone::clone,
+                );
+
+                e.insert(ConfigVar::new_any(res.downgrade(), binding));
+                res.boxed()
             }
         }
     }
@@ -373,11 +391,6 @@ impl ConfigVars {
     ///
     /// If the map entry is present in the `source` the variable is updated to the new value, if not the entry
     /// is inserted in the source. The variable is then bound to the source.
-    ///
-    /// Note that this means the variables bound from the previous source in [`get_or_bind`] **will be reused**,
-    /// the previous source must be dropped before calling this method.
-    ///
-    /// [`get_or_bind`]: Self::get_or_bind
     pub fn rebind(&mut self, source: &mut dyn AnyConfig) {
         self.0.retain(|key, wk_var| wk_var.rebind(key, source));
     }
@@ -409,7 +422,7 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
 
         match RawConfigValue::deserialize::<T>(source_var.get()) {
             Ok(value) => {
-                let _ = var.set(value);
+                var.set(value);
             }
             Err(e) => {
                 // invalid data error

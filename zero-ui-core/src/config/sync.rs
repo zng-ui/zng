@@ -100,7 +100,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                         Ok(raw) => {
                             // get ok
                             if let Some(raw) = raw {
-                                var.set(raw);
+                                var.set_ne(raw);
                             }
                             // else backend lost entry but did not report as error.
                         }
