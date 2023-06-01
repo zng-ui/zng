@@ -288,130 +288,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.info(info));
         }
         UiNodeOp::Event { update } => {
-            if let Some(args) = CHAR_INPUT_EVENT.on(update) {
-                if !args.propagation().is_stopped() && text.capabilities().contains(VarCapabilities::MODIFY) && args.is_enabled(WIDGET.id())
-                {
-                    let t = resolved.as_mut().unwrap();
-
-                    if (args.is_tab() && !ACCEPTS_TAB_VAR.get())
-                        || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get())
-                        || t.caret_index.is_none()
-                    {
-                        return;
-                    }
-                    args.propagation().stop();
-
-                    let new_animation = KEYBOARD.caret_animation();
-                    EditData::get(&mut edit_data).caret_animation = new_animation.subscribe(UpdateOp::Update, WIDGET.id());
-                    t.caret_opacity = new_animation;
-
-                    if args.is_backspace() {
-                        let _ = text.modify(move |t| {
-                            if !t.as_ref().is_empty() {
-                                let t = t.to_mut().to_mut();
-                                if let Some('\n') = t.pop() {
-                                    if t.ends_with('\r') {
-                                        t.pop();
-                                    }
-                                }
-                            }
-                        });
-                    } else if args.is_delete() {
-                        let _ = text.modify(move |t| {
-                            if !t.as_ref().is_empty() {
-                                let t = t.to_mut().to_mut();
-                                if t.remove(0) == '\r' && t.starts_with('\n') {
-                                    t.remove(0);
-                                }
-                            }
-                        });
-                    } else if let Some(c) = args.insert_char() {
-                        // insert
-                        let i = t.caret_index.unwrap();
-                        t.caret_index = Some(i + c.len_utf8());
-                        t.pending_layout |= PendingLayout::CARET;
-
-                        let _ = text.modify(move |t| {
-                            t.to_mut().to_mut().insert(i, c);
-                        });
-                    }
-                }
-            } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
-                if let Some(key) = args.key {
-                    match key {
-                        Key::Tab => {
-                            if ACCEPTS_TAB_VAR.get() {
-                                args.propagation().stop();
-                            }
-                        }
-                        Key::Enter => {
-                            if ACCEPTS_ENTER_VAR.get() {
-                                args.propagation().stop();
-                            }
-                        }
-                        Key::Right => {
-                            args.propagation().stop();
-
-                            if args.state == KeyState::Pressed {
-                                let t = resolved.as_mut().unwrap();
-                                if let Some(i) = &mut t.caret_index {
-                                    let next = t.text.next_insert_index(*i);
-                                    if *i != next {
-                                        *i = next;
-                                        t.pending_layout |= PendingLayout::CARET;
-                                        WIDGET.layout(); // update offset
-                                    }
-                                }
-                            }
-                        }
-                        Key::Left => {
-                            args.propagation().stop();
-
-                            if args.state == KeyState::Pressed {
-                                let t = resolved.as_mut().unwrap();
-                                if let Some(i) = &mut t.caret_index {
-                                    let prev = t.text.prev_insert_index(*i);
-                                    if *i != prev {
-                                        *i = prev;
-                                        t.pending_layout |= PendingLayout::CARET;
-                                        WIDGET.layout(); // update offset
-                                    }
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                if TEXT_EDITABLE_VAR.get() {
-                    if args.is_focused(WIDGET.id()) {
-                        let new_animation = KEYBOARD.caret_animation();
-                        EditData::get(&mut edit_data).caret_animation = new_animation.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
-                        let t = resolved.as_mut().unwrap();
-                        t.caret_opacity = new_animation;
-                        if t.caret_index.is_none() {
-                            t.caret_index = Some(0);
-                            t.pending_layout |= PendingLayout::CARET;
-                            WIDGET.layout(); // update offset
-                        }
-                    } else {
-                        EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
-                        resolved.as_mut().unwrap().caret_opacity = var(0.fct()).read_only();
-                    }
-                }
-            } else if let Some(args) = CLICK_EVENT.on(update) {
-                if let Some(pos) = args.position() {
-                    if args.is_primary() {
-                        let t = resolved.as_mut().unwrap();
-                        tracing::info!("TODO, set caret position, clicked {pos:?}");
-                        if t.caret_index.is_none() {
-                            t.caret_index = Some(0);
-                            t.pending_layout |= PendingLayout::CARET;
-                            WIDGET.layout(); // update offset
-                        }
-                    }
-                }
-            } else if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
+            if let Some(_args) = FONT_CHANGED_EVENT.on(update) {
                 // font query may return a different result.
 
                 let style = FONT_STYLE_VAR.get();
@@ -435,32 +312,150 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                 } else {
                     loading_faces = Some(LoadingFontFaceList::new(faces));
                 }
-            } else if let Some(args) = CUT_CMD.scoped(WIDGET.id()).on(update) {
-                args.propagation().stop();
-                tracing::error!("TODO cut");
-            } else if let Some(args) = COPY_CMD.scoped(WIDGET.id()).on(update) {
-                args.propagation().stop();
-                tracing::error!("TODO copy");
-            } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on(update) {
-                args.propagation().stop();
+            } else if TEXT_EDITABLE_VAR.get() {
+                let resolved = resolved.as_mut().unwrap();
+                let prev_caret_index = resolved.caret_index;
 
-                match CLIPBOARD.text() {
-                    Ok(paste) => {
-                        // insert
-                        let t = resolved.as_mut().unwrap();
-                        let i = t.caret_index.unwrap();
-                        t.caret_index = Some(i + paste.len());
-                        t.pending_layout |= PendingLayout::CARET;
+                if let Some(args) = CHAR_INPUT_EVENT.on(update) {
+                    if !args.propagation().is_stopped()
+                        && text.capabilities().contains(VarCapabilities::MODIFY)
+                        && args.is_enabled(WIDGET.id())
+                    {
+                        if (args.is_tab() && !ACCEPTS_TAB_VAR.get())
+                            || (args.is_line_break() && !ACCEPTS_ENTER_VAR.get())
+                            || resolved.caret_index.is_none()
+                        {
+                            return;
+                        }
+                        args.propagation().stop();
 
-                        let _ = text.modify(move |t| {
-                            t.to_mut().to_mut().insert_str(i, paste.as_str());
-                        });
+                        if args.is_backspace() {
+                            let _ = text.modify(move |t| {
+                                if !t.as_ref().is_empty() {
+                                    let t = t.to_mut().to_mut();
+                                    if let Some('\n') = t.pop() {
+                                        if t.ends_with('\r') {
+                                            t.pop();
+                                        }
+                                    }
+                                }
+                            });
+                        } else if args.is_delete() {
+                            let _ = text.modify(move |t| {
+                                if !t.as_ref().is_empty() {
+                                    let t = t.to_mut().to_mut();
+                                    if t.remove(0) == '\r' && t.starts_with('\n') {
+                                        t.remove(0);
+                                    }
+                                }
+                            });
+                        } else if let Some(c) = args.insert_char() {
+                            // insert
+                            let i = resolved.caret_index.unwrap();
+                            resolved.caret_index = Some(i + c.len_utf8());
+
+                            let _ = text.modify(move |t| {
+                                t.to_mut().to_mut().insert(i, c);
+                            });
+                        }
                     }
-                    Err(e) => {
-                        tracing::error!("error pasting, {e}");
+                } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
+                    if let Some(key) = args.key {
+                        match key {
+                            Key::Tab => {
+                                if ACCEPTS_TAB_VAR.get() {
+                                    args.propagation().stop();
+                                }
+                            }
+                            Key::Enter => {
+                                if ACCEPTS_ENTER_VAR.get() {
+                                    args.propagation().stop();
+                                }
+                            }
+                            Key::Right => {
+                                args.propagation().stop();
+
+                                if args.state == KeyState::Pressed {
+                                    if let Some(i) = &mut resolved.caret_index {
+                                        *i = resolved.text.next_insert_index(*i);
+                                    }
+                                }
+                            }
+                            Key::Left => {
+                                args.propagation().stop();
+
+                                if args.state == KeyState::Pressed {
+                                    if let Some(i) = &mut resolved.caret_index {
+                                        *i = resolved.text.prev_insert_index(*i);
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                    if args.is_focused(WIDGET.id()) {
+                        if resolved.caret_index.is_none() {
+                            resolved.caret_index = Some(0);
+                        } else {
+                            // restore animation when the caret_index did not change
+                            resolved.caret_opacity = KEYBOARD.caret_animation();
+                            EditData::get(&mut edit_data).caret_animation =
+                                resolved.caret_opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
+                        }
+                    } else {
+                        EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
+                        resolved.caret_opacity = var(0.fct()).read_only();
+                    }
+                } else if let Some(args) = CLICK_EVENT.on(update) {
+                    if let Some(pos) = args.position() {
+                        if args.is_primary() {
+                            tracing::info!("TODO, set caret position, clicked {pos:?}");
+
+                            if resolved.caret_index.is_none() {
+                                resolved.caret_index = Some(0);
+                            }
+                        }
+                    }
+                } else if let Some(args) = CUT_CMD.scoped(WIDGET.id()).on(update) {
+                    args.propagation().stop();
+                    tracing::error!("TODO cut");
+                } else if let Some(args) = COPY_CMD.scoped(WIDGET.id()).on(update) {
+                    args.propagation().stop();
+                    tracing::error!("TODO copy");
+                } else if let Some(args) = PASTE_CMD.scoped(WIDGET.id()).on(update) {
+                    args.propagation().stop();
+
+                    match CLIPBOARD.text() {
+                        Ok(paste) => {
+                            // insert
+                            let i = resolved.caret_index.unwrap();
+                            resolved.caret_index = Some(i + paste.len());
+
+                            let _ = text.modify(move |t| {
+                                t.to_mut().to_mut().insert_str(i, paste.as_str());
+                            });
+                        }
+                        Err(e) => {
+                            tracing::error!("error pasting, {e}");
+                        }
                     }
                 }
+
+                if resolved.caret_index != prev_caret_index {
+                    if resolved.caret_index.is_none() {
+                        EditData::get(&mut edit_data).caret_animation = VarHandle::dummy();
+                        resolved.caret_opacity = var(0.fct()).read_only();
+                    } else {
+                        resolved.caret_opacity = KEYBOARD.caret_animation();
+                        EditData::get(&mut edit_data).caret_animation =
+                            resolved.caret_opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
+                    }
+                    resolved.pending_layout |= PendingLayout::CARET;
+                    WIDGET.layout(); // update caret_origin
+                }
             }
+
             RESOLVED_TEXT.with_context_opt(&mut resolved, || child.event(update));
         }
         UiNodeOp::Update { updates } => {

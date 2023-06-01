@@ -1,9 +1,6 @@
 # TextInput
 
 * Implement cursor position.
-    - Caret stops blinking while moving with cursor, not resetting timer?
-    - Caret animation does not start visible (on focus).
-
     - Review using `TextPoint` for this?
         - Remove `TextPoint`?
         - Refactor `TextPointDisplay` into `CaretPosition` in the main crate.
@@ -31,3 +28,5 @@
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
+
+* `config.rs` example's fallback is broken.

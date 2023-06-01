@@ -470,7 +470,7 @@ impl KeyboardService {
     }
 
     fn caret_animation(&self) -> ReadOnlyArcVar<Factor> {
-        let var = var(1.fct());
+        let var = var(0.fct());
         let cfg = self.caret_animation_config.clone();
 
         let zero = 0.fct();
