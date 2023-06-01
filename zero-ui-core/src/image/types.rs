@@ -493,6 +493,38 @@ pub enum ImageSource {
     Image(ImageVar),
 }
 impl ImageSource {
+    /// New image data from solid color.
+    pub fn flood(size: impl Into<PxSize>, color: impl Into<crate::color::Rgba>, ppi: Option<(f32, f32)>) -> Self {
+        let size = size.into();
+        let color = color.into();
+        let len = size.width.0 as usize * size.height.0 as usize * 4;
+        let mut data = vec![0; len];
+        for bgra in data.chunks_exact_mut(4) {
+            let rgba = color.to_bytes();
+            bgra[0] = rgba[2];
+            bgra[1] = rgba[1];
+            bgra[2] = rgba[0];
+            bgra[3] = rgba[3];
+        }
+        Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, ppi })
+    }
+
+    /// New source from data.
+    pub fn from_data(data: Arc<Vec<u8>>, format: ImageDataFormat) -> Self {
+        let mut hasher = ImageHasher::default();
+        hasher.update(&data[..]);
+        let hash = hasher.finish();
+        Self::Data(hash, data, format)
+    }
+
+    /// New source from static data.
+    pub fn from_static(data: &'static [u8], format: ImageDataFormat) -> Self {
+        let mut hasher = ImageHasher::default();
+        hasher.update(data);
+        let hash = hasher.finish();
+        Self::Static(hash, data, format)
+    }
+
     /// New image from a function that generates a headless window.
     ///
     /// The function is called every time the image source is resolved and it is not found in the cache.

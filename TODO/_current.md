@@ -31,8 +31,3 @@
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
-
-# Clipboard
-
-* Implement image copy&paste in image example.
-

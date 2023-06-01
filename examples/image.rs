@@ -147,6 +147,7 @@ fn app_main() {
                                     panorama_image(),
                                     block_window_load_image(),
                                     large_image(),
+                                    paste_image(),
                                 ]
                             )
                         ];
@@ -341,6 +342,33 @@ fn block_window_load_image() -> impl UiNode {
                     });
                 }
             }));
+        });
+    }
+}
+
+fn paste_image() -> impl UiNode {
+    Button! {
+        child = Text!("Paste Image");
+        on_click = hn!(|_| {
+            WINDOWS.open(async {
+                let source = var(ImageSource::flood(PxSize::splat(Px(1)), colors::BLACK, None));
+                ImgWindow! {
+                    title = "Paste Image";
+                    child_align = Align::FILL;
+                    on_paste = hn!(source, |_| {
+                        match zero_ui::core::clipboard::CLIPBOARD.image() {
+                            Ok(img) => source.set(img),
+                            Err(e) => tracing::error!("error pasting image, {e}"),
+                        }
+                    });
+                    child = Image! {
+                        source;
+                        on_error = hn!(|args: &ImgErrorArgs| {
+                            tracing::error!(target: "unexpected", "{}", args.error);
+                        });
+                    };
+                }
+            });
         });
     }
 }

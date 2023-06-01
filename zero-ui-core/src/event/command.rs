@@ -1066,7 +1066,38 @@ impl Default for ScopedValue {
     }
 }
 
-/// Helper for declaring command handlers.
+/// Helper for declaring command event properties.
+///
+/// This function is used by the [`command_property!`] macro.
+///
+/// # Command
+///
+/// The `cmd` closure is called on init to generate the command, it is a closure to allow
+/// creation of widget scoped commands. The event handler will receive events for the command
+/// and scope that target the widget where it is set.
+///
+/// # Enabled
+///
+/// The `enabled` closure is called on init to generate a boolean variable that defines
+/// if the command handle is enabled. Command event handlers track both their existence and
+/// the enabled flag, see [`Command::subscribe`] for details.
+///
+/// Note that the command handler can be enabled even when the widget is disabled, the widget
+/// will receive the event while disabled in this case, you can use this to show feedback explaining
+/// why the command cannot run.
+///
+/// # Route
+///
+/// The event `handler` is called after the [`on_pre_command`] equivalent at the same context level. If the command
+/// event targets more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
+///
+/// # Async
+///
+/// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent updates. This means
+/// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
+/// other async tasks handling the same event, if they are monitoring the propagation handle.
+///  
+/// [`propagation`]: AnyEventArgs::propagation
 pub fn on_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
@@ -1134,7 +1165,36 @@ where
 }
 
 /// Helper for declaring command preview handlers.
-pub fn on_pre_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
+///
+/// # Command
+///
+/// The `cmd` closure is called on init to generate the command, it is a closure to allow
+/// creation of widget scoped commands. The event handler will receive events for the command
+/// and scope that target the widget where it is set.
+///
+/// # Enabled
+///
+/// The `enabled` closure is called on init to generate a boolean variable that defines
+/// if the command handle is enabled. Command event handlers track both their existence and
+/// the enabled flag, see [`Command::subscribe`] for details.
+///
+/// Note that the command handler can be enabled even when the widget is disabled, the widget
+/// will receive the event while disabled in this case, you can use this to show feedback explaining
+/// why the command cannot run.
+///
+/// # Route
+///
+/// The event `handler` is called before the [`on_command`] equivalent at the same context level. If the command event
+/// targets more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
+///
+/// # Async
+///
+/// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent updates. This means
+/// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
+/// other async tasks handling the same event, if they are monitoring the propagation handle.
+///  
+/// [`propagation`]: AnyEventArgs::propagation
+pub fn on_pre_command<U, CB, E, EB, H>(child: U, cmd: CB, enabled: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
     CB: FnMut() -> Command + Send + 'static,
@@ -1142,21 +1202,21 @@ where
     EB: FnMut() -> E + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
+    #[cfg(dyn_closure)]
+    let mut command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(cmd);
+    #[cfg(not(dyn_closure))]
+    let mut command_builder = cmd;
+
+    #[cfg(dyn_closure)]
+    let mut enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled);
+    #[cfg(not(dyn_closure))]
+    let mut enabled_builder = enabled;
+
+    let mut handler = handler.cfg_boxed();
+
     let mut enabled = None;
     let mut handle = None;
     let mut command = None;
-
-    #[cfg(dyn_closure)]
-    let mut command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(command_builder);
-    #[cfg(not(dyn_closure))]
-    let mut command_builder = command_builder;
-
-    #[cfg(dyn_closure)]
-    let mut enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled_builder);
-    #[cfg(not(dyn_closure))]
-    let mut enabled_builder = enabled_builder;
-
-    let mut handler = handler.cfg_boxed();
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -1195,6 +1255,133 @@ where
         _ => {}
     })
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __command_property {
+    (
+        $(#[$on_cmd_attrs:meta])*
+        $vis:vis fn $command:ident {
+            cmd: $cmd_init:expr,
+            enabled: $enabled_var:expr,
+        }
+    ) => { $crate::paste! {
+        $(#[$on_cmd_attrs])*
+        ///
+        /// # Preview
+        ///
+        #[doc = "You can preview this command event using [`on_pre_"$command "`](fn.on_pre_"$command ".html)."]
+        /// Otherwise the handler is only called after the widget content has a chance of handling the event by stopping propagation.
+        ///
+        /// # Async
+        ///
+        /// You can use async event handlers with this property.
+        #[$crate::property(EVENT, default( $crate::handler::hn!(|_|{}) ))]
+        $vis fn [<on_ $command>](
+            child: impl $crate::widget_instance::UiNode,
+            handler: impl $crate::handler::WidgetHandler<$crate::event::CommandArgs>,
+        ) -> impl $crate::widget_instance::UiNode {
+            $crate::event::on_command(child, || $cmd_init, || $enabled_var, handler)
+        }
+
+        #[doc = "Preview [`on_"$command "`](fn.on_"$command ".html) event."]
+        ///
+        /// # Preview
+        ///
+        /// Preview event properties call the handler before the main event property and before the widget content, if you stop
+        /// the propagation of a preview event the main event handler is not called.
+        ///
+        /// # Async
+        ///
+        /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
+        /// subsequent code runs in widget updates.
+        #[$crate::property(EVENT, default( $crate::handler::hn!(|_|{}) ))]
+        $vis fn [<on_pre_ $command>](
+            child: impl $crate::widget_instance::UiNode,
+            handler: impl $crate::handler::WidgetHandler<$crate::event::CommandArgs>,
+        ) -> impl $crate::widget_instance::UiNode {
+            $crate::event::on_pre_command(child, || $cmd_init, || $enabled_var, handler)
+        }
+    } };
+
+    (
+        $(#[$on_cmd_attrs:meta])*
+        $vis:vis fn $command:ident {
+            cmd: $cmd_init:expr,
+        }
+    ) => {
+        $crate::__command_property! {
+            $(#[$on_cmd_attrs])*
+            $vis fn $command {
+                cmd: $cmd_init,
+                enabled: $crate::var::LocalVar(true),
+            }
+        }
+    };
+}
+
+///<span data-del-macro-root></span> Declare one or more command event properties.
+///
+/// Each declaration expands to two properties `on_$command`, `on_pre_$command`.
+/// The preview properties call [`on_pre_command`], the main event properties call [`on_command`].
+///
+/// # Examples
+///
+/// ```
+/// # fn main() { }
+/// # use zero_ui_core::event::*;
+/// # use zero_ui_core::context::*;
+/// # use zero_ui_core::var::*;
+/// # command! {
+/// #   pub static PASTE_CMD;
+/// # }
+/// command_property! {
+///     /// Paste command property docs.
+///     pub fn paste {
+///         cmd: PASTE_CMD.scoped(WIDGET.id()),
+///         // enabled: LocalVar(true), // default enabled
+///     }
+/// }
+/// ```
+///
+/// # Command
+///
+/// The `cmd` closure is called on init to generate the command, it is a closure to allow
+/// creation of widget scoped commands. The event handler will receive events for the command
+/// and scope that target the widget where it is set.
+///
+/// # Enabled
+///
+/// The `enabled` closure is called on init to generate a boolean variable that defines
+/// if the command handle is enabled. Command event handlers track both their existence and
+/// the enabled flag, see [`Command::subscribe`] for details.
+///
+/// If not provided the command is always enabled.
+///
+/// # Async
+///
+/// Async event handlers are supported by properties generated by this macro, but only the code before the first `.await` executes
+/// in the event track, subsequent code runs in widget updates.
+#[macro_export]
+macro_rules! command_property {
+    ($(
+        $(#[$on_cmd_attrs:meta])*
+        $vis:vis fn $command:ident {
+            cmd: $cmd_init:expr$(,
+            enabled: $enabled_var:expr)? $(,)?
+        }
+    )+) => {$(
+        $crate::__command_property! {
+            $(#[$on_cmd_attrs])*
+            $vis fn $command {
+                cmd: $cmd_init,
+                $(enabled: $enabled_var,)?
+            }
+        }
+    )+};
+}
+#[doc(inline)]
+pub use crate::command_property;
 
 #[cfg(test)]
 mod tests {
