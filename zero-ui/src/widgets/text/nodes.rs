@@ -330,25 +330,44 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                         args.propagation().stop();
 
                         if args.is_backspace() {
-                            let _ = text.modify(move |t| {
-                                if !t.as_ref().is_empty() {
-                                    let t = t.to_mut().to_mut();
-                                    if let Some('\n') = t.pop() {
-                                        if t.ends_with('\r') {
-                                            t.pop();
+                            // backspace removes by char, except "\r\n"
+                            if let Some(caret_idx) = &mut resolved.caret_index {
+                                let (rmv_char, rmv_prev) = text.with(|t| {
+                                    let mut iter = t[..*caret_idx].char_indices().rev();
+                                    (iter.next(), iter.next())
+                                });
+                                let (rmv_idx, mut rmv_count) = match (rmv_prev, rmv_char) {
+                                    (Some((i, '\r')), Some((_, '\n'))) => (i, 2),
+                                    (_, Some((i, _))) => (i, 1),
+                                    _ => (0, 0),
+                                };
+                                if rmv_count > 0 {
+                                    *caret_idx = rmv_idx;
+                                    let _ = text.modify(move |t| {
+                                        let t = t.to_mut().to_mut();
+                                        while rmv_count > 0 {
+                                            t.remove(rmv_idx);
+                                            rmv_count -= 1;
                                         }
-                                    }
+                                    });
                                 }
-                            });
+                            }
                         } else if args.is_delete() {
-                            let _ = text.modify(move |t| {
-                                if !t.as_ref().is_empty() {
-                                    let t = t.to_mut().to_mut();
-                                    if t.remove(0) == '\r' && t.starts_with('\n') {
-                                        t.remove(0);
-                                    }
+                            // delete removes by grapheme cluster
+                            if let Some(caret_idx) = &mut resolved.caret_index {
+                                let rmv = *caret_idx..resolved.text.next_insert_index(*caret_idx);
+                                if !rmv.is_empty() {
+                                    let _ = text.modify(move |t| {
+                                        let t = t.to_mut().to_mut();
+                                        t.replace_range(rmv, "");
+                                    });
+
+                                    // restore animation when the caret_index did not change
+                                    resolved.caret_opacity = KEYBOARD.caret_animation();
+                                    EditData::get(&mut edit_data).caret_animation =
+                                        resolved.caret_opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
                                 }
-                            });
+                            }
                         } else if let Some(c) = args.insert_char() {
                             // insert
                             let i = resolved.caret_index.unwrap();
