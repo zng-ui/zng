@@ -11,7 +11,9 @@ pub mod layers;
 pub mod nodes;
 mod window_properties;
 
-pub use window_properties::*;
+#[allow(clippy::useless_attribute)] // not useless
+#[allow(ambiguous_glob_reexports)] // we override `font_size`.
+pub use self::window_properties::*;
 
 /// A window container.
 ///

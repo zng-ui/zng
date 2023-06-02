@@ -107,6 +107,7 @@ pub mod widgets;
 /// [`new_property`]: crate::prelude::new_property
 /// [`new_widget`]: crate::prelude::new_widget
 /// [`rayon`]: https://docs.rs/rayon
+#[allow(ambiguous_glob_reexports)]// we make use of glob override in preludes.
 pub mod prelude {
     #[cfg(feature = "http")]
     #[doc(no_inline)]
