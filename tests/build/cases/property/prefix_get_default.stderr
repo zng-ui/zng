@@ -11,5 +11,6 @@ note: required by a bound in `getter_var`
    |                                 ^^^^^^^ required by this bound in `getter_var`
 help: consider annotating `NotDefault` with `#[derive(Default)]`
    |
-16 | #[derive(Default)]
+16 + #[derive(Default)]
+17 | pub struct NotDefault {}
    |

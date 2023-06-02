@@ -144,6 +144,52 @@ impl WATCHER {
         WATCHER_SV.write().read(file.into(), init, read)
     }
 
+    /// Same operation as [`read`] but also tracks the operation status in a second var.
+    ///
+    /// The status variable is set to [`WatcherReadStatus::reading`] as soon as `read` starts and
+    /// is set to [`WatcherReadStatus::idle`] only when it updates with new read value.
+    ///
+    /// [`read`]: Self::read
+    pub fn read_status<O, S, E>(
+        &self,
+        file: impl Into<PathBuf>,
+        init: O,
+        mut read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, E> + Send + 'static,
+    ) -> (ReadOnlyArcVar<O>, ReadOnlyArcVar<S>)
+    where
+        O: VarValue,
+        S: WatcherReadStatus<E>,
+    {
+        let status = var(S::reading());
+        let read_var = self.read(
+            file,
+            init,
+            clmv!(status, |d| {
+                status.set_ne(S::reading());
+                match read(d) {
+                    Ok(r) => {
+                        if r.is_none() {
+                            status.set_ne(S::idle());
+                        }
+                        r
+                    }
+                    Err(e) => {
+                        status.set_ne(S::read_error(e));
+                        None
+                    }
+                }
+            }),
+        );
+        read_var
+            .hook(Box::new(clmv!(status, |_| {
+                status.set_ne(S::idle());
+                true
+            })))
+            .perm();
+
+        (read_var, status.read_only())
+    }
+
     /// Read a directory into a variable,  the `init` value will start the variable and the `read` closure will be called
     /// once immediately and every time any changes happen inside the dir, if the closure returns `Some(O)` the variable updates with the new value.
     ///
@@ -159,6 +205,54 @@ impl WATCHER {
         read: impl FnMut(walkdir::WalkDir) -> Option<O> + Send + 'static,
     ) -> ReadOnlyArcVar<O> {
         WATCHER_SV.write().read_dir(dir.into(), recursive, init, read)
+    }
+
+    /// Same operation as [`read_dir`] but also tracks the operation status in a second var.
+    ///
+    /// The status variable is set to [`WatcherReadStatus::reading`] as soon as `read` starts and
+    /// is set to [`WatcherReadStatus::idle`] only when it updates with new read value.
+    ///
+    /// [`read_dir`]: Self::read_dir
+    pub fn read_dir_status<O, S, E>(
+        &self,
+        dir: impl Into<PathBuf>,
+        recursive: bool,
+        init: O,
+        mut read: impl FnMut(walkdir::WalkDir) -> Result<Option<O>, E> + Send + 'static,
+    ) -> (ReadOnlyArcVar<O>, ReadOnlyArcVar<S>)
+    where
+        O: VarValue,
+        S: WatcherReadStatus<E>,
+    {
+        let status = var(S::reading());
+        let read_var = self.read_dir(
+            dir,
+            recursive,
+            init,
+            clmv!(status, |d| {
+                status.set_ne(S::reading());
+                match read(d) {
+                    Ok(r) => {
+                        if r.is_none() {
+                            status.set_ne(S::idle());
+                        }
+                        r
+                    }
+                    Err(e) => {
+                        status.set_ne(S::read_error(e));
+                        None
+                    }
+                }
+            }),
+        );
+        read_var
+            .hook(Box::new(clmv!(status, |_| {
+                status.set_ne(S::idle());
+                true
+            })))
+            .perm();
+
+        (read_var, status.read_only())
     }
 
     /// Bind a file with a variable, the `file` will be `read` when it changes and be `write` when the variable changes,
@@ -207,6 +301,14 @@ impl WATCHER {
     ///
     /// If the file synchronization is not important you can just ignore it, the watcher will try again
     /// on the next variable or file update.
+    ///
+    /// ## Status
+    ///
+    /// Note that `read` and `write` run in background task threads, so if you are tracking the operation
+    /// status in a separate variable you may end-up with synchronization bugs between th status variable
+    /// and the actual result variable, you can use [`sync_status`] to implement racing-free status tracking.
+    ///
+    /// [`sync_status`]: Self::sync_status
     pub fn sync<O: VarValue>(
         &self,
         file: impl Into<PathBuf>,
@@ -215,6 +317,69 @@ impl WATCHER {
         write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
     ) -> ArcVar<O> {
         WATCHER_SV.write().sync(file.into(), init, read, write)
+    }
+
+    /// Same operation as [`sync`] but also tracks the operation status in a second var.
+    ///
+    /// The status variable is set to [`WatcherSyncStatus::writing`] as soon as it updates and
+    /// is set to [`WatcherReadStatus::idle`] only when it updates with new sync value.
+    ///
+    /// [`sync`]: Self::sync
+    pub fn sync_status<O, S, ER, EW>(
+        &self,
+        file: impl Into<PathBuf>,
+        init: O,
+        mut read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, ER> + Send + 'static,
+        mut write: impl FnMut(O, io::Result<WriteFile>) -> Result<(), EW> + Send + 'static,
+    ) -> (ArcVar<O>, ReadOnlyArcVar<S>)
+    where
+        O: VarValue,
+        S: WatcherSyncStatus<ER, EW>,
+    {
+        let status = var(S::reading());
+        let next_var_update_status = Arc::new(Atomic::new(S::writing as fn() -> S));
+
+        let var = self.sync(
+            file,
+            init,
+            clmv!(status, next_var_update_status, |f| {
+                status.set_ne(S::reading());
+                match read(f) {
+                    Ok(r) => {
+                        if r.is_some() {
+                            next_var_update_status.store(S::idle, atomic::Ordering::Relaxed);
+                        } else {
+                            status.set_ne(S::idle());
+                        }
+                        r
+                    }
+                    Err(e) => {
+                        status.set_ne(S::read_error(e));
+                        None
+                    }
+                }
+            }),
+            clmv!(status, |o, f| {
+                status.set_ne(S::writing());
+                match write(o, f) {
+                    Ok(()) => {
+                        status.set_ne(S::idle());
+                    }
+                    Err(e) => {
+                        status.set_ne(S::write_error(e));
+                    }
+                }
+            }),
+        );
+
+        var.hook(Box::new(clmv!(status, |_| {
+            let status_fn = next_var_update_status.swap(S::writing, atomic::Ordering::Relaxed);
+            status.set_ne(status_fn());
+            true
+        })))
+        .perm();
+
+        (var, status.read_only())
     }
 
     /// Watch `file` and calls `handler` every time it changes.
@@ -242,6 +407,26 @@ impl WATCHER {
             args.events_for_path(&dir).next().is_some()
         }))
     }
+}
+
+/// Represents a status type for [`WATCHER.sync_status`].
+///
+/// [`WATCHER.sync_status`]: WATCHER::sync_status
+pub trait WatcherSyncStatus<ER = io::Error, EW = io::Error>: WatcherReadStatus<ER> {
+    /// New writing value.
+    fn writing() -> Self;
+    /// New write error value.
+    fn write_error(e: EW) -> Self;
+}
+
+/// Represents a status type for [`WATCHER`] read-only operations.
+pub trait WatcherReadStatus<ER = io::Error>: VarValue + PartialEq {
+    /// New idle value.
+    fn idle() -> Self;
+    /// New reading value.
+    fn reading() -> Self;
+    /// New read error value.
+    fn read_error(e: ER) -> Self;
 }
 
 /// Represents an open read-only file provided by [`WATCHER.read`].

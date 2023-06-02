@@ -1,4 +1,5 @@
 use crate::{
+    fs_watcher::WatcherReadStatus,
     text::Txt,
     var::{self, *},
 };
@@ -94,7 +95,7 @@ pub enum LangResourceStatus {
     /// This can be any IO or parse errors. If the resource if *not found* the status is set to
     /// `NotAvailable`, not an error. Localization messages fallback on error just like they do
     /// for not available.
-    Errors(Vec<Arc<dyn std::error::Error + Send + Sync>>),
+    Errors(StatusError),
 }
 impl fmt::Display for LangResourceStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -121,6 +122,21 @@ impl PartialEq for LangResourceStatus {
     }
 }
 impl Eq for LangResourceStatus {}
+impl WatcherReadStatus<StatusError> for LangResourceStatus {
+    fn idle() -> Self {
+        Self::Loaded
+    }
+
+    fn reading() -> Self {
+        Self::Loading
+    }
+
+    fn read_error(e: StatusError) -> Self {
+        Self::Errors(e)
+    }
+}
+
+type StatusError = Vec<Arc<dyn std::error::Error + Send + Sync>>;
 
 /// Localized message variable builder.
 ///

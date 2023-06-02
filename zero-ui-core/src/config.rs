@@ -11,7 +11,7 @@ use std::{
 use crate::{
     app::AppExtension,
     app_local, clmv,
-    fs_watcher::{WatchFile, WriteFile},
+    fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile},
     task,
     text::Txt,
     var::{types::WeakArcVar, *},
@@ -161,7 +161,7 @@ impl RawConfigValue {
 /// Represents a full config map in memory.
 ///
 /// This can be used with [`SyncConfig`] to implement a full config.
-pub trait ConfigMap: VarValue {
+pub trait ConfigMap: VarValue + fmt::Debug {
     /// New empty map.
     fn empty() -> Self;
 
@@ -481,9 +481,9 @@ pub enum ConfigStatus {
     /// Config is saving.
     Saving,
     /// Config last load failed.
-    LoadErrors(Vec<Arc<dyn std::error::Error + Send + Sync>>),
+    LoadErrors(ConfigStatusError),
     /// Config last save failed.
-    SaveErrors(Vec<Arc<dyn std::error::Error + Send + Sync>>),
+    SaveErrors(ConfigStatusError),
 }
 impl ConfigStatus {
     /// If status is not loading nor saving.
@@ -583,3 +583,26 @@ impl PartialEq for ConfigStatus {
     }
 }
 impl Eq for ConfigStatus {}
+impl WatcherSyncStatus<ConfigStatusError, ConfigStatusError> for ConfigStatus {
+    fn writing() -> Self {
+        ConfigStatus::Saving
+    }
+
+    fn write_error(e: ConfigStatusError) -> Self {
+        ConfigStatus::SaveErrors(e)
+    }
+}
+impl WatcherReadStatus<ConfigStatusError> for ConfigStatus {
+    fn idle() -> Self {
+        ConfigStatus::Loaded
+    }
+
+    fn reading() -> Self {
+        ConfigStatus::Loading
+    }
+
+    fn read_error(e: ConfigStatusError) -> Self {
+        ConfigStatus::LoadErrors(e)
+    }
+}
+type ConfigStatusError = Vec<Arc<dyn std::error::Error + Send + Sync>>;

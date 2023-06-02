@@ -14,50 +14,34 @@ use super::*;
 /// [`WATCHER.sync`]: WATCHER::sync
 pub struct SyncConfig<M: ConfigMap> {
     sync_var: ArcVar<M>,
-    status: ArcVar<ConfigStatus>,
+    status: ReadOnlyArcVar<ConfigStatus>,
     shared: ConfigVars,
 }
 impl<M: ConfigMap> SyncConfig<M> {
     /// Open write the `file`
     pub fn sync(file: impl Into<PathBuf>) -> Self {
-        let status = var(ConfigStatus::Loading);
-        let sync_var = WATCHER.sync(
+        let (sync_var, status) = WATCHER.sync_status::<_, _, ConfigStatusError, ConfigStatusError>(
             file,
             M::empty(),
-            clmv!(status, |r| {
-                status.set_ne(ConfigStatus::Loading);
-
-                match (|| M::read(r?))() {
-                    Ok(ok) => {
-                        // Loaded set by `sync_var` to avoid race condition in wait.
-                        Some(ok)
-                    }
-                    Err(e) => {
-                        tracing::error!("sync config read error, {e:?}");
-                        status.set(ConfigStatus::LoadErrors(vec![Arc::new(e)]));
-                        None
-                    }
+            |r| match (|| M::read(r?))() {
+                Ok(ok) => Ok(Some(ok)),
+                Err(e) => {
+                    tracing::error!("sync config read error, {e:?}");
+                    Err(vec![Arc::new(e)])
                 }
-            }),
-            clmv!(status, |map, w| {
-                status.set_ne(ConfigStatus::Saving);
-
-                match (|| {
-                    let mut w = w?;
-                    map.write(&mut w)?;
-                    w.commit()
-                })() {
-                    Ok(()) => {
-                        status.set_ne(ConfigStatus::Loaded);
-                    }
-                    Err(e) => {
-                        tracing::error!("sync config write error, {e:?}");
-                        status.set(ConfigStatus::SaveErrors(vec![Arc::new(e)]));
-                    }
+            },
+            |map, w| match (|| {
+                let mut w = w?;
+                map.write(&mut w)?;
+                w.commit()
+            })() {
+                Ok(()) => Ok(()),
+                Err(e) => {
+                    tracing::error!("sync config write error, {e:?}");
+                    Err(vec![Arc::new(e)])
                 }
-            }),
+            },
         );
-        sync_var.bind_map(&status, |_| ConfigStatus::Loaded).perm();
 
         Self {
             sync_var,
