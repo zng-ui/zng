@@ -27,7 +27,7 @@ impl AnyConfig for SwapConfig {
     }
 
     fn contains_key(&self, key: &ConfigKey) -> bool {
-        self.cfg.lock().contains_key(key)
+        self.shared.contains_key(key) || self.cfg.lock().contains_key(key)
     }
 
     fn status(&self) -> BoxedVar<ConfigStatus> {
@@ -111,5 +111,166 @@ impl SwapConfig {
 impl Default for SwapConfig {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::app::App;
+
+    use super::*;
+
+    #[test]
+    fn swap_config_in_memory() {
+        let mut app = App::default().run_headless(false);
+
+        let mut cfg = SwapConfig::new();
+
+        let v = cfg.get("key", || true);
+        assert!(v.get());
+        v.set(false).unwrap();
+        app.update(false).assert_wait();
+
+        let v2 = cfg.get("key", || true);
+        assert!(!v2.get() && !v.get());
+        assert_eq!(v.var_ptr(), v2.var_ptr());
+    }
+
+    #[test]
+    fn swap_config_swap() {
+        let mut app = App::default().run_headless(false);
+
+        let mut inner1 = TestConfig::default();
+        let c1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        c1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
+        app.update(false).assert_wait();
+
+        let mut test = SwapConfig::new();
+        test.replace_source(Box::new(inner1));
+
+        let c1 = test.get("key", || 0);
+
+        assert_eq!(32, c1.get());
+    }
+
+    #[test]
+    fn swap_config_swap_load() {
+        let mut app = App::default().run_headless(false);
+
+        let mut inner1 = TestConfig::default();
+        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
+        app.update(false).assert_wait();
+
+        let mut test = SwapConfig::new();
+        test.replace_source(Box::new(inner1));
+
+        let cfg = test.get("key", || 0);
+
+        assert_eq!(32, cfg.get());
+
+        let mut inner2 = TestConfig::default();
+        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        inner_v2.set(RawConfigValue::serialize(42).unwrap()).unwrap();
+        app.update(false).assert_wait();
+
+        test.replace_source(Box::new(inner2));
+        app.update(false).assert_wait();
+
+        assert_eq!(42, cfg.get());
+    }
+
+    #[test]
+    fn swap_config_swap_load_delayed() {
+        let mut app = App::default().run_headless(false);
+
+        let mut inner1 = TestConfig::default();
+        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
+        app.update(false).assert_wait();
+
+        let mut test = SwapConfig::new();
+        test.replace_source(Box::new(inner1));
+
+        let cfg = test.get("key", || 0);
+
+        assert_eq!(32, cfg.get());
+
+        let mut inner2 = TestConfig::default();
+        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        app.update(false).assert_wait();
+
+        test.replace_source(Box::new(inner2));
+        app.update(false).assert_wait();
+
+        assert_eq!(0, cfg.get());
+
+        inner_v2.set(RawConfigValue::serialize(42).unwrap()).unwrap();
+        app.update(false).assert_wait();
+        assert_eq!(42, cfg.get());
+    }
+
+    #[test]
+    fn swap_config_swap_fallback_delayed() {
+        let mut app = App::default().run_headless(false);
+
+        let mut fallback = TestConfig::default();
+        fallback
+            .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true)
+            .set(RawConfigValue::serialize(100).unwrap())
+            .unwrap();
+
+        let mut inner1 = TestConfig::default();
+        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
+        app.update(false).assert_wait();
+
+        let mut test = SwapConfig::new();
+        test.replace_source(Box::new(FallbackConfig::new(inner1, fallback)));
+
+        let cfg = test.get("key", || -1);
+
+        assert_eq!(32, cfg.get());
+
+        let mut fallback = TestConfig::default();
+        fallback
+            .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true)
+            .set(RawConfigValue::serialize(100).unwrap())
+            .unwrap();
+        let mut inner2 = TestConfig::default();
+        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        app.update(false).assert_wait();
+
+        test.replace_source(Box::new(FallbackConfig::new(inner2, fallback)));
+        app.update(false).assert_wait();
+
+        assert_eq!(0, cfg.get());
+
+        inner_v2.set(RawConfigValue::serialize(42).unwrap()).unwrap();
+        app.update(false).assert_wait();
+        assert_eq!(42, cfg.get());
+    }
+
+    #[derive(Default)]
+    struct TestConfig(SwapConfig);
+
+    impl AnyConfig for TestConfig {
+        fn status(&self) -> BoxedVar<ConfigStatus> {
+            self.0.status()
+        }
+
+        fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _: bool) -> BoxedVar<RawConfigValue> {
+            self.0.get_raw(key, default, true)
+        }
+
+        fn contains_key(&self, key: &ConfigKey) -> bool {
+            self.0.contains_key(key)
+        }
+    }
+
+    impl Config for TestConfig {
+        fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+            self.0.get(key, default)
+        }
     }
 }

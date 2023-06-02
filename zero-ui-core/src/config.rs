@@ -394,6 +394,11 @@ impl ConfigVars {
     pub fn rebind(&mut self, source: &mut dyn AnyConfig) {
         self.0.retain(|key, wk_var| wk_var.rebind(key, source));
     }
+
+    /// If a strong variable is available for the `key`.
+    pub fn contains_key(&self, key: &ConfigKey) -> bool {
+        self.0.get(key).map(|v| v.can_upgrade()).unwrap_or(false)
+    }
 }
 trait AnyConfigVar: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;
@@ -432,7 +437,7 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
                 let _ = source_var.set(RawConfigValue::serialize(var.get()).unwrap());
             }
         }
-
+        let mut first = true;
         self.binding = source_var.bind_filter_map_bidi(
             &var,
             // Raw -> T
@@ -447,6 +452,10 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
             }),
             // T -> Raw
             clmv!(key, source_var, |value| {
+                if std::mem::take(&mut first) {
+                    return None; // skip value we just set.
+                }
+
                 let _strong_ref = &source_var;
                 match RawConfigValue::serialize(value) {
                     Ok(raw) => Some(raw),

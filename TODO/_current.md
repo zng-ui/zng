@@ -32,5 +32,12 @@
 # Config
 
 * Test reset.
+    - Not working, see `config.rs/fallback_swap`.
+    - FallbackConfig loses connection with sources?
+        - No amount of updates gets the value, so probably.
+    - Sometimes the test works, but due to the fallback loading faster.
+    - Review `FallbackConfig::get_raw`.
 * Implement ability to reset single config.
     - VSCode settings page can do this.
+    - Config visitor?
+        - And a method in `FallbackConfig`.

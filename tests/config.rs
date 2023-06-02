@@ -48,7 +48,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
         app.exit();
     }
 
-    let _ = std::fs::remove_file(&file);
+    rmv_file_assert(&file);
     run(|| source(&file), false);
     assert!(file.exists());
     assert_ne!(std::fs::metadata(&file).unwrap().len(), 0);
@@ -217,7 +217,7 @@ fn concurrent_read_write() {
 
     {
         // setup
-        let _ = std::fs::remove_file(&file);
+        rmv_file_assert(&file);
         let mut app = App::default().run_headless(false);
         CONFIG.load(JsonConfig::sync(&file));
         CONFIG.get("key", || Txt::from_static("default")).set("custom").unwrap();
@@ -254,5 +254,80 @@ fn concurrent_read_write() {
 
     for t in threads {
         t.join().unwrap();
+    }
+}
+
+#[test]
+fn fallback_swap() {
+    let main_cfg = PathBuf::from("../target/tmp/test.fallback_swap.target.json");
+    let main_prepared_cfg = PathBuf::from("../target/tmp/test.fallback_swap.prep.json");
+    let fallback_cfg = PathBuf::from("../target/tmp/test.fallback_swap.fallback.json");
+
+    {
+        // setup
+        rmv_file_assert(&main_cfg);
+        rmv_file_assert(&main_prepared_cfg);
+        rmv_file_assert(&fallback_cfg);
+
+        let mut app = App::default().run_headless(false);
+        CONFIG.load(JsonConfig::sync(&fallback_cfg));
+        CONFIG.get("key", || Txt::from_static("default")).set("fallback").unwrap();
+
+        app.update(false).assert_wait();
+        app.run_task(async {
+            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        });
+        let status = CONFIG.status().get();
+        if status.is_err() {
+            panic!("{status}");
+        }
+
+        CONFIG.load(JsonConfig::sync(&main_prepared_cfg));
+        CONFIG.get("key", || Txt::from_static("default")).set("main").unwrap();
+
+        app.run_task(async {
+            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        });
+        let status = CONFIG.status().get();
+        if status.is_err() {
+            panic!("{status}");
+        }
+    }
+
+    // test
+    let mut app = App::default().run_headless(false);
+
+    CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(fallback_cfg)));
+    app.run_task(async {
+        task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+    });
+    let status = CONFIG.status().get();
+    if status != ConfigStatus::Loaded {
+        panic!("{status}");
+    }
+
+    app.update(false).assert_wait();
+
+    let key = CONFIG.get("key", || Txt::from_static("final-default"));
+    assert_eq!("fallback", key.get());
+
+    // std::fs::rename(main_prepared_cfg, main_cfg).unwrap();
+    // app.update(false).assert_wait();
+    // app.run_task(async {
+    //     task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+    // });
+    // let status = CONFIG.status().get();
+    // if status.is_err() {
+    //     panic!("{status}");
+    // }
+
+    // assert_eq!("main", key.get());
+}
+
+fn rmv_file_assert(path: &Path) {
+    if let Err(e) = std::fs::remove_file(path) {
+        if !matches!(e.kind(), std::io::ErrorKind::NotFound) {
+            panic!("cannot remove `{}`\n{e}", path.display());
+        }
     }
 }
