@@ -6,7 +6,7 @@ use std::{
     mem, ops,
     path::{Path, PathBuf},
     sync::{atomic::AtomicBool, Arc},
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use atomic::{Atomic, Ordering};
@@ -1161,12 +1161,14 @@ impl SyncWithVar {
             read_write: Mutex<(R, W)>,
             wk_var: WeakArcVar<O>,
             last_write: Atomic<Option<Instant>>,
+            modified: Atomic<Option<SystemTime>>,
         }
         let task_data = Arc::new(TaskData {
             pending: Atomic::new(SyncFlags::empty()),
             read_write: Mutex::new((read, write)),
             wk_var: var.downgrade(),
             last_write: Atomic::new(None),
+            modified: Atomic::new(None),
         });
 
         // task drains pending, drops handle if the var is dropped.
@@ -1191,9 +1193,7 @@ impl SyncWithVar {
                     }
                 }
                 SyncEvent::Event(args) => {
-                    // !!: SKIP_READ can skip correct changes (args can aggregate many events)
-                    // check hash?
-                    if args.events_for_path(&path).next().is_some() && !SyncFlags::pop(&task_data.pending, SyncFlags::SKIP_READ) {
+                    if args.events_for_path(&path).next().is_some() {
                         SyncFlags::atomic_insert(&task_data.pending, SyncFlags::READ);
                     } else {
                         return;
@@ -1244,7 +1244,10 @@ impl SyncWithVar {
                         };
 
                         write(value, WriteFile::open(path.to_path_buf()));
-                        SyncFlags::atomic_insert(&task_data.pending, SyncFlags::SKIP_READ);
+
+                        if let Ok(m) = std::fs::metadata(&*path).and_then(|m| m.modified()) {
+                            task_data.modified.store(Some(m), Ordering::Relaxed);
+                        }
 
                         if task_data.wk_var.strong_count() == 0 {
                             handle.force_drop();
@@ -1256,7 +1259,18 @@ impl SyncWithVar {
                             return;
                         }
 
-                        if let Some(update) = read(WatchFile::open(path.as_path())) {
+                        let file = WatchFile::open(path.as_path());
+                        if let Ok(f) = &file {
+                            if let Ok(m) = f.metadata().and_then(|f| f.modified()) {
+                                let last = task_data.modified.swap(Some(m), Ordering::Relaxed);
+                                if last == Some(m) {
+                                    // already handled
+                                    return;
+                                }
+                            }
+                        }
+
+                        if let Some(update) = read(file) {
                             if let Some(var) = task_data.wk_var.upgrade() {
                                 SyncFlags::atomic_insert(&task_data.pending, SyncFlags::SKIP_WRITE);
                                 var.set(update);
@@ -1310,10 +1324,9 @@ enum SyncEvent<'a> {
 bitflags! {
     #[derive(Clone, Copy)]
     struct SyncFlags: u8 {
-        const READ  = 0b0000_0001;
-        const WRITE = 0b0000_0010;
-        const SKIP_READ = 0b0000_0100;
-        const SKIP_WRITE = 0b0000_1000;
+        const READ       = 0b0000_0001;
+        const WRITE      = 0b0000_0010;
+        const SKIP_WRITE = 0b0010_0000;
     }
 }
 impl SyncFlags {
