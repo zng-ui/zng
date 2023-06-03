@@ -1,5 +1,6 @@
 # TextInput
 
+* Fix emoji segmenting, example: "🙎🏻‍♀️"
 * Implement cursor position.
     - Review using `TextPoint` for this?
         - Remove `TextPoint`?
@@ -17,10 +18,16 @@
     - "On a given system the backspace key might delete by code point, while the delete key may delete an entire clusters"
         - Observed this in Chrome, Firefox, VS and Word, use "ö̲" to test.
 * Support replace (Insert mode in command line).
+* Support buttons:
+    - home and end
+    - up and down arrows
+    - page up and page down
+    - shift modifier?
 * Implement selection.
     - Input replaces selection.
         - Char input, paste, IME
     - Impl cut & copy.
+* Research text editors.
 
 * Implement custom node access to text.
     - Clone text var in `ResolvedText`?
