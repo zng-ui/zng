@@ -31,6 +31,8 @@
 
 # Config
 
+* WATCHER `SKIP_READ` is breaking or test.
+
 * Test reset.
     - Not working, see `config.rs/fallback_swap`.
     - FallbackConfig loses connection with sources?

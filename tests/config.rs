@@ -311,17 +311,18 @@ fn fallback_swap() {
     let key = CONFIG.get("key", || Txt::from_static("final-default"));
     assert_eq!("fallback", key.get());
 
-    // std::fs::rename(main_prepared_cfg, main_cfg).unwrap();
-    // app.update(false).assert_wait();
-    // app.run_task(async {
-    //     task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
-    // });
-    // let status = CONFIG.status().get();
-    // if status.is_err() {
-    //     panic!("{status}");
-    // }
+    std::fs::rename(main_prepared_cfg, main_cfg).unwrap();
+    app.update(false).assert_wait();
+    app.run_task(async {
+        task::deadline(500.ms()).await; // wait for system rename event (+ debounce)
+        task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+    });
+    let status = CONFIG.status().get();
+    if status != ConfigStatus::Loaded {
+        panic!("{status}");
+    }
 
-    // assert_eq!("main", key.get());
+    assert_eq!("main", key.get());
 }
 
 fn rmv_file_assert(path: &Path) {

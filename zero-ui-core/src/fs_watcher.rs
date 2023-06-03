@@ -1184,6 +1184,8 @@ impl SyncWithVar {
                     }
                 }
                 SyncEvent::Event(args) => {
+                    // !!: SKIP_READ can skip correct changes (args can aggregate many events)
+                    // check hash?
                     if args.events_for_path(&path).next().is_some() && !SyncFlags::pop(pending, SyncFlags::SKIP_READ) {
                         SyncFlags::atomic_insert(pending, SyncFlags::READ);
                     } else {
