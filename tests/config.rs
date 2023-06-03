@@ -314,7 +314,7 @@ fn fallback_swap() {
     std::fs::rename(main_prepared_cfg, main_cfg).unwrap();
     app.update(false).assert_wait();
     app.run_task(async {
-        task::deadline(500.ms()).await; // wait for system rename event (+ debounce)
+        task::deadline(1.5.secs()).await; // wait for system rename event (+ debounce)
         task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
     });
     let status = CONFIG.status().get();
