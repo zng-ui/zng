@@ -325,6 +325,75 @@ fn fallback_swap() {
     assert_eq!("main", key.get());
 }
 
+#[test]
+fn fallback_reset() {
+    let main_cfg = PathBuf::from("../target/tmp/test.fallback_reset.target.json");
+    let fallback_cfg = PathBuf::from("../target/tmp/test.fallback_reset.fallback.json");
+
+    {
+        // setup
+        rmv_file_assert(&main_cfg);
+        rmv_file_assert(&fallback_cfg);
+
+        let mut app = App::default().run_headless(false);
+        CONFIG.load(JsonConfig::sync(&fallback_cfg));
+        CONFIG.get("key", || Txt::from_static("default")).set("fallback").unwrap();
+
+        app.update(false).assert_wait();
+        app.run_task(async {
+            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        });
+        let status = CONFIG.status().get();
+        if status.is_err() {
+            panic!("{status}");
+        }
+
+        CONFIG.load(JsonConfig::sync(&main_cfg));
+        CONFIG.get("key", || Txt::from_static("default")).set("main").unwrap();
+
+        app.run_task(async {
+            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        });
+        let status = CONFIG.status().get();
+        if status.is_err() {
+            panic!("{status}");
+        }
+    }
+
+    // test
+    let mut app = App::default().run_headless(false);
+
+    CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg)));
+    app.run_task(async {
+        task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+    });
+    let status = CONFIG.status().get();
+    if status != ConfigStatus::Loaded {
+        panic!("{status}");
+    }
+
+    app.update(false).assert_wait();
+
+    let key = CONFIG.get("key", || Txt::from_static("final-default"));
+    assert_eq!("main", key.get());
+
+    CONFIG.load(NilConfig);
+    app.update(false).assert_wait();
+
+    rmv_file_assert(&main_cfg);
+
+    CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg)));
+    app.run_task(async {
+        task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+    });
+    let status = CONFIG.status().get();
+    if status != ConfigStatus::Loaded {
+        panic!("{status}");
+    }
+
+    assert_eq!("fallback", key.get());
+}
+
 fn rmv_file_assert(path: &Path) {
     if let Err(e) = std::fs::remove_file(path) {
         if !matches!(e.kind(), std::io::ErrorKind::NotFound) {

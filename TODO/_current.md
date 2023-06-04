@@ -39,7 +39,7 @@
 # Config
 
 * Test reset.
-    - Not working, see `config.rs/fallback_swap`.
+    - Not working, see `config.rs/fallback_reset`.
     - FallbackConfig loses connection with sources?
         - No amount of updates gets the value, so probably.
     - Sometimes the test works, but due to the fallback loading faster.
