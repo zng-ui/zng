@@ -721,7 +721,7 @@ impl WriteFile {
         temp_file.flush()?;
         temp_file.sync_all()?;
 
-        unlock_ok(&temp_file)?;
+        unlock_ok(&temp_file).unwrap();
         drop(temp_file);
 
         let actual_file = self.actual_file.take().unwrap();
@@ -730,21 +730,58 @@ impl WriteFile {
 
         let mut retries = 0;
         loop {
+            // commit by replacing the actual_path with already on disk temp_path file.
             match fs::rename(&self.temp_path, &self.actual_path) {
                 Ok(()) => {
                     break;
                 }
-                Err(e) if retries == 2 => return Err(e),
                 Err(e) => match e.kind() {
                     io::ErrorKind::PermissionDenied => {
-                        #[cfg(debug_assertions)]
-                        {
-                            tracing::warn!("WriteFile::commit retry");
+                        if retries == 5 {
+                            // Give-up, we manage to write lock both temp and actual just
+                            // before this, but now we can't replace actual and remove temp.
+                            // Hardware issue? Or another process holding a lock for 1s+50ms*5.
+                            return Err(e);
+                        } else if retries > 0 {
+                            // Second+ retries:
+                            //
+                            // probably a system issue.
+                            //
+                            // Windows sporadically returns ACCESS_DENIED for kernel!SetRenameInformationFile in
+                            // other apps that use the same save pattern (write-tmp -> close-tmp -> rename).
+                            // see GIMP issue: https://gitlab.gnome.org/GNOME/gimp/-/issues/1370
+                            //
+                            // I used procmon to trace all file operations, there is no other app trying to use
+                            // the temp and actual files when the ACCESS_DENIED occurs, both files are unlocked and
+                            // closed before the rename calls start. This might be a Windows bug.
+                            std::thread::sleep(30.ms());
+                        } else {
+                            // first retry:
+                            //
+                            // probably another process reading the `actual_path`.
+                            //
+                            // Reacquire a write lock and unlock, just to wait the external app.
+                            match std::fs::File::options().write(true).open(&self.actual_path) {
+                                Ok(f) => {
+                                    if lock_exclusive(&f, 1.secs()).is_ok() {
+                                        // acquired actual ok, retry
+                                        let _ = unlock_ok(&f);
+                                    }
+                                }
+                                Err(e) => match e.kind() {
+                                    io::ErrorKind::NotFound => {
+                                        // all good, rename will create actual
+                                        continue;
+                                    }
+                                    _ => {
+                                        // unknown error, let retry handle it
+                                        std::thread::sleep(30.ms());
+                                    }
+                                },
+                            }
                         }
 
-                        // happens rarely in Windows.
                         retries += 1;
-                        std::thread::yield_now();
                     }
                     _ => return Err(e),
                 },
