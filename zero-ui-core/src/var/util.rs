@@ -78,7 +78,7 @@ macro_rules! impl_from_and_into_var {
         $crate::__impl_from_and_into_var! { $($tt)* }
     };
 }
-use std::{borrow::Cow, cell::UnsafeCell, mem};
+use std::{cell::UnsafeCell, mem};
 
 use parking_lot::{Mutex, RwLock};
 
@@ -86,7 +86,7 @@ use crate::context::UPDATES;
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
 
-use super::{animation::ModifyInfo, AnyVarValue, VarHandle, VarHook, VarUpdateId, VarValue, VARS};
+use super::{animation::ModifyInfo, VarHandle, VarHook, VarHookArgs, VarModify, VarUpdateId, VarValue, VARS};
 
 #[doc(hidden)]
 #[macro_export]
@@ -299,7 +299,7 @@ impl<T: VarValue> VarData<T> {
         self.meta.lock().animation.importance()
     }
 
-    pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    pub fn push_hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let (hook, weak) = VarHandle::new(pos_modify_action);
         self.meta.lock().hooks.push(weak);
         hook
@@ -309,8 +309,8 @@ impl<T: VarValue> VarData<T> {
         self.meta.lock().animation.hook_animation_stop(handler)
     }
 
-    /// Calls `modify` on the value, if modified the value is replaced and the previous value returned.
-    pub fn apply_modify(&self, modify: impl FnOnce(&mut Cow<T>)) {
+    /// Calls `modify` on the value.
+    pub fn apply_modify(&self, modify: impl FnOnce(&mut VarModify<T>)) {
         {
             let mut meta = self.meta.lock();
             let curr_anim = VARS.current_modify();
@@ -320,21 +320,22 @@ impl<T: VarValue> VarData<T> {
             meta.animation = curr_anim;
         }
 
-        let new_value = self.with(|value| {
-            let mut value = Cow::Borrowed(value);
+        let (notify, new_value, tags) = self.with(|value| {
+            let mut value = VarModify::new(value);
             modify(&mut value);
-            match value {
-                Cow::Owned(v) => Some(v),
-                Cow::Borrowed(_) => None,
-            }
+            value.finish()
         });
 
-        if let Some(new_value) = new_value {
+        if notify {
             let mut meta = self.meta.lock();
-            let _ = self.value.replace(new_value);
+            if let Some(nv) = new_value {
+                let _ = self.value.replace(nv);
+            }
             meta.last_update = VARS.update_id();
+
             self.with(|val| {
-                meta.hooks.retain(|h| h.call(val));
+                let args = VarHookArgs::new(val, &tags);
+                meta.hooks.retain(|h| h.call(&args));
             });
             UPDATES.update(None);
         }

@@ -58,7 +58,7 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
         Self(cow)
     }
 
-    fn modify_impl(&self, modify: impl FnOnce(&mut Cow<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
+    fn modify_impl(&self, modify: impl FnOnce(&mut VarModify<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
         VARS.schedule_update(Box::new(move || {
             let mut data = me.0.write();
@@ -66,16 +66,15 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
 
             match data {
                 Data::Source { source, hooks, .. } => {
-                    let modified = source.with(|val| {
-                        let mut r = Cow::Borrowed(val);
-                        modify(&mut r);
-                        match r {
-                            Cow::Owned(r) => Some(r),
-                            Cow::Borrowed(_) => None,
-                        }
+                    let (touched, new_value, tags) = source.with(|val| {
+                        let mut vm = VarModify::new(val);
+                        modify(&mut vm);
+                        vm.finish()
                     });
-                    if let Some(value) = modified {
-                        hooks.retain(|h| h.call(&value));
+                    if touched {
+                        let value = new_value.unwrap_or_else(|| source.get());
+                        let hook_args = VarHookArgs::new(&value, &tags);
+                        hooks.retain(|h| h.call(&hook_args));
                         *data = Data::Owned {
                             value,
                             last_update: VARS.update_id(),
@@ -99,19 +98,19 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                         *animation = curr_anim;
                     }
 
-                    let new_value = {
-                        let mut value = Cow::Borrowed(value);
-                        modify(&mut value);
-                        match value {
-                            Cow::Owned(v) => Some(v),
-                            Cow::Borrowed(_) => None,
-                        }
+                    let (touched, new_value, tags) = {
+                        let mut vm = VarModify::new(value);
+                        modify(&mut vm);
+                        vm.finish()
                     };
 
-                    if let Some(new_value) = new_value {
-                        *value = new_value;
+                    if touched {
+                        if let Some(nv) = new_value {
+                            *value = nv;
+                        }
                         *last_update = VARS.update_id();
-                        hooks.retain(|h| h.call(value));
+                        let hook_args = VarHookArgs::new(value, &tags);
+                        hooks.retain(|h| h.call(&hook_args));
                         UPDATES.update(None);
                     }
                 }
@@ -177,7 +176,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
         VarCapabilities::MODIFY
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let mut data = self.0.write();
         match &mut *data {
             Data::Source { hooks, .. } => {
@@ -296,7 +295,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ArcCowVar<T, S> {
 
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<T>) + Send + 'static,
+        F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
         self.modify_impl(modify)
     }

@@ -49,7 +49,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                     if update_id != res_id {
                         // res_var did not cause this assign, propagate.
                         last_bidi_update.store((update_id, res_id), atomic::Ordering::Relaxed);
-                        res_var.set_ne(v.as_any().downcast_ref::<RawConfigValue>().unwrap().clone());
+                        res_var.set_ne(v.downcast_value::<RawConfigValue>().unwrap().clone());
                     }
 
                     true
@@ -71,7 +71,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
 
                 if retain {
                     // only fall_var updated
-                    res_var.set_ne(v.as_any().downcast_ref::<RawConfigValue>().unwrap().clone());
+                    res_var.set_ne(v.downcast_value::<RawConfigValue>().unwrap().clone());
                 }
                 retain
             } else {
@@ -99,7 +99,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                 if update_id != cfg_id {
                     // cfg_var did not cause this assign.
                     last_bidi_update.store((cfg_id, update_id), atomic::Ordering::Relaxed);
-                    let _ = cfg_var.set_ne(v.as_any().downcast_ref::<RawConfigValue>().unwrap().clone());
+                    let _ = cfg_var.set_ne(v.downcast_value::<RawConfigValue>().unwrap().clone());
                 }
 
                 true
@@ -141,7 +141,7 @@ impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
                     if update_id != ots_id {
                         // other_to_self did not cause this assign, propagate.
                         last_bidi_update.store((update_id, ots_id), atomic::Ordering::Relaxed);
-                        res_var.set(v.as_any().downcast_ref::<T>().unwrap().clone());
+                        res_var.set(v.downcast_value::<T>().unwrap().clone());
                     }
 
                     true
@@ -163,7 +163,7 @@ impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
 
                 if retain {
                     // only fall_var updated
-                    res_var.set(v.as_any().downcast_ref::<T>().unwrap().clone());
+                    res_var.set(v.downcast_value::<T>().unwrap().clone());
                 }
                 retain
             } else {
@@ -191,7 +191,7 @@ impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
                 if update_id != sto_id {
                     // self_to_other did not cause this assign.
                     last_bidi_update.store((sto_id, update_id), atomic::Ordering::Relaxed);
-                    let _ = cfg_var.set(v.as_any().downcast_ref::<T>().unwrap().clone());
+                    let _ = cfg_var.set(v.downcast_value::<T>().unwrap().clone());
                 }
 
                 true

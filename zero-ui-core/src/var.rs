@@ -5,6 +5,7 @@ use std::{
     borrow::Cow,
     fmt,
     marker::PhantomData,
+    ops,
     sync::{
         atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
@@ -259,15 +260,15 @@ impl std::error::Error for VarIsReadOnlyError {}
 
 struct VarHandleData {
     perm: AtomicBool,
-    action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>,
+    action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>,
 }
 
 /// Represents the var side of a [`VarHandle`].
 struct VarHook(Arc<VarHandleData>);
 impl VarHook {
     /// Calls the handle action, returns `true` if the handle must be retained.
-    pub fn call(&self, value: &dyn AnyVarValue) -> bool {
-        self.is_alive() && (self.0.action)(value)
+    pub fn call(&self, args: &VarHookArgs) -> bool {
+        self.is_alive() && (self.0.action)(args)
     }
 
     /// If the handle is still held or is permanent.
@@ -285,7 +286,7 @@ impl VarHook {
 pub struct VarHandle(Option<Arc<VarHandleData>>);
 impl VarHandle {
     /// New handle, the `action` depends on the behavior the handle represents.
-    fn new(action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
+    fn new(action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> (VarHandle, VarHook) {
         let c = Arc::new(VarHandleData {
             perm: AtomicBool::new(false),
             action,
@@ -354,6 +355,7 @@ impl Default for VarHandle {
 }
 
 /// Represents a collection of var handles.
+#[must_use = "var handles stops the behaviour they represents on drop"]
 #[derive(Clone, Default)]
 pub struct VarHandles(pub Vec<VarHandle>);
 impl VarHandles {
@@ -499,7 +501,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     ///
     /// [`on_new`]: Var::on_new
     /// [^1]: You can use the [`VarHandle::perm`] to make the stored reference *strong*.
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle;
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle;
 
     /// Register a `handler` to be called when the current animation stops.
     ///
@@ -829,7 +831,7 @@ pub trait IntoVar<T: VarValue> {
 macro_rules! impl_infallible_write {
     (for<$T:ident>) => {
         /// Infallible [`Var::modify`].
-        pub fn modify(&self, modify: impl FnOnce(&mut Cow<$T>) + Send + 'static) {
+        pub fn modify(&self, modify: impl FnOnce(&mut $crate::var::VarModify<$T>) + Send + 'static) {
             Var::modify(self, modify).unwrap()
         }
 
@@ -853,6 +855,133 @@ macro_rules! impl_infallible_write {
     };
 }
 use impl_infallible_write;
+
+/// Represents the current value in a [`Var::modify`] handler.
+pub struct VarModify<'a, T: VarValue> {
+    value: Cow<'a, T>,
+    touched: bool,
+    tags: Vec<Box<dyn AnyVarValue>>,
+}
+impl<'a, T: VarValue> VarModify<'a, T> {
+    /// Replace the value.
+    pub fn set(&mut self, new_value: T) {
+        self.value = Cow::Owned(new_value);
+        self.touched = true;
+    }
+
+    /// Cause an update without modifying the value.
+    pub fn touch(&mut self) {
+        self.touched = true;
+    }
+
+    /// Touch the value and returns a mutable reference for modification.
+    ///
+    /// Note that this clones the current value.
+    pub fn to_mut(&mut self) -> &mut T {
+        self.touched = true;
+        self.value.to_mut()
+    }
+
+    /// If the var hooks will be notified after this modify call.
+    pub fn is_touched(&self) -> bool {
+        self.touched
+    }
+
+    /// Reference a custom object that will be shared with the var hooks if the
+    /// value is touched.
+    pub fn tags(&self) -> &[Box<dyn AnyVarValue>] {
+        &self.tags
+    }
+
+    /// Add a custom tag object that will be shared with the var hooks if the value is touched.
+    pub fn push_tag(&mut self, tag: impl AnyVarValue) {
+        self.tags.push(Box::new(tag));
+    }
+
+    /// Add all custom tags.
+    pub fn push_tags(&mut self, tags: Vec<Box<dyn AnyVarValue>>) {
+        if self.tags.is_empty() {
+            self.tags = tags;
+        } else {
+            self.tags.extend(tags);
+        }
+    }
+
+    /// New from current value.
+    pub fn new(value: &'a T) -> Self {
+        Self {
+            value: Cow::Borrowed(value),
+            touched: false,
+            tags: vec![],
+        }
+    }
+
+    /// Returns `(notify, new_value, tags)`
+    pub fn finish(self) -> (bool, Option<T>, Vec<Box<dyn AnyVarValue>>) {
+        (
+            self.touched,
+            match self.value {
+                Cow::Borrowed(_) => None,
+                Cow::Owned(v) => Some(v),
+            },
+            self.tags,
+        )
+    }
+}
+impl<'a, T: VarValue> ops::Deref for VarModify<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+impl<'a, T: VarValue> std::convert::AsRef<T> for VarModify<'a, T> {
+    fn as_ref(&self) -> &T {
+        &self.value
+    }
+}
+
+/// Arguments for [`AnyVar::hook`].
+pub struct VarHookArgs<'a> {
+    value: &'a dyn AnyVarValue,
+    tags: &'a [Box<dyn AnyVarValue>],
+}
+impl<'a> VarHookArgs<'a> {
+    /// New from touched value and custom tag.
+    pub fn new(value: &'a dyn AnyVarValue, tags: &'a [Box<dyn AnyVarValue>]) -> Self {
+        Self { value, tags }
+    }
+
+    /// Reference the touched value.
+    pub fn value(&self) -> &dyn AnyVarValue {
+        self.value
+    }
+
+    /// Value type ID.
+    pub fn value_type(&self) -> TypeId {
+        self.value.as_any().type_id()
+    }
+
+    /// Custom tag objects.
+    pub fn tags(&self) -> &[Box<dyn AnyVarValue>] {
+        self.tags
+    }
+
+    /// Clone the custom tag objects set by the code that touched the value.
+    pub fn tags_vec(&self) -> Vec<Box<dyn AnyVarValue>> {
+        self.tags.iter().map(|t| (*t).clone_boxed()).collect()
+    }
+
+    /// Reference the value, if it is of type `T`.
+    pub fn downcast_value<T: VarValue>(&self) -> Option<&T> {
+        self.value.as_any().downcast_ref()
+    }
+
+    /// Reference all custom tag values of type `T`.
+    pub fn downcast_tags<T: VarValue>(&self) -> impl Iterator<Item = &T> + '_ {
+        self.tags.iter().filter_map(|t| (*t).as_any().downcast_ref::<T>())
+    }
+}
 
 /// Represents an observable value.
 ///
@@ -885,10 +1014,10 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Try to schedule a variable update, it will be applied on the end of the current app update.
     ///
-    /// The variable only updates if the [`Cow`] is upgraded to [`Cow::Owned`].
+    /// The variable only updates if the [`VarModify`] is touched, set or modified.
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<T>) + Send + 'static;
+        F: FnOnce(&mut VarModify<T>) + Send + 'static;
 
     /// Gets the variable as a [`BoxedVar<T>`], does not double box.
     fn boxed(self) -> BoxedVar<T>
@@ -1379,6 +1508,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             clmv!(last_update, |value, other| {
                 let update_id = VARS.update_id();
                 let (_, ots_id) = last_update.load(Relaxed);
+                println!("!!: a -> b {value:?}, {update_id:?} != {ots_id:?}");
                 if update_id != ots_id {
                     // other_to_self did not cause this assign, propagate.
                     last_update.store((update_id, ots_id), Relaxed);
@@ -1390,6 +1520,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         let other_to_self = var_bind(other, self, move |value, self_| {
             let update_id = VARS.update_id();
             let (sto_id, _) = last_update.load(Relaxed);
+            println!("!!: a <- b {value:?}, {update_id:?} != {sto_id:?}");
             if update_id != sto_id {
                 // self_to_other did not cause this assign.
                 last_update.store((sto_id, update_id), Relaxed);
@@ -1587,7 +1718,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`Animation`]: animation::Animation
     fn animate<A>(&self, animate: A) -> animation::AnimationHandle
     where
-        A: FnMut(&animation::Animation, &mut Cow<T>) + Send + 'static,
+        A: FnMut(&animation::Animation, &mut VarModify<T>) + Send + 'static,
     {
         animation::var_animate(self, animate)
     }
@@ -2010,25 +2141,25 @@ where
         ne
     }
 }
-fn var_set<T>(value: T) -> impl FnOnce(&mut Cow<T>)
+fn var_set<T>(value: T) -> impl FnOnce(&mut VarModify<T>)
 where
     T: VarValue,
 {
     move |var_value| {
-        *var_value = Cow::Owned(value);
+        var_value.set(value);
     }
 }
-fn var_set_ne<T>(value: T) -> impl FnOnce(&mut Cow<T>)
+fn var_set_ne<T>(value: T) -> impl FnOnce(&mut VarModify<T>)
 where
     T: VarValue + PartialEq,
 {
     move |var_value| {
         if var_value.as_ref() != &value {
-            *var_value = Cow::Owned(value);
+            var_value.set(value);
         }
     }
 }
-fn var_set_any<T>(value: Box<dyn AnyVarValue>) -> impl FnOnce(&mut Cow<T>)
+fn var_set_any<T>(value: Box<dyn AnyVarValue>) -> impl FnOnce(&mut VarModify<T>)
 where
     T: VarValue,
 {
@@ -2038,11 +2169,11 @@ where
     }
 }
 
-fn var_touch<T>(var_value: &mut Cow<T>)
+fn var_touch<T>(var_value: &mut VarModify<T>)
 where
     T: VarValue,
 {
-    var_value.to_mut();
+    var_value.touch();
 }
 
 fn var_debug<T>(value: &T) -> crate::text::Txt
@@ -2052,7 +2183,7 @@ where
     crate::text::formatx!("{value:?}")
 }
 
-fn var_subscribe(op: UpdateOp, widget_id: WidgetId) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
+fn var_subscribe(op: UpdateOp, widget_id: WidgetId) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
     Box::new(move |_| {
         UPDATES.update_op(op, widget_id);
         true
@@ -2063,9 +2194,9 @@ fn var_subscribe_when<T: VarValue>(
     op: UpdateOp,
     widget_id: WidgetId,
     when: impl Fn(&T) -> bool + Send + Sync + 'static,
-) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
+) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
     Box::new(move |a| {
-        if let Some(a) = a.as_any().downcast_ref::<T>() {
+        if let Some(a) = a.downcast_value::<T>() {
             if when(a) {
                 UPDATES.update_op(op, widget_id);
             }
@@ -2100,10 +2231,10 @@ where
     W: WeakVar<O>,
 {
     let update_output = Mutex::new(update_output);
-    input.hook(Box::new(move |value| {
+    input.hook(Box::new(move |args| {
         if let Some(output) = wk_output.upgrade() {
             if output.capabilities().contains(VarCapabilities::MODIFY) {
-                if let Some(value) = value.as_any().downcast_ref::<I>() {
+                if let Some(value) = args.downcast_value::<I>() {
                     update_output.lock()(value, output);
                 }
             }
@@ -2124,12 +2255,12 @@ where
 
     let handler = Arc::new(Mutex::new(handler));
     let (inner_handle_owner, inner_handle) = crate::crate_util::Handle::new(());
-    var.hook(Box::new(move |value| {
+    var.hook(Box::new(move |args| {
         if inner_handle_owner.is_dropped() {
             return false;
         }
 
-        if let Some(value) = value.as_any().downcast_ref::<T>() {
+        if let Some(value) = args.downcast_value::<T>() {
             let handle = inner_handle.downgrade();
             let update_once = app_hn_once!(handler, value, |_| {
                 handler.lock().event(

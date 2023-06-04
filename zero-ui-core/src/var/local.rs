@@ -44,7 +44,7 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         VarCapabilities::empty()
     }
 
-    fn hook(&self, _: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, _: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         VarHandle::dummy()
     }
 
@@ -152,7 +152,7 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
 
     fn modify<F>(&self, _: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<T>) + 'static,
+        F: FnOnce(&mut VarModify<T>) + 'static,
     {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),

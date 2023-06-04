@@ -121,12 +121,12 @@ impl<T: VarValue> ArcMergeVar<T> {
             .filter_map(|(i, var)| {
                 if var.capabilities().contains(VarCapabilities::NEW) {
                     let wk_merge = wk_merge.clone();
-                    let handle = var.hook(Box::new(move |value| {
+                    let handle = var.hook(Box::new(move |args| {
                         if let Some(rc_merge) = wk_merge.upgrade() {
                             let mut data = rc_merge.m.lock();
                             let data_mut = &mut *data;
-                            if value.as_any().type_id() == data_mut.inputs[i].as_any().type_id() {
-                                data_mut.inputs[i] = value.clone_boxed();
+                            if args.value_type() == data_mut.inputs[i].as_any().type_id() {
+                                data_mut.inputs[i] = args.value().clone_boxed();
 
                                 if data_mut.last_apply_request != VARS.apply_update_id() {
                                     data_mut.last_apply_request = VARS.apply_update_id();
@@ -159,7 +159,7 @@ impl<T: VarValue> ArcMergeVar<T> {
             let mut m = rc_merge.m.lock();
             let m = &mut *m;
             let new_value = (m.merge)(&m.inputs);
-            rc_merge.value.apply_modify(|v| *v = Cow::Owned(new_value));
+            rc_merge.value.apply_modify(|v| v.set(new_value));
         })
     }
 }
@@ -219,7 +219,7 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
         }
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         self.0.value.push_hook(pos_modify_action)
     }
 
@@ -314,7 +314,7 @@ impl<T: VarValue> Var<T> for ArcMergeVar<T> {
 
     fn modify<F>(&self, _: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<T>) + 'static,
+        F: FnOnce(&mut VarModify<T>) + 'static,
     {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),

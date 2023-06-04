@@ -668,7 +668,7 @@ struct AnimationUpdateInfo {
 
 pub(super) fn var_animate<T: VarValue>(
     target: &impl Var<T>,
-    animate: impl FnMut(&Animation, &mut Cow<T>) + Send + 'static,
+    animate: impl FnMut(&Animation, &mut VarModify<T>) + Send + 'static,
 ) -> AnimationHandle {
     if !target.capabilities().is_always_read_only() {
         let target = target.clone().actual_var();
@@ -753,17 +753,17 @@ pub(super) fn var_set_ease<T>(
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + Send + 'static,
     init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
-) -> impl FnMut(&Animation, &mut Cow<T>) + Send
+) -> impl FnMut(&Animation, &mut VarModify<T>) + Send
 where
     T: VarValue + Transitionable,
 {
     let transition = Transition::new(start_value, end_value);
     let mut prev_step = init_step;
-    move |a, value| {
+    move |a, vm| {
         let step = easing(a.elapsed_stop(duration));
 
         if prev_step != step {
-            *value = Cow::Owned(transition.sample(step));
+            vm.set(transition.sample(step));
             prev_step = step;
         }
     }
@@ -775,19 +775,19 @@ pub(super) fn var_set_ease_ne<T>(
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + Send + 'static,
     init_step: EasingStep, // set to 0 skips first frame, set to 999 includes first frame.
-) -> impl FnMut(&Animation, &mut Cow<T>) + Send
+) -> impl FnMut(&Animation, &mut VarModify<T>) + Send
 where
     T: VarValue + Transitionable + PartialEq,
 {
     let transition = Transition::new(start_value, end_value);
     let mut prev_step = init_step;
-    move |a, value| {
+    move |a, vm| {
         let step = easing(a.elapsed_stop(duration));
 
         if prev_step != step {
             let val = transition.sample(step);
-            if value.as_ref() != &val {
-                *value = Cow::Owned(val);
+            if vm.as_ref() != &val {
+                vm.set(val);
             }
             prev_step = step;
         }
@@ -799,7 +799,7 @@ pub(super) fn var_set_ease_keyed<T>(
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + Send + 'static,
     init_step: EasingStep,
-) -> impl FnMut(&Animation, &mut Cow<T>) + Send
+) -> impl FnMut(&Animation, &mut VarModify<T>) + Send
 where
     T: VarValue + Transitionable,
 {
@@ -808,7 +808,7 @@ where
         let step = easing(a.elapsed_stop(duration));
 
         if prev_step != step {
-            *value = Cow::Owned(transition.sample(step));
+            value.set(transition.sample(step));
             prev_step = step;
         }
     }
@@ -819,34 +819,34 @@ pub(super) fn var_set_ease_keyed_ne<T>(
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + Send + 'static,
     init_step: EasingStep,
-) -> impl FnMut(&Animation, &mut Cow<T>) + Send
+) -> impl FnMut(&Animation, &mut VarModify<T>) + Send
 where
     T: VarValue + Transitionable + PartialEq,
 {
     let mut prev_step = init_step;
-    move |a, value| {
+    move |a, vm| {
         let step = easing(a.elapsed_stop(duration));
 
         if prev_step != step {
             let val = transition.sample(step);
-            if value.as_ref() != &val {
-                *value = Cow::Owned(val);
+            if vm.as_ref() != &val {
+                vm.set(val);
             }
             prev_step = step;
         }
     }
 }
 
-pub(super) fn var_step<T>(new_value: T, delay: Duration) -> impl FnMut(&Animation, &mut Cow<T>)
+pub(super) fn var_step<T>(new_value: T, delay: Duration) -> impl FnMut(&Animation, &mut VarModify<T>)
 where
     T: VarValue,
 {
     let mut new_value = Some(new_value);
-    move |a, value| {
+    move |a, vm| {
         if !a.animations_enabled() || a.elapsed_dur() >= delay {
             a.stop();
             if let Some(nv) = new_value.take() {
-                *value = Cow::Owned(nv);
+                vm.set(nv);
             }
         } else {
             a.sleep(delay);
@@ -854,17 +854,17 @@ where
     }
 }
 
-pub(super) fn var_step_oci<T>(values: [T; 2], delay: Duration, mut count: usize) -> impl FnMut(&Animation, &mut Cow<T>)
+pub(super) fn var_step_oci<T>(values: [T; 2], delay: Duration, mut count: usize) -> impl FnMut(&Animation, &mut VarModify<T>)
 where
     T: VarValue,
 {
     let mut first = false;
-    move |a, value| {
+    move |a, vm| {
         if !a.animations_enabled() || a.elapsed_dur() >= delay {
             if first {
-                *value = Cow::Owned(values[0].clone());
+                vm.set(values[0].clone());
             } else {
-                *value = Cow::Owned(values[1].clone());
+                vm.set(values[1].clone());
             }
             first = !first;
 
@@ -878,7 +878,7 @@ where
     }
 }
 
-pub(super) fn var_step_ne<T>(new_value: T, delay: Duration) -> impl FnMut(&Animation, &mut Cow<T>)
+pub(super) fn var_step_ne<T>(new_value: T, delay: Duration) -> impl FnMut(&Animation, &mut VarModify<T>)
 where
     T: VarValue + PartialEq,
 {
@@ -888,7 +888,7 @@ where
             a.stop();
             if let Some(nv) = new_value.take() {
                 if value.as_ref() != &nv {
-                    *value = Cow::Owned(nv);
+                    value.set(nv);
                 }
             }
         } else {
@@ -901,14 +901,14 @@ pub(super) fn var_steps<T: VarValue>(
     steps: Vec<(Factor, T)>,
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
-) -> impl FnMut(&Animation, &mut Cow<T>) {
+) -> impl FnMut(&Animation, &mut VarModify<T>) {
     let mut prev_step = 999.fct();
-    move |a, value| {
+    move |a, vm| {
         let step = easing(a.elapsed_stop(duration));
         if step != prev_step {
             prev_step = step;
             if let Some(val) = steps.iter().find(|(f, _)| *f >= step).map(|(_, step)| step.clone()) {
-                *value = Cow::Owned(val);
+                vm.set(val);
             }
         }
     }
@@ -918,7 +918,7 @@ pub(super) fn var_steps_ne<T>(
     steps: Vec<(Factor, T)>,
     duration: Duration,
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
-) -> impl FnMut(&Animation, &mut Cow<T>)
+) -> impl FnMut(&Animation, &mut VarModify<T>)
 where
     T: VarValue + PartialEq,
 {
@@ -929,7 +929,7 @@ where
             prev_step = step;
             if let Some(val) = steps.iter().find(|(f, _)| *f >= step).map(|(_, step)| step.clone()) {
                 if value.as_ref() != &val {
-                    *value = Cow::Owned(val);
+                    value.set(val);
                 }
             }
         }

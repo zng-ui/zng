@@ -1,3 +1,8 @@
+# Var Tag
+
+* Expose tags in other var handlers.
+* Fix bind-bidi by using a tag to identify and cut cycles.
+
 # TextInput
 
 * Fix emoji segmenting, example: "🙎🏻‍♀️"

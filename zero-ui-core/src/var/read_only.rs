@@ -65,7 +65,7 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self.1.capabilities().as_read_only()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         self.1.hook(pos_modify_action)
     }
 
@@ -164,7 +164,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
 
     fn modify<F>(&self, _: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<T>) + 'static,
+        F: FnOnce(&mut VarModify<T>) + 'static,
     {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),

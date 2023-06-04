@@ -1,6 +1,6 @@
 //! Toggle widget and properties.
 
-use std::{any::Any, borrow::Cow, error::Error, fmt, marker::PhantomData, sync::Arc};
+use std::{any::Any, error::Error, fmt, marker::PhantomData, sync::Arc};
 
 use task::parking_lot::Mutex;
 
@@ -88,7 +88,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
                     {
                         args.propagation().stop();
 
-                        let _ = checked.modify(|c| *c = Cow::Owned(!*c.as_ref()));
+                        let _ = checked.modify(|c| c.set(!**c));
                     }
                 }
             }
@@ -141,7 +141,7 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
 
                         if IS_TRISTATE_VAR.get() {
                             let _ = checked.modify(|c| {
-                                *c = Cow::Owned(match *c.as_ref() {
+                                c.set(match *c.as_ref() {
                                     Some(true) => None,
                                     Some(false) => Some(true),
                                     None => Some(false),
@@ -149,7 +149,7 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
                             });
                         } else {
                             let _ = checked.modify(|c| {
-                                *c = Cow::Owned(match *c.as_ref() {
+                                c.set(match *c.as_ref() {
                                     Some(true) | None => Some(false),
                                     Some(false) => Some(true),
                                 });

@@ -80,7 +80,7 @@ impl<M: ConfigMap> SyncConfig<M> {
                 }
                 last_update.store(update_id, Ordering::Relaxed);
                 if let Some(var) = wk_var.upgrade() {
-                    match map.as_any().downcast_ref::<M>().unwrap().get_raw(&key) {
+                    match map.downcast_value::<M>().unwrap().get_raw(&key) {
                         Ok(raw) => {
                             // get ok
                             if let Some(raw) = raw {
@@ -112,7 +112,7 @@ impl<M: ConfigMap> SyncConfig<M> {
             }
             last_update.store(update_id, Ordering::Relaxed);
             if let Some(sync_var) = wk_sync_var.upgrade() {
-                let raw = value.as_any().downcast_ref::<RawConfigValue>().unwrap().clone();
+                let raw = value.downcast_value::<RawConfigValue>().unwrap().clone();
                 sync_var.modify(clmv!(key, |m| {
                     // set, only if actually changed
                     match ConfigMap::set_raw(m, key.clone(), raw) {
@@ -159,7 +159,7 @@ impl<M: ConfigMap> SyncConfig<M> {
         sync_var
             .hook(Box::new(clmv!(key, |map| {
                 if let Some(var) = wk_var.upgrade() {
-                    match map.as_any().downcast_ref::<M>().unwrap().get::<T>(&key) {
+                    match map.downcast_value::<M>().unwrap().get::<T>(&key) {
                         Ok(value) => {
                             if let Some(value) = value {
                                 var.set(value);
@@ -180,7 +180,7 @@ impl<M: ConfigMap> SyncConfig<M> {
         let wk_sync_var = sync_var.downgrade();
         var.hook(Box::new(clmv!(|value| {
             if let Some(sync_var) = wk_sync_var.upgrade() {
-                let value = value.as_any().downcast_ref::<T>().unwrap().clone();
+                let value = value.downcast_value::<T>().unwrap().clone();
                 sync_var.modify(clmv!(key, |m| {
                     match ConfigMap::set(m, key.clone(), value) {
                         Ok(()) => {}

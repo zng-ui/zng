@@ -28,7 +28,7 @@ impl ConfigMap for indexmap::IndexMap<ConfigKey, serde_toml::Value> {
         }
     }
 
-    fn set_raw(map: &mut Cow<Self>, key: ConfigKey, value: RawConfigValue) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
+    fn set_raw(map: &mut VarModify<Self>, key: ConfigKey, value: RawConfigValue) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
         let value = value.try_into()?;
         if map.get(&key) != Some(&value) {
             map.to_mut().insert(key, value);
@@ -54,7 +54,7 @@ impl ConfigMap for indexmap::IndexMap<ConfigKey, serde_toml::Value> {
         }
     }
 
-    fn set<O: ConfigValue>(map: &mut Cow<Self>, key: ConfigKey, value: O) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
+    fn set<O: ConfigValue>(map: &mut VarModify<Self>, key: ConfigKey, value: O) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
         match serde_toml::to_string(&value) {
             Ok(value) => match serde_toml::from_str(&value) {
                 Ok(value) => {

@@ -1245,16 +1245,16 @@ fn update_headless_vars(mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandl
         let parent = &parent_vars.0.actual_color_scheme;
         let actual = &hvars.0.actual_color_scheme;
 
-        let h = user.hook(Box::new(clmv!(parent, actual, |value| {
-            let value = *value.as_any().downcast_ref::<Option<ColorScheme>>().unwrap();
+        let h = user.hook(Box::new(clmv!(parent, actual, |args| {
+            let value = *args.downcast_value::<Option<ColorScheme>>().unwrap();
             let scheme = value.unwrap_or_else(|| parent.get());
             actual.set_ne(scheme);
             true
         })));
         handles.push(h);
 
-        let h = parent.hook(Box::new(clmv!(user, actual, |value| {
-            let scheme = user.get().unwrap_or_else(|| *value.as_any().downcast_ref::<ColorScheme>().unwrap());
+        let h = parent.hook(Box::new(clmv!(user, actual, |args| {
+            let scheme = user.get().unwrap_or_else(|| *args.downcast_value::<ColorScheme>().unwrap());
             actual.set_ne(scheme);
             true
         })));

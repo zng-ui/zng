@@ -74,12 +74,12 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         self.source.capabilities().as_read_only()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let map = self.map.clone();
-        self.source.hook(Box::new(move |value| {
-            if let Some(value) = value.as_any().downcast_ref() {
+        self.source.hook(Box::new(move |args| {
+            if let Some(value) = args.downcast_value() {
                 let value = map(value);
-                pos_modify_action(value)
+                pos_modify_action(&VarHookArgs::new(value, args.tags()))
             } else {
                 true
             }
@@ -179,7 +179,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRef<I, O, S> {
 
     fn modify<F>(&self, _: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<O>) + 'static,
+        F: FnOnce(&mut VarModify<O>) + 'static,
     {
         Err(VarIsReadOnlyError {
             capabilities: self.capabilities(),
@@ -296,12 +296,12 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
         self.source.capabilities()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let map = self.map.clone();
-        self.source.hook(Box::new(move |value| {
-            if let Some(value) = value.as_any().downcast_ref() {
+        self.source.hook(Box::new(move |args| {
+            if let Some(value) = args.downcast_value() {
                 let value = map(value);
-                pos_modify_action(value)
+                pos_modify_action(&VarHookArgs::new(value, args.tags()))
             } else {
                 true
             }
@@ -401,15 +401,22 @@ impl<I: VarValue, O: VarValue, S: Var<I>> Var<O> for MapRefBidi<I, O, S> {
 
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<O>) + Send + 'static,
+        F: FnOnce(&mut VarModify<O>) + Send + 'static,
     {
         let map = self.map.clone();
         let map_mut = self.map_mut.clone();
-        self.source.modify(move |value| {
-            let mut inner = Cow::Borrowed(map(value.as_ref()));
-            modify(&mut inner);
-            if let Cow::Owned(inner) = inner {
-                *map_mut(value.to_mut()) = inner;
+        self.source.modify(move |vm| {
+            let (touched, new_value, tags) = {
+                let mut vm = VarModify::new(map(vm.as_ref()));
+                modify(&mut vm);
+                vm.finish()
+            };
+            if touched {
+                vm.touch();
+                if let Some(nv) = new_value {
+                    *map_mut(vm.to_mut()) = nv;
+                }
+                vm.push_tags(tags);
             }
         })
     }

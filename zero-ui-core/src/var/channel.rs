@@ -38,7 +38,7 @@ impl<T: VarValue> VarReceiver<T> {
         if !source.capabilities().is_always_static() {
             source
                 .hook(Box::new(move |value| {
-                    if let Some(value) = value.as_any().downcast_ref::<T>() {
+                    if let Some(value) = value.downcast_value::<T>() {
                         if sender.send(value.clone()).is_err() {
                             return false;
                         }
@@ -202,7 +202,7 @@ where
     T: VarValue,
 {
     wake: AppEventSender,
-    sender: flume::Sender<Box<dyn FnOnce(&mut Cow<T>) + Send>>,
+    sender: flume::Sender<Box<dyn FnOnce(&mut VarModify<T>) + Send>>,
 }
 impl<T: VarValue> Clone for VarModifySender<T> {
     fn clone(&self) -> Self {
@@ -252,10 +252,10 @@ where
     /// Sends a modification for the variable, unless the connected app has exited.
     ///
     /// If the variable is read-only when the `modify` is received it is silently dropped, if more then one
-    /// modification is sent before the app can process then, they all are applied in order sent.
+    /// modification is sent before the app can process then, they all are applied in order received.
     pub fn send<F>(&self, modify: F) -> Result<(), AppDisconnected<()>>
     where
-        F: FnOnce(&mut Cow<T>) + Send + 'static,
+        F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
         self.sender.send(Box::new(modify)).map_err(|_| AppDisconnected(()))?;
         let _ = self.wake.send_var();

@@ -144,7 +144,7 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.0.get().capabilities() | VarCapabilities::CAPS_CHANGE
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         self.0.get().hook(pos_modify_action)
     }
 
@@ -221,7 +221,7 @@ impl<T: VarValue> Var<T> for ContextVar<T> {
 
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<T>) + Send + 'static,
+        F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
         self.0.get().modify(modify)
     }

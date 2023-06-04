@@ -43,16 +43,17 @@ where
             let weak_flat = Arc::downgrade(&flat);
             let map = Mutex::new(map);
             data.var_handle = data.var.hook(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
-            data.source_handle = source.hook(Box::new(move |value| {
+            data.source_handle = source.hook(Box::new(move |args| {
                 if let Some(flat) = weak_flat.upgrade() {
-                    if let Some(value) = value.as_any().downcast_ref() {
+                    if let Some(value) = args.downcast_value() {
                         let mut data = flat.write();
                         let data = &mut *data;
                         data.var = map.lock()(value);
                         data.var_handle = data.var.hook(ArcFlatMapVar::on_var_hook(weak_flat.clone()));
                         data.last_update = VARS.update_id();
                         data.var.with(|value| {
-                            data.hooks.retain(|h| h.call(value));
+                            let args = VarHookArgs::new(value, args.tags());
+                            data.hooks.retain(|h| h.call(&args));
                         });
                     }
                     true
@@ -65,12 +66,12 @@ where
         Self(flat)
     }
 
-    fn on_var_hook(weak_flat: Weak<RwLock<Data<T, V>>>) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
-        Box::new(move |value| {
+    fn on_var_hook(weak_flat: Weak<RwLock<Data<T, V>>>) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
+        Box::new(move |args| {
             if let Some(flat) = weak_flat.upgrade() {
                 let mut data = flat.write();
                 data.last_update = VARS.update_id();
-                data.hooks.retain(|h| h.call(value));
+                data.hooks.retain(|h| h.call(args));
                 true
             } else {
                 false
@@ -151,7 +152,7 @@ where
         self.0.read().var.capabilities() | VarCapabilities::CAPS_CHANGE
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let (handle, weak_handle) = VarHandle::new(pos_modify_action);
         self.0.write().hooks.push(weak_handle);
         handle
@@ -260,7 +261,7 @@ where
 
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<T>) + Send + 'static,
+        F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
         self.0.read_recursive().var.modify(modify)
     }

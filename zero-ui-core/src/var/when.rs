@@ -297,20 +297,20 @@ impl<T: VarValue> ArcWhenVar<T> {
         }
     }
 
-    fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
-        Box::new(move |value| {
+    fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
+        Box::new(move |args| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let mut data_mut = rc_when.w.lock();
                 let mut update = false;
 
                 match data_mut.active.cmp(&i) {
                     std::cmp::Ordering::Equal => {
-                        if let Some(&false) = value.as_any().downcast_ref::<bool>() {
+                        if let Some(&false) = args.downcast_value::<bool>() {
                             update = true;
                         }
                     }
                     std::cmp::Ordering::Greater => {
-                        if let Some(&true) = value.as_any().downcast_ref::<bool>() {
+                        if let Some(&true) = args.downcast_value::<bool>() {
                             update = true;
                         }
                     }
@@ -320,7 +320,7 @@ impl<T: VarValue> ArcWhenVar<T> {
                 if update && data_mut.last_apply_request != VARS.apply_update_id() {
                     data_mut.last_apply_request = VARS.apply_update_id();
                     drop(data_mut);
-                    VARS.schedule_update(ArcWhenVar::apply_update(rc_when));
+                    VARS.schedule_update(ArcWhenVar::apply_update(rc_when, args.tags_vec()));
                 }
 
                 true
@@ -330,14 +330,14 @@ impl<T: VarValue> ArcWhenVar<T> {
         })
     }
 
-    fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync> {
-        Box::new(move |_| {
+    fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync> {
+        Box::new(move |args| {
             if let Some(rc_when) = wk_when.upgrade() {
                 let mut data_mut = rc_when.w.lock();
                 if data_mut.active == i && data_mut.last_apply_request != VARS.apply_update_id() {
                     data_mut.last_apply_request = VARS.apply_update_id();
                     drop(data_mut);
-                    VARS.schedule_update(ArcWhenVar::apply_update(rc_when));
+                    VARS.schedule_update(ArcWhenVar::apply_update(rc_when, args.tags_vec()));
                 }
                 true
             } else {
@@ -346,7 +346,7 @@ impl<T: VarValue> ArcWhenVar<T> {
         })
     }
 
-    fn apply_update(rc_merge: Arc<Data<T>>) -> VarUpdateFn {
+    fn apply_update(rc_merge: Arc<Data<T>>, tags: Vec<Box<dyn AnyVarValue>>) -> VarUpdateFn {
         Box::new(move || {
             let mut data = rc_merge.w.lock();
             let data = &mut *data;
@@ -367,7 +367,8 @@ impl<T: VarValue> ArcWhenVar<T> {
             };
 
             active.with(|value| {
-                data.hooks.retain(|h| h.call(value));
+                let args = VarHookArgs::new(value, &tags);
+                data.hooks.retain(|h| h.call(&args));
             });
             UPDATES.update(None);
         })
@@ -440,7 +441,7 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
         }
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         let (handle, hook) = VarHandle::new(pos_modify_action);
         self.0.w.lock().hooks.push(hook);
         handle
@@ -537,7 +538,7 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
 
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<T>) + Send + 'static,
+        F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
         self.active().modify(modify)
     }

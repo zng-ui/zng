@@ -4,7 +4,6 @@
 //! is included in the [default app](crate::app::App::default) and provides the [`KEYBOARD`] service
 //! and keyboard input events.
 
-use std::borrow::Cow;
 use std::time::{Duration, Instant};
 
 use crate::app::view_process::{AnimationsConfig, VIEW_PROCESS_INITED_EVENT};
@@ -476,18 +475,18 @@ impl KeyboardService {
         let zero = 0.fct();
         let one = 1.fct();
 
-        var.animate(move |anim, val| {
+        var.animate(move |anim, vm| {
             let (interval, timeout) = cfg.get();
             if anim.start_time().elapsed() >= timeout {
-                if **val != one {
-                    *val = Cow::Owned(one);
+                if **vm != one {
+                    vm.set(one);
                 }
                 anim.stop();
             } else {
-                if **val == one {
-                    *val = Cow::Owned(zero);
+                if **vm == one {
+                    vm.set(zero);
                 } else {
-                    *val = Cow::Owned(one);
+                    vm.set(one);
                 }
                 anim.sleep(interval);
             }

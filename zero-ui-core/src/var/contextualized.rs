@@ -148,7 +148,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ContextualizedVar<T, S> {
         self.borrow_init().capabilities()
     }
 
-    fn hook(&self, pos_modify_action: Box<dyn Fn(&dyn AnyVarValue) -> bool + Send + Sync>) -> VarHandle {
+    fn hook(&self, pos_modify_action: Box<dyn Fn(&VarHookArgs) -> bool + Send + Sync>) -> VarHandle {
         self.borrow_init().hook(pos_modify_action)
     }
 
@@ -242,7 +242,7 @@ impl<T: VarValue, S: Var<T>> Var<T> for ContextualizedVar<T, S> {
 
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
-        F: FnOnce(&mut Cow<T>) + Send + 'static,
+        F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
         self.borrow_init().modify(modify)
     }

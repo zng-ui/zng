@@ -587,6 +587,7 @@ impl UpdateSubscribers for AnyEvent {
 }
 
 /// Represents a collection of var handles.
+#[must_use = "the event subscriptions or handlers are dropped if the handle is dropped"]
 #[derive(Clone, Default)]
 pub struct EventHandles(pub Vec<EventHandle>);
 impl EventHandles {

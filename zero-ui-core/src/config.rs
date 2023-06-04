@@ -2,7 +2,6 @@
 
 use std::{
     any::Any,
-    borrow::Cow,
     collections::{hash_map, HashMap},
     fmt, io,
     sync::Arc,
@@ -191,7 +190,7 @@ pub trait ConfigMap: VarValue + fmt::Debug {
     /// before mutating the map to avoid a potentially expensive IO write.
     ///
     /// This method can run in blocking contexts, work with in memory storage only.
-    fn set_raw(map: &mut Cow<Self>, key: ConfigKey, value: RawConfigValue) -> Result<(), Arc<dyn std::error::Error + Send + Sync>>;
+    fn set_raw(map: &mut VarModify<Self>, key: ConfigKey, value: RawConfigValue) -> Result<(), Arc<dyn std::error::Error + Send + Sync>>;
 
     /// Returns if the key in config.
     ///
@@ -212,13 +211,13 @@ pub trait ConfigMap: VarValue + fmt::Debug {
         }
     }
 
-    /// Set the value, if you avoid calling [`Cow::to_mut`] the map is not written.
+    /// Set the value, if you avoid touching the value the map is not written.
     ///
     /// If `map` is dereferenced mutable a write task will, if possible check if the entry already has the same value
     /// before mutating the map to avoid a potentially expensive IO write.
     ///
     /// This method can run in blocking contexts, work with in memory storage only.
-    fn set<O: ConfigValue>(map: &mut Cow<Self>, key: ConfigKey, value: O) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
+    fn set<O: ConfigValue>(map: &mut VarModify<Self>, key: ConfigKey, value: O) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
         match RawConfigValue::serialize(value) {
             Ok(s) => Self::set_raw(map, key, s),
             Err(e) => Err(Arc::new(e)),
