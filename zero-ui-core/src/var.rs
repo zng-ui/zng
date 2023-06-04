@@ -42,7 +42,6 @@ mod when;
 mod util;
 mod property_build_action;
 
-use atomic::Atomic;
 use parking_lot::Mutex;
 #[doc(inline)]
 pub use util::impl_from_and_into_var;
@@ -1453,7 +1452,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         #[cfg(not(dyn_closure))]
         let mut map = map;
 
-        var_bind(self, other, move |value, other| {
+        var_bind(self, other, move |value, _, other| {
             let _ = other.set(map(value));
         })
     }
@@ -1476,7 +1475,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         #[cfg(not(dyn_closure))]
         let mut map = map;
 
-        var_bind(self, other, move |value, other| {
+        var_bind(self, other, move |value, _, other| {
             if let Some(value) = map(value) {
                 let _ = other.set(value);
             }
@@ -1498,33 +1497,27 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         M: FnMut(&T) -> T2 + Send + 'static,
         B: FnMut(&T2) -> T + Send + 'static,
     {
-        // (self_to_other_id, other_to_self_id)
         // used to stop an extra "map_back" caused by "map" itself
-        // using two ids allows us to support double updates flowing in the same direction.
-        let last_update = Arc::new(Atomic::new((VarUpdateId::never(), VarUpdateId::never())));
-        let self_to_other = var_bind(
-            self,
-            other,
-            clmv!(last_update, |value, other| {
-                let update_id = VARS.update_id();
-                let (_, ots_id) = last_update.load(Relaxed);
-                println!("!!: a -> b {value:?}, {update_id:?} != {ots_id:?}");
-                if update_id != ots_id {
-                    // other_to_self did not cause this assign, propagate.
-                    last_update.store((update_id, ots_id), Relaxed);
-                    let _ = other.set(map(value));
-                }
-            }),
-        );
+        #[derive(Debug, Clone)]
+        struct BindMapBidiTag;
 
-        let other_to_self = var_bind(other, self, move |value, self_| {
-            let update_id = VARS.update_id();
-            let (sto_id, _) = last_update.load(Relaxed);
-            println!("!!: a <- b {value:?}, {update_id:?} != {sto_id:?}");
-            if update_id != sto_id {
-                // self_to_other did not cause this assign.
-                last_update.store((sto_id, update_id), Relaxed);
-                let _ = self_.set(map_back(value));
+        let self_to_other = var_bind(self, other, move |value, args, other| {
+            if args.downcast_tags::<BindMapBidiTag>().next().is_none() {
+                let value = map(value);
+                let _ = other.modify(move |vm| {
+                    vm.set(value);
+                    vm.push_tag(BindMapBidiTag);
+                });
+            }
+        });
+
+        let other_to_self = var_bind(other, self, move |value, args, self_| {
+            if args.downcast_tags::<BindMapBidiTag>().next().is_none() {
+                let value = map_back(value);
+                let _ = self_.modify(move |vm| {
+                    vm.set(value);
+                    vm.push_tag(BindMapBidiTag);
+                });
             }
         });
 
@@ -1545,31 +1538,28 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         M: FnMut(&T) -> Option<T2> + Send + 'static,
         B: FnMut(&T2) -> Option<T> + Send + 'static,
     {
-        let last_update = Arc::new(Atomic::new((VarUpdateId::never(), VarUpdateId::never())));
-        let self_to_other = var_bind(
-            self,
-            other,
-            clmv!(last_update, |value, other| {
-                let update_id = VARS.update_id();
-                let (_, ots_id) = last_update.load(Relaxed);
-                if update_id != ots_id {
-                    // other_to_self did not cause this assign, propagate.
-                    last_update.store((update_id, ots_id), Relaxed);
-                    if let Some(value) = map(value) {
-                        let _ = other.set(value);
-                    }
-                }
-            }),
-        );
+        // used to stop an extra "map_back" caused by "map" itself
+        #[derive(Debug, Clone)]
+        struct BindFilderMapBidiTag;
 
-        let other_to_self = var_bind(other, self, move |value, self_| {
-            let update_id = VARS.update_id();
-            let (sto_id, _) = last_update.load(Relaxed);
-            if update_id != sto_id {
-                // self_to_other did not cause this assign.
-                last_update.store((sto_id, update_id), Relaxed);
+        let self_to_other = var_bind(self, other, move |value, args, other| {
+            if args.downcast_tags::<BindFilderMapBidiTag>().next().is_none() {
+                if let Some(value) = map(value) {
+                    let _ = other.modify(move |vm| {
+                        vm.set(value);
+                        vm.push_tag(BindFilderMapBidiTag);
+                    });
+                }
+            }
+        });
+
+        let other_to_self = var_bind(other, self, move |value, args, self_| {
+            if args.downcast_tags::<BindFilderMapBidiTag>().next().is_none() {
                 if let Some(value) = map_back(value) {
-                    let _ = self_.set(value);
+                    let _ = self_.modify(move |vm| {
+                        vm.set(value);
+                        vm.push_tag(BindFilderMapBidiTag);
+                    });
                 }
             }
         });
@@ -1989,7 +1979,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
             let easing_fn = easing_fn.clone();
             let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |value, easing_var| {
+            var_bind(&source, &easing_var, move |value, _, easing_var| {
                 let easing_fn = easing_fn.clone();
                 _anim_handle = easing_var.ease(value.clone(), duration, move |t| easing_fn(t));
             })
@@ -2015,7 +2005,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let easing_fn = easing_fn.clone();
 
             let mut _anim_handle = animation::AnimationHandle::dummy();
-            var_bind(&source, &easing_var, move |value, easing_var| {
+            var_bind(&source, &easing_var, move |value, _, easing_var| {
                 let easing_fn = easing_fn.clone();
                 _anim_handle = easing_var.ease_ne(value.clone(), duration, move |t| easing_fn(t));
             })
@@ -2210,7 +2200,7 @@ fn var_subscribe_when<T: VarValue>(
 fn var_bind<I, O, V>(
     input: &impl Var<I>,
     output: &V,
-    update_output: impl FnMut(&I, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
+    update_output: impl FnMut(&I, &VarHookArgs, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static,
 ) -> VarHandle
 where
     I: VarValue,
@@ -2224,7 +2214,11 @@ where
     }
 }
 
-fn var_bind_ok<I, O, W>(input: &impl Var<I>, wk_output: W, update_output: impl FnMut(&I, W::Upgrade) + Send + 'static) -> VarHandle
+fn var_bind_ok<I, O, W>(
+    input: &impl Var<I>,
+    wk_output: W,
+    update_output: impl FnMut(&I, &VarHookArgs, W::Upgrade) + Send + 'static,
+) -> VarHandle
 where
     I: VarValue,
     O: VarValue,
@@ -2235,7 +2229,7 @@ where
         if let Some(output) = wk_output.upgrade() {
             if output.capabilities().contains(VarCapabilities::MODIFY) {
                 if let Some(value) = args.downcast_value::<I>() {
-                    update_output.lock()(value, output);
+                    update_output.lock()(value, args, output);
                 }
             }
             true

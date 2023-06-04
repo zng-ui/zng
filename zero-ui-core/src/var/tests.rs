@@ -440,37 +440,6 @@ mod bindings {
 
         assert_eq!(20, a.get());
         assert_eq!(20, b.get());
-
-        /*
-
-        ---- var::tests::bindings::binding_bidi_set_both stdout ----
-        !!: a -> b 10, VarUpdateId(4) != VarUpdateId(0)
-        !!: a <- b 20, VarUpdateId(4) != VarUpdateId(4)
-        !!: a <- b 10, VarUpdateId(4) != VarUpdateId(4)
-
-        * How to detect assign is not from binding?
-            - Can we have our own update-id counter?
-                - Does not help.
-            - We need to send a tag with the modify request.
-                - Similar with the `WATCHER.annotate`.
-                - `VARS.annotate`?
-                - The note is some kind of var ID.
-                    - Together with the VarUpdateId we can then stop that useless set-back and still detect external.
-                - Notes available in hook.
-                    - Propagate to all watchers.
-                - Perf issues?
-                    - in `WATCHER` we don't care cause its tied to IO operations.
-                    - var operations are a different performance profile.
-                - Multi-thread issues?
-                    - in `WATCHER` the events are always async, but from a single source.
-                    - Vars can be set from any thread.
-            - We need a tag in modify.
-                - `Var::modify_tagged`
-                - Or change the modify input.
-                    - We really needed a custom type here anyway, just in case.
-                    - If that was implemented this whould have been easier.
-
-        */
     }
 }
 

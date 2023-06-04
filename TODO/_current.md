@@ -43,13 +43,16 @@
 
 # Config
 
-* Test reset.
-    - Not working, see `fallback_reset` and `binding_bidi_set_both`.
-    - FallbackConfig loses connection with sources?
-        - No amount of updates gets the value, so probably.
-    - Sometimes the test works, but due to the fallback loading faster.
-    - Review `FallbackConfig::get_raw`.
 * Implement ability to reset single config.
     - VSCode settings page can do this.
     - Config visitor?
         - And a method in `FallbackConfig`.
+
+# View API
+
+* Custom capabilities.
+    - View implementers can return a list of capability identifiers (strings).
+    - API for (capability, payload) -> return_payload.
+    - Review test respawn, could be named capability?
+* Custom payloads in frames.
+    - For extended render capabilities.
