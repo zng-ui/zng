@@ -1423,6 +1423,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
                 let (_, ots_id) = last_update.load(Relaxed);
                 if update_id != ots_id {
                     // other_to_self did not cause this assign, propagate.
+                    last_update.store((update_id, ots_id), Relaxed);
                     if let Some(value) = map(value) {
                         let _ = other.set(value);
                     }

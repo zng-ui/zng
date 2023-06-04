@@ -415,6 +415,33 @@ mod bindings {
         assert_eq!(1, a.strong_count());
         assert_eq!(1, b.strong_count());
     }
+
+    #[test]
+    fn binding_bidi_set_both() {
+        let mut app = App::minimal().run_headless(false);
+        {
+            // behavior of double assign in same update cycle
+            let a = var(1);
+            a.set(10);
+            a.set(20);
+
+            app.update(false).assert_wait();
+
+            assert_eq!(20, a.get());
+        }
+
+        let a = var(1);
+        let b = var(1);
+
+        a.bind_bidi(&b);
+
+        a.set(10);
+        b.set(20);
+        app.update(false).assert_wait();
+
+        assert_eq!(20, a.get());
+        assert_eq!(20, b.get());
+    }
 }
 
 mod context {

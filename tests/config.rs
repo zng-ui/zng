@@ -390,7 +390,6 @@ fn fallback_reset() {
     if status != ConfigStatus::Loaded {
         panic!("{status}");
     }
-
     assert_eq!("fallback", key.get());
 }
 
