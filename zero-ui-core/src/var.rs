@@ -1497,26 +1497,26 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         M: FnMut(&T) -> T2 + Send + 'static,
         B: FnMut(&T2) -> T + Send + 'static,
     {
-        // used to stop an extra "map_back" caused by "map" itself
-        #[derive(Debug, Clone)]
-        struct BindMapBidiTag;
+        let binding_tag = BindMapBidiTag::new_unique();
 
         let self_to_other = var_bind(self, other, move |value, args, other| {
-            if args.downcast_tags::<BindMapBidiTag>().next().is_none() {
+            let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
+            if !is_from_other {
                 let value = map(value);
                 let _ = other.modify(move |vm| {
                     vm.set(value);
-                    vm.push_tag(BindMapBidiTag);
+                    vm.push_tag(binding_tag);
                 });
             }
         });
 
         let other_to_self = var_bind(other, self, move |value, args, self_| {
-            if args.downcast_tags::<BindMapBidiTag>().next().is_none() {
+            let is_from_self = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
+            if !is_from_self {
                 let value = map_back(value);
                 let _ = self_.modify(move |vm| {
                     vm.set(value);
-                    vm.push_tag(BindMapBidiTag);
+                    vm.push_tag(binding_tag);
                 });
             }
         });
@@ -1538,27 +1538,27 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         M: FnMut(&T) -> Option<T2> + Send + 'static,
         B: FnMut(&T2) -> Option<T> + Send + 'static,
     {
-        // used to stop an extra "map_back" caused by "map" itself
-        #[derive(Debug, Clone)]
-        struct BindFilderMapBidiTag;
+        let binding_tag = BindMapBidiTag::new_unique();
 
         let self_to_other = var_bind(self, other, move |value, args, other| {
-            if args.downcast_tags::<BindFilderMapBidiTag>().next().is_none() {
+            let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
+            if !is_from_other {
                 if let Some(value) = map(value) {
                     let _ = other.modify(move |vm| {
                         vm.set(value);
-                        vm.push_tag(BindFilderMapBidiTag);
+                        vm.push_tag(binding_tag);
                     });
                 }
             }
         });
 
         let other_to_self = var_bind(other, self, move |value, args, self_| {
-            if args.downcast_tags::<BindFilderMapBidiTag>().next().is_none() {
+            let is_from_self = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
+            if !is_from_self {
                 if let Some(value) = map_back(value) {
                     let _ = self_.modify(move |vm| {
                         vm.set(value);
-                        vm.push_tag(BindFilderMapBidiTag);
+                        vm.push_tag(binding_tag);
                     });
                 }
             }
@@ -2274,4 +2274,10 @@ where
         }
         true
     }))
+}
+
+unique_id_32! {
+    /// Used to stop an extra "map_back" caused by "map" itself
+    #[derive(Debug)]
+    struct BindMapBidiTag;
 }
