@@ -173,7 +173,7 @@ pub fn multi_click_config() -> MultiClickConfig {
 pub fn animations_config() -> AnimationsConfig {
     use std::time::Duration;
     use windows_sys::Win32::Foundation::GetLastError;
-    use windows_sys::Win32::System::WindowsProgramming::INFINITE;
+    use windows_sys::Win32::System::Threading::INFINITE;
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
     let enabled = unsafe {

@@ -418,7 +418,13 @@ impl HeadedCtrl {
 
             if let Some(dbg) = self.vars.renderer_debug().get_new() {
                 if let Some(view) = &self.window {
-                    let _ = view.renderer().set_debug(dbg);
+                    if let Ok(ext) = VIEW_PROCESS.extensions() {
+                        if let Some(key) = ext.key(&ApiExtensionName::new("zero-ui-view.set_webrender_debug").unwrap()) {
+                            let _ = view.renderer().extension::<_, ()>(key, dbg);
+                        } else {
+                            tracing::error!(r#"extension "zero-ui-view.set_webrender_debug" unavailable"#)
+                        }
+                    }
                 }
             }
         }
@@ -1080,7 +1086,13 @@ impl HeadlessWithRendererCtrl {
         }
         if let Some(dbg) = self.vars.renderer_debug().get_new() {
             if let Some(view) = &self.surface {
-                let _ = view.renderer().set_debug(dbg);
+                if let Ok(ext) = VIEW_PROCESS.extensions() {
+                    if let Some(key) = ext.key(&ApiExtensionName::new("zero-ui-view.set_webrender_debug").unwrap()) {
+                        let _ = view.renderer().extension::<_, ()>(key, dbg);
+                    } else {
+                        tracing::error!(r#"extension "zero-ui-view.set_webrender_debug" unavailable"#)
+                    }
+                }
             }
         }
 
@@ -1729,6 +1741,7 @@ impl ContentCtrl {
                     floats: update.floats,
                     colors: update.colors,
                     clear_color: update.clear_color,
+                    extensions: update.extensions,
                     capture_image,
                     wait_id,
                 });

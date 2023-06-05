@@ -24,7 +24,7 @@ pub use zero_ui_view_api::{
 };
 use zero_ui_view_api::{
     webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, MixBlendMode, SpatialTreeItemKey},
-    DisplayList, ReuseStart,
+    DisplayList, ExtensionPayload, ReuseStart,
 };
 
 /// A text font.
@@ -1685,6 +1685,8 @@ pub struct FrameUpdate {
     floats: Vec<FrameValueUpdate<f32>>,
     colors: Vec<FrameValueUpdate<RenderColor>>,
 
+    extensions: Vec<(usize, ExtensionPayload)>,
+
     current_clear_color: RenderColor,
     clear_color: Option<RenderColor>,
     frame_id: FrameId,
@@ -1733,6 +1735,7 @@ impl FrameUpdate {
             transforms: vec![],
             floats: vec![],
             colors: vec![],
+            extensions: vec![],
             clear_color: None,
             frame_id,
             current_clear_color: clear_color,
@@ -2096,6 +2099,7 @@ impl FrameUpdate {
             transforms: vec![],
             floats: vec![],
             colors: vec![],
+            extensions: vec![],
             clear_color: None,
 
             widget_id: self.widget_id,
@@ -2130,6 +2134,7 @@ impl FrameUpdate {
         take_or_append(&mut self.transforms, &mut split.transforms);
         take_or_append(&mut self.floats, &mut split.floats);
         take_or_append(&mut self.colors, &mut split.colors);
+        take_or_append(&mut self.extensions, &mut split.extensions);
 
         if let Some(c) = self.clear_color.take() {
             self.clear_color = Some(c);
@@ -2151,6 +2156,7 @@ impl FrameUpdate {
             transforms: self.transforms,
             floats: self.floats,
             colors: self.colors,
+            extensions: self.extensions,
         }
     }
 }
@@ -2165,6 +2171,8 @@ pub struct BuiltFrameUpdate {
     pub colors: Vec<FrameValueUpdate<RenderColor>>,
     /// New clear color.
     pub clear_color: Option<RenderColor>,
+    /// Renderer extension updates.
+    pub extensions: Vec<(usize, ExtensionPayload)>,
 }
 
 unique_id_32! {

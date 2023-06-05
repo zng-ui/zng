@@ -7,10 +7,10 @@ use std::{
 };
 
 pub use zero_ui_view_api::{
-    self, bytes_channel, AnimationsConfig, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest,
-    FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
-    IpcBytesSender, LocaleConfig, MonitorInfo, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState,
-    WindowStateAll,
+    self, bytes_channel, AnimationsConfig, ApiExtensionName, ApiExtensionNameError, ApiExtensionRecvError, ApiExtensions, ColorScheme,
+    CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
+    ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig, MonitorInfo,
+    RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
 };
 
 use crate::{
@@ -28,7 +28,8 @@ use zero_ui_view_api::{
     webrender_api::{
         FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
     },
-    Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
+    Controller, DeviceId as ApiDeviceId, ExtensionPayload, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId,
+    WindowId as ApiWindowId,
 };
 
 use super::{App, AppId};
@@ -197,10 +198,25 @@ impl VIEW_PROCESS {
         self.write().process.respawn()
     }
 
-    /// Causes a panic in the view-process to test respawn.
-    #[cfg(debug_assertions)]
-    pub fn crash_view_process(&self) {
-        self.write().process.crash().unwrap();
+    /// API extensions implemented by the view-process.
+    pub fn extensions(&self) -> Result<ApiExtensions> {
+        self.write().process.extensions()
+    }
+
+    /// Call an extension with custom encoded payload.
+    pub fn extension_raw(&self, extension_key: usize, extension_request: ExtensionPayload) -> Result<ExtensionPayload> {
+        self.write().process.extension(extension_key, extension_request)
+    }
+
+    /// Call an extension with payload `request`.
+    pub fn extension<I, O>(&self, extension_key: usize, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
+    where
+        I: serde::Serialize,
+        O: serde::de::DeserializeOwned,
+    {
+        let payload = ExtensionPayload::serialize(&request).unwrap();
+        let response = self.write().process.extension(extension_key, payload)?;
+        Ok(response.deserialize::<O>())
     }
 
     /// Handle an [`Event::Disconnected`].
@@ -389,13 +405,13 @@ impl VIEW_PROCESS {
         i.map(|i| ViewImage(app.frame_images.swap_remove(i).upgrade().unwrap()))
     }
 
-    pub(super) fn on_image_encoded(&self, id: ImageId, format: String, data: Vec<u8>) {
-        self.on_image_encode_result(id, format, Ok(Arc::new(data)));
+    pub(super) fn on_image_encoded(&self, id: ImageId, format: String, data: IpcBytes) {
+        self.on_image_encode_result(id, format, Ok(data));
     }
     pub(super) fn on_image_encode_error(&self, id: ImageId, format: String, error: String) {
         self.on_image_encode_result(id, format, Err(EncodeError::Encode(error)));
     }
-    fn on_image_encode_result(&self, id: ImageId, format: String, result: std::result::Result<Arc<Vec<u8>>, EncodeError>) {
+    fn on_image_encode_result(&self, id: ImageId, format: String, result: std::result::Result<IpcBytes, EncodeError>) {
         let mut app = self.write();
         app.encoding_images.retain(move |r| {
             let done = r.image_id == id && r.format == format;
@@ -628,6 +644,19 @@ impl ViewWindow {
         self.0.call(|id, p| p.set_focus_indicator(id, indicator))
     }
 
+    /// Call an extension with payload `(view_window_id, request)`.
+    pub fn extension<I, O>(&self, extension_key: usize, request: I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
+    where
+        I: serde::Serialize,
+        O: serde::de::DeserializeOwned,
+    {
+        self.0.call(|id, p| {
+            let payload = ExtensionPayload::serialize(&(id, request)).unwrap();
+            let response = p.extension(extension_key, payload)?;
+            Ok(response.deserialize::<O>())
+        })
+    }
+
     /// Drop `self`.
     pub fn close(self) {
         drop(self)
@@ -848,10 +877,18 @@ impl ViewRenderer {
         }
     }
 
-    /// Set the renderer debug flags and UI.
-    pub fn set_debug(&self, dbg: crate::render::RendererDebug) -> Result<()> {
+    /// Call an extension with payload `(view_window_id, request)`.
+    pub fn extension<I, O>(&self, extension_key: usize, request: I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
+    where
+        I: serde::Serialize,
+        O: serde::de::DeserializeOwned,
+    {
         if let Some(w) = self.0.upgrade() {
-            w.call(|id, p| p.set_renderer_debug(id, dbg))
+            w.call(|id, p| {
+                let payload = ExtensionPayload::serialize(&(id, request)).unwrap();
+                let response = p.extension(extension_key, payload)?;
+                Ok(response.deserialize::<O>())
+            })
         } else {
             Err(ViewProcessOffline)
         }
@@ -1067,7 +1104,7 @@ impl ViewImage {
     /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
     ///
     /// [`image_encoders`]: View::image_encoders.
-    pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
+    pub async fn encode(&self, format: String) -> std::result::Result<IpcBytes, EncodeError> {
         self.awaiter().await;
 
         if let Some(e) = self.error() {
@@ -1163,5 +1200,5 @@ impl WeakViewImage {
 struct EncodeRequest {
     image_id: ImageId,
     format: String,
-    listeners: Vec<flume::Sender<std::result::Result<Arc<Vec<u8>>, EncodeError>>>,
+    listeners: Vec<flume::Sender<std::result::Result<IpcBytes, EncodeError>>>,
 }

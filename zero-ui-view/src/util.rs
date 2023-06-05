@@ -571,7 +571,7 @@ pub(crate) extern "system" fn minimal_wndproc(
 }
 
 #[cfg(windows)]
-pub fn get_instance_handle() -> windows_sys::Win32::Foundation::HINSTANCE {
+pub fn get_instance_handle() -> winit::platform::windows::HINSTANCE {
     // Gets the instance handle by taking the address of the
     // pseudo-variable created by the Microsoft linker:
     // https://devblogs.microsoft.com/oldnewthing/20041025-00/?p=37483

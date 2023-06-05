@@ -1024,7 +1024,7 @@ impl Window {
         self.push_resize(&mut txn);
         txn.generate_frame(frame.id.get(), frame.render_reasons());
 
-        let display_list = frame.display_list.to_webrender(&mut self.display_list_cache);
+        let display_list = frame.display_list.to_webrender(&mut (), &mut self.display_list_cache);
         txn.reset_dynamic_properties();
         txn.append_dynamic_properties(DynamicProperties {
             transforms: vec![],
@@ -1066,7 +1066,7 @@ impl Window {
 
         let frame_scope = match self
             .display_list_cache
-            .update(frame.transforms, frame.floats, frame.colors, resized)
+            .update(&mut (), frame.transforms, frame.floats, frame.colors, resized)
         {
             Ok(p) => {
                 if let Some(p) = p {

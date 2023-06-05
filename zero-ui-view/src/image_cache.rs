@@ -494,7 +494,11 @@ impl ImageCache {
                 let mut data = vec![];
                 match img.encode(fmt, &mut data) {
                     Ok(_) => {
-                        let _ = sender.send(AppEvent::Notify(Event::ImageEncoded { image: id, format, data }));
+                        let _ = sender.send(AppEvent::Notify(Event::ImageEncoded {
+                            image: id,
+                            format,
+                            data: IpcBytes::from_vec(data),
+                        }));
                     }
                     Err(e) => {
                         let error = format!("failed to encode `{id}` to `{format}`, {e}");

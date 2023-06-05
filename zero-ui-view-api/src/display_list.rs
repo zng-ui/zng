@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use webrender_api::{self as wr, PipelineId};
 
-use crate::{units::*, FrameId};
+use crate::{units::*, ExtensionPayload, FrameId};
 
 /// Represents a builder for display items that will be rendered in the view process.
 #[derive(Debug)]
@@ -341,6 +341,31 @@ impl DisplayListBuilder {
         })
     }
 
+    /// Push a custom extension payload.
+    ///
+    /// This can be used by custom renderer implementations to support custom items defined in the context
+    /// of normal display items.
+    ///
+    /// There are two types of display items, normal items like [`push_color`] and context items like
+    /// [`push_clip`]-[`pop_clip`], if the extension is a normal item only the `push_extension` method must
+    /// be called, if the extension is a context item the [`pop_extension`] must also be called.
+    ///
+    /// The `extension_key` must be an index to an entry of [`Api::extensions`].
+    ///
+    /// [`push_color`]: Self::push_color
+    /// [`push_clip`]: Self::push_clip
+    /// [`pop_clip`]: Self::pop_clip
+    pub fn push_extension(&mut self, extension_key: usize, payload: ExtensionPayload) {
+        self.list.push(DisplayItem::PushExtension { extension_key, payload })
+    }
+
+    /// Pop an extension previously pushed.
+    ///
+    /// Only required if the extension implementation requires it, item extensions do not need to pop.
+    pub fn pop_extension(&mut self, extension_key: usize) {
+        self.list.push(DisplayItem::PopExtension { extension_key })
+    }
+
     /// Number of display items.
     pub fn len(&self) -> usize {
         self.list.len()
@@ -489,21 +514,21 @@ impl DisplayList {
     }
 
     /// Convert the display list to a webrender display list, including the reuse items.
-    pub fn to_webrender(self, cache: &mut DisplayListCache) -> wr::BuiltDisplayList {
+    pub fn to_webrender(self, ext: &mut impl DisplayListExtension, cache: &mut DisplayListCache) -> wr::BuiltDisplayList {
         assert_eq!(self.pipeline_id, cache.pipeline_id);
 
-        let r = Self::build(&self.list, cache);
+        let r = Self::build(&self.list, cache, ext);
         cache.insert(self);
 
         r
     }
-    fn build(list: &[DisplayItem], cache: &mut DisplayListCache) -> wr::BuiltDisplayList {
+    fn build(list: &[DisplayItem], cache: &mut DisplayListCache, ext: &mut impl DisplayListExtension) -> wr::BuiltDisplayList {
         let _s = tracing::trace_span!("DisplayList::build").entered();
 
         let (mut wr_list, mut sc) = cache.begin_wr();
 
         for item in list {
-            item.to_webrender(&mut wr_list, &mut sc, cache);
+            item.to_webrender(&mut wr_list, ext, &mut sc, cache);
         }
 
         cache.end_wr(wr_list, sc)
@@ -697,6 +722,7 @@ impl DisplayListCache {
         r
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn reuse(
         &self,
         frame_id: FrameId,
@@ -704,6 +730,7 @@ impl DisplayListCache {
         mut start: usize,
         mut end: usize,
         wr_list: &mut wr::DisplayListBuilder,
+        ext: &mut impl DisplayListExtension,
         sc: &mut SpaceAndClip,
     ) {
         if let Some(l) = self.lists.get(&frame_id) {
@@ -725,7 +752,7 @@ impl DisplayListCache {
                 &[]
             });
             for item in range {
-                item.to_webrender(wr_list, sc, self);
+                item.to_webrender(wr_list, ext, sc, self);
             }
         } else {
             tracing::error!("did not find reuse frame {frame_id:?}");
@@ -766,6 +793,7 @@ impl DisplayListCache {
     #[allow(clippy::result_large_err)] // both are large
     pub fn update(
         &mut self,
+        ext: &mut impl DisplayListExtension,
         transforms: Vec<FrameValueUpdate<PxTransform>>,
         floats: Vec<FrameValueUpdate<f32>>,
         colors: Vec<FrameValueUpdate<wr::ColorF>>,
@@ -792,7 +820,7 @@ impl DisplayListCache {
         if new_frame {
             let list = self.lists.get_mut(&self.latest_frame).expect("no frame to update");
             let list = mem::take(&mut list.list);
-            let r = DisplayList::build(&list, self);
+            let r = DisplayList::build(&list, self, ext);
             self.lists.get_mut(&self.latest_frame).unwrap().list = list;
 
             Err(r)
@@ -955,16 +983,30 @@ enum DisplayItem {
         wavy_line_thickness: f32,
         orientation: wr::LineOrientation,
     },
+
+    PushExtension {
+        extension_key: usize,
+        payload: ExtensionPayload,
+    },
+    PopExtension {
+        extension_key: usize,
+    },
 }
 impl DisplayItem {
-    fn to_webrender(&self, wr_list: &mut wr::DisplayListBuilder, sc: &mut SpaceAndClip, cache: &DisplayListCache) {
+    fn to_webrender(
+        &self,
+        wr_list: &mut wr::DisplayListBuilder,
+        ext: &mut impl DisplayListExtension,
+        sc: &mut SpaceAndClip,
+        cache: &DisplayListCache,
+    ) {
         match self {
             DisplayItem::Reuse {
                 frame_id,
                 seg_id,
                 start,
                 end,
-            } => cache.reuse(*frame_id, *seg_id, *start, *end, wr_list, sc),
+            } => cache.reuse(*frame_id, *seg_id, *start, *end, wr_list, ext, sc),
 
             DisplayItem::PushReferenceFrame {
                 key,
@@ -1227,6 +1269,10 @@ impl DisplayItem {
                     *style,
                 );
             }
+            DisplayItem::PushExtension { extension_key, payload } => {
+                ext.push(DisplayExtensionArgs::new_push(*extension_key, payload, wr_list))
+            }
+            DisplayItem::PopExtension { extension_key } => ext.pop(DisplayExtensionArgs::new_pop(*extension_key, wr_list)),
         }
     }
 
@@ -1407,3 +1453,53 @@ mod space_and_clip {
     }
 }
 use space_and_clip::SpaceAndClip;
+
+/// Arguments for [`DisplayListExtension`].
+pub struct DisplayExtensionArgs<'a> {
+    /// Extension index.
+    pub extension_key: usize,
+    /// Push payload, is empty for pop.
+    pub payload: &'a ExtensionPayload,
+    /// The webrender display list.
+    pub wr_list: &'a mut wr::DisplayListBuilder,
+}
+impl<'a> DisplayExtensionArgs<'a> {
+    /// New args for push handler.
+    pub fn new_push(extension_key: usize, payload: &'a ExtensionPayload, wr_list: &'a mut wr::DisplayListBuilder) -> Self {
+        Self {
+            extension_key,
+            payload,
+            wr_list,
+        }
+    }
+    /// New args for pop handler.
+    pub fn new_pop(extension_key: usize, wr_list: &'a mut wr::DisplayListBuilder) -> Self {
+        static POP_LAYLOAD: ExtensionPayload = ExtensionPayload::empty();
+        Self {
+            extension_key,
+            payload: &POP_LAYLOAD,
+            wr_list,
+        }
+    }
+}
+
+/// Handler for display list extension items.
+///
+/// Note that this is for extensions that still use Webrender, to generate normal
+/// Webrender items or *blobs* that are Webrender's own extension mechanism.
+/// Custom renderers can just inspect the display list directly.
+///
+/// This trait is implemented for `()` for view implementations that don't provide any extension.
+pub trait DisplayListExtension {
+    /// Handle extension push.
+    fn push(&mut self, args: DisplayExtensionArgs);
+    /// Handle extension pop.
+    fn pop(&mut self, args: DisplayExtensionArgs) {
+        let _ = args;
+    }
+}
+impl DisplayListExtension for () {
+    fn push(&mut self, args: DisplayExtensionArgs) {
+        let _ = args;
+    }
+}

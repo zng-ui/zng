@@ -3,6 +3,7 @@ use crate::DisplayList;
 use crate::FrameValueUpdate;
 use crate::IpcBytes;
 use serde::{Deserialize, Serialize};
+use std::ops;
 use std::time::Duration;
 use std::{fmt, path::PathBuf};
 use webrender_api::*;
@@ -959,7 +960,7 @@ pub enum Event {
         /// The format of the encoded data.
         format: String,
         /// The encoded image data.
-        data: Vec<u8>,
+        data: IpcBytes,
     },
     /// An image failed to encode.
     ImageEncodeError {
@@ -1464,6 +1465,9 @@ pub struct FrameUpdateRequest {
     /// Bound colors.
     pub colors: Vec<FrameValueUpdate<ColorF>>,
 
+    /// Render update extension key and payload.
+    pub extensions: Vec<(usize, ExtensionPayload)>,
+
     /// New clear color.
     pub clear_color: Option<ColorF>,
 
@@ -1483,6 +1487,7 @@ impl FrameUpdateRequest {
             transforms: vec![],
             floats: vec![],
             colors: vec![],
+            extensions: vec![],
             clear_color: None,
             capture_image: false,
             wait_id: None,
@@ -1497,7 +1502,7 @@ impl FrameUpdateRequest {
     /// If this request does not do anything, apart from notifying
     /// a new frame if send to the renderer.
     pub fn is_empty(&self) -> bool {
-        !self.has_bounds() && self.clear_color.is_none() && !self.capture_image
+        !self.has_bounds() && self.extensions.is_empty() && self.clear_color.is_none() && !self.capture_image
     }
 
     /// Compute webrender analysis info.
@@ -2178,5 +2183,256 @@ mod serde_debug_flags {
 
     pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<DebugFlags, D::Error> {
         DebugFlagsRef::deserialize(deserializer).map(Into::into)
+    }
+}
+
+/// Custom serialized data, in a format defined by the extension.
+///
+/// Note that the bytes here should represent a serialized small `struct` only, you
+/// can add an [`IpcBytes`] or [`IpcBytesReceiver`] field to this struct to transfer
+/// large payloads.
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct ExtensionPayload(#[serde(with = "serde_bytes")] pub Vec<u8>);
+impl ExtensionPayload {
+    /// Serialize the payload.
+    pub fn serialize<T: Serialize>(payload: &T) -> bincode::Result<Self> {
+        bincode::serialize(payload).map(Self)
+    }
+
+    /// Deserialize the payload.
+    pub fn deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, ApiExtensionRecvError> {
+        if let Some((key, error)) = self.parse_invalid_request() {
+            Err(ApiExtensionRecvError::InvalidRequest {
+                extension_key: if key == usize::MAX { None } else { Some(key) },
+                error: error.to_owned(),
+            })
+        } else if let Some(key) = self.parse_unknown_extension() {
+            Err(ApiExtensionRecvError::UnknownExtension {
+                extension_key: if key == usize::MAX { None } else { Some(key) },
+            })
+        } else {
+            bincode::deserialize(&self.0).map_err(ApiExtensionRecvError::Deserialize)
+        }
+    }
+
+    /// Empty payload.
+    pub const fn empty() -> Self {
+        Self(vec![])
+    }
+
+    /// Value returned when an invalid extension is requested.
+    ///
+    /// Value is a string `"zero-ui-view-api.unknown_extension;key={extension_key}"`.
+    pub fn unknown_extension(extension_key: usize) -> Self {
+        Self(format!("zero-ui-view-api.unknown_extension;key={extension_key}").into_bytes())
+    }
+
+    /// Value returned when an invalid request is made for a valid extension key.
+    ///
+    /// Value is a string `"zero-ui-view-api.invalid_request;key={extension_key};error={error}"`.
+    pub fn invalid_request(extension_key: usize, error: impl fmt::Display) -> Self {
+        Self(format!("zero-ui-view-api.invalid_request;key={extension_key};error={error}").into_bytes())
+    }
+
+    /// If the payload is an [`unknown_extension`] error message, returns the key.
+    ///
+    /// if the payload starts with the invalid request header and the key cannot be retrieved the
+    /// `usize::MAX` is returned as the key.
+    pub fn parse_unknown_extension(&self) -> Option<usize> {
+        let p = self.0.strip_prefix(b"zero-ui-view-api.unknown_extension;")?;
+        if let Some(p) = p.strip_prefix(b"key=") {
+            if let Ok(key_str) = std::str::from_utf8(p) {
+                if let Ok(key) = key_str.parse::<usize>() {
+                    return Some(key);
+                }
+            }
+        }
+        Some(usize::MAX)
+    }
+
+    /// If the payload is an [`invalid_request`] error message, returns the key and error.
+    ///
+    /// if the payload starts with the invalid request header and the key cannot be retrieved the
+    /// `usize::MAX` is returned as the key and the error message will mention "corrupted payload".
+    ///
+    /// [`invalid_request`]: Self::invalid_request
+    pub fn parse_invalid_request(&self) -> Option<(usize, &str)> {
+        let p = self.0.strip_prefix(b"zero-ui-view-api.invalid_request;")?;
+        if let Some(p) = p.strip_prefix(b"key=") {
+            if let Some(key_end) = p.iter().position(|&b| b == b';') {
+                if let Ok(key_str) = std::str::from_utf8(&p[..key_end]) {
+                    if let Ok(key) = key_str.parse::<usize>() {
+                        if let Some(p) = p[key_end..].strip_prefix(b";error=") {
+                            if let Ok(err_str) = std::str::from_utf8(p) {
+                                return Some((key, err_str));
+                            }
+                        }
+                        return Some((key, "invalid request, corrupted payload, unknown error"));
+                    }
+                }
+            }
+        }
+        Some((usize::MAX, "invalid request, corrupted payload, unknown extension_key and error"))
+    }
+}
+impl fmt::Debug for ExtensionPayload {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ExtensionPayload({} bytes)", self.0.len())
+    }
+}
+
+/// Identifies an API extension and version.
+///
+/// Note that the version is part of the name, usually in the pattern "crate-name.extension.v2",
+/// there are no minor versions, all different versions are considered breaking changes and
+/// must be announced and supported by exact match only. You can still communicate non-breaking changes
+/// by using the extension payload
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct ApiExtensionName {
+    name: String,
+}
+impl ApiExtensionName {
+    /// New from unique name.
+    ///
+    /// The name must contain at least 1 characters, and match the pattern `[a-zA-Z][a-zA-Z0-9-_.]`.
+    pub fn new(name: impl Into<String>) -> Result<Self, ApiExtensionNameError> {
+        let name = name.into();
+        Self::new_impl(name)
+    }
+    fn new_impl(name: String) -> Result<ApiExtensionName, ApiExtensionNameError> {
+        if name.is_empty() {
+            return Err(ApiExtensionNameError::NameCannotBeEmpty);
+        }
+        for (i, c) in name.char_indices() {
+            if i == 0 {
+                if !c.is_ascii_alphabetic() {
+                    return Err(ApiExtensionNameError::NameCannotStartWithChar(c));
+                }
+            } else if !c.is_ascii_alphanumeric() && c != '_' && c != '-' && c != '.' {
+                return Err(ApiExtensionNameError::NameInvalidChar(c));
+            }
+        }
+
+        Ok(Self { name })
+    }
+}
+impl fmt::Debug for ApiExtensionName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.name, f)
+    }
+}
+impl fmt::Display for ApiExtensionName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.name, f)
+    }
+}
+impl ops::Deref for ApiExtensionName {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.name.as_str()
+    }
+}
+
+/// API extension invalid name.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum ApiExtensionNameError {
+    /// Name cannot empty `""`.
+    NameCannotBeEmpty,
+    /// Name can only start with ASCII alphabetic chars `[a-zA-Z]`.
+    NameCannotStartWithChar(char),
+    /// Name can only contains `[a-zA-Z0-9-_.]`.
+    NameInvalidChar(char),
+}
+impl fmt::Display for ApiExtensionNameError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ApiExtensionNameError::NameCannotBeEmpty => write!(f, "API extension name cannot be empty"),
+            ApiExtensionNameError::NameCannotStartWithChar(c) => {
+                write!(f, "API cannot start with '{c}', name pattern `[a-zA-Z][a-zA-Z0-9-_.]`")
+            }
+            ApiExtensionNameError::NameInvalidChar(c) => write!(f, "API cannot contain '{c}', name pattern `[a-zA-Z][a-zA-Z0-9-_.]`"),
+        }
+    }
+}
+impl std::error::Error for ApiExtensionNameError {}
+
+/// List of available API extensions.
+#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ApiExtensions(Vec<ApiExtensionName>);
+impl ops::Deref for ApiExtensions {
+    type Target = [ApiExtensionName];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ApiExtensions {
+    /// New Empty.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Gets the position of the `ext` in the list of available extensions. This index
+    /// identifies the API extension in the [`Api::extension`].
+    ///
+    /// The key can be cached only for the duration of the view process, each view re-instantiation
+    /// must query for the presence of the API extension again, and it may change position on the list.
+    pub fn key(&self, ext: &ApiExtensionName) -> Option<usize> {
+        self.0.iter().position(|e| e == ext)
+    }
+
+    /// Push the `ext` to the list, if it is not already inserted.
+    ///
+    /// Returns `true` if the extension was inserted.
+    pub fn insert(&mut self, ext: ApiExtensionName) -> bool {
+        let insert = !self.contains(&ext);
+        if insert {
+            self.0.push(ext);
+        }
+        insert
+    }
+}
+
+/// Error in the response of an API extension call.
+#[derive(Debug)]
+pub enum ApiExtensionRecvError {
+    /// Requested extension was not in the list of extensions.
+    UnknownExtension {
+        /// Extension that was requested.
+        ///
+        /// Is `None` only if error message is corrupted.
+        extension_key: Option<usize>,
+    },
+    /// Invalid request format.
+    InvalidRequest {
+        /// Extension that was requested.
+        ///
+        /// Is `None` only if error message is corrupted.
+        extension_key: Option<usize>,
+        /// Message from the view-process.
+        error: String,
+    },
+    /// Failed to deserialize to the expected response type.
+    Deserialize(bincode::Error),
+}
+impl fmt::Display for ApiExtensionRecvError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ApiExtensionRecvError::UnknownExtension { extension_key } => write!(f, "invalid API request for unknown key {extension_key:?}"),
+            ApiExtensionRecvError::InvalidRequest { extension_key, error } => {
+                write!(f, "invalid API request for extension key {extension_key:?}, {error}")
+            }
+            ApiExtensionRecvError::Deserialize(e) => write!(f, "API extension response failed to deserialize, {e}"),
+        }
+    }
+}
+impl std::error::Error for ApiExtensionRecvError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if let Self::Deserialize(e) = self {
+            Some(e)
+        } else {
+            None
+        }
     }
 }

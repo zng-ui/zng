@@ -1,3 +1,11 @@
+# zero-ui-view
+
+* Implement renderer extension.
+    - Allow registering in view-process.
+    - Test it.
+        - Custom render item.
+        - Custom render update.
+
 # TextInput
 
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
@@ -49,16 +57,3 @@
         - It uses the new modify tags to map from the key var to a bool?
     - Implement `FallbackConfigRef`, to work like the `EditableUiNodeList`.
         - Implement `FallbackConfigRef::reset(ConfigKey)`.
-
-# View API
-
-* Custom capabilities.
-    - View implementers can return a list of capability identifiers (strings).
-    - API for (capability, payload) -> return_payload.
-    - Review test respawn, could be named capability?
-    - Use the term extensions.
-    - `extensions(&self) -> HashSet<String>`.
-    - `call_extension(&self, id: &str, payload: Vec<u8>) -> Vec<u8>`.
-    - Payload can be 
-* Custom payloads in frames.
-    - For extended render capabilities.

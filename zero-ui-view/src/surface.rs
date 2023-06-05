@@ -227,7 +227,7 @@ impl Surface {
             colors: vec![],
         });
 
-        let display_list = frame.display_list.to_webrender(&mut self.display_list_cache);
+        let display_list = frame.display_list.to_webrender(&mut (), &mut self.display_list_cache);
 
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
         self.clear_color = Some(frame.clear_color);
@@ -267,7 +267,7 @@ impl Surface {
 
         let frame_scope = match self
             .display_list_cache
-            .update(frame.transforms, frame.floats, frame.colors, resized)
+            .update(&mut (), frame.transforms, frame.floats, frame.colors, resized)
         {
             Ok(p) => {
                 if let Some(p) = p {

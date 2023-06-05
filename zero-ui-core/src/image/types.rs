@@ -250,7 +250,7 @@ impl Img {
     }
 
     /// Encode the image to the format.
-    pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
+    pub async fn encode(&self, format: String) -> std::result::Result<zero_ui_view_api::IpcBytes, EncodeError> {
         self.done_signal.clone().await;
         if let Some(e) = self.error() {
             Err(EncodeError::Encode(e.into()))

@@ -450,12 +450,34 @@ declare_api! {
     /// Update the current frame and re-render it.
     pub fn render_update(&mut self, id: WindowId, frame: FrameUpdateRequest);
 
-    /// Update the webrender debug flags and profiler UI.
-    pub fn set_renderer_debug(&mut self, id: WindowId, dbg: RendererDebug);
+    /// API extensions available in this process instance.
+    ///
+    /// The extensions do not change for the duration of the view process.
+    ///
+    /// Note that this represents both command extensions, and display item extensions. Command
+    /// extensions are called using [`Api::extension`], display item extensions are inserted using
+    /// [`DisplayListBuilder::push_extension`].
+    pub fn extensions(&mut self) -> ApiExtensions;
 
-    /// Used for testing respawn.
-    #[cfg(debug_assertions)]
-    pub fn crash(&mut self);
+    /// Call the API extension.
+    ///
+    /// The `extension_key` is the index of an extension in the [`Api::extensions`] list.
+    /// The `extension_request` is any data required by the extension.
+    ///
+    /// Returns the extension response or [`ExtensionPayload::unknown_extension`] if the `extension_key` is
+    /// not on the list, or [`ExtensionPayload::invalid_request`] if the `extension_request` is not in a
+    /// format expected by the extension.
+    pub fn extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload;
+
 }
+
+/*
+   /// Update the webrender debug flags and profiler UI.
+   pub fn set_renderer_debug(&mut self, id: WindowId, dbg: RendererDebug);
+
+   /// Used for testing respawn.
+   #[cfg(debug_assertions)]
+   pub fn crash(&mut self);
+*/
 
 pub(crate) type AnyResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
