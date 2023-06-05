@@ -158,16 +158,16 @@ impl<T: VarValue> ResponseVar<T> {
     /// [`is_done`]: Self::is_done
     pub fn on_pre_rsp<H>(&self, mut handler: H) -> VarHandle
     where
-        H: AppHandler<T>,
+        H: AppHandler<OnVarArgs<T>>,
     {
         if self.is_done() {
             return VarHandle::dummy();
         }
 
-        self.on_pre_new(app_hn!(|args, handler_args| {
-            if let Response::Done(value) = args {
+        self.on_pre_new(app_hn!(|args: &OnVarArgs<Response<T>>, handler_args| {
+            if let Response::Done(value) = &args.value {
                 handler.event(
-                    value,
+                    &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
                     &crate::handler::AppHandlerArgs {
                         handle: handler_args,
                         is_preview: true,
@@ -186,16 +186,16 @@ impl<T: VarValue> ResponseVar<T> {
     /// [`is_done`]: Self::is_done
     pub fn on_rsp<H>(&self, mut handler: H) -> VarHandle
     where
-        H: AppHandler<T>,
+        H: AppHandler<OnVarArgs<T>>,
     {
         if self.is_done() {
             return VarHandle::dummy();
         }
 
-        self.on_new(app_hn!(|args, handler_args| {
-            if let Response::Done(value) = args {
+        self.on_new(app_hn!(|args: &OnVarArgs<Response<T>>, handler_args| {
+            if let Response::Done(value) = &args.value {
                 handler.event(
-                    value,
+                    &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
                     &crate::handler::AppHandlerArgs {
                         handle: handler_args,
                         is_preview: false,

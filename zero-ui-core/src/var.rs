@@ -982,6 +982,33 @@ impl<'a> VarHookArgs<'a> {
     }
 }
 
+/// Arguments for a var event handler.
+pub struct OnVarArgs<T: VarValue> {
+    /// The new value.
+    pub value: T,
+    /// Custom tag objects that where set when the value was modified.
+    pub tags: Vec<Box<dyn AnyVarValue>>,
+}
+impl<T: VarValue> OnVarArgs<T> {
+    /// New from value and custom modify tags.
+    pub fn new(value: T, tags: Vec<Box<dyn AnyVarValue>>) -> Self {
+        Self { value, tags }
+    }
+
+    /// Reference all custom tag values of type `T`.
+    pub fn downcast_tags<Ta: VarValue>(&self) -> impl Iterator<Item = &Ta> + '_ {
+        self.tags.iter().filter_map(|t| (*t).as_any().downcast_ref::<Ta>())
+    }
+}
+impl<T: VarValue> Clone for OnVarArgs<T> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            tags: self.tags.iter().map(|t| (*t).clone_boxed()).collect(),
+        }
+    }
+}
+
 /// Represents an observable value.
 ///
 /// All variable types can be read, some can update, variables update only in between app updates so
@@ -1626,7 +1653,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] read inside read the default value.
     fn on_pre_new<H>(&self, handler: H) -> VarHandle
     where
-        H: AppHandler<T>,
+        H: AppHandler<OnVarArgs<T>>,
     {
         var_on_new(self, handler, true)
     }
@@ -1637,7 +1664,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] read inside read the default value.
     fn on_new<H>(&self, handler: H) -> VarHandle
     where
-        H: AppHandler<T>,
+        H: AppHandler<OnVarArgs<T>>,
     {
         var_on_new(self, handler, false)
     }
@@ -1667,8 +1694,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// # macro_rules! info_span { ($($tt:tt)*) => { Fake }; }
     /// # mod tracing {  pub use crate::info_span; }
     /// # fn trace_var<T: VarValue>(var: &impl Var<T>) {
-    /// var.trace_value(|value| {
-    ///     tracing::info_span!("my_var", ?value, track = "<vars>").entered()
+    /// var.trace_value(|a| {
+    ///     tracing::info_span!("my_var", ?a.value, track = "<vars>").entered()
     /// }).perm();
     /// # }
     /// ```
@@ -1678,7 +1705,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// ```
     /// # use zero_ui_core::var::*;
     /// # fn trace_var(var: &impl Var<u32>) {
-    /// var.trace_value(|v| println!("value: {v:?}")).perm();
+    /// var.trace_value(|a| println!("value: {:?}", a.value)).perm();
     /// # }
     /// ```
     ///
@@ -1686,13 +1713,13 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// [`actual_var`]: Var::actual_var
     fn trace_value<E, S>(&self, mut enter_value: E) -> VarHandle
     where
-        E: FnMut(&T) -> S + Send + 'static,
+        E: FnMut(&OnVarArgs<T>) -> S + Send + 'static,
         S: Send + 'static,
     {
-        let mut span = Some(self.with(&mut enter_value));
-        self.on_pre_new(app_hn!(|value, _| {
+        let mut span = Some(enter_value(&OnVarArgs::new(self.get(), vec![])));
+        self.on_pre_new(app_hn!(|args, _| {
             let _ = span.take();
-            span = Some(enter_value(value));
+            span = Some(enter_value(args));
         }))
     }
 
@@ -2239,7 +2266,7 @@ where
     }))
 }
 
-fn var_on_new<T>(var: &impl Var<T>, handler: impl AppHandler<T>, is_preview: bool) -> VarHandle
+fn var_on_new<T>(var: &impl Var<T>, handler: impl AppHandler<OnVarArgs<T>>, is_preview: bool) -> VarHandle
 where
     T: VarValue,
 {
@@ -2256,9 +2283,11 @@ where
 
         if let Some(value) = args.downcast_value::<T>() {
             let handle = inner_handle.downgrade();
+            let value = value.clone();
+            let tags = args.tags().iter().map(|t| (*t).clone_boxed()).collect();
             let update_once = app_hn_once!(handler, value, |_| {
                 handler.lock().event(
-                    &value,
+                    &OnVarArgs::new(value, tags),
                     &AppHandlerArgs {
                         handle: &handle,
                         is_preview,

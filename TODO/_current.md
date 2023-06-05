@@ -1,8 +1,3 @@
-# Var Tag
-
-* Expose tags in other var handlers.
-* Fix bind-bidi by using a tag to identify and cut cycles.
-
 # TextInput
 
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
@@ -44,9 +39,16 @@
 # Config
 
 * Implement ability to reset single config.
-    - VSCode settings page can do this.
-    - Config visitor?
-        - And a method in `FallbackConfig`.
+    - We want to support a Settings screen.
+    - So a reset command and a way to indicate to the user that the value is not default.
+
+    - Implement `AnyConfig::remove(&ConfigKey)`.
+    - Implement `FallbackConfig::reset(&ConfigKey)`.
+        - It sets the variable back to fallback and removes the entry in the top config.
+    - Implement `FallbackConfig::is_fallback(&ConfigKey) -> ReadOnlyArcVar<bool>`.
+        - It uses the new modify tags to map from the key var to a bool?
+    - Implement `FallbackConfigRef`, to work like the `EditableUiNodeList`.
+        - Implement `FallbackConfigRef::reset(ConfigKey)`.
 
 # View API
 
@@ -54,5 +56,9 @@
     - View implementers can return a list of capability identifiers (strings).
     - API for (capability, payload) -> return_payload.
     - Review test respawn, could be named capability?
+    - Use the term extensions.
+    - `extensions(&self) -> HashSet<String>`.
+    - `call_extension(&self, id: &str, payload: Vec<u8>) -> Vec<u8>`.
+    - Payload can be 
 * Custom payloads in frames.
     - For extended render capabilities.
