@@ -1,11 +1,3 @@
-# zero-ui-view
-
-* Implement renderer extension.
-    - Allow registering in view-process.
-    - Test it.
-        - Custom render item.
-        - Custom render update.
-
 # TextInput
 
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
@@ -57,3 +49,12 @@
         - It uses the new modify tags to map from the key var to a bool?
     - Implement `FallbackConfigRef`, to work like the `EditableUiNodeList`.
         - Implement `FallbackConfigRef::reset(ConfigKey)`.
+
+# zero-ui-view
+
+* Implement window extension.
+    - Access to raw handle and ability to spawn data that lives for the duration of the window.
+* Implement renderer extension.
+    - Affect renderer creation.
+    - Integrate with display item extensions.
+    - Implement use case, webrender blob renderer.

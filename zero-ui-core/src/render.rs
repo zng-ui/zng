@@ -1353,6 +1353,18 @@ impl FrameBuilder {
             .push_radial_gradient(PxRect::new(offset, bounds), gradient, &stops, bounds, PxSize::zero());
     }
 
+    /// Push a custom display extension context, call `render` and pop the item.
+    pub fn push_extension_context(&mut self, extension_key: usize, payload: ExtensionPayload, render: impl FnOnce(&mut Self)) {
+        self.display_list.push_extension(extension_key, payload);
+        render(self);
+        self.display_list.pop_extension(extension_key);
+    }
+
+    /// Push a custom display extension item.
+    pub fn push_extension_item(&mut self, extension_key: usize, payload: ExtensionPayload) {
+        self.display_list.push_extension(extension_key, payload);
+    }
+
     /// Create a new display list builder that can be built in parallel and merged back onto this list using [`parallel_fold`].
     ///
     /// Note that split list must be folded before any open reference frames, stacking contexts or clips are closed in this list.
