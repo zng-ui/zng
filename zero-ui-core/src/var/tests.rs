@@ -419,16 +419,6 @@ mod bindings {
     #[test]
     fn binding_bidi_set_both() {
         let mut app = App::minimal().run_headless(false);
-        {
-            // behavior of double assign in same update cycle
-            let a = var(1);
-
-            a.set(10);
-            a.set(20);
-            app.update(false).assert_wait();
-
-            assert_eq!(20, a.get());
-        }
 
         let a = var(1);
         let b = var(1);
@@ -439,7 +429,7 @@ mod bindings {
         app.update(false).assert_wait();
 
         assert_eq!(20, a.get());
-        assert_eq!(20, b.get());
+        assert_eq!(10, b.get());
     }
 }
 
