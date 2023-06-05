@@ -2191,6 +2191,8 @@ mod serde_debug_flags {
 /// Note that the bytes here should represent a serialized small `struct` only, you
 /// can add an [`IpcBytes`] or [`IpcBytesReceiver`] field to this struct to transfer
 /// large payloads.
+/// 
+/// [`IpcBytesReceiver`]: crate::ipc::IpcBytesReceiver
 #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ExtensionPayload(#[serde(with = "serde_bytes")] pub Vec<u8>);
 impl ExtensionPayload {
@@ -2238,6 +2240,8 @@ impl ExtensionPayload {
     ///
     /// if the payload starts with the invalid request header and the key cannot be retrieved the
     /// `usize::MAX` is returned as the key.
+    /// 
+    /// [`unknown_extension`]: Self::unknown_extension
     pub fn parse_unknown_extension(&self) -> Option<usize> {
         let p = self.0.strip_prefix(b"zero-ui-view-api.unknown_extension;")?;
         if let Some(p) = p.strip_prefix(b"key=") {
@@ -2378,6 +2382,8 @@ impl ApiExtensions {
     ///
     /// The key can be cached only for the duration of the view process, each view re-instantiation
     /// must query for the presence of the API extension again, and it may change position on the list.
+    /// 
+    /// [`Api::extension`]: crate::Api::extension
     pub fn key(&self, ext: &ApiExtensionName) -> Option<usize> {
         self.0.iter().position(|e| e == ext)
     }

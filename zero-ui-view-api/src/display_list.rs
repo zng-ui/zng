@@ -347,14 +347,16 @@ impl DisplayListBuilder {
     /// of normal display items.
     ///
     /// There are two types of display items, normal items like [`push_color`] and context items like
-    /// [`push_clip`]-[`pop_clip`], if the extension is a normal item only the `push_extension` method must
+    /// [`push_clip_rect`]-[`pop_clip`], if the extension is a normal item only the `push_extension` method must
     /// be called, if the extension is a context item the [`pop_extension`] must also be called.
     ///
     /// The `extension_key` must be an index to an entry of [`Api::extensions`].
     ///
     /// [`push_color`]: Self::push_color
-    /// [`push_clip`]: Self::push_clip
+    /// [`push_clip_rect`]: Self::push_clip_rect
     /// [`pop_clip`]: Self::pop_clip
+    /// [`pop_extension`]: Self::pop_extension
+    /// [`Api::extensions`]: crate::Api::extensions
     pub fn push_extension(&mut self, extension_key: usize, payload: ExtensionPayload) {
         self.list.push(DisplayItem::PushExtension { extension_key, payload })
     }
@@ -514,7 +516,7 @@ impl DisplayList {
     }
 
     /// Convert the display list to a webrender display list, including the reuse items.
-    pub fn to_webrender(self, ext: &mut impl DisplayListExtension, cache: &mut DisplayListCache) -> wr::BuiltDisplayList {
+    pub fn to_webrender(self, ext: &mut dyn DisplayListExtension, cache: &mut DisplayListCache) -> wr::BuiltDisplayList {
         assert_eq!(self.pipeline_id, cache.pipeline_id);
 
         let r = Self::build(&self.list, cache, ext);
@@ -522,7 +524,7 @@ impl DisplayList {
 
         r
     }
-    fn build(list: &[DisplayItem], cache: &mut DisplayListCache, ext: &mut impl DisplayListExtension) -> wr::BuiltDisplayList {
+    fn build(list: &[DisplayItem], cache: &mut DisplayListCache, ext: &mut dyn DisplayListExtension) -> wr::BuiltDisplayList {
         let _s = tracing::trace_span!("DisplayList::build").entered();
 
         let (mut wr_list, mut sc) = cache.begin_wr();
@@ -730,7 +732,7 @@ impl DisplayListCache {
         mut start: usize,
         mut end: usize,
         wr_list: &mut wr::DisplayListBuilder,
-        ext: &mut impl DisplayListExtension,
+        ext: &mut dyn DisplayListExtension,
         sc: &mut SpaceAndClip,
     ) {
         if let Some(l) = self.lists.get(&frame_id) {
@@ -793,7 +795,7 @@ impl DisplayListCache {
     #[allow(clippy::result_large_err)] // both are large
     pub fn update(
         &mut self,
-        ext: &mut impl DisplayListExtension,
+        ext: &mut dyn DisplayListExtension,
         transforms: Vec<FrameValueUpdate<PxTransform>>,
         floats: Vec<FrameValueUpdate<f32>>,
         colors: Vec<FrameValueUpdate<wr::ColorF>>,
@@ -996,7 +998,7 @@ impl DisplayItem {
     fn to_webrender(
         &self,
         wr_list: &mut wr::DisplayListBuilder,
-        ext: &mut impl DisplayListExtension,
+        ext: &mut dyn DisplayListExtension,
         sc: &mut SpaceAndClip,
         cache: &DisplayListCache,
     ) {
