@@ -2191,7 +2191,7 @@ mod serde_debug_flags {
 /// Note that the bytes here should represent a serialized small `struct` only, you
 /// can add an [`IpcBytes`] or [`IpcBytesReceiver`] field to this struct to transfer
 /// large payloads.
-/// 
+///
 /// [`IpcBytesReceiver`]: crate::ipc::IpcBytesReceiver
 #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ExtensionPayload(#[serde(with = "serde_bytes")] pub Vec<u8>);
@@ -2240,7 +2240,7 @@ impl ExtensionPayload {
     ///
     /// if the payload starts with the invalid request header and the key cannot be retrieved the
     /// `usize::MAX` is returned as the key.
-    /// 
+    ///
     /// [`unknown_extension`]: Self::unknown_extension
     pub fn parse_unknown_extension(&self) -> Option<usize> {
         let p = self.0.strip_prefix(b"zero-ui-view-api.unknown_extension;")?;
@@ -2337,6 +2337,11 @@ impl ops::Deref for ApiExtensionName {
         self.name.as_str()
     }
 }
+impl From<&'static str> for ApiExtensionName {
+    fn from(value: &'static str) -> Self {
+        Self::new(value).unwrap()
+    }
+}
 
 /// API extension invalid name.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -2382,7 +2387,7 @@ impl ApiExtensions {
     ///
     /// The key can be cached only for the duration of the view process, each view re-instantiation
     /// must query for the presence of the API extension again, and it may change position on the list.
-    /// 
+    ///
     /// [`Api::extension`]: crate::Api::extension
     pub fn key(&self, ext: &ApiExtensionName) -> Option<usize> {
         self.0.iter().position(|e| e == ext)
@@ -2390,13 +2395,15 @@ impl ApiExtensions {
 
     /// Push the `ext` to the list, if it is not already inserted.
     ///
-    /// Returns `true` if the extension was inserted.
-    pub fn insert(&mut self, ext: ApiExtensionName) -> bool {
-        let insert = !self.contains(&ext);
-        if insert {
+    /// Returns `Ok(key)` if inserted or `Err(key)` is was already in list.
+    pub fn insert(&mut self, ext: ApiExtensionName) -> Result<usize, usize> {
+        if let Some(key) = self.key(&ext) {
+            Err(key)
+        } else {
+            let key = self.0.len();
             self.0.push(ext);
+            Ok(key)
         }
-        insert
     }
 }
 

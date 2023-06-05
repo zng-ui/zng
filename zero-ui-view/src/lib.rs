@@ -86,12 +86,15 @@
 //! The pre-built crate includes the `"software"` and `"ipc"` features, in fact `ipc` is required, even for running on the same process,
 //! you can also configure where the pre-build library is installed, see the [`zero-ui-view-prebuilt`] documentation for details.
 //!
+//! The pre-build crate does not support [`extensions`].
+//!
 //! # API Extensions
 //!
-//! This implementation of the view API provides two extensions:
+//! This implementation of the view API provides one extension:
 //!
 //! * `"zero-ui-view.set_webrender_debug"`: `(WindowId, RendererDebug) -> ()`, sets Webrender debug flags.
-//! * `"zero-ui-view.crash"`: `() -> ()`,  only available in debug builds, panics to test the respawn feature.
+//!
+//! You can also inject your own extensions, see the [`extensions`] module for more details.
 //!
 //! [`glutin`]: https://docs.rs/glutin/
 //! [`zero-ui-view-prebuilt`]: https://docs.rs/zero-ui-view-prebuilt/
@@ -101,6 +104,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use extensions::ViewExtensions;
 use gl::GlContextManager;
 use image_cache::ImageCache;
 use util::WinitToPx;
@@ -118,6 +122,8 @@ mod surface;
 mod util;
 mod window;
 use surface::*;
+
+pub mod extensions;
 
 use webrender::api::*;
 use window::Window;
@@ -165,6 +171,12 @@ use rustc_hash::FxHashMap;
 /// event signals, causing the operating system to not detect that the app is frozen.
 #[cfg(feature = "ipc")]
 pub fn init() {
+    init_extended(extensions::ViewExtensions::new)
+}
+
+/// Like [`init`] but with custom API extensions.
+#[cfg(feature = "ipc")]
+pub fn init_extended(ext: fn() -> ViewExtensions) {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("only call `init` in the main thread, this is a requirement of some operating systems");
     }
@@ -177,9 +189,9 @@ pub fn init() {
         let c = connect_view_process(config.server_name).expect("failed to connect to app-process");
 
         if config.headless {
-            App::run_headless(c);
+            App::run_headless(c, ext());
         } else {
-            App::run_headed(c);
+            App::run_headed(c, ext());
         }
     } else {
         tracing::trace!("init not in view-process");
@@ -242,6 +254,11 @@ pub extern "C" fn extern_init() {
 /// event signals, causing the operating system to not detect that the app is frozen. It is **strongly recommended**
 /// that you build with `panic=abort` or use [`std::panic::set_hook`] to detect these background panics.
 pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
+    run_same_process_extended(run_app, ViewExtensions::new)
+}
+
+/// Like [`run_same_process`] but with custom API extensions.
+pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: fn() -> ViewExtensions) {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("only call `run_same_process` in the main thread, this is a requirement of some operating systems");
     }
@@ -254,9 +271,9 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
     let c = connect_view_process(config.server_name).expect("failed to connect to app in same process");
 
     if config.headless {
-        App::run_headless(c);
+        App::run_headless(c, ext());
     } else {
-        App::run_headed(c);
+        App::run_headed(c, ext());
     }
 }
 
@@ -305,6 +322,9 @@ pub(crate) struct App {
     started: bool,
 
     headless: bool,
+
+    ext: ViewExtensions,
+    webrender_debug_ext: Option<usize>,
 
     gl_manager: GlContextManager,
     window_target: *const EventLoopWindowTarget<AppEvent>,
@@ -369,7 +389,7 @@ impl App {
         util::unregister_raw_input();
     }
 
-    pub fn run_headless(c: ViewChannels) {
+    pub fn run_headless(c: ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headless view-process");
 
         gl::warmup();
@@ -381,6 +401,7 @@ impl App {
             c.response_sender,
             c.event_sender,
             request_receiver,
+            ext,
         );
         app.headless = true;
 
@@ -455,7 +476,7 @@ impl App {
         }
     }
 
-    pub fn run_headed(c: ViewChannels) {
+    pub fn run_headed(c: ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headed view-process");
 
         gl::warmup();
@@ -471,6 +492,7 @@ impl App {
             c.response_sender,
             c.event_sender,
             request_receiver,
+            ext,
         );
         app.start_receiving(c.request_receiver);
 
@@ -562,10 +584,13 @@ impl App {
         response_sender: ResponseSender,
         event_sender: EventSender,
         request_recv: flume::Receiver<RequestEvent>,
+        ext: ViewExtensions,
     ) -> Self {
         App {
             headless: false,
             started: false,
+            ext,
+            webrender_debug_ext: None,
             gl_manager: GlContextManager::default(),
             image_cache: ImageCache::new(app_sender.clone()),
             app_sender,
@@ -1596,30 +1621,25 @@ impl Api for App {
     }
 
     fn extensions(&mut self) -> ApiExtensions {
-        let mut ext = ApiExtensions::new();
-        ext.insert(ApiExtensionName::new("zero-ui-view.set_webrender_debug").unwrap());
-
-        #[cfg(debug_assertions)]
-        ext.insert(ApiExtensionName::new("zero-ui-view.crash").unwrap());
-
-        ext
+        let mut r = self.ext.api_extensions();
+        if let Ok(k) = r.insert(ApiExtensionName::new("zero-ui-view.set_webrender_debug").unwrap()) {
+            self.webrender_debug_ext = Some(k);
+        }
+        r
     }
 
     fn extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload {
-        match extension_key {
-            0 => {
-                let (id, dbg) = match extension_request.deserialize::<(WindowId, RendererDebug)>() {
-                    Ok(p) => p,
-                    Err(e) => return ExtensionPayload::invalid_request(extension_key, &e),
-                };
-                with_window_or_surface!(self, id, |w| w.set_renderer_debug(dbg), || ());
-                ExtensionPayload::empty()
-            }
-            #[cfg(debug_assertions)]
-            1 => {
-                panic!("CRASH")
-            }
-            key => ExtensionPayload::unknown_extension(key),
+        if self.ext.contains(extension_key) {
+            self.ext.call_command(extension_key, extension_request)
+        } else if self.webrender_debug_ext == Some(extension_key) {
+            let (id, dbg) = match extension_request.deserialize::<(WindowId, RendererDebug)>() {
+                Ok(p) => p,
+                Err(e) => return ExtensionPayload::invalid_request(extension_key, &e),
+            };
+            with_window_or_surface!(self, id, |w| w.set_renderer_debug(dbg), || ());
+            ExtensionPayload::empty()
+        } else {
+            ExtensionPayload::unknown_extension(extension_key)
         }
     }
 }

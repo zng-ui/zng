@@ -1,12 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::core::app::view_process::VIEW_PROCESS;
 use zero_ui::prelude::*;
-
-// use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui_view::extensions::ViewExtensions;
 
 fn main() {
     examples_util::print_info();
-    zero_ui_view::init();
+    zero_ui_view::init_extended(test_extensions);
+
     App::default().run_window(async {
         Window! {
             title = "View-Process Respawn Example";
@@ -31,7 +31,6 @@ fn main() {
                         max_width = 620;
                     },
                     respawn(),
-                    #[cfg(debug_assertions)]
                     crash_respawn(),
                     click_counter(),
                     click_counter(),
@@ -51,13 +50,12 @@ fn respawn() -> impl UiNode {
     }
 }
 
-#[cfg(debug_assertions)]
 fn crash_respawn() -> impl UiNode {
     Button! {
         child = Text!("Crash View-Process");
         on_click = hn!(|_| {
             if let Ok(ext) = VIEW_PROCESS.extensions() {
-                let crash_ext = zero_ui::core::app::view_process::ApiExtensionName::new("zero-ui-view.crash").unwrap();
+                let crash_ext = zero_ui::core::app::view_process::ApiExtensionName::new("zero-ui.examples.respawn.crash").unwrap();
                 if let Some(key) = ext.key(&crash_ext) {
                     VIEW_PROCESS.extension::<_, ()>(key, &()).unwrap().unwrap();
                 } else {
@@ -129,4 +127,10 @@ fn icon() -> impl UiNode {
         child_align = Align::CENTER;
         child = Text!("R");
     }
+}
+
+fn test_extensions() -> ViewExtensions {
+    let mut ext = ViewExtensions::new();
+    ext.command::<(), ()>("zero-ui.examples.respawn.crash", |_| panic!("CRASH"));
+    ext
 }
