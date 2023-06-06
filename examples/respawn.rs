@@ -57,7 +57,7 @@ fn crash_respawn() -> impl UiNode {
             if let Ok(ext) = VIEW_PROCESS.extensions() {
                 let crash_ext = zero_ui::core::app::view_process::ApiExtensionName::new("zero-ui.examples.respawn.crash").unwrap();
                 if let Some(key) = ext.key(&crash_ext) {
-                    VIEW_PROCESS.app_extension::<_, ()>(key, &()).unwrap().unwrap();
+                    let _ = VIEW_PROCESS.app_extension::<_, ()>(key, &());
                 } else {
                     tracing::error!(r#"extension "zero-ui-view.crash" unavailable"#)
                 }
