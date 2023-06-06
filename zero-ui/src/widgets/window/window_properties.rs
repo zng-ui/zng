@@ -4,8 +4,8 @@ use crate::core::color::ColorScheme;
 use crate::core::config::{ConfigKey, CONFIG};
 use crate::core::text::formatx;
 use crate::core::window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState, WindowVars, MONITORS,
-    WINDOW_CTRL, WINDOW_LOAD_EVENT,
+    AutoSize, FrameCaptureMode, MonitorQuery, RendererDebug, WindowChrome, WindowIcon, WindowId, WindowLoadingHandle, WindowState,
+    WindowVars, MONITORS, WINDOW_CTRL, WINDOW_LOAD_EVENT,
 };
 use crate::prelude::new_property::*;
 use serde::{Deserialize, Serialize};

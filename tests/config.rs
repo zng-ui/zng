@@ -144,7 +144,8 @@ fn test_view_api_types() {
     use zero_ui::core::{
         app::view_process::zero_ui_view_api::EventFrameRendered,
         mouse::{MouseScrollDelta, TouchForce, TouchPhase},
-        render::{webrender_api::DebugFlags, FrameId, RendererDebug},
+        render::{webrender_api::DebugFlags, FrameId},
+        window::RendererDebug,
     };
 
     test_config!(FrameId::first().next().next_update().next());

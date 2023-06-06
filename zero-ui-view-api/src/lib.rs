@@ -455,7 +455,7 @@ declare_api! {
     /// The extensions do not change for the duration of the view process.
     ///
     /// Note that this represents both command extensions, and display item extensions. Command
-    /// extensions are called using [`Api::extension`], display item extensions are inserted using
+    /// extensions are called using [`Api::app_extension`] and [`Api::render_extension`], display item extensions are inserted using
     /// [`DisplayListBuilder::push_extension`].
     pub fn extensions(&mut self) -> ApiExtensions;
 
@@ -467,7 +467,13 @@ declare_api! {
     /// Returns the extension response or [`ExtensionPayload::unknown_extension`] if the `extension_key` is
     /// not on the list, or [`ExtensionPayload::invalid_request`] if the `extension_request` is not in a
     /// format expected by the extension.
-    pub fn extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload;
+    pub fn app_extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload;
+
+    /// Call the API extension.
+    ///
+    /// This is is similar to [`Api::app_extension`], but is targeting the instance of an extension associated
+    /// with the `id` renderer.
+    pub fn render_extension(&mut self, id: WindowId, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload;
 
 }
 

@@ -14,14 +14,16 @@ use winit::{
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use zero_ui_view_api::{
-    units::*, ColorScheme, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId,
-    ImageLoadedData, RenderMode, RendererDebug, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
+    units::*, ColorScheme, CursorIcon, DeviceId, DisplayListCache, ExtensionPayload, FocusIndicator, FrameId, FrameRequest,
+    FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
+    WindowStateAll,
 };
 
 #[cfg(windows)]
 use zero_ui_view_api::{Event, Key, KeyState, ScanCode};
 
 use crate::{
+    extensions::RendererExtension,
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::{CursorToWinit, DipToWinit, WinitToDip, WinitToPx},
@@ -43,6 +45,7 @@ pub(crate) struct Window {
     context: GlContext, // context must be dropped before window.
     window: GWindow,
     renderer: Option<Renderer>,
+    renderer_exts: Vec<(usize, Box<dyn RendererExtension>)>,
     capture_mode: bool,
 
     pending_frames: VecDeque<(FrameId, bool, Option<EnteredSpan>)>,
@@ -91,23 +94,24 @@ impl Window {
     pub fn open(
         gen: ViewProcessGen,
         icon: Option<Icon>,
-        req: WindowRequest,
+        mut cfg: WindowRequest,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
+        mut renderer_exts: Vec<(usize, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
     ) -> Self {
-        let id = req.id;
+        let id = cfg.id;
 
         let window_scope = tracing::trace_span!("glutin").entered();
 
         // create window and OpenGL context
         let mut winit = WindowBuilder::new()
-            .with_title(req.title)
-            .with_resizable(req.resizable)
-            .with_transparent(req.transparent)
+            .with_title(cfg.title)
+            .with_resizable(cfg.resizable)
+            .with_transparent(cfg.transparent)
             .with_window_icon(icon);
 
-        let mut s = req.state;
+        let mut s = cfg.state;
         s.clamp_size();
 
         if let WindowState::Normal = s.state {
@@ -117,11 +121,11 @@ impl Window {
                 .with_inner_size(s.restore_rect.size.to_winit());
 
             #[cfg(target_os = "linux")]
-            if req.default_position {
+            if cfg.default_position {
                 // default X11 position is outer zero.
                 winit = winit.with_position(DipPoint::new(Dip::new(120), Dip::new(80)).to_winit());
             }
-        } else if req.default_position {
+        } else if cfg.default_position {
             if let Some(screen) = window_target.primary_monitor() {
                 // fallback to center.
                 let screen_size = screen.size().to_px().to_dip(screen.scale_factor() as f32);
@@ -136,7 +140,7 @@ impl Window {
             // so that there is no white frame when it's opening.
             //
             // unless its "kiosk" mode.
-            .with_visible(req.kiosk);
+            .with_visible(cfg.kiosk);
 
         winit = match s.state {
             WindowState::Normal | WindowState::Minimized => winit,
@@ -144,7 +148,7 @@ impl Window {
             WindowState::Fullscreen | WindowState::Exclusive => winit.with_fullscreen(Some(Fullscreen::Borderless(None))),
         };
 
-        let mut render_mode = req.render_mode;
+        let mut render_mode = cfg.render_mode;
         if !cfg!(software) && render_mode == RenderMode::Software {
             tracing::warn!("ignoring `RenderMode::Software` because did not build with \"software\" feature");
             render_mode = RenderMode::Integrated;
@@ -204,7 +208,7 @@ impl Window {
 
         let device_size = winit_window.inner_size().to_px().to_wr_device();
 
-        let opts = webrender::WebRenderOptions {
+        let mut opts = webrender::WebRenderOptions {
             // text-aa config from Firefox.
             enable_aa: true,
             enable_subpixel_aa: cfg!(not(target_os = "android")),
@@ -221,17 +225,27 @@ impl Window {
             // best for GL
             upload_method: UploadMethod::PixelBuffer(VertexUsageHint::Dynamic),
 
-            debug_flags: req.renderer_debug.flags,
-
             //panic_on_gl_error: true,
             ..Default::default()
         };
+        for (key, ext) in &mut renderer_exts {
+            let cfg = cfg
+                .extensions
+                .iter()
+                .position(|(k, _)| k == key)
+                .map(|i| cfg.extensions.swap_remove(i).1);
+
+            ext.configure(cfg, &mut opts);
+        }
 
         let (mut renderer, sender) =
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
-        renderer.set_profiler_ui(&req.renderer_debug.profiler_ui);
+        renderer_exts.retain_mut(|(_, ext)| {
+            ext.renderer_created(&mut renderer, &sender);
+            !ext.is_config_only()
+        });
 
         let api = sender.create_api();
         let document_id = api.add_document(device_size);
@@ -247,24 +261,25 @@ impl Window {
             prev_size: winit_window.inner_size().to_px(),
             prev_monitor: winit_window.current_monitor(),
             state: s,
-            kiosk: req.kiosk,
+            kiosk: cfg.kiosk,
             window: winit_window,
             context,
-            capture_mode: req.capture_mode,
+            capture_mode: cfg.capture_mode,
             renderer: Some(renderer),
-            video_mode: req.video_mode,
+            renderer_exts,
+            video_mode: cfg.video_mode,
             api,
             document_id,
             pipeline_id,
             resized: true,
             display_list_cache: DisplayListCache::new(pipeline_id),
             waiting_first_frame: true,
-            steal_init_focus: req.focus,
-            init_focus_request: req.focus_indicator,
-            visible: req.visible,
+            steal_init_focus: cfg.focus,
+            init_focus_request: cfg.focus_indicator,
+            visible: cfg.visible,
             is_always_on_top: false,
             taskbar_visible: true,
-            movable: req.movable,
+            movable: cfg.movable,
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
             cursor_pos: DipPoint::zero(),
@@ -275,15 +290,15 @@ impl Window {
             render_mode,
         };
 
-        if !req.default_position && win.state.state == WindowState::Normal {
+        if !cfg.default_position && win.state.state == WindowState::Normal {
             win.set_inner_position(win.state.restore_rect.origin);
         }
 
-        if req.always_on_top {
+        if cfg.always_on_top {
             win.set_always_on_top(true);
         }
 
-        if win.state.state == WindowState::Normal && req.default_position {
+        if win.state.state == WindowState::Normal && cfg.default_position {
             // system position.
             win.state.restore_rect.origin = win.window.inner_position().unwrap_or_default().to_px().to_dip(win.scale_factor());
         }
@@ -293,8 +308,8 @@ impl Window {
             win.windows_set_restore();
         }
 
-        win.set_cursor(req.cursor);
-        win.set_taskbar_visible(req.taskbar_visible);
+        win.set_cursor(cfg.cursor);
+        win.set_taskbar_visible(cfg.taskbar_visible);
         win
     }
 
@@ -1006,11 +1021,6 @@ impl Window {
         self.capture_mode = enabled;
     }
 
-    pub fn set_renderer_debug(&mut self, dbg: RendererDebug) {
-        self.api.set_debug_flags(dbg.flags);
-        self.renderer.as_mut().unwrap().set_profiler_ui(&dbg.profiler_ui);
-    }
-
     /// Start rendering a new frame.
     ///
     /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
@@ -1226,6 +1236,16 @@ impl Window {
     /// Window actual render mode.
     pub fn render_mode(&self) -> RenderMode {
         self.render_mode
+    }
+
+    /// Calls the render extension command.
+    pub fn render_extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload {
+        for (key, ext) in &mut self.renderer_exts {
+            if *key == extension_key {
+                return ext.command(self.renderer.as_mut().unwrap(), &self.api, extension_request, extension_key);
+            }
+        }
+        ExtensionPayload::unknown_extension(extension_key)
     }
 }
 impl Drop for Window {

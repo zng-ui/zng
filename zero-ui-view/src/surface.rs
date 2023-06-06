@@ -11,11 +11,12 @@ use webrender::{
     RenderApi, Renderer, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, DisplayListCache, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, RenderMode,
-    RendererDebug, ViewProcessGen, WindowId,
+    units::*, DisplayListCache, ExtensionPayload, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData,
+    RenderMode, ViewProcessGen, WindowId,
 };
 
 use crate::{
+    extensions::RendererExtension,
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::PxToWinit,
@@ -33,6 +34,7 @@ pub(crate) struct Surface {
 
     context: GlContext,
     renderer: Option<Renderer>,
+    renderer_exts: Vec<(usize, Box<dyn RendererExtension>)>,
     image_use: ImageUseMap,
 
     display_list_cache: DisplayListCache,
@@ -55,9 +57,10 @@ impl fmt::Debug for Surface {
 impl Surface {
     pub fn open(
         gen: ViewProcessGen,
-        cfg: HeadlessRequest,
+        mut cfg: HeadlessRequest,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
+        mut renderer_exts: Vec<(usize, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
     ) -> Self {
         let id = cfg.id;
@@ -67,7 +70,7 @@ impl Surface {
         context.resize(size.to_winit());
         let context = context;
 
-        let opts = webrender::WebRenderOptions {
+        let mut opts = webrender::WebRenderOptions {
             // text-aa config from Firefox.
             enable_aa: true,
             enable_subpixel_aa: cfg!(not(target_os = "android")),
@@ -81,11 +84,18 @@ impl Surface {
             clear_caches_with_quads: !context.is_software(),
             enable_gpu_markers: !context.is_software(),
 
-            debug_flags: cfg.renderer_debug.flags,
-
             //panic_on_gl_error: true,
             ..Default::default()
         };
+
+        for (key, ext) in &mut renderer_exts {
+            let cfg = cfg
+                .extensions
+                .iter()
+                .position(|(k, _)| k == key)
+                .map(|i| cfg.extensions.swap_remove(i).1);
+            ext.configure(cfg, &mut opts);
+        }
 
         let device_size = cfg.size.to_px(cfg.scale_factor).to_wr_device();
 
@@ -93,7 +103,10 @@ impl Surface {
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
-        renderer.set_profiler_ui(&cfg.renderer_debug.profiler_ui);
+        renderer_exts.retain_mut(|(_, ext)| {
+            ext.renderer_created(&mut renderer, &sender);
+            !ext.is_config_only()
+        });
 
         let api = sender.create_api();
         let document_id = api.add_document(device_size);
@@ -110,6 +123,7 @@ impl Surface {
 
             context,
             renderer: Some(renderer),
+            renderer_exts,
             image_use: ImageUseMap::default(),
 
             display_list_cache: DisplayListCache::new(pipeline_id),
@@ -205,11 +219,6 @@ impl Surface {
             let rect = PxRect::from_size(self.size.to_px(self.scale_factor)).to_wr_device();
             txn.set_document_view(rect);
         }
-    }
-
-    pub fn set_renderer_debug(&mut self, dbg: RendererDebug) {
-        self.api.set_debug_flags(dbg.flags);
-        self.renderer.as_mut().unwrap().set_profiler_ui(&dbg.profiler_ui);
     }
 
     pub fn render(&mut self, frame: FrameRequest) {
@@ -344,6 +353,16 @@ impl Surface {
             self.rendered_frame_id,
             self.scale_factor,
         )
+    }
+
+    /// Calls the render extension command.
+    pub fn render_extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload {
+        for (key, ext) in &mut self.renderer_exts {
+            if *key == extension_key {
+                return ext.command(self.renderer.as_mut().unwrap(), &self.api, extension_request, extension_key);
+            }
+        }
+        ExtensionPayload::unknown_extension(extension_key)
     }
 }
 impl Drop for Surface {

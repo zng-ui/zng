@@ -19,9 +19,7 @@ use std::{marker::PhantomData, mem, sync::Arc};
 
 use rayon::prelude::*;
 use webrender_api::{FontRenderMode, PipelineId};
-pub use zero_ui_view_api::{
-    webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, RendererDebug, ReuseRange,
-};
+pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
 use zero_ui_view_api::{
     webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, MixBlendMode, SpatialTreeItemKey},
     DisplayList, ExtensionPayload, ReuseStart,
@@ -2496,39 +2494,5 @@ impl_from_and_into_var! {
     /// Convert to full [`ENABLED`](FontSynthesis::ENABLED) or [`DISABLED`](FontSynthesis::DISABLED).
     fn from(enabled: bool) -> FontSynthesis {
         if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
-    }
-}
-
-impl_from_and_into_var! {
-    fn from(profiler: crate::text::Txt) -> RendererDebug {
-        RendererDebug::profiler(profiler)
-    }
-}
-impl var::IntoVar<RendererDebug> for bool {
-    type Var = var::LocalVar<RendererDebug>;
-
-    fn into_var(self) -> Self::Var {
-        var::LocalVar(self.into())
-    }
-}
-impl<'a> var::IntoVar<RendererDebug> for &'a str {
-    type Var = var::LocalVar<RendererDebug>;
-
-    fn into_var(self) -> Self::Var {
-        var::LocalVar(self.into())
-    }
-}
-impl var::IntoVar<RendererDebug> for String {
-    type Var = var::LocalVar<RendererDebug>;
-
-    fn into_var(self) -> Self::Var {
-        var::LocalVar(self.into())
-    }
-}
-impl var::IntoVar<RendererDebug> for webrender_api::DebugFlags {
-    type Var = var::LocalVar<RendererDebug>;
-
-    fn into_var(self) -> Self::Var {
-        var::LocalVar(self.into())
     }
 }

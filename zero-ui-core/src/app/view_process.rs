@@ -8,9 +8,9 @@ use std::{
 
 pub use zero_ui_view_api::{
     self, bytes_channel, AnimationsConfig, ApiExtensionName, ApiExtensionNameError, ApiExtensionRecvError, ApiExtensions, ColorScheme,
-    CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
-    ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig, MonitorInfo,
-    RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
+    CursorIcon, Event, EventCause, ExtensionPayload, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData,
+    HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig,
+    MonitorInfo, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
 };
 
 use crate::{
@@ -28,8 +28,7 @@ use zero_ui_view_api::{
     webrender_api::{
         FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
     },
-    Controller, DeviceId as ApiDeviceId, ExtensionPayload, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId,
-    WindowId as ApiWindowId,
+    Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
 };
 
 use super::{App, AppId};
@@ -204,18 +203,18 @@ impl VIEW_PROCESS {
     }
 
     /// Call an extension with custom encoded payload.
-    pub fn extension_raw(&self, extension_key: usize, extension_request: ExtensionPayload) -> Result<ExtensionPayload> {
-        self.write().process.extension(extension_key, extension_request)
+    pub fn app_extension_raw(&self, extension_key: usize, extension_request: ExtensionPayload) -> Result<ExtensionPayload> {
+        self.write().process.app_extension(extension_key, extension_request)
     }
 
     /// Call an extension with payload `request`.
-    pub fn extension<I, O>(&self, extension_key: usize, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
+    pub fn app_extension<I, O>(&self, extension_key: usize, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
     where
         I: serde::Serialize,
         O: serde::de::DeserializeOwned,
     {
         let payload = ExtensionPayload::serialize(&request).unwrap();
-        let response = self.write().process.extension(extension_key, payload)?;
+        let response = self.write().process.app_extension(extension_key, payload)?;
         Ok(response.deserialize::<O>())
     }
 
@@ -644,19 +643,6 @@ impl ViewWindow {
         self.0.call(|id, p| p.set_focus_indicator(id, indicator))
     }
 
-    /// Call an extension with payload `(view_window_id, request)`.
-    pub fn extension<I, O>(&self, extension_key: usize, request: I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
-    where
-        I: serde::Serialize,
-        O: serde::de::DeserializeOwned,
-    {
-        self.0.call(|id, p| {
-            let payload = ExtensionPayload::serialize(&(id, request)).unwrap();
-            let response = p.extension(extension_key, payload)?;
-            Ok(response.deserialize::<O>())
-        })
-    }
-
     /// Drop `self`.
     pub fn close(self) {
         drop(self)
@@ -877,23 +863,6 @@ impl ViewRenderer {
         }
     }
 
-    /// Call an extension with payload `(view_window_id, request)`.
-    pub fn extension<I, O>(&self, extension_key: usize, request: I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
-    where
-        I: serde::Serialize,
-        O: serde::de::DeserializeOwned,
-    {
-        if let Some(w) = self.0.upgrade() {
-            w.call(|id, p| {
-                let payload = ExtensionPayload::serialize(&(id, request)).unwrap();
-                let response = p.extension(extension_key, payload)?;
-                Ok(response.deserialize::<O>())
-            })
-        } else {
-            Err(ViewProcessOffline)
-        }
-    }
-
     /// Render a new frame.
     pub fn render(&self, frame: FrameRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewRenderer.render").entered();
@@ -918,6 +887,25 @@ impl ViewRenderer {
         } else {
             Err(ViewProcessOffline)
         }
+    }
+
+    /// Call a render extension with custom encoded payload.
+    pub fn render_extension_raw(&self, extension_key: usize, request: ExtensionPayload) -> Result<ExtensionPayload> {
+        if let Some(w) = self.0.upgrade() {
+            w.call(|id, p| p.render_extension(id, extension_key, request))
+        } else {
+            Err(ViewProcessOffline)
+        }
+    }
+
+    /// Call an extension with payload `(view_window_id, request)`.
+    pub fn render_extension<I, O>(&self, extension_key: usize, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
+    where
+        I: serde::Serialize,
+        O: serde::de::DeserializeOwned,
+    {
+        let r = self.render_extension_raw(extension_key, ExtensionPayload::serialize(&request).unwrap())?;
+        Ok(r.deserialize())
     }
 }
 

@@ -54,7 +54,4 @@
 
 * Implement window extension.
     - Access to raw handle and ability to spawn data that lives for the duration of the window.
-* Implement renderer extension.
-    - Affect renderer creation.
-    - Integrate with display item extensions.
-    - Implement use case, webrender blob renderer.
+    - Support window targeted commands in the API, not just as a parameter.

@@ -7,7 +7,7 @@ use crate::{
     context::WINDOW,
     crate_util::IdSet,
     image::Img,
-    render::{RenderMode, RendererDebug},
+    render::RenderMode,
     text::{ToText, Txt},
     units::*,
     var::*,

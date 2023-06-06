@@ -416,17 +416,13 @@ impl HeadedCtrl {
                 self.vars.0.actual_color_scheme.set_ne(scheme);
             }
 
-            if let Some(dbg) = self.vars.renderer_debug().get_new() {
+            self.vars.renderer_debug().with_new(|dbg| {
                 if let Some(view) = &self.window {
-                    if let Ok(ext) = VIEW_PROCESS.extensions() {
-                        if let Some(key) = ext.key(&ApiExtensionName::new("zero-ui-view.set_webrender_debug").unwrap()) {
-                            let _ = view.renderer().extension::<_, ()>(key, dbg);
-                        } else {
-                            tracing::error!(r#"extension "zero-ui-view.set_webrender_debug" unavailable"#)
-                        }
+                    if let Some(key) = dbg.extension_key() {
+                        let _ = view.renderer().render_extension::<_, ()>(key, dbg);
                     }
                 }
-            }
+            });
         }
 
         self.content.update(update_widgets);
@@ -795,10 +791,15 @@ impl HeadedCtrl {
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
-            renderer_debug: self.vars.renderer_debug().get(),
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
+
+            extensions: {
+                let mut exts = vec![];
+                self.vars.renderer_debug().with(|d| d.push_extension(&mut exts));
+                exts
+            },
         };
 
         match VIEW_PROCESS.open_window(request) {
@@ -898,10 +899,15 @@ impl HeadedCtrl {
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
-            renderer_debug: self.vars.renderer_debug().get(),
 
             focus: WINDOWS.is_focused(WINDOW.id()).unwrap_or(false),
             focus_indicator: self.vars.focus_indicator().get(),
+
+            extensions: {
+                let mut exts = vec![];
+                self.vars.renderer_debug().with(|d| d.push_extension(&mut exts));
+                exts
+            },
         };
 
         match VIEW_PROCESS.open_window(request) {
@@ -1084,17 +1090,14 @@ impl HeadlessWithRendererCtrl {
         if update_parent(&mut self.actual_parent, &self.vars) || self.var_bindings.is_dummy() {
             self.var_bindings = update_headless_vars(self.headless_monitor.scale_factor, &self.vars);
         }
-        if let Some(dbg) = self.vars.renderer_debug().get_new() {
+
+        self.vars.renderer_debug().with_new(|dbg| {
             if let Some(view) = &self.surface {
-                if let Ok(ext) = VIEW_PROCESS.extensions() {
-                    if let Some(key) = ext.key(&ApiExtensionName::new("zero-ui-view.set_webrender_debug").unwrap()) {
-                        let _ = view.renderer().extension::<_, ()>(key, dbg);
-                    } else {
-                        tracing::error!(r#"extension "zero-ui-view.set_webrender_debug" unavailable"#)
-                    }
+                if let Some(key) = dbg.extension_key() {
+                    let _ = view.renderer().render_extension::<_, ()>(key, dbg);
                 }
             }
-        }
+        });
 
         self.content.update(update_widgets);
     }
@@ -1203,7 +1206,11 @@ impl HeadlessWithRendererCtrl {
                 scale_factor: scale_factor.0,
                 size,
                 render_mode,
-                renderer_debug: self.vars.renderer_debug().get(),
+                extensions: {
+                    let mut exts = vec![];
+                    self.vars.renderer_debug().with(|d| d.push_extension(&mut exts));
+                    exts
+                },
             });
 
             match r {

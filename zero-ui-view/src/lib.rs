@@ -92,7 +92,7 @@
 //!
 //! This implementation of the view API provides one extension:
 //!
-//! * `"zero-ui-view.set_webrender_debug"`: `(WindowId, RendererDebug) -> ()`, sets Webrender debug flags.
+//! * `"zero-ui-view.webrender_debug"`: `{ flags: DebugFlags, profiler_ui: String }`, sets Webrender debug flags.
 //!
 //! You can also inject your own extensions, see the [`extensions`] module for more details.
 //!
@@ -323,8 +323,7 @@ pub(crate) struct App {
 
     headless: bool,
 
-    ext: ViewExtensions,
-    webrender_debug_ext: Option<usize>,
+    exts: ViewExtensions,
 
     gl_manager: GlContextManager,
     window_target: *const EventLoopWindowTarget<AppEvent>,
@@ -584,13 +583,13 @@ impl App {
         response_sender: ResponseSender,
         event_sender: EventSender,
         request_recv: flume::Receiver<RequestEvent>,
-        ext: ViewExtensions,
+        mut ext: ViewExtensions,
     ) -> Self {
+        ext.renderer("zero-ui-view.webrender_debug", extensions::RendererDebugExt::default);
         App {
             headless: false,
             started: false,
-            ext,
-            webrender_debug_ext: None,
+            exts: ext,
             gl_manager: GlContextManager::default(),
             image_cache: ImageCache::new(app_sender.clone()),
             app_sender,
@@ -1306,6 +1305,7 @@ impl App {
             config,
             unsafe { &*self.window_target },
             &mut self.gl_manager,
+            self.exts.new_renderer(),
             self.app_sender.clone(),
         );
         let id_namespace = surf.id_namespace();
@@ -1372,7 +1372,7 @@ impl Api for App {
                 scale_factor: 1.0,
                 size: config.state.restore_rect.size,
                 render_mode: config.render_mode,
-                renderer_debug: config.renderer_debug,
+                extensions: config.extensions,
             });
             let msg = WindowOpenData {
                 id_namespace: data.id_namespace,
@@ -1405,6 +1405,7 @@ impl Api for App {
                 config,
                 unsafe { &*self.window_target },
                 &mut self.gl_manager,
+                self.exts.new_renderer(),
                 self.app_sender.clone(),
             );
 
@@ -1621,26 +1622,17 @@ impl Api for App {
     }
 
     fn extensions(&mut self) -> ApiExtensions {
-        let mut r = self.ext.api_extensions();
-        if let Ok(k) = r.insert(ApiExtensionName::new("zero-ui-view.set_webrender_debug").unwrap()) {
-            self.webrender_debug_ext = Some(k);
-        }
-        r
+        self.exts.api_extensions()
     }
 
-    fn extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload {
-        if self.ext.contains(extension_key) {
-            self.ext.call_command(extension_key, extension_request)
-        } else if self.webrender_debug_ext == Some(extension_key) {
-            let (id, dbg) = match extension_request.deserialize::<(WindowId, RendererDebug)>() {
-                Ok(p) => p,
-                Err(e) => return ExtensionPayload::invalid_request(extension_key, &e),
-            };
-            with_window_or_surface!(self, id, |w| w.set_renderer_debug(dbg), || ());
-            ExtensionPayload::empty()
-        } else {
-            ExtensionPayload::unknown_extension(extension_key)
-        }
+    fn app_extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload {
+        self.exts.call_command(extension_key, extension_request)
+    }
+
+    fn render_extension(&mut self, id: WindowId, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload {
+        with_window_or_surface!(self, id, |w| w.render_extension(extension_key, extension_request), || {
+            ExtensionPayload::invalid_request(extension_key, "renderer not found")
+        })
     }
 }
 
@@ -1745,14 +1737,4 @@ impl RenderNotifier for WrNotifier {
         let msg = FrameReadyMsg { composite_needed };
         let _ = self.sender.frame_ready(self.id, msg);
     }
-}
-
-pub struct RenderExtensionArgs {}
-
-pub trait RenderExtension: DisplayListExtension {
-    fn begin_render(&mut self, args: RenderExtensionArgs);
-    fn finish_render(&mut self, args: RenderExtensionArgs);
-
-    fn begin_update(&mut self, args: RenderExtensionArgs);
-    fn finish_update(&mut self, args: RenderExtensionArgs);
 }
