@@ -2238,12 +2238,13 @@ impl ApiExtensions {
     }
 
     /// Gets the position of the `ext` in the list of available extensions. This index
-    /// identifies the API extension in the [`Api::extension`].
+    /// identifies the API extension in the [`Api::app_extension`] and [`Api::render_extension`].
     ///
     /// The key can be cached only for the duration of the view process, each view re-instantiation
     /// must query for the presence of the API extension again, and it may change position on the list.
     ///
-    /// [`Api::extension`]: crate::Api::extension
+    /// [`Api::app_extension`]: crate::Api::app_extension
+    /// [`Api::render_extension`]: crate::Api::render_extension
     pub fn key(&self, ext: &ApiExtensionName) -> Option<usize> {
         self.0.iter().position(|e| e == ext)
     }
