@@ -1,16 +1,23 @@
+# View-Process TODO
+
 * Implement monitor changed event.
   - when monitor changes: See WindowVars::monitor()
   - actual_monitor: Computed by intersection between window and monitors? (the monitor area that contains more than half of the window?)
 
-* Test window respawn for NVIDIA actual driver version change (two blinks).
+## Extensions
 
-* Review screenshot, are we using webrender "async" screenshot correctly?
+* Implement webrender blob example.
 
-* Review/detect view <==> app-process communication deadlock that happens in some rare cases (don't know how to trigger it). This is expressed as the layout not centering/adjusting when the window is resized, as well as the window not closing when the close button is clicked.
-  - This time it happened when in RenderMode::Software, once, and then didn't happen again.
+* Implement window extension.
+    - Similar to `RendererExtension`, access to raw handle and window builder config.
+      - Modify RendererExtension to include window stuff?
+    - Use case?
 
-* Reuse same renderer for multiple windows?
+## Platforms
 
-* Hosting Ui in a custom OpenGL window, like a game engine window.
-
-* Adding custom event source that needs window raw handle.
+* OpenGL texture, for an in-game screen or VR.
+* Apple OS.
+* Android.
+* WebAssembly.
+  - Use HtmlElements to render?
+  - Wait until we impl automation/screen readers.

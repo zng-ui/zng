@@ -49,9 +49,3 @@
         - It uses the new modify tags to map from the key var to a bool?
     - Implement `FallbackConfigRef`, to work like the `EditableUiNodeList`.
         - Implement `FallbackConfigRef::reset(ConfigKey)`.
-
-# zero-ui-view
-
-* Implement window extension.
-    - Access to raw handle and ability to spawn data that lives for the duration of the window.
-    - Support window targeted commands in the API, not just as a parameter.
