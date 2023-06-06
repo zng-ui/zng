@@ -14,9 +14,9 @@ use winit::{
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use zero_ui_view_api::{
-    units::*, ColorScheme, CursorIcon, DeviceId, DisplayListCache, ExtensionPayload, FocusIndicator, FrameId, FrameRequest,
-    FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
-    WindowStateAll,
+    units::*, ApiExtensionId, ApiExtensionPayload, ColorScheme, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId,
+    FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest,
+    WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -45,7 +45,7 @@ pub(crate) struct Window {
     context: GlContext, // context must be dropped before window.
     window: GWindow,
     renderer: Option<Renderer>,
-    renderer_exts: Vec<(usize, Box<dyn RendererExtension>)>,
+    renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
     capture_mode: bool,
 
     pending_frames: VecDeque<(FrameId, bool, Option<EnteredSpan>)>,
@@ -97,7 +97,7 @@ impl Window {
         mut cfg: WindowRequest,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
-        mut renderer_exts: Vec<(usize, Box<dyn RendererExtension>)>,
+        mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
     ) -> Self {
         let id = cfg.id;
@@ -186,12 +186,10 @@ impl Window {
                 {
                     // winit always blocks ALT+F4 we want to allow it so that the shortcut is handled in the same way as other commands.
 
-                    let device = 0; // same as winit
-
                     let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
                         window: id,
-                        device,
-                        scan_code: wparam as ScanCode,
+                        device: DeviceId::INVALID, // same as winit
+                        scan_code: ScanCode(wparam as _),
                         state: KeyState::Pressed,
                         key: Some(Key::F4),
                     }));
@@ -213,7 +211,7 @@ impl Window {
             enable_aa: true,
             enable_subpixel_aa: cfg!(not(target_os = "android")),
 
-            renderer_id: Some((gen as u64) << 32 | id as u64),
+            renderer_id: Some((gen.get() as u64) << 32 | id.get() as u64),
 
             // this clear color paints over the one set using `Renderer::set_clear_color`.
             clear_color: ColorF::new(0.0, 0.0, 0.0, 0.0),
@@ -228,11 +226,11 @@ impl Window {
             //panic_on_gl_error: true,
             ..Default::default()
         };
-        for (key, ext) in &mut renderer_exts {
+        for (id, ext) in &mut renderer_exts {
             let cfg = cfg
                 .extensions
                 .iter()
-                .position(|(k, _)| k == key)
+                .position(|(k, _)| k == id)
                 .map(|i| cfg.extensions.swap_remove(i).1);
 
             ext.configure(cfg, &mut opts);
@@ -252,7 +250,7 @@ impl Window {
 
         drop(wr_scope);
 
-        let pipeline_id = webrender::api::PipelineId(gen, id);
+        let pipeline_id = webrender::api::PipelineId(gen.get(), id.get());
 
         let mut win = Self {
             id,
@@ -283,7 +281,7 @@ impl Window {
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
             cursor_pos: DipPoint::zero(),
-            cursor_device: 0,
+            cursor_device: DeviceId::INVALID,
             cursor_over: false,
             clear_color: None,
             focused: None,
@@ -1239,13 +1237,13 @@ impl Window {
     }
 
     /// Calls the render extension command.
-    pub fn render_extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload {
+    pub fn render_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {
         for (key, ext) in &mut self.renderer_exts {
-            if *key == extension_key {
-                return ext.command(self.renderer.as_mut().unwrap(), &self.api, extension_request, extension_key);
+            if *key == extension_id {
+                return ext.command(self.renderer.as_mut().unwrap(), &self.api, extension_request);
             }
         }
-        ExtensionPayload::unknown_extension(extension_key)
+        ApiExtensionPayload::unknown_extension(extension_id)
     }
 }
 impl Drop for Window {

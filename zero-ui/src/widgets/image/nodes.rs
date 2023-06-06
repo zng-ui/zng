@@ -232,8 +232,8 @@ pub fn image_presenter() -> impl UiNode {
             let mut scale = IMAGE_SCALE_VAR.get();
             if IMAGE_SCALE_PPI_VAR.get() {
                 let sppi = metrics.screen_ppi();
-                let (ippi_x, ippi_y) = CONTEXT_IMAGE_VAR.with(Img::ppi).unwrap_or((sppi, sppi));
-                scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
+                let ippi = CONTEXT_IMAGE_VAR.with(Img::ppi).unwrap_or(ImagePpi::splat(sppi));
+                scale *= Factor2d::new(sppi / ippi.x, sppi / ippi.y);
             }
             if IMAGE_SCALE_FACTOR_VAR.get() {
                 scale *= metrics.scale_factor();
@@ -261,8 +261,8 @@ pub fn image_presenter() -> impl UiNode {
             let mut scale = IMAGE_SCALE_VAR.get();
             if IMAGE_SCALE_PPI_VAR.get() {
                 let sppi = metrics.screen_ppi();
-                let (ippi_x, ippi_y) = CONTEXT_IMAGE_VAR.with(Img::ppi).unwrap_or((sppi, sppi));
-                scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
+                let ippi = CONTEXT_IMAGE_VAR.with(Img::ppi).unwrap_or(ImagePpi::splat(sppi));
+                scale *= Factor2d::new(sppi / ippi.x, sppi / ippi.y);
             }
             if IMAGE_SCALE_FACTOR_VAR.get() {
                 scale *= metrics.scale_factor();

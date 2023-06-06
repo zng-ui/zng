@@ -1,7 +1,7 @@
 //! Frame render and metadata API.
 
 use crate::{
-    app::view_process::ViewRenderer,
+    app::view_process::{ApiExtensionId, ViewRenderer},
     border::BorderSides,
     color::{self, filters::RenderFilter, RenderColor},
     context::{RenderUpdates, UpdateFlags, WIDGET, WINDOW},
@@ -22,7 +22,7 @@ use webrender_api::{FontRenderMode, PipelineId};
 pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
 use zero_ui_view_api::{
     webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, MixBlendMode, SpatialTreeItemKey},
-    DisplayList, ExtensionPayload, ReuseStart,
+    ApiExtensionPayload, DisplayList, ReuseStart,
 };
 
 /// A text font.
@@ -1352,15 +1352,15 @@ impl FrameBuilder {
     }
 
     /// Push a custom display extension context, call `render` and pop the item.
-    pub fn push_extension_context(&mut self, extension_key: usize, payload: ExtensionPayload, render: impl FnOnce(&mut Self)) {
-        self.display_list.push_extension(extension_key, payload);
+    pub fn push_extension_context(&mut self, extension_id: ApiExtensionId, payload: ApiExtensionPayload, render: impl FnOnce(&mut Self)) {
+        self.display_list.push_extension(extension_id, payload);
         render(self);
-        self.display_list.pop_extension(extension_key);
+        self.display_list.pop_extension(extension_id);
     }
 
     /// Push a custom display extension item.
-    pub fn push_extension_item(&mut self, extension_key: usize, payload: ExtensionPayload) {
-        self.display_list.push_extension(extension_key, payload);
+    pub fn push_extension_item(&mut self, extension_id: ApiExtensionId, payload: ApiExtensionPayload) {
+        self.display_list.push_extension(extension_id, payload);
     }
 
     /// Create a new display list builder that can be built in parallel and merged back onto this list using [`parallel_fold`].
@@ -1695,7 +1695,7 @@ pub struct FrameUpdate {
     floats: Vec<FrameValueUpdate<f32>>,
     colors: Vec<FrameValueUpdate<RenderColor>>,
 
-    extensions: Vec<(usize, ExtensionPayload)>,
+    extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     current_clear_color: RenderColor,
     clear_color: Option<RenderColor>,
@@ -2182,7 +2182,7 @@ pub struct BuiltFrameUpdate {
     /// New clear color.
     pub clear_color: Option<RenderColor>,
     /// Renderer extension updates.
-    pub extensions: Vec<(usize, ExtensionPayload)>,
+    pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
 
 unique_id_32! {

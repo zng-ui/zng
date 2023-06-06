@@ -418,7 +418,7 @@ impl HeadedCtrl {
 
             self.vars.renderer_debug().with_new(|dbg| {
                 if let Some(view) = &self.window {
-                    if let Some(key) = dbg.extension_key() {
+                    if let Some(key) = dbg.extension_id() {
                         let _ = view.renderer().render_extension::<_, ()>(key, dbg);
                     }
                 }
@@ -775,7 +775,7 @@ impl HeadedCtrl {
         };
 
         let request = WindowRequest {
-            id: WINDOW.id().get(),
+            id: crate::app::view_process::ApiWindowId::from_raw(WINDOW.id().get()),
             title: self.vars.title().get().to_string(),
             state: state.clone(),
             kiosk: self.kiosk.is_some(),
@@ -883,7 +883,7 @@ impl HeadedCtrl {
         self.layout_update(Arc::default());
 
         let request = WindowRequest {
-            id: WINDOW.id().get(),
+            id: crate::app::view_process::ApiWindowId::from_raw(WINDOW.id().get()),
             title: self.vars.title().get_string(),
             state: self.state.clone().unwrap(),
             kiosk: self.kiosk.is_some(),
@@ -1093,7 +1093,7 @@ impl HeadlessWithRendererCtrl {
 
         self.vars.renderer_debug().with_new(|dbg| {
             if let Some(view) = &self.surface {
-                if let Some(key) = dbg.extension_key() {
+                if let Some(key) = dbg.extension_id() {
                     let _ = view.renderer().render_extension::<_, ()>(key, dbg);
                 }
             }
@@ -1202,7 +1202,7 @@ impl HeadlessWithRendererCtrl {
             let render_mode = self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get());
 
             let r = VIEW_PROCESS.open_headless(HeadlessRequest {
-                id: WINDOW.id().get(),
+                id: crate::app::view_process::ApiWindowId::from_raw(WINDOW.id().get()),
                 scale_factor: scale_factor.0,
                 size,
                 render_mode,

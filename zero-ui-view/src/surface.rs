@@ -11,8 +11,8 @@ use webrender::{
     RenderApi, Renderer, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, DisplayListCache, ExtensionPayload, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData,
-    RenderMode, ViewProcessGen, WindowId,
+    units::*, ApiExtensionId, ApiExtensionPayload, DisplayListCache, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId,
+    ImageLoadedData, RenderMode, ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -34,7 +34,7 @@ pub(crate) struct Surface {
 
     context: GlContext,
     renderer: Option<Renderer>,
-    renderer_exts: Vec<(usize, Box<dyn RendererExtension>)>,
+    renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
     image_use: ImageUseMap,
 
     display_list_cache: DisplayListCache,
@@ -60,7 +60,7 @@ impl Surface {
         mut cfg: HeadlessRequest,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
-        mut renderer_exts: Vec<(usize, Box<dyn RendererExtension>)>,
+        mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
     ) -> Self {
         let id = cfg.id;
@@ -75,7 +75,7 @@ impl Surface {
             enable_aa: true,
             enable_subpixel_aa: cfg!(not(target_os = "android")),
 
-            renderer_id: Some((gen as u64) << 32 | id as u64),
+            renderer_id: Some((gen.get() as u64) << 32 | id.get() as u64),
 
             // this clear color paints over the one set using `Renderer::set_clear_color`.
             clear_color: ColorF::new(0.0, 0.0, 0.0, 0.0),
@@ -88,11 +88,11 @@ impl Surface {
             ..Default::default()
         };
 
-        for (key, ext) in &mut renderer_exts {
+        for (id, ext) in &mut renderer_exts {
             let cfg = cfg
                 .extensions
                 .iter()
-                .position(|(k, _)| k == key)
+                .position(|(k, _)| k == id)
                 .map(|i| cfg.extensions.swap_remove(i).1);
             ext.configure(cfg, &mut opts);
         }
@@ -111,7 +111,7 @@ impl Surface {
         let api = sender.create_api();
         let document_id = api.add_document(device_size);
 
-        let pipeline_id = webrender::api::PipelineId(gen, id);
+        let pipeline_id = webrender::api::PipelineId(gen.get(), id.get());
 
         Self {
             id,
@@ -356,13 +356,13 @@ impl Surface {
     }
 
     /// Calls the render extension command.
-    pub fn render_extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload {
-        for (key, ext) in &mut self.renderer_exts {
-            if *key == extension_key {
-                return ext.command(self.renderer.as_mut().unwrap(), &self.api, extension_request, extension_key);
+    pub fn render_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {
+        for (id, ext) in &mut self.renderer_exts {
+            if *id == extension_id {
+                return ext.command(self.renderer.as_mut().unwrap(), &self.api, extension_request);
             }
         }
-        ExtensionPayload::unknown_extension(extension_key)
+        ApiExtensionPayload::unknown_extension(extension_id)
     }
 }
 impl Drop for Surface {

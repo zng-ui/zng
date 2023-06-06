@@ -1110,7 +1110,7 @@ impl<E: AppExtension> RunningApp<E> {
         use zero_ui_view_api::Event;
 
         fn window_id(id: zero_ui_view_api::WindowId) -> WindowId {
-            WindowId::from_raw(id)
+            WindowId::from_raw(id.get())
         }
 
         match ev {
@@ -1383,8 +1383,8 @@ impl<E: AppExtension> RunningApp<E> {
 
     /// Process a [`Event::FrameRendered`] event.
     fn on_view_rendered_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::EventFrameRendered, observer: &mut O) {
-        debug_assert!(ev.window != 0);
-        let window_id = WindowId::from_raw(ev.window);
+        debug_assert!(ev.window != zero_ui_view_api::WindowId::INVALID);
+        let window_id = WindowId::from_raw(ev.window.get());
         // view.on_frame_rendered(window_id); // already called in push_coalesce
         let image = ev.frame_image.map(|img| VIEW_PROCESS.on_frame_image(img));
         let args = raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image);
@@ -1408,12 +1408,12 @@ impl<E: AppExtension> RunningApp<E> {
         match ev {
             AppEvent::ViewEvent(ev) => match ev {
                 zero_ui_view_api::Event::FrameRendered(ev) => {
-                    if ev.window == 0 {
-                        tracing::error!("ignored rendered event for invalid window id 0, {ev:?}");
+                    if ev.window == zero_ui_view_api::WindowId::INVALID {
+                        tracing::error!("ignored rendered event for invalid window id, {ev:?}");
                         return;
                     }
 
-                    let window = WindowId::from_raw(ev.window);
+                    let window = WindowId::from_raw(ev.window.get());
 
                     // update ViewProcess immediately.
                     {

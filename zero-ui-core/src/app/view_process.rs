@@ -7,10 +7,11 @@ use std::{
 };
 
 pub use zero_ui_view_api::{
-    self, bytes_channel, AnimationsConfig, ApiExtensionName, ApiExtensionNameError, ApiExtensionRecvError, ApiExtensions, ColorScheme,
-    CursorIcon, Event, EventCause, ExtensionPayload, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData,
-    HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver, IpcBytesSender, LocaleConfig,
-    MonitorInfo, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll,
+    self, bytes_channel, AnimationsConfig, ApiExtensionId, ApiExtensionName, ApiExtensionNameError, ApiExtensionPayload,
+    ApiExtensionRecvError, ApiExtensions, ColorScheme, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest,
+    FrameWaitId, HeadlessOpenData, HeadlessRequest, ImageDataFormat, ImageDownscale, ImagePpi, ImageRequest, IpcBytes, IpcBytesReceiver,
+    IpcBytesSender, LocaleConfig, MonitorInfo, RenderMode, VideoMode, ViewProcessGen, ViewProcessOffline, WindowId as ApiWindowId,
+    WindowRequest, WindowState, WindowStateAll,
 };
 
 use crate::{
@@ -28,7 +29,7 @@ use zero_ui_view_api::{
     webrender_api::{
         FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey, PipelineId,
     },
-    Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
+    Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, KeyRepeatConfig, MonitorId as ApiMonitorId,
 };
 
 use super::{App, AppId};
@@ -203,18 +204,18 @@ impl VIEW_PROCESS {
     }
 
     /// Call an extension with custom encoded payload.
-    pub fn app_extension_raw(&self, extension_key: usize, extension_request: ExtensionPayload) -> Result<ExtensionPayload> {
-        self.write().process.app_extension(extension_key, extension_request)
+    pub fn app_extension_raw(&self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> Result<ApiExtensionPayload> {
+        self.write().process.app_extension(extension_id, extension_request)
     }
 
     /// Call an extension with payload `request`.
-    pub fn app_extension<I, O>(&self, extension_key: usize, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
+    pub fn app_extension<I, O>(&self, extension_id: ApiExtensionId, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
     where
         I: serde::Serialize,
         O: serde::de::DeserializeOwned,
     {
-        let payload = ExtensionPayload::serialize(&request).unwrap();
-        let response = self.write().process.app_extension(extension_key, payload)?;
+        let payload = ApiExtensionPayload::serialize(&request).unwrap();
+        let response = self.write().process.app_extension(extension_id, payload)?;
         Ok(response.deserialize::<O>())
     }
 
@@ -251,7 +252,7 @@ impl VIEW_PROCESS {
 
         let win = ViewWindow(Arc::new(ViewWindowData {
             app_id: App::current_id().unwrap(),
-            id: window_id.get(),
+            id: zero_ui_view_api::WindowId::from_raw(window_id.get()),
             id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
             generation: app.data_generation,
@@ -285,7 +286,7 @@ impl VIEW_PROCESS {
 
         let surf = ViewHeadless(Arc::new(ViewWindowData {
             app_id: App::current_id().unwrap(),
-            id: id.get(),
+            id: zero_ui_view_api::WindowId::from_raw(id.get()),
             id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
             generation: app.data_generation,
@@ -303,7 +304,7 @@ impl VIEW_PROCESS {
         app.loading_images.iter().position(|i| i.upgrade().unwrap().read().id == Some(id))
     }
 
-    pub(super) fn on_image_metadata_loaded(&self, id: ImageId, size: PxSize, ppi: ImagePpi) -> Option<ViewImage> {
+    pub(super) fn on_image_metadata_loaded(&self, id: ImageId, size: PxSize, ppi: Option<ImagePpi>) -> Option<ViewImage> {
         if let Some(i) = self.loading_image_index(id) {
             let img = self.read().loading_images[i].upgrade().unwrap();
             {
@@ -321,7 +322,7 @@ impl VIEW_PROCESS {
         &self,
         id: ImageId,
         partial_size: PxSize,
-        ppi: ImagePpi,
+        ppi: Option<ImagePpi>,
         opaque: bool,
         partial_bgra8: IpcBytes,
     ) -> Option<ViewImage> {
@@ -763,7 +764,7 @@ impl ViewRenderer {
         self.call(|id, p| {
             let image = image.0.read();
             if p.generation() == image.generation {
-                p.use_image(id, image.id.unwrap_or(0))
+                p.use_image(id, image.id.unwrap_or(ImageId::INVALID))
             } else {
                 Err(ViewProcessOffline)
             }
@@ -775,7 +776,7 @@ impl ViewRenderer {
         self.call(|id, p| {
             let image = image.0.read();
             if p.generation() == image.generation {
-                p.update_image_use(id, key, image.id.unwrap_or(0))
+                p.update_image_use(id, key, image.id.unwrap_or(ImageId::INVALID))
             } else {
                 Err(ViewProcessOffline)
             }
@@ -839,7 +840,7 @@ impl ViewRenderer {
     }
 
     fn add_frame_image(app_id: AppId, id: ImageId) -> ViewImage {
-        if id == 0 {
+        if id == ImageId::INVALID {
             ViewImage::dummy(None)
         } else {
             let mut app = VIEW_PROCESS.handle_write(app_id);
@@ -890,21 +891,21 @@ impl ViewRenderer {
     }
 
     /// Call a render extension with custom encoded payload.
-    pub fn render_extension_raw(&self, extension_key: usize, request: ExtensionPayload) -> Result<ExtensionPayload> {
+    pub fn render_extension_raw(&self, extension_id: ApiExtensionId, request: ApiExtensionPayload) -> Result<ApiExtensionPayload> {
         if let Some(w) = self.0.upgrade() {
-            w.call(|id, p| p.render_extension(id, extension_key, request))
+            w.call(|id, p| p.render_extension(id, extension_id, request))
         } else {
             Err(ViewProcessOffline)
         }
     }
 
     /// Call an extension with payload `(view_window_id, request)`.
-    pub fn render_extension<I, O>(&self, extension_key: usize, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
+    pub fn render_extension<I, O>(&self, extension_id: ApiExtensionId, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
     where
         I: serde::Serialize,
         O: serde::de::DeserializeOwned,
     {
-        let r = self.render_extension_raw(extension_key, ExtensionPayload::serialize(&request).unwrap())?;
+        let r = self.render_extension_raw(extension_id, ApiExtensionPayload::serialize(&request).unwrap())?;
         Ok(r.deserialize())
     }
 }
@@ -947,7 +948,7 @@ struct ViewImageData {
 
     size: PxSize,
     partial_size: PxSize,
-    ppi: ImagePpi,
+    ppi: Option<ImagePpi>,
     opaque: bool,
 
     partial_bgra8: Option<IpcBytes>,
@@ -1022,7 +1023,7 @@ impl ViewImage {
 
     /// Returns the "pixels-per-inch" metadata associated with the image, or `None` if not loaded or error or no
     /// metadata provided by decoder.
-    pub fn ppi(&self) -> ImagePpi {
+    pub fn ppi(&self) -> Option<ImagePpi> {
         self.0.read().ppi
     }
 
@@ -1067,7 +1068,7 @@ impl ViewImage {
         ViewImage(Arc::new(RwLock::new(ViewImageData {
             app_id: None,
             id: None,
-            generation: 0,
+            generation: ViewProcessGen::INVALID,
             size: PxSize::zero(),
             partial_size: PxSize::zero(),
             ppi: None,

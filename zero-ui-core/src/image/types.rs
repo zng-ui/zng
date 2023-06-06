@@ -165,7 +165,7 @@ impl Img {
 
     /// Returns the image pixel-per-inch metadata if the image is loaded and the
     /// metadata was retrieved.
-    pub fn ppi(&self) -> ImagePpi {
+    pub fn ppi(&self) -> Option<ImagePpi> {
         self.view.get().and_then(|v| v.ppi())
     }
 
@@ -187,7 +187,7 @@ impl Img {
     /// [`ppi`]: Self::ppi
     /// [`screen_ppi`]: LayoutMetrics::screen_ppi
     pub fn layout_size(&self, ctx: &LayoutMetrics) -> PxSize {
-        self.calc_size(ctx, (ctx.screen_ppi(), ctx.screen_ppi()), false)
+        self.calc_size(ctx, ImagePpi::splat(ctx.screen_ppi()), false)
     }
 
     /// Calculate a layout size for the image.
@@ -199,8 +199,8 @@ impl Img {
     /// * `ignore_image_ppi`: If `true` always uses the `fallback_ppi` as the resolution.
     ///
     /// [`ppi`]: Self::ppi
-    pub fn calc_size(&self, ctx: &LayoutMetrics, fallback_ppi: (f32, f32), ignore_image_ppi: bool) -> PxSize {
-        let (dpi_x, dpi_y) = if ignore_image_ppi {
+    pub fn calc_size(&self, ctx: &LayoutMetrics, fallback_ppi: ImagePpi, ignore_image_ppi: bool) -> PxSize {
+        let dpi = if ignore_image_ppi {
             fallback_ppi
         } else {
             self.ppi().unwrap_or(fallback_ppi)
@@ -209,8 +209,9 @@ impl Img {
         let s_ppi = ctx.screen_ppi();
         let mut size = self.size();
 
-        size.width *= (s_ppi / dpi_x) * ctx.scale_factor().0;
-        size.height *= (s_ppi / dpi_y) * ctx.scale_factor().0;
+        let fct = ctx.scale_factor().0;
+        size.width *= (s_ppi / dpi.x) * fct;
+        size.height *= (s_ppi / dpi.y) * fct;
 
         size
     }
@@ -494,7 +495,7 @@ pub enum ImageSource {
 }
 impl ImageSource {
     /// New image data from solid color.
-    pub fn flood(size: impl Into<PxSize>, color: impl Into<crate::color::Rgba>, ppi: Option<(f32, f32)>) -> Self {
+    pub fn flood(size: impl Into<PxSize>, color: impl Into<crate::color::Rgba>, ppi: Option<ImagePpi>) -> Self {
         let size = size.into();
         let color = color.into();
         let len = size.width.0 as usize * size.height.0 as usize * 4;
@@ -1141,6 +1142,35 @@ impl IntoVar<Option<ImageDownscale>> for Px {
     type Var = LocalVar<Option<ImageDownscale>>;
 
     /// Fit
+    fn into_var(self) -> Self::Var {
+        LocalVar(Some(self.into()))
+    }
+}
+
+impl IntoVar<ImagePpi> for f32 {
+    type Var = LocalVar<ImagePpi>;
+
+    fn into_var(self) -> Self::Var {
+        LocalVar(self.into())
+    }
+}
+impl IntoVar<ImagePpi> for (f32, f32) {
+    type Var = LocalVar<ImagePpi>;
+
+    fn into_var(self) -> Self::Var {
+        LocalVar(self.into())
+    }
+}
+impl IntoVar<Option<ImagePpi>> for f32 {
+    type Var = LocalVar<Option<ImagePpi>>;
+
+    fn into_var(self) -> Self::Var {
+        LocalVar(Some(self.into()))
+    }
+}
+impl IntoVar<Option<ImagePpi>> for (f32, f32) {
+    type Var = LocalVar<Option<ImagePpi>>;
+
     fn into_var(self) -> Self::Var {
         LocalVar(Some(self.into()))
     }

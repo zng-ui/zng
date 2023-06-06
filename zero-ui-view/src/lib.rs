@@ -589,7 +589,7 @@ impl App {
         request_recv: flume::Receiver<RequestEvent>,
         mut ext: ViewExtensions,
     ) -> Self {
-        ext.renderer("zero-ui-view.webrender_debug", extensions::RendererDebugExt::default);
+        ext.renderer("zero-ui-view.webrender_debug", extensions::RendererDebugExt::new);
         App {
             headless: false,
             started: false,
@@ -601,15 +601,15 @@ impl App {
             response_sender,
             event_sender,
             window_target: std::ptr::null(),
-            gen: 0,
+            gen: ViewProcessGen::INVALID,
             device_events: false,
             windows: vec![],
             surfaces: vec![],
             monitors: vec![],
-            monitor_id_gen: 0,
+            monitor_id_gen: MonitorId::INVALID,
             devices: vec![],
-            device_id_gen: 0,
-            resize_frame_wait_id_gen: 0,
+            device_id_gen: DeviceId::INVALID,
+            resize_frame_wait_id_gen: FrameWaitId::INVALID,
             coalescing_event: None,
             cursor_entered_expect_move: Vec::with_capacity(1),
             exited: false,
@@ -695,12 +695,7 @@ impl App {
                     )));
                 }
 
-                let mut wait_id = self.resize_frame_wait_id_gen.wrapping_add(1);
-                if wait_id == 0 {
-                    wait_id = 1;
-                }
-                self.resize_frame_wait_id_gen = wait_id;
-                let wait_id = Some(wait_id);
+                let wait_id = Some(self.resize_frame_wait_id_gen.incr());
 
                 // send event, the app code should send a frame in the new size as soon as possible.
                 self.notify(Event::WindowChanged(WindowChanged::resized(id, size, EventCause::System, wait_id)));
@@ -832,7 +827,7 @@ impl App {
                         if key.is_modifier() {
                             match state {
                                 KeyState::Pressed => {
-                                    send_event = self.pressed_modifiers.insert(key, (d_id, input.scancode)).is_none();
+                                    send_event = self.pressed_modifiers.insert(key, (d_id, ScanCode(input.scancode))).is_none();
                                 }
                                 KeyState::Released => send_event = self.pressed_modifiers.remove(&key).is_some(),
                             }
@@ -843,7 +838,7 @@ impl App {
                         self.notify(Event::KeyboardInput {
                             window: id,
                             device: d_id,
-                            scan_code: input.scancode,
+                            scan_code: ScanCode(input.scancode),
                             state,
                             key,
                         });
@@ -930,7 +925,7 @@ impl App {
             }
             WindowEvent::AxisMotion { device_id, axis, value } => {
                 let d_id = self.device_id(device_id);
-                self.notify(Event::AxisMotion(id, d_id, axis, value));
+                self.notify(Event::AxisMotion(id, d_id, AxisId(axis), value));
             }
             WindowEvent::Touch(t) => {
                 let d_id = self.device_id(t.device_id);
@@ -967,7 +962,7 @@ impl App {
                 let monitor = if let Some(handle) = monitor {
                     self.monitor_handle_to_id(&handle)
                 } else {
-                    0
+                    MonitorId::INVALID
                 };
 
                 if is_monitor_change {
@@ -999,7 +994,7 @@ impl App {
             if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
                 *id
             } else {
-                0
+                MonitorId::INVALID
             }
         }
     }
@@ -1091,14 +1086,7 @@ impl App {
                         None
                     }
                 })
-                .unwrap_or_else(|| {
-                    let mut id = self.monitor_id_gen.wrapping_add(1);
-                    if id == 0 {
-                        id += 1;
-                    }
-                    self.monitor_id_gen = id;
-                    id
-                });
+                .unwrap_or_else(|| self.monitor_id_gen.incr());
             monitors.push((id, handle))
         }
 
@@ -1202,15 +1190,19 @@ impl App {
                     device: d_id,
                     delta: util::winit_mouse_wheel_delta_to_zui(delta),
                 }),
-                DeviceEvent::Motion { axis, value } => self.notify(Event::DeviceMotion { device: d_id, axis, value }),
+                DeviceEvent::Motion { axis, value } => self.notify(Event::DeviceMotion {
+                    device: d_id,
+                    axis: AxisId(axis),
+                    value,
+                }),
                 DeviceEvent::Button { button, state } => self.notify(Event::DeviceButton {
                     device: d_id,
-                    button,
+                    button: ButtonId(button),
                     state: util::element_state_to_button_state(state),
                 }),
                 DeviceEvent::Key(k) => self.notify(Event::DeviceKey {
                     device: d_id,
-                    scan_code: k.scancode,
+                    scan_code: ScanCode(k.scancode),
                     state: util::element_state_to_key_state(k.state),
                     key: k.virtual_keycode.map(util::v_key_to_key),
                 }),
@@ -1234,7 +1226,7 @@ impl App {
     fn with_window<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Window) -> R, not_found: impl FnOnce() -> R) -> R {
         self.assert_started();
         self.windows.iter_mut().find(|w| w.id() == id).map(action).unwrap_or_else(|| {
-            tracing::error!("headed window `{id}` not found, will return fallback result");
+            tracing::error!("headed window `{id:?}` not found, will return fallback result");
             not_found()
         })
     }
@@ -1243,11 +1235,7 @@ impl App {
         if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
             *id
         } else {
-            let mut id = self.monitor_id_gen.wrapping_add(1);
-            if id == 0 {
-                id = 1;
-            }
-            self.monitor_id_gen = id;
+            let id = self.monitor_id_gen.incr();
             self.monitors.push((id, handle.clone()));
             id
         }
@@ -1257,11 +1245,7 @@ impl App {
         if let Some((id, _)) = self.devices.iter().find(|(_, id)| *id == device_id) {
             *id
         } else {
-            let mut id = self.device_id_gen.wrapping_add(1);
-            if id == 0 {
-                id = 1;
-            }
-            self.device_id_gen = id;
+            let id = self.device_id_gen.incr();
             self.devices.push((id, device_id));
             id
         }
@@ -1295,7 +1279,7 @@ macro_rules! with_window_or_surface {
         } else if let Some($el) = $self.surfaces.iter_mut().find(|w| w.id() == $id) {
             $action
         } else {
-            tracing::error!("window `{}` not found, will return fallback result", $id);
+            tracing::error!("window `{:?}` not found, will return fallback result", $id);
             $fallback
         }
     };
@@ -1610,11 +1594,11 @@ impl Api for App {
     }
 
     fn frame_image(&mut self, id: WindowId) -> ImageId {
-        with_window_or_surface!(self, id, |w| w.frame_image(&mut self.image_cache), || 0)
+        with_window_or_surface!(self, id, |w| w.frame_image(&mut self.image_cache), || ImageId::INVALID)
     }
 
     fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> ImageId {
-        with_window_or_surface!(self, id, |w| w.frame_image_rect(&mut self.image_cache, rect), || 0)
+        with_window_or_surface!(self, id, |w| w.frame_image_rect(&mut self.image_cache, rect), || ImageId::INVALID)
     }
 
     fn render(&mut self, id: WindowId, frame: FrameRequest) {
@@ -1629,13 +1613,18 @@ impl Api for App {
         self.exts.api_extensions()
     }
 
-    fn app_extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload {
-        self.exts.call_command(extension_key, extension_request)
+    fn app_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {
+        self.exts.call_command(extension_id, extension_request)
     }
 
-    fn render_extension(&mut self, id: WindowId, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload {
-        with_window_or_surface!(self, id, |w| w.render_extension(extension_key, extension_request), || {
-            ExtensionPayload::invalid_request(extension_key, "renderer not found")
+    fn render_extension(
+        &mut self,
+        id: WindowId,
+        extension_id: ApiExtensionId,
+        extension_request: ApiExtensionPayload,
+    ) -> ApiExtensionPayload {
+        with_window_or_surface!(self, id, |w| w.render_extension(extension_id, extension_request), || {
+            ApiExtensionPayload::invalid_request(extension_id, "renderer not found")
         })
     }
 }

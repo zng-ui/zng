@@ -8,6 +8,7 @@ use std::{
 use zero_ui_view_api::webrender_api::DebugFlags;
 
 use crate::{
+    app::view_process::ApiExtensionId,
     crate_util::{IdSet, NameIdMap},
     event::{event, event_args},
     image::{ImageDataFormat, ImageSource, ImageVar, Img},
@@ -1176,19 +1177,19 @@ impl RendererDebug {
         self.flags.is_empty() && self.profiler_ui.is_empty()
     }
 
-    pub(super) fn extension_key(&self) -> Option<usize> {
+    pub(super) fn extension_id(&self) -> Option<ApiExtensionId> {
         if let Ok(ext) = crate::app::view_process::VIEW_PROCESS.extensions() {
             let name = crate::app::view_process::ApiExtensionName::new("zero-ui-view.webrender_debug").unwrap();
-            ext.key(&name)
+            ext.id(&name)
         } else {
             None
         }
     }
 
-    pub(super) fn push_extension(&self, exts: &mut Vec<(usize, zero_ui_view_api::ExtensionPayload)>) {
+    pub(super) fn push_extension(&self, exts: &mut Vec<(ApiExtensionId, zero_ui_view_api::ApiExtensionPayload)>) {
         if !self.is_empty() {
-            if let Some(key) = self.extension_key() {
-                exts.push((key, crate::app::view_process::ExtensionPayload::serialize(self).unwrap()));
+            if let Some(id) = self.extension_id() {
+                exts.push((id, crate::app::view_process::ApiExtensionPayload::serialize(self).unwrap()));
             }
         }
     }

@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use webrender_api::{self as wr, PipelineId};
 
-use crate::{units::*, ExtensionPayload, FrameId};
+use crate::{units::*, ApiExtensionId, ApiExtensionPayload, FrameId};
 
 /// Represents a builder for display items that will be rendered in the view process.
 #[derive(Debug)]
@@ -350,22 +350,22 @@ impl DisplayListBuilder {
     /// [`push_clip_rect`]-[`pop_clip`], if the extension is a normal item only the `push_extension` method must
     /// be called, if the extension is a context item the [`pop_extension`] must also be called.
     ///
-    /// The `extension_key` must be an index to an entry of [`Api::extensions`].
+    /// The `extension_id` must be an index to an entry of [`Api::extensions`].
     ///
     /// [`push_color`]: Self::push_color
     /// [`push_clip_rect`]: Self::push_clip_rect
     /// [`pop_clip`]: Self::pop_clip
     /// [`pop_extension`]: Self::pop_extension
     /// [`Api::extensions`]: crate::Api::extensions
-    pub fn push_extension(&mut self, extension_key: usize, payload: ExtensionPayload) {
-        self.list.push(DisplayItem::PushExtension { extension_key, payload })
+    pub fn push_extension(&mut self, extension_id: ApiExtensionId, payload: ApiExtensionPayload) {
+        self.list.push(DisplayItem::PushExtension { extension_id, payload })
     }
 
     /// Pop an extension previously pushed.
     ///
     /// Only required if the extension implementation requires it, item extensions do not need to pop.
-    pub fn pop_extension(&mut self, extension_key: usize) {
-        self.list.push(DisplayItem::PopExtension { extension_key })
+    pub fn pop_extension(&mut self, extension_id: ApiExtensionId) {
+        self.list.push(DisplayItem::PopExtension { extension_id })
     }
 
     /// Number of display items.
@@ -987,11 +987,11 @@ enum DisplayItem {
     },
 
     PushExtension {
-        extension_key: usize,
-        payload: ExtensionPayload,
+        extension_id: ApiExtensionId,
+        payload: ApiExtensionPayload,
     },
     PopExtension {
-        extension_key: usize,
+        extension_id: ApiExtensionId,
     },
 }
 impl DisplayItem {
@@ -1271,10 +1271,10 @@ impl DisplayItem {
                     *style,
                 );
             }
-            DisplayItem::PushExtension { extension_key, payload } => {
-                ext.push(DisplayExtensionArgs::new_push(*extension_key, payload, wr_list))
+            DisplayItem::PushExtension { extension_id, payload } => {
+                ext.push(DisplayExtensionArgs::new_push(*extension_id, payload, wr_list))
             }
-            DisplayItem::PopExtension { extension_key } => ext.pop(DisplayExtensionArgs::new_pop(*extension_key, wr_list)),
+            DisplayItem::PopExtension { extension_id } => ext.pop(DisplayExtensionArgs::new_pop(*extension_id, wr_list)),
         }
     }
 
@@ -1459,26 +1459,26 @@ use space_and_clip::SpaceAndClip;
 /// Arguments for [`DisplayListExtension`].
 pub struct DisplayExtensionArgs<'a> {
     /// Extension index.
-    pub extension_key: usize,
+    pub extension_id: ApiExtensionId,
     /// Push payload, is empty for pop.
-    pub payload: &'a ExtensionPayload,
+    pub payload: &'a ApiExtensionPayload,
     /// The webrender display list.
     pub wr_list: &'a mut wr::DisplayListBuilder,
 }
 impl<'a> DisplayExtensionArgs<'a> {
     /// New args for push handler.
-    pub fn new_push(extension_key: usize, payload: &'a ExtensionPayload, wr_list: &'a mut wr::DisplayListBuilder) -> Self {
+    pub fn new_push(extension_id: ApiExtensionId, payload: &'a ApiExtensionPayload, wr_list: &'a mut wr::DisplayListBuilder) -> Self {
         Self {
-            extension_key,
+            extension_id,
             payload,
             wr_list,
         }
     }
     /// New args for pop handler.
-    pub fn new_pop(extension_key: usize, wr_list: &'a mut wr::DisplayListBuilder) -> Self {
-        static POP_LAYLOAD: ExtensionPayload = ExtensionPayload::empty();
+    pub fn new_pop(extension_id: ApiExtensionId, wr_list: &'a mut wr::DisplayListBuilder) -> Self {
+        static POP_LAYLOAD: ApiExtensionPayload = ApiExtensionPayload::empty();
         Self {
-            extension_key,
+            extension_id,
             payload: &POP_LAYLOAD,
             wr_list,
         }

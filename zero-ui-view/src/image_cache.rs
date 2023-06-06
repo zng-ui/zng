@@ -36,7 +36,7 @@ impl ImageCache {
         Self {
             app_sender,
             images: FxHashMap::default(),
-            image_id_gen: 0,
+            image_id_gen: ImageId::first(),
         }
     }
 
@@ -49,7 +49,7 @@ impl ImageCache {
             downscale,
         }: ImageRequest<IpcBytes>,
     ) -> ImageId {
-        let id = self.generate_image_id();
+        let id = self.image_id_gen.incr();
 
         let app_sender = self.app_sender.clone();
         rayon::spawn(move || {
@@ -117,7 +117,7 @@ impl ImageCache {
             downscale,
         }: ImageRequest<IpcBytesReceiver>,
     ) -> ImageId {
-        let id = self.generate_image_id();
+        let id = self.image_id_gen.incr();
         let app_sender = self.app_sender.clone();
         rayon::spawn(move || {
             // crate `images` does not do progressive decode.
@@ -210,15 +210,6 @@ impl ImageCache {
                 }));
             }
         });
-        id
-    }
-
-    fn generate_image_id(&mut self) -> ImageId {
-        let mut id = self.image_id_gen.wrapping_add(1);
-        if id == 0 {
-            id = 1;
-        }
-        self.image_id_gen = id;
         id
     }
 
@@ -477,7 +468,7 @@ impl ImageCache {
 
     pub fn encode(&self, id: ImageId, format: String) {
         if !ENCODERS.contains(&format.as_str()) {
-            let error = format!("cannot encode `{id}` to `{format}`, unknown format");
+            let error = format!("cannot encode `{id:?}` to `{format}`, unknown format");
             let _ = self
                 .app_sender
                 .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
@@ -501,13 +492,13 @@ impl ImageCache {
                         }));
                     }
                     Err(e) => {
-                        let error = format!("failed to encode `{id}` to `{format}`, {e}");
+                        let error = format!("failed to encode `{id:?}` to `{format}`, {e}");
                         let _ = sender.send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
                     }
                 }
             })
         } else {
-            let error = format!("cannot encode `{id}` to `{format}`, image not found");
+            let error = format!("cannot encode `{id:?}` to `{format}`, image not found");
             let _ = self
                 .app_sender
                 .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
@@ -515,12 +506,12 @@ impl ImageCache {
     }
 }
 
-type RawLoadedImg = (IpcBytes, PxSize, ImagePpi, bool);
+type RawLoadedImg = (IpcBytes, PxSize, Option<ImagePpi>, bool);
 struct ImageData {
     size: PxSize,
     bgra8: IpcBytes,
     descriptor: ImageDescriptor,
-    ppi: ImagePpi,
+    ppi: Option<ImagePpi>,
 }
 impl ImageData {
     pub fn opaque(&self) -> bool {
@@ -594,9 +585,9 @@ impl Image {
         match format {
             ImageFormat::Jpeg => {
                 let mut jpg = codecs::jpeg::JpegEncoder::new(buffer);
-                if let Some((ppi_x, ppi_y)) = self.0.ppi {
+                if let Some(ppi) = self.0.ppi {
                     jpg.set_pixel_density(codecs::jpeg::PixelDensity {
-                        density: (ppi_x as u16, ppi_y as u16),
+                        density: (ppi.x as u16, ppi.y as u16),
                         unit: codecs::jpeg::PixelDensityUnit::Inches,
                     });
                 }
@@ -607,7 +598,7 @@ impl Image {
                 if opaque {
                     img = image::DynamicImage::ImageRgb8(img.to_rgb8());
                 }
-                if let Some((ppi_x, ppi_y)) = self.0.ppi {
+                if let Some(ppi) = self.0.ppi {
                     let mut png_bytes = vec![];
 
                     img.write_to(&mut std::io::Cursor::new(&mut png_bytes), ImageFormat::Png)?;
@@ -621,8 +612,8 @@ impl Image {
                     let mut chunk = Vec::with_capacity(4 * 2 + 1);
 
                     // ppi / inch_to_metric
-                    let ppm_x = (ppi_x / 0.0254) as u32;
-                    let ppm_y = (ppi_y / 0.0254) as u32;
+                    let ppm_x = (ppi.x / 0.0254) as u32;
+                    let ppm_y = (ppi.y / 0.0254) as u32;
 
                     chunk.write_u32::<BigEndian>(ppm_x).unwrap();
                     chunk.write_u32::<BigEndian>(ppm_y).unwrap();
@@ -782,7 +773,7 @@ mod capture {
     };
     use zero_ui_view_api::{
         units::{Px, PxRect, PxSize, PxToWr, WrToPx},
-        Event, FrameId, ImageDataFormat, ImageId, ImageLoadedData, ImageRequest, IpcBytes, WindowId,
+        Event, FrameId, ImageDataFormat, ImageId, ImageLoadedData, ImagePpi, ImageRequest, IpcBytes, WindowId,
     };
 
     use crate::{
@@ -804,10 +795,10 @@ mod capture {
             scale_factor: f32,
         ) -> ImageId {
             if frame_id == FrameId::INVALID {
-                let id = self.generate_image_id();
+                let id = self.image_id_gen.incr();
                 let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoadError {
                     image: id,
-                    error: format!("no frame rendered in window `{window_id}`"),
+                    error: format!("no frame rendered in window `{window_id:?}`"),
                 }));
                 let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady {
                     window: window_id,
@@ -882,7 +873,7 @@ mod capture {
 
                 let data = IpcBytes::from_vec(buf);
                 let ppi = 96.0 * scale_factor;
-                let ppi = Some((ppi, ppi));
+                let ppi = Some(ImagePpi::splat(ppi));
                 let id = self.add(ImageRequest {
                     format: ImageDataFormat::Bgra8 {
                         size: PxSize::new(Px(s.width), Px(s.height)),

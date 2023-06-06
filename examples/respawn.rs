@@ -56,8 +56,8 @@ fn crash_respawn() -> impl UiNode {
         on_click = hn!(|_| {
             if let Ok(ext) = VIEW_PROCESS.extensions() {
                 let crash_ext = zero_ui::core::app::view_process::ApiExtensionName::new("zero-ui.examples.respawn.crash").unwrap();
-                if let Some(key) = ext.key(&crash_ext) {
-                    let _ = VIEW_PROCESS.app_extension::<_, ()>(key, &());
+                if let Some(id) = ext.id(&crash_ext) {
+                    let _ = VIEW_PROCESS.app_extension::<_, ()>(id, &());
                 } else {
                     tracing::error!(r#"extension "zero-ui-view.crash" unavailable"#)
                 }
@@ -131,6 +131,6 @@ fn icon() -> impl UiNode {
 
 fn test_extensions() -> ViewExtensions {
     let mut ext = ViewExtensions::new();
-    ext.command::<(), ()>("zero-ui.examples.respawn.crash", |_| panic!("CRASH"));
+    ext.command::<(), ()>("zero-ui.examples.respawn.crash", |_, _| panic!("CRASH"));
     ext
 }

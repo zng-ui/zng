@@ -165,7 +165,7 @@ fn test_view_api_types() {
     test_config!(WindowState::Normal);
 
     test_config!(EventFrameRendered {
-        window: 3,
+        window: zero_ui::core::app::view_process::ApiWindowId::from_raw(3),
         frame: FrameId::first(),
         frame_image: None
     });

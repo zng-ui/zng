@@ -94,7 +94,7 @@ impl Controller {
             while let Ok(ev) = event_receiver.recv() {
                 on_event(ev);
             }
-            on_event(Event::Disconnected(1));
+            on_event(Event::Disconnected(ViewProcessGen::first()));
 
             // return to reuse in respawn.
             on_event
@@ -110,7 +110,7 @@ impl Controller {
             event_listener: Some(ev),
             headless,
             device_events,
-            generation: 1,
+            generation: ViewProcessGen::first(),
             is_respawn: false,
             last_respawn: None,
             fast_respawn_count: 0,
@@ -457,11 +457,7 @@ impl Controller {
         self.request_sender = request;
         self.response_receiver = response;
 
-        let mut next_id = self.generation.wrapping_add(1);
-        if next_id == 0 {
-            next_id = 1;
-        }
-        self.generation = next_id;
+        let next_id = self.generation.incr();
 
         if let Err(ViewProcessOffline) = self.try_init() {
             panic!("respawn on respawn startup");

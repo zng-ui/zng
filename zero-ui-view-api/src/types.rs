@@ -8,47 +8,128 @@ use std::time::Duration;
 use std::{fmt, path::PathBuf};
 use webrender_api::*;
 
-/// Window ID in channel.
-///
-/// In the View Process this is mapped to a system id.
-///
-/// In the App Process this is an unique id that survives View crashes.
-///
-/// Zero is never an ID.
-pub type WindowId = u32;
+macro_rules! declare_id {
+    ($(
+        $(#[$docs:meta])+
+        pub struct $Id:ident(_);
+    )+) => {$(
+        $(#[$docs])+
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        #[serde(transparent)]
+        pub struct $Id(u32);
 
-/// Device ID in channel.
-///
-/// In the View Process this is mapped to a system id.
-///
-/// In the App Process this is mapped to an unique id, but does not survived View crashes.
-///
-/// Zero is never an ID.
-pub type DeviceId = u32;
+        impl $Id {
+            /// Dummy ID, zero.
+            pub const INVALID: Self = Self(0);
 
-/// Monitor screen ID in channel.
-///
-/// In the View Process this is mapped to a system id.
-///
-/// In the App Process this is mapped to an unique id, but does not survived View crashes.
-///
-/// Zero is never an ID.
-pub type MonitorId = u32;
+            /// Create the first valid ID.
+            pub const fn first() -> Self {
+                Self(1)
+            }
 
-/// Id of a decoded image in the cache.
-pub type ImageId = u32;
+            /// Create the next ID.
+            ///
+            /// IDs wrap around to [`first`] when the entire `u32` space is used, it is never `INVALID`.
+            ///
+            /// [`first`]: Self::first
+            #[must_use]
+            pub const fn next(self) -> Self {
+                let r = Self(self.0.wrapping_add(1));
+                if r.0 == Self::INVALID.0 {
+                    Self::first()
+                } else {
+                    r
+                }
+            }
 
-/// View-process generation, starts at one and changes every respawn, it is never zero.
-pub type ViewProcessGen = u32;
+            /// Replace self with [`next`] and returns.
+            ///
+            /// [`next`]: Self::next
+            #[must_use]
+            pub fn incr(&mut self) -> Self {
+                std::mem::replace(self, self.next())
+            }
+
+            /// Get the raw ID.
+            pub const fn get(self) -> u32 {
+                self.0
+            }
+
+            /// Create an ID using a custom value.
+            ///
+            /// Note that only the documented process must generate IDs, and that it must only
+            /// generate IDs using this function or the [`next`] function.
+            ///
+            /// If the `id` is zero it will still be [`INVALID`] and handled differently by the other process,
+            /// zero is never valid.
+            ///
+            /// [`next`]: Self::next
+            /// [`INVALID`]: Self::INVALID
+            pub const fn from_raw(id: u32) -> Self {
+                Self(id)
+            }
+        }
+    )+};
+}
+
+declare_id! {
+    /// Window ID in channel.
+    ///
+    /// In the View Process this is mapped to a system id.
+    ///
+    /// In the App Process this is an unique id that survives View crashes.
+    ///
+    /// The App Process defines the ID.
+    pub struct WindowId(_);
+
+    /// Device ID in channel.
+    ///
+    /// In the View Process this is mapped to a system id.
+    ///
+    /// In the App Process this is mapped to an unique id, but does not survived View crashes.
+    ///
+    /// The View Process defines the ID.
+    pub struct DeviceId(_);
+
+    /// Monitor screen ID in channel.
+    ///
+    /// In the View Process this is mapped to a system id.
+    ///
+    /// In the App Process this is mapped to an unique id, but does not survived View crashes.
+    ///
+    /// The View Process defines the ID.
+    pub struct MonitorId(_);
+
+    /// Id of a decoded image in the cache.
+    ///
+    /// The View Process defines the ID.
+    pub struct ImageId(_);
+
+    /// View-process generation, starts at one and changes every respawn, it is never zero.
+    ///
+    /// The View Process defines the ID.
+    pub struct ViewProcessGen(_);
+
+    /// Identifies a frame request for collaborative resize in [`WindowChanged`].
+    ///
+    /// The View Process defines the ID.
+    pub struct FrameWaitId(_);
+}
 
 /// Hardware-dependent keyboard scan code.
-pub type ScanCode = u32;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ScanCode(pub u32);
 
 /// Identifier for a specific analog axis on some device.
-pub type AxisId = u32;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct AxisId(pub u32);
 
 /// Identifier for a specific button on some device.
-pub type ButtonId = u32;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ButtonId(pub u32);
 
 /// Identifier of a frame or frame update.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -97,9 +178,49 @@ impl FrameId {
 }
 
 /// Pixels-per-inch of each dimension of an image.
-///
-/// Is `None` when not loaded or not provided by the decoder.
-pub type ImagePpi = Option<(f32, f32)>;
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ImagePpi {
+    /// Pixels-per-inch in the X dimension.
+    pub x: f32,
+    /// Pixels-per-inch in the Y dimension.
+    pub y: f32,
+}
+impl ImagePpi {
+    ///
+    pub const fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+
+    /// New equal in both dimensions.
+    pub const fn splat(xy: f32) -> Self {
+        Self::new(xy, xy)
+    }
+}
+impl Default for ImagePpi {
+    /// 96.0
+    fn default() -> Self {
+        Self::splat(96.0)
+    }
+}
+impl fmt::Debug for ImagePpi {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() || self.x != self.y {
+            f.debug_struct("ImagePpi").field("x", &self.x).field("y", &self.y).finish()
+        } else {
+            write!(f, "{}", self.x)
+        }
+    }
+}
+impl From<f32> for ImagePpi {
+    fn from(xy: f32) -> Self {
+        ImagePpi::splat(xy)
+    }
+}
+impl From<(f32, f32)> for ImagePpi {
+    fn from((x, y): (f32, f32)) -> Self {
+        ImagePpi::new(x, y)
+    }
+}
 
 /// State a [`Key`] has entered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -616,9 +737,6 @@ pub struct EventFrameRendered {
     pub frame_image: Option<ImageLoadedData>,
 }
 
-/// Identifies a frame request for collaborative resize in [`WindowChanged`].
-pub type FrameWaitId = u32;
-
 /// [`Event::WindowChanged`] payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowChanged {
@@ -927,7 +1045,7 @@ pub enum Event {
         /// The image pixel size.
         size: PxSize,
         /// The image pixels-per-inch metadata.
-        ppi: ImagePpi,
+        ppi: Option<ImagePpi>,
     },
     /// An image resource finished decoding.
     ImageLoaded(ImageLoadedData),
@@ -939,7 +1057,7 @@ pub enum Event {
         /// image is not *interlaced*.
         partial_size: PxSize,
         /// The image pixels-per-inch metadata.
-        ppi: ImagePpi,
+        ppi: Option<ImagePpi>,
         /// If the decoded pixels so-far are all opaque (255 alpha).
         opaque: bool,
         /// Updated BGRA8 pre-multiplied pixel buffer. This includes all the pixels
@@ -1380,7 +1498,7 @@ pub struct FrameUpdateRequest {
     pub colors: Vec<FrameValueUpdate<ColorF>>,
 
     /// Render update extension key and payload.
-    pub extensions: Vec<(usize, ExtensionPayload)>,
+    pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     /// New clear color.
     pub clear_color: Option<ColorF>,
@@ -1513,7 +1631,7 @@ pub struct WindowRequest {
     pub focus: bool,
 
     /// Config for renderer extensions.
-    pub extensions: Vec<(usize, ExtensionPayload)>,
+    pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
 impl WindowRequest {
     /// Corrects invalid values if [`kiosk`] is `true`.
@@ -1699,7 +1817,7 @@ pub struct HeadlessRequest {
     pub render_mode: RenderMode,
 
     /// Config for renderer extensions.
-    pub extensions: Vec<(usize, ExtensionPayload)>,
+    pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
 
 /// Information about a monitor screen.
@@ -1878,7 +1996,7 @@ pub enum ImageDataFormat {
         /// Size in pixels.
         size: PxSize,
         /// Pixels-per-inch of the image.
-        ppi: ImagePpi,
+        ppi: Option<ImagePpi>,
     },
 
     /// The image is encoded, a file extension that maybe identifies
@@ -1941,8 +2059,8 @@ impl std::hash::Hash for ImageDataFormat {
     }
 }
 
-fn ppi_key(ppi: ImagePpi) -> Option<(u16, u16)> {
-    ppi.map(|(x, y)| ((x * 3.0) as u16, (y * 3.0) as u16))
+fn ppi_key(ppi: Option<ImagePpi>) -> Option<(u16, u16)> {
+    ppi.map(|s| ((s.x * 3.0) as u16, (s.y * 3.0) as u16))
 }
 
 /// Represents a successfully decoded image.
@@ -1955,7 +2073,7 @@ pub struct ImageLoadedData {
     /// Pixel size.
     pub size: PxSize,
     /// Pixel-per-inch metadata.
-    pub ppi: ImagePpi,
+    pub ppi: Option<ImagePpi>,
     /// If all pixels have an alpha value of 255.
     pub opaque: bool,
     /// Reference to the BGRA8 pre-multiplied image pixels.
@@ -2049,8 +2167,8 @@ pub enum FocusIndicator {
 ///
 /// [`IpcBytesReceiver`]: crate::ipc::IpcBytesReceiver
 #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct ExtensionPayload(#[serde(with = "serde_bytes")] pub Vec<u8>);
-impl ExtensionPayload {
+pub struct ApiExtensionPayload(#[serde(with = "serde_bytes")] pub Vec<u8>);
+impl ApiExtensionPayload {
     /// Serialize the payload.
     pub fn serialize<T: Serialize>(payload: &T) -> bincode::Result<Self> {
         bincode::serialize(payload).map(Self)
@@ -2058,15 +2176,13 @@ impl ExtensionPayload {
 
     /// Deserialize the payload.
     pub fn deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, ApiExtensionRecvError> {
-        if let Some((key, error)) = self.parse_invalid_request() {
+        if let Some((id, error)) = self.parse_invalid_request() {
             Err(ApiExtensionRecvError::InvalidRequest {
-                extension_key: if key == usize::MAX { None } else { Some(key) },
+                extension_id: id,
                 error: error.to_owned(),
             })
-        } else if let Some(key) = self.parse_unknown_extension() {
-            Err(ApiExtensionRecvError::UnknownExtension {
-                extension_key: if key == usize::MAX { None } else { Some(key) },
-            })
+        } else if let Some(id) = self.parse_unknown_extension() {
+            Err(ApiExtensionRecvError::UnknownExtension { extension_id: id })
         } else {
             bincode::deserialize(&self.0).map_err(ApiExtensionRecvError::Deserialize)
         }
@@ -2079,62 +2195,68 @@ impl ExtensionPayload {
 
     /// Value returned when an invalid extension is requested.
     ///
-    /// Value is a string `"zero-ui-view-api.unknown_extension;key={extension_key}"`.
-    pub fn unknown_extension(extension_key: usize) -> Self {
-        Self(format!("zero-ui-view-api.unknown_extension;key={extension_key}").into_bytes())
+    /// Value is a string `"zero-ui-view-api.unknown_extension;id={extension_id}"`.
+    pub fn unknown_extension(extension_id: ApiExtensionId) -> Self {
+        Self(format!("zero-ui-view-api.unknown_extension;id={extension_id}").into_bytes())
     }
 
     /// Value returned when an invalid request is made for a valid extension key.
     ///
-    /// Value is a string `"zero-ui-view-api.invalid_request;key={extension_key};error={error}"`.
-    pub fn invalid_request(extension_key: usize, error: impl fmt::Display) -> Self {
-        Self(format!("zero-ui-view-api.invalid_request;key={extension_key};error={error}").into_bytes())
+    /// Value is a string `"zero-ui-view-api.invalid_request;id={extension_id};error={error}"`.
+    pub fn invalid_request(extension_id: ApiExtensionId, error: impl fmt::Display) -> Self {
+        Self(format!("zero-ui-view-api.invalid_request;id={extension_id};error={error}").into_bytes())
     }
 
     /// If the payload is an [`unknown_extension`] error message, returns the key.
     ///
     /// if the payload starts with the invalid request header and the key cannot be retrieved the
-    /// `usize::MAX` is returned as the key.
+    /// [`ApiExtensionId::INVALID`] is returned as the key.
     ///
     /// [`unknown_extension`]: Self::unknown_extension
-    pub fn parse_unknown_extension(&self) -> Option<usize> {
+    pub fn parse_unknown_extension(&self) -> Option<ApiExtensionId> {
         let p = self.0.strip_prefix(b"zero-ui-view-api.unknown_extension;")?;
-        if let Some(p) = p.strip_prefix(b"key=") {
-            if let Ok(key_str) = std::str::from_utf8(p) {
-                if let Ok(key) = key_str.parse::<usize>() {
-                    return Some(key);
-                }
+        if let Some(p) = p.strip_prefix(b"id=") {
+            if let Ok(id_str) = std::str::from_utf8(p) {
+                return match id_str.parse::<ApiExtensionId>() {
+                    Ok(id) => Some(id),
+                    Err(id) => Some(id),
+                };
             }
         }
-        Some(usize::MAX)
+        Some(ApiExtensionId::INVALID)
     }
 
     /// If the payload is an [`invalid_request`] error message, returns the key and error.
     ///
     /// if the payload starts with the invalid request header and the key cannot be retrieved the
-    /// `usize::MAX` is returned as the key and the error message will mention "corrupted payload".
+    /// [`ApiExtensionId::INVALID`] is returned as the key and the error message will mention "corrupted payload".
     ///
     /// [`invalid_request`]: Self::invalid_request
-    pub fn parse_invalid_request(&self) -> Option<(usize, &str)> {
+    pub fn parse_invalid_request(&self) -> Option<(ApiExtensionId, &str)> {
         let p = self.0.strip_prefix(b"zero-ui-view-api.invalid_request;")?;
-        if let Some(p) = p.strip_prefix(b"key=") {
-            if let Some(key_end) = p.iter().position(|&b| b == b';') {
-                if let Ok(key_str) = std::str::from_utf8(&p[..key_end]) {
-                    if let Ok(key) = key_str.parse::<usize>() {
-                        if let Some(p) = p[key_end..].strip_prefix(b";error=") {
-                            if let Ok(err_str) = std::str::from_utf8(p) {
-                                return Some((key, err_str));
-                            }
+        if let Some(p) = p.strip_prefix(b"id=") {
+            if let Some(id_end) = p.iter().position(|&b| b == b';') {
+                if let Ok(id_str) = std::str::from_utf8(&p[..id_end]) {
+                    let id = match id_str.parse::<ApiExtensionId>() {
+                        Ok(id) => id,
+                        Err(id) => id,
+                    };
+                    if let Some(p) = p[id_end..].strip_prefix(b";error=") {
+                        if let Ok(err_str) = std::str::from_utf8(p) {
+                            return Some((id, err_str));
                         }
-                        return Some((key, "invalid request, corrupted payload, unknown error"));
                     }
+                    return Some((id, "invalid request, corrupted payload, unknown error"));
                 }
             }
         }
-        Some((usize::MAX, "invalid request, corrupted payload, unknown extension_key and error"))
+        Some((
+            ApiExtensionId::INVALID,
+            "invalid request, corrupted payload, unknown extension_id and error",
+        ))
     }
 }
-impl fmt::Debug for ExtensionPayload {
+impl fmt::Debug for ApiExtensionPayload {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ExtensionPayload({} bytes)", self.0.len())
     }
@@ -2245,20 +2367,88 @@ impl ApiExtensions {
     ///
     /// [`Api::app_extension`]: crate::Api::app_extension
     /// [`Api::render_extension`]: crate::Api::render_extension
-    pub fn key(&self, ext: &ApiExtensionName) -> Option<usize> {
-        self.0.iter().position(|e| e == ext)
+    pub fn id(&self, ext: &ApiExtensionName) -> Option<ApiExtensionId> {
+        self.0.iter().position(|e| e == ext).map(ApiExtensionId::from_index)
     }
 
     /// Push the `ext` to the list, if it is not already inserted.
     ///
     /// Returns `Ok(key)` if inserted or `Err(key)` is was already in list.
-    pub fn insert(&mut self, ext: ApiExtensionName) -> Result<usize, usize> {
-        if let Some(key) = self.key(&ext) {
+    pub fn insert(&mut self, ext: ApiExtensionName) -> Result<ApiExtensionId, ApiExtensionId> {
+        if let Some(key) = self.id(&ext) {
             Err(key)
         } else {
             let key = self.0.len();
             self.0.push(ext);
-            Ok(key)
+            Ok(ApiExtensionId::from_index(key))
+        }
+    }
+}
+
+/// Identifies an [`ApiExtensionName`] in a list.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ApiExtensionId(u32);
+impl fmt::Debug for ApiExtensionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if *self == Self::INVALID {
+            if f.alternate() {
+                write!(f, "ApiExtensionId::")?;
+            }
+            write!(f, "INVALID")
+        } else {
+            write!(f, "ApiExtensionId({})", self.0 - 1)
+        }
+    }
+}
+impl fmt::Display for ApiExtensionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if *self == Self::INVALID {
+            write!(f, "invalid")
+        } else {
+            write!(f, "{}", self.0 - 1)
+        }
+    }
+}
+impl ApiExtensionId {
+    /// Dummy ID.
+    pub const INVALID: Self = Self(0);
+
+    /// Gets the ID as a list index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called in `INVALID`.
+    pub fn index(self) -> usize {
+        self.0.checked_sub(1).expect("invalid id") as _
+    }
+
+    /// New ID from the index of an [`ApiExtensionName`] in a list.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `idx > u32::MAX - 1`.
+    pub fn from_index(idx: usize) -> Self {
+        if idx > (u32::MAX - 1) as _ {
+            panic!("index out-of-bounds")
+        }
+        Self(idx as u32 + 1)
+    }
+}
+impl std::str::FromStr for ApiExtensionId {
+    type Err = Self;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.parse::<u32>() {
+            Ok(i) => {
+                let r = Self::from_index(i as _);
+                if r == Self::INVALID {
+                    Err(r)
+                } else {
+                    Ok(r)
+                }
+            }
+            Err(_) => Err(Self::INVALID),
         }
     }
 }
@@ -2270,15 +2460,15 @@ pub enum ApiExtensionRecvError {
     UnknownExtension {
         /// Extension that was requested.
         ///
-        /// Is `None` only if error message is corrupted.
-        extension_key: Option<usize>,
+        /// Is `INVALID` only if error message is corrupted.
+        extension_id: ApiExtensionId,
     },
     /// Invalid request format.
     InvalidRequest {
         /// Extension that was requested.
         ///
-        /// Is `None` only if error message is corrupted.
-        extension_key: Option<usize>,
+        /// Is `INVALID` only if error message is corrupted.
+        extension_id: ApiExtensionId,
         /// Message from the view-process.
         error: String,
     },
@@ -2288,9 +2478,9 @@ pub enum ApiExtensionRecvError {
 impl fmt::Display for ApiExtensionRecvError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ApiExtensionRecvError::UnknownExtension { extension_key } => write!(f, "invalid API request for unknown key {extension_key:?}"),
-            ApiExtensionRecvError::InvalidRequest { extension_key, error } => {
-                write!(f, "invalid API request for extension key {extension_key:?}, {error}")
+            ApiExtensionRecvError::UnknownExtension { extension_id } => write!(f, "invalid API request for unknown id {extension_id:?}"),
+            ApiExtensionRecvError::InvalidRequest { extension_id, error } => {
+                write!(f, "invalid API request for extension id {extension_id:?}, {error}")
             }
             ApiExtensionRecvError::Deserialize(e) => write!(f, "API extension response failed to deserialize, {e}"),
         }

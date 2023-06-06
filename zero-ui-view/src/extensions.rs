@@ -8,7 +8,7 @@
 use std::any::Any;
 
 use webrender::{DebugFlags, RenderApi};
-use zero_ui_view_api::{ApiExtensionName, ApiExtensions, ExtensionPayload};
+use zero_ui_view_api::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions};
 
 /// The extension API.
 pub trait ViewExtension: Send + Any {
@@ -16,7 +16,7 @@ pub trait ViewExtension: Send + Any {
     fn name(&self) -> &ApiExtensionName;
 
     /// Run the extension as an app level command.
-    fn command(&mut self, request: ExtensionPayload) -> Option<ExtensionPayload> {
+    fn command(&mut self, request: ApiExtensionPayload) -> Option<ApiExtensionPayload> {
         let _ = request;
         None
     }
@@ -33,7 +33,7 @@ pub trait RendererExtension: Any {
     ///
     /// The `cfg` is the raw config send with the renderer creation request addressing this extension. Note
     /// that this extension will participate in the renderer creation even if there is no config for it.
-    fn configure(&mut self, cfg: Option<ExtensionPayload>, opts: &mut webrender::WebRenderOptions) {
+    fn configure(&mut self, cfg: Option<ApiExtensionPayload>, opts: &mut webrender::WebRenderOptions) {
         let _ = (cfg, opts);
     }
 
@@ -47,16 +47,10 @@ pub trait RendererExtension: Any {
 
     /// Called when a command request is made for the extension and renderer (window ID).
     ///
-    /// The `extension_key` is the current index of the extension, it can be used in error messages.
-    fn command(
-        &mut self,
-        renderer: &mut webrender::Renderer,
-        render_api: &RenderApi,
-        request: ExtensionPayload,
-        extension_key: usize,
-    ) -> ExtensionPayload {
+    /// The `extension_id` is the current index of the extension, it can be used in error messages.
+    fn command(&mut self, renderer: &mut webrender::Renderer, render_api: &RenderApi, request: ApiExtensionPayload) -> ApiExtensionPayload {
         let _ = (renderer, render_api, request);
-        ExtensionPayload::unknown_extension(extension_key)
+        ApiExtensionPayload::unknown_extension(ApiExtensionId::INVALID)
     }
 
     /// Called when a new frame is about to begin rendering.
@@ -66,7 +60,7 @@ pub trait RendererExtension: Any {
     fn finish_render(&mut self) {}
 
     /// Called when a display item push for the extension is found.
-    fn display_item_push(&mut self, payload: &mut ExtensionPayload, wr_list: &mut zero_ui_view_api::webrender_api::DisplayListBuilder) {
+    fn display_item_push(&mut self, payload: &mut ApiExtensionPayload, wr_list: &mut zero_ui_view_api::webrender_api::DisplayListBuilder) {
         let _ = (payload, wr_list);
     }
 
@@ -85,80 +79,86 @@ impl ViewExtensions {
         Self::default()
     }
 
-    /// Register an extension.
+    /// Register an extension with the ID that will be assigned to it.
+    ///
+    /// The ID is useful for error messages.
     ///
     /// # Panics
     ///
     /// Panics if the name is already registered.
-    pub fn register(&mut self, ext: Box<dyn ViewExtension>) -> &mut Self {
-        if self.is_registered(ext.name()) {
-            panic!("extension `{:?}` is already registered", ext.name());
-        }
-        self.exts.push(ext);
+    pub fn register<E: ViewExtension>(&mut self, ext: impl FnOnce(ApiExtensionId) -> E) -> &mut Self {
+        let id = ApiExtensionId::from_index(self.exts.len());
+        let ext = ext(id);
+        assert!(self.id(ext.name()).is_none(), "extension already registered");
+        self.exts.push(Box::new(ext));
         self
     }
 
-    /// Returns `true` is an extension of the same name is already registered.
-    pub fn is_registered(&self, name: &ApiExtensionName) -> bool {
-        self.exts.iter().any(|e| e.name() == name)
+    /// Returns the extension ID.
+    pub fn id(&self, name: &ApiExtensionName) -> Option<ApiExtensionId> {
+        self.exts.iter().position(|e| e.name() == name).map(ApiExtensionId::from_index)
     }
 
     /// Register a command extension with custom encoded messages.
+    ///
+    /// The `handler` receives the request payload and it's own ID to be used in error messages.
     pub fn command_raw(
         &mut self,
         name: impl Into<ApiExtensionName>,
-        handler: impl FnMut(ExtensionPayload) -> ExtensionPayload + Send + 'static,
+        handler: impl FnMut(ApiExtensionPayload, ApiExtensionId) -> ApiExtensionPayload + Send + 'static,
     ) -> &mut Self {
-        struct CommandExt<F>(ApiExtensionName, F);
-        impl<F: FnMut(ExtensionPayload) -> ExtensionPayload + Send + 'static> ViewExtension for CommandExt<F> {
+        struct CommandExt<F>(ApiExtensionName, ApiExtensionId, F);
+        impl<F: FnMut(ApiExtensionPayload, ApiExtensionId) -> ApiExtensionPayload + Send + 'static> ViewExtension for CommandExt<F> {
             fn name(&self) -> &ApiExtensionName {
                 &self.0
             }
-            fn command(&mut self, request: ExtensionPayload) -> Option<ExtensionPayload> {
-                Some((self.1)(request))
+            fn command(&mut self, request: ApiExtensionPayload) -> Option<ApiExtensionPayload> {
+                Some((self.2)(request, self.1))
             }
         }
 
-        self.register(Box::new(CommandExt(name.into(), handler)));
+        self.register(|id| CommandExt(name.into(), id, handler));
         self
     }
 
     /// Register a command extension.
+    ///
+    /// The `handler` receives the deserialized request payload and it's own ID to be used in error messages.
     pub fn command<I: serde::de::DeserializeOwned, O: serde::Serialize>(
         &mut self,
         name: impl Into<ApiExtensionName>,
-        mut handler: impl FnMut(I) -> O + Send + 'static,
+        mut handler: impl FnMut(I, ApiExtensionId) -> O + Send + 'static,
     ) -> &mut Self {
-        self.command_raw(name, move |i| match i.deserialize::<I>() {
-            Ok(i) => {
-                let o = handler(i);
-                ExtensionPayload::serialize(&o).unwrap()
+        self.command_raw(name, move |p, id| match p.deserialize::<I>() {
+            Ok(p) => {
+                let o = handler(p, id);
+                ApiExtensionPayload::serialize(&o).unwrap()
             }
-            Err(e) => ExtensionPayload::invalid_request(usize::MAX, e),
+            Err(e) => ApiExtensionPayload::invalid_request(id, e),
         })
     }
 
-    /// Register a renderer extension.
+    /// Register a renderer extension with its own ID.
     pub fn renderer<E: RendererExtension>(
         &mut self,
         name: impl Into<ApiExtensionName>,
-        new: impl FnMut() -> E + Send + 'static,
+        new: impl FnMut(ApiExtensionId) -> E + Send + 'static,
     ) -> &mut Self {
-        struct RendererExt<F>(ApiExtensionName, F);
+        struct RendererExt<F>(ApiExtensionName, ApiExtensionId, F);
         impl<E, F> ViewExtension for RendererExt<F>
         where
             E: RendererExtension,
-            F: FnMut() -> E + Send + 'static,
+            F: FnMut(ApiExtensionId) -> E + Send + 'static,
         {
             fn name(&self) -> &ApiExtensionName {
                 &self.0
             }
 
             fn renderer(&mut self) -> Option<Box<dyn RendererExtension>> {
-                Some(Box::new((self.1)()))
+                Some(Box::new((self.2)(self.1)))
             }
         }
-        self.register(Box::new(RendererExt(name.into(), new)));
+        self.register(move |id| RendererExt(name.into(), id, new));
         self
     }
 
@@ -170,21 +170,22 @@ impl ViewExtensions {
         r
     }
 
-    pub(crate) fn call_command(&mut self, key: usize, request: ExtensionPayload) -> ExtensionPayload {
-        if key >= self.exts.len() {
-            ExtensionPayload::unknown_extension(key)
-        } else if let Some(r) = self.exts[key].command(request) {
+    pub(crate) fn call_command(&mut self, id: ApiExtensionId, request: ApiExtensionPayload) -> ApiExtensionPayload {
+        let idx = id.index();
+        if idx >= self.exts.len() {
+            ApiExtensionPayload::unknown_extension(id)
+        } else if let Some(r) = self.exts[idx].command(request) {
             r
         } else {
-            ExtensionPayload::unknown_extension(key)
+            ApiExtensionPayload::unknown_extension(id)
         }
     }
 
-    pub(crate) fn new_renderer(&mut self) -> Vec<(usize, Box<dyn RendererExtension>)> {
+    pub(crate) fn new_renderer(&mut self) -> Vec<(ApiExtensionId, Box<dyn RendererExtension>)> {
         self.exts
             .iter_mut()
             .enumerate()
-            .filter_map(|(i, e)| e.renderer().map(|e| (i, e)))
+            .filter_map(|(i, e)| e.renderer().map(|e| (ApiExtensionId::from_index(i), e)))
             .collect()
     }
 }
@@ -192,16 +193,22 @@ impl ViewExtensions {
 /// Sets renderer debug flags.
 ///
 /// This is a test case of the extensions API.
-#[derive(Default)]
 pub(crate) struct RendererDebugExt {
+    id: ApiExtensionId,
     ui: Option<String>,
+}
+
+impl RendererDebugExt {
+    pub(crate) fn new(id: ApiExtensionId) -> Self {
+        Self { id, ui: None }
+    }
 }
 impl RendererExtension for RendererDebugExt {
     fn is_config_only(&self) -> bool {
         false
     }
 
-    fn configure(&mut self, cfg: Option<ExtensionPayload>, opts: &mut webrender::WebRenderOptions) {
+    fn configure(&mut self, cfg: Option<ApiExtensionPayload>, opts: &mut webrender::WebRenderOptions) {
         if let Some(cfg) = cfg.and_then(|c| c.deserialize::<RendererDebug>().ok()) {
             opts.debug_flags = cfg.flags;
             self.ui = Some(cfg.profiler_ui);
@@ -214,20 +221,14 @@ impl RendererExtension for RendererDebugExt {
         }
     }
 
-    fn command(
-        &mut self,
-        renderer: &mut webrender::Renderer,
-        _: &RenderApi,
-        request: ExtensionPayload,
-        extension_key: usize,
-    ) -> ExtensionPayload {
+    fn command(&mut self, renderer: &mut webrender::Renderer, _: &RenderApi, request: ApiExtensionPayload) -> ApiExtensionPayload {
         match request.deserialize::<RendererDebug>() {
             Ok(cfg) => {
                 renderer.set_debug_flags(cfg.flags);
                 renderer.set_profiler_ui(&cfg.profiler_ui);
-                ExtensionPayload::empty()
+                ApiExtensionPayload::empty()
             }
-            Err(e) => ExtensionPayload::invalid_request(extension_key, e),
+            Err(e) => ApiExtensionPayload::invalid_request(self.id, e),
         }
     }
 }

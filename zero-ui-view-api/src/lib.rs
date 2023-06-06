@@ -461,19 +461,19 @@ declare_api! {
 
     /// Call the API extension.
     ///
-    /// The `extension_key` is the index of an extension in the [`Api::extensions`] list.
+    /// The `extension_id` is the index of an extension in the [`Api::extensions`] list.
     /// The `extension_request` is any data required by the extension.
     ///
-    /// Returns the extension response or [`ExtensionPayload::unknown_extension`] if the `extension_key` is
-    /// not on the list, or [`ExtensionPayload::invalid_request`] if the `extension_request` is not in a
+    /// Returns the extension response or [`ApiExtensionPayload::unknown_extension`] if the `extension_id` is
+    /// not on the list, or [`ApiExtensionPayload::invalid_request`] if the `extension_request` is not in a
     /// format expected by the extension.
-    pub fn app_extension(&mut self, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload;
+    pub fn app_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload;
 
     /// Call the API extension.
     ///
     /// This is is similar to [`Api::app_extension`], but is targeting the instance of an extension associated
     /// with the `id` renderer.
-    pub fn render_extension(&mut self, id: WindowId, extension_key: usize, extension_request: ExtensionPayload) -> ExtensionPayload;
+    pub fn render_extension(&mut self, id: WindowId, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload;
 
 }
 
