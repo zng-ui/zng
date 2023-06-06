@@ -125,6 +125,10 @@ use surface::*;
 
 pub mod extensions;
 
+/// Webrender build used in the view-process.
+#[doc(inline)]
+pub use webrender;
+
 use webrender::api::*;
 use window::Window;
 use zero_ui_view_api::{units::*, *};
