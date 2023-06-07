@@ -1032,17 +1032,9 @@ impl Window {
         self.push_resize(&mut txn);
         txn.generate_frame(frame.id.get(), frame.render_reasons());
 
-        for (_, ext) in &mut self.renderer_exts {
-            ext.begin_display_list();
-        }
-
         let display_list = frame
             .display_list
             .to_webrender(&mut DisplayListExtAdapter(&mut self.renderer_exts), &mut self.display_list_cache);
-
-        for (_, ext) in &mut self.renderer_exts {
-            ext.finish_display_list();
-        }
 
         txn.reset_dynamic_properties();
         txn.append_dynamic_properties(DynamicProperties {
@@ -1084,7 +1076,7 @@ impl Window {
         txn.generate_frame(self.frame_id().get(), render_reasons);
 
         let frame_scope = match self.display_list_cache.update(
-            &mut (),
+            &mut DisplayListExtAdapter(&mut self.renderer_exts),
             frame.transforms,
             frame.floats,
             frame.colors,

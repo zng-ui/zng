@@ -8,7 +8,10 @@
 use std::any::Any;
 
 use webrender::{DebugFlags, RenderApi};
-use zero_ui_view_api::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayExtensionArgs, DisplayListExtension};
+use zero_ui_view_api::{
+    ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayExtensionItemArgs, DisplayExtensionUpdateArgs,
+    DisplayListExtension,
+};
 
 /// The extension API.
 pub trait ViewExtension: Send + Any {
@@ -54,18 +57,27 @@ pub trait RendererExtension: Any {
     }
 
     /// Called when a new frame is about to begin rendering.
-    fn begin_display_list(&mut self) {}
+    fn display_list_start(&mut self, args: &mut zero_ui_view_api::DisplayExtensionArgs) {
+        let _ = args;
+    }
 
     /// Called when a new frame just finished rendering.
-    fn finish_display_list(&mut self) {}
+    fn display_list_end(&mut self, args: &mut zero_ui_view_api::DisplayExtensionArgs) {
+        let _ = args;
+    }
 
     /// Called when a display item push for the extension is found.
-    fn display_item_push(&mut self, args: &mut DisplayExtensionArgs) {
+    fn display_item_push(&mut self, args: &mut DisplayExtensionItemArgs) {
         let _ = args;
     }
 
     /// Called when a display item pop for the extension is found.
-    fn display_item_pop(&mut self, args: &mut DisplayExtensionArgs) {
+    fn display_item_pop(&mut self, args: &mut DisplayExtensionItemArgs) {
+        let _ = args;
+    }
+
+    /// Called when a render-update for the extension is found.
+    fn render_update(&mut self, args: &mut DisplayExtensionUpdateArgs) {
         let _ = args;
     }
 }
@@ -245,19 +257,40 @@ struct RendererDebug {
 pub(crate) struct DisplayListExtAdapter<'a>(pub &'a mut Vec<(ApiExtensionId, Box<dyn RendererExtension>)>);
 
 impl<'a> DisplayListExtension for DisplayListExtAdapter<'a> {
-    fn push(&mut self, mut args: zero_ui_view_api::DisplayExtensionArgs) {
+    fn display_list_start(&mut self, args: &mut zero_ui_view_api::DisplayExtensionArgs) {
+        for (_, ext) in self.0.iter_mut() {
+            ext.display_list_start(args);
+        }
+    }
+
+    fn push_display_item(&mut self, args: &mut zero_ui_view_api::DisplayExtensionItemArgs) {
         for (id, ext) in self.0.iter_mut() {
             if *id == args.extension_id {
-                ext.display_item_push(&mut args);
+                ext.display_item_push(args);
                 break;
             }
         }
     }
 
-    fn pop(&mut self, mut args: zero_ui_view_api::DisplayExtensionArgs) {
+    fn pop_display_item(&mut self, args: &mut zero_ui_view_api::DisplayExtensionItemArgs) {
         for (id, ext) in self.0.iter_mut() {
             if *id == args.extension_id {
-                ext.display_item_pop(&mut args);
+                ext.display_item_pop(args);
+                break;
+            }
+        }
+    }
+
+    fn display_list_end(&mut self, args: &mut zero_ui_view_api::DisplayExtensionArgs) {
+        for (_, ext) in self.0.iter_mut() {
+            ext.display_list_end(args);
+        }
+    }
+
+    fn update(&mut self, args: &mut zero_ui_view_api::DisplayExtensionUpdateArgs) {
+        for (id, ext) in self.0.iter_mut() {
+            if *id == args.extension_id {
+                ext.render_update(args);
                 break;
             }
         }

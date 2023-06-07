@@ -529,9 +529,19 @@ impl DisplayList {
 
         let (mut wr_list, mut sc) = cache.begin_wr();
 
+        ext.display_list_start(&mut DisplayExtensionArgs {
+            list: &mut wr_list,
+            sc: &mut sc,
+        });
+
         for item in list {
-            item.to_webrender(&mut wr_list, ext, &mut sc, cache);
+            item.to_webrender(&mut wr_list, ext, &mut sc, cache, false);
         }
+
+        ext.display_list_end(&mut DisplayExtensionArgs {
+            list: &mut wr_list,
+            sc: &mut sc,
+        });
 
         cache.end_wr(wr_list, sc)
     }
@@ -754,7 +764,7 @@ impl DisplayListCache {
                 &[]
             });
             for item in range {
-                item.to_webrender(wr_list, ext, sc, self);
+                item.to_webrender(wr_list, ext, sc, self, true);
             }
         } else {
             tracing::error!("did not find reuse frame {frame_id:?}");
@@ -821,7 +831,13 @@ impl DisplayListCache {
         }
 
         for (k, e) in &extensions {
-            let _ = (k, e); // TODO
+            let mut args = DisplayExtensionUpdateArgs {
+                extension_id: *k,
+                payload: e,
+                new_frame: false,
+            };
+            ext.update(&mut args);
+            new_frame |= args.new_frame;
         }
 
         if new_frame {
@@ -1006,6 +1022,7 @@ impl DisplayItem {
         ext: &mut dyn DisplayListExtension,
         sc: &mut SpaceAndClip,
         cache: &DisplayListCache,
+        is_reuse: bool,
     ) {
         match self {
             DisplayItem::Reuse {
@@ -1276,15 +1293,17 @@ impl DisplayItem {
                     *style,
                 );
             }
-            DisplayItem::PushExtension { extension_id, payload } => ext.push(DisplayExtensionArgs {
+            DisplayItem::PushExtension { extension_id, payload } => ext.push_display_item(&mut DisplayExtensionItemArgs {
                 extension_id: *extension_id,
                 payload,
+                is_reuse: &is_reuse,
                 list: wr_list,
                 sc,
             }),
-            DisplayItem::PopExtension { extension_id } => ext.pop(DisplayExtensionArgs {
+            DisplayItem::PopExtension { extension_id } => ext.pop_display_item(&mut DisplayExtensionItemArgs {
                 extension_id: *extension_id,
                 payload: &ApiExtensionPayload::empty(),
+                is_reuse: &is_reuse,
                 list: wr_list,
                 sc,
             }),
@@ -1471,16 +1490,43 @@ impl SpaceAndClip {
     }
 }
 
-/// Arguments for [`DisplayListExtension`].
+/// Arguments for [`DisplayListExtension`] begin/end list.
 pub struct DisplayExtensionArgs<'a> {
-    /// Extension index.
-    pub extension_id: ApiExtensionId,
-    /// Push payload, is empty for pop.
-    pub payload: &'a ApiExtensionPayload,
     /// The webrender display list.
     pub list: &'a mut wr::DisplayListBuilder,
     /// Space and clip tracker.
     pub sc: &'a mut SpaceAndClip,
+}
+
+/// Arguments for [`DisplayListExtension`] push and pop.
+pub struct DisplayExtensionItemArgs<'a> {
+    /// Extension index.
+    pub extension_id: ApiExtensionId,
+    /// Push payload, is empty for pop.
+    pub payload: &'a ApiExtensionPayload,
+    /// If the display item is reused.
+    ///
+    /// If `true` the payload is the same as received before any updates, the updated
+    /// values must be applied to value deserialized from the payload.
+    pub is_reuse: &'a bool,
+    /// The webrender display list.
+    pub list: &'a mut wr::DisplayListBuilder,
+    /// Space and clip tracker.
+    pub sc: &'a mut SpaceAndClip,
+}
+
+/// Arguments for [`DisplayListExtension`] update.
+pub struct DisplayExtensionUpdateArgs<'a> {
+    /// Extension index.
+    pub extension_id: ApiExtensionId,
+    /// Update payload.
+    pub payload: &'a ApiExtensionPayload,
+
+    /// Set to `true` to rebuild the display list.
+    ///
+    /// The list will be rebuild using the last full payload received, the extension
+    /// must patch in any subsequent updates onto this value.
+    pub new_frame: bool,
 }
 
 /// Handler for display list extension items.
@@ -1491,15 +1537,36 @@ pub struct DisplayExtensionArgs<'a> {
 ///
 /// This trait is implemented for `()` for view implementations that don't provide any extension.
 pub trait DisplayListExtension {
+    /// Handle new display list starting.
+    ///
+    /// This is called for every list, even if the list does not have any item for the extension.
+    fn display_list_start(&mut self, args: &mut DisplayExtensionArgs) {
+        let _ = args;
+    }
+
     /// Handle extension push.
-    fn push(&mut self, args: DisplayExtensionArgs);
+    ///
+    /// This is only called for items addressing the extension.
+    fn push_display_item(&mut self, args: &mut DisplayExtensionItemArgs);
     /// Handle extension pop.
-    fn pop(&mut self, args: DisplayExtensionArgs) {
+    ///
+    /// This is only called for items addressing the extension.
+    fn pop_display_item(&mut self, args: &mut DisplayExtensionItemArgs) {
+        let _ = args;
+    }
+
+    /// Handle display list finishing.
+    fn display_list_end(&mut self, args: &mut DisplayExtensionArgs) {
+        let _ = args;
+    }
+
+    /// Handle extension update.
+    fn update(&mut self, args: &mut DisplayExtensionUpdateArgs) {
         let _ = args;
     }
 }
 impl DisplayListExtension for () {
-    fn push(&mut self, args: DisplayExtensionArgs) {
+    fn push_display_item(&mut self, args: &mut DisplayExtensionItemArgs) {
         let _ = args;
     }
 }

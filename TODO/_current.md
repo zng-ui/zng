@@ -51,4 +51,6 @@
 # Extend View
 
 * Finish implementing `using_display_items`.
+    - Demonstrate creating webrender bindings.
+        - This is not possible right now.
 * Review View-Process.md

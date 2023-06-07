@@ -47,7 +47,7 @@ pub mod using_display_items {
         use zero_ui::{
             core::{
                 app::view_process::{ApiExtensionId, ApiExtensionPayload, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
-                mouse::MOUSE_MOVE_EVENT,
+                mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
             },
             prelude::new_widget::*,
         };
@@ -55,8 +55,8 @@ pub mod using_display_items {
         /// Node that generates display items and render updates for the custom renderer.
         pub fn custom_render_node() -> impl UiNode {
             let mut ext_id = ApiExtensionId::INVALID;
-            let mut cursor = DipPoint::zero();
-            let mut cursor_px = PxPoint::zero();
+            let mut cursor = DipPoint::splat(Dip::MIN);
+            let mut cursor_px = PxPoint::splat(Px::MIN);
             let mut render_size = PxSize::zero();
 
             // identifies this item in the view (for updates)
@@ -64,7 +64,10 @@ pub mod using_display_items {
 
             match_node_leaf(move |op| match op {
                 UiNodeOp::Init => {
-                    WIDGET.sub_event(&VIEW_PROCESS_INITED_EVENT).sub_event(&MOUSE_MOVE_EVENT);
+                    WIDGET
+                        .sub_event(&VIEW_PROCESS_INITED_EVENT)
+                        .sub_event(&MOUSE_MOVE_EVENT)
+                        .sub_event(&MOUSE_HOVERED_EVENT);
                     ext_id = extension_id();
                 }
                 UiNodeOp::Event { update } => {
@@ -72,6 +75,12 @@ pub mod using_display_items {
                         if cursor != args.position {
                             cursor = args.position;
                             WIDGET.layout();
+                        }
+                    } else if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
+                        if args.is_mouse_leave() {
+                            cursor = DipPoint::splat(Dip::MIN);
+                            cursor_px = PxPoint::splat(Px::MIN);
+                            WIDGET.render_update();
                         }
                     } else if VIEW_PROCESS_INITED_EVENT.on(update).is_some() {
                         ext_id = extension_id();
@@ -97,7 +106,7 @@ pub mod using_display_items {
                 UiNodeOp::Render { frame } => {
                     // if extension is available
                     if ext_id != ApiExtensionId::INVALID {
-                        if let Some(cursor) = frame.transform().transform_point(cursor_px) {
+                        if let Some(cursor) = frame.transform().inverse().and_then(|t| t.transform_point(cursor_px)) {
                             // push the entire custom item.
                             frame.push_extension_item(
                                 ext_id,
@@ -114,7 +123,7 @@ pub mod using_display_items {
                 UiNodeOp::RenderUpdate { update } => {
                     // if extension is available
                     if ext_id != ApiExtensionId::INVALID {
-                        if let Some(cursor) = update.transform().transform_point(cursor_px) {
+                        if let Some(cursor) = update.transform().inverse().and_then(|t| t.transform_point(cursor_px)) {
                             // push an update.
                             update.update_extension(
                                 ext_id,
@@ -149,12 +158,21 @@ pub mod using_display_items {
         use std::collections::HashMap;
 
         use zero_ui::{
-            core::app::view_process::{zero_ui_view_api::DisplayExtensionArgs, ApiExtensionId},
-            prelude::{units::PxToWr, PxPoint, PxSize},
+            core::app::view_process::{
+                zero_ui_view_api::{DisplayExtensionItemArgs, DisplayExtensionUpdateArgs},
+                ApiExtensionId,
+            },
+            prelude::{units::PxToWr, PxPoint},
         };
         use zero_ui_view::{
             extensions::{RendererExtension, ViewExtensions},
-            webrender::api::{units::LayoutRect, ColorF, CommonItemProperties, PrimitiveFlags},
+            webrender::{
+                api::{
+                    units::{LayoutPoint, LayoutRect},
+                    ColorF, CommonItemProperties, PrimitiveFlags,
+                },
+                euclid,
+            },
         };
 
         pub fn extend(exts: &mut ViewExtensions) {
@@ -164,8 +182,8 @@ pub mod using_display_items {
         struct CustomExtension {
             // id of this extension, for tracing.
             _id: ApiExtensionId,
-            // updatable items
-            bindings: HashMap<super::api::BindingId, ViewItem>,
+            // updated values
+            bindings: HashMap<super::api::BindingId, PxPoint>,
         }
         impl CustomExtension {
             fn new(id: ApiExtensionId) -> Self {
@@ -180,52 +198,74 @@ pub mod using_display_items {
                 false // retain the extension after renderer creation.
             }
 
-            fn begin_display_list(&mut self) {
-                self.bindings.clear();
-            }
-
-            fn finish_display_list(&mut self) {}
-
-            fn display_item_push(&mut self, args: &mut DisplayExtensionArgs) {
+            fn display_item_push(&mut self, args: &mut DisplayExtensionItemArgs) {
                 match args.payload.deserialize::<super::api::RenderPayload>() {
-                    Ok(p) => {
-                        // update bindings
-                        let item = ViewItem {
-                            cursor: p.cursor,
-                            size: p.size,
-                        };
-                        if let Some(id) = p.cursor_binding {
-                            if self.bindings.insert(id, item).is_some() {
-                                tracing::error!("duplicate binding id, {id:?}");
+                    Ok(mut p) => {
+                        if let Some(binding) = p.cursor_binding {
+                            // updateable item
+                            match self.bindings.entry(binding) {
+                                std::collections::hash_map::Entry::Occupied(e) => {
+                                    if *args.is_reuse {
+                                        // item is old, use updated value
+                                        p.cursor = *e.get();
+                                    } else {
+                                        // item is new, previous updated value invalid
+                                        e.remove();
+                                    }
+                                }
+                                std::collections::hash_map::Entry::Vacant(_) => {}
                             }
                         }
 
                         // render
-                        let rect = LayoutRect::from_size(item.size.to_wr());
-                        let color = if rect.contains(item.cursor.to_wr()) {
-                            ColorF::new(0.5, 1.0, 0.5, 1.0)
-                        } else {
-                            ColorF::new(0.5, 0.5, 1.0, 1.0)
-                        };
-                        let props = CommonItemProperties {
-                            clip_rect: rect,
-                            clip_chain_id: args.sc.clip_chain_id(args.list),
-                            spatial_id: args.sc.spatial_id(),
-                            flags: PrimitiveFlags::empty(),
-                        };
-                        args.list.push_rect(&props, rect, color);
+                        let rect = LayoutRect::from_size(p.size.to_wr());
+                        let part_size = rect.size() / 10.0;
+
+                        let color = ColorF::new(0.5, 0.0, 1.0, 1.0);
+
+                        for y in 0..10 {
+                            for x in 0..10 {
+                                let part_pos = LayoutPoint::new(x as f32 * part_size.width, y as f32 * part_size.height);
+                                let part_rect = euclid::Rect::new(part_pos, part_size).to_box2d();
+
+                                let cursor = p.cursor.to_wr();
+                                let mut color = color;
+                                let mid = part_pos.to_vector() + part_size.to_vector() / 2.0;
+                                let dist = mid.to_point().distance_to(cursor).min(rect.width()) / rect.width();
+                                color.g = 1.0 - dist;
+
+                                let props = CommonItemProperties {
+                                    clip_rect: part_rect,
+                                    clip_chain_id: args.sc.clip_chain_id(args.list),
+                                    spatial_id: args.sc.spatial_id(),
+                                    flags: PrimitiveFlags::empty(),
+                                };
+                                args.list.push_rect(&props, part_rect, color);
+                            }
+                        }
                     }
                     Err(e) => tracing::error!("invalid display item, {e}"),
                 }
             }
 
-            // TODO, update render, missing API
-        }
-
-        #[derive(Clone, Copy, Debug)]
-        struct ViewItem {
-            cursor: PxPoint,
-            size: PxSize,
+            fn render_update(&mut self, args: &mut DisplayExtensionUpdateArgs) {
+                match args.payload.deserialize::<super::api::RenderUpdatePayload>() {
+                    Ok(p) => {
+                        self.bindings.insert(p.cursor_binding, p.cursor);
+                        // Request a full display list rebuild.
+                        //
+                        // This is optional because Webrender supports frame updates, using Webrender bindings,
+                        // but just supporting render-updates is probably worth-it, if the full display-item payloads are large
+                        // and update often.
+                        //
+                        // Note that even if you provide an optimal implementation and don't request a
+                        // new_frame you still must handle the case when a display-item payload is reused
+                        // after an update.
+                        args.new_frame = true;
+                    }
+                    Err(e) => tracing::error!("invalid update request, {e}"),
+                }
+            }
         }
     }
 
