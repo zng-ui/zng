@@ -1,6 +1,5 @@
 # TextInput
 
-* If the text is 3 lines the caret renders in the third line when it's in the second line.
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
 * Implement cursor position.
     - Review using `TextPoint` for this?
