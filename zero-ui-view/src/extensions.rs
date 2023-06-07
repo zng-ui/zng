@@ -8,7 +8,7 @@
 use std::any::Any;
 
 use webrender::{DebugFlags, RenderApi};
-use zero_ui_view_api::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions};
+use zero_ui_view_api::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayListExtension};
 
 /// The extension API.
 pub trait ViewExtension: Send + Any {
@@ -54,18 +54,20 @@ pub trait RendererExtension: Any {
     }
 
     /// Called when a new frame is about to begin rendering.
-    fn begin_render(&mut self) {}
+    fn begin_display_list(&mut self) {}
 
     /// Called when a new frame just finished rendering.
-    fn finish_render(&mut self) {}
+    fn finish_display_list(&mut self) {}
 
     /// Called when a display item push for the extension is found.
-    fn display_item_push(&mut self, payload: &mut ApiExtensionPayload, wr_list: &mut zero_ui_view_api::webrender_api::DisplayListBuilder) {
+    fn display_item_push(&mut self, payload: &ApiExtensionPayload, wr_list: &mut zero_ui_view_api::webrender_api::DisplayListBuilder) {
         let _ = (payload, wr_list);
     }
 
     /// Called when a display item pop for the extension is found.
-    fn display_item_pop(&mut self) {}
+    fn display_item_pop(&mut self, wr_list: &mut zero_ui_view_api::webrender_api::DisplayListBuilder) {
+        let _ = wr_list;
+    }
 }
 
 /// View extensions register.
@@ -238,4 +240,26 @@ impl RendererExtension for RendererDebugExt {
 struct RendererDebug {
     pub flags: DebugFlags,
     pub profiler_ui: String,
+}
+
+pub(crate) struct DisplayListExtAdapter<'a>(pub &'a mut Vec<(ApiExtensionId, Box<dyn RendererExtension>)>);
+
+impl<'a> DisplayListExtension for DisplayListExtAdapter<'a> {
+    fn push(&mut self, args: zero_ui_view_api::DisplayExtensionArgs) {
+        for (id, ext) in self.0.iter_mut() {
+            if *id == args.extension_id {
+                ext.display_item_push(args.payload, args.wr_list);
+                break;
+            }
+        }
+    }
+
+    fn pop(&mut self, args: zero_ui_view_api::DisplayExtensionArgs) {
+        for (id, ext) in self.0.iter_mut() {
+            if *id == args.extension_id {
+                ext.display_item_pop(args.wr_list);
+                break;
+            }
+        }
+    }
 }

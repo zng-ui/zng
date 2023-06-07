@@ -23,7 +23,7 @@ use zero_ui_view_api::{
 use zero_ui_view_api::{Event, Key, KeyState, ScanCode};
 
 use crate::{
-    extensions::RendererExtension,
+    extensions::{DisplayListExtAdapter, RendererExtension},
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::{CursorToWinit, DipToWinit, WinitToDip, WinitToPx},
@@ -1032,7 +1032,18 @@ impl Window {
         self.push_resize(&mut txn);
         txn.generate_frame(frame.id.get(), frame.render_reasons());
 
-        let display_list = frame.display_list.to_webrender(&mut (), &mut self.display_list_cache);
+        for (_, ext) in &mut self.renderer_exts {
+            ext.begin_display_list();
+        }
+
+        let display_list = frame
+            .display_list
+            .to_webrender(&mut DisplayListExtAdapter(&mut self.renderer_exts), &mut self.display_list_cache);
+
+        for (_, ext) in &mut self.renderer_exts {
+            ext.finish_display_list();
+        }
+
         txn.reset_dynamic_properties();
         txn.append_dynamic_properties(DynamicProperties {
             transforms: vec![],

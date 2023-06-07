@@ -2087,6 +2087,11 @@ impl FrameUpdate {
         }
     }
 
+    /// Update a custom extension value.
+    pub fn update_extension(&mut self, extension_id: ApiExtensionId, extension_payload: ApiExtensionPayload) {
+        self.extensions.push((extension_id, extension_payload))
+    }
+
     /// Create an update builder that can be send to a parallel task and must be folded back into this builder.
     ///
     /// This should be called just before the call to [`update_widget`], an error is traced if called inside an widget outer bounds.

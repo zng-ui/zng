@@ -49,3 +49,8 @@
         - It uses the new modify tags to map from the key var to a bool?
     - Implement `FallbackConfigRef`, to work like the `EditableUiNodeList`.
         - Implement `FallbackConfigRef::reset(ConfigKey)`.
+
+# Extend View
+
+* Finish implementing `using_display_items`.
+* Review View-Process.md

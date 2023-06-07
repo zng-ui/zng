@@ -16,7 +16,7 @@ use zero_ui_view_api::{
 };
 
 use crate::{
-    extensions::RendererExtension,
+    extensions::{DisplayListExtAdapter, RendererExtension},
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::PxToWinit,
@@ -236,7 +236,17 @@ impl Surface {
             colors: vec![],
         });
 
-        let display_list = frame.display_list.to_webrender(&mut (), &mut self.display_list_cache);
+        for (_, ext) in &mut self.renderer_exts {
+            ext.begin_display_list();
+        }
+
+        let display_list = frame
+            .display_list
+            .to_webrender(&mut DisplayListExtAdapter(&mut self.renderer_exts), &mut self.display_list_cache);
+
+        for (_, ext) in &mut self.renderer_exts {
+            ext.finish_display_list();
+        }
 
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
         self.clear_color = Some(frame.clear_color);

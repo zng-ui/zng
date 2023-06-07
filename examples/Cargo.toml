@@ -10,6 +10,7 @@ tracing = "0.1"
 lipsum = "0.9.0"
 rand = "0.8.5"
 regex = "1"
+serde = { version = "1.0", features = ["derive"] }
 
 zero-ui = { path = "../zero-ui", features = ["hyphenation_embed_all", "inspector", "deadlock_detection"] } # , "deadlock_detection"
 zero-ui-material-icons = { path = "../zero-ui-material-icons" }
@@ -45,6 +46,10 @@ path = "countdown.rs"
 [[example]]
 name = "cursor"
 path = "cursor.rs"
+
+[[example]]
+name = "extend_view"
+path = "extend_view.rs"
 
 [[example]]
 name = "focus"
