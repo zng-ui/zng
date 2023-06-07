@@ -461,6 +461,41 @@ impl SegmentedText {
             iter.next().unwrap_or(0)
         }
     }
+
+    /// Find the start of the line that contains `from`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `from` is larger than the text length, or is not a char boundary.
+    pub fn line_start_index(&self, from: usize) -> usize {
+        let line_break = self.text.as_str()[..from]
+            .char_indices()
+            .rev()
+            .find(|(_, c)| "\n\r\u{85}".contains(*c));
+
+        match line_break {
+            Some((i, _)) => i + 1,
+            None => 0,
+        }
+    }
+
+    /// Find the end of the line that contains `from`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `from` is larger than the text length, or is not a char boundary.
+    pub fn line_end_index(&self, from: usize) -> usize {
+        if from == self.text.len() {
+            return from;
+        }
+
+        let line_break = self.text.as_str()[from..].char_indices().find(|(_, c)| "\n\r\u{85}".contains(*c));
+
+        match line_break {
+            Some((i, _)) => from + i,
+            None => self.text.len(),
+        }
+    }
 }
 
 /// Compute initial bidirectional levels of each segment of a `line`.

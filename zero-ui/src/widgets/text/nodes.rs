@@ -409,6 +409,32 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode 
                                     }
                                 }
                             }
+                            Key::Home => {
+                                args.propagation().stop();
+
+                                if args.state == KeyState::Pressed {
+                                    if let Some(i) = &mut resolved.caret_index {
+                                        if args.modifiers.is_only_ctrl() {
+                                            *i = 0;
+                                        } else if args.modifiers.is_empty() {
+                                            *i = resolved.text.line_start_index(*i);
+                                        }
+                                    }
+                                }
+                            }
+                            Key::End => {
+                                args.propagation().stop();
+
+                                if args.state == KeyState::Pressed {
+                                    if let Some(i) = &mut resolved.caret_index {
+                                        if args.modifiers.is_only_ctrl() {
+                                            *i = resolved.text.text().len();
+                                        } else if args.modifiers.is_empty() {
+                                            *i = resolved.text.line_end_index(*i);
+                                        }
+                                    }
+                                }
+                            }
                             _ => {}
                         }
                     }

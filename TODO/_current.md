@@ -1,5 +1,6 @@
 # TextInput
 
+* If the text is 3 lines the caret renders in the third line when it's in the second line.
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
 * Implement cursor position.
     - Review using `TextPoint` for this?
@@ -19,10 +20,8 @@
         - Observed this in Chrome, Firefox, VS and Word, use "ö̲" to test.
 * Support replace (Insert mode in command line).
 * Support buttons:
-    - home and end
     - up and down arrows
     - page up and page down
-    - shift modifier?
 * Implement selection.
     - Input replaces selection.
         - Char input, paste, IME
