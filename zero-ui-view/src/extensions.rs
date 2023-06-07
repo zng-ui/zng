@@ -8,7 +8,7 @@
 use std::any::Any;
 
 use webrender::{DebugFlags, RenderApi};
-use zero_ui_view_api::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayListExtension};
+use zero_ui_view_api::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayExtensionArgs, DisplayListExtension};
 
 /// The extension API.
 pub trait ViewExtension: Send + Any {
@@ -60,13 +60,13 @@ pub trait RendererExtension: Any {
     fn finish_display_list(&mut self) {}
 
     /// Called when a display item push for the extension is found.
-    fn display_item_push(&mut self, payload: &ApiExtensionPayload, wr_list: &mut zero_ui_view_api::webrender_api::DisplayListBuilder) {
-        let _ = (payload, wr_list);
+    fn display_item_push(&mut self, args: &mut DisplayExtensionArgs) {
+        let _ = args;
     }
 
     /// Called when a display item pop for the extension is found.
-    fn display_item_pop(&mut self, wr_list: &mut zero_ui_view_api::webrender_api::DisplayListBuilder) {
-        let _ = wr_list;
+    fn display_item_pop(&mut self, args: &mut DisplayExtensionArgs) {
+        let _ = args;
     }
 }
 
@@ -245,19 +245,19 @@ struct RendererDebug {
 pub(crate) struct DisplayListExtAdapter<'a>(pub &'a mut Vec<(ApiExtensionId, Box<dyn RendererExtension>)>);
 
 impl<'a> DisplayListExtension for DisplayListExtAdapter<'a> {
-    fn push(&mut self, args: zero_ui_view_api::DisplayExtensionArgs) {
+    fn push(&mut self, mut args: zero_ui_view_api::DisplayExtensionArgs) {
         for (id, ext) in self.0.iter_mut() {
             if *id == args.extension_id {
-                ext.display_item_push(args.payload, args.wr_list);
+                ext.display_item_push(&mut args);
                 break;
             }
         }
     }
 
-    fn pop(&mut self, args: zero_ui_view_api::DisplayExtensionArgs) {
+    fn pop(&mut self, mut args: zero_ui_view_api::DisplayExtensionArgs) {
         for (id, ext) in self.0.iter_mut() {
             if *id == args.extension_id {
-                ext.display_item_pop(args.wr_list);
+                ext.display_item_pop(&mut args);
                 break;
             }
         }

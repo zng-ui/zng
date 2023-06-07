@@ -149,10 +149,13 @@ pub mod using_display_items {
         use std::collections::HashMap;
 
         use zero_ui::{
-            core::app::view_process::{zero_ui_view_api::webrender_api::DisplayListBuilder, ApiExtensionId, ApiExtensionPayload},
-            prelude::{PxPoint, PxSize},
+            core::app::view_process::{zero_ui_view_api::DisplayExtensionArgs, ApiExtensionId},
+            prelude::{units::PxToWr, PxPoint, PxSize},
         };
-        use zero_ui_view::extensions::{RendererExtension, ViewExtensions};
+        use zero_ui_view::{
+            extensions::{RendererExtension, ViewExtensions},
+            webrender::api::{units::LayoutRect, ColorF, CommonItemProperties, PrimitiveFlags},
+        };
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -181,12 +184,10 @@ pub mod using_display_items {
                 self.bindings.clear();
             }
 
-            fn finish_display_list(&mut self) {
-                tracing::info!("finished rendering, ext: {:?}", self._id);
-            }
+            fn finish_display_list(&mut self) {}
 
-            fn display_item_push(&mut self, payload: &ApiExtensionPayload, _wr_list: &mut DisplayListBuilder) {
-                match payload.deserialize::<super::api::RenderPayload>() {
+            fn display_item_push(&mut self, args: &mut DisplayExtensionArgs) {
+                match args.payload.deserialize::<super::api::RenderPayload>() {
                     Ok(p) => {
                         // update bindings
                         let item = ViewItem {
@@ -195,12 +196,24 @@ pub mod using_display_items {
                         };
                         if let Some(id) = p.cursor_binding {
                             if self.bindings.insert(id, item).is_some() {
-                                tracing::error!("repeated binding id, {id:?}");
+                                tracing::error!("duplicate binding id, {id:?}");
                             }
                         }
 
                         // render
-                        tracing::info!("TODO, render, missing space&clip here, {:#?}", (item.cursor, item.size));
+                        let rect = LayoutRect::from_size(item.size.to_wr());
+                        let color = if rect.contains(item.cursor.to_wr()) {
+                            ColorF::new(0.5, 1.0, 0.5, 1.0)
+                        } else {
+                            ColorF::new(0.5, 0.5, 1.0, 1.0)
+                        };
+                        let props = CommonItemProperties {
+                            clip_rect: rect,
+                            clip_chain_id: args.sc.clip_chain_id(args.list),
+                            spatial_id: args.sc.spatial_id(),
+                            flags: PrimitiveFlags::empty(),
+                        };
+                        args.list.push_rect(&props, rect, color);
                     }
                     Err(e) => tracing::error!("invalid display item, {e}"),
                 }

@@ -1271,10 +1271,18 @@ impl DisplayItem {
                     *style,
                 );
             }
-            DisplayItem::PushExtension { extension_id, payload } => {
-                ext.push(DisplayExtensionArgs::new_push(*extension_id, payload, wr_list))
-            }
-            DisplayItem::PopExtension { extension_id } => ext.pop(DisplayExtensionArgs::new_pop(*extension_id, wr_list)),
+            DisplayItem::PushExtension { extension_id, payload } => ext.push(DisplayExtensionArgs {
+                extension_id: *extension_id,
+                payload,
+                list: wr_list,
+                sc,
+            }),
+            DisplayItem::PopExtension { extension_id } => ext.pop(DisplayExtensionArgs {
+                extension_id: *extension_id,
+                payload: &ApiExtensionPayload::empty(),
+                list: wr_list,
+                sc,
+            }),
         }
     }
 
@@ -1365,96 +1373,98 @@ impl DisplayItem {
     }
 }
 
-mod space_and_clip {
-    use super::*;
-
-    pub struct SpaceAndClip {
-        spatial_stack: Vec<wr::SpatialId>,
-        clip_stack: Vec<wr::ClipId>,
-        clip_chain_stack: Vec<(wr::ClipChainId, usize)>,
+/// Tracks the current space and clip chain.
+pub struct SpaceAndClip {
+    spatial_stack: Vec<wr::SpatialId>,
+    clip_stack: Vec<wr::ClipId>,
+    clip_chain_stack: Vec<(wr::ClipChainId, usize)>,
+}
+impl SpaceAndClip {
+    pub(crate) fn new(pipeline_id: PipelineId) -> Self {
+        let sid = wr::SpatialId::root_reference_frame(pipeline_id);
+        SpaceAndClip {
+            spatial_stack: vec![sid],
+            clip_stack: vec![],
+            clip_chain_stack: vec![],
+        }
     }
-    impl SpaceAndClip {
-        pub fn new(pipeline_id: PipelineId) -> Self {
-            let sid = wr::SpatialId::root_reference_frame(pipeline_id);
-            SpaceAndClip {
-                spatial_stack: vec![sid],
-                clip_stack: vec![],
-                clip_chain_stack: vec![],
+
+    /// Current space.
+    pub fn spatial_id(&self) -> wr::SpatialId {
+        self.spatial_stack[self.spatial_stack.len() - 1]
+    }
+
+    /// Current clip chain.
+    pub fn clip_chain_id(&mut self, list: &mut wr::DisplayListBuilder) -> wr::ClipChainId {
+        let mut start = 0;
+        let mut parent = None;
+
+        if let Some((id, i)) = self.clip_chain_stack.last().copied() {
+            if i == self.clip_stack.len() {
+                return id;
+            } else {
+                start = i;
+                parent = Some(id);
             }
         }
 
-        pub fn spatial_id(&self) -> wr::SpatialId {
-            self.spatial_stack[self.spatial_stack.len() - 1]
-        }
+        let clips = self.clip_stack[start..].iter().copied();
+        let id = list.define_clip_chain(parent, clips);
+        self.clip_chain_stack.push((id, self.clip_stack.len()));
 
-        pub fn clip_chain_id(&mut self, list: &mut wr::DisplayListBuilder) -> wr::ClipChainId {
-            let mut start = 0;
-            let mut parent = None;
+        id
+    }
 
-            if let Some((id, i)) = self.clip_chain_stack.last().copied() {
-                if i == self.clip_stack.len() {
-                    return id;
-                } else {
-                    start = i;
-                    parent = Some(id);
-                }
-            }
+    /// Push space.
+    pub fn push_spatial(&mut self, spatial_id: wr::SpatialId) {
+        self.spatial_stack.push(spatial_id);
+    }
 
-            let clips = self.clip_stack[start..].iter().copied();
-            let id = list.define_clip_chain(parent, clips);
-            self.clip_chain_stack.push((id, self.clip_stack.len()));
+    /// Pop space.
+    pub fn pop_spatial(&mut self) {
+        self.spatial_stack.truncate(self.spatial_stack.len() - 1);
+    }
 
-            id
-        }
+    /// Push clip.
+    pub fn push_clip(&mut self, clip: wr::ClipId) {
+        self.clip_stack.push(clip);
+    }
 
-        pub fn push_spatial(&mut self, spatial_id: wr::SpatialId) {
-            self.spatial_stack.push(spatial_id);
-        }
+    /// Pop clip.
+    pub fn pop_clip(&mut self) {
+        self.clip_stack.truncate(self.clip_stack.len() - 1);
 
-        pub fn pop_spatial(&mut self) {
-            self.spatial_stack.truncate(self.spatial_stack.len() - 1);
-        }
-
-        pub fn push_clip(&mut self, clip: wr::ClipId) {
-            self.clip_stack.push(clip);
-        }
-
-        pub fn pop_clip(&mut self) {
-            self.clip_stack.truncate(self.clip_stack.len() - 1);
-
-            if let Some((_, i)) = self.clip_chain_stack.last() {
-                if *i > self.clip_stack.len() {
-                    self.clip_chain_stack.truncate(self.clip_chain_stack.len() - 1);
-                }
+        if let Some((_, i)) = self.clip_chain_stack.last() {
+            if *i > self.clip_stack.len() {
+                self.clip_chain_stack.truncate(self.clip_chain_stack.len() - 1);
             }
         }
+    }
 
-        pub fn clear(&mut self, pipeline_id: PipelineId) {
-            #[cfg(debug_assertions)]
-            {
-                if self.clip_chain_stack.len() >= 2 {
-                    tracing::error!("found {} clip chains, expected 0 or 1", self.clip_chain_stack.len());
-                }
-                if !self.clip_stack.is_empty() {
-                    tracing::error!("found {} clips, expected 0", self.clip_stack.len());
-                }
-                if self.spatial_stack.len() != 1 {
-                    tracing::error!("found {} spatial, expected 1 root_reference_frame", self.spatial_stack.len());
-                } else if self.spatial_stack[0].0 != 0 {
-                    tracing::error!("found other spatial id, expected root_reference_frame");
-                }
+    pub(crate) fn clear(&mut self, pipeline_id: PipelineId) {
+        #[cfg(debug_assertions)]
+        {
+            if self.clip_chain_stack.len() >= 2 {
+                tracing::error!("found {} clip chains, expected 0 or 1", self.clip_chain_stack.len());
             }
-
-            self.clip_stack.clear();
-
-            self.spatial_stack.clear();
-            self.spatial_stack.push(wr::SpatialId::root_reference_frame(pipeline_id));
-
-            self.clip_chain_stack.clear();
+            if !self.clip_stack.is_empty() {
+                tracing::error!("found {} clips, expected 0", self.clip_stack.len());
+            }
+            if self.spatial_stack.len() != 1 {
+                tracing::error!("found {} spatial, expected 1 root_reference_frame", self.spatial_stack.len());
+            } else if self.spatial_stack[0].0 != 0 {
+                tracing::error!("found other spatial id, expected root_reference_frame");
+            }
         }
+
+        self.clip_stack.clear();
+
+        self.spatial_stack.clear();
+        self.spatial_stack.push(wr::SpatialId::root_reference_frame(pipeline_id));
+
+        self.clip_chain_stack.clear();
     }
 }
-use space_and_clip::SpaceAndClip;
 
 /// Arguments for [`DisplayListExtension`].
 pub struct DisplayExtensionArgs<'a> {
@@ -1463,26 +1473,9 @@ pub struct DisplayExtensionArgs<'a> {
     /// Push payload, is empty for pop.
     pub payload: &'a ApiExtensionPayload,
     /// The webrender display list.
-    pub wr_list: &'a mut wr::DisplayListBuilder,
-}
-impl<'a> DisplayExtensionArgs<'a> {
-    /// New args for push handler.
-    pub fn new_push(extension_id: ApiExtensionId, payload: &'a ApiExtensionPayload, wr_list: &'a mut wr::DisplayListBuilder) -> Self {
-        Self {
-            extension_id,
-            payload,
-            wr_list,
-        }
-    }
-    /// New args for pop handler.
-    pub fn new_pop(extension_id: ApiExtensionId, wr_list: &'a mut wr::DisplayListBuilder) -> Self {
-        static POP_LAYLOAD: ApiExtensionPayload = ApiExtensionPayload::empty();
-        Self {
-            extension_id,
-            payload: &POP_LAYLOAD,
-            wr_list,
-        }
-    }
+    pub list: &'a mut wr::DisplayListBuilder,
+    /// Space and clip tracker.
+    pub sc: &'a mut SpaceAndClip,
 }
 
 /// Handler for display list extension items.
