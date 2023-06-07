@@ -830,11 +830,14 @@ impl DisplayListCache {
             }
         }
 
+        let mut properties = wr::DynamicProperties::default();
+
         for (k, e) in &extensions {
             let mut args = DisplayExtensionUpdateArgs {
                 extension_id: *k,
                 payload: e,
                 new_frame: false,
+                properties: &mut properties,
             };
             ext.update(&mut args);
             new_frame |= args.new_frame;
@@ -848,15 +851,16 @@ impl DisplayListCache {
 
             Err(r)
         } else {
-            let r = wr::DynamicProperties {
-                transforms: transforms.into_iter().filter_map(FrameValueUpdate::into_wr).collect(),
-                floats: floats.into_iter().filter_map(FrameValueUpdate::into_wr).collect(),
-                colors: colors.into_iter().filter_map(FrameValueUpdate::into_wr).collect(),
-            };
-            if r.transforms.is_empty() && r.floats.is_empty() && r.colors.is_empty() {
+            properties
+                .transforms
+                .extend(transforms.into_iter().filter_map(FrameValueUpdate::into_wr));
+            properties.floats.extend(floats.into_iter().filter_map(FrameValueUpdate::into_wr));
+            properties.colors.extend(colors.into_iter().filter_map(FrameValueUpdate::into_wr));
+
+            if properties.transforms.is_empty() && properties.floats.is_empty() && properties.colors.is_empty() {
                 Ok(None)
             } else {
-                Ok(Some(r))
+                Ok(Some(properties))
             }
         }
     }
@@ -1527,6 +1531,12 @@ pub struct DisplayExtensionUpdateArgs<'a> {
     /// The list will be rebuild using the last full payload received, the extension
     /// must patch in any subsequent updates onto this value.
     pub new_frame: bool,
+
+    /// Webrender binding updates.
+    ///
+    /// If no other extension and update handlers request a new frame these properties
+    /// will be send to Webrender to update the current frame.
+    pub properties: &'a mut wr::DynamicProperties,
 }
 
 /// Handler for display list extension items.

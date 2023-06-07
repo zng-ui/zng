@@ -262,6 +262,15 @@ pub mod using_display_items {
                         // new_frame you still must handle the case when a display-item payload is reused
                         // after an update.
                         args.new_frame = true;
+
+                        // For example we could have created a Webrender binding for each color square during
+                        // `display_item_push`, then recomputed the colors and updated all here.
+                        //
+                        // args.properties.colors.push(..)
+                        //
+                        // Note that if you are going to do this you need to generate the binding keys in
+                        // the app-process using the type `FrameValueKey<T>`, otherwise you will have key 
+                        // collisions with the normal animating properties. 
                     }
                     Err(e) => tracing::error!("invalid update request, {e}"),
                 }
