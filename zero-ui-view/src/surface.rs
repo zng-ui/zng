@@ -284,10 +284,14 @@ impl Surface {
         self.push_resize(&mut txn);
         txn.generate_frame(self.frame_id().get(), render_reasons);
 
-        let frame_scope = match self
-            .display_list_cache
-            .update(&mut (), frame.transforms, frame.floats, frame.colors, resized)
-        {
+        let frame_scope = match self.display_list_cache.update(
+            &mut (),
+            frame.transforms,
+            frame.floats,
+            frame.colors,
+            frame.extensions,
+            resized,
+        ) {
             Ok(p) => {
                 if let Some(p) = p {
                     txn.append_dynamic_properties(p);
