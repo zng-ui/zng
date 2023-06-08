@@ -46,15 +46,15 @@ fn app_main() {
                         children_align = Align::CENTER;
                         spacing = 5;
                         children = ui_vec![
-                            Text!("Using Glob"),
+                            Text!("Using Blob"),
                             Container! {
                                 size = 30.vmin_pct();
-                                child = using_glob::app_side::custom_render_node();
+                                child = using_blob::app_side::custom_render_node();
                             },
                             Container! {
                                 size = 30.vmin_pct();
                                 hue_rotate = 180.deg();
-                                child = using_glob::app_side::custom_render_node();
+                                child = using_blob::app_side::custom_render_node();
                             },
                         ]
                     }
@@ -68,7 +68,7 @@ fn app_main() {
 fn view_extensions() -> ViewExtensions {
     let mut exts = ViewExtensions::new();
     using_display_items::view_side::extend(&mut exts);
-    using_glob::view_side::extend(&mut exts);
+    using_blob::view_side::extend(&mut exts);
     exts
 }
 
@@ -353,8 +353,8 @@ pub mod using_display_items {
     }
 }
 
-/// Demo view extension custom renderer, integrated with Webrender using the glob API.
-pub mod using_glob {
+/// Demo view extension custom renderer, integrated with Webrender using the blob API.
+pub mod using_blob {
     /// App-process stuff, nodes.
     pub mod app_side {
         use zero_ui::{
@@ -495,7 +495,7 @@ pub mod using_glob {
         pub use crate::using_display_items::api::*;
 
         pub fn extension_name() -> ApiExtensionName {
-            ApiExtensionName::new("zero-ui.examples.extend_renderer.using_glob").unwrap()
+            ApiExtensionName::new("zero-ui.examples.extend_renderer.using_blob").unwrap()
         }
     }
 }
