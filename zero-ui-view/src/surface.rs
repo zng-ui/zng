@@ -16,7 +16,9 @@ use zero_ui_view_api::{
 };
 
 use crate::{
-    extensions::{DisplayListExtAdapter, RendererCommandArgs, RendererConfigArgs, RendererCreatedArgs, RendererExtension},
+    extensions::{
+        BlobExtensionsImgHandler, DisplayListExtAdapter, RendererCommandArgs, RendererConfigArgs, RendererCreatedArgs, RendererExtension,
+    },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::PxToWinit,
@@ -87,7 +89,7 @@ impl Surface {
             //panic_on_gl_error: true,
             ..Default::default()
         };
-
+        let mut blobs = BlobExtensionsImgHandler(vec![]);
         for (id, ext) in &mut renderer_exts {
             let cfg = cfg
                 .extensions
@@ -97,8 +99,10 @@ impl Surface {
             ext.configure(&mut RendererConfigArgs {
                 config: cfg,
                 options: &mut opts,
+                blobs: &mut blobs.0,
             });
         }
+        opts.blob_image_handler = Some(Box::new(blobs));
 
         let device_size = cfg.size.to_px(cfg.scale_factor).to_wr_device();
 

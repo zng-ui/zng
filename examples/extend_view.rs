@@ -393,7 +393,7 @@ pub mod using_blob {
             prelude::{units::PxToWr, PxPoint},
         };
         use zero_ui_view::{
-            extensions::{RendererExtension, ViewExtensions, RendererCreatedArgs},
+            extensions::{RendererCreatedArgs, RendererExtension, ViewExtensions},
             webrender::{
                 api::{units::LayoutRect, BlobImageKey, ColorF, CommonItemProperties, ImageKey, PrimitiveFlags},
                 RenderApi,
@@ -428,10 +428,7 @@ pub mod using_blob {
                 false // retain the extension after renderer creation.
             }
 
-            fn renderer_created(
-                &mut self,
-                args: &mut RendererCreatedArgs,
-            ) {
+            fn renderer_created(&mut self, args: &mut RendererCreatedArgs) {
                 let api = args.api_sender.create_api();
                 self.image_key = api.generate_blob_image_key();
                 self.api = Some(api);

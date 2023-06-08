@@ -23,7 +23,9 @@ use zero_ui_view_api::{
 use zero_ui_view_api::{Event, Key, KeyState, ScanCode};
 
 use crate::{
-    extensions::{DisplayListExtAdapter, RendererCommandArgs, RendererConfigArgs, RendererCreatedArgs, RendererExtension},
+    extensions::{
+        BlobExtensionsImgHandler, DisplayListExtAdapter, RendererCommandArgs, RendererConfigArgs, RendererCreatedArgs, RendererExtension,
+    },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::{CursorToWinit, DipToWinit, WinitToDip, WinitToPx},
@@ -226,6 +228,7 @@ impl Window {
             //panic_on_gl_error: true,
             ..Default::default()
         };
+        let mut blobs = BlobExtensionsImgHandler(vec![]);
         for (id, ext) in &mut renderer_exts {
             let cfg = cfg
                 .extensions
@@ -236,8 +239,10 @@ impl Window {
             ext.configure(&mut RendererConfigArgs {
                 config: cfg,
                 options: &mut opts,
+                blobs: &mut blobs.0,
             });
         }
+        opts.blob_image_handler = Some(Box::new(blobs));
 
         let (mut renderer, sender) =
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
