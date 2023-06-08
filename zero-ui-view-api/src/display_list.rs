@@ -519,12 +519,17 @@ impl DisplayList {
     pub fn to_webrender(self, ext: &mut dyn DisplayListExtension, cache: &mut DisplayListCache) -> wr::BuiltDisplayList {
         assert_eq!(self.pipeline_id, cache.pipeline_id);
 
-        let r = Self::build(&self.list, cache, ext);
+        let r = Self::build(&self.list, cache, ext, false);
         cache.insert(self);
 
         r
     }
-    fn build(list: &[DisplayItem], cache: &mut DisplayListCache, ext: &mut dyn DisplayListExtension) -> wr::BuiltDisplayList {
+    fn build(
+        list: &[DisplayItem],
+        cache: &mut DisplayListCache,
+        ext: &mut dyn DisplayListExtension,
+        is_reuse: bool,
+    ) -> wr::BuiltDisplayList {
         let _s = tracing::trace_span!("DisplayList::build").entered();
 
         let (mut wr_list, mut sc) = cache.begin_wr();
@@ -535,7 +540,7 @@ impl DisplayList {
         });
 
         for item in list {
-            item.to_webrender(&mut wr_list, ext, &mut sc, cache, false);
+            item.to_webrender(&mut wr_list, ext, &mut sc, cache, is_reuse);
         }
 
         ext.display_list_end(&mut DisplayExtensionArgs {
@@ -846,7 +851,7 @@ impl DisplayListCache {
         if new_frame {
             let list = self.lists.get_mut(&self.latest_frame).expect("no frame to update");
             let list = mem::take(&mut list.list);
-            let r = DisplayList::build(&list, self, ext);
+            let r = DisplayList::build(&list, self, ext, true);
             self.lists.get_mut(&self.latest_frame).unwrap().list = list;
 
             Err(r)

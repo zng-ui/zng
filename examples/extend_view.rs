@@ -216,13 +216,13 @@ pub mod using_display_items {
                         let part_size = rect.size() / 10.0;
 
                         let color = ColorF::new(0.5, 0.0, 1.0, 1.0);
+                        let cursor = p.cursor.to_wr();
 
                         for y in 0..10 {
                             for x in 0..10 {
                                 let part_pos = LayoutPoint::new(x as f32 * part_size.width, y as f32 * part_size.height);
                                 let part_rect = euclid::Rect::new(part_pos, part_size).to_box2d();
 
-                                let cursor = p.cursor.to_wr();
                                 let mut color = color;
                                 let mid = part_pos.to_vector() + part_size.to_vector() / 2.0;
                                 let dist = mid.to_point().distance_to(cursor).min(rect.width()) / rect.width();
