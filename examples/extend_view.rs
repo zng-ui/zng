@@ -134,35 +134,48 @@ pub mod using_display_items {
                         render_size = *final_size;
                         WIDGET.render();
                     }
-                    let p = cursor.to_px(LAYOUT.scale_factor().0);
-                    if cursor_px != p {
-                        cursor_px = p;
-                        WIDGET.render_update();
+
+                    if cursor != DipPoint::splat(Dip::MIN) {
+                        let p = cursor.to_px(LAYOUT.scale_factor().0);
+                        if cursor_px != p {
+                            cursor_px = p;
+                            WIDGET.render_update();
+                        }
                     }
                 }
                 UiNodeOp::Render { frame } => {
                     // if extension is available
                     if ext_id != ApiExtensionId::INVALID {
-                        if let Some(cursor) = frame.transform().inverse().and_then(|t| t.transform_point(cursor_px)) {
-                            // push the entire custom item.
-                            frame.push_extension_item(
-                                ext_id,
-                                &super::api::RenderPayload {
-                                    cursor_binding: Some(cursor_binding),
-                                    cursor,
-                                    size: render_size,
-                                },
-                            );
+                        let mut cursor = PxPoint::splat(Px::MIN);
+                        if cursor_px != cursor {
+                            if let Some(c) = frame.transform().inverse().and_then(|t| t.transform_point(cursor_px)) {
+                                cursor = c;
+                            }
                         }
+
+                        // push the entire custom item.
+                        frame.push_extension_item(
+                            ext_id,
+                            &super::api::RenderPayload {
+                                cursor_binding: Some(cursor_binding),
+                                cursor,
+                                size: render_size,
+                            },
+                        );
                     }
                 }
                 UiNodeOp::RenderUpdate { update } => {
                     // if extension is available
                     if ext_id != ApiExtensionId::INVALID {
-                        if let Some(cursor) = update.transform().inverse().and_then(|t| t.transform_point(cursor_px)) {
-                            // push an update.
-                            update.update_extension(ext_id, &super::api::RenderUpdatePayload { cursor_binding, cursor });
+                        let mut cursor = PxPoint::splat(Px::MIN);
+                        if cursor_px != cursor {
+                            if let Some(c) = update.transform().inverse().and_then(|t| t.transform_point(cursor_px)) {
+                                cursor = c;
+                            }
                         }
+
+                        // push an update.
+                        update.update_extension(ext_id, &super::api::RenderUpdatePayload { cursor_binding, cursor });
                     }
                 }
                 _ => {}
@@ -372,9 +385,15 @@ pub mod using_glob {
                 zero_ui_view_api::{DisplayExtensionItemArgs, DisplayExtensionUpdateArgs},
                 ApiExtensionId,
             },
-            prelude::PxPoint,
+            prelude::{units::PxToWr, PxPoint},
         };
-        use zero_ui_view::extensions::{RendererExtension, ViewExtensions};
+        use zero_ui_view::{
+            extensions::{RendererExtension, ViewExtensions},
+            webrender::{
+                api::{units::LayoutRect, BlobImageKey, ColorF, CommonItemProperties, ImageKey, PrimitiveFlags},
+                RenderApi,
+            },
+        };
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -385,12 +404,17 @@ pub mod using_glob {
             _id: ApiExtensionId,
             // updated values
             bindings: HashMap<super::api::BindingId, PxPoint>,
+
+            image_key: BlobImageKey,
+            api: Option<RenderApi>,
         }
         impl CustomExtension {
             fn new(id: ApiExtensionId) -> Self {
                 Self {
                     _id: id,
                     bindings: HashMap::new(),
+                    image_key: BlobImageKey(ImageKey::DUMMY),
+                    api: None,
                 }
             }
         }
@@ -399,14 +423,65 @@ pub mod using_glob {
                 false // retain the extension after renderer creation.
             }
 
-            fn display_item_push(&mut self, _args: &mut DisplayExtensionItemArgs) {
-                // TODO
+            fn renderer_created(
+                &mut self,
+                _: &mut zero_ui_view::webrender::Renderer,
+                api_sender: &zero_ui_view::webrender::RenderApiSender,
+            ) {
+                let api = api_sender.create_api();
+                self.image_key = api.generate_blob_image_key();
+                self.api = Some(api);
+
+                // TODO, setup a blob renderer
+            }
+
+            fn display_item_push(&mut self, args: &mut DisplayExtensionItemArgs) {
+                match args.payload.deserialize::<super::api::RenderPayload>() {
+                    Ok(mut p) => {
+                        if let Some(binding) = p.cursor_binding {
+                            // updateable item
+                            match self.bindings.entry(binding) {
+                                std::collections::hash_map::Entry::Occupied(e) => {
+                                    if *args.is_reuse {
+                                        // item is old, use updated value
+                                        p.cursor = *e.get();
+                                    } else {
+                                        // item is new, previous updated value invalid
+                                        e.remove();
+                                    }
+                                }
+                                std::collections::hash_map::Entry::Vacant(_) => {}
+                            }
+                        }
+
+                        // render
+                        let rect = LayoutRect::from_size(p.size.to_wr());
+                        let _cursor = p.cursor.to_wr();
+
+                        let props = CommonItemProperties {
+                            clip_rect: rect,
+                            clip_chain_id: args.sc.clip_chain_id(args.list),
+                            spatial_id: args.sc.spatial_id(),
+                            flags: PrimitiveFlags::empty(),
+                        };
+                        args.list.push_image(
+                            &props,
+                            rect,
+                            zero_ui_view::webrender::api::ImageRendering::Auto,
+                            zero_ui_view::webrender::api::AlphaType::Alpha,
+                            self.image_key.as_image(),
+                            ColorF::WHITE,
+                        )
+                    }
+                    Err(e) => tracing::error!("invalid display item, {e}"),
+                }
             }
 
             fn render_update(&mut self, args: &mut DisplayExtensionUpdateArgs) {
                 match args.payload.deserialize::<super::api::RenderUpdatePayload>() {
                     Ok(p) => {
                         self.bindings.insert(p.cursor_binding, p.cursor);
+                        // TODO, update blob image
                     }
                     Err(e) => tracing::error!("invalid update request, {e}"),
                 }

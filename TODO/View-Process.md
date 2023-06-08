@@ -6,10 +6,6 @@
 
 ## Extensions
 
-* Implement webrender blob example.
-  - Support multiple blob renderers.
-    - Webrender only has one entry, we need a manager.
-
 * Implement window extension.
     - Similar to `RendererExtension`, access to raw handle and window builder config.
       - Modify RendererExtension to include window stuff?
