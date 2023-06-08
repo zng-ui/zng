@@ -248,9 +248,15 @@ impl Surface {
             colors: vec![],
         });
 
-        let display_list = frame
-            .display_list
-            .to_webrender(&mut DisplayListExtAdapter(&mut self.renderer_exts), &mut self.display_list_cache);
+        let display_list = frame.display_list.to_webrender(
+            &mut DisplayListExtAdapter {
+                extensions: &mut self.renderer_exts,
+                transaction: &mut txn,
+                renderer: self.renderer.as_mut().unwrap(),
+                api: &mut self.api,
+            },
+            &mut self.display_list_cache,
+        );
 
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
         self.clear_color = Some(frame.clear_color);
@@ -289,7 +295,12 @@ impl Surface {
         txn.generate_frame(self.frame_id().get(), render_reasons);
 
         let frame_scope = match self.display_list_cache.update(
-            &mut DisplayListExtAdapter(&mut self.renderer_exts),
+            &mut DisplayListExtAdapter {
+                extensions: &mut self.renderer_exts,
+                transaction: &mut txn,
+                renderer: self.renderer.as_mut().unwrap(),
+                api: &mut self.api,
+            },
             frame.transforms,
             frame.floats,
             frame.colors,

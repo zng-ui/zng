@@ -12,8 +12,7 @@ use zero_ui_view_api::{
     webrender_api::{
         AsyncBlobImageRasterizer, BlobImageHandler, BlobImageParams, BlobImageRequest, BlobImageResult, DocumentId, PipelineId,
     },
-    ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayExtensionItemArgs, DisplayExtensionUpdateArgs,
-    DisplayListExtension,
+    ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayExtensionUpdateArgs, DisplayListExtension,
 };
 
 /// The extension API.
@@ -57,22 +56,22 @@ pub trait RendererExtension: Any {
     }
 
     /// Called when a new frame is about to begin rendering.
-    fn display_list_start(&mut self, args: &mut zero_ui_view_api::DisplayExtensionArgs) {
-        let _ = args;
-    }
-
-    /// Called when a new frame just finished rendering.
-    fn display_list_end(&mut self, args: &mut zero_ui_view_api::DisplayExtensionArgs) {
+    fn render_start(&mut self, args: &mut RenderArgs) {
         let _ = args;
     }
 
     /// Called when a display item push for the extension is found.
-    fn display_item_push(&mut self, args: &mut DisplayExtensionItemArgs) {
+    fn render_push(&mut self, args: &mut RenderItemArgs) {
         let _ = args;
     }
 
     /// Called when a display item pop for the extension is found.
-    fn display_item_pop(&mut self, args: &mut DisplayExtensionItemArgs) {
+    fn render_pop(&mut self, args: &mut RenderItemArgs) {
+        let _ = args;
+    }
+
+    /// Called when a new frame just finished rendering.
+    fn render_end(&mut self, args: &mut RenderArgs) {
         let _ = args;
     }
 
@@ -80,6 +79,48 @@ pub trait RendererExtension: Any {
     fn render_update(&mut self, args: &mut DisplayExtensionUpdateArgs) {
         let _ = args;
     }
+}
+
+/// Arguments for [`RendererExtension::render_start`] and [`RendererExtension::render_end`].
+pub struct RenderArgs<'a> {
+    /// The webrender display list.
+    pub list: &'a mut zero_ui_view_api::webrender_api::DisplayListBuilder,
+    /// Space and clip tracker.
+    pub sc: &'a mut zero_ui_view_api::SpaceAndClip,
+
+    /// The transaction that will send the display list.
+    pub transaction: &'a mut webrender::Transaction,
+
+    /// The window or surface renderer.
+    pub renderer: &'a mut webrender::Renderer,
+    /// The window or surface render API.
+    pub api: &'a mut RenderApi,
+}
+
+/// Arguments for [`RendererExtension::render_push`] and [`RendererExtension::render_pop`].
+pub struct RenderItemArgs<'a> {
+    /// Extension index.
+    pub extension_id: ApiExtensionId,
+    /// Push payload, is empty for pop.
+    pub payload: &'a ApiExtensionPayload,
+    /// If the display item is reused.
+    ///
+    /// If `true` the payload is the same as received before any updates, the updated
+    /// values must be applied to value deserialized from the payload.
+    pub is_reuse: bool,
+
+    /// The webrender display list.
+    pub list: &'a mut zero_ui_view_api::webrender_api::DisplayListBuilder,
+    /// Space and clip tracker.
+    pub sc: &'a mut zero_ui_view_api::SpaceAndClip,
+
+    /// The transaction that will send the display list.
+    pub transaction: &'a mut webrender::Transaction,
+
+    /// The window or surface renderer.
+    pub renderer: &'a mut webrender::Renderer,
+    /// The window or surface render API.
+    pub api: &'a mut RenderApi,
 }
 
 /// Represents a Webrender blob handler that can coexist with other blob handlers on the same renderer.
@@ -157,7 +198,9 @@ pub struct BlobAddArgs {
     /// Encoded data.
     pub data: std::sync::Arc<zero_ui_view_api::webrender_api::BlobImageData>,
 
+    ///
     pub visible_rect: zero_ui_view_api::webrender_api::units::DeviceIntRect,
+    ///
     pub tile_size: zero_ui_view_api::webrender_api::TileSize,
 }
 
@@ -167,8 +210,11 @@ pub struct BlobUpdateArgs {
     ///
     /// Blob extension must ignore this request if it did not generate this key.
     pub key: zero_ui_view_api::webrender_api::BlobImageKey,
+    /// Encoded data.
     pub data: std::sync::Arc<zero_ui_view_api::webrender_api::BlobImageData>,
+    ///
     pub visible_rect: zero_ui_view_api::webrender_api::units::DeviceIntRect,
+    ///
     pub dirty_rect: zero_ui_view_api::webrender_api::units::BlobDirtyRect,
 }
 
@@ -411,41 +457,76 @@ struct RendererDebug {
     pub profiler_ui: String,
 }
 
-pub(crate) struct DisplayListExtAdapter<'a>(pub &'a mut Vec<(ApiExtensionId, Box<dyn RendererExtension>)>);
+pub(crate) struct DisplayListExtAdapter<'a> {
+    pub extensions: &'a mut Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
+    pub transaction: &'a mut webrender::Transaction,
+    pub renderer: &'a mut webrender::Renderer,
+    pub api: &'a mut RenderApi,
+}
 
 impl<'a> DisplayListExtension for DisplayListExtAdapter<'a> {
     fn display_list_start(&mut self, args: &mut zero_ui_view_api::DisplayExtensionArgs) {
-        for (_, ext) in self.0.iter_mut() {
-            ext.display_list_start(args);
+        for (_, ext) in self.extensions.iter_mut() {
+            ext.render_start(&mut RenderArgs {
+                list: args.list,
+                sc: args.sc,
+                transaction: self.transaction,
+                renderer: self.renderer,
+                api: self.api,
+            });
         }
     }
 
     fn push_display_item(&mut self, args: &mut zero_ui_view_api::DisplayExtensionItemArgs) {
-        for (id, ext) in self.0.iter_mut() {
+        for (id, ext) in self.extensions.iter_mut() {
             if *id == args.extension_id {
-                ext.display_item_push(args);
+                ext.render_push(&mut RenderItemArgs {
+                    extension_id: args.extension_id,
+                    payload: args.payload,
+                    is_reuse: args.is_reuse,
+                    list: args.list,
+                    sc: args.sc,
+                    transaction: self.transaction,
+                    renderer: self.renderer,
+                    api: self.api,
+                });
                 break;
             }
         }
     }
 
     fn pop_display_item(&mut self, args: &mut zero_ui_view_api::DisplayExtensionItemArgs) {
-        for (id, ext) in self.0.iter_mut() {
+        for (id, ext) in self.extensions.iter_mut() {
             if *id == args.extension_id {
-                ext.display_item_pop(args);
+                ext.render_pop(&mut RenderItemArgs {
+                    extension_id: args.extension_id,
+                    payload: args.payload,
+                    is_reuse: args.is_reuse,
+                    list: args.list,
+                    sc: args.sc,
+                    transaction: self.transaction,
+                    renderer: self.renderer,
+                    api: self.api,
+                });
                 break;
             }
         }
     }
 
     fn display_list_end(&mut self, args: &mut zero_ui_view_api::DisplayExtensionArgs) {
-        for (_, ext) in self.0.iter_mut() {
-            ext.display_list_end(args);
+        for (_, ext) in self.extensions.iter_mut() {
+            ext.render_end(&mut RenderArgs {
+                list: args.list,
+                sc: args.sc,
+                transaction: self.transaction,
+                renderer: self.renderer,
+                api: self.api,
+            });
         }
     }
 
     fn update(&mut self, args: &mut zero_ui_view_api::DisplayExtensionUpdateArgs) {
-        for (id, ext) in self.0.iter_mut() {
+        for (id, ext) in self.extensions.iter_mut() {
             if *id == args.extension_id {
                 ext.render_update(args);
                 break;

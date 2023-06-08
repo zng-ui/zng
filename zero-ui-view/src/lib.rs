@@ -1,5 +1,8 @@
 #![allow(clippy::needless_doctest_main)]
 #![doc(test(no_crate_inject))]
+#![warn(missing_docs)]
+#![warn(unused_extern_crates)]
+
 //! View-Process implementation using [`glutin`].
 //!
 //! This backend supports headed and headless apps and all .

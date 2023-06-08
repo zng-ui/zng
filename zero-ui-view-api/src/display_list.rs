@@ -1302,14 +1302,14 @@ impl DisplayItem {
             DisplayItem::PushExtension { extension_id, payload } => ext.push_display_item(&mut DisplayExtensionItemArgs {
                 extension_id: *extension_id,
                 payload,
-                is_reuse: &is_reuse,
+                is_reuse,
                 list: wr_list,
                 sc,
             }),
             DisplayItem::PopExtension { extension_id } => ext.pop_display_item(&mut DisplayExtensionItemArgs {
                 extension_id: *extension_id,
                 payload: &ApiExtensionPayload::empty(),
-                is_reuse: &is_reuse,
+                is_reuse,
                 list: wr_list,
                 sc,
             }),
@@ -1514,7 +1514,7 @@ pub struct DisplayExtensionItemArgs<'a> {
     ///
     /// If `true` the payload is the same as received before any updates, the updated
     /// values must be applied to value deserialized from the payload.
-    pub is_reuse: &'a bool,
+    pub is_reuse: bool,
     /// The webrender display list.
     pub list: &'a mut wr::DisplayListBuilder,
     /// Space and clip tracker.

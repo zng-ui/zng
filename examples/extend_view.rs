@@ -201,14 +201,11 @@ pub mod using_display_items {
         use std::collections::HashMap;
 
         use zero_ui::{
-            core::app::view_process::{
-                zero_ui_view_api::{DisplayExtensionItemArgs, DisplayExtensionUpdateArgs},
-                ApiExtensionId,
-            },
+            core::app::view_process::{zero_ui_view_api::DisplayExtensionUpdateArgs, ApiExtensionId},
             prelude::{units::PxToWr, PxPoint},
         };
         use zero_ui_view::{
-            extensions::{RendererExtension, ViewExtensions},
+            extensions::{RenderItemArgs, RendererExtension, ViewExtensions},
             webrender::{
                 api::{
                     units::{LayoutPoint, LayoutRect},
@@ -241,14 +238,14 @@ pub mod using_display_items {
                 false // retain the extension after renderer creation.
             }
 
-            fn display_item_push(&mut self, args: &mut DisplayExtensionItemArgs) {
+            fn render_push(&mut self, args: &mut RenderItemArgs) {
                 match args.payload.deserialize::<super::api::RenderPayload>() {
                     Ok(mut p) => {
                         if let Some(binding) = p.cursor_binding {
                             // updateable item
                             match self.bindings.entry(binding) {
                                 std::collections::hash_map::Entry::Occupied(e) => {
-                                    if *args.is_reuse {
+                                    if args.is_reuse {
                                         // item is old, use updated value
                                         p.cursor = *e.get();
                                     } else {
@@ -383,21 +380,15 @@ pub mod using_blob {
 
     /// View-process stuff, the actual extension.
     pub mod view_side {
-        use std::{collections::HashMap, sync::Arc};
+        use std::collections::HashMap;
 
         use zero_ui::{
-            core::app::view_process::{
-                zero_ui_view_api::{DisplayExtensionItemArgs, DisplayExtensionUpdateArgs},
-                ApiExtensionId,
-            },
+            core::app::view_process::{zero_ui_view_api::DisplayExtensionUpdateArgs, ApiExtensionId},
             prelude::{units::PxToWr, PxPoint},
         };
         use zero_ui_view::{
-            extensions::{AsyncBlobRasterizer, BlobExtension, RendererCreatedArgs, RendererExtension, ViewExtensions},
-            webrender::api::{
-                units::{DeviceIntRect, DeviceIntSize, LayoutRect},
-                BlobImageKey, ColorF, CommonItemProperties, ImageDescriptorFlags, ImageFormat, ImageKey, PrimitiveFlags,
-            },
+            extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RendererExtension, ViewExtensions},
+            webrender::api::{units::LayoutRect, ColorF, CommonItemProperties, ImageKey, PrimitiveFlags},
         };
 
         pub fn extend(exts: &mut ViewExtensions) {
@@ -409,15 +400,12 @@ pub mod using_blob {
             _id: ApiExtensionId,
             // updated values
             bindings: HashMap<super::api::BindingId, PxPoint>,
-
-            image_key: BlobImageKey,
         }
         impl CustomExtension {
             fn new(id: ApiExtensionId) -> Self {
                 Self {
                     _id: id,
                     bindings: HashMap::new(),
-                    image_key: BlobImageKey(ImageKey::DUMMY),
                 }
             }
         }
@@ -430,36 +418,14 @@ pub mod using_blob {
                 args.blobs.push(Box::new(BlobRenderer {}));
             }
 
-            fn renderer_created(&mut self, args: &mut RendererCreatedArgs) {
-                self.image_key = args.api.generate_blob_image_key();
-
-                let mut txn = zero_ui_view::webrender::Transaction::new();
-                let descriptor = zero_ui_view::webrender::api::ImageDescriptor {
-                    format: ImageFormat::BGRA8,
-                    size: DeviceIntSize::splat(1),
-                    stride: None,
-                    offset: 0,
-                    flags: ImageDescriptorFlags::empty(),
-                };
-                txn.add_blob_image(
-                    self.image_key,
-                    descriptor,
-                    Arc::new(vec![]),
-                    DeviceIntRect::from_size(DeviceIntSize::splat(1)),
-                    None,
-                );
-
-                args.api.send_transaction(args.document_id, txn);
-            }
-
-            fn display_item_push(&mut self, args: &mut DisplayExtensionItemArgs) {
+            fn render_push(&mut self, args: &mut RenderItemArgs) {
                 match args.payload.deserialize::<super::api::RenderPayload>() {
                     Ok(mut p) => {
                         if let Some(binding) = p.cursor_binding {
                             // updateable item
                             match self.bindings.entry(binding) {
                                 std::collections::hash_map::Entry::Occupied(e) => {
-                                    if *args.is_reuse {
+                                    if args.is_reuse {
                                         // item is old, use updated value
                                         p.cursor = *e.get();
                                     } else {
@@ -486,7 +452,7 @@ pub mod using_blob {
                             rect,
                             zero_ui_view::webrender::api::ImageRendering::Auto,
                             zero_ui_view::webrender::api::AlphaType::Alpha,
-                            self.image_key.as_image(),
+                            ImageKey::DUMMY, // TODO, need to generate key here and persist it with the item?.
                             ColorF::WHITE,
                         )
                     }
