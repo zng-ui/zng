@@ -1351,16 +1351,36 @@ impl FrameBuilder {
             .push_radial_gradient(PxRect::new(offset, bounds), gradient, &stops, bounds, PxSize::zero());
     }
 
-    /// Push a custom display extension context, call `render` and pop the item.
-    pub fn push_extension_context(&mut self, extension_id: ApiExtensionId, payload: ApiExtensionPayload, render: impl FnOnce(&mut Self)) {
+    /// Push a custom display extension context with custom encoding.
+    pub fn push_extension_context_raw(
+        &mut self,
+        extension_id: ApiExtensionId,
+        payload: ApiExtensionPayload,
+        render: impl FnOnce(&mut Self),
+    ) {
         self.display_list.push_extension(extension_id, payload);
         render(self);
         self.display_list.pop_extension(extension_id);
     }
 
-    /// Push a custom display extension item.
-    pub fn push_extension_item(&mut self, extension_id: ApiExtensionId, payload: ApiExtensionPayload) {
+    /// Push a custom display extension context that wraps `render`.
+    pub fn push_extension_context<T: serde::Serialize>(
+        &mut self,
+        extension_id: ApiExtensionId,
+        payload: &T,
+        render: impl FnOnce(&mut Self),
+    ) {
+        self.push_extension_context_raw(extension_id, ApiExtensionPayload::serialize(payload).unwrap(), render)
+    }
+
+    /// Push a custom display extension item with custom encoding.
+    pub fn push_extension_item_raw(&mut self, extension_id: ApiExtensionId, payload: ApiExtensionPayload) {
         self.display_list.push_extension(extension_id, payload);
+    }
+
+    /// Push a custom display extension item.
+    pub fn push_extension_item<T: serde::Serialize>(&mut self, extension_id: ApiExtensionId, payload: &T) {
+        self.push_extension_item_raw(extension_id, ApiExtensionPayload::serialize(payload).unwrap())
     }
 
     /// Create a new display list builder that can be built in parallel and merged back onto this list using [`parallel_fold`].
@@ -2087,9 +2107,14 @@ impl FrameUpdate {
         }
     }
 
-    /// Update a custom extension value.
-    pub fn update_extension(&mut self, extension_id: ApiExtensionId, extension_payload: ApiExtensionPayload) {
+    /// Update a custom extension value with custom encoding.
+    pub fn update_extension_raw(&mut self, extension_id: ApiExtensionId, extension_payload: ApiExtensionPayload) {
         self.extensions.push((extension_id, extension_payload))
+    }
+
+    /// Update a custom extension value.
+    pub fn update_extension<T: serde::Serialize>(&mut self, extension_id: ApiExtensionId, payload: &T) {
+        self.update_extension_raw(extension_id, ApiExtensionPayload::serialize(payload).unwrap())
     }
 
     /// Create an update builder that can be send to a parallel task and must be folded back into this builder.

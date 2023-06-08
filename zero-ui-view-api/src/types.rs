@@ -859,6 +859,10 @@ pub enum Event {
         locale_config: LocaleConfig,
         /// System preferred color scheme.
         color_scheme: ColorScheme,
+        /// API extensions implemented by the view-process.
+        ///
+        /// The extension IDs will stay valid for the duration of the view-process.
+        extensions: ApiExtensions,
     },
 
     /// The event channel disconnected, probably because the view-process crashed.

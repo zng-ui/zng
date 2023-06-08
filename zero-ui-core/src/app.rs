@@ -1439,13 +1439,14 @@ impl<E: AppExtension> RunningApp<E> {
                     animations_config,
                     locale_config,
                     color_scheme,
+                    extensions,
                 } => {
                     // notify immediately.
                     if is_respawn {
                         VIEW_PROCESS.on_respawed(generation);
                     }
 
-                    VIEW_PROCESS.handle_inited(generation);
+                    VIEW_PROCESS.handle_inited(generation, extensions.clone());
 
                     let monitors: Vec<_> = available_monitors
                         .into_iter()
@@ -1464,6 +1465,7 @@ impl<E: AppExtension> RunningApp<E> {
                         animations_config,
                         locale_config,
                         color_scheme,
+                        extensions,
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
                 }

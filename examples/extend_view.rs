@@ -21,10 +21,16 @@ fn app_main() {
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children_align = Align::CENTER;
+                spacing = 5;
                 children = ui_vec![
                     Text!("Using Display Items"),
                     Container! {
-                        size = (500, 400);
+                        size = 30.vmin_pct();
+                        child = using_display_items::app_side::custom_render_node();
+                    },
+                    Container! {
+                        size = 30.vmin_pct();
+                        hue_rotate = 180.deg();
                         child = using_display_items::app_side::custom_render_node();
                     },
                 ]
@@ -46,7 +52,7 @@ pub mod using_display_items {
     pub mod app_side {
         use zero_ui::{
             core::{
-                app::view_process::{ApiExtensionId, ApiExtensionPayload, ViewProcessOffline, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
+                app::view_process::{ApiExtensionId, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT},
                 mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
             },
             prelude::new_widget::*,
@@ -110,12 +116,11 @@ pub mod using_display_items {
                             // push the entire custom item.
                             frame.push_extension_item(
                                 ext_id,
-                                ApiExtensionPayload::serialize(&super::api::RenderPayload {
+                                &super::api::RenderPayload {
                                     cursor_binding: Some(cursor_binding),
                                     cursor,
                                     size: render_size,
-                                })
-                                .unwrap(),
+                                },
                             );
                         }
                     }
@@ -125,10 +130,7 @@ pub mod using_display_items {
                     if ext_id != ApiExtensionId::INVALID {
                         if let Some(cursor) = update.transform().inverse().and_then(|t| t.transform_point(cursor_px)) {
                             // push an update.
-                            update.update_extension(
-                                ext_id,
-                                ApiExtensionPayload::serialize(&super::api::RenderUpdatePayload { cursor_binding, cursor }).unwrap(),
-                            );
+                            update.update_extension(ext_id, &super::api::RenderUpdatePayload { cursor_binding, cursor });
                         }
                     }
                 }
@@ -137,19 +139,11 @@ pub mod using_display_items {
         }
 
         pub fn extension_id() -> ApiExtensionId {
-            match VIEW_PROCESS.extensions() {
-                Ok(exts) => {
-                    let ext = super::api::extension_name();
-                    match exts.id(&ext) {
-                        Some(id) => id,
-                        None => {
-                            tracing::error!("extension {ext:?} not available");
-                            ApiExtensionId::INVALID
-                        }
-                    }
-                }
-                Err(ViewProcessOffline) => ApiExtensionId::INVALID,
-            }
+            VIEW_PROCESS
+                .extension_id(super::api::extension_name())
+                .ok()
+                .flatten()
+                .unwrap_or(ApiExtensionId::INVALID)
         }
     }
 
@@ -269,8 +263,8 @@ pub mod using_display_items {
                         // args.properties.colors.push(..)
                         //
                         // Note that if you are going to do this you need to generate the binding keys in
-                        // the app-process using the type `FrameValueKey<T>`, otherwise you will have key 
-                        // collisions with the normal animating properties. 
+                        // the app-process using the type `FrameValueKey<T>`, otherwise you will have key
+                        // collisions with the normal animating properties.
                     }
                     Err(e) => tracing::error!("invalid update request, {e}"),
                 }

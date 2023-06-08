@@ -1178,12 +1178,10 @@ impl RendererDebug {
     }
 
     pub(super) fn extension_id(&self) -> Option<ApiExtensionId> {
-        if let Ok(ext) = crate::app::view_process::VIEW_PROCESS.extensions() {
-            let name = crate::app::view_process::ApiExtensionName::new("zero-ui-view.webrender_debug").unwrap();
-            ext.id(&name)
-        } else {
-            None
-        }
+        crate::app::view_process::VIEW_PROCESS
+            .extension_id("zero-ui-view.webrender_debug")
+            .ok()
+            .flatten()
     }
 
     pub(super) fn push_extension(&self, exts: &mut Vec<(ApiExtensionId, zero_ui_view_api::ApiExtensionPayload)>) {

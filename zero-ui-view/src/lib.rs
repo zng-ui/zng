@@ -1338,6 +1338,7 @@ impl Api for App {
             font_aa: config::font_aa(),
             animations_config: config::animations_config(),
             locale_config: config::locale_config(),
+            extensions: self.exts.api_extensions(),
         });
     }
 
@@ -1607,10 +1608,6 @@ impl Api for App {
 
     fn render_update(&mut self, id: WindowId, frame: FrameUpdateRequest) {
         with_window_or_surface!(self, id, |w| w.render_update(frame), || ())
-    }
-
-    fn extensions(&mut self) -> ApiExtensions {
-        self.exts.api_extensions()
     }
 
     fn app_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {

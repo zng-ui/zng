@@ -54,13 +54,10 @@ fn crash_respawn() -> impl UiNode {
     Button! {
         child = Text!("Crash View-Process");
         on_click = hn!(|_| {
-            if let Ok(ext) = VIEW_PROCESS.extensions() {
-                let crash_ext = zero_ui::core::app::view_process::ApiExtensionName::new("zero-ui.examples.respawn.crash").unwrap();
-                if let Some(id) = ext.id(&crash_ext) {
-                    let _ = VIEW_PROCESS.app_extension::<_, ()>(id, &());
-                } else {
-                    tracing::error!(r#"extension "zero-ui-view.crash" unavailable"#)
-                }
+            if let Ok(Some(ext)) = VIEW_PROCESS.extension_id("zero-ui.examples.respawn.crash") {
+                let _ = VIEW_PROCESS.app_extension::<_, ()>(ext, &());
+            } else {
+                tracing::error!(r#"extension "zero-ui-view.crash" unavailable"#)
             }
         });
     }

@@ -44,6 +44,8 @@ struct ViewProcessService {
 
     data_generation: ViewProcessGen,
 
+    extensions: ApiExtensions,
+
     loading_images: Vec<sync::Weak<RwLock<ViewImageData>>>,
     frame_images: Vec<sync::Weak<RwLock<ViewImageData>>>,
     encoding_images: Vec<EncodeRequest>,
@@ -198,9 +200,18 @@ impl VIEW_PROCESS {
         self.write().process.respawn()
     }
 
-    /// API extensions implemented by the view-process.
-    pub fn extensions(&self) -> Result<ApiExtensions> {
-        self.write().process.extensions()
+    /// Gets the ID for the `extension_name` in the current view-process.
+    ///
+    /// The ID can change for every view-process instance, you must subscribe to the
+    /// [`VIEW_PROCESS_INITED_EVENT`] to refresh the ID. The view-process can respawn
+    /// at any time in case of error.
+    pub fn extension_id(&self, extension_name: impl Into<ApiExtensionName>) -> Result<Option<ApiExtensionId>> {
+        let me = self.read();
+        if me.process.online() {
+            Ok(me.extensions.id(&extension_name.into()))
+        } else {
+            Err(ViewProcessOffline)
+        }
     }
 
     /// Call an extension with custom encoded payload.
@@ -243,6 +254,7 @@ impl VIEW_PROCESS {
             encoding_images: vec![],
             frame_images: vec![],
             pending_frames: 0,
+            extensions: ApiExtensions::default(),
         });
     }
 
@@ -276,8 +288,10 @@ impl VIEW_PROCESS {
     /// Handle an [`Event::Inited`].
     ///
     /// The view-process becomes online only after this call.
-    pub(super) fn handle_inited(&self, gen: ViewProcessGen) {
-        self.write().process.handle_inited(gen);
+    pub(super) fn handle_inited(&self, gen: ViewProcessGen, extensions: ApiExtensions) {
+        let mut me = self.write();
+        me.extensions = extensions;
+        me.process.handle_inited(gen);
     }
 
     pub(crate) fn on_headless_opened(&self, id: WindowId, data: zero_ui_view_api::HeadlessOpenData) -> (ViewHeadless, HeadlessOpenData) {
@@ -481,6 +495,11 @@ event_args! {
         /// [`RAW_WINDOW_OPEN_EVENT`]: crate::app::raw_events::RAW_WINDOW_OPEN_EVENT
         /// [`RAW_COLOR_SCHEME_CHANGED_EVENT`]: crate::app::raw_events::RAW_COLOR_SCHEME_CHANGED_EVENT
         pub color_scheme: ColorScheme,
+
+        /// API extensions implemented by the view-process.
+        ///
+        /// The extension IDs will stay valid for the duration of the view-process.
+        pub extensions: ApiExtensions,
 
         ..
 

@@ -450,18 +450,9 @@ declare_api! {
     /// Update the current frame and re-render it.
     pub fn render_update(&mut self, id: WindowId, frame: FrameUpdateRequest);
 
-    /// API extensions available in this process instance.
-    ///
-    /// The extensions do not change for the duration of the view process.
-    ///
-    /// Note that this represents both command extensions, and display item extensions. Command
-    /// extensions are called using [`Api::app_extension`] and [`Api::render_extension`], display item extensions are inserted using
-    /// [`DisplayListBuilder::push_extension`].
-    pub fn extensions(&mut self) -> ApiExtensions;
-
     /// Call the API extension.
     ///
-    /// The `extension_id` is the index of an extension in the [`Api::extensions`] list.
+    /// The `extension_id` is the index of an extension in the extensions list provided by the view-process on init.
     /// The `extension_request` is any data required by the extension.
     ///
     /// Returns the extension response or [`ApiExtensionPayload::unknown_extension`] if the `extension_id` is
