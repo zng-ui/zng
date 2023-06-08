@@ -19,20 +19,45 @@ fn app_main() {
     App::default().run_window(async {
         Window! {
             child = Stack! {
-                direction = StackDirection::top_to_bottom();
                 children_align = Align::CENTER;
-                spacing = 5;
+                direction = StackDirection::left_to_right();
+                spacing = 20;
+
                 children = ui_vec![
-                    Text!("Using Display Items"),
-                    Container! {
-                        size = 30.vmin_pct();
-                        child = using_display_items::app_side::custom_render_node();
+                    Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        children_align = Align::CENTER;
+                        spacing = 5;
+                        children = ui_vec![
+                            Text!("Using Display Items"),
+                            Container! {
+                                size = 30.vmin_pct();
+                                child = using_display_items::app_side::custom_render_node();
+                            },
+                            Container! {
+                                size = 30.vmin_pct();
+                                hue_rotate = 180.deg();
+                                child = using_display_items::app_side::custom_render_node();
+                            },
+                        ]
                     },
-                    Container! {
-                        size = 30.vmin_pct();
-                        hue_rotate = 180.deg();
-                        child = using_display_items::app_side::custom_render_node();
-                    },
+                    Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        children_align = Align::CENTER;
+                        spacing = 5;
+                        children = ui_vec![
+                            Text!("Using Glob"),
+                            Container! {
+                                size = 30.vmin_pct();
+                                child = using_glob::app_side::custom_render_node();
+                            },
+                            Container! {
+                                size = 30.vmin_pct();
+                                hue_rotate = 180.deg();
+                                child = using_glob::app_side::custom_render_node();
+                            },
+                        ]
+                    }
                 ]
             }
         }
@@ -43,6 +68,7 @@ fn app_main() {
 fn view_extensions() -> ViewExtensions {
     let mut exts = ViewExtensions::new();
     using_display_items::view_side::extend(&mut exts);
+    using_glob::view_side::extend(&mut exts);
     exts
 }
 
@@ -58,8 +84,13 @@ pub mod using_display_items {
             prelude::new_widget::*,
         };
 
-        /// Node that generates display items and render updates for the custom renderer.
+        /// Node that sends external display item and updates.
         pub fn custom_render_node() -> impl UiNode {
+            custom_ext_node(extension_id)
+        }
+        // node that sends the cursor position and widget size to a view extension.
+        // abstracted here to be reused by the other demos.
+        pub(crate) fn custom_ext_node(extension_id: fn() -> ApiExtensionId) -> impl UiNode {
             let mut ext_id = ApiExtensionId::INVALID;
             let mut cursor = DipPoint::splat(Dip::MIN);
             let mut cursor_px = PxPoint::splat(Px::MIN);
@@ -305,6 +336,91 @@ pub mod using_display_items {
         pub struct RenderUpdatePayload {
             pub cursor_binding: BindingId,
             pub cursor: PxPoint,
+        }
+    }
+}
+
+/// Demo view extension custom renderer, integrated with Webrender using the glob API.
+pub mod using_glob {
+    /// App-process stuff, nodes.
+    pub mod app_side {
+        use zero_ui::{
+            core::app::view_process::{ApiExtensionId, VIEW_PROCESS},
+            prelude::UiNode,
+        };
+
+        /// Node that sends external display item and updates.
+        pub fn custom_render_node() -> impl UiNode {
+            crate::using_display_items::app_side::custom_ext_node(extension_id)
+        }
+
+        pub fn extension_id() -> ApiExtensionId {
+            VIEW_PROCESS
+                .extension_id(super::api::extension_name())
+                .ok()
+                .flatten()
+                .unwrap_or(ApiExtensionId::INVALID)
+        }
+    }
+
+    /// View-process stuff, the actual extension.
+    pub mod view_side {
+        use std::collections::HashMap;
+
+        use zero_ui::{
+            core::app::view_process::{
+                zero_ui_view_api::{DisplayExtensionItemArgs, DisplayExtensionUpdateArgs},
+                ApiExtensionId,
+            },
+            prelude::PxPoint,
+        };
+        use zero_ui_view::extensions::{RendererExtension, ViewExtensions};
+
+        pub fn extend(exts: &mut ViewExtensions) {
+            exts.renderer(super::api::extension_name(), CustomExtension::new);
+        }
+
+        struct CustomExtension {
+            // id of this extension, for tracing.
+            _id: ApiExtensionId,
+            // updated values
+            bindings: HashMap<super::api::BindingId, PxPoint>,
+        }
+        impl CustomExtension {
+            fn new(id: ApiExtensionId) -> Self {
+                Self {
+                    _id: id,
+                    bindings: HashMap::new(),
+                }
+            }
+        }
+        impl RendererExtension for CustomExtension {
+            fn is_config_only(&self) -> bool {
+                false // retain the extension after renderer creation.
+            }
+
+            fn display_item_push(&mut self, _args: &mut DisplayExtensionItemArgs) {
+                // TODO
+            }
+
+            fn render_update(&mut self, args: &mut DisplayExtensionUpdateArgs) {
+                match args.payload.deserialize::<super::api::RenderUpdatePayload>() {
+                    Ok(p) => {
+                        self.bindings.insert(p.cursor_binding, p.cursor);
+                    }
+                    Err(e) => tracing::error!("invalid update request, {e}"),
+                }
+            }
+        }
+    }
+
+    pub mod api {
+        use zero_ui::core::app::view_process::ApiExtensionName;
+
+        pub use crate::using_display_items::api::*;
+
+        pub fn extension_name() -> ApiExtensionName {
+            ApiExtensionName::new("zero-ui.examples.extend_renderer.using_glob").unwrap()
         }
     }
 }
