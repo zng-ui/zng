@@ -16,7 +16,7 @@ use zero_ui_view_api::{
 };
 
 use crate::{
-    extensions::{DisplayListExtAdapter, RendererExtension},
+    extensions::{DisplayListExtAdapter, RendererCommandArgs, RendererConfigArgs, RendererCreatedArgs, RendererExtension},
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::PxToWinit,
@@ -94,7 +94,10 @@ impl Surface {
                 .iter()
                 .position(|(k, _)| k == id)
                 .map(|i| cfg.extensions.swap_remove(i).1);
-            ext.configure(cfg, &mut opts);
+            ext.configure(&mut RendererConfigArgs {
+                config: cfg,
+                options: &mut opts,
+            });
         }
 
         let device_size = cfg.size.to_px(cfg.scale_factor).to_wr_device();
@@ -103,15 +106,20 @@ impl Surface {
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
-        renderer_exts.retain_mut(|(_, ext)| {
-            ext.renderer_created(&mut renderer, &sender);
-            !ext.is_config_only()
-        });
-
         let api = sender.create_api();
         let document_id = api.add_document(device_size);
-
         let pipeline_id = webrender::api::PipelineId(gen.get(), id.get());
+
+        renderer_exts.retain_mut(|(_, ext)| {
+            ext.renderer_created(&mut RendererCreatedArgs {
+                renderer: &mut renderer,
+                api_sender: &sender,
+                api: &api,
+                document_id,
+                pipeline_id,
+            });
+            !ext.is_config_only()
+        });
 
         Self {
             id,
@@ -362,10 +370,14 @@ impl Surface {
     }
 
     /// Calls the render extension command.
-    pub fn render_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {
+    pub fn render_extension(&mut self, extension_id: ApiExtensionId, request: ApiExtensionPayload) -> ApiExtensionPayload {
         for (id, ext) in &mut self.renderer_exts {
             if *id == extension_id {
-                return ext.command(self.renderer.as_mut().unwrap(), &self.api, extension_request);
+                return ext.command(&mut RendererCommandArgs {
+                    renderer: self.renderer.as_mut().unwrap(),
+                    api: &self.api,
+                    request,
+                });
             }
         }
         ApiExtensionPayload::unknown_extension(extension_id)

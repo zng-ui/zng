@@ -18,6 +18,11 @@ fn main() {
 fn app_main() {
     App::default().run_window(async {
         Window! {
+            // renderer_debug = {
+            //     use zero_ui::core::render::webrender_api::DebugFlags;
+            //     DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
+            // };
+
             child = Stack! {
                 children_align = Align::CENTER;
                 direction = StackDirection::left_to_right();
@@ -388,7 +393,7 @@ pub mod using_blob {
             prelude::{units::PxToWr, PxPoint},
         };
         use zero_ui_view::{
-            extensions::{RendererExtension, ViewExtensions},
+            extensions::{RendererExtension, ViewExtensions, RendererCreatedArgs},
             webrender::{
                 api::{units::LayoutRect, BlobImageKey, ColorF, CommonItemProperties, ImageKey, PrimitiveFlags},
                 RenderApi,
@@ -425,10 +430,9 @@ pub mod using_blob {
 
             fn renderer_created(
                 &mut self,
-                _: &mut zero_ui_view::webrender::Renderer,
-                api_sender: &zero_ui_view::webrender::RenderApiSender,
+                args: &mut RendererCreatedArgs,
             ) {
-                let api = api_sender.create_api();
+                let api = args.api_sender.create_api();
                 self.image_key = api.generate_blob_image_key();
                 self.api = Some(api);
 

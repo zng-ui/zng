@@ -350,13 +350,10 @@ impl DisplayListBuilder {
     /// [`push_clip_rect`]-[`pop_clip`], if the extension is a normal item only the `push_extension` method must
     /// be called, if the extension is a context item the [`pop_extension`] must also be called.
     ///
-    /// The `extension_id` must be an index to an entry of [`Api::extensions`].
-    ///
     /// [`push_color`]: Self::push_color
     /// [`push_clip_rect`]: Self::push_clip_rect
     /// [`pop_clip`]: Self::pop_clip
     /// [`pop_extension`]: Self::pop_extension
-    /// [`Api::extensions`]: crate::Api::extensions
     pub fn push_extension(&mut self, extension_id: ApiExtensionId, payload: ApiExtensionPayload) {
         self.list.push(DisplayItem::PushExtension { extension_id, payload })
     }
