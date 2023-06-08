@@ -383,7 +383,7 @@ pub mod using_blob {
 
     /// View-process stuff, the actual extension.
     pub mod view_side {
-        use std::collections::HashMap;
+        use std::{collections::HashMap, sync::Arc};
 
         use zero_ui::{
             core::app::view_process::{
@@ -393,10 +393,10 @@ pub mod using_blob {
             prelude::{units::PxToWr, PxPoint},
         };
         use zero_ui_view::{
-            extensions::{RendererCreatedArgs, RendererExtension, ViewExtensions},
-            webrender::{
-                api::{units::LayoutRect, BlobImageKey, ColorF, CommonItemProperties, ImageKey, PrimitiveFlags},
-                RenderApi,
+            extensions::{AsyncBlobRasterizer, BlobExtension, RendererCreatedArgs, RendererExtension, ViewExtensions},
+            webrender::api::{
+                units::{DeviceIntRect, DeviceIntSize, LayoutRect},
+                BlobImageKey, ColorF, CommonItemProperties, ImageDescriptorFlags, ImageFormat, ImageKey, PrimitiveFlags,
             },
         };
 
@@ -411,7 +411,6 @@ pub mod using_blob {
             bindings: HashMap<super::api::BindingId, PxPoint>,
 
             image_key: BlobImageKey,
-            api: Option<RenderApi>,
         }
         impl CustomExtension {
             fn new(id: ApiExtensionId) -> Self {
@@ -419,7 +418,6 @@ pub mod using_blob {
                     _id: id,
                     bindings: HashMap::new(),
                     image_key: BlobImageKey(ImageKey::DUMMY),
-                    api: None,
                 }
             }
         }
@@ -428,12 +426,30 @@ pub mod using_blob {
                 false // retain the extension after renderer creation.
             }
 
-            fn renderer_created(&mut self, args: &mut RendererCreatedArgs) {
-                let api = args.api_sender.create_api();
-                self.image_key = api.generate_blob_image_key();
-                self.api = Some(api);
+            fn configure(&mut self, args: &mut zero_ui_view::extensions::RendererConfigArgs) {
+                args.blobs.push(Box::new(BlobRenderer {}));
+            }
 
-                // TODO, setup a blob renderer
+            fn renderer_created(&mut self, args: &mut RendererCreatedArgs) {
+                self.image_key = args.api.generate_blob_image_key();
+
+                let mut txn = zero_ui_view::webrender::Transaction::new();
+                let descriptor = zero_ui_view::webrender::api::ImageDescriptor {
+                    format: ImageFormat::BGRA8,
+                    size: DeviceIntSize::splat(1),
+                    stride: None,
+                    offset: 0,
+                    flags: ImageDescriptorFlags::empty(),
+                };
+                txn.add_blob_image(
+                    self.image_key,
+                    descriptor,
+                    Arc::new(vec![]),
+                    DeviceIntRect::from_size(DeviceIntSize::splat(1)),
+                    None,
+                );
+
+                args.api.send_transaction(args.document_id, txn);
             }
 
             fn display_item_push(&mut self, args: &mut DisplayExtensionItemArgs) {
@@ -486,6 +502,38 @@ pub mod using_blob {
                     }
                     Err(e) => tracing::error!("invalid update request, {e}"),
                 }
+            }
+        }
+
+        struct BlobRenderer {}
+        impl BlobExtension for BlobRenderer {
+            fn create_blob_rasterizer(&mut self) -> Box<dyn zero_ui_view::extensions::AsyncBlobRasterizer> {
+                Box::new(BlobRaster {})
+            }
+
+            fn create_similar(&self) -> Box<dyn BlobExtension> {
+                Box::new(BlobRenderer {})
+            }
+
+            fn add(&mut self, args: &zero_ui_view::extensions::BlobAddArgs) {
+                println!("!!: add: {:?}", args.key);
+            }
+
+            fn update(&mut self, args: &zero_ui_view::extensions::BlobUpdateArgs) {
+                println!("!!: update: {:?}", args.key);
+            }
+
+            fn delete(&mut self, key: zero_ui::core::app::view_process::zero_ui_view_api::webrender_api::BlobImageKey) {
+                println!("!!: update: {:?}", key);
+            }
+
+            fn enable_multithreading(&mut self, _enable: bool) {}
+        }
+
+        struct BlobRaster {}
+        impl AsyncBlobRasterizer for BlobRaster {
+            fn rasterize(&mut self, args: &mut zero_ui_view::extensions::BlobRasterizerArgs) {
+                println!("!!: rasterize {:?}", args.requests);
             }
         }
     }

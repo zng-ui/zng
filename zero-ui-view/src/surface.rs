@@ -110,7 +110,7 @@ impl Surface {
             webrender::create_webrender_instance(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
-        let api = sender.create_api();
+        let mut api = sender.create_api();
         let document_id = api.add_document(device_size);
         let pipeline_id = webrender::api::PipelineId(gen.get(), id.get());
 
@@ -118,7 +118,7 @@ impl Surface {
             ext.renderer_created(&mut RendererCreatedArgs {
                 renderer: &mut renderer,
                 api_sender: &sender,
-                api: &api,
+                api: &mut api,
                 document_id,
                 pipeline_id,
             });
@@ -379,7 +379,7 @@ impl Surface {
             if *id == extension_id {
                 return ext.command(&mut RendererCommandArgs {
                     renderer: self.renderer.as_mut().unwrap(),
-                    api: &self.api,
+                    api: &mut self.api,
                     request,
                 });
             }
