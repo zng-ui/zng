@@ -380,15 +380,18 @@ pub mod using_blob {
 
     /// View-process stuff, the actual extension.
     pub mod view_side {
-        use std::collections::HashMap;
+        use std::{collections::HashMap, sync::Arc};
 
         use zero_ui::{
             core::app::view_process::{zero_ui_view_api::DisplayExtensionUpdateArgs, ApiExtensionId},
-            prelude::{units::PxToWr, PxPoint},
+            prelude::{task::parking_lot::Mutex, units::PxToWr, PxPoint, PxSize},
         };
         use zero_ui_view::{
             extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RendererExtension, ViewExtensions},
-            webrender::api::{units::LayoutRect, ColorF, CommonItemProperties, ImageKey, PrimitiveFlags},
+            webrender::api::{
+                units::{DeviceIntRect, DeviceIntSize, LayoutRect},
+                BlobImageKey, ColorF, CommonItemProperties, PrimitiveFlags, RasterizedBlobImage,
+            },
         };
 
         pub fn extend(exts: &mut ViewExtensions) {
@@ -400,12 +403,15 @@ pub mod using_blob {
             _id: ApiExtensionId,
             // updated values
             bindings: HashMap<super::api::BindingId, PxPoint>,
+            // renderer, shared between blob extensions.
+            renderer: Arc<Mutex<CustomRenderer>>,
         }
         impl CustomExtension {
             fn new(id: ApiExtensionId) -> Self {
                 Self {
                     _id: id,
                     bindings: HashMap::new(),
+                    renderer: Arc::default(),
                 }
             }
         }
@@ -415,7 +421,9 @@ pub mod using_blob {
             }
 
             fn configure(&mut self, args: &mut zero_ui_view::extensions::RendererConfigArgs) {
-                args.blobs.push(Box::new(BlobRenderer {}));
+                args.blobs.push(Box::new(CustomBlobExtension {
+                    renderer: Arc::clone(&self.renderer),
+                }));
             }
 
             fn render_push(&mut self, args: &mut RenderItemArgs) {
@@ -437,7 +445,47 @@ pub mod using_blob {
                             }
                         }
 
-                        // render
+                        let mut renderer = self.renderer.lock();
+                        let renderer = &mut *renderer;
+                        let blob_key = match renderer.task_params.entry((p.size, p.cursor)) {
+                            std::collections::hash_map::Entry::Occupied(e) => {
+                                // already rendering (size, cursor)
+                                //
+                                // in this demo we can identify the blob image by their parameters,
+                                // this is not always possible, you may need to generate an unique
+                                // id for each blob, either in the app-process or using the `RendererExtension::command`
+                                // method to return an ID for the app-process.
+                                renderer.tasks[*e.get()].key
+                            }
+                            std::collections::hash_map::Entry::Vacant(task_param) => {
+                                // start rendering (size, cursor)
+                                //
+                                // the renderer will receive an async rasterize request from Webrender
+                                // that is when we will actually render this.
+
+                                // task index
+                                let i = renderer.tasks.iter().position(|t| t.free).unwrap_or(renderer.tasks.len());
+                                // task key
+                                let key = args.api.generate_blob_image_key();
+
+                                let task = CustomRenderTask {
+                                    key,
+                                    size: p.size,
+                                    cursor: p.cursor,
+                                    free: false,
+                                };
+                                if i == renderer.tasks.len() {
+                                    renderer.tasks.push(task);
+                                } else {
+                                    renderer.tasks[i] = task;
+                                }
+                                renderer.task_keys.insert(key, i);
+                                task_param.insert(i);
+
+                                key
+                            }
+                        };
+
                         let rect = LayoutRect::from_size(p.size.to_wr());
                         let _cursor = p.cursor.to_wr();
 
@@ -452,7 +500,7 @@ pub mod using_blob {
                             rect,
                             zero_ui_view::webrender::api::ImageRendering::Auto,
                             zero_ui_view::webrender::api::AlphaType::Alpha,
-                            ImageKey::DUMMY, // TODO, need to generate key here and persist it with the item?.
+                            blob_key.as_image(),
                             ColorF::WHITE,
                         )
                     }
@@ -471,36 +519,101 @@ pub mod using_blob {
             }
         }
 
-        struct BlobRenderer {}
-        impl BlobExtension for BlobRenderer {
+        struct CustomBlobExtension {
+            renderer: Arc<Mutex<CustomRenderer>>,
+        }
+        impl BlobExtension for CustomBlobExtension {
             fn create_blob_rasterizer(&mut self) -> Box<dyn zero_ui_view::extensions::AsyncBlobRasterizer> {
-                Box::new(BlobRaster {})
+                Box::new(CustomBlobRasterizer {
+                    // rasterizer is a snapshot of the current state
+                    snapshot: self.renderer.lock().clone(),
+                })
             }
 
             fn create_similar(&self) -> Box<dyn BlobExtension> {
-                Box::new(BlobRenderer {})
+                Box::new(CustomBlobExtension {
+                    renderer: Arc::clone(&self.renderer),
+                })
             }
 
             fn add(&mut self, args: &zero_ui_view::extensions::BlobAddArgs) {
-                println!("!!: add: {:?}", args.key);
+                let renderer = self.renderer.lock();
+                if let Some(&i) = renderer.task_keys.get(&args.key) {
+                    let _ = &renderer.tasks[i];
+                    // Blob added by us
+                    println!("!!: vis_rect: {:?}, tile_size: {:?}", args.visible_rect, args.tile_size);
+                }
             }
 
             fn update(&mut self, args: &zero_ui_view::extensions::BlobUpdateArgs) {
-                println!("!!: update: {:?}", args.key);
+                let renderer = self.renderer.lock();
+                if let Some(&i) = renderer.task_keys.get(&args.key) {
+                    let _ = &renderer.tasks[i];
+                    // Blob updated by us
+                    println!("!!: vis_rect: {:?}, dirty_rect: {:?}", args.visible_rect, args.dirty_rect);
+                }
             }
 
             fn delete(&mut self, key: zero_ui::core::app::view_process::zero_ui_view_api::webrender_api::BlobImageKey) {
-                println!("!!: update: {:?}", key);
+                let mut renderer = self.renderer.lock();
+                let renderer = &mut *renderer;
+                if let Some(i) = renderer.task_keys.remove(&key) {
+                    let t = &mut renderer.tasks[i];
+                    renderer.task_params.remove(&(t.size, t.cursor));
+                    t.free = true;
+                }
             }
 
-            fn enable_multithreading(&mut self, _enable: bool) {}
+            fn enable_multithreading(&mut self, enable: bool) {
+                self.renderer.lock().parallel = enable;
+            }
         }
 
-        struct BlobRaster {}
-        impl AsyncBlobRasterizer for BlobRaster {
+        struct CustomBlobRasterizer {
+            snapshot: CustomRenderer,
+        }
+        impl AsyncBlobRasterizer for CustomBlobRasterizer {
             fn rasterize(&mut self, args: &mut zero_ui_view::extensions::BlobRasterizerArgs) {
-                println!("!!: rasterize {:?}", args.requests);
+                for r in args.requests {
+                    if let Some(&i) = self.snapshot.task_keys.get(&r.request.key) {
+                        // request is for us
+                        let task = &self.snapshot.tasks[i];
+
+                        let mut image = vec![0u8; task.size.area().0 as usize * 4];
+                        for y in 0..task.size.width.0 as usize {
+                            for x in 0..task.size.height.0 as usize {
+                                let i = x * y * 4;
+                                // BGRA
+                                image.splice(i..i + 4, [200, 200, 200, 255]);
+                            }
+                        }
+
+                        args.responses.push((
+                            r.request,
+                            Ok(RasterizedBlobImage {
+                                rasterized_rect: DeviceIntRect::from_size(DeviceIntSize::new(task.size.width.0, task.size.height.0)),
+                                data: Arc::new(image),
+                            }),
+                        ));
+                    }
+                }
             }
+        }
+
+        #[derive(Clone, Default)]
+        struct CustomRenderer {
+            tasks: Vec<CustomRenderTask>,
+            task_keys: HashMap<BlobImageKey, usize>,
+            task_params: HashMap<(PxSize, PxPoint), usize>,
+            parallel: bool,
+        }
+
+        #[derive(Clone)]
+        struct CustomRenderTask {
+            key: BlobImageKey,
+            size: PxSize,
+            cursor: PxPoint,
+            free: bool,
         }
     }
 
