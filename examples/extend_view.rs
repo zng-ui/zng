@@ -430,9 +430,38 @@ pub mod using_blob {
                 }));
             }
 
+            fn render_start(&mut self, _: &mut zero_ui_view::extensions::RenderArgs) {
+                let mut renderer = self.renderer.lock();
+                for t in renderer.tasks.iter_mut() {
+                    if matches!(t.state, CustomRenderTaskState::Used) {
+                        t.state = CustomRenderTaskState::Marked;
+                    }
+                }
+            }
+
+            fn render_end(&mut self, args: &mut zero_ui_view::extensions::RenderArgs) {
+                let mut renderer = self.renderer.lock();
+                for t in renderer.tasks.iter_mut() {
+                    match &mut t.state {
+                        CustomRenderTaskState::Marked => t.state = CustomRenderTaskState::Free(0),
+                        CustomRenderTaskState::Free(n) if *n < MAX_FREE => {
+                            *n += 1;
+                            if *n == MAX_FREE {
+                                *n = MAX_FREE + 1;
+                                args.transaction.delete_blob_image(t.key)
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
             fn render_push(&mut self, args: &mut RenderItemArgs) {
                 match args.payload.deserialize::<super::api::RenderPayload>() {
                     Ok(mut p) => {
+                        let mut renderer = self.renderer.lock();
+                        let renderer = &mut *renderer;
+
                         if let Some(binding) = p.cursor_binding {
                             // updateable item
                             match self.updated.entry(binding) {
@@ -449,44 +478,81 @@ pub mod using_blob {
                             }
                         }
 
-                        let mut renderer = self.renderer.lock();
-                        let renderer = &mut *renderer;
-                        let blob_key = match renderer.task_params.entry((p.size, p.cursor)) {
-                            std::collections::hash_map::Entry::Occupied(e) => {
+                        let mut key = None;
+                        if let Some(i) = renderer.task_params.get(&(p.size, p.cursor)) {
+                            let t = &mut renderer.tasks[*i];
+                            if matches!(t.state, CustomRenderTaskState::Marked | CustomRenderTaskState::Used) {
                                 // already rendering (size, cursor)
                                 //
                                 // in this demo we can identify the blob image by their parameters,
                                 // this is not always possible, you may need to generate an unique
                                 // id for each blob, either in the app-process or using the `RendererExtension::command`
                                 // method to return an ID for the app-process.
-                                renderer.tasks[*e.get()].key
+                                key = Some(t.key);
+                                t.state = CustomRenderTaskState::Used;
                             }
-                            std::collections::hash_map::Entry::Vacant(task_param) => {
-                                // start rendering (size, cursor)
-                                //
-                                // the renderer will receive an async rasterize request from Webrender
-                                // that is when we will actually render this.
+                        }
+                        let blob_key = if let Some(k) = key {
+                            k
+                        } else {
+                            // start rendering (size, cursor)
+                            //
+                            // the renderer will receive an async rasterize request from Webrender
+                            // that is when we will actually render this.
 
-                                // task index
-                                let i = renderer.tasks.iter().position(|t| t.free).unwrap_or(renderer.tasks.len());
-                                // task key
+                            let key = if let Some(i) = renderer
+                                .tasks
+                                .iter()
+                                .position(|t| matches!(t.state, CustomRenderTaskState::Free(n) if n < MAX_FREE))
+                            {
+                                // reuse blob key
+
+                                let t = &mut renderer.tasks[i];
+                                renderer.task_params.remove(&(t.size, t.cursor));
+
+                                if t.size != p.size {
+                                    let size = DeviceIntSize::new(p.size.width.0, p.size.height.0);
+                                    args.transaction.update_blob_image(
+                                        t.key,
+                                        ImageDescriptor {
+                                            format: ImageFormat::BGRA8,
+                                            size,
+                                            stride: None,
+                                            offset: 0,
+                                            flags: ImageDescriptorFlags::IS_OPAQUE,
+                                        },
+                                        // we only need the params (size, cursor),
+                                        // this can be used to store render commands.
+                                        Arc::new(vec![]),
+                                        DeviceIntRect::from_size(size),
+                                        &BlobDirtyRect::All,
+                                    );
+                                }
+
+                                t.size = p.size;
+                                t.cursor = p.cursor;
+                                t.cursor_binding = p.cursor_binding;
+                                t.state = CustomRenderTaskState::Used;
+
+                                renderer.task_params.insert((t.size, t.cursor), i);
+
+                                t.key
+                            } else {
+                                // new blob key
+
+                                let i = renderer.tasks.len();
+
                                 let key = args.api.generate_blob_image_key();
-
                                 let task = CustomRenderTask {
                                     key,
                                     size: p.size,
                                     cursor: p.cursor,
                                     cursor_binding: p.cursor_binding,
-                                    free: false,
+                                    state: CustomRenderTaskState::Used,
                                 };
-                                if i == renderer.tasks.len() {
-                                    renderer.tasks.push(task);
-                                } else {
-                                    renderer.tasks[i] = task;
-                                }
+                                renderer.tasks.push(task);
                                 renderer.task_keys.insert(key, i);
-                                task_param.insert(i);
-
+                                renderer.task_params.insert((p.size, p.cursor), i);
                                 if let Some(b) = p.cursor_binding {
                                     renderer.task_binding.insert(b, i);
                                 }
@@ -502,14 +568,16 @@ pub mod using_blob {
                                         flags: ImageDescriptorFlags::IS_OPAQUE,
                                     },
                                     // we only need the params (size, cursor),
-                                    // this can be used to send render commands.
+                                    // this can be used to store render commands.
                                     Arc::new(vec![]),
                                     DeviceIntRect::from_size(size),
                                     Some(128),
                                 );
 
                                 key
-                            }
+                            };
+
+                            key
                         };
 
                         let rect = LayoutRect::from_size(p.size.to_wr());
@@ -619,7 +687,7 @@ pub mod using_blob {
                     if let Some(b) = &t.cursor_binding {
                         renderer.task_binding.remove(b);
                     }
-                    t.free = true;
+                    t.state = CustomRenderTaskState::Free(MAX_FREE + 1);
                 }
             }
 
@@ -663,11 +731,7 @@ pub mod using_blob {
                                 let d = 1.0 - dist / max_dist;
                                 let d = (255.0 * d).round() as u8;
 
-                                let r = if (dist % 5.0).abs() < 1.0 {
-                                    d.max(50)
-                                } else {
-                                    50
-                                };
+                                let r = if (dist % 5.0).abs() < 1.0 { d.max(50) } else { 50 };
 
                                 texels.extend([d, d, r, 255]);
                             }
@@ -700,8 +764,16 @@ pub mod using_blob {
             size: PxSize,
             cursor: PxPoint,
             cursor_binding: Option<super::api::BindingId>,
-            free: bool,
+            state: CustomRenderTaskState,
         }
+        #[derive(Clone, Copy, Debug)]
+        enum CustomRenderTaskState {
+            Used,
+            Marked,
+            Free(u8),
+        }
+        /// Maximum display-list rebuilds that a unused BlobImageKey is retained.
+        const MAX_FREE: u8 = 5;
     }
 
     pub mod api {
