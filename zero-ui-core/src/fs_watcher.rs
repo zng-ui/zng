@@ -67,7 +67,10 @@ impl AppExtension for FsWatcherManager {
     }
 
     fn deinit(&mut self) {
-        WATCHER_SV.write().flush_shutdown();
+        let mut flush = WATCHER_SV.write().shutdown();
+        for v in &mut flush {
+            v.flush_shutdown();
+        }
     }
 }
 
@@ -1188,11 +1191,10 @@ impl WatcherService {
         FS_CHANGES_EVENT.notify(FsChangesArgs::new(now, Default::default(), changes));
     }
 
-    fn flush_shutdown(&mut self) {
+    /// Deinit watcher, returns items to flush without a service lock.
+    fn shutdown(&mut self) -> Vec<SyncWithVar> {
         self.watcher.deinit();
-        for v in &mut self.sync_with_var {
-            v.flush_shutdown();
-        }
+        mem::take(&mut self.sync_with_var)
     }
 }
 fn notify_watcher_handler() -> impl notify::EventHandler {
