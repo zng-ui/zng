@@ -86,6 +86,9 @@ impl Surface {
             clear_caches_with_quads: !context.is_software(),
             enable_gpu_markers: !context.is_software(),
 
+            // extensions expect this to be set.
+            workers: Some(crate::util::wr_workers()),
+
             //panic_on_gl_error: true,
             ..Default::default()
         };
@@ -101,6 +104,11 @@ impl Surface {
                 options: &mut opts,
                 blobs: &mut blobs.0,
             });
+        }
+        if !opts.enable_multithreading {
+            for b in &mut blobs.0 {
+                b.enable_multithreading(false);
+            }
         }
         opts.blob_image_handler = Some(Box::new(blobs));
 

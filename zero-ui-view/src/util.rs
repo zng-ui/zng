@@ -1,5 +1,6 @@
-use std::cell::Cell;
+use std::{cell::Cell, sync::Arc};
 
+use rayon::ThreadPoolBuilder;
 use winit::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
     units::*, ButtonState, ColorScheme, CursorIcon, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchForce, TouchPhase,
@@ -646,4 +647,13 @@ pub mod taskbar_com {
         data3: 0x429b,
         data4: [0xa6, 0x6e, 0x19, 0x35, 0xe4, 0x4f, 0x43, 0x17],
     };
+}
+
+pub(crate) fn wr_workers() -> Arc<rayon::ThreadPool> {
+    // see: webrender/src/renderer/init.rs#L547
+    //
+    // we need the workers instance before renderer init for the extensions, but this
+    // means that we removed some Webrender profiler instrumentation.
+    let worker = ThreadPoolBuilder::new().thread_name(|idx| format!("WRWorker#{}", idx)).build();
+    Arc::new(worker.unwrap())
 }

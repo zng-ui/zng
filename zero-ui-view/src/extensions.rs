@@ -196,6 +196,8 @@ pub trait BlobExtension: Send + Any {
     }
 
     /// Sets if multi-threading is allowed.
+    ///
+    /// The default is `true`, this method is only called on init if multithreading is disabled.
     fn enable_multithreading(&mut self, enable: bool);
 }
 
@@ -272,9 +274,12 @@ pub struct RendererConfigArgs<'a> {
 
     /// Webrender options.
     ///
-    /// Note that this config is modified by the base implementation and other extensions. Some options
-    /// must not be changed, in particular the `blob_image_handler` will be set by the base implementation
-    /// to an object that aggregates all extension blob image handlers.
+    /// Note that this config is modified by the window and other extensions. Some options
+    /// must not be set by extensions:
+    ///
+    /// * `blob_image_handler` will be set by the window to an object that aggregates
+    ///    all extension blob image handlers. Add your own blob handler to `blobs` instead.
+    /// * `workers` will be already set by the window, blob rasterizers may clone and use these threads.
     pub options: &'a mut webrender::WebRenderOptions,
 
     /// Blob extensions.

@@ -51,7 +51,7 @@ fn app_main() {
                         children_align = Align::CENTER;
                         spacing = 5;
                         children = ui_vec![
-                            Text!("Using Blob Image"),
+                            Text!("Using Blob Images"),
                             Container! {
                                 size = 30.vmin_pct();
                                 child = using_blob::app_side::custom_render_node();
@@ -391,8 +391,8 @@ pub mod using_blob {
             webrender::{
                 api::{
                     units::{BlobDirtyRect, DeviceIntRect, DeviceIntSize, LayoutRect},
-                    BlobImageError, BlobImageKey, ColorF, CommonItemProperties, ImageDescriptor, ImageDescriptorFlags, ImageFormat,
-                    PrimitiveFlags, RasterizedBlobImage,
+                    BlobImageError, BlobImageKey, BlobImageParams, BlobImageResult, ColorF, CommonItemProperties, ImageDescriptor,
+                    ImageDescriptorFlags, ImageFormat, PrimitiveFlags, RasterizedBlobImage,
                 },
                 euclid,
             },
@@ -425,9 +425,16 @@ pub mod using_blob {
             }
 
             fn configure(&mut self, args: &mut zero_ui_view::extensions::RendererConfigArgs) {
+                // Blob entry point inside Webrender.
                 args.blobs.push(Box::new(CustomBlobExtension {
                     renderer: Arc::clone(&self.renderer),
                 }));
+
+                // Worker threads will be used during rasterization.
+                //
+                // This option is always already set by the window. Note that this thread pool
+                // is also used by Webrender's glyph rasterizer, so be careful not to clog it.
+                self.renderer.lock().workers = args.options.workers.clone();
             }
 
             fn render_start(&mut self, _: &mut zero_ui_view::extensions::RenderArgs) {
@@ -692,59 +699,75 @@ pub mod using_blob {
             }
 
             fn enable_multithreading(&mut self, enable: bool) {
-                self.renderer.lock().parallel = enable;
+                self.renderer.lock().single_threaded = !enable;
             }
         }
 
         struct CustomBlobRasterizer {
             snapshot: CustomRenderer,
         }
+        impl CustomBlobRasterizer {
+            fn rasterize_tile(task: &CustomRenderTask, r: &BlobImageParams) -> BlobImageResult {
+                if r.descriptor.format != ImageFormat::BGRA8 {
+                    // you must always respond, if no extension responds Webrender will panic.
+                    return Err(BlobImageError::Other(format!("format {:?} is not supported", r.descriptor.format)));
+                }
+
+                // draw the requested tile
+                let size = r.descriptor.rect.size();
+                let offset = r.descriptor.rect.min.to_f32().to_vector();
+                let cursor = task.cursor.to_wr();
+                let max_dist = task.size.width.0 as f32;
+
+                let mut texels = Vec::with_capacity(size.area() as usize * 4);
+
+                for y in 0..size.height {
+                    for x in 0..size.width {
+                        let t = euclid::Point2D::new(x, y).to_f32() + offset;
+                        let dist = t.distance_to(cursor).min(max_dist);
+
+                        let d = 1.0 - dist / max_dist;
+                        let d = (255.0 * d).round() as u8;
+
+                        let r = if (dist % 5.0).abs() < 1.0 { d.max(50) } else { 50 };
+
+                        texels.extend([d, d, r, 255]);
+                    }
+                }
+
+                Ok(RasterizedBlobImage {
+                    rasterized_rect: DeviceIntRect::from_size(DeviceIntSize::new(size.width, size.height)),
+                    data: Arc::new(texels),
+                })
+            }
+        }
         impl AsyncBlobRasterizer for CustomBlobRasterizer {
             fn rasterize(&mut self, args: &mut zero_ui_view::extensions::BlobRasterizerArgs) {
-                'requests: for r in args.requests {
-                    if let Some(&i) = self.snapshot.task_keys.get(&r.request.key) {
-                        // request is for us
+                if !self.snapshot.single_threaded {
+                    // rasterize all tiles in parallel, Webrender also uses Rayon
+                    // but the `rasterize` call is made in the SceneBuilderThread
+                    // so we mount the workers thread-pool here.
+
+                    use zero_ui::prelude::task::rayon::prelude::*;
+
+                    let tiles = self.snapshot.workers.as_ref().unwrap().install(|| {
+                        args.requests.par_iter().filter_map(|r| {
+                            let i = *self.snapshot.task_keys.get(&r.request.key)?;
+                            // request is for us
+                            let task = &self.snapshot.tasks[i];
+                            Some((r.request, Self::rasterize_tile(task, r)))
+                        })
+                    });
+
+                    args.responses.par_extend(tiles);
+                } else {
+                    // single-threaded mode is only for testing
+                    let tiles = args.requests.iter().filter_map(|r| {
+                        let i = *self.snapshot.task_keys.get(&r.request.key)?;
                         let task = &self.snapshot.tasks[i];
-
-                        if r.descriptor.format != ImageFormat::BGRA8 {
-                            // you must always respond, if no extension responds Webrender will panic.
-                            args.responses.push((
-                                r.request,
-                                Err(BlobImageError::Other(format!("format {:?} is not supported", r.descriptor.format))),
-                            ));
-                            continue 'requests;
-                        }
-
-                        // draw the requested tile
-                        let size = r.descriptor.rect.size();
-                        let offset = r.descriptor.rect.min.to_f32().to_vector();
-                        let cursor = task.cursor.to_wr();
-                        let max_dist = task.size.width.0 as f32;
-
-                        let mut texels = Vec::with_capacity(size.area() as usize * 4);
-
-                        for y in 0..size.height {
-                            for x in 0..size.width {
-                                let t = euclid::Point2D::new(x, y).to_f32() + offset;
-                                let dist = t.distance_to(cursor).min(max_dist);
-
-                                let d = 1.0 - dist / max_dist;
-                                let d = (255.0 * d).round() as u8;
-
-                                let r = if (dist % 5.0).abs() < 1.0 { d.max(50) } else { 50 };
-
-                                texels.extend([d, d, r, 255]);
-                            }
-                        }
-
-                        args.responses.push((
-                            r.request,
-                            Ok(RasterizedBlobImage {
-                                rasterized_rect: DeviceIntRect::from_size(DeviceIntSize::new(size.width, size.height)),
-                                data: Arc::new(texels),
-                            }),
-                        ));
-                    }
+                        Some((r.request, Self::rasterize_tile(task, r)))
+                    });
+                    args.responses.extend(tiles);
                 }
             }
         }
@@ -755,7 +778,8 @@ pub mod using_blob {
             task_keys: HashMap<BlobImageKey, usize>,
             task_params: HashMap<(PxSize, PxPoint), usize>,
             task_binding: HashMap<super::api::BindingId, usize>,
-            parallel: bool,
+            single_threaded: bool,
+            workers: Option<Arc<zero_ui::prelude::task::rayon::ThreadPool>>,
         }
 
         #[derive(Clone)]

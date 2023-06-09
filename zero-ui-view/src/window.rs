@@ -225,6 +225,9 @@ impl Window {
             // best for GL
             upload_method: UploadMethod::PixelBuffer(VertexUsageHint::Dynamic),
 
+            // extensions expect this to be set.
+            workers: Some(crate::util::wr_workers()),
+
             //panic_on_gl_error: true,
             ..Default::default()
         };
@@ -241,6 +244,11 @@ impl Window {
                 options: &mut opts,
                 blobs: &mut blobs.0,
             });
+        }
+        if !opts.enable_multithreading {
+            for b in &mut blobs.0 {
+                b.enable_multithreading(false);
+            }
         }
         opts.blob_image_handler = Some(Box::new(blobs));
 
