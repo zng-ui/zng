@@ -40,7 +40,6 @@
     - We want to support a Settings screen.
     - So a reset command and a way to indicate to the user that the value is not default.
 
-    - Implement `AnyConfig::remove(&ConfigKey)`.
     - Implement `FallbackConfig::reset(&ConfigKey)`.
         - It sets the variable back to fallback and removes the entry in the top config.
     - Implement `FallbackConfig::is_fallback(&ConfigKey) -> ReadOnlyArcVar<bool>`.

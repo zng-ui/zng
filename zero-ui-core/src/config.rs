@@ -122,6 +122,10 @@ impl AnyConfig for CONFIG {
     fn status(&self) -> BoxedVar<ConfigStatus> {
         CONFIG.status()
     }
+
+    fn remove(&mut self, key: &ConfigKey) -> bool {
+        CONFIG_SV.write().remove(key)
+    }
 }
 impl Config for CONFIG {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
@@ -197,6 +201,9 @@ pub trait ConfigMap: VarValue + fmt::Debug {
     /// This method can run in blocking contexts, work with in memory storage only.
     fn contains_key(&self, key: &ConfigKey) -> bool;
 
+    /// Remove the config entry associated with the key.
+    fn remove(map: &mut VarModify<Self>, key: &ConfigKey);
+
     /// Get the value if present.
     ///
     /// This method can run in blocking contexts, work with in memory storage only.
@@ -253,6 +260,15 @@ pub trait AnyConfig: Send + Any {
     /// [`get_raw`]: AnyConfig::get_raw
     /// [`get`]: Config::get
     fn contains_key(&self, key: &ConfigKey) -> bool;
+
+    /// Removes the `key` from the backing storage.
+    ///
+    /// Any active config variable for the key will continue to work normally, retaining the last config value and
+    /// re-inserting the key if assigned a new value.
+    ///
+    /// Returns `true` if the key was found and will be removed in the next app update.
+    /// Returns `false` if the key was not found or the config is read-only.
+    fn remove(&mut self, key: &ConfigKey) -> bool;
 }
 
 /// Represents one or more config sources.
@@ -290,6 +306,10 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
     fn status(&self) -> BoxedVar<ConfigStatus> {
         self.cfg.status()
     }
+
+    fn remove(&mut self, _key: &ConfigKey) -> bool {
+        false
+    }
 }
 impl<C: Config> Config for ReadOnlyConfig<C> {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
@@ -310,6 +330,10 @@ impl AnyConfig for NilConfig {
 
     fn status(&self) -> BoxedVar<ConfigStatus> {
         LocalVar(ConfigStatus::Loaded).boxed()
+    }
+
+    fn remove(&mut self, _: &ConfigKey) -> bool {
+        false
     }
 }
 impl Config for NilConfig {

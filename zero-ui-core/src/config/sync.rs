@@ -216,6 +216,16 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
     fn status(&self) -> BoxedVar<ConfigStatus> {
         self.status.clone().boxed()
     }
+
+    fn remove(&mut self, key: &ConfigKey) -> bool {
+        let contains = self.contains_key(key);
+        if contains {
+            self.sync_var.modify(clmv!(key, |m| {
+                ConfigMap::remove(m, &key);
+            }));
+        }
+        contains
+    }
 }
 impl<M: ConfigMap> Config for SyncConfig<M> {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {

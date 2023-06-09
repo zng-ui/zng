@@ -61,6 +61,12 @@ impl ConfigMap for indexmap::IndexMap<ConfigKey, serde_ron::Value> {
             Err(e) => Err(Arc::new(e)),
         }
     }
+
+    fn remove(map: &mut VarModify<Self>, key: &ConfigKey) {
+        if map.contains_key(key) {
+            map.to_mut().remove(key);
+        }
+    }
 }
 
 /// Represents a config source that synchronizes with a RON file.

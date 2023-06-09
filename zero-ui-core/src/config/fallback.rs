@@ -112,6 +112,10 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     fn contains_key(&self, key: &ConfigKey) -> bool {
         self.fallback.contains_key(key) || self.config.contains_key(key)
     }
+
+    fn remove(&mut self, key: &ConfigKey) -> bool {
+        self.fallback.remove(key) || self.config.remove(key)
+    }
 }
 impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {

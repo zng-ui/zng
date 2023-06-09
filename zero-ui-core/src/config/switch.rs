@@ -102,6 +102,13 @@ impl AnyConfig for SwitchConfig {
             None => false,
         }
     }
+
+    fn remove(&mut self, key: &ConfigKey) -> bool {
+        match self.cfg_mut(key) {
+            Some((key, cfg)) => cfg.remove(&key),
+            None => false,
+        }
+    }
 }
 impl Config for SwitchConfig {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {

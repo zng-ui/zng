@@ -15,7 +15,6 @@ pub struct SwapConfig {
     status: ArcVar<ConfigStatus>,
     status_binding: VarHandle,
 }
-
 impl AnyConfig for SwapConfig {
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
         if shared {
@@ -32,6 +31,10 @@ impl AnyConfig for SwapConfig {
 
     fn status(&self) -> BoxedVar<ConfigStatus> {
         self.status.read_only().boxed()
+    }
+
+    fn remove(&mut self, key: &ConfigKey) -> bool {
+        self.cfg.get_mut().remove(key)
     }
 }
 impl Config for SwapConfig {
@@ -265,6 +268,10 @@ mod tests {
 
         fn contains_key(&self, key: &ConfigKey) -> bool {
             self.0.contains_key(key)
+        }
+
+        fn remove(&mut self, key: &ConfigKey) -> bool {
+            self.0.remove(key)
         }
     }
 
