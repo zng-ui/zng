@@ -394,6 +394,87 @@ fn fallback_reset() {
     assert_eq!("fallback", key.get());
 }
 
+#[test]
+fn fallback_reset_entry() {
+    let main_cfg = PathBuf::from("../target/tmp/test.fallback_reset_entry.target.json");
+    let fallback_cfg = PathBuf::from("../target/tmp/test.fallback_reset_entry.fallback.json");
+
+    {
+        // setup
+        rmv_file_assert(&main_cfg);
+        rmv_file_assert(&fallback_cfg);
+
+        let mut app = App::default().run_headless(false);
+        CONFIG.load(JsonConfig::sync(&fallback_cfg));
+        CONFIG.get("key", || Txt::from_static("default")).set("fallback").unwrap();
+
+        app.update(false).assert_wait();
+        app.run_task(async {
+            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        });
+        let status = CONFIG.status().get();
+        if status.is_err() {
+            panic!("{status}");
+        }
+
+        CONFIG.load(JsonConfig::sync(&main_cfg));
+        CONFIG.get("key", || Txt::from_static("default")).set("main").unwrap();
+
+        app.run_task(async {
+            task::with_deadline(CONFIG.wait_idle(), 5.secs()).await.unwrap();
+        });
+        let status = CONFIG.status().get();
+        if status.is_err() {
+            panic!("{status}");
+        }
+    }
+
+    // test
+    let mut app = App::default().run_headless(false);
+
+    let mut cfg = FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg));
+    // wait_idle
+    let status = cfg.status();
+    app.run_task(async move {
+        task::with_deadline(
+            async move {
+                while !status.get().is_idle() {
+                    status.wait_is_new().await;
+                }
+            },
+            5.secs(),
+        )
+        .await
+        .unwrap();
+    });
+
+    let key = cfg.get("key", || Txt::from_static("default"));
+    assert_eq!("main", key.get());
+
+    cfg.reset(&ConfigKey::from_static("key"));
+    app.update(false).assert_wait();
+
+    assert_eq!("fallback", key.get());
+
+    // wait_idle
+    let status = cfg.status();
+    app.run_task(async move {
+        task::with_deadline(
+            async move {
+                while !status.get().is_idle() {
+                    status.wait_is_new().await;
+                }
+            },
+            5.secs(),
+        )
+        .await
+        .unwrap();
+    });
+
+    let raw_config = std::fs::read_to_string(&main_cfg).unwrap();
+    assert!(!raw_config.contains("key"));
+}
+
 fn rmv_file_assert(path: &Path) {
     if let Err(e) = std::fs::remove_file(path) {
         if !matches!(e.kind(), std::io::ErrorKind::NotFound) {

@@ -2308,5 +2308,5 @@ where
 unique_id_32! {
     /// Used to stop an extra "map_back" caused by "map" itself
     #[derive(Debug)]
-    struct BindMapBidiTag;
+    pub(crate)struct BindMapBidiTag;
 }

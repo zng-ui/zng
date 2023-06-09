@@ -36,7 +36,7 @@
 
 # Config
 
-* Implement ability to reset single config.
+* Implement ability to reset single config. 
     - We want to support a Settings screen.
     - So a reset command and a way to indicate to the user that the value is not default.
 
