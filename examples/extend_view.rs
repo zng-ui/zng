@@ -51,7 +51,7 @@ fn app_main() {
                         children_align = Align::CENTER;
                         spacing = 5;
                         children = ui_vec![
-                            Text!("Using Blob"),
+                            Text!("Using Blob Image"),
                             Container! {
                                 size = 30.vmin_pct();
                                 child = using_blob::app_side::custom_render_node();
@@ -658,10 +658,18 @@ pub mod using_blob {
                         for y in 0..size.height {
                             for x in 0..size.width {
                                 let t = euclid::Point2D::new(x, y).to_f32() + offset;
-                                let d = 1.0 - t.distance_to(cursor).min(max_dist) / max_dist;
+                                let dist = t.distance_to(cursor).min(max_dist);
+
+                                let d = 1.0 - dist / max_dist;
                                 let d = (255.0 * d).round() as u8;
 
-                                texels.extend([d, d, 50, 255]);
+                                let r = if (dist % 5.0).abs() < 1.0 {
+                                    d.max(50)
+                                } else {
+                                    50
+                                };
+
+                                texels.extend([d, d, r, 255]);
                             }
                         }
 
