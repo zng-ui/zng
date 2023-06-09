@@ -12,7 +12,7 @@ use zero_ui_view_api::{
     webrender_api::{
         AsyncBlobImageRasterizer, BlobImageHandler, BlobImageParams, BlobImageRequest, BlobImageResult, DocumentId, PipelineId,
     },
-    ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayExtensionUpdateArgs, DisplayListExtension,
+    ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions, DisplayListExtension,
 };
 
 /// The extension API.
@@ -76,7 +76,7 @@ pub trait RendererExtension: Any {
     }
 
     /// Called when a render-update for the extension is found.
-    fn render_update(&mut self, args: &mut DisplayExtensionUpdateArgs) {
+    fn render_update(&mut self, args: &mut RenderUpdateArgs) {
         let _ = args;
     }
 }
@@ -115,6 +115,34 @@ pub struct RenderItemArgs<'a> {
     pub sc: &'a mut zero_ui_view_api::SpaceAndClip,
 
     /// The transaction that will send the display list.
+    pub transaction: &'a mut webrender::Transaction,
+
+    /// The window or surface renderer.
+    pub renderer: &'a mut webrender::Renderer,
+    /// The window or surface render API.
+    pub api: &'a mut RenderApi,
+}
+
+/// Arguments for [`RendererExtension::render_update`].
+pub struct RenderUpdateArgs<'a> {
+    /// Extension index.
+    pub extension_id: ApiExtensionId,
+    /// Update payload.
+    pub payload: &'a ApiExtensionPayload,
+
+    /// Set to `true` to rebuild the display list.
+    ///
+    /// The list will be rebuild using the last full payload received, the extension
+    /// must patch in any subsequent updates onto this value.
+    pub new_frame: bool,
+
+    /// Webrender binding updates.
+    ///
+    /// If no other extension and update handlers request a new frame these properties
+    /// will be send to Webrender to update the current frame.
+    pub properties: &'a mut zero_ui_view_api::webrender_api::DynamicProperties,
+
+    /// The transaction that will send the properties update.
     pub transaction: &'a mut webrender::Transaction,
 
     /// The window or surface renderer.
@@ -528,7 +556,17 @@ impl<'a> DisplayListExtension for DisplayListExtAdapter<'a> {
     fn update(&mut self, args: &mut zero_ui_view_api::DisplayExtensionUpdateArgs) {
         for (id, ext) in self.extensions.iter_mut() {
             if *id == args.extension_id {
-                ext.render_update(args);
+                let mut r_args = RenderUpdateArgs {
+                    extension_id: args.extension_id,
+                    payload: args.payload,
+                    new_frame: args.new_frame,
+                    properties: args.properties,
+                    transaction: self.transaction,
+                    renderer: self.renderer,
+                    api: self.api,
+                };
+                ext.render_update(&mut r_args);
+                args.new_frame = r_args.new_frame;
                 break;
             }
         }

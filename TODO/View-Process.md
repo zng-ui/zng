@@ -6,6 +6,7 @@
 
 ## Extensions
 
+* Implement custom OpenGL texture example.
 * Implement window extension.
     - Similar to `RendererExtension`, access to raw handle and window builder config.
       - Modify RendererExtension to include window stuff?

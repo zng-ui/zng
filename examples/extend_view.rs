@@ -201,11 +201,11 @@ pub mod using_display_items {
         use std::collections::HashMap;
 
         use zero_ui::{
-            core::app::view_process::{zero_ui_view_api::DisplayExtensionUpdateArgs, ApiExtensionId},
+            core::app::view_process::ApiExtensionId,
             prelude::{units::PxToWr, PxPoint},
         };
         use zero_ui_view::{
-            extensions::{RenderItemArgs, RendererExtension, ViewExtensions},
+            extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             webrender::{
                 api::{
                     units::{LayoutPoint, LayoutRect},
@@ -223,13 +223,13 @@ pub mod using_display_items {
             // id of this extension, for tracing.
             _id: ApiExtensionId,
             // updated values
-            bindings: HashMap<super::api::BindingId, PxPoint>,
+            updated: HashMap<super::api::BindingId, PxPoint>,
         }
         impl CustomExtension {
             fn new(id: ApiExtensionId) -> Self {
                 Self {
                     _id: id,
-                    bindings: HashMap::new(),
+                    updated: HashMap::new(),
                 }
             }
         }
@@ -243,7 +243,7 @@ pub mod using_display_items {
                     Ok(mut p) => {
                         if let Some(binding) = p.cursor_binding {
                             // updateable item
-                            match self.bindings.entry(binding) {
+                            match self.updated.entry(binding) {
                                 std::collections::hash_map::Entry::Occupied(e) => {
                                     if args.is_reuse {
                                         // item is old, use updated value
@@ -288,10 +288,10 @@ pub mod using_display_items {
                 }
             }
 
-            fn render_update(&mut self, args: &mut DisplayExtensionUpdateArgs) {
+            fn render_update(&mut self, args: &mut RenderUpdateArgs) {
                 match args.payload.deserialize::<super::api::RenderUpdatePayload>() {
                     Ok(p) => {
-                        self.bindings.insert(p.cursor_binding, p.cursor);
+                        self.updated.insert(p.cursor_binding, p.cursor);
                         // Request a full display list rebuild.
                         //
                         // This is optional because Webrender supports frame updates, using Webrender bindings,
@@ -383,14 +383,18 @@ pub mod using_blob {
         use std::{collections::HashMap, sync::Arc};
 
         use zero_ui::{
-            core::app::view_process::{zero_ui_view_api::DisplayExtensionUpdateArgs, ApiExtensionId},
-            prelude::{task::parking_lot::Mutex, units::PxToWr, PxPoint, PxSize},
+            core::app::view_process::ApiExtensionId,
+            prelude::{task::parking_lot::Mutex, units::PxToWr, Px, PxPoint, PxSize},
         };
         use zero_ui_view::{
-            extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RendererExtension, ViewExtensions},
-            webrender::api::{
-                units::{DeviceIntRect, DeviceIntSize, LayoutRect},
-                BlobImageKey, ColorF, CommonItemProperties, PrimitiveFlags, RasterizedBlobImage,
+            extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
+            webrender::{
+                api::{
+                    units::{BlobDirtyRect, DeviceIntRect, DeviceIntSize, LayoutRect},
+                    BlobImageError, BlobImageKey, ColorF, CommonItemProperties, ImageDescriptor, ImageDescriptorFlags, ImageFormat,
+                    PrimitiveFlags, RasterizedBlobImage,
+                },
+                euclid,
             },
         };
 
@@ -402,7 +406,7 @@ pub mod using_blob {
             // id of this extension, for tracing.
             _id: ApiExtensionId,
             // updated values
-            bindings: HashMap<super::api::BindingId, PxPoint>,
+            updated: HashMap<super::api::BindingId, PxPoint>,
             // renderer, shared between blob extensions.
             renderer: Arc<Mutex<CustomRenderer>>,
         }
@@ -410,7 +414,7 @@ pub mod using_blob {
             fn new(id: ApiExtensionId) -> Self {
                 Self {
                     _id: id,
-                    bindings: HashMap::new(),
+                    updated: HashMap::new(),
                     renderer: Arc::default(),
                 }
             }
@@ -431,7 +435,7 @@ pub mod using_blob {
                     Ok(mut p) => {
                         if let Some(binding) = p.cursor_binding {
                             // updateable item
-                            match self.bindings.entry(binding) {
+                            match self.updated.entry(binding) {
                                 std::collections::hash_map::Entry::Occupied(e) => {
                                     if args.is_reuse {
                                         // item is old, use updated value
@@ -472,6 +476,7 @@ pub mod using_blob {
                                     key,
                                     size: p.size,
                                     cursor: p.cursor,
+                                    cursor_binding: p.cursor_binding,
                                     free: false,
                                 };
                                 if i == renderer.tasks.len() {
@@ -481,6 +486,27 @@ pub mod using_blob {
                                 }
                                 renderer.task_keys.insert(key, i);
                                 task_param.insert(i);
+
+                                if let Some(b) = p.cursor_binding {
+                                    renderer.task_binding.insert(b, i);
+                                }
+
+                                let size = DeviceIntSize::new(p.size.width.0, p.size.height.0);
+                                args.transaction.add_blob_image(
+                                    key,
+                                    ImageDescriptor {
+                                        format: ImageFormat::BGRA8,
+                                        size,
+                                        stride: None,
+                                        offset: 0,
+                                        flags: ImageDescriptorFlags::IS_OPAQUE,
+                                    },
+                                    // we only need the params (size, cursor),
+                                    // this can be used to send render commands.
+                                    Arc::new(vec![]),
+                                    DeviceIntRect::from_size(size),
+                                    Some(128),
+                                );
 
                                 key
                             }
@@ -508,11 +534,47 @@ pub mod using_blob {
                 }
             }
 
-            fn render_update(&mut self, args: &mut DisplayExtensionUpdateArgs) {
+            fn render_update(&mut self, args: &mut RenderUpdateArgs) {
                 match args.payload.deserialize::<super::api::RenderUpdatePayload>() {
                     Ok(p) => {
-                        self.bindings.insert(p.cursor_binding, p.cursor);
-                        // TODO, update blob image
+                        // update value for reuse patches (see the `using_display_items` demo)
+                        self.updated.insert(p.cursor_binding, p.cursor);
+
+                        // update the render task, in this demo this just means reassociating the blob key.
+                        let mut renderer = self.renderer.lock();
+                        let renderer = &mut *renderer;
+
+                        if let Some(&i) = renderer.task_binding.get(&p.cursor_binding) {
+                            let t = &mut renderer.tasks[i];
+                            renderer.task_params.remove(&(t.size, t.cursor));
+
+                            let was_shared = t.cursor == PxPoint::splat(Px::MIN);
+
+                            t.cursor = p.cursor;
+                            renderer.task_params.insert((t.size, t.cursor), i);
+
+                            if !was_shared {
+                                let size = DeviceIntSize::new(t.size.width.0, t.size.height.0);
+                                args.transaction.update_blob_image(
+                                    t.key,
+                                    ImageDescriptor {
+                                        format: ImageFormat::BGRA8,
+                                        size,
+                                        stride: None,
+                                        offset: 0,
+                                        flags: ImageDescriptorFlags::IS_OPAQUE,
+                                    },
+                                    Arc::new(vec![]),
+                                    DeviceIntRect::from_size(size),
+                                    &BlobDirtyRect::All,
+                                );
+
+                                return;
+                            }
+                        }
+
+                        // you can always just request a display-list rebuild.
+                        args.new_frame = true;
                     }
                     Err(e) => tracing::error!("invalid update request, {e}"),
                 }
@@ -536,30 +598,27 @@ pub mod using_blob {
                 })
             }
 
-            fn add(&mut self, args: &zero_ui_view::extensions::BlobAddArgs) {
-                let renderer = self.renderer.lock();
-                if let Some(&i) = renderer.task_keys.get(&args.key) {
-                    let _ = &renderer.tasks[i];
-                    // Blob added by us
-                    println!("!!: vis_rect: {:?}, tile_size: {:?}", args.visible_rect, args.tile_size);
-                }
+            fn add(&mut self, _args: &zero_ui_view::extensions::BlobAddArgs) {
+                // Webrender received the add request
+                //
+                // In this demo we already added from the display item.
             }
 
-            fn update(&mut self, args: &zero_ui_view::extensions::BlobUpdateArgs) {
-                let renderer = self.renderer.lock();
-                if let Some(&i) = renderer.task_keys.get(&args.key) {
-                    let _ = &renderer.tasks[i];
-                    // Blob updated by us
-                    println!("!!: vis_rect: {:?}, dirty_rect: {:?}", args.visible_rect, args.dirty_rect);
-                }
+            fn update(&mut self, _args: &zero_ui_view::extensions::BlobUpdateArgs) {
+                // Webrender received the update request
             }
 
             fn delete(&mut self, key: zero_ui::core::app::view_process::zero_ui_view_api::webrender_api::BlobImageKey) {
+                // Webrender requested cleanup.
+
                 let mut renderer = self.renderer.lock();
                 let renderer = &mut *renderer;
                 if let Some(i) = renderer.task_keys.remove(&key) {
                     let t = &mut renderer.tasks[i];
                     renderer.task_params.remove(&(t.size, t.cursor));
+                    if let Some(b) = &t.cursor_binding {
+                        renderer.task_binding.remove(b);
+                    }
                     t.free = true;
                 }
             }
@@ -574,25 +633,43 @@ pub mod using_blob {
         }
         impl AsyncBlobRasterizer for CustomBlobRasterizer {
             fn rasterize(&mut self, args: &mut zero_ui_view::extensions::BlobRasterizerArgs) {
-                for r in args.requests {
+                'requests: for r in args.requests {
                     if let Some(&i) = self.snapshot.task_keys.get(&r.request.key) {
                         // request is for us
                         let task = &self.snapshot.tasks[i];
 
-                        let mut image = vec![0u8; task.size.area().0 as usize * 4];
-                        for y in 0..task.size.width.0 as usize {
-                            for x in 0..task.size.height.0 as usize {
-                                let i = x * y * 4;
-                                // BGRA
-                                image.splice(i..i + 4, [200, 200, 200, 255]);
+                        if r.descriptor.format != ImageFormat::BGRA8 {
+                            // you must always respond, if no extension responds Webrender will panic.
+                            args.responses.push((
+                                r.request,
+                                Err(BlobImageError::Other(format!("format {:?} is not supported", r.descriptor.format))),
+                            ));
+                            continue 'requests;
+                        }
+
+                        // draw the requested tile
+                        let size = r.descriptor.rect.size();
+                        let offset = r.descriptor.rect.min.to_f32().to_vector();
+                        let cursor = task.cursor.to_wr();
+                        let max_dist = task.size.width.0 as f32;
+
+                        let mut texels = Vec::with_capacity(size.area() as usize * 4);
+
+                        for y in 0..size.height {
+                            for x in 0..size.width {
+                                let t = euclid::Point2D::new(x, y).to_f32() + offset;
+                                let d = 1.0 - t.distance_to(cursor).min(max_dist) / max_dist;
+                                let d = (255.0 * d).round() as u8;
+
+                                texels.extend([d, d, 50, 255]);
                             }
                         }
 
                         args.responses.push((
                             r.request,
                             Ok(RasterizedBlobImage {
-                                rasterized_rect: DeviceIntRect::from_size(DeviceIntSize::new(task.size.width.0, task.size.height.0)),
-                                data: Arc::new(image),
+                                rasterized_rect: DeviceIntRect::from_size(DeviceIntSize::new(size.width, size.height)),
+                                data: Arc::new(texels),
                             }),
                         ));
                     }
@@ -605,6 +682,7 @@ pub mod using_blob {
             tasks: Vec<CustomRenderTask>,
             task_keys: HashMap<BlobImageKey, usize>,
             task_params: HashMap<(PxSize, PxPoint), usize>,
+            task_binding: HashMap<super::api::BindingId, usize>,
             parallel: bool,
         }
 
@@ -613,6 +691,7 @@ pub mod using_blob {
             key: BlobImageKey,
             size: PxSize,
             cursor: PxPoint,
+            cursor_binding: Option<super::api::BindingId>,
             free: bool,
         }
     }

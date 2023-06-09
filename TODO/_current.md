@@ -47,9 +47,3 @@
         - It uses the new modify tags to map from the key var to a bool?
     - Implement `FallbackConfigRef`, to work like the `EditableUiNodeList`.
         - Implement `FallbackConfigRef::reset(ConfigKey)`.
-
-# View-Process
-
-* Finish implementing blob renderer example.
-  - Support multiple blob renderers.
-  - Webrender only has one entry, we need a manager.
