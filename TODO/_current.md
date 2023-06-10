@@ -43,8 +43,3 @@
     - Implement `FallbackConfig::is_fallback(&ConfigKey) -> ReadOnlyArcVar<bool>`.
         - It uses the new modify tags to map from the key var to a bool?
         - How do we get the initial value?
-
-# extend_view
-
-* Error: `thread 'main' panicked at 'Attempt to update non-existent blob image', dependencies\webrender\webrender\src\api_resources.rs:201:14`
-    - Appears to happen when rapidly moving between squares.

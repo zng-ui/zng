@@ -384,7 +384,7 @@ pub mod using_blob {
 
         use zero_ui::{
             core::app::view_process::ApiExtensionId,
-            prelude::{task::parking_lot::Mutex, units::PxToWr, Px, PxPoint, PxSize},
+            prelude::{task::parking_lot::Mutex, units::PxToWr, PxPoint, PxSize},
         };
         use zero_ui_view::{
             extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
@@ -405,8 +405,6 @@ pub mod using_blob {
         struct CustomExtension {
             // id of this extension, for tracing.
             _id: ApiExtensionId,
-            // updated values
-            updated: HashMap<super::api::BindingId, PxPoint>,
             // renderer, shared between blob extensions.
             renderer: Arc<Mutex<CustomRenderer>>,
         }
@@ -414,7 +412,6 @@ pub mod using_blob {
             fn new(id: ApiExtensionId) -> Self {
                 Self {
                     _id: id,
-                    updated: HashMap::new(),
                     renderer: Arc::default(),
                 }
             }
@@ -465,36 +462,23 @@ pub mod using_blob {
 
             fn render_push(&mut self, args: &mut RenderItemArgs) {
                 match args.payload.deserialize::<super::api::RenderPayload>() {
-                    Ok(mut p) => {
+                    Ok(p) => {
                         let mut renderer = self.renderer.lock();
                         let renderer = &mut *renderer;
 
-                        if let Some(binding) = p.cursor_binding {
-                            // updateable item
-                            match self.updated.entry(binding) {
-                                std::collections::hash_map::Entry::Occupied(e) => {
-                                    if args.is_reuse {
-                                        // item is old, use updated value
-                                        p.cursor = *e.get();
-                                    } else {
-                                        // item is new, previous updated value invalid
-                                        e.remove();
-                                    }
-                                }
-                                std::collections::hash_map::Entry::Vacant(_) => {}
-                            }
-                        }
+                        let param = if let Some(binding) = p.cursor_binding {
+                            // updateable item, gets own image
+                            CustomTaskParams::Bound(binding)
+                        } else {
+                            // not updateable item, shares images of same params
+                            CustomTaskParams::Params(p.size, p.cursor)
+                        };
 
                         let mut key = None;
-                        if let Some(i) = renderer.task_params.get(&(p.size, p.cursor)) {
+                        if let Some(i) = renderer.task_params.get(&param) {
                             let t = &mut renderer.tasks[*i];
                             if matches!(t.state, CustomRenderTaskState::Marked | CustomRenderTaskState::Used) {
-                                // already rendering (size, cursor)
-                                //
-                                // in this demo we can identify the blob image by their parameters,
-                                // this is not always possible, you may need to generate an unique
-                                // id for each blob, either in the app-process or using the `RendererExtension::command`
-                                // method to return an ID for the app-process.
+                                // already rendering param
                                 key = Some(t.key);
                                 t.state = CustomRenderTaskState::Used;
                             }
@@ -502,7 +486,7 @@ pub mod using_blob {
                         let blob_key = if let Some(k) = key {
                             k
                         } else {
-                            // start rendering (size, cursor)
+                            // start rendering param
                             //
                             // the renderer will receive an async rasterize request from Webrender
                             // that is when we will actually render this.
@@ -515,7 +499,7 @@ pub mod using_blob {
                                 // reuse blob key
 
                                 let t = &mut renderer.tasks[i];
-                                renderer.task_params.remove(&(t.size, t.cursor));
+                                renderer.task_params.remove(&t.param());
 
                                 if t.size != p.size {
                                     let size = DeviceIntSize::new(p.size.width.0, p.size.height.0);
@@ -541,7 +525,7 @@ pub mod using_blob {
                                 t.cursor_binding = p.cursor_binding;
                                 t.state = CustomRenderTaskState::Used;
 
-                                renderer.task_params.insert((t.size, t.cursor), i);
+                                renderer.task_params.insert(t.param(), i);
 
                                 t.key
                             } else {
@@ -559,10 +543,7 @@ pub mod using_blob {
                                 };
                                 renderer.tasks.push(task);
                                 renderer.task_keys.insert(key, i);
-                                renderer.task_params.insert((p.size, p.cursor), i);
-                                if let Some(b) = p.cursor_binding {
-                                    renderer.task_binding.insert(b, i);
-                                }
+                                renderer.task_params.insert(param, i);
 
                                 let size = DeviceIntSize::new(p.size.width.0, p.size.height.0);
                                 args.transaction.add_blob_image(
@@ -612,44 +593,33 @@ pub mod using_blob {
             fn render_update(&mut self, args: &mut RenderUpdateArgs) {
                 match args.payload.deserialize::<super::api::RenderUpdatePayload>() {
                     Ok(p) => {
-                        // update value for reuse patches (see the `using_display_items` demo)
-                        self.updated.insert(p.cursor_binding, p.cursor);
-
-                        // update the render task, in this demo this just means reassociating the blob key.
                         let mut renderer = self.renderer.lock();
                         let renderer = &mut *renderer;
 
-                        if let Some(&i) = renderer.task_binding.get(&p.cursor_binding) {
+                        if let Some(&i) = renderer.task_params.get(&CustomTaskParams::Bound(p.cursor_binding)) {
+                            // update the render task
+
                             let t = &mut renderer.tasks[i];
-                            renderer.task_params.remove(&(t.size, t.cursor));
-
-                            let was_shared = t.cursor == PxPoint::splat(Px::MIN);
-
                             t.cursor = p.cursor;
-                            renderer.task_params.insert((t.size, t.cursor), i);
 
-                            if !was_shared {
-                                let size = DeviceIntSize::new(t.size.width.0, t.size.height.0);
-                                args.transaction.update_blob_image(
-                                    t.key,
-                                    ImageDescriptor {
-                                        format: ImageFormat::BGRA8,
-                                        size,
-                                        stride: None,
-                                        offset: 0,
-                                        flags: ImageDescriptorFlags::IS_OPAQUE,
-                                    },
-                                    Arc::new(vec![]),
-                                    DeviceIntRect::from_size(size),
-                                    &BlobDirtyRect::All,
-                                );
-
-                                return;
-                            }
+                            let size = DeviceIntSize::new(t.size.width.0, t.size.height.0);
+                            args.transaction.update_blob_image(
+                                t.key,
+                                ImageDescriptor {
+                                    format: ImageFormat::BGRA8,
+                                    size,
+                                    stride: None,
+                                    offset: 0,
+                                    flags: ImageDescriptorFlags::IS_OPAQUE,
+                                },
+                                Arc::new(vec![]),
+                                DeviceIntRect::from_size(size),
+                                &BlobDirtyRect::All,
+                            );
+                        } else {
+                            // or rebuilds the display list
+                            args.new_frame = true;
                         }
-
-                        // you can always just request a display-list rebuild.
-                        args.new_frame = true;
                     }
                     Err(e) => tracing::error!("invalid update request, {e}"),
                 }
@@ -690,10 +660,7 @@ pub mod using_blob {
                 let renderer = &mut *renderer;
                 if let Some(i) = renderer.task_keys.remove(&key) {
                     let t = &mut renderer.tasks[i];
-                    renderer.task_params.remove(&(t.size, t.cursor));
-                    if let Some(b) = &t.cursor_binding {
-                        renderer.task_binding.remove(b);
-                    }
+                    renderer.task_params.remove(&t.param());
                     t.state = CustomRenderTaskState::Free(MAX_FREE + 1);
                 }
             }
@@ -776,10 +743,15 @@ pub mod using_blob {
         struct CustomRenderer {
             tasks: Vec<CustomRenderTask>,
             task_keys: HashMap<BlobImageKey, usize>,
-            task_params: HashMap<(PxSize, PxPoint), usize>,
-            task_binding: HashMap<super::api::BindingId, usize>,
+            task_params: HashMap<CustomTaskParams, usize>,
             single_threaded: bool,
             workers: Option<Arc<zero_ui::prelude::task::rayon::ThreadPool>>,
+        }
+
+        #[derive(PartialEq, Eq, Hash, Clone, Copy)]
+        enum CustomTaskParams {
+            Bound(super::api::BindingId),
+            Params(PxSize, PxPoint),
         }
 
         #[derive(Clone)]
@@ -789,6 +761,15 @@ pub mod using_blob {
             cursor: PxPoint,
             cursor_binding: Option<super::api::BindingId>,
             state: CustomRenderTaskState,
+        }
+
+        impl CustomRenderTask {
+            fn param(&self) -> CustomTaskParams {
+                match self.cursor_binding {
+                    Some(id) => CustomTaskParams::Bound(id),
+                    None => CustomTaskParams::Params(self.size, self.cursor),
+                }
+            }
         }
         #[derive(Clone, Copy, Debug)]
         enum CustomRenderTaskState {
