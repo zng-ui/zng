@@ -6,55 +6,34 @@ use crate::var::*;
 
 use super::*;
 
-struct FallbackConfigData<S: Config, F: Config> {
-    fallback: F,
-    config: S,
+/// Reset controls of a [`FallbackConfig`].
+pub trait FallbackConfigReset: AnyConfig + Sync {
+    /// Removes the `key` from the config and updates all active config variables back to
+    /// the fallback value. Note that if you assign the config variable the key will be re-inserted on the config.
+    ///
+    /// The `FallbackConfig` type is an `Arc` internally, so you can keep a clone of it and call
+    /// reset on this clone to reset the config moved inside [`CONFIG`] or another combinator.
+    fn reset(&self, key: &ConfigKey);
 
-    vars: HashMap<ConfigKey, WeakArcVar<RawConfigValue>>,
+    /// Returns a read-only var that is `true` when the `key` has an entry in the read-write config.
+    fn can_reset(&self, key: &ConfigKey) -> BoxedVar<bool>;
+
+    /// Clone a reference to the config.
+    fn clone_boxed(&self) -> Box<dyn FallbackConfigReset>;
 }
-impl<S: Config, F: Config> FallbackConfigData<S, F> {
-    fn reset(c: &Arc<Mutex<Self>>, key: &ConfigKey) {
-        let mut d = c.lock();
-        let d = &mut *d;
-
-        if d.vars.len() > 500 {
-            d.vars.retain(|_, v| v.strong_count() > 0);
-        }
-
-        if d.config.contains_key(key) {
-            // need to remove
-
-            if let Some(res_wk) = d.vars.get(key) {
-                if let Some(res) = res_wk.upgrade() {
-                    // fallback config var is active, set it to fallback without
-                    // propagating the value to d.config.
-
-                    let fallback_value = d
-                        .fallback
-                        .get_raw(key.clone(), RawConfigValue(serde_json::Value::Null), false)
-                        .get();
-
-                    res.modify(move |v| {
-                        v.set(fallback_value);
-                        v.push_tag(ResetTag);
-                    });
-                } else {
-                    d.vars.remove(key);
-                }
-            }
-            d.config.remove(key);
-        }
+impl Clone for Box<dyn FallbackConfigReset> {
+    fn clone(&self) -> Self {
+        self.clone_boxed()
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-struct ResetTag;
-
-/// Represents a config source that is read and written too, when a key is not present in the source
-/// the fallback variable is used, but if that variable is modified the key is inserted in the primary config.
+/// Represents a copy-on-write config source that wraps two other sources, the read-write config and a read-only fallback config.
+///
+/// The config variables are connected to both sources, if the read-write config is not set the var will update with the
+/// fallback config, if it is set it will sync with the read-write config.
 pub struct FallbackConfig<S: Config, F: Config>(Arc<Mutex<FallbackConfigData<S, F>>>);
 impl<S: Config, F: Config> FallbackConfig<S, F> {
-    /// New config.
+    /// New from the read-write config and read-only fallback.
     pub fn new(config: S, fallback: F) -> Self {
         Self(Arc::new(Mutex::new(FallbackConfigData {
             fallback,
@@ -71,10 +50,46 @@ impl<S: Config, F: Config> FallbackConfig<S, F> {
     pub fn reset(&self, key: &ConfigKey) {
         FallbackConfigData::reset(&self.0, key);
     }
+
+    /// Returns a read-only var that is `true` when the `key` has an entry in the read-write config.
+    pub fn can_reset(&self, key: &ConfigKey) -> BoxedVar<bool> {
+        let mut d = self.0.lock();
+        let d = &mut *d;
+
+        if let Some(e) = d.vars.get(key) {
+            if let Some(v) = e.can_reset.upgrade() {
+                return v.boxed();
+            }
+        }
+
+        let can = var(d.config.contains_key(key));
+        d.vars.insert(
+            key.clone(),
+            VarEntry {
+                res: WeakArcVar::new(),
+                can_reset: can.downgrade(),
+            },
+        );
+
+        can.boxed()
+    }
 }
 impl<S: Config, F: Config> Clone for FallbackConfig<S, F> {
     fn clone(&self) -> Self {
         FallbackConfig(Arc::clone(&self.0))
+    }
+}
+impl<S: Config, F: Config> FallbackConfigReset for FallbackConfig<S, F> {
+    fn reset(&self, key: &ConfigKey) {
+        self.reset(key)
+    }
+
+    fn can_reset(&self, key: &ConfigKey) -> BoxedVar<bool> {
+        self.can_reset(key)
+    }
+
+    fn clone_boxed(&self) -> Box<dyn FallbackConfigReset> {
+        Box::new(self.clone())
     }
 }
 impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
@@ -91,37 +106,42 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         let d = &mut *d;
 
         if d.vars.len() > 1000 {
-            d.vars.retain(|_, v| v.strong_count() > 0);
+            d.vars.retain(|_, v| v.retain());
         }
 
-        let key = match d.vars.entry(key) {
-            hash_map::Entry::Occupied(e) => {
-                if let Some(res) = e.get().upgrade() {
-                    return res.boxed();
-                } else {
-                    e.remove_entry().0
-                }
-            }
-            hash_map::Entry::Vacant(e) => e.into_key(),
-        };
+        let entry = d.vars.entry(key.clone()).or_insert_with(VarEntry::default);
+        if let Some(res) = entry.res.upgrade() {
+            return res.boxed();
+        }
 
         let is_already_set = d.config.contains_key(&key);
 
         let cfg_var = d.config.get_raw(key.clone(), default.clone(), shared);
 
-        let fall_var = d.fallback.get_raw(key.clone(), default, shared);
+        let fall_var = d.fallback.get_raw(key, default, shared);
 
         let res_var = var(if is_already_set { cfg_var.get() } else { fall_var.get() });
+        entry.res = res_var.downgrade();
 
         // based on `Var::bind_bidi` code.
         let binding_tag = BindMapBidiTag::new_unique();
         // fallback->res binding can re-enable on reset.
         let fall_res_enabled = Arc::new(AtomicBool::new(!is_already_set));
 
+        let can_reset_var = if let Some(v) = entry.can_reset.upgrade() {
+            v
+        } else {
+            let v = var(is_already_set);
+            entry.can_reset = v.downgrade();
+            v
+        };
+
         // bind cfg_var -> res_var, handles potential bidi binding
         let weak_res_var = res_var.downgrade();
         cfg_var
-            .hook(Box::new(clmv!(fall_res_enabled, |args| {
+            .hook(Box::new(clmv!(fall_res_enabled, can_reset_var, |args| {
+                can_reset_var.set_ne(true);
+
                 if let Some(res_var) = weak_res_var.upgrade() {
                     let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
                     if !is_from_other {
@@ -150,17 +170,19 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         // bind fallback_var -> res_var.
         let weak_res_var = res_var.downgrade();
         fall_var
-            .hook(Box::new(clmv!(fall_res_enabled, |args| {
+            .hook(Box::new(clmv!(fall_res_enabled, can_reset_var, |args| {
                 if let Some(res_var) = weak_res_var.upgrade() {
                     if fall_res_enabled.load(atomic::Ordering::Relaxed) {
                         let value = args.downcast_value::<RawConfigValue>().unwrap().clone();
-                        res_var.modify(move |v| {
+                        res_var.modify(clmv!(can_reset_var, |v| {
                             if v.as_ref() != &value {
                                 v.set(value);
                                 // don't set cfg_var from fallback update.
                                 v.push_tag(binding_tag);
+
+                                can_reset_var.set_ne(false);
                             }
-                        });
+                        }));
                     }
 
                     true
@@ -173,7 +195,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         // map res_var -> cfg_var, manages fallback binding.
         res_var
             .hook(Box::new(move |args| {
-                let _own = &fall_var;
+                let _strong_ref = &fall_var;
 
                 let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
                 if !is_from_other {
@@ -181,6 +203,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
 
                     let is_reset = args.downcast_tags::<ResetTag>().next().is_some();
                     if is_reset {
+                        can_reset_var.set_ne(false);
                         fall_res_enabled.store(true, atomic::Ordering::Relaxed);
                     } else {
                         let value = args.downcast_value::<RawConfigValue>().unwrap().clone();
@@ -196,8 +219,6 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                 true
             }))
             .perm();
-
-        d.vars.insert(key, res_var.downgrade());
 
         res_var.boxed()
     }
@@ -224,3 +245,56 @@ impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
             .boxed()
     }
 }
+
+#[derive(Default)]
+struct VarEntry {
+    res: WeakArcVar<RawConfigValue>,
+    can_reset: WeakArcVar<bool>,
+}
+impl VarEntry {
+    fn retain(&self) -> bool {
+        self.can_reset.strong_count() > 0
+    }
+}
+
+struct FallbackConfigData<S: Config, F: Config> {
+    fallback: F,
+    config: S,
+
+    vars: HashMap<ConfigKey, VarEntry>,
+}
+impl<S: Config, F: Config> FallbackConfigData<S, F> {
+    fn reset(c: &Arc<Mutex<Self>>, key: &ConfigKey) {
+        let mut d = c.lock();
+        let d = &mut *d;
+
+        d.vars.retain(|_, v| v.retain());
+
+        if d.config.contains_key(key) {
+            // need to remove
+
+            if let Some(entry) = d.vars.get(key) {
+                if let Some(res) = entry.res.upgrade() {
+                    // fallback config var is active, set it to fallback without
+                    // propagating the value to d.config.
+
+                    let fallback_value = d
+                        .fallback
+                        .get_raw(key.clone(), RawConfigValue(serde_json::Value::Null), false)
+                        .get();
+
+                    res.modify(move |v| {
+                        v.set(fallback_value);
+                        v.push_tag(ResetTag);
+                    });
+                } else {
+                    d.vars.remove(key);
+                }
+            }
+            d.config.remove(key);
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct ResetTag;

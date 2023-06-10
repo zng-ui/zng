@@ -931,8 +931,13 @@ impl ShapedText {
     /// Gets the insert index in the string that is nearest to `point`.
     pub fn nearest_insert_index(&self, point: PxPoint) -> Option<usize> {
         let point = point.to_wr();
-        let (i, _) = self.glyphs.iter().enumerate().min_by_key(|(_, g)| (g.point.distance_to(point) * 5.0) as i32)?;
-        todo!()
+        let (_i, _) = self
+            .glyphs
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, g)| (g.point.distance_to(point) * 5.0) as i32)?;
+        // !!: TODO
+        None
     }
 }
 

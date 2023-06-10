@@ -22,7 +22,7 @@ fn app_main() {
             //     use zero_ui::core::render::webrender_api::DebugFlags;
             //     DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
             // };
-            
+
             title = "Extend-View Example";
 
             child = Stack! {

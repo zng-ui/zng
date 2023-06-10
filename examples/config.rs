@@ -18,29 +18,101 @@ fn main() {
     // rec.finish();
 }
 
-fn load_config() {
+fn load_config() -> Box<dyn FallbackConfigReset> {
     // config file for the app, keys with prefix "main." are saved here.
-    let main_cfg = JsonConfig::sync("target/tmp/example.config.json");
-    // entries not found in `main_cfg` bind to this file first before going to embedded fallback.
-    let main_defaults_cfg = ReadOnlyConfig::new(JsonConfig::sync("examples/res/config/defaults.json"));
+    let user_cfg = JsonConfig::sync("target/tmp/example.config.json");
+    // entries not found in `user_cfg` bind to this file first before going to embedded fallback.
+    let default_cfg = ReadOnlyConfig::new(JsonConfig::sync("examples/res/config/defaults.json"));
+
+    // the app settings.
+    let main_cfg = FallbackConfig::new(user_cfg, default_cfg);
+
+    // Clone a ref that can be used to reset specific entries.
+    let main_ref = main_cfg.clone_boxed();
 
     // any other configs (Window::save_state for example)
     let other_cfg = JsonConfig::sync("target/tmp/example.config.other.json");
 
-    CONFIG.load(
-        SwitchConfig::new()
-            .with_prefix("main.", FallbackConfig::new(main_cfg, main_defaults_cfg))
-            .with_prefix("", other_cfg),
-    );
+    CONFIG.load(SwitchConfig::new().with_prefix("main.", main_cfg).with_prefix("", other_cfg));
+
+    main_ref
+}
+
+fn config_editor<T: ConfigValue, E: UiNode>(
+    main_cfg_key: &'static str,
+    default: impl FnOnce() -> T,
+    main_cfg: Box<dyn FallbackConfigReset>,
+    editor: impl FnOnce(BoxedVar<T>) -> E,
+) -> impl UiNode {
+    let main_cfg_key = ConfigKey::from_static(main_cfg_key);
+
+    Container! {
+        child = editor(CONFIG.get(formatx!("main.{main_cfg_key}"), default));
+        child_insert_start = {
+            insert: Icon! {
+                enabled = main_cfg.can_reset(&main_cfg_key);
+                on_click = hn!(|_| {
+                    main_cfg.reset(&main_cfg_key);
+                });
+
+                ico = zero_ui_material_icons::outlined::SETTINGS;
+                tooltip = Tip!(Text!("reset"));
+                disabled_tooltip = Tip!(Text!("is default"));
+
+                ico_size = 18;
+
+                opacity = 70.pct();
+                when *#is_cap_hovered {
+                    opacity = 100.pct();
+                }
+                when *#is_disabled {
+                    opacity = 30.pct();
+                }
+            },
+            spacing: 5,
+        }
+    }
 }
 
 fn app_main() {
-    App::default().run_window(async {
-        load_config();
+    App::default().extend(zero_ui_material_icons::MaterialFonts).run_window(async {
+        let main_cfg = load_config();
 
-        let checked = CONFIG.get("main.checked", || false);
-        let count = CONFIG.get("main.count", || 0);
-        let txt = CONFIG.get("main.txt", || Txt::from_static("not used default"));
+        let checked = config_editor(
+            "checked",
+            || false,
+            main_cfg.clone(),
+            |checked| {
+                Toggle! {
+                    child = Text!(checked.map(|c| formatx!("Checked: {c:?}")));
+                    checked = checked.clone();
+                }
+            },
+        );
+        let count = config_editor(
+            "count",
+            || 0,
+            main_cfg.clone(),
+            |count| {
+                Button! {
+                    child = Text!(count.map(|c| formatx!("Count: {c:?}")));
+                    on_click = hn!(count, |_| {
+                        count.modify(|c| *c.to_mut() += 1).unwrap();
+                    })
+                }
+            },
+        );
+        let txt = config_editor(
+            "txt",
+            || Txt::from_static(""),
+            main_cfg,
+            |txt| {
+                TextInput! {
+                    txt;
+                    min_width = 100;
+                }
+            },
+        );
 
         Window! {
             title = if std::env::var("MOVE-TO").is_err() { "Config Example" } else { "Config Example - Other Process" };
@@ -60,34 +132,10 @@ fn app_main() {
                 align = Align::CENTER;
                 spacing = 5;
                 children = ui_vec![
-                    Toggle! {
-                        child = Text!(checked.map(|c| formatx!("Checked: {c:?}")));
-                        checked = checked.clone();
-                    },
-                    Button! {
-                        child = Text!(count.map(|c| formatx!("Count: {c:?}")));
-                        on_click = hn!(count, |_| {
-                            count.modify(|c| *c.to_mut() += 1).unwrap();
-                        })
-                    },
+                    checked,
+                    count,
+                    txt,
                     separator(),
-                    TextInput! {
-                        txt;
-                        min_width = 100;
-                    },
-                    separator(),
-                    {
-                        let enabled = var(true);
-                        Button! {
-                            child = Text!("Reset");
-                            on_click = async_hn!(enabled, |_| {
-                                enabled.set(false);
-                                reset_config().await;
-                                enabled.set(true);
-                            });
-                            enabled;
-                        }
-                    },
                     Button! {
                         child = Text!("Open Another Process");
                         on_click = hn!(|_| {
@@ -127,35 +175,5 @@ fn separator() -> impl UiNode {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
         line_style = LineStyle::Dashed;
-    }
-}
-
-async fn reset_config() {
-    let mut retry = false;
-    CONFIG.load(NilConfig); // clear file watchers
-    loop {
-        match std::fs::remove_file("target/tmp/example.config.json") {
-            Ok(_) => {
-                task::yield_now().await;
-                load_config();
-            }
-            Err(e) if matches!(e.kind(), std::io::ErrorKind::NotFound) => {
-                task::yield_now().await;
-                load_config();
-            }
-            Err(e) => {
-                if retry {
-                    tracing::error!("failed to reset config, {e}");
-                    break;
-                } else {
-                    retry = true;
-                    task::deadline(50.ms()).await;
-                }
-            }
-        }
-
-        if !retry {
-            break;
-        }
     }
 }

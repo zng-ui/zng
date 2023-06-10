@@ -1,3 +1,7 @@
+* Fix Icon! background.
+* Test config reset.
+    - Does not work across processes.
+
 # TextInput
 
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
@@ -33,13 +37,3 @@
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
-
-# Config
-
-* Implement ability to reset single config. 
-    - We want to support a Settings screen.
-    - So a reset command and a way to indicate to the user that the value is not default.
-
-    - Implement `FallbackConfig::is_fallback(&ConfigKey) -> ReadOnlyArcVar<bool>`.
-        - It uses the new modify tags to map from the key var to a bool?
-        - How do we get the initial value?
