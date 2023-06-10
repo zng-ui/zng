@@ -63,14 +63,6 @@ impl SwitchConfig {
         self
     }
 
-    fn cfg(&self, key: &ConfigKey) -> Option<(ConfigKey, &dyn AnyConfig)> {
-        for c in &self.cfgs {
-            if let Some(key) = (c.match_key)(key) {
-                return Some((key, &*c.cfg));
-            }
-        }
-        None
-    }
     fn cfg_mut(&mut self, key: &ConfigKey) -> Option<(ConfigKey, &mut dyn AnyConfig)> {
         for c in &mut self.cfgs {
             if let Some(key) = (c.match_key)(key) {
@@ -96,10 +88,10 @@ impl AnyConfig for SwitchConfig {
         }
     }
 
-    fn contains_key(&self, key: &ConfigKey) -> bool {
-        match self.cfg(key) {
-            Some((key, cfg)) => cfg.contains_key(&key),
-            None => false,
+    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+        match self.cfg_mut(&key) {
+            Some((key, cfg)) => cfg.contains_key(key),
+            None => LocalVar(false).boxed(),
         }
     }
 

@@ -50,7 +50,7 @@ fn config_editor<T: ConfigValue, E: UiNode>(
         child = editor(CONFIG.get(formatx!("main.{main_cfg_key}"), default));
         child_insert_start = {
             insert: Icon! {
-                enabled = main_cfg.can_reset(&main_cfg_key);
+                enabled = main_cfg.can_reset(main_cfg_key.clone());
                 on_click = hn!(|_| {
                     main_cfg.reset(&main_cfg_key);
                 });

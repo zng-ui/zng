@@ -16,7 +16,7 @@ pub trait FallbackConfigReset: AnyConfig + Sync {
     fn reset(&self, key: &ConfigKey);
 
     /// Returns a read-only var that is `true` when the `key` has an entry in the read-write config.
-    fn can_reset(&self, key: &ConfigKey) -> BoxedVar<bool>;
+    fn can_reset(&self, key: ConfigKey) -> BoxedVar<bool>;
 
     /// Clone a reference to the config.
     fn clone_boxed(&self) -> Box<dyn FallbackConfigReset>;
@@ -52,26 +52,8 @@ impl<S: Config, F: Config> FallbackConfig<S, F> {
     }
 
     /// Returns a read-only var that is `true` when the `key` has an entry in the read-write config.
-    pub fn can_reset(&self, key: &ConfigKey) -> BoxedVar<bool> {
-        let mut d = self.0.lock();
-        let d = &mut *d;
-
-        if let Some(e) = d.vars.get(key) {
-            if let Some(v) = e.can_reset.upgrade() {
-                return v.boxed();
-            }
-        }
-
-        let can = var(d.config.contains_key(key));
-        d.vars.insert(
-            key.clone(),
-            VarEntry {
-                res: WeakArcVar::new(),
-                can_reset: can.downgrade(),
-            },
-        );
-
-        can.boxed()
+    pub fn can_reset(&self, key: ConfigKey) -> BoxedVar<bool> {
+        self.0.lock().config.contains_key(key)
     }
 }
 impl<S: Config, F: Config> Clone for FallbackConfig<S, F> {
@@ -84,7 +66,7 @@ impl<S: Config, F: Config> FallbackConfigReset for FallbackConfig<S, F> {
         self.reset(key)
     }
 
-    fn can_reset(&self, key: &ConfigKey) -> BoxedVar<bool> {
+    fn can_reset(&self, key: ConfigKey) -> BoxedVar<bool> {
         self.can_reset(key)
     }
 
@@ -114,7 +96,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
             return res.boxed();
         }
 
-        let is_already_set = d.config.contains_key(&key);
+        let is_already_set = d.config.contains_key(key.clone()).get();
 
         let cfg_var = d.config.get_raw(key.clone(), default.clone(), shared);
 
@@ -128,20 +110,10 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         // fallback->res binding can re-enable on reset.
         let fall_res_enabled = Arc::new(AtomicBool::new(!is_already_set));
 
-        let can_reset_var = if let Some(v) = entry.can_reset.upgrade() {
-            v
-        } else {
-            let v = var(is_already_set);
-            entry.can_reset = v.downgrade();
-            v
-        };
-
         // bind cfg_var -> res_var, handles potential bidi binding
         let weak_res_var = res_var.downgrade();
         cfg_var
-            .hook(Box::new(clmv!(fall_res_enabled, can_reset_var, |args| {
-                can_reset_var.set_ne(true);
-
+            .hook(Box::new(clmv!(fall_res_enabled, |args| {
                 if let Some(res_var) = weak_res_var.upgrade() {
                     let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
                     if !is_from_other {
@@ -170,19 +142,17 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         // bind fallback_var -> res_var.
         let weak_res_var = res_var.downgrade();
         fall_var
-            .hook(Box::new(clmv!(fall_res_enabled, can_reset_var, |args| {
+            .hook(Box::new(clmv!(fall_res_enabled, |args| {
                 if let Some(res_var) = weak_res_var.upgrade() {
                     if fall_res_enabled.load(atomic::Ordering::Relaxed) {
                         let value = args.downcast_value::<RawConfigValue>().unwrap().clone();
-                        res_var.modify(clmv!(can_reset_var, |v| {
+                        res_var.modify(move |v| {
                             if v.as_ref() != &value {
                                 v.set(value);
                                 // don't set cfg_var from fallback update.
                                 v.push_tag(binding_tag);
-
-                                can_reset_var.set_ne(false);
                             }
-                        }));
+                        });
                     }
 
                     true
@@ -203,7 +173,6 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
 
                     let is_reset = args.downcast_tags::<ResetTag>().next().is_some();
                     if is_reset {
-                        can_reset_var.set_ne(false);
                         fall_res_enabled.store(true, atomic::Ordering::Relaxed);
                     } else {
                         let value = args.downcast_value::<RawConfigValue>().unwrap().clone();
@@ -223,9 +192,9 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         res_var.boxed()
     }
 
-    fn contains_key(&self, key: &ConfigKey) -> bool {
-        let d = self.0.lock();
-        d.fallback.contains_key(key) || d.config.contains_key(key)
+    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+        let mut d = self.0.lock();
+        merge_var!(d.fallback.contains_key(key.clone()), d.config.contains_key(key), |&a, &b| a || b).boxed()
     }
 
     fn remove(&mut self, key: &ConfigKey) -> bool {
@@ -249,11 +218,10 @@ impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
 #[derive(Default)]
 struct VarEntry {
     res: WeakArcVar<RawConfigValue>,
-    can_reset: WeakArcVar<bool>,
 }
 impl VarEntry {
     fn retain(&self) -> bool {
-        self.can_reset.strong_count() > 0
+        self.res.strong_count() > 0
     }
 }
 
@@ -270,7 +238,7 @@ impl<S: Config, F: Config> FallbackConfigData<S, F> {
 
         d.vars.retain(|_, v| v.retain());
 
-        if d.config.contains_key(key) {
+        if d.config.contains_key(key.clone()).get() {
             // need to remove
 
             if let Some(entry) = d.vars.get(key) {

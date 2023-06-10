@@ -25,8 +25,9 @@ impl AnyConfig for SwapConfig {
         }
     }
 
-    fn contains_key(&self, key: &ConfigKey) -> bool {
-        self.shared.contains_key(key) || self.cfg.lock().contains_key(key)
+    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+        self.shared
+            .get_or_bind_contains(key, |key| self.cfg.get_mut().contains_key(key.clone()))
     }
 
     fn status(&self) -> BoxedVar<ConfigStatus> {
@@ -266,7 +267,7 @@ mod tests {
             self.0.get_raw(key, default, true)
         }
 
-        fn contains_key(&self, key: &ConfigKey) -> bool {
+        fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
             self.0.contains_key(key)
         }
 

@@ -115,8 +115,8 @@ impl AnyConfig for CONFIG {
         CONFIG_SV.write().get_raw(key, default, shared)
     }
 
-    fn contains_key(&self, key: &ConfigKey) -> bool {
-        CONFIG_SV.read().contains_key(key)
+    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+        CONFIG_SV.write().contains_key(key)
     }
 
     fn status(&self) -> BoxedVar<ConfigStatus> {
@@ -252,14 +252,8 @@ pub trait AnyConfig: Send + Any {
     /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue>;
 
-    /// Returns if the `key` already has the key in the backing storage.
-    ///
-    /// Both [`get_raw`] and [`get`] methods don't insert the key on request, the key is inserted on the
-    /// first time the returned variable updates.
-    ///
-    /// [`get_raw`]: AnyConfig::get_raw
-    /// [`get`]: Config::get
-    fn contains_key(&self, key: &ConfigKey) -> bool;
+    /// Gets a read-only variable that tracks if an entry for the `key` is in the backing storage.
+    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool>;
 
     /// Removes the `key` from the backing storage.
     ///
@@ -299,7 +293,7 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
         self.cfg.get_raw(key, default, shared).read_only()
     }
 
-    fn contains_key(&self, key: &ConfigKey) -> bool {
+    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
         self.cfg.contains_key(key)
     }
 
@@ -319,13 +313,12 @@ impl<C: Config> Config for ReadOnlyConfig<C> {
 
 /// Config without any backing store.
 pub struct NilConfig;
-
 impl AnyConfig for NilConfig {
     fn get_raw(&mut self, _: ConfigKey, default: RawConfigValue, _: bool) -> BoxedVar<RawConfigValue> {
         LocalVar(default).boxed()
     }
-    fn contains_key(&self, _: &ConfigKey) -> bool {
-        false
+    fn contains_key(&mut self, _: ConfigKey) -> BoxedVar<bool> {
+        LocalVar(false).boxed()
     }
 
     fn status(&self) -> BoxedVar<ConfigStatus> {
@@ -351,16 +344,23 @@ impl<T: ConfigValue> ConfigVar<T> {
         Box::new(Self { var, binding })
     }
 }
+struct ConfigContainsVar {
+    var: WeakArcVar<bool>,
+    binding: VarHandles,
+}
 
 /// Map of configs already bound to a variable.
 ///
 /// The map does only holds a weak reference to the variables.
 #[derive(Default)]
-pub struct ConfigVars(HashMap<ConfigKey, Box<dyn AnyConfigVar>>);
+pub struct ConfigVars {
+    values: HashMap<ConfigKey, Box<dyn AnyConfigVar>>,
+    contains: HashMap<ConfigKey, ConfigContainsVar>,
+}
 impl ConfigVars {
     /// Gets the already bound variable or calls `bind` to generate a new binding.
     pub fn get_or_bind<T: ConfigValue>(&mut self, key: ConfigKey, bind: impl FnOnce(&ConfigKey) -> BoxedVar<T>) -> BoxedVar<T> {
-        match self.0.entry(key) {
+        match self.values.entry(key) {
             hash_map::Entry::Occupied(mut e) => {
                 if e.get().can_upgrade() {
                     if let Some(x) = e.get().as_any().downcast_ref::<ConfigVar<T>>() {
@@ -410,17 +410,61 @@ impl ConfigVars {
         }
     }
 
+    /// Bind the contains variable.
+    pub fn get_or_bind_contains(&mut self, key: ConfigKey, bind: impl FnOnce(&ConfigKey) -> BoxedVar<bool>) -> BoxedVar<bool> {
+        match self.contains.entry(key) {
+            hash_map::Entry::Occupied(mut e) => {
+                if let Some(res) = e.get().var.upgrade() {
+                    return res.boxed();
+                }
+
+                let cfg = bind(e.key());
+                let res = var(cfg.get());
+
+                let binding = VarHandles(vec![
+                    cfg.bind(&res),
+                    res.hook(Box::new(move |_| {
+                        let _strong_ref = &cfg;
+                        true
+                    })),
+                ]);
+
+                e.insert(ConfigContainsVar {
+                    var: res.downgrade(),
+                    binding,
+                });
+
+                res.boxed()
+            }
+            hash_map::Entry::Vacant(e) => {
+                let cfg = bind(e.key());
+                let res = var(cfg.get());
+
+                let binding = VarHandles(vec![
+                    cfg.bind(&res),
+                    res.hook(Box::new(move |_| {
+                        let _strong_ref = &cfg;
+                        true
+                    })),
+                ]);
+
+                e.insert(ConfigContainsVar {
+                    var: res.downgrade(),
+                    binding,
+                });
+
+                res.boxed()
+            }
+        }
+    }
+
     /// Bind all variables to the new `source`.
     ///
     /// If the map entry is present in the `source` the variable is updated to the new value, if not the entry
     /// is inserted in the source. The variable is then bound to the source.
     pub fn rebind(&mut self, source: &mut dyn AnyConfig) {
-        self.0.retain(|key, wk_var| wk_var.rebind(key, source));
-    }
-
-    /// If a strong variable is available for the `key`.
-    pub fn contains_key(&self, key: &ConfigKey) -> bool {
-        self.0.get(key).map(|v| v.can_upgrade()).unwrap_or(false)
+        self.values.retain(|key, wk_var| wk_var.rebind(key, source));
+        self.contains.retain(|key, wk_var| wk_var.rebind(key, source));
     }
 }
 trait AnyConfigVar: Any + Send + Sync {
@@ -491,6 +535,26 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
         );
 
         true
+    }
+}
+impl ConfigContainsVar {
+    fn rebind(&mut self, key: &ConfigKey, source: &mut dyn AnyConfig) -> bool {
+        if let Some(res) = self.var.upgrade() {
+            let cfg = source.contains_key(key.clone());
+            res.set_ne(cfg.get());
+
+            self.binding = VarHandles(vec![
+                cfg.bind(&res),
+                res.hook(Box::new(move |_| {
+                    let _strong_ref = &cfg;
+                    true
+                })),
+            ]);
+
+            true
+        } else {
+            false
+        }
     }
 }
 

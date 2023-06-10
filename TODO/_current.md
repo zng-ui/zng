@@ -1,6 +1,6 @@
 * Fix Icon! background.
 * Test config reset.
-    - Does not work across processes.
+    - Loses connection between two processes after some resets.
 
 # TextInput
 

@@ -66,7 +66,7 @@ macro_rules! test_config {
     ($key:expr => $($init:tt)*) => {
         if TEST_READ.get() {
             let key = Txt::from_static($key);
-            assert!(CONFIG.contains_key(&key), "did not find {key}");
+            assert!(CONFIG.contains_key(key.clone()).get(), "did not find {key}");
             let read_value = CONFIG.get(key, || $($init)*).get();
             let expected_value = { $($init)* };
 

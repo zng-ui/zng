@@ -269,7 +269,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                             cfg_status,
                         }))
                     } else {
-                        apply_to_window = CONFIG.contains_key(&key);
+                        apply_to_window = CONFIG.contains_key(key.clone()).get();
                     }
 
                     cfg = Some(CONFIG.get(key, || WindowStateCfg {
@@ -292,7 +292,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
                 if let Some(l) = &loading {
                     if l.cfg_status.get().is_idle() {
                         if let Some(key) = enabled.window_key(WINDOW.id()) {
-                            apply_to_window = CONFIG.contains_key(&key);
+                            apply_to_window = CONFIG.contains_key(key).get();
                         }
                         loading = None
                     }

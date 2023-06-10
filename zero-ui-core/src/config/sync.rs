@@ -209,8 +209,8 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
         }
     }
 
-    fn contains_key(&self, key: &ConfigKey) -> bool {
-        self.sync_var.with(|q| q.contains_key(key))
+    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+        self.sync_var.map(move |q| q.contains_key(&key)).boxed()
     }
 
     fn status(&self) -> BoxedVar<ConfigStatus> {
@@ -218,7 +218,7 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
     }
 
     fn remove(&mut self, key: &ConfigKey) -> bool {
-        let contains = self.contains_key(key);
+        let contains = self.sync_var.with(|q| q.contains_key(key));
         if contains {
             self.sync_var.modify(clmv!(key, |m| {
                 ConfigMap::remove(m, &key);
