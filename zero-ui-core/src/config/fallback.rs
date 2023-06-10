@@ -52,30 +52,34 @@ struct ResetTag;
 
 /// Represents a config source that is read and written too, when a key is not present in the source
 /// the fallback variable is used, but if that variable is modified the key is inserted in the primary config.
-pub struct FallbackConfig<S: Config, F: Config> {
-    data: Arc<Mutex<FallbackConfigData<S, F>>>,
-}
+pub struct FallbackConfig<S: Config, F: Config>(Arc<Mutex<FallbackConfigData<S, F>>>);
 impl<S: Config, F: Config> FallbackConfig<S, F> {
     /// New config.
     pub fn new(config: S, fallback: F) -> Self {
-        Self {
-            data: Arc::new(Mutex::new(FallbackConfigData {
-                fallback,
-                config,
-                vars: HashMap::new(),
-            })),
-        }
+        Self(Arc::new(Mutex::new(FallbackConfigData {
+            fallback,
+            config,
+            vars: HashMap::new(),
+        })))
     }
 
     /// Removes the `key` from the config and updates all active config variables back to
     /// the fallback value. Note that if you assign the config variable the key will be re-inserted on the config.
-    pub fn reset(&mut self, key: &ConfigKey) {
-        FallbackConfigData::reset(&self.data, key);
+    ///
+    /// The `FallbackConfig` type is an `Arc` internally, so you can keep a clone of it and call
+    /// reset on this clone to reset the config moved inside [`CONFIG`] or another combinator.
+    pub fn reset(&self, key: &ConfigKey) {
+        FallbackConfigData::reset(&self.0, key);
+    }
+}
+impl<S: Config, F: Config> Clone for FallbackConfig<S, F> {
+    fn clone(&self) -> Self {
+        FallbackConfig(Arc::clone(&self.0))
     }
 }
 impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     fn status(&self) -> BoxedVar<ConfigStatus> {
-        let d = self.data.lock();
+        let d = self.0.lock();
         merge_var!(d.fallback.status(), d.config.status(), |fallback, over| {
             ConfigStatus::merge_status([fallback.clone(), over.clone()].into_iter())
         })
@@ -83,7 +87,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     }
 
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
-        let mut d = self.data.lock();
+        let mut d = self.0.lock();
         let d = &mut *d;
 
         if d.vars.len() > 1000 {
@@ -199,12 +203,12 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     }
 
     fn contains_key(&self, key: &ConfigKey) -> bool {
-        let d = self.data.lock();
+        let d = self.0.lock();
         d.fallback.contains_key(key) || d.config.contains_key(key)
     }
 
     fn remove(&mut self, key: &ConfigKey) -> bool {
-        let mut d = self.data.lock();
+        let mut d = self.0.lock();
         d.fallback.remove(key) || d.config.remove(key)
     }
 }

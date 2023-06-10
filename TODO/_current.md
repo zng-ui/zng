@@ -40,9 +40,6 @@
     - We want to support a Settings screen.
     - So a reset command and a way to indicate to the user that the value is not default.
 
-    - Implement `FallbackConfig::reset(&ConfigKey)`.
-        - It sets the variable back to fallback and removes the entry in the top config.
     - Implement `FallbackConfig::is_fallback(&ConfigKey) -> ReadOnlyArcVar<bool>`.
         - It uses the new modify tags to map from the key var to a bool?
-    - Implement `FallbackConfigRef`, to work like the `EditableUiNodeList`.
-        - Implement `FallbackConfigRef::reset(ConfigKey)`.
+        - How do we get the initial value?
