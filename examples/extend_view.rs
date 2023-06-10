@@ -18,10 +18,10 @@ fn main() {
 fn app_main() {
     App::default().run_window(async {
         Window! {
-            renderer_debug = {
-                use zero_ui::core::render::webrender_api::DebugFlags;
-                DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
-            };
+            // renderer_debug = {
+            //     use zero_ui::core::render::webrender_api::DebugFlags;
+            //     DebugFlags::TEXTURE_CACHE_DBG | DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
+            // };
             
             title = "Extend-View Example";
 
