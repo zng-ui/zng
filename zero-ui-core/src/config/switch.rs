@@ -84,7 +84,7 @@ impl AnyConfig for SwitchConfig {
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
         match self.cfg_mut(&key) {
             Some((key, cfg)) => cfg.get_raw(key, default, shared),
-            None => NilConfig.get_raw(key, default, shared),
+            None => LocalVar(default).boxed(),
         }
     }
 
@@ -145,7 +145,7 @@ impl Config for SwitchConfig {
 
                 var.boxed()
             }
-            None => NilConfig.get(key, default),
+            None => LocalVar(default()).boxed(),
         }
     }
 }

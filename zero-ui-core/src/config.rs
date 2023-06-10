@@ -311,27 +311,81 @@ impl<C: Config> Config for ReadOnlyConfig<C> {
     }
 }
 
-/// Config without any backing store.
-pub struct NilConfig;
-impl AnyConfig for NilConfig {
-    fn get_raw(&mut self, _: ConfigKey, default: RawConfigValue, _: bool) -> BoxedVar<RawConfigValue> {
-        LocalVar(default).boxed()
-    }
-    fn contains_key(&mut self, _: ConfigKey) -> BoxedVar<bool> {
-        LocalVar(false).boxed()
-    }
+/// Memory only config.
+///
+/// Values are retained in memory even if all variables to the key are dropped, but they are not saved anywhere.
+#[derive(Default)]
+pub struct MemoryConfig {
+    values: HashMap<ConfigKey, ArcVar<RawConfigValue>>,
+    contains: HashMap<ConfigKey, WeakArcVar<bool>>,
+}
 
+impl AnyConfig for MemoryConfig {
     fn status(&self) -> BoxedVar<ConfigStatus> {
         LocalVar(ConfigStatus::Loaded).boxed()
     }
 
-    fn remove(&mut self, _: &ConfigKey) -> bool {
-        false
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _shared: bool) -> BoxedVar<RawConfigValue> {
+        match self.values.entry(key) {
+            hash_map::Entry::Occupied(e) => e.get().clone().boxed(),
+            hash_map::Entry::Vacant(e) => {
+                let r = var(default);
+
+                if let Some(v) = self.contains.get(e.key()) {
+                    if let Some(v) = v.upgrade() {
+                        v.set_ne(true);
+                    }
+                }
+
+                e.insert(r).clone().boxed()
+            }
+        }
+    }
+
+    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+        match self.contains.entry(key) {
+            hash_map::Entry::Occupied(mut e) => {
+                if let Some(r) = e.get().upgrade() {
+                    r.boxed()
+                } else {
+                    let r = var(self.values.contains_key(e.key()));
+                    e.insert(r.downgrade());
+                    r.boxed()
+                }
+            }
+            hash_map::Entry::Vacant(e) => {
+                let r = var(self.values.contains_key(e.key()));
+                e.insert(r.downgrade());
+                r.boxed()
+            }
+        }
+    }
+
+    fn remove(&mut self, key: &ConfigKey) -> bool {
+        if self.values.remove(key).is_some() {
+            self.contains.retain(|_, v| v.strong_count() > 0);
+
+            if let Some(v) = self.contains.get(key) {
+                if let Some(v) = v.upgrade() {
+                    v.set_ne(false);
+                }
+            }
+            true
+        } else {
+            false
+        }
     }
 }
-impl Config for NilConfig {
-    fn get<T: ConfigValue>(&mut self, _: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
-        LocalVar(default()).boxed()
+impl Config for MemoryConfig {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+        let default = default();
+        self.get_raw(key.into(), RawConfigValue::serialize(default.clone()).unwrap(), true)
+            .filter_map_bidi(
+                |m| m.clone().deserialize::<T>().ok(),
+                |v| RawConfigValue::serialize(v).ok(),
+                move || default.clone(),
+            )
+            .boxed()
     }
 }
 

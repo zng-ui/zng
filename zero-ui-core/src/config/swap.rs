@@ -84,12 +84,12 @@ impl Config for SwapConfig {
     }
 }
 impl SwapConfig {
-    /// New with [`NilConfig`] backend.
+    /// New with [`MemoryConfig`] backend.
     pub fn new() -> Self {
         Self {
-            cfg: Mutex::new(Box::new(NilConfig)),
+            cfg: Mutex::new(Box::<MemoryConfig>::default()),
             shared: ConfigVars::default(),
-            source_status: NilConfig.status(),
+            source_status: LocalVar(ConfigStatus::Loaded).boxed(),
             status: var(ConfigStatus::Loaded),
             status_binding: VarHandle::dummy(),
         }
@@ -144,7 +144,7 @@ mod tests {
     fn swap_config_swap() {
         let mut app = App::default().run_headless(false);
 
-        let mut inner1 = TestConfig::default();
+        let mut inner1 = MemoryConfig::default();
         let c1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
         c1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
@@ -161,7 +161,7 @@ mod tests {
     fn swap_config_swap_load() {
         let mut app = App::default().run_headless(false);
 
-        let mut inner1 = TestConfig::default();
+        let mut inner1 = MemoryConfig::default();
         let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
         inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
@@ -173,7 +173,7 @@ mod tests {
 
         assert_eq!(32, cfg.get());
 
-        let mut inner2 = TestConfig::default();
+        let mut inner2 = MemoryConfig::default();
         let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
         inner_v2.set(RawConfigValue::serialize(42).unwrap()).unwrap();
         app.update(false).assert_wait();
@@ -188,7 +188,7 @@ mod tests {
     fn swap_config_swap_load_delayed() {
         let mut app = App::default().run_headless(false);
 
-        let mut inner1 = TestConfig::default();
+        let mut inner1 = MemoryConfig::default();
         let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
         inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
@@ -200,7 +200,7 @@ mod tests {
 
         assert_eq!(32, cfg.get());
 
-        let mut inner2 = TestConfig::default();
+        let mut inner2 = MemoryConfig::default();
         let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
         app.update(false).assert_wait();
 
@@ -218,13 +218,13 @@ mod tests {
     fn swap_config_swap_fallback_delayed() {
         let mut app = App::default().run_headless(false);
 
-        let mut fallback = TestConfig::default();
+        let mut fallback = MemoryConfig::default();
         fallback
             .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true)
             .set(RawConfigValue::serialize(100).unwrap())
             .unwrap();
 
-        let mut inner1 = TestConfig::default();
+        let mut inner1 = MemoryConfig::default();
         let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
         inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
@@ -236,12 +236,12 @@ mod tests {
 
         assert_eq!(32, cfg.get());
 
-        let mut fallback = TestConfig::default();
+        let mut fallback = MemoryConfig::default();
         fallback
             .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true)
             .set(RawConfigValue::serialize(100).unwrap())
             .unwrap();
-        let mut inner2 = TestConfig::default();
+        let mut inner2 = MemoryConfig::default();
         let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
         app.update(false).assert_wait();
 
@@ -253,32 +253,5 @@ mod tests {
         inner_v2.set(RawConfigValue::serialize(42).unwrap()).unwrap();
         app.update(false).assert_wait();
         assert_eq!(42, cfg.get());
-    }
-
-    #[derive(Default)]
-    struct TestConfig(SwapConfig);
-
-    impl AnyConfig for TestConfig {
-        fn status(&self) -> BoxedVar<ConfigStatus> {
-            self.0.status()
-        }
-
-        fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _: bool) -> BoxedVar<RawConfigValue> {
-            self.0.get_raw(key, default, true)
-        }
-
-        fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
-            self.0.contains_key(key)
-        }
-
-        fn remove(&mut self, key: &ConfigKey) -> bool {
-            self.0.remove(key)
-        }
-    }
-
-    impl Config for TestConfig {
-        fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
-            self.0.get(key, default)
-        }
     }
 }

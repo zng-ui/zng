@@ -1,4 +1,7 @@
 * Fix Icon! background.
+
+* `swap_config_swap_fallback_delayed` issue.
+    - FallbackConfig `is_already_set` is `false`.
 * Test config reset.
     - Loses connection between two processes after some resets.
 

@@ -378,7 +378,7 @@ fn fallback_reset() {
     let key = CONFIG.get("key", || Txt::from_static("final-default"));
     assert_eq!("main", key.get());
 
-    CONFIG.load(NilConfig);
+    CONFIG.load(MemoryConfig::default());
     app.update(false).assert_wait();
 
     rmv_file_assert(&main_cfg);
