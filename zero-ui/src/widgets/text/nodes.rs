@@ -1013,9 +1013,20 @@ pub fn layout_text(child: impl UiNode) -> impl UiNode {
                 } else if let Some(args) = CLICK_EVENT.on(update) {
                     if let Some(pos) = args.position() {
                         if args.is_primary() {
-                            tracing::info!("TODO, set caret position, clicked {pos:?}");
-
-                            *caret_index = Some(0);
+                            if let Some(txt) = &txt.txt {
+                                let info = WIDGET.info();
+                                let scale_factor = info.tree().scale_factor().0;
+                                if let Some(pos) = info
+                                    .inner_transform()
+                                    .inverse()
+                                    .and_then(|t| t.transform_point(pos.to_px(scale_factor)))
+                                {
+                                    *caret_index = txt.shaped_text.nearest_insert_index(pos)
+                                }
+                            }
+                            if caret_index.is_none() {
+                                *caret_index = Some(0);
+                            }
                         }
                     }
                 }

@@ -895,7 +895,7 @@ impl ShapedText {
         }
     }
 
-    /// Gets the top-left origin for a caret visual that marks the `index` insertion point.
+    /// Gets the top-left origin for a caret visual that marks the insert `index` in the string.
     pub fn caret_origin(&self, index: usize) -> PxPoint {
         for line in self.lines() {
             for seg in line.segs() {
@@ -926,6 +926,13 @@ impl ShapedText {
         } else {
             PxPoint::zero()
         }
+    }
+
+    /// Gets the insert index in the string that is nearest to `point`.
+    pub fn nearest_insert_index(&self, point: PxPoint) -> Option<usize> {
+        let point = point.to_wr();
+        let (i, _) = self.glyphs.iter().enumerate().min_by_key(|(_, g)| (g.point.distance_to(point) * 5.0) as i32)?;
+        todo!()
     }
 }
 
