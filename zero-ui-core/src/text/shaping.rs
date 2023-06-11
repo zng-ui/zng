@@ -169,6 +169,14 @@ impl GlyphSegmentVec {
 
         IndexRange(start, end)
     }
+
+    fn segment_from_glyph(&self, index: usize) -> usize {
+        let r = self.0.iter().take_while(|s| s.end < index).count();
+        if self.0.len() > 0 && self.0[r].end <= index {
+            return self.0.len()
+        }
+        r
+    }
 }
 
 /// `Vec<LineRange>` with helper methods.
@@ -929,15 +937,20 @@ impl ShapedText {
     }
 
     /// Gets the insert index in the string that is nearest to `point`.
-    pub fn nearest_insert_index(&self, point: PxPoint) -> Option<usize> {
+    pub fn nearest_char_index(&self, point: PxPoint) -> Option<usize> {
         let point = point.to_wr();
-        let (_i, _) = self
+        let (glyph_i, _) = self
             .glyphs
             .iter()
             .enumerate()
             .min_by_key(|(_, g)| (g.point.distance_to(point) * 5.0) as i32)?;
-        // !!: TODO
-        None
+
+        // check glyph x+width/2 < point.x, in this case the char is the next or string len.
+
+        let seg_i = self.segments.segment_from_glyph(glyph_i);
+        let seg_char_i = if seg_i == 0 { 0 } else { self.segments.0[seg_i - 1].text.end };
+
+        Some(seg_char_i + self.clusters[glyph_i] as usize)
     }
 }
 
