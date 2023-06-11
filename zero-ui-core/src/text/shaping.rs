@@ -173,7 +173,7 @@ impl GlyphSegmentVec {
     fn segment_from_glyph(&self, index: usize) -> usize {
         let r = self.0.iter().take_while(|s| s.end < index).count();
         if !self.0.is_empty() && self.0[r].end <= index {
-            return self.0.len()
+            return self.0.len();
         }
         r
     }

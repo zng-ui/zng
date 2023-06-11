@@ -132,6 +132,10 @@ pub mod extensions;
 #[doc(inline)]
 pub use webrender;
 
+/// OpenGL bindings used by Webrender.
+#[doc(inline)]
+pub use gleam;
+
 use webrender::api::*;
 use window::Window;
 use zero_ui_view_api::{units::*, *};

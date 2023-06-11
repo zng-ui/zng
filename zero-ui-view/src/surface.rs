@@ -17,7 +17,8 @@ use zero_ui_view_api::{
 
 use crate::{
     extensions::{
-        BlobExtensionsImgHandler, DisplayListExtAdapter, RendererCommandArgs, RendererConfigArgs, RendererCreatedArgs, RendererExtension,
+        BlobExtensionsImgHandler, DisplayListExtAdapter, RendererCommandArgs, RendererConfigArgs, RendererDeinitedArgs, RendererExtension,
+        RendererInitedArgs,
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
@@ -123,12 +124,13 @@ impl Surface {
         let pipeline_id = webrender::api::PipelineId(gen.get(), id.get());
 
         renderer_exts.retain_mut(|(_, ext)| {
-            ext.renderer_created(&mut RendererCreatedArgs {
+            ext.renderer_inited(&mut RendererInitedArgs {
                 renderer: &mut renderer,
                 api_sender: &sender,
                 api: &mut api,
                 document_id,
                 pipeline_id,
+                gl: context.gl(),
             });
             !ext.is_config_only()
         });
@@ -410,5 +412,12 @@ impl Drop for Surface {
     fn drop(&mut self) {
         self.context.make_current();
         self.renderer.take().unwrap().deinit();
+        for (_, ext) in &mut self.renderer_exts {
+            ext.renderer_deinited(&mut RendererDeinitedArgs {
+                document_id: self.document_id,
+                pipeline_id: self.pipeline_id,
+                gl: self.context.gl(),
+            })
+        }
     }
 }

@@ -40,7 +40,12 @@ pub trait RendererExtension: Any {
     }
 
     /// Called just after the renderer is created.
-    fn renderer_created(&mut self, args: &mut RendererCreatedArgs) {
+    fn renderer_inited(&mut self, args: &mut RendererInitedArgs) {
+        let _ = args;
+    }
+
+    /// Called just before the renderer is destroyed.
+    fn renderer_deinited(&mut self, args: &mut RendererDeinitedArgs) {
         let _ = args;
     }
 
@@ -288,8 +293,8 @@ pub struct RendererConfigArgs<'a> {
     pub blobs: &'a mut Vec<Box<dyn BlobExtension>>,
 }
 
-/// Arguments for [`RendererExtension::renderer_created`].
-pub struct RendererCreatedArgs<'a> {
+/// Arguments for [`RendererExtension::renderer_inited`].
+pub struct RendererInitedArgs<'a> {
     /// The new renderer.
     pub renderer: &'a mut webrender::Renderer,
 
@@ -304,6 +309,26 @@ pub struct RendererCreatedArgs<'a> {
 
     /// The pipeline of the main content.
     pub pipeline_id: PipelineId,
+
+    /// OpenGL context used by the new renderer.
+    ///
+    /// The context is new and current, only Webrender and previous extensions have interacted with it.
+    pub gl: &'a std::rc::Rc<dyn gleam::gl::Gl>,
+}
+
+/// Arguments for [`RendererExtension::renderer_deinited`].
+pub struct RendererDeinitedArgs<'a> {
+    /// The document ID of the main content, already deinited.
+    pub document_id: DocumentId,
+
+    /// The pipeline of the main content, already deinited.
+    pub pipeline_id: PipelineId,
+
+    /// OpenGL context.
+    ///
+    /// The context is current and Webrender has already deinited, the context will be dropped
+    /// after all extensions handle deinit.
+    pub gl: &'a std::rc::Rc<dyn gleam::gl::Gl>,
 }
 
 /// Arguments for [`RendererExtension::command`].
@@ -465,7 +490,7 @@ impl RendererExtension for RendererDebugExt {
         }
     }
 
-    fn renderer_created(&mut self, args: &mut RendererCreatedArgs) {
+    fn renderer_inited(&mut self, args: &mut RendererInitedArgs) {
         if let Some(ui) = self.ui.take() {
             args.renderer.set_profiler_ui(&ui);
         }

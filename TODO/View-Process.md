@@ -14,7 +14,7 @@
 
 ## Platforms
 
-* OpenGL texture, for an in-game screen or VR.
+* OpenGL texture, in-game screen, multi-process tab apps.
 * Apple OS.
 * Android.
 * WebAssembly.
