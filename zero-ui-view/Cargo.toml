@@ -66,7 +66,7 @@ zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 webrender = { path = "../dependencies/webrender/webrender" }
 swgl = { path = "../dependencies/webrender/swgl", optional = true }
 tracing = "0.1"
-gleam = "0.13.1" # matches webrender
+gleam = "0.15.0" # matches webrender
 winit = { version = "0.28", default-features = false, features = ["x11", "wayland", "wayland-dlopen"] }
 glutin = "0.30"
 raw-window-handle = "0.5"
