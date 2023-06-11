@@ -24,8 +24,8 @@ use zero_ui_view_api::{Event, Key, KeyState, ScanCode};
 
 use crate::{
     extensions::{
-        BlobExtensionsImgHandler, DisplayListExtAdapter, RendererCommandArgs, RendererConfigArgs, RendererDeinitedArgs, RendererExtension,
-        RendererInitedArgs,
+        BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
+        RendererDeinitedArgs, RendererExtension, RendererInitedArgs,
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
@@ -268,7 +268,7 @@ impl Window {
                 api: &mut api,
                 document_id,
                 pipeline_id,
-                gl: context.gl(),
+                gl: &**context.gl(),
             });
             !ext.is_config_only()
         });
@@ -1057,6 +1057,7 @@ impl Window {
 
         let display_list = frame.display_list.to_webrender(
             &mut DisplayListExtAdapter {
+                frame_id: frame.id,
                 extensions: &mut self.renderer_exts,
                 transaction: &mut txn,
                 renderer: self.renderer.as_mut().unwrap(),
@@ -1106,6 +1107,7 @@ impl Window {
 
         let frame_scope = match self.display_list_cache.update(
             &mut DisplayListExtAdapter {
+                frame_id: self.frame_id(),
                 extensions: &mut self.renderer_exts,
                 transaction: &mut txn,
                 renderer: self.renderer.as_mut().unwrap(),
@@ -1151,6 +1153,15 @@ impl Window {
 
         let first_frame = self.waiting_first_frame;
 
+        let mut ext_args = FrameReadyArgs {
+            frame_id,
+            redraw: msg.composite_needed || self.waiting_first_frame,
+        };
+        for (_, ext) in &mut self.renderer_exts {
+            ext.frame_ready(&mut ext_args);
+            ext_args.redraw |= msg.composite_needed || self.waiting_first_frame;
+        }
+
         if self.waiting_first_frame {
             let _s = tracing::trace_span!("first-draw").entered();
             debug_assert!(msg.composite_needed);
@@ -1172,7 +1183,7 @@ impl Window {
                     self.set_focus_request(Some(r));
                 }
             }
-        } else if msg.composite_needed {
+        } else if ext_args.redraw || msg.composite_needed {
             self.window.request_redraw();
         }
 
@@ -1180,7 +1191,7 @@ impl Window {
 
         let image = if capture {
             let _s = tracing::trace_span!("capture_image").entered();
-            if msg.composite_needed {
+            if ext_args.redraw || msg.composite_needed {
                 self.redraw();
             }
             let renderer = self.renderer.as_mut().unwrap();
@@ -1201,12 +1212,22 @@ impl Window {
 
         self.context.make_current();
 
+        let scale_factor = self.scale_factor();
+        let size = self.window.inner_size().to_px();
+
         let renderer = self.renderer.as_mut().unwrap();
         renderer.update();
-        let s = self.window.inner_size();
 
-        let r = renderer.render(s.to_px().to_wr_device(), 0).unwrap();
+        let r = renderer.render(size.to_wr_device(), 0).unwrap();
         span.record("stats", &tracing::field::debug(&r.stats));
+
+        for (_, ext) in &mut self.renderer_exts {
+            ext.redraw(&mut RedrawArgs {
+                scale_factor,
+                size,
+                gl: &**self.context.gl(),
+            });
+        }
 
         let _ = renderer.flush_pipeline_info();
         self.context.swap_buffers();
@@ -1304,7 +1325,7 @@ impl Drop for Window {
             ext.renderer_deinited(&mut RendererDeinitedArgs {
                 document_id: self.document_id,
                 pipeline_id: self.pipeline_id,
-                gl: self.context.gl(),
+                gl: &**self.context.gl(),
             })
         }
     }

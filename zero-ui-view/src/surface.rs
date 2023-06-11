@@ -17,8 +17,8 @@ use zero_ui_view_api::{
 
 use crate::{
     extensions::{
-        BlobExtensionsImgHandler, DisplayListExtAdapter, RendererCommandArgs, RendererConfigArgs, RendererDeinitedArgs, RendererExtension,
-        RendererInitedArgs,
+        BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
+        RendererDeinitedArgs, RendererExtension, RendererInitedArgs,
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
@@ -130,7 +130,7 @@ impl Surface {
                 api: &mut api,
                 document_id,
                 pipeline_id,
-                gl: context.gl(),
+                gl: &**context.gl(),
             });
             !ext.is_config_only()
         });
@@ -260,6 +260,7 @@ impl Surface {
 
         let display_list = frame.display_list.to_webrender(
             &mut DisplayListExtAdapter {
+                frame_id: frame.id,
                 extensions: &mut self.renderer_exts,
                 transaction: &mut txn,
                 renderer: self.renderer.as_mut().unwrap(),
@@ -306,6 +307,7 @@ impl Surface {
 
         let frame_scope = match self.display_list_cache.update(
             &mut DisplayListExtAdapter {
+                frame_id: self.frame_id(),
                 extensions: &mut self.renderer_exts,
                 transaction: &mut txn,
                 renderer: self.renderer.as_mut().unwrap(),
@@ -350,15 +352,35 @@ impl Surface {
 
         let mut captured_data = None;
 
-        if msg.composite_needed || capture {
+        let mut ext_args = FrameReadyArgs {
+            frame_id,
+            redraw: msg.composite_needed || capture,
+        };
+        for (_, ext) in &mut self.renderer_exts {
+            ext.frame_ready(&mut ext_args);
+            ext_args.redraw |= msg.composite_needed || capture;
+        }
+
+        if ext_args.redraw || msg.composite_needed || capture {
             self.context.make_current();
             let renderer = self.renderer.as_mut().unwrap();
 
+            let size = self.size.to_px(self.scale_factor);
+
             if msg.composite_needed {
                 renderer.update();
-                renderer.render((self.size.to_px(self.scale_factor)).to_wr_device(), 0).unwrap();
+                renderer.render(size.to_wr_device(), 0).unwrap();
                 let _ = renderer.flush_pipeline_info();
             }
+
+            for (_, ext) in &mut self.renderer_exts {
+                ext.redraw(&mut RedrawArgs {
+                    scale_factor: self.scale_factor,
+                    size,
+                    gl: &**self.context.gl(),
+                });
+            }
+
             if capture {
                 captured_data = Some(images.frame_image_data(
                     renderer,
@@ -416,7 +438,7 @@ impl Drop for Surface {
             ext.renderer_deinited(&mut RendererDeinitedArgs {
                 document_id: self.document_id,
                 pipeline_id: self.pipeline_id,
-                gl: self.context.gl(),
+                gl: &**self.context.gl(),
             })
         }
     }

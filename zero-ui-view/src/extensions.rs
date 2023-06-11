@@ -9,6 +9,7 @@ use std::any::Any;
 
 use webrender::{DebugFlags, RenderApi};
 use zero_ui_view_api::{
+    units::PxSize,
     webrender_api::{
         AsyncBlobImageRasterizer, BlobImageHandler, BlobImageParams, BlobImageRequest, BlobImageResult, DocumentId, PipelineId,
     },
@@ -60,7 +61,7 @@ pub trait RendererExtension: Any {
         ApiExtensionPayload::unknown_extension(ApiExtensionId::INVALID)
     }
 
-    /// Called when a new frame is about to begin rendering.
+    /// Called when a new display list begins building.
     fn render_start(&mut self, args: &mut RenderArgs) {
         let _ = args;
     }
@@ -75,7 +76,9 @@ pub trait RendererExtension: Any {
         let _ = args;
     }
 
-    /// Called when a new frame just finished rendering.
+    /// Called when a new display list finishes building.
+    ///
+    /// The list will be send to the renderer for asynchronous rendering.
     fn render_end(&mut self, args: &mut RenderArgs) {
         let _ = args;
     }
@@ -84,10 +87,23 @@ pub trait RendererExtension: Any {
     fn render_update(&mut self, args: &mut RenderUpdateArgs) {
         let _ = args;
     }
+
+    /// Called when Webrender finishes rendering a frame and it is ready for redraw.
+    fn frame_ready(&mut self, args: &mut FrameReadyArgs) {
+        let _ = args;
+    }
+
+    /// Called every time the window or surface redraws, after Webrender has redraw.
+    fn redraw(&mut self, args: &mut RedrawArgs) {
+        let _ = args;
+    }
 }
 
 /// Arguments for [`RendererExtension::render_start`] and [`RendererExtension::render_end`].
 pub struct RenderArgs<'a> {
+    /// Id of the new frame.
+    pub frame_id: zero_ui_view_api::FrameId,
+
     /// The webrender display list.
     pub list: &'a mut zero_ui_view_api::webrender_api::DisplayListBuilder,
     /// Space and clip tracker.
@@ -154,6 +170,31 @@ pub struct RenderUpdateArgs<'a> {
     pub renderer: &'a mut webrender::Renderer,
     /// The window or surface render API.
     pub api: &'a mut RenderApi,
+}
+
+/// Arguments for [`RendererExtension::frame_ready`].
+pub struct FrameReadyArgs {
+    /// Frame that finished rendering and is ready to redraw.
+    pub frame_id: zero_ui_view_api::FrameId,
+    /// If a screen redraw is requested.
+    ///
+    /// This is `true` if Webrender requested recomposite after rendering the frame, or an
+    /// extension set it to `true`. Don't set this to `false`.
+    pub redraw: bool,
+}
+
+/// Arguments for [`RendererExtension::redraw`].
+pub struct RedrawArgs<'a> {
+    /// Scale factor of the screen or window.
+    pub scale_factor: f32,
+
+    /// Current size of the surface or window content.
+    pub size: PxSize,
+
+    /// OpenGL context used by the renderer.
+    ///
+    /// The context is  current, and Webrender has already redraw.
+    pub gl: &'a dyn gleam::gl::Gl,
 }
 
 /// Represents a Webrender blob handler that can coexist with other blob handlers on the same renderer.
@@ -313,7 +354,7 @@ pub struct RendererInitedArgs<'a> {
     /// OpenGL context used by the new renderer.
     ///
     /// The context is new and current, only Webrender and previous extensions have interacted with it.
-    pub gl: &'a std::rc::Rc<dyn gleam::gl::Gl>,
+    pub gl: &'a dyn gleam::gl::Gl,
 }
 
 /// Arguments for [`RendererExtension::renderer_deinited`].
@@ -328,7 +369,7 @@ pub struct RendererDeinitedArgs<'a> {
     ///
     /// The context is current and Webrender has already deinited, the context will be dropped
     /// after all extensions handle deinit.
-    pub gl: &'a std::rc::Rc<dyn gleam::gl::Gl>,
+    pub gl: &'a dyn gleam::gl::Gl,
 }
 
 /// Arguments for [`RendererExtension::command`].
@@ -520,12 +561,14 @@ pub(crate) struct DisplayListExtAdapter<'a> {
     pub transaction: &'a mut webrender::Transaction,
     pub renderer: &'a mut webrender::Renderer,
     pub api: &'a mut RenderApi,
+    pub frame_id: zero_ui_view_api::FrameId,
 }
 
 impl<'a> DisplayListExtension for DisplayListExtAdapter<'a> {
     fn display_list_start(&mut self, args: &mut zero_ui_view_api::DisplayExtensionArgs) {
         for (_, ext) in self.extensions.iter_mut() {
             ext.render_start(&mut RenderArgs {
+                frame_id: self.frame_id,
                 list: args.list,
                 sc: args.sc,
                 transaction: self.transaction,
@@ -574,6 +617,7 @@ impl<'a> DisplayListExtension for DisplayListExtAdapter<'a> {
     fn display_list_end(&mut self, args: &mut zero_ui_view_api::DisplayExtensionArgs) {
         for (_, ext) in self.extensions.iter_mut() {
             ext.render_end(&mut RenderArgs {
+                frame_id: self.frame_id,
                 list: args.list,
                 sc: args.sc,
                 transaction: self.transaction,
