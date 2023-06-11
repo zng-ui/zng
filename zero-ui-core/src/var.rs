@@ -1248,7 +1248,11 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// not the property instantiation. The `map` closure itself runs in the root app context, trying to read other context variables
     /// inside it will only read the default value.
     ///
+    /// Note that the output variable will update every time `self` does, you can use [`map_ne`] to only update when
+    /// the value actually changes.
+    ///
     /// [`map_bidi`]: Var::map_bidi
+    /// [`map_ne`]: Var::map_ne
     /// [contextualized]: types::ContextualizedVar
     fn map<O, M>(&self, map: M) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
     where
@@ -1264,6 +1268,25 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             let other = var(me.with(&mut *map.lock()));
             let map = map.clone();
             me.bind_map(&other, move |t| map.lock()(t)).perm();
+            other.read_only()
+        }))
+    }
+
+    /// Similar to [`Var::map`], but the returned variable only updates when `map` returns a different value.
+    fn map_ne<O, M>(&self, map: M) -> types::ContextualizedVar<O, ReadOnlyArcVar<O>>
+    where
+        O: VarValue + PartialEq,
+        M: FnMut(&T) -> O + Send + 'static,
+    {
+        #[cfg(dyn_closure)]
+        let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
+
+        let me = self.clone();
+        let map = Arc::new(Mutex::new(map));
+        types::ContextualizedVar::new(Arc::new(move || {
+            let other = var(me.with(&mut *map.lock()));
+            let map = map.clone();
+            me.bind_map_ne(&other, move |t| map.lock()(t)).perm();
             other.read_only()
         }))
     }
@@ -1481,6 +1504,26 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
         var_bind(self, other, move |value, _, other| {
             let _ = other.set(map(value));
+        })
+    }
+
+    /// Similar to [`bind_map`], but the `other` only updates when `map` returns a different value.
+    ///
+    /// [`bind_map`]: Self::bind_map
+    fn bind_map_ne<T2, V2, M>(&self, other: &V2, map: M) -> VarHandle
+    where
+        T2: VarValue + PartialEq,
+        V2: Var<T2>,
+        M: FnMut(&T) -> T2 + Send + 'static,
+    {
+        #[cfg(dyn_closure)]
+        let mut map: Box<dyn FnMut(&T) -> T2 + Send> = Box::new(map);
+
+        #[cfg(not(dyn_closure))]
+        let mut map = map;
+
+        var_bind(self, other, move |value, _, other| {
+            let _ = other.set_ne(map(value));
         })
     }
 

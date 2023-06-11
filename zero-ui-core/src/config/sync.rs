@@ -210,7 +210,7 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
     }
 
     fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
-        self.sync_var.map(move |q| q.contains_key(&key)).boxed()
+        self.sync_var.map_ne(move |q| q.contains_key(&key)).boxed()
     }
 
     fn status(&self) -> BoxedVar<ConfigStatus> {

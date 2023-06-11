@@ -1,9 +1,6 @@
 * Fix Icon! background.
-
-* `swap_config_swap_fallback_delayed` issue.
-    - FallbackConfig `is_already_set` is `false`.
-* Test config reset.
-    - Loses connection between two processes after some resets.
+* webrender 114.0.1
+    - https://github.com/servo/webrender/pull/4810/commits/285ed351fa5dd329cf389023b0c108858f2a336c
 
 # TextInput
 

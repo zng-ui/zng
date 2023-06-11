@@ -96,7 +96,8 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
             return res.boxed();
         }
 
-        let is_already_set = d.config.contains_key(key.clone()).get();
+        let cfg_contains_key_var = d.config.contains_key(key.clone());
+        let is_already_set = cfg_contains_key_var.get();
 
         let cfg_var = d.config.get_raw(key.clone(), default.clone(), shared);
 
@@ -107,6 +108,10 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
 
         // based on `Var::bind_bidi` code.
         let binding_tag = BindMapBidiTag::new_unique();
+
+        #[derive(Clone, Copy, Debug)]
+        struct ResetTag;
+
         // fallback->res binding can re-enable on reset.
         let fall_res_enabled = Arc::new(AtomicBool::new(!is_already_set));
 
@@ -162,10 +167,38 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
             })))
             .perm();
 
+        // bind cfg_contains_key_var to restore sync with fallback_var when cannot sync with cfg_var anymore.
+        let weak_fall_var = fall_var.downgrade();
+        let weak_res_var = res_var.downgrade();
+        cfg_contains_key_var
+            .hook(Box::new(clmv!(fall_res_enabled, |args| {
+                if let Some(res_var) = weak_res_var.upgrade() {
+                    // still alive
+                    let can_reset = args.downcast_value::<bool>().unwrap();
+                    if !can_reset && !fall_res_enabled.load(atomic::Ordering::Relaxed) {
+                        // cfg_var removed and we are sync with it.
+                        if let Some(fall_var) = weak_fall_var.upgrade() {
+                            // still alive, sync with fallback_var.
+                            let fall_value = fall_var.get();
+                            res_var.modify(move |vm| {
+                                vm.set(fall_value);
+                                vm.push_tag(ResetTag); // res_var will reset
+                            });
+                        } else {
+                            return false;
+                        }
+                    }
+                    true
+                } else {
+                    false
+                }
+            })))
+            .perm();
+
         // map res_var -> cfg_var, manages fallback binding.
         res_var
             .hook(Box::new(move |args| {
-                let _strong_ref = &fall_var;
+                let _strong_ref = (&fall_var, &cfg_contains_key_var);
 
                 let is_from_other = args.downcast_tags::<BindMapBidiTag>().any(|&b| b == binding_tag);
                 if !is_from_other {
@@ -175,6 +208,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                     if is_reset {
                         fall_res_enabled.store(true, atomic::Ordering::Relaxed);
                     } else {
+                        fall_res_enabled.store(false, atomic::Ordering::Relaxed);
                         let value = args.downcast_value::<RawConfigValue>().unwrap().clone();
                         let _ = cfg_var.modify(move |v| {
                             if v.as_ref() != &value {
@@ -238,31 +272,8 @@ impl<S: Config, F: Config> FallbackConfigData<S, F> {
 
         d.vars.retain(|_, v| v.retain());
 
-        if d.config.contains_key(key.clone()).get() {
-            // need to remove
-
-            if let Some(entry) = d.vars.get(key) {
-                if let Some(res) = entry.res.upgrade() {
-                    // fallback config var is active, set it to fallback without
-                    // propagating the value to d.config.
-
-                    let fallback_value = d
-                        .fallback
-                        .get_raw(key.clone(), RawConfigValue(serde_json::Value::Null), false)
-                        .get();
-
-                    res.modify(move |v| {
-                        v.set(fallback_value);
-                        v.push_tag(ResetTag);
-                    });
-                } else {
-                    d.vars.remove(key);
-                }
-            }
-            d.config.remove(key);
-        }
+        // Just remove, we already bind with `config.contains_key` and will
+        // reset when it changes to `false`.
+        d.config.remove(key);
     }
 }
-
-#[derive(Clone, Copy, Debug)]
-struct ResetTag;
