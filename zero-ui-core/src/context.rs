@@ -1270,6 +1270,12 @@ impl LAYOUT {
         last_segs: Arc<Vec<InlineSegmentPos>>,
         child: &mut impl UiNode,
     ) -> PxSize {
+        #[cfg(debug_assertions)]
+        if first.is_empty() != last.is_empty() {
+            // either we have no rows (both zero), or we have one row (both equal) or we have many (both not zero).
+            tracing::error!("invalid inline constrains, first.is_empty != last.is_empty");
+        }
+
         let constraints = InlineConstraints::Layout(InlineConstraintsLayout {
             first,
             mid_clear,

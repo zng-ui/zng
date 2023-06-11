@@ -1,5 +1,3 @@
-* Fix Icon! background.
-
 # TextInput
 
 * Fix emoji segmenting, example: "🙎🏻‍♀️"
@@ -35,3 +33,14 @@
 
 * Implement IME.
     - See https://github.com/rust-windowing/winit/issues/1497
+
+# View
+
+* `view` really needs to be a widget.
+    - In the icon example the view is not centered in the stack because
+      stack align does not work with non-widget nodes.
+
+# Extend-View
+
+* Implement OpenGL example.
+    - Overlay and texture image.

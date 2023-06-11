@@ -310,12 +310,13 @@ impl HeadedCtrl {
                         if self.icon_deadline.has_elapsed() {
                             UPDATES.layout_window(WINDOW.id());
                         } else {
+                            let window_id = WINDOW.id();
                             TIMERS
                                 .on_deadline(
                                     self.icon_deadline,
                                     app_hn_once!(ico, |_| {
                                         if ico.get().is_loading() {
-                                            UPDATES.layout_window(WINDOW.id());
+                                            UPDATES.layout_window(window_id);
                                         }
                                     }),
                                 )

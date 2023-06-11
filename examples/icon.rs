@@ -28,6 +28,7 @@ fn app_main() {
             });
             child = Scroll! {
                 mode = ScrollMode::VERTICAL;
+                child_align = Align::FILL;
                 child = icons();
             };
             // zero_ui::properties::inspector::show_hit_test = true;
@@ -37,6 +38,7 @@ fn app_main() {
 
 fn icons() -> impl UiNode {
     let selected_font = var("outlined");
+    let search = var(Txt::from_static(""));
     fn select_font(key: &'static str) -> impl UiNode {
         Toggle! {
             child = Text!(key);
@@ -75,11 +77,22 @@ fn icons() -> impl UiNode {
     }
     Stack! {
         direction = StackDirection::top_to_bottom();
-        padding = (20, 5, 5, 5);
-        spacing = 20;
+        padding = 5;
         children_align = Align::TOP;
         children = ui_vec![
+            TextInput! {
+                txt = search.clone();
+                margin = (15, 0, 0, 0);
+                padding = (7, 15, 7, 26);
+                min_width = 40.vh_pct();
+                foreground = Icon! {
+                    ico = icons::outlined::SEARCH;
+                    ico_size = 18;
+                    margin = (0, 0, 0, 6);
+                }
+            },
             Stack! {
+                margin = (10, 0, 20, 0);
                 direction = StackDirection::left_to_right();
                 toggle::selector = toggle::Selector::single(selected_font.clone());
                 spacing = 5;
@@ -91,18 +104,33 @@ fn icons() -> impl UiNode {
                     select_font("two_tone"),
                 ]
             },
-            view(selected_font, hn!(|a: &ViewArgs<&'static str>| {
-                if let Some(f) = a.get_new() {
-                    a.set_view(match f {
-                        "filled" => show_font(icons::filled::all()),
-                        "outlined" => show_font(icons::outlined::all()),
-                        "rounded" => show_font(icons::rounded::all()),
-                        "sharp" => show_font(icons::sharp::all()),
-                        "two_tone" => show_font(icons::two_tone::all()),
+            Container!(view(merge_var!(selected_font, search, |f, s| (*f, s.clone())), hn!(|a: &ViewArgs<(&'static str, Txt)>| {
+                if let Some((f, s)) = a.get_new() {
+                    let mut f = match f {
+                        "filled" => icons::filled::all(),
+                        "outlined" => icons::outlined::all(),
+                        "rounded" => icons::rounded::all(),
+                        "sharp" => icons::sharp::all(),
+                        "two_tone" => icons::two_tone::all(),
                         _ => unreachable!(),
-                    });
+                    };
+                    if !s.is_empty() {
+                        let s = s.to_uppercase();
+                        f.retain(|f| {
+                            f.name.contains(&s) ||
+                            f.display_name().to_uppercase().contains(&s)
+                        });
+                    }
+                    if f.is_empty() {
+                        a.set_view(Text! {
+                            txt = formatx!("no icons found for '{s}'");
+                            margin = (10, 0, 0, 0);
+                        })
+                    } else {
+                        a.set_view(show_font(f));
+                    }
                 }
-            })),
+            }))),
         ]
     }
 }

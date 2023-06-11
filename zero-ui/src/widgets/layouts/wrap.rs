@@ -311,65 +311,57 @@ impl InlineLayout {
             return known;
         }
 
+        let max_x = constraints.x.max().unwrap_or(Px::MAX).max(child_size.width);
+
         if let Some(inline) = wm.inline() {
             let inline_constraints = metrics.inline_constraints().unwrap().measure();
 
             inline.first_wrapped = inline_constraints.first_max < child_size.width;
 
-            let mut children_len = Px(children_len as i32);
-
+            let mut first_max_x = max_x;
             if !inline.first_wrapped {
-                // first row
-                let max_x = inline_constraints.first_max;
+                first_max_x = inline_constraints.first_max;
+            }
+
+            inline.first.height = child_size.height.max(inline_constraints.mid_clear_min);
+
+            let column_len = (first_max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
+            inline.first.width = (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width;
+
+            let children_len = Px(children_len as _) - column_len;
+            inline.last_wrapped = children_len.0 > 0;
+
+            let mut size = inline.first;
+
+            if inline.last_wrapped {
                 let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
 
-                children_len -= column_len; // remove first row
+                size.width = size
+                    .width
+                    .max((column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width);
 
-                inline.first.width = (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width;
-                inline.first.height = child_size.height.max(inline_constraints.mid_clear_min);
-            }
-
-            let max_x = constraints.x.max().unwrap_or(Px::MAX).max(child_size.width);
-            let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
-            let mut row_len = (children_len / column_len).max(Px(1));
-
-            if column_len * row_len < children_len {
-                row_len.0 += 1;
-                debug_assert!(column_len * row_len >= children_len);
-            }
-
-            // spacing in between items means space available to divide for pairs (width+space) has 1 less item.
-            let mut desired_size = PxSize::new(
-                (column_len - Px(1)) * (child_size.width + spacing.column) + child_size.width,
-                (row_len - Px(1)) * (child_size.height + spacing.row) + child_size.height,
-            );
-            if !inline.first_wrapped {
-                // first row already taken from `children_len` and `row_len`.
-                desired_size.height += inline.first.height;
-                if children_len.0 > 0 {
-                    desired_size.height += spacing.row;
+                let mid_len = children_len / column_len;
+                if mid_len.0 > 0 {
+                    size.height += (spacing.row + child_size.height) * mid_len;
                 }
-            }
 
-            inline.last_wrapped = row_len.0 > 1;
-            if inline.last_wrapped {
                 let last_len = children_len % column_len;
+                inline.last.height = child_size.height;
                 if last_len.0 > 0 {
                     inline.last.width = (last_len - Px(1)) * (child_size.width + spacing.column) + child_size.width;
+
+                    size.height += spacing.row + child_size.height;
                 } else {
-                    inline.last.width = desired_size.width;
+                    inline.last.width = max_x;
                 }
-                inline.last.height = child_size.height;
+            } else {
+                inline.last = inline.first;
             }
 
-            if inline.first_wrapped {
-                inline.first.width = desired_size.width;
-                inline.first.height = child_size.height;
-            }
+            debug_assert_eq!(inline.first.is_empty(), inline.last.is_empty());
 
-            constraints.clamp_size(desired_size)
+            size
         } else {
-            let max_x = constraints.x.max().unwrap_or(Px::MAX).max(child_size.width);
             let column_len = (max_x - child_size.width) / (child_size.width + spacing.column) + Px(1);
             let row_len = (Px(children_len as i32) / column_len).max(Px(1));
 

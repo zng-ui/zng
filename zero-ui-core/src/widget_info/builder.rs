@@ -368,9 +368,13 @@ pub struct WidgetInlineMeasure {
     ///
     /// In left-to-right direction the origin is `bottom_left - last.height`, in right-to-left direction
     /// the origin is `bottom_right - last`.
+    ///
+    /// Must be equal to `first` if did not wrap.
+    ///
+    /// Must not be empty if first is not empty, that is, must not wrap if the last item can fit in the previous row.
     pub last: PxSize,
 
-    /// Indicates that `last` starts in the next row, not in the same row as the first.
+    /// Indicates that `last` starts in a next row, not in the same row as the first.
     pub last_wrapped: bool,
 
     /// Inline segments in the last row.
@@ -762,6 +766,22 @@ impl WidgetMeasure {
                 // widget did not handle inline
                 bounds.set_measure_inline(None);
             } else {
+                #[cfg(debug_assertions)]
+                {
+                    if !inline.last_wrapped {
+                        if inline.first != inline.last {
+                            tracing::error!(
+                                "widget {:?} invalid inline measure, last {:?} != first {:?} but last did not wrap",
+                                WIDGET.id(),
+                                inline.last,
+                                inline.first
+                            );
+                        }
+                    } else if inline.first.is_empty() != inline.last.is_empty() {
+                        // either we have no rows (both zero), or we have one row (both equal) or we have many (both not zero).
+                        tracing::error!("widget {:?} invalid inline measure, first.is_empty != last.is_empty", WIDGET.id());
+                    }
+                }
                 bounds.set_measure_inline(Some(inline));
             }
         } else {
